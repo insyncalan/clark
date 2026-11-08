@@ -553,9 +553,12 @@ def _do_export(store, who, req, today, chosen, roots):
         raise Refused(CHOOSE_FOLDER + ".", 409, "needs_folder")
     if not _outside_data(local, Path(store.path).parent):
         raise Refused(FOLDER_DATA, 400, "folder_data")
+    saved = row.get("publish_client")
+    if saved and not want_client and publish_flow.folder_inside(None, local, saved):     # #619: the web publish's rule and words
+                                                                  # (with To client on, to_client.preflight below refuses it)
+        raise Refused(publish_flow.SAME_FOLDER + " Nothing was saved.", 409, "same_folder")
     client = None
     if want_client:
-        saved = row.get("publish_client")
         if not saved:
             raise Refused(NO_CLIENT_FOLDER, 400, "no_client_folder")
         checked = to_client.preflight(_ReadFs(), saved, data_dir=str(Path(store.path).parent), onedrive_roots=roots,

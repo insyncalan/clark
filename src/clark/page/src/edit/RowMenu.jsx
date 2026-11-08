@@ -203,7 +203,7 @@ function Panel({ s }) {
       return readDraftEmail(code, draftRequest(row.id)).then((r) => {
         if (!r.ok) { say("note", r.message); refocus(row.id); return; }
         if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from };
+        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, person: typeof row.owner_id === "string" ? row.owner_id : "" };
       });
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
@@ -314,7 +314,7 @@ function DraftHost({ d }) {
   };
   return (
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
+      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry, { person: d.person, tone: d.draft ? d.draft.tone : null, reply_by: d.state ? d.state.replyBy : "" }) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
     </div>
   );
 }

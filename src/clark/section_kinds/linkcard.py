@@ -4,27 +4,33 @@ rule is Documents and links' (doclinks.py). See base.py.
 
 The stored content (canonical JSON, checked field by field; anything else is refused):
 
-    {"v": 1, "href": LINK, "title": TEXT, "site": TEXT, "text": [LINE, ...]}
+    {"v": 1, "href": LINK, "title": TEXT, "site": TEXT, "text": [LINE, ...], "html": HTML}
 
 `href` an https:// or mailto: link; `title` the card's heading (at most LABEL_MAX characters; '' shows the link); `site` the
-small line above it, such as the site's name ('' leaves it out); `text` at most TEXT_LINES lines of at most LINE_MAX characters.
+small line above it, such as the site's name ('' leaves it out); `text` at most TEXT_LINES lines of at most LINE_MAX characters (what older clarks wrote: still read, and shown when there is
+no `html`); `html` the words as the one editor writes them, kept through sanitise.clean_html (at most HTML_MAX characters once
+cleaned; '' for none). The editor saves `html` and empties `text`.
 Published: those fields, picked by name; nothing until there is a link.
 """
 from clark.section_kinds import doclinks as files
 
 READY = True
-LIMIT = 8192
+LIMIT = 16384
 EMPTY = ""
 TEXT_LINES = 3
 LINE_MAX = 400
+HTML_MAX = TEXT_LINES * LINE_MAX
 BAD_TEXT = f"The words on the card can be {TEXT_LINES} paragraphs of {LINE_MAX} characters at most. Shorten them and try again."
 
 
 def check(value, rules):
-    value = files.fields(value, ("v", "href", "title", "site", "text"), ("v",))
+    value = files.fields(value, ("v", "href", "title", "site", "text", "html"), ("v",))
     files.version(value)
     out = {"v": 1, "title": files.words(value.get("title", ""), rules), "site": files.words(value.get("site", ""), rules),
            "text": files.paragraphs(value.get("text", []), rules, TEXT_LINES, LINE_MAX, BAD_TEXT)}
+    html = files.rich(value.get("html"), rules, HTML_MAX, BAD_TEXT)
+    if html:
+        out["html"] = html
     if value.get("href") not in (None, ""):
         out["href"] = files.link(value["href"])
     return out
@@ -36,4 +42,4 @@ def published(value, ctx):
     if not href:
         return None
     return {"content": {"href": href, "title": value.get("title", ""), "site": value.get("site", ""),
-                        "text": list(value.get("text") or [])}}
+                        "text": list(value.get("text") or []), **({"html": value["html"]} if value.get("html") else {})}}

@@ -43,7 +43,7 @@ class Fake:
         self.mode = "ok"
         self.release = threading.Event()
 
-    def __call__(self, code):
+    def __call__(self, code, archived=None):
         if self.mode == "keyerror":
             raise KeyError("secret/path/name")
         if self.mode == "none":
@@ -173,7 +173,9 @@ class Words(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
-            cdp.js("document.querySelector('[data-view=settings]').click()", sid)
+            cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
+            cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
@@ -263,7 +265,7 @@ class Words(unittest.TestCase):
     def test_the_empty_pages_say_why_and_name_one_control(self):
         empty = {"project": {"code": "EMP", "name": "Empty Project"}, "milestones": [], "workstreams": [], "actions": [], "raid": [],
                  "decisions": [], "use_cases": [], "links": [], "labels": {}, "report_sections": []}
-        s = Running(data_for=lambda code: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         want = {"#dashboard&p=EMP": "This report has no sections yet. Switch to Edit to add one.",
                 "#work&p=EMP": "This project has no work items yet. Use Add item to add the first.",
