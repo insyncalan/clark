@@ -42,7 +42,7 @@ class SingleLoad(unittest.TestCase):
         with chrome() as cdp:
             br = self.show(cdp, "#dashboard&p=THREE", "Project Three")
             self.assertEqual(self.seen, [None], "the page was served once: no GET /?project=THREE")
-            self.assertEqual(br.js("location.search"), "")
+            self.assertEqual(br.js("location.search"), "?project=THREE", "the address names the project as the reload left it, set in place")
             self.assertEqual(br.js("document.querySelectorAll('style#brand-local').length"), 0)
 
     def test_a_brand_of_its_own_still_gets_its_own_page(self):
