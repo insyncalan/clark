@@ -236,6 +236,25 @@ class Menu(board.Base):
             self.assertEqual(ring[:2], ["solid", "2px"], ring)
             self.assertNotEqual(ring[2], "rgba(0, 0, 0, 0)")
 
+    def test_item_977_the_entry_words_are_plain_not_the_browsers_bold_in_the_menu_and_in_the_list_beside_it(self):
+        """Item 977: every entry's words (the <b> in each entry) draw at regular weight. The control is a <b> outside the menu, which the browser
+        draws bold, so the test fails if the rule goes (the entries turn bold) and fails if the probe stops reading weights (the control is not bold)."""
+        weights = "[...document.querySelectorAll('%s')].map(b => getComputedStyle(b).fontWeight)"
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            control = cdp.js("(() => { const b = document.body.appendChild(document.createElement('b')); const w = getComputedStyle(b).fontWeight; b.remove(); return w; })()", sid)
+            self.assertIn(control, ("700", "bold"), "the control: a plain <b> is bold, so a weight of 400 below is the rule's doing")
+            got = cdp.js(weights % ".rowmenu [role=menuitem] .rm-t b", sid)
+            self.assertEqual(len(got), 10, "every entry of the menu was read")
+            self.assertEqual(set(got), {"400"}, "the menu's entries are regular weight")
+            cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
+            listed = cdp.js(weights % ".rowmenu .rm-fly [role=menuitem] .rm-t b", sid)
+            self.assertTrue(listed, "the list's entries were read")
+            self.assertEqual(set(listed), {"400"}, "the list's entries are regular weight")
+
     def test_row_978_every_entry_has_an_icon_from_the_existing_set_before_its_words_16px_muted_and_taking_the_entry_colour_on_hover(self):
         """Row 978: each entry of the menu has an icon (the page's own set, named here) before its words, 16 px, in the muted text colour at rest,
         and in the entry's own colour under the pointer. The list beside an entry (statuses, dates, names) has none."""
@@ -265,6 +284,43 @@ class Menu(board.Base):
             cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
             self.assertEqual(cdp.js("document.querySelectorAll('.rowmenu .rm-fly svg').length", sid), 0, "the list has no icons")
+
+    def test_row_979_a_mouse_open_shows_no_ring_on_the_first_entry_even_after_a_key_was_pressed_and_a_key_brings_it_back(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            key(cdp, sid, "Home")                       # the page's last input was the keyboard: :focus-visible would show on the first entry
+            self.open_menu(cdp, sid, self.TABLE % a)
+            self.until(cdp, sid, "document.getAnimations().length === 0", "the menu to finish opening")
+            self.assertEqual(cdp.js("document.querySelector('.rowmenu > .ddmenu').dataset.pointer", sid), "1", "marked as a mouse open")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "the first entry has the focus")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 1390, "y": 5}, sid)      # the menu opens under the pointer: move off it, so the first entry is not the hovered one
+            self.until(cdp, sid, "!document.activeElement.matches(':hover')", "the pointer is off the first entry")
+            ring = cdp.js("(() => { const c = getComputedStyle(document.activeElement); return [c.outlineStyle, c.backgroundColor]; })()", sid)
+            self.assertEqual(ring, ["none", "rgba(0, 0, 0, 0)"], "no ring and no tint on the first entry")
+            key(cdp, sid, "ArrowDown")                  # a key is used: the ring is back, on the entry the key moved to
+            self.until(cdp, sid, "document.getAnimations().length === 0", "the ring to finish")
+            self.assertEqual(cdp.js("document.querySelector('.rowmenu > .ddmenu').dataset.pointer || ''", sid), "", "the mark goes with the first key")
+            self.assertEqual(cdp.js("getComputedStyle(document.activeElement).outlineStyle", sid), "solid", "the key brought the ring back")
+
+    def test_row_979_the_menu_and_its_list_fade_without_the_drop_and_are_still_when_reduced_and_a_pass_over_entries_mounts_one_list(self):
+        for reduce in (False, True):
+            with self.subTest(reduce=reduce), chrome() as cdp:
+                sid = self.visit(cdp)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce" if reduce else "no-preference"}]}, sid)
+                a = self.id_of("Order the laptops")
+                name = "(el => getComputedStyle(document.querySelector(el)).animationName)"
+                self.open_menu(cdp, sid, self.TABLE % a)
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the menu to finish opening")
+                want = "none" if reduce else "m-in"
+                self.assertEqual(cdp.js(name + "('.rowmenu > .ddmenu')", sid), want, "the row menu: a fade, not the 4 px drop (m-drop)")
+                cdp.js("window.mounted = []; new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => { if (n.classList && n.classList.contains('rm-fly')) window.mounted.push(n.getAttribute('aria-label')); }))).observe(document.querySelector('.rowmenu'), {childList: true, subtree: true});", sid)
+                cdp.js("['status', 'due', 'owner'].forEach((rm) => document.querySelector('.rowmenu > .ddmenu [data-rm=' + rm + ']').dispatchEvent(new PointerEvent('pointerenter', {pointerType: 'mouse'})))", sid)
+                self.assertEqual(cdp.js("document.querySelectorAll('.rowmenu .rm-fly').length", sid), 0, "no list while the pointer only passes over the entries")
+                self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list after the pointer rests")
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.assertEqual(cdp.js("window.mounted", sid), ["Change owner"], "one list was mounted, for the entry the pointer rested on")
+                self.assertEqual(cdp.js(name + "('.rowmenu .rm-fly')", sid), want, "the list: a fade, not the drop")
 
     def test_while_rows_are_selected_the_menu_stands_down_and_leaves_the_event_alone(self):
         """The Head's ruling: the selection wins. The multi-select menu (#196) owns the right click, Shift+F10 and the Menu key."""
