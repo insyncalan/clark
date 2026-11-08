@@ -375,14 +375,6 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-name small { display: block; }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
-@media (max-width: 640px) {      /* the use case list on a phone: the number and the name on a line, the status and the work items under the name, no header row */
-  .ucl-hd { display: none; }
-  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 36px; gap: 6px 10px; align-items: start; }
-  .ucl-row > .ucl-name { grid-column: 2; }
-  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; }
-  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2 / -1; }
-  .ucl-wi small { display: inline; margin-left: 6px; }
-}
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
@@ -1044,5 +1036,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2; justify-self: start; }
   .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1 / span 3; align-self: start; justify-self: end; }
   .ucl-row > .ucl-ref { grid-row: 1; }
-  .ucl-hd { display: none; }
+  .ucl-wi small { display: inline; margin-left: 6px; }
+  .ucl-hd { display: none; }   /* no header row on a phone: each row names its own parts */
 }
