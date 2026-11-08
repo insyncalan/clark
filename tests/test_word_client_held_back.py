@@ -6,8 +6,7 @@ the file's own text (word_route._held_back, with the same markers) before it wri
 
 Case b: a risk whose working note (response_action, one of publish_flow.NOTE_FIELDS) is also pasted into its client-visible
 description; markers_for lists every row's note, so the web publish and the Word export both refuse.
-Cases c and d (#619): a left-out row's text, and a hidden section's text, pasted into a visible row. Neither route refuses them yet; their
-refusal checks are expectedFailure until the Head rules on what the check should read.
+Cases c and d (#619): a left-out row's text, and a hidden section's text, pasted into a visible row. Both routes refuse them.
 
 Fictional data only: the demo store's project ABC, a few rows, a client folder and Local folders in a temporary folder.
 Run: python3 dev/run_tests.py test_word_client_held_back
@@ -208,8 +207,7 @@ SECTION_TEXT = "Our fallback is to drop the second vendor if pricing slips"
 
 class LeftOutTextPasted(Cases, unittest.TestCase):
     """#619 case c: the main text of a row left out of the client's view (client flag off), pasted into a client-visible row.
-    markers_for exempts a left-out text that is also kept text (the same words in a kept row), so neither route refuses it.
-    RED until the Head rules on that exemption (see the expectedFailure marks)."""
+    markers_for exempts a left-out text only when a kept value is exactly those words, so pasted inside other text it is refused."""
     leak, absent = LEFT_OUT_TEXT, ()
 
     def plant(self):
@@ -234,14 +232,16 @@ class HiddenSectionTextPasted(Cases, unittest.TestCase):
         self.demo.action(description=self.visible, client_visible=1)
 
 
-# Both classes fail today on every refusal check; the tests that hold already (the Local copy still saves) pass. The refusal
-# checks are marked expectedFailure so the suite stays green until the design is decided; remove the marks with the fix.
-for _cls in (LeftOutTextPasted, HiddenSectionTextPasted):
-    for _name in ("test_a_web_publish_to_the_client_refuses_it", "test_the_word_client_copy_refuses_it",
-                  "test_the_word_refusal_names_the_item_to_look_at_as_the_web_publish_does",
-                  "test_the_refusal_writes_nothing_in_either_folder"):
-        setattr(_cls, _name, unittest.expectedFailure(lambda self, _n=_name: getattr(Cases, _n)(self)))      # a copy: the function is shared with the other cases
-del _cls, _name                  # or the loader finds the last class twice
+class LeftOutTextSameAsKept(Setup, unittest.TestCase):
+    """#619: a left-out row whose text is exactly a kept row's text (nothing around it) is not a leak: both copies still save."""
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
 
 
 if __name__ == "__main__":
