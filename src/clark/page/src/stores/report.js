@@ -462,7 +462,9 @@ export async function loadProjects() {
   }
 }
 
+let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
+  const first = firstLoad; firstLoad = false;
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
@@ -475,7 +477,7 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
-    if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
+    if (first && !(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
     data.value = body.data;
     status.value = "ready";
     settle();
