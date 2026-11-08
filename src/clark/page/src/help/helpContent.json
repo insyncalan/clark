@@ -55,7 +55,7 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make."
    },
    {
     "t": "Pick a project",
@@ -766,7 +766,7 @@
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
-     "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
+     "Your full name goes on every change you make, in each item’s history."
     ],
     "page": [
      "settings#profile"
@@ -886,7 +886,7 @@
       [
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
-       "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
+       "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
      [
