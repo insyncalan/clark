@@ -206,7 +206,6 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
    other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
    do not change with the density. */
 :root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; }
-html[data-density="comfortable"] { --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
 table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
@@ -459,7 +458,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
 :root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
