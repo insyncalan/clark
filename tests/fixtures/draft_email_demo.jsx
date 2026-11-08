@@ -8,6 +8,12 @@ import { DraftEmail } from "@src/components/DraftEmail.jsx";
 const T = { logic, changed: [], sent: [], closed: 0, clips: [], refuse: false, reply: undefined };
 window.T = T;
 
+T.mountScrim = (items, state, draft, today) => {
+  document.getElementById("root").innerHTML = '<div class="ad-scrim"><div id="de"></div></div>';
+  render(<DraftEmail items={items} state={state} draft={draft} today={today} clip={() => Promise.resolve()}
+    onChange={() => {}} onSent={() => {}} onClose={() => {}} />, document.getElementById("de"));
+};
+
 T.mountEditor = (items, state, draft, today) => {
   const root = document.getElementById("root");
   root.innerHTML = '<div id="de" style="padding:16px"></div>';
