@@ -37,13 +37,15 @@ def _plain_path(text):
 
 class Setup:
     def __init__(self, folder, home=None, on=None, choose_folder=None, onedrive_roots=None, pointer=None, checks=None,
-                 environ=None):
+                 environ=None, prompt=None, finish=None):
         self.folder, self.home, self.on = Path(folder), home, on
         self.choose_folder = choose_folder or platform.choose_folder
         self.onedrive_roots, self.environ = onedrive_roots, environ
         self.pointer = pointer or (lambda: Path(platform.data_dir(home, on=on)).parent / POINTER_NAME)
         self.checks = doctor.CHECKS if checks is None else checks
+        self.prompt, self._finish = prompt, finish      # the folder window's words (the owner's; None: the folder route is not wired) and the update helper's finish
         self._dialog = threading.Lock()                 # one folder window at a time
+        self._finishing = threading.Lock()              # one finish at a time
 
     def seen(self, folder=None):
         extra = {"onedrive_roots": self.onedrive_roots} if self.onedrive_roots else {}
@@ -104,3 +106,44 @@ class Setup:
             return self.accept(text.strip())
         except Refused:
             return None
+
+    # What the server's setup routes ask for (server.py SetupHandler). Each answers (status, body); None means "not wired" (404).
+    def api_checks(self):
+        return 200, self.report()
+
+    def api_folder(self):
+        if not self.prompt:
+            return None
+        try:
+            report = self.choose(self.prompt)
+        except Refused as e:
+            if e.code == "busy":
+                return 409, _busy()
+            return 409, {"ok": False, "code": e.code, "message": e.words}
+        except platform.PlatformError as e:                 # NotBuiltYet is one too; the system's own text is never in it
+            return 409, {"ok": False, "code": "dialog_failed", "message": str(e)}
+        if report is None:
+            return 200, {"ok": True, "chosen": False}
+        return 200, dict(report, chosen=True)
+
+    def api_finish(self):
+        if self._finish is None:
+            return None
+        if not self._finishing.acquire(blocking=False):
+            return 409, _busy()
+        try:
+            finished, words = self._finish()
+        finally:
+            self._finishing.release()
+        return 200, {"ok": True, "finished": bool(finished), "words": list(words)}
+
+    def api_done(self):
+        """Every check again, now. Nothing the page said is trusted."""
+        report = self.report()
+        if not report["ready"]:
+            return 409, {"ok": False, "code": "not_ready", "ready": False, "checks": report["checks"]}
+        return 200, {"ok": True, "restart": True}
+
+
+def _busy():
+    return {"ok": False, "code": "busy", "message": platform.TRY_AGAIN}        # existing words: a second try is the right thing
