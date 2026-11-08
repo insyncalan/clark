@@ -65,6 +65,8 @@ FAMILIES = {
     "short sk key": "s" + "k-" + "abc123def456",
     "sk key, 16 mixed": "s" + "k-" + "Ab12Cd34Ef56ghij",
     "sk key, 28 mixed": "s" + "k-" + "Ab12Cd34Ef56Gh78Ij90Kl12Mn34",
+    "bare mixed run, 26": "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd",
+    "bare mixed run, 31 in a sentence": "here is aB3xK9qW2zR7lM4pT8vN1cY5hD6jF0g ok",
     "short api key": "api_" + "key=" + "abc123",
     "short api key, colon": "api_" + "key: " + "x9y8z7q",
     "short api key, quoted": "api_" + 'key = "ab12cd"',

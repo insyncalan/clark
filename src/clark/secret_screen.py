@@ -235,7 +235,7 @@ def _loose(text):
     """The long-run guess, narrower than the question screen's (that one is for a short question; here a hit drops a whole file):
     a long mixed run with the look of a random key (the class of character changes often), not a word-joined name, not an
     address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
-    for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
+    for m in re.finditer(r"[A-Za-z0-9+/_=-]{25,}", text):
         run = m.group()
         if not _random_look(run):
             continue
