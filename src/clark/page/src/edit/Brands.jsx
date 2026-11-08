@@ -33,7 +33,8 @@ export function Brands({ api = REAL }) {
     setArmed(null);
     const r = await api.review(from);
     setBusy(false);
-    if (ok(r) && r.body.cancelled) { setMsg({ kind: "info", text: L.CANCELLED }); return; }
+    // The server answers {ok: true, review: null} when no file was chosen (Cancel in the dialog, or nothing in Downloads).
+    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: L.CANCELLED }); return; }
     if (ok(r) && r.body.review) {
       setPanel({ id: text(r.body.review.review_id), view: L.reviewView(r.body.review, state.view ? state.view.brands : []) });
       return;
@@ -92,7 +93,7 @@ export function Brands({ api = REAL }) {
           {panel.view.lists.map(([label, names]) => names.length ? (
             <div key={label}>
               <p><b>{label}</b></p>
-              <ul class="plain">{names.map((n) => <li key={n}>{n}</li>)}</ul>
+              <ul class="plain">{names.map((n) => { const w = L.fileWords(n); return <li key={n}>{w.label}{w.file ? <> <small class="brand-file">{w.file}</small></> : null}</li>; })}</ul>
             </div>
           ) : null)}
           <div class="row">

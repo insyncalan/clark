@@ -994,3 +994,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .fhints.on { visibility: visible; }
 /* row 988: with many lines the chart box is bounded and scrolls inside itself, so its sticky header row stays in view. Edit.css only: shell.css is the published page's. (.gt-full sets its own, tighter bound.) */
 .gt-gx { max-height: 70vh; }
+
+/* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
+.brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }

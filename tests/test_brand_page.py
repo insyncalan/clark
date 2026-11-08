@@ -57,7 +57,7 @@ class Page(InBrowser):
         self.assertEqual(self.calls(), ["list", "review"], "nothing is installed by the first click")
         self.assertEqual(self.val("T.calls[1][1]"), {"from": "downloads"})
         panel = self.text("#brands-panel")
-        for line in ("Other Brand", "2.0.0", "tokens.css", "assets/cover.png"):
+        for line in ("Other Brand", "2.0.0", "Colours and fonts", "tokens.css", "Cover picture", "assets/cover.png"):
             self.assertIn(line, panel)
         self.assertEqual(self.text("[data-install]"), "Install")
         self.click("[data-install]")
@@ -71,6 +71,34 @@ class Page(InBrowser):
         self.click("[data-review]")
         self.assertEqual(self.text("[data-install]"), "Replace")
         self.assertIn("assets/old.png", self.text("#brands-panel"))
+
+    def test_review_labels_come_first_and_the_file_name_is_small_and_grey_after(self):
+        self.replies(review=OK({"ok": True, "review": {**REVIEW, "added": ["clark-brand.json", "tokens.css", "assets/cover.png", "assets/logo.png"]}}))
+        self.mount()
+        self.click("[data-review]")
+        items = self.val("[...document.querySelectorAll('#brands-panel li')].map(e => [e.firstChild.textContent.trim(), e.querySelector('small').textContent])")
+        self.assertEqual(items, [["Brand details", "clark-brand.json"], ["Colours and fonts", "tokens.css"],
+                                 ["Cover picture", "assets/cover.png"], ["Logo", "assets/logo.png"]])
+        self.assertTrue(self.val("parseFloat(getComputedStyle(document.querySelector('#brands-panel small')).fontSize)"
+                                 " < parseFloat(getComputedStyle(document.querySelector('#brands-panel li')).fontSize)"))
+
+    def test_no_file_chosen_is_the_servers_real_answer_and_a_calm_sentence_not_an_error(self):
+        from _brand_rig import make_dirs
+        from clark import server as sv
+        root, data, scratch = make_dirs(self)
+        (scratch / "Downloads").mkdir()
+        lib = sv.BrandLibrary(root, data, choose=lambda *a, **k: None, downloads=scratch / "Downloads")
+        for source in ("file", "downloads"):
+            self.assertEqual(lib.review({"from": source}), (200, {"ok": True, "review": None}))
+        real = lib.review({"from": "file"})[1]
+        for source in ("file", "downloads"):
+            with self.subTest(source):
+                self.replies(review=OK(real))
+                self.mount()
+                self.click("[data-choose]" if source == "file" else "[data-review]")
+                self.assertEqual(self.text(".pub-msg"), "No file was chosen, so nothing was changed.")
+                self.assertEqual(self.val("document.querySelector('.pub-msg p').className"), "info")
+                self.assertFalse(self.present("#brands-panel"))
 
     def test_choose_asks_for_a_file(self):
         self.mount()

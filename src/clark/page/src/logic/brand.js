@@ -30,6 +30,10 @@ export const listView = (b) => ({
   undo: b.undo === true,
 });
 
+// The four files a brand holds, in plain words; a name not here is shown as it is.
+const FILE_WORDS = { "clark-brand.json": "Brand details", "tokens.css": "Colours and fonts", "assets/cover.png": "Cover picture", "assets/logo.png": "Logo" };
+export const fileWords = (n) => (FILE_WORDS[n] ? { label: FILE_WORDS[n], file: n } : { label: n, file: "" });
+
 // The review as the panel draws it; "Replace" when the brand is already in the list, "Install" when it is new.
 export function reviewView(r, installed) {
   const id = text(r.id, 40);
