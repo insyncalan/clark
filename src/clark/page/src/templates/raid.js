@@ -5,6 +5,7 @@
 // published file carries the cards already chosen ({ id, text }) and the rows it kept in its own data, so both end up the same list.
 import { publishable, rulesFor } from "../logic/publishable.js";
 import { dateWords } from "./safe.js";
+import { richWords } from "../logic/richWords.js";
 
 export const SIZES = { raid3: 3, raid4: 4 };
 export const OWN_MAX = 400;
@@ -35,8 +36,8 @@ export function bodyOf(cards) {
 // The words under a card, as the published file chooses them (raid3.py _words).
 export function wordsOf(card, row) {
   if (card.source === "own") return card.own || "";
-  if (card.source === "latest") return kindOfId(card.id) === "actions" ? String((row && row.latest_update) || "").trim() : "";
-  return String((row && row.client_message) || "").trim();
+  if (card.source === "latest") return kindOfId(card.id) === "actions" ? richWords(row && row.latest_update).trim() : "";
+  return String((row && row.client_message) || "").trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
 }
 
 export const titleOf = (row, kind) => String((kind === "decisions" ? row.decision : row.description) || "").trim();

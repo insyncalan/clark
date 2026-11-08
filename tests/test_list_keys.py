@@ -7,6 +7,7 @@ never skip, without Chrome.
 """
 import time
 import unittest
+from _editor_checks import for_url
 
 from _paths import ROOT
 from _new_page import reload_to_new_page_cdp
@@ -164,7 +165,7 @@ class Keys(ie.Live):
             with self.subTest(width=width), ie.chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 rows = cdp.js(ROWS, sid)
-                filt = lambda f: (cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/?n={abs(hash(f))}#work&p=TUL&f={f}"}, sid), time.sleep(2.5))   # a fresh load: the filter is read from the address
+                filt = lambda f: (cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/?n={abs(hash(f))}#work&p=TUL&f={f}")}, sid), time.sleep(2.5))   # a fresh load: the filter is read from the address
                 filt("mode:open;type:decision;priority:low")
                 self.until(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length === 0", "an empty list")
                 cdp.js("window.__errs = []; window.addEventListener('error', (e) => window.__errs.push(String(e.message)))", sid)

@@ -24,8 +24,9 @@ export function menuMove(e, items) {
 }
 
 // The role="menu" box: focus to its first item (or, with `focusChecked`, the marked one) when it opens, the keys, and a click away.
-export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, children }) {
+export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focusChecked, leaving, onGone, fade, children }) {
   const own = useRef(null), box = boxRef || own;
+  useFadeOut(box, !!fade && !leaving, typeof fade === "string" ? fade : "");
   const closeRef = useRef(onClose); closeRef.current = onClose;
   // `fixed`: the button sits inside a scrolling box that would cut the menu off, so the menu is placed on the window under the button (above it when
   // there is no room below), its right edge on the button's (`fixed="start"`: its left edge). It is placed once, so any scroll (the row's own included) or a resize closes it.
@@ -66,6 +67,19 @@ export function MenuPanel({ label, id, cls, anchor, onClose, boxRef, fixed, focu
 
 // Row 922: motion is off when the computer asks for reduced motion or clark's own setting is on (the same test as the ask panel's).
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+// Row 962: the fade-out of a menu or popup that is taken off the page the moment its owner stops drawing it. The copy that fades is drawn by the Edit part
+// (a file of the Edit part), which puts it in `fx.copy`; the published page has none, so nothing is drawn there and none of that code is in its file.
+export const fx = { copy: null };
+export function useFadeOut(ref, on, wrap) {
+  useLayoutEffect(() => { const el = ref.current; return () => { if (on && fx.copy) fx.copy(el, wrap); }; }, []);   // eslint-disable-line react-hooks/exhaustive-deps
+}
+// A plain box (tag `tag`, any props) that fades out when its owner stops drawing it: the same as useFadeOut for a box that has no component of its own.
+export function Fade({ tag: Tag = "div", boxRef, wrap, ...rest }) {
+  const own = useRef(null), ref = boxRef || own;
+  useFadeOut(ref, true, wrap);
+  return <Tag ref={ref} {...rest} />;
+}
 
 // The open state of a menu that Back or Forward (or a typed address) closes, with nothing chosen (#63). Only a menu that was already
 // open before the move closes. The move count is taken when the menu is opened (in the setter, not in a render), so a menu opened a

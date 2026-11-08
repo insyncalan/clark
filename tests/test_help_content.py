@@ -476,5 +476,12 @@ class CalendarKeysHelp(unittest.TestCase):
             self.assertIn(handled, code, f"Help names {key} but the calendar does not handle {handled}")
 
 
+class PublicationNumberWords(unittest.TestCase):
+    def test_help_says_a_publication_number_is_never_reused_and_undo_does_not_take_it_back(self):
+        """item 515: the store never reuses a number and Undo never meets a publication; the publish task in Help says both."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("A number is never used again, and **Undo** does not take it back.", text)
+
+
 if __name__ == "__main__":
     unittest.main()

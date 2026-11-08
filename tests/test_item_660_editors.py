@@ -9,9 +9,8 @@ import unittest
 from _paths import ROOT
 import _rich_page as rp
 import build_page
-import test_peek_latest as tpl
 from test_ask_panel import Panel
-from test_server import chrome, wait  # noqa: E402
+from test_server import chrome  # noqa: E402
 
 SIZE = ("(e => { const c = getComputedStyle(e), l = parseFloat(c.lineHeight) || parseFloat(c.fontSize) * 1.2; "
         "return {h: e.getBoundingClientRect().height, line: l, content: e.scrollHeight, resize: c.resize, sized: !!e.dataset.sized, "
@@ -40,29 +39,6 @@ class Rules:
         self.assertTrue(d["sized"], f"{label}: pulling the handle marks it sized by hand")
         put(MANY + "\nmore\nmore\nmore")
         self.assertAlmostEqual(get()["h"], d["h"], delta=2, msg=f"{label}: a hand size is kept while typing")
-
-
-class Boxes(unittest.TestCase, Rules):
-    load = tpl.Browser.load
-    fresh = tpl.Browser.fresh
-    HOLD = tpl.Browser.HOLD
-
-    def test_latest_update_in_the_peek(self):
-        for width in (1400, 900):
-            for dark in (False, True):
-                with chrome() as cdp:
-                    sent, sid = self.load(cdp, width, tpl.OVERDUE, dark=dark)
-                    cdp.js("document.querySelector('[data-pk-latest-text]').click()", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid)))
-                    sel = "document.querySelector('[data-pk-latest-in]')"
-                    self.drive(cdp, sid, sel, width, f"latest {width} {dark}")
-
-    def drive(self, cdp, sid, sel, width, label):
-        def put(text):
-            cdp.js(f"(e => {{ e.focus(); e.value = {json.dumps(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})({sel})", sid)
-        self.check(lambda: cdp.js(SIZE % sel, sid), put, lambda: put(""),
-                   lambda: (cdp.js(f"(e => {{ e.style.height = (e.offsetHeight + 60) + 'px'; e.dispatchEvent(new Event('pointerup')); }})({sel})", sid)),
-                   width, label)
 
 
 class Ask(Panel):

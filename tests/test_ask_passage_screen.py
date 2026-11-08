@@ -97,8 +97,8 @@ class PassageScreen(unittest.TestCase):
 
     def test_the_count_is_in_plain_words(self):
         self.assertEqual(ask.secret_note(0), "")
-        said = ("Part of your report was left out because it looks like a password or a key, so the answer may be missing something. "
-                "Take the password out of the item if you want it included.")
+        said = ("Part of your report looks like a password or a key, so it was left out and the answer may be missing something. "
+                "Take it out of the item if you want it included.")
         for n in (1, 3):
             self.assertEqual(ask.secret_note(n), said)
         self.assertNotIn("passage", said)
