@@ -24,7 +24,7 @@ export function Edit({ section }) {
       <div class="tpl-ti-grid">
         <div class="tpl-pic-field">
           <label>Text</label>
-          <RichField field={`textimage-${section.id}`} id={section.id} value={richValue(v)} label={`${section.title} text`} empty="Click to write."
+          <RichField field="textimage" id={section.id} value={richValue(v)} label={`${section.title} text`} empty="Click to write."
             save={(html) => saveWords(section, { html: noBreaks(html), words: [] }, "Text saved.")} />
         </div>
         <div class="tpl-ti-pic">
