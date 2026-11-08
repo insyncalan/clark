@@ -48,11 +48,16 @@ class Page(n.PageChecks):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            p.until(f"!!{n.field_js(ref, 'Callout words')}", "the fields")
+            p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] [data-rich=callout]')", "the fields")
             n.fill(p, n.field_js(ref, "Callout title"), "Fictional first title")
-            n.fill(p, n.field_js(ref, "Callout words"), "Fictional second words")       # the first save has not landed yet
+            # the words are the one editor (row 1005): typed in it and saved with Cmd or Ctrl+Enter while the title's save is still in flight
+            sec = f"[data-id={json.dumps(ref)}]"
+            p.js(f"document.querySelector('{sec} [data-rich]').click()")
+            p.until(f"!!document.querySelector('{sec} .ProseMirror')", "the editor opened")
+            p.js(f"document.querySelector('{sec} .ProseMirror').cxed.editor.commands.insertContent('<p>Fictional second words</p>'); true")
+            p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             from test_server import wait
-            self.assertTrue(wait(lambda: json.loads(self.body_of(ref)).get("paras") == ["Fictional second words"], 10), self.body_of(ref))
+            self.assertTrue(wait(lambda: "Fictional second words" in json.loads(self.body_of(ref)).get("html", ""), 10), self.body_of(ref))
             got = json.loads(self.body_of(ref))
             self.assertEqual(got["title"], "Fictional first title", "the second save kept the first one's words")
 
