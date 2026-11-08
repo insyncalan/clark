@@ -814,8 +814,7 @@ class BuiltPage(Browser):
             self.ev("clarkPage.closePeek()")
             time.sleep(0.5)
             self.assertEqual(self.scroll_y(), 400, "opening and closing a peek leaves the place alone")
-            self.ev("location.reload()")
-            self.until("document.documentElement.dataset.ready", "1", "reloaded")
+            reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
             self.assertEqual(self.scroll_y(), 0, "a fresh load starts at the top")
 
     def test_scroll_resize_escape_and_repeated_calls_add_no_entry(self):
