@@ -6,10 +6,11 @@ it; one chip is marked (aria-current="location") and it follows the card you are
 (the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; the menu's link still puts the cursor in the name
 box, clear of the bar. Chrome is required: these tests fail, never skip, without it.
 """
+import time
 import unittest
 
 from test_publish_dialog import Base
-from test_server import chrome
+from test_server import chrome, wait
 from test_settings_head import ratio, rgb
 
 WIDTHS = (1400, 901, 900, 800)
@@ -30,6 +31,20 @@ class SettingsBar(Base):
         p.js("location.hash = '#settings&p=PUB'")
         p.until("!!document.querySelector('#personal-h') && !!document.querySelector('#ask-settings-h') && !!document.querySelector('.set-nav .set-chip[aria-current]')",
                 "Settings, its cards and a marked chip drew")
+        self.laid_out(p)
+
+    def laid_out(self, p, seconds=15, frames=6):
+        """A card above Personal (Profile) may still grow after the first draw, which moves every card below it: a scroll aimed at a card's top
+        read before that lands at the wrong place. Wait until the page height and the tops of three cards are the same on `frames` reads in a row,
+        100 ms apart; fail, naming what kept moving, when they do not settle."""
+        read = ("[document.documentElement.scrollHeight, ...['personal-h', 'safety-h', 'ask-settings-h'].map(id => Math.round(document.getElementById(id).getBoundingClientRect().top + window.scrollY))].join()")
+        seen = []
+
+        def still():
+            seen.append(p.js(read))
+            time.sleep(0.1)
+            return len(seen) >= frames and len(set(seen[-frames:])) == 1
+        self.assertTrue(wait(still, seconds), "the layout never settled in %d s (page height, tops of Personal, Backups, Asking, last reads: %s)" % (seconds, seen[-frames:]))
 
     def marked(self, p):
         return p.js(f"({MARKED} || {{}}).textContent || ''")
