@@ -375,6 +375,14 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-name small { display: block; }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
+@media (max-width: 640px) {      /* the use case list on a phone: the number and the name on a line, the status and the work items under the name, no header row */
+  .ucl-hd { display: none; }
+  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 36px; gap: 6px 10px; align-items: start; }
+  .ucl-row > .ucl-name { grid-column: 2; }
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; }
+  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2 / -1; }
+  .ucl-wi small { display: inline; margin-left: 6px; }
+}
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
@@ -736,6 +744,11 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
 @media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; } }
+@media (max-width: 640px) {      /* the eye, the number and the name share the first line; the headline, the status and the steps each take a full line under it */
+  .ucrow-ed > .ucbar { grid-template-columns: 32px auto minmax(0, 1fr); }
+  .ucrow-ed > .ucbar > :nth-child(n+4) { grid-column: 1 / -1; min-width: 0; }
+  .ucrow-ed .ucsteps { white-space: normal; min-width: 0; }
+}
 /* Settings › AI: a tile for each provider, and the model. */
 .ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--space-3); }
@@ -753,6 +766,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects table.proj-table { table-layout: auto; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+@media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
 /* Settings › Data and Projects, item 444: the project form and Import workbook. Tokens only; no text under 13 px.
