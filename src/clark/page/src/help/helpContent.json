@@ -1406,7 +1406,6 @@
        "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
        "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
-       "Under an answer, **Sources** lists the files and notes it came from. A name that is a saved PDF in one of your source folders is a button: it opens that PDF in the system’s viewer at the page the answer used, or at the first page when the page is not known. If the file cannot be opened, a line in the chat says so. Nothing is read or changed by opening it.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
        "Drag its left edge to make it wider."
       ]
