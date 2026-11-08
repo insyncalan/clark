@@ -940,14 +940,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-lab { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); margin-bottom: 2px; }
 .hp-sec { margin-top: 34px; }
 .hp-sec > h2, .hp-sh h2, .hp-hero h2 { margin: 0 0 6px; color: var(--heading); font-weight: 500; }
-.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h2); }
+.hp-sec > h2, .hp-sh h2 { font-size: var(--size-h3); }
 .hp-sh p, .hp-lead { margin: 0 0 14px; color: var(--text-muted); font-size: var(--size-body); max-width: 72ch; }
 .hp-found { animation: hp-found 2.4s var(--ease-out); border-radius: var(--radius-sm); }
 @keyframes hp-found { 0%, 40% { background: var(--flash); box-shadow: 0 0 0 4px var(--flash); } 100% { background: transparent; box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .hp-found { animation: none; outline: 2px solid var(--status-amber); } }
 
 .hp-hero { display: block; gap: 20px; align-items: start; padding: 26px 28px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
-.hp-hero h2 { font-size: var(--size-display); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
+.hp-hero h2 { font-size: var(--size-h2); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
 .hp-hero p { margin: var(--space-2) 0 0; font-size: var(--size-body); line-height: 1.55; color: var(--text-muted); max-width: 68ch; }
 .hp-loop { padding: 20px 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-loop .hp-sh { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 6px var(--space-5); align-items: baseline; }
@@ -1005,7 +1005,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-next li { margin: 0 0 4px; }
 .hp-next a { color: var(--status-blue-text); }
 .hp-col { min-width: 0; }
-.hp-col .hp-sh h2 { font-size: var(--size-h2); }
+.hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
