@@ -336,6 +336,29 @@ class Browser(unittest.TestCase):
                 self.assertIn("Brand new words", sent[0]["changes"]["latest_update"])
                 self.assertTrue(sent[0]["changes"]["latest_update"].startswith("<p>"), "the editor's HTML is what is sent")
 
+    def test_leaving_the_box_saves_it_once_and_one_undo_puts_the_old_text_back(self):
+        """Item 1005 follow-up: the Latest update saves when the focus leaves it, like the At a glance Reason; Esc still saves nothing."""
+        a = self.action(OVERDUE)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Blur saved.")
+                x, y = cdp.js("(() => { const r = document.querySelector('#peek .pk-lab, #peek h2, #peek h3').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()", sid)
+                for kind in ("mousePressed", "mouseReleased"):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid), 10), "leaving the box closed it")
+                self.assertTrue(wait(lambda: "Blur saved." in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)))
+                self.assertEqual(len(sent), 1, "one save, never two")
+                self.assertIn("Blur saved.", sent[0]["changes"]["latest_update"])
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.SHOWN)}).textContent", sid) == a["latest_update"]), "one Undo")
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Not kept.")
+                key(cdp, sid, "Escape")
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid)))
+                self.assertEqual(len(sent), 1, "Esc after the Undo saved nothing")
+
     def test_a_legacy_plain_update_opens_in_the_editor_as_paragraphs_and_is_not_saved_by_looking(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE, seed='Line one: a < b & "c"\nLine two')
