@@ -3269,8 +3269,8 @@ ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
 ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
 ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
 ASK_SHOWN = {t: ("id",) + tuple(f for f in dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised"))
-                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS)
-             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice)
+                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS and not (t == "use_cases" and f in ("owner", "owner_id")))
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice); row 875: nor a use case's owner (internal, as no report carries it)
 
 
 class _Dry(Exception):
