@@ -184,6 +184,59 @@ class RestoredTest(Rolled):
         self.assertEqual(1, len(aside))
         self.assertIn("NEW", [r[0] for r in rows(aside[0] / "clark.db", "projects")])  # the write is not lost
 
+    def edit_after_the_snapshot(self):
+        """The person saves a row after the update's early copy was taken, while the old server still runs (before the helper starts)."""
+        body = self.reviewed()
+        self.assertEqual(200, self.up.install({"review_id": body["review_id"]})[0])
+        con = sqlite3.connect(str(self.db))
+        con.execute("INSERT INTO projects (code, name) VALUES ('MINE', 'Saved after the early copy')")
+        con.commit()
+        con.close()
+        return Path(h.read_json(h.marker_path(self.data))["backup_dir"]) / "clark.db"
+
+    def test_an_edit_after_the_snapshot_and_a_failed_start_that_wrote_nothing_leaves_the_data_untouched(self):
+        """The put-back only follows a write by the NEW version: the live file is compared with itself just before the new version
+        starts, not with the early copy. An edit between the two is the person's, so it stays."""
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+        edited = digest(self.db)
+        self.assertNotEqual(edited, digest(copy))
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual(h.ROLLED_BACK, code)
+        self.assertEqual(edited, digest(self.db))                                # byte for byte what the person saved
+        self.assertIn("MINE", [r[0] for r in rows(self.db, "projects")])
+        self.assertNotIn("data", result)
+        self.assertEqual([], self.asides())
+        self.assertEqual(2, len(self.seams.started))                              # the new version was started, then the old one again
+
+    def test_an_edit_after_the_snapshot_and_a_failed_start_that_wrote_is_put_back_byte_for_byte(self):
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                           # the new version's start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        seen = []
+        first = self.seams.start_server
+        self.seams.start_server = lambda *a: (seen.append(digest(self.db)) if self.seams.started else None, first(*a))[1]
+        self.seams.now += 20
+        code, result = self.run_helper()
+        self.assertEqual((h.ROLLED_BACK, "restored"), (code, result["data"]))
+        self.assertEqual([digest(copy)], seen)                                   # the early copy, the same bytes
+        names = [r[0] for r in rows(self.db, "projects")]
+        self.assertNotIn("NEW", names)
+        aside = self.asides()
+        self.assertEqual(1, len(aside))
+        kept = [r[0] for r in rows(aside[0] / "clark.db", "projects")]
+        self.assertIn("NEW", kept)                                                # nothing is lost: both rows are in the folder kept
+        self.assertIn("MINE", kept)
+
     def test_the_helper_run_twice_is_safe_and_changes_nothing_the_second_time(self):
         code, result = self.go()
         after_first = (digest(self.db), [a.name for a in self.asides()])

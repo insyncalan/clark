@@ -932,7 +932,23 @@ class Run:
     def s_health(self):
         self.seams.check_install(self.app)
 
+    def live_digest(self):
+        """content_digest of the live database as it is now (the old server is stopped), or None when it can't be read."""
+        db = self.data / DB_NAME
+        if db.is_symlink() or not db.is_file():
+            return None
+        try:
+            con = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+            try:
+                return content_digest(con)
+            finally:
+                con.close()
+        except (sqlite3.Error, OSError):
+            return None
+
     def s_start_new(self):
+        if "digest_before_start" not in self.m:          # taken once: a run again after the new version wrote must not take it afresh
+            self.save(digest_before_start=self.live_digest())
         self.save(phase="started")
         pid = self.seams.start_server(self.app, self.data, self.m["port"], self.data / "server.log")
         self.save(new_pid=pid, new_ident=self.seams.identity(pid))
@@ -1045,8 +1061,13 @@ class Run:
         self.save(data_restore=self.restored(db, before, aside, changed))
 
     def same_layout_copy(self, probe):
-        """The update's own pre-update copy (the backup set's database) when the live data, still at the old layout, differs from it in
-        any row: the new version started and changed something. None when they hold the same rows or there is no such copy."""
+        """The update's own pre-update copy (the backup set's database) when the live data, still at the old layout, differs in any row
+        from what it held just before the new version was started (digest_before_start): the new version wrote something. None when
+        they hold the same rows (an edit made after the copy was taken is the person's: it stays), when that digest was not taken, or
+        when there is no such copy."""
+        before_start = self.m.get("digest_before_start")
+        if not before_start or content_digest(probe) == before_start:
+            return None
         folder = self.m.get("backup_dir")
         copy = Path(folder) / "clark.db" if folder else None
         if copy is None or copy.is_symlink() or not copy.is_file():
@@ -1056,15 +1077,10 @@ class Run:
                 return None                      # an Undo's set holds the NEWER layout (the data before Undo was pressed), not what to go back to
         except (OSError, ValueError, AttributeError):
             return None                          # a set whose record can't be read is not trusted as the thing to put back
-        # Note: the copy was taken when the update began, while the old server may still have been finishing a write, so putting it
-        # back can step the data back by those last moments; whatever the live file held is kept whole in backups/replaced-<stamp>.
+        # The copy was taken when the update began; the new version wrote, so the data goes back to it, and whatever the live file
+        # held is kept whole in backups/replaced-<stamp>.
         check_copy_file(copy, self.m.get("schema_before"), self.m.get("db_id_before"))
-        con = sqlite3.connect(f"{copy.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
-        try:
-            same = content_digest(con) == content_digest(probe)
-        finally:
-            con.close()
-        return None if same else copy
+        return copy
 
     def find_copy(self, before):
         """The safety copy the new version's migration took: the newest `migrate` copy made since this update began that passes
