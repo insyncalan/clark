@@ -10,6 +10,7 @@ import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
+import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
@@ -19,6 +20,33 @@ export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snap
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
 const start = route.current();
+
+// The brand block is the server's, for the project in the address (#944, GET /?project=<code>). An address for another project than the
+// one this page was served for (typed, bookmarked, or a Back) is loaded again for its own; a published file and a non-served page never are.
+// What is being typed is saved first, and the page waits for it (saved, leave.js), so a title not yet left is not lost; a message with Undo
+// goes with the person to the new page (the hooks in beforeReload, given by the changes store: edit only).
+// The page going away for good (Back or Forward to another page load, which is what leaving a project by Back is: each project is its own
+// load, and the browser steps to that load without asking this page): a field still being typed in is left, so its save starts now, and api.js
+// sends it so that it outlives the page. The reply is not read by a page that has gone, so no message follows it.
+addEventListener("pagehide", () => { if (published()) return; leaving.on = true; leaveField(); });
+addEventListener("pageshow", () => { leaving.on = false; });
+function reloadFor(s, wait = true) {
+  try {
+    if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return false;
+    const url = "/?project=" + s.project + route.format(s);
+    if (!wait) { location.replace(url); return true; }
+    const since = trouble.n;
+    leaveField();
+    // Only a save that worked lets the page go: a refused or slow one keeps the page, its field and the problem, and the address names the open project again.
+    saved(undefined, since).then((ok) => {
+      if (!ok) { route.navigate(where(), { replace: true }); return; }
+      try { beforeReload.forEach((f) => f()); } catch (e) {}
+      location.replace(url);
+    }, () => location.replace(url));
+    return true;
+  } catch (e) { return false; }
+}
+reloadFor(start, false);
 export const project = signal(start.project);
 export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
@@ -133,11 +161,14 @@ function settle() {
 // (a section's title) is kept: the field is left first, so it is saved as a click on a tab saves it, to the project it belongs to,
 // before the page moves, and the message says so, with Undo. A menu or a drag closes, and nothing is chosen. The
 // peek has an entry of its own (closing it is a Back), so the page redraws after this as it would anyway.
-function leave() {
+function leaveField() {
   const el = document.activeElement;
   const typing = !!el && el !== document.body && (el.isContentEditable || el.tagName === "TEXTAREA" ||
     (el.tagName === "INPUT" && /^(text|search)$/.test(el.type)));
   if (typing && typeof el.blur === "function") el.blur();
+}
+function leave() {
+  leaveField();
   openFilter.value = "";
   dropAt.value = undefined;
   moves.value++;
@@ -145,7 +176,7 @@ function leave() {
 
 let backingAt = -Infinity;                               // when a Back from closePeek was started: a second close before it lands must not step Back again; after 1.5 s it counts as lost (row 894; no timer on the open path, see test_peek OpenTime)
 const backing = () => performance.now() - backingAt < 1500;
-route.onPop((s) => { backingAt = -Infinity; leave(); apply(s); });
+route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
@@ -206,7 +237,23 @@ export function closePeek() {
 /** Switch project: one new entry (and any peek and the filters close), so Back returns to the earlier one. */
 export function setProject(code) {
   if (!route.isProject(code)) return;
-  go({ view: view.value, project: code, item: "", ms: "", f: "" });
+  loadProject({ view: view.value, project: code, item: "", ms: "", f: "" });
+}
+
+// A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
+// hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
+// for the same project, or an address that cannot be set).
+function loadProject(s) {
+  if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
+  const url = "/?project=" + s.project + route.format(s);
+  const since = trouble.n;
+  leaveField();                                            // what is being typed is saved first, in its own project, and waited for
+  saved(undefined, since).then((ok) => (ok ? fetch(url, { cache: "no-store" }) : null)).then((r) => {
+    if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
+    if (!r.ok) { go(s); return; }
+    try { beforeReload.forEach((f) => f()); } catch (e) {}
+    location.assign(url);
+  }, () => go(s));
 }
 
 /** A filter change (#64a): `text` goes in the address as `f`, exactly as given (the router does not read, decode or encode it; the
@@ -240,7 +287,7 @@ export function openProject(code) {
 // Open a project on a given page (Settings › Projects: Open): one new entry.
 export function openProjectAt(code, next) {
   if (!route.isProject(code)) return;
-  go({ view: next, project: code, item: "", ms: "", f: "" });
+  loadProject({ view: next, project: code, item: "", ms: "", f: "" });
 }
 
 // The published file's data block: null when the page is the editor's, "bad" when the block is there but is not ours.

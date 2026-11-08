@@ -134,8 +134,9 @@ class Picker(T.Live):
                 with self.subTest(typed=typed):
                     self.clear_box(cdp, sid)
                     cdp.call("Input.insertText", {"text": typed}, sid)
+                    box_value = cdp.js('document.querySelector("[data-pop] input.cp-in").value', sid)
                     self.until(cdp, sid, f"{json.dumps(want)}.every(n => [...document.querySelectorAll('[data-pop] [data-name]')].some(b => b.dataset.name === n))",
-                               f"{typed} finds {want}, the box holds {cdp.js('document.querySelector(\"[data-pop] input.cp-in\").value', sid)!r} and the picker draws {self.all_names(cdp, sid)}")
+                               f"{typed} finds {want}, the box holds {box_value!r} and the picker draws {self.all_names(cdp, sid)}")
                     got = self.all_names(cdp, sid)
                     self.assertTrue(set(want) <= set(got), (typed, got))
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-pop] [data-more]').length", sid), 0, "a search has no 'And N more'")

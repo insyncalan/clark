@@ -106,7 +106,7 @@ function focusRow(id) {
 }
 
 async function hold(r) {
-  const res = await changeMilestone({ id: r.id, changes: { movement: "hold" } }, W.TOAST_HOLD);
+  const res = await changeMilestone({ id: r.id, changes: { movement: "hold" } }, (reply) => (reply.note_trimmed ? W.TOAST_HOLD_TRIMMED : W.TOAST_HOLD));   // #603
   if (!res.ok) { say("problem", res.message || W.CHOICE_FAILED); return; }
   await reread(project.value);            // the Hold's dated line is in the internal note: the box shows it
   await load();

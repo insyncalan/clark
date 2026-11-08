@@ -120,6 +120,23 @@ class Section(unittest.TestCase):
         self.assertEqual(self.val(f"K.section.linesOf({lit(file_data)}).map((l) => l.id)"), ["GNT-1", "GNT-2"])
         self.assertEqual(self.val(f"K.section.linesOf({lit({**file_data, 'gantt_lines': []})}).length"), 0, "the editor's own list wins when it is there")
 
+    def test_a_line_with_no_usable_date_is_counted_and_keeps_the_section(self):
+        bad = {"id": "GNT-90", "name": "No date", "type": "task", "start": "garbage", "end": "", "show": 1}
+        off = {**bad, "id": "GNT-91", "show": 0}
+        d = report([bad, off])
+        self.assertEqual(self.val(f"K.section.leftOutOf({lit(d)})"), 1, "only the eye-on one is the viewer's")
+        self.assertEqual(self.val(f"K.section.linesOf({lit(d)}).length"), 0)
+        self.assertFalse(self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(d)})"), "the section is not dropped without a word")
+
+    def test_a_published_file_line_has_no_show_field_and_a_line_without_a_date_in_it_is_still_counted(self):
+        # Tripwire (row 989b). publish.gantt_for_client drops a line whose date is not a real day, so a file made by Clark never holds one
+        # (tests/test_gantt_publish.py pins that); a hand-edited or older file may, and its lines carry no `show` at all (the eye only decides).
+        file_data = {"gantt": {"columns": ["id", "name", "type", "start", "end", "pct"], "lines": [
+            {"id": "GNT-1", "name": "Plan", "type": "phase", "start": "2026-11-02", "end": "2026-11-20", "pct": 10},
+            {"id": "GNT-2", "name": "No date", "type": "task", "start": "garbage", "end": "", "pct": 0}]}}
+        self.assertEqual(self.val(f"K.section.leftOutOf({lit(file_data)})"), 1, "a file line has no show field and still counts")
+        self.assertEqual(self.val(f"K.section.linesOf({lit(file_data)}).length"), 1)
+
     def test_nothing_on_the_dashboard_means_an_empty_section(self):
         none = [{**l, "show": False} for l in LINES]
         self.assertTrue(self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(report(none))})"))

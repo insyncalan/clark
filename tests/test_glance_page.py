@@ -124,6 +124,7 @@ class Tiles(Setup):
     def test_the_outline_is_drawn_on_the_bottom_left_and_fades(self):
         with chrome() as cdp:
             p = self.show(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned: no transition is mid-way when the outline is read
             got = p.js("(() => { const e = getComputedStyle(document.querySelector('[data-fig=overdue]'), '::after'); return [e.borderTopWidth, e.maskImage || e.webkitMaskImage, e.borderTopColor]; })()")
             self.assertEqual(got[0], "2px")
             self.assertIn("45deg", got[1], "the mask runs from the bottom-left corner")
