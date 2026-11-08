@@ -271,8 +271,9 @@ class Choosing(Case):
             p.click("#choose")
             p.until("document.body.dataset.state === 'refused'", "refused state")
             said = p.text("#problem")
-            self.assertTrue(said.startswith("Your data can't be kept in "), said)
-            self.assertIn("inside OneDrive", said)
+            self.assertEqual(said, "Your clark data is set to go in ~/OneDrive - Work/other, which is inside OneDrive. OneDrive copies files "
+                                   "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
+                                   "doesn't sync. Backups can still go to OneDrive.")
             self.assertEqual(p.js("document.querySelector('#problem').getAttribute('role')"), "alert")
             self.assertEqual(p.js("document.activeElement.id"), "choose")
             self.assertEqual(p.js("document.querySelector('#choose').disabled"), False)
