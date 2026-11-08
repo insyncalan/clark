@@ -82,6 +82,14 @@ class Rules(unittest.TestCase):
         for r in rules:
             self.assertIsNone(re.search(r"(?<![-\w])(margin|padding)[-\w]*\s*:|(?<![-\w])(border|width|height|top|left|transform)[-\w]*\s*:", r.split("{", 1)[1]), r)
 
+    def test_a_drag_over_a_changed_section_keeps_its_glow_and_gets_its_drop_line(self):
+        """Item 519: .sec.is-changed and .sec.drop-before each set `animation`, so the later one replaced the other. A section that
+        is both has one rule that runs the glow and the drop line together."""
+        rule = re.search(r"\.sec\.is-changed\.drop-before\s*\{([^}]*)\}", MOTION)
+        self.assertTrue(rule, "a rule for a section that is changed and dragged over")
+        self.assertIn("m-glow", rule.group(1))
+        self.assertIn("m-line-top", rule.group(1))
+
     def test_the_fading_placeholder_sits_where_main_pads_it_at_900(self):
         """Item 517: main pads 28 px top and the space-5 sides on desktop and 20 px top and the space-4 sides at 900 px; the fading
         placeholder (.skel-leave) used the desktop offsets at both, so it sat a few px off for its 120 ms."""
@@ -418,7 +426,7 @@ class Fade(tre.Base):
     def test_it_fades_out_once_the_data_arrives_and_is_not_drawn_in_either_reduced_form(self):
         gate = {"open": False}
 
-        def data_for(code):
+        def data_for(code, archived=None):
             end = time.time() + 20
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)

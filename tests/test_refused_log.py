@@ -308,12 +308,15 @@ class TimerWindows(unittest.TestCase):
         r = self.refused(timer=Refuses)
         for _ in range(3):
             r.count()                                                    # nothing raised
-        self.assertEqual(self.lines(), [])
+        lines = self.lines()
+        self.assertEqual(len(lines), 1, lines)                           # #553: only the one note that the timer did not start
+        self.assertIn(sv.TIMER_SKIPPED, lines[0])
         self.ticks[0] += sv.CSP_REPORT_WINDOW + 1
         r.count()                                                        # the next request writes the finished window
-        lines = self.lines()
+        lines = self.lines()[1:]
         self.assertEqual(len(lines), 1, lines)
         self.assertEqual(MANY.search(lines[0]).group(1), "3")
+        self.assertEqual(len([x for x in self.lines() if sv.TIMER_SKIPPED in x]), 1, "the note is written once, not per window")
         self.assertNotIn("Traceback", "".join(p.read_text(encoding="utf-8") for p in self.log.files()))
         r.flush()                                                        # and the stop writes the last one
         self.assertRegex(self.lines()[-1], ONE)
@@ -325,6 +328,7 @@ class TimerWindows(unittest.TestCase):
         r.count()
         r.flush()
         self.assertRegex(self.lines()[-1], ONE)
+        self.assertEqual(len([x for x in self.lines() if sv.TIMER_SKIPPED in x]), 1)
 
 
 class ShutdownFlush(unittest.TestCase):

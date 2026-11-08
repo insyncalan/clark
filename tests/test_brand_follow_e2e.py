@@ -28,7 +28,7 @@ BLOCKS = "document.querySelectorAll('style#brand-local').length"
 class Follow(unittest.TestCase):
     def setUp(self):
         self.folders = make_brands(self)
-        self.s = Running(data_for=DATA.get, projects=lambda archived=False: PROJECTS, page_html=seam(self.folders, base=testpage.html))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: PROJECTS, page_html=seam(self.folders, base=testpage.html))
         self.s.httpd.brand_picture = picture_seam(self.folders)
         self.addCleanup(self.s.close)
         self.base = f"http://127.0.0.1:{self.s.port}/"

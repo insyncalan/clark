@@ -351,7 +351,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
 .ucl-row { display: grid; grid-template-columns: 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 36px; gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
-.ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-50); box-shadow: inset 3px 0 0 var(--brand-blue); }
+.ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 .ucl-name { min-width: 0; display: flex; flex-direction: column; }
@@ -380,6 +380,14 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
   .ucl-name small { display: block; }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
+}
+@media (max-width: 640px) {      /* the use case list on a phone: the number and the name on a line, the status and the work items under the name, no header row */
+  .ucl-hd { display: none; }
+  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 36px; gap: 6px 10px; align-items: start; }
+  .ucl-row > .ucl-name { grid-column: 2; }
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; }
+  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2 / -1; }
+  .ucl-wi small { display: inline; margin-left: 6px; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -430,7 +438,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-acts .btn, .ucd-note .btn { min-height: 32px; font-size: var(--size-body); color: var(--text); }
 .ucd-acts .btn { display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; height: 32px; padding-top: 0; padding-bottom: 0; }   /* row 791: a space between Change status and its chevron */
 .ucd-acts .btn .nch { width: 14px; height: 14px; flex: none; }
-.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }   /* row 791: as tall as its neighbours; issue 753: the eye alone, a button */
+.ucd-eye { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 0 10px; min-width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; white-space: nowrap; font: inherit; font-size: var(--size-body); }   /* row 791: as tall as its neighbours; item 1010: the eye and its words are one button */
 .ucd-eye:hover { background: var(--grey-100); }
 .ucd-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucd-eye.on { color: var(--status-blue-text); }
@@ -746,6 +754,11 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
 @media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; } }
+@media (max-width: 640px) {      /* the eye, the number and the name share the first line; the headline, the status and the steps each take a full line under it */
+  .ucrow-ed > .ucbar { grid-template-columns: 32px auto minmax(0, 1fr); }
+  .ucrow-ed > .ucbar > :nth-child(n+4) { grid-column: 1 / -1; min-width: 0; }
+  .ucrow-ed .ucsteps { white-space: normal; min-width: 0; }
+}
 /* Settings › AI: a tile for each provider, and the model. */
 .ai-provs { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--space-3); margin-top: var(--space-3); }
 .ai-prov { border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--space-3); }
@@ -763,6 +776,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects table.proj-table { table-layout: auto; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+@media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
 /* Settings › Data and Projects, item 444: the project form and Import workbook. Tokens only; no text under 13 px.
@@ -803,7 +817,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ad.dlg .imp-list label { gap: 4px; margin-right: var(--space-3); }
 .ad.dlg .st-act { display: flex; flex-wrap: wrap; margin-top: 4px; }
 .ad.dlg .st-bar { display: flex; justify-content: space-between; align-items: baseline; margin-top: var(--space-2); }
-.ad.dlg .st-bar .link { all: unset; cursor: pointer; color: var(--brand-blue); text-decoration: underline; }
+.ad.dlg .st-bar .link { all: unset; cursor: pointer; color: var(--link); text-decoration: underline; }
 .ad.dlg .st-bar .link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ad.dlg .stat { display: flex; flex-wrap: wrap; gap: var(--space-3); margin: 0 0 var(--space-2); }
 .ad.dlg .imp-refused { padding: 8px 10px; border-left: 4px solid var(--status-red); background: var(--status-red-tint); color: var(--status-red-text); border-radius: var(--radius-sm); }
@@ -895,7 +909,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) thead.opening > tr:not(.grp), :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
 /* row 970: a row added to the list rises 4 px and fades in over --dur-state; a deleted row fades out over --dur-instant where it stood (opacity and transform only:
@@ -976,6 +990,9 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
 @media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
 
+/* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
+@media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
+
 /* The Gantt parts only Edit draws (rows 926 and 928), moved here from shell.css so a published file carries none of them: the Gantt tab's name box, the two
    ticks of Settings › Gantt, the title box in the banner, the Undo toast and the disabled Import button. */
 .top .tab-name { box-sizing: border-box; align-self: center; width: 12ch; min-width: 8ch; max-width: 24ch; height: 28px; margin: 0 var(--space-2); padding: 0 var(--space-2); border: 1px solid var(--brand-cyan); border-radius: 6px; background: transparent; color: var(--white); font: inherit; font-size: var(--size-small); }
@@ -1005,6 +1022,8 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .sn-acts { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-3); }
 /* row 796: the Publish box is the prototype's 560 px; its heading keeps the .dlg h2 style every box uses. Edit's alone: the published file has no such box. */
 #publish-dialog { width: min(560px, calc(100vw - 32px)); }
+/* row 936: the Help note (a hint, a 'what you should see') is a tinted panel with a hairline all round, no blue one-side stripe. Edit's alone: shell.css and the published page are unchanged. */
+.hp-note { border: 1px solid var(--grey-200); border-radius: var(--radius); }
 
 /* Row 985: the Owner picker's section headings, the "And N more" line and the TBC entry. Edit only (shell.css is in the published page). */
 .cp-sec { margin: 8px 6px 0; font-size: var(--size-caption); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
@@ -1029,3 +1048,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
 .brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }
+
+/* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
+   four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
+@container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }

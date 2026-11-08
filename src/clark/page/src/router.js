@@ -77,11 +77,62 @@ export function format(state) {
 
 try { history.scrollRestoration = "manual"; } catch (e) { /* the page works with the browser's default */ }
 
+const spots = new Map();                                   // where each screen was scrolled to when it was left: key -> pixels (item 1019)
+let shown = "";                                            // the key of the screen last drawn
+let restoring = 0;                                         // counts restores, so a newer move cancels an older one still waiting for the page to grow
 let seen = "";                                             // the hash the page last drew, so one move is never handled twice
 let moves = 0;                                             // counts every move (navigate, Back, Forward): back()'s stuck check reads it
 
 function here() {
   try { return location.hash; } catch (e) { return ""; }
+}
+shown = screenKey(parse(here()));
+
+/** The screen an address is on: page, project and use case. A peek, the filters and the item are not part of it, so opening or closing
+ *  a peek never counts as leaving. */
+function screenKey(state) {
+  const s = clean(state);
+  return s.view + "|" + s.project + "|" + s.uc;
+}
+
+function scrollNow() {
+  try { return Math.max(0, Math.round(window.scrollY || 0)); } catch (e) { return 0; }
+}
+
+/** Put the page where `key` was left (a screen not seen before starts at the top). The page redraws after the move, and its height
+ *  and layout settle over a few frames (a project's data may still be arriving), so the place is set again each frame until it has
+ *  held for a few frames in a row. Only the person ends it (wheel, touch, key, click) or a newer move: the page's own scrolls (the open tab brought into view, a focus) are not the person's and are set right again, so the place holds. */
+function restore(key) {
+  const mine = ++restoring;
+  const want = spots.get(key) || 0;
+  let frames = 0, held = 0;
+  const root = document.documentElement;
+  const evs = ["wheel", "touchstart", "keydown", "mousedown"];
+  const unhook = () => { for (const ev of evs) { try { removeEventListener(ev, stop); } catch (e) { /* none */ } } };     // none left attached once the restore has stopped or finished
+  const done = () => { unhook(); try { root.style.overflowAnchor = ""; } catch (e) { /* none */ } };     // the browser's own scroll anchoring would shift the place while the page redraws
+  const stop = () => { if (mine === restoring) { restoring++; done(); } else unhook(); };
+  try { root.style.overflowAnchor = "none"; } catch (e) { /* none */ }
+  for (const ev of evs) { try { addEventListener(ev, stop, { once: true, passive: true }); } catch (e) { /* none */ } }
+  const step = () => {
+    if (mine !== restoring) { unhook(); return; }
+    try {
+      const room = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const at = Math.min(want, room);
+      if (Math.round(window.scrollY) !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
+      if (++frames < 120 && held < 30) requestAnimationFrame(step); else done();
+    } catch (e) { /* no window to scroll */ }
+  };
+  step();
+  try { requestAnimationFrame(step); } catch (e) { /* as above */ }
+}
+
+/** Called when the person leaves `from` for `to`: remember the leaving screen's place, and place the new one. */
+function moved(fromKey, toState) {
+  const toKey = screenKey(toState);
+  if (fromKey === toKey) return;
+  spots.set(fromKey, scrollNow());
+  shown = toKey;
+  restore(toKey);
 }
 
 /** The state of the address the page is on now. */
@@ -108,6 +159,7 @@ export function navigate(state, { replace = false } = {}) {
   const opened = !!(next.item || next.ms) && !(current().item || current().ms);
   const mark = (opened && !replace) || (replace && (next.item || next.ms) && peekWasPushed()) ? { clarkPeek: MARK } : null;
   try { history.scrollRestoration = "manual"; } catch (e) { /* as above */ }
+  const fromKey = screenKey(now);
   seen = hash;                                             // set first: location.hash = ... can fire popstate inside the call
   moves++;
   try {
@@ -115,6 +167,7 @@ export function navigate(state, { replace = false } = {}) {
   } catch (e) {
     try { if (replace) location.replace(hash); else location.hash = hash; } catch (e2) { seen = here(); /* no history: the page still works */ }
   }
+  moved(fromKey, next);
   return true;
 }
 
@@ -136,7 +189,11 @@ export function onPop(handler) {
     if (now === seen) return;                              // popstate and hashchange both fire for one move: draw once
     seen = now;
     moves++;
-    try { handler(parse(now)); } catch (e) { /* a faulty handler must not break the next move */ }
+    const fromKey = shown, to = parse(now);
+    if (fromKey !== screenKey(to)) spots.set(fromKey, scrollNow());     // the page has not redrawn yet: the place is still the leaving screen's
+    shown = screenKey(to);
+    try { handler(to); } catch (e) { /* a faulty handler must not break the next move */ }
+    if (fromKey !== shown) restore(shown);
   };
   seen = here();
   addEventListener("popstate", run);
