@@ -18,6 +18,7 @@ import signal
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
@@ -648,6 +649,59 @@ class SuiteSlots(unittest.TestCase):
         self.addCleanup(os.close, c)
         self.assertIsNotNone(c)
         self.assertEqual(self.said, [])
+
+    def test_waiters_get_slots_in_the_order_they_arrived(self):
+        import threading
+        held = [self.take()[0], self.take()[0]]
+        order, fds, lock = [], [], threading.Lock()
+
+        def waiter(n):
+            fd = self.take(max_wait=20)[0]
+            with lock:
+                order.append(n)
+                fds.append(fd)
+            os.close(fd)                                     # frees the slot at once for the next in line
+        threads = []
+
+        def places():
+            q = Path(self.d.name) / "queue"
+            return os.listdir(q) if q.is_dir() else []
+        for n in range(4):
+            t = threading.Thread(target=waiter, args=(n,))
+            t.start()
+            threads.append(t)
+            deadline = time.time() + 5
+            while len(places()) < n + 1 and time.time() < deadline:
+                time.sleep(0.005)
+            time.sleep(0.01)                                 # arrival times differ by more than a clock tick
+        for fd in held:
+            os.close(fd)
+        for t in threads:
+            t.join(30)
+        self.assertEqual(order, [0, 1, 2, 3])
+        self.assertEqual(places(), [], "every place in the line is given up")
+
+    def test_a_newcomer_does_not_jump_a_waiting_run_when_a_slot_is_free(self):
+        q = Path(self.d.name) / "queue"
+        q.mkdir()
+        import fcntl
+        fd = os.open(str(q / "00000000000000000001-1"), os.O_RDWR | os.O_CREAT, 0o666)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        self.addCleanup(os.close, fd)
+        got, _ = self.take(max_wait=0.05)
+        self.assertIsNone(got, "a run is waiting ahead, so the newcomer waits too (and here starts anyway at the end)")
+        self.assertIn("starting anyway", self.said[-1])
+
+    def test_a_place_left_by_a_run_that_died_does_not_block_the_line(self):
+        q = Path(self.d.name) / "queue"
+        q.mkdir()
+        old = q / "00000000000000000001-1"
+        old.write_text("", encoding="utf-8")
+        os.utime(old, (1, 1))
+        got, _ = self.take(max_wait=0.5)
+        self.addCleanup(os.close, got)
+        self.assertIsNotNone(got)
+        self.assertFalse(old.exists())
 
     def test_a_small_run_and_a_run_under_the_wrapper_need_no_slot(self):
         self.assertEqual(self.take(runs=run_tests.support.SMALL_RUN), (None, run_tests.support.BOX_JOBS))
