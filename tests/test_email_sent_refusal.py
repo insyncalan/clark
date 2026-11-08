@@ -86,7 +86,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr)
         got = json.loads(done.stdout)
         self.assertFalse(got["ok"])
-        self.assertIn("may or may not have been recorded", got["message"])
+        self.assertIn("may or may not be saved", got["message"])
         self.assertIn("history", got["message"])
         self.assertNotIn("Nothing was saved", got["message"])
 

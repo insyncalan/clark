@@ -95,8 +95,6 @@ const SENT_REFUSAL_MAX = 600;
 // #484: with no answer (or a server fault) the request may have been recorded, so the page does not say nothing was saved: it says it may
 // or may not be, and where to check before pressing again.
 const SENT_MAYBE = "This may or may not be saved to the history, because clark did not answer. Look in the history to check before you press I sent it again.";
-// No answer at all (the network failed or timed out): the request may have reached clark and been recorded, so this line does not say that nothing was saved.
-const SENT_NO_ANSWER = "No answer came back, so this may or may not have been recorded. Look in the history to see whether it is there before you press I sent it again.";
 
 // "I sent it" (#50): saves one record in the history: the item ids, the mode and the day, never any words of the email. Row 983: `extra`
 // may add the recipient's people id (person), the tone and the reply-by the draft used; the server finds the name from that record and
@@ -120,7 +118,7 @@ export async function sendEmailSent(project, entry, extra) {
     if (!r.ok && (r.status === 500 || r.status === 503)) return { ok: false, message: SENT_MAYBE };
     return { ok: false, message: plainChange(r.ok ? 500 : r.status, reply) };
   } catch (e) {
-    return { ok: false, message: SENT_NO_ANSWER };
+    return { ok: false, message: SENT_MAYBE };
   }
 }
 
