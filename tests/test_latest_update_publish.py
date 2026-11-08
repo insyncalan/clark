@@ -21,7 +21,7 @@ class LatestUpdatePublished(unittest.TestCase):
     def make(self, kind):
         """An action with a Latest update set through the real change route; returns (ref, token)."""
         token = f"zz-latest-token-{kind}"
-        ref = self.demo.action(description=f"Action for {kind}")
+        ref = self.demo.action(description=f"Action for {kind}", client_message=f"Client wording for {kind}")      # row 560: the update is published with client wording
         status, body = self.change({"project": "ABC", "kind": "actions", "op": "update", "id": ref,
                                     "changes": {"latest_update": token}, "place": "peek"})
         self.assertEqual(status, 200, body)
