@@ -362,6 +362,18 @@ class EditRows(unittest.TestCase):
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
 
+    def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
+        gone = id_of(self.store, "Supplier delivery may slip")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.click(p, f"document.querySelector('[data-id={gone}] [data-eye]').click()", f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "the row left the page")
+            p.js("document.querySelector('[data-addfrom=raid]').click()")
+            p.until("!!document.querySelector('.picker')", "the picker opened")
+            p.until("!!document.activeElement && !!document.activeElement.closest('.picker')", "the search box has the focus")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.picker')", "the picker closed")
+            p.until("document.activeElement && document.activeElement.getAttribute('data-addfrom') === 'raid'", "the focus is on the Add from button")
+
     def test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back(self):
         gone = id_of(self.store, "Supplier delivery may slip")
         with chrome() as cdp:

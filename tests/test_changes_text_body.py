@@ -292,7 +292,12 @@ class TextBodyDirect(unittest.TestCase):
         self.assertFalse(changes.BIDI_CONTROLS.search(got))
 
     def test_a_bidi_mark_cannot_hide_a_script_link(self):
-        self.assertNotIn("javascript", changes._text_body('<a href="java\u202escript:x()">T</a>').lower())
+        hidden = '<a href="java\u202escript:x()">T</a><a href="https://example.com/\u202ex">S</a>'
+        got = changes._text_body(hidden)
+        self.assertNotIn("javascript", got.lower())
+        self.assertFalse(changes.BIDI_CONTROLS.search(got), "no mark is left in the stored text, not even inside a kept link")
+        self.assertEqual(got, sanitise.clean_html(hidden.replace("\u202e", "")), "the cleaner judged the text without the marks")
+        self.assertEqual(re.findall(r'href="([^"]*)"', got), ["https://example.com/x"])
 
     def test_over_the_cap_once_cleaned_is_refused(self):
         with self.assertRaises(changes.Refused) as caught:

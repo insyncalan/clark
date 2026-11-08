@@ -169,7 +169,6 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
   .toc.open .toc-card { transform: none; }
   .toc li button { min-height: 32px; }
 }
-@media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -649,13 +648,14 @@ input.sec-title { width: 100%; }
 @keyframes pk-out { to { transform: translateX(104%); } }
 @media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
-.pk-edge:hover, .pk-edge:focus-visible { background: var(--brand-cyan); opacity: .5; }
+.pk-edge:hover { background: var(--brand-cyan); opacity: .5; }
+.pk-edge:focus-visible { background: var(--brand-blue); opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
 .pk-sp { flex: 1; }
 .pk-id { color: var(--text-muted); font-size: var(--size-caption); margin-left: 6px; }
 .pkp-btn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); cursor: pointer; color: var(--text); }
 .pkp-btn:hover:not(:disabled) { background: var(--grey-100); }
-.pkp-btn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 1px; }
+.pkp-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .pkp-btn:disabled { opacity: .35; cursor: default; }
 .pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
 .pkp-btn .i { width: 18px; height: 18px; }
@@ -910,7 +910,7 @@ body.board-full .toasts { z-index: 40; }
 .de-count, .de-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 .de-problem { margin: var(--space-2) 0; color: var(--status-red-text); }
 .de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
-.de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--brand-ink); overflow: auto; max-height: 320px; }
+.de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--black); overflow: auto; max-height: 320px; }
 .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
@@ -1117,6 +1117,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-mk.plain, .mv-lab.plain, .cal-ms.plain, .msl-row.plain, .msl-row.plain .msl-cells { cursor: default; }   /* a published file: text, not a button */
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
 .mv-lab b { display: block; font-weight: var(--weight-medium); color: var(--text); } .mv-lab:hover { background: var(--grey-100); }
+.mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab.gl { color: var(--status-red-text); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
@@ -1362,11 +1363,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--space-3) 72px; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
-.ucdcols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ucdcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
+@media (max-width: 600px) { .ucdcols { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); } }   /* row 1004: one column on a phone, so a next step has the whole line and its id stays whole */
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
-.ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
+.ucdetail ul.ucstepl li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }   /* wraps, so an id longer than the rest of the line goes to a line of its own */
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
+.ucstepl [data-stepid] { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
@@ -1474,7 +1477,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text); cursor: pointer; }
 .rt-btn:hover { background: var(--grey-100); }
 .rt-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.rt-btn.on { background: var(--brand-blue-tint); color: var(--brand-blue); }
+.rt-btn.on { background: var(--brand-blue-tint); color: var(--brand-blue-strong); }
 .rt-style { min-width: 96px; justify-content: space-between; gap: 6px; }
 .rt-sep { width: 1px; height: 20px; margin: 0 var(--space-1); background: var(--border); }
 .rt-keys { margin-left: auto; padding-left: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
@@ -1498,7 +1501,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-opt { all: unset; box-sizing: border-box; display: block; padding: var(--space-2) 14px; font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .rt-opt:hover, .rt-opt.on { background: var(--grey-100); }
 .rt-view { border-radius: var(--radius-sm); cursor: text; min-height: 24px; }   /* row 843: a one-line view is 22.5 px at the 15 px base; a click target is 24 px */
-.rt-view:hover { outline: 1px solid var(--grey-300); }
+.rt-view:hover { outline: 1px solid var(--grey-500); }
 .rt-view:focus-visible { outline: 2px solid var(--focus); }
 
 /* The look: pill buttons, the header and the type, from the committed look (tokens only; made by the branding tool). */
@@ -2313,3 +2316,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 [data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
 [data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
 .ddmenu, .menu, .cpop, .flist { border-color: var(--menu-border); }   /* last in the file, so it wins over each menu's own `border: 1px solid var(--border)` */
+
+/* Sweep c11: reduced motion for the contents card, legend popover, milestone marker and both tab underlines. Last in the file so it wins at any width. */
+@media (prefers-reduced-motion: reduce) {
+  .toc-card, .toc.open .toc-card, .toc-lines, .toc-lines i, .toc-lines:hover, .toc.open .toc-lines { transition: none; }
+  .toc-card, .toc.open .toc-card { transform: none; }
+  .mlg-p { transition: none; transform: none; }
+  .mv-mk { transition: none; } .mv-mk:hover, .mv-mk:focus-visible { transform: none; }
+  .hp-tabs button, .hp-tabs button::after, .tab, .tab::after { transition: none; }
+}
