@@ -122,7 +122,7 @@ RICH_KEYS = {"textimage": ("html",)}
 RICH_TOO_LONG = "That text is too long to save. Shorten it and try again."
 
 
-def _clean_rich(kind, value):
+def _clean_rich(kind, value, strict=True):
     """`value` (a template body, already through the generic check) with each RICH_KEYS text cleaned: clean_html, a line break
     written as a space (the generic check refuses one in any text), clean_html again (idempotent); '' when there are no words
     (no plain text). A value that is not an object, or a key that is not text, is left for the module to refuse."""
@@ -138,7 +138,9 @@ def _clean_rich(kind, value):
             html = sanitise.clean_html(re.sub(r"[\r\n]+", " ", sanitise.clean_html(text)))
             out[k] = html if sanitise.plain_text(html).strip() else ""
         except sanitise.SanitiseError:
-            raise Bad(RICH_TOO_LONG) from None
+            if strict:
+                raise Bad(RICH_TOO_LONG) from None
+            out[k] = ""                      # at publish: a text that cannot be cleaned is left out, the rest of the section stays
     return out
 
 
@@ -498,10 +500,7 @@ def published(kind, value, ctx=None):
     absent), each field picked by name and kept as the checked text, a whole number of tenths or a count, dates written DD-MM-YYYY;
     None when no group has a line. Totals are never published: the page works them out."""
     if kind in TEMPLATES:
-        try:
-            value = _clean_rich(kind, value)                 # cleaned AGAIN: what is stored is never trusted at publish
-        except Bad:
-            return None
+        value = _clean_rich(kind, value, strict=False)       # cleaned AGAIN: what is stored is never trusted at publish; a text too long to clean is left out, not the whole section
         out = TEMPLATES[kind].published(value, ctx if ctx is not None else Context())
         return out if isinstance(out, dict) and out else None
     if kind == NEEDS:
