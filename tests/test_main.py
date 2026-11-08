@@ -590,6 +590,22 @@ class InProcess(TempFolder):
         self.assertEqual(pathlib.Path(paths["data"]), self.tmp / "d")
         self.assertEqual(names, ["example"], "the hidden old folder was moved back before serve()")
 
+    def test_startup_copies_the_old_brand_folder_before_serving_and_leaves_the_old_one(self):
+        """1.0.6: system/branding is copied to branding/ before the server or the page can read it; the old folder stays."""
+        clark_folder = self.tmp / "clarkfolder2"
+        old = clark_folder / "system" / "branding"
+        old.mkdir(parents=True)
+        (old / "tokens.css").write_text(":root{--mine:1}", encoding="utf-8")
+        seen = []
+
+        def serve(**kw):
+            seen.append(sorted(p.name for p in (clark_folder / "branding").iterdir()) if (clark_folder / "branding").is_dir() else None)
+            return 0
+        with mock.patch.object(page, "BRANDING", clark_folder / "branding"):
+            self.assertEqual(self.run_main("--data", str(self.tmp / "d2"), serve=serve)[0], 0)
+        self.assertEqual([["tokens.css"]], seen)
+        self.assertEqual(":root{--mine:1}", (old / "tokens.css").read_text(encoding="utf-8"))
+
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""
         import sqlite3
