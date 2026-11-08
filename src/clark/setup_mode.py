@@ -204,10 +204,10 @@ def _busy():
     return {"ok": False, "code": "busy", "message": platform.TRY_AGAIN}        # existing words: a second try is the right thing
 
 
-def main(argv=None, out=None, err=None, serve=None, environ=None, start=None):
+def main(argv=None, out=None, err=None, serve=None, environ=None, start=None, home=None, onedrive_roots=None):
     """`python3 -m clark.setup_mode --data FOLDER --port N` (what the launcher starts). Serves setup mode for FOLDER, which is
     neither made nor written to. When the page's done was accepted and the server has stopped, the normal clark is started on the
-    folder now chosen (`start` is platform.start_detached's seam; a refusal is said on `err`, exit 1). The exit code: 0 stopped,
+    folder now chosen (`start` is platform.start_detached's seam, `home` and `onedrive_roots` are Setup's; a refusal is said on `err`, exit 1). The exit code: 0 stopped,
     1 the port is taken or clark could not be started, 2 a bad argument (said on `err`)."""
     from clark import __version__, appfiles, idle, launch, server, update_helper
     out, err = out or sys.stdout, err or sys.stderr
@@ -235,7 +235,7 @@ def main(argv=None, out=None, err=None, serve=None, environ=None, start=None):
     server.set_data_mark(appfiles.data_mark(folder))
     server.set_version(__version__)
     server.set_code_mark(appfiles.code_mark())
-    service = Setup(folder, prompt=FOLDER_PROMPT, finish=finish)
+    service = Setup(folder, home=home, onedrive_roots=onedrive_roots, prompt=FOLDER_PROMPT, finish=finish)
     code = (serve or server.serve)(port=port, out=out, err=err, setup=service)
     if code or not service.done:
         return code

@@ -266,10 +266,17 @@ class Folder(Case):
         self.assertEqual((status, body["code"]), (409, "dialog_failed"))
 
     def test_without_a_fake_the_stub_refuses_and_no_window_opens(self):
-        service = setup_mode.Setup(self.default, home=self.home, on="linux", onedrive_roots=lambda: [], prompt="Pick")
+        opened = []
+
+        def no_window(prompt):
+            opened.append(prompt)
+            raise pl.PlatformError("The folder window could not be opened. " + pl.TRY_AGAIN)
+        service = setup_mode.Setup(self.default, home=self.home, on="linux", choose_folder=no_window,
+                                   onedrive_roots=lambda: [], prompt="Pick")
         s = self.start(service)
         status, _, data = s.api("POST", "/api/setup/folder", b"{}")
         self.assertEqual((status, json.loads(data)["code"]), (409, "dialog_failed"))
+        self.assertEqual(opened, ["Pick"])
 
     def test_a_second_while_one_is_open_is_busy(self):
         inside, release = threading.Event(), threading.Event()

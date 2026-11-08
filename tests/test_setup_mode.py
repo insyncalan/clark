@@ -508,6 +508,7 @@ class Relaunch(Case):
     """Design item 8: when the page's done is accepted and the server has stopped, main starts the normal clark on the chosen folder."""
 
     def run_main(self, serve_calls, start_error=None):
+        # main() takes the home folder and the OneDrive folders as seams, so no test depends on the machine it runs on
         import io
         started = []
 
@@ -523,7 +524,7 @@ class Relaunch(Case):
             return serve_calls(setup)
         err = io.StringIO()
         code = setup_mode.main(["--data", str(self.default), "--port", "8801"], out=io.StringIO(), err=err, serve=serve,
-                               environ={}, start=start)
+                               environ={}, start=start, home=self.home, onedrive_roots=lambda: [self.onedrive])
         return code, started, err.getvalue()
 
     def test_an_accepted_done_starts_clark_on_the_chosen_folder_after_the_server_stopped(self):
@@ -550,10 +551,7 @@ class Relaunch(Case):
             setup.folder = self.onedrive / "clark"
             self.assertEqual(setup.api_done()[0], 409)
             return 0
-        # main() builds its own service, which looks for OneDrive folders in the machine's real home folder (a Mac
-        # answers from ~/Library/CloudStorage, Linux refuses); say here which folders are OneDrive's, whatever the machine
-        with mock.patch.object(pl, "onedrive_roots", lambda home=None, on=None: [self.onedrive]):
-            self.assertEqual(self.run_main(not_ready)[1], [])
+        self.assertEqual(self.run_main(not_ready)[1], [])
 
     def test_a_start_that_fails_says_the_systems_words_and_exits_1(self):
         def serve(setup):
