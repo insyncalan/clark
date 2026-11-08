@@ -7,6 +7,7 @@ import { recall, remember } from "./remember.js";
 import { commitWord } from "./commitment.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
+export const CALM_WORDS = ["On track", "Done"];                                // the two that are not flagged: on track, and finished
 const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
 export const ON_WORDS = "On the dashboard";
 export const OFF_WORDS = "Not on the dashboard";

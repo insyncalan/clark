@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_filter_line_page
 Starts the real server over the demo store at CLARK_NOW=2026-10-28 and drives the committed page in headless Chrome with real mouse and key
-events, at 1400 and 900 px, in light and in dark. The pure rules are in test_filter_line. Required: fails, never skips, without Chrome.
+events, at 1400 px here and at 900 px in test_filter_line_page_900 (#912: two files, so each is about half as long), in light and in dark. The pure rules are in test_filter_line. Required: fails, never skips, without Chrome.
 """
 import copy
 import re
@@ -34,7 +34,7 @@ from test_work_filters import click, expect, key, need_chrome, page_rows, pause,
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
-SIZES = (1400, 900)
+SIZES = (1400,)        # #912: the 900 px half of every loop over SIZES is test_filter_line_page_900 (the same tests, run at 900), a file of its own
 THEMES = ("light", "dark")
 
 
@@ -45,13 +45,15 @@ EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
 def click_tab(cdp, sid, selector):
     """Click a view tab. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen, so a tab is
     not where it was measured while that slide runs and the click lands beside it. Wait until the row has stopped (the same offset on
-    four reads 60 ms apart), bring the tab into view, then click."""
-    reads = []
-
+    four reads one frame apart, and no animation running), bring the tab into view, then click."""
     def still():
-        reads.append(cdp.js("document.querySelector('.vtabs').scrollLeft", sid))
-        time.sleep(0.06)
-        return len(reads) >= 4 and len(set(reads[-4:])) == 1
+        """No animation is running and the offset is the same on four reads one frame apart (#912: frames, not four sleeps of 60 ms)."""
+        if not cdp.js("document.getAnimations().length === 0", sid):
+            return False
+        reads = cdp.call("Runtime.evaluate", {"expression": "(async () => { const row = document.querySelector('.vtabs'); const r = []; for (let i = 0; i < 4; i++) { "
+                         "r.push(row.scrollLeft); await new Promise(f => requestAnimationFrame(f)); } return r; })()",
+                         "awaitPromise": True, "returnByValue": True}, sid)["result"].get("value") or []
+        return len(reads) == 4 and len(set(reads)) == 1
     assert wait(still), "the tab row is still sliding"
     cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
     click(cdp, sid, selector)
