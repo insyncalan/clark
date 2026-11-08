@@ -15,7 +15,8 @@ What it does, in order, and only when the folder is mixed:
      of same_version.MESSAGE, then that the clark folder is open for the person, and returns 3; clark.command then opens the
      folder (a program start is only platform.py's, and this file imports nothing of clark's).
 It changes something only after a typed y (any other key, an empty answer or no terminal is a no), never downloads, and never
-touches the data folder, system, docker or any other name: only .app/*, clark.command and the three stale names. An unfinished
+touches the data folder, system, docker or any other name: only .app/*, clark.command and the three stale names (a stale name that is the data folder, or holds it, is left where it is; and with a
+clark open on the data folder, no file is put back). An unfinished
 update (the marker in the data folder) means it waits: the launcher finishes that first.
 
 Exit codes: 0 = nothing for it to do, or the folder is right now (clark.command goes on); 3 = it has said the fallback (clark.command opens the folder and stops). Anything else (a crash) lets clark.command go on as it did before this file existed.
@@ -26,10 +27,10 @@ import sys
 # Before any other import: drop the script's own folder and the folder it was started in from the path (python3 -I does this
 # already; this keeps it true when the file is run any other way).
 _HERE = os.path.dirname(os.path.abspath(__file__))
-_DROP = {os.path.abspath(_HERE), os.path.realpath(_HERE), os.path.abspath(os.getcwd()), os.path.realpath(os.getcwd())}
-# abspath and realpath both: a link to either folder (a symlinked clark folder or working folder) cannot lead the path either.
-sys.path[:] = [p for p in sys.path
-               if os.path.abspath(p or os.getcwd()) not in _DROP and os.path.realpath(p or os.getcwd()) not in _DROP]
+_DROP = {os.path.realpath(_HERE), os.path.realpath(os.getcwd())}
+# realpath on both sides: a link to either folder (a symlinked clark folder or working folder, or /tmp and /var on a Mac, which
+# are links to /private/...) cannot lead the path either, however the path entry and the folder are spelled.
+sys.path[:] = [p for p in sys.path if os.path.realpath(p or os.getcwd()) not in _DROP]
 
 import hashlib  # noqa: E402
 import json  # noqa: E402
@@ -116,9 +117,44 @@ def differing(top, files):
     return out
 
 
-def stale_names(top):
-    """Which of src, vendor and clark are beside .app (a link counts: it is as much in the way)."""
-    return [n for n in STALE if os.path.lexists(os.path.join(str(top), n))]
+def _holds_data(top, name, data):
+    """Whether the person's data folder is `name` beside .app, or is inside it (a relative `data` means from the clark folder,
+    as clark.command's cd makes it). Compared by realpath on both sides, so a link or /var against /private/var cannot hide it."""
+    if not data:
+        return False
+    mine = os.path.realpath(os.path.join(str(top), name))
+    there = os.path.realpath(os.path.join(str(top), str(data)))
+    return there == mine or there.startswith(mine.rstrip(os.sep) + os.sep)
+
+
+def stale_names(top, data=None):
+    """Which of src, vendor and clark are beside .app (a link counts: it is as much in the way). A name that is the data folder
+    (or holds it) is not listed: moving it would move the person's data."""
+    return [n for n in STALE if os.path.lexists(os.path.join(str(top), n)) and not _holds_data(top, n, data)]
+
+
+def server_running(data):
+    """Whether a clark has the data folder open: its lock file (platform.LOCK_NAME) is held by another process. Looked at
+    without creating or writing anything; no lock file is no server. A lock that cannot be looked at counts as running."""
+    if not data:
+        return False
+    try:
+        import fcntl
+    except ImportError:
+        return False                                                # no file lock here (Windows): nothing to check
+    try:
+        fd = os.open(os.path.join(str(data), ".clark-lock"), os.O_RDONLY)
+    except FileNotFoundError:
+        return False
+    except OSError:
+        return True
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        return True
+    finally:
+        os.close(fd)                                                # closing drops a lock this call just took
+    return False
 
 
 # --- where the right copies may be ---------------------------------------------------------------------------------------
@@ -237,9 +273,12 @@ def _linked(top, rel):
     return False
 
 
-def put_back(top, copies, files):
-    """Write each copy beside where it belongs (a temporary name in the same folder), then rename it over the file. Returns how many."""
+def put_back(top, copies, files, data=None):
+    """Write each copy beside where it belongs (a temporary name in the same folder), then rename it over the file. Returns how many.
+    With a clark open on `data`, nothing is written (0)."""
     top, count = Path(top), 0
+    if server_running(data):
+        return 0
     for name, (data, _) in sorted(copies.items()):
         dest = top / name
         if _linked(top, name):
@@ -333,7 +372,7 @@ def run(top, data, key=None, out=None, err=None, home=None, tty=None):
     except ValueError:
         files = None                                                # unreadable: only the stale names can be dealt with
     differ = differing(top, files) if files else []
-    stale = stale_names(top)
+    stale = stale_names(top, data)
     if not differ and not stale:
         return 0
 
@@ -363,6 +402,8 @@ def run(top, data, key=None, out=None, err=None, home=None, tty=None):
         say("Older clark files are in the way: " + ", ".join(stale) + ".")
 
     acted, restored, moved = False, 0, False
+    if differ and server_running(data):
+        return fallback()                                           # clark is open: no file is put back (nothing is written)
     if differ:
         copies = find_copies(top, differ, files, home)
         if copies:
@@ -373,8 +414,8 @@ def run(top, data, key=None, out=None, err=None, home=None, tty=None):
             if not ask("Clark found the right copies in %s. Put %d files back? Your data is not touched. "
                        "Type y for yes, or any other key for no." % (" and ".join(places), len(copies))):
                 return fallback()
-            restored, acted = put_back(top, copies, files), True
-    stale = stale_names(top)
+            restored, acted = put_back(top, copies, files, data), True
+    stale = stale_names(top, data)
     if stale:
         if not ask("Move the older files into a folder called clark older files? Nothing is deleted and your data is not touched. "
                    "Type y for yes, or any other key for no."):
@@ -387,7 +428,7 @@ def run(top, data, key=None, out=None, err=None, home=None, tty=None):
         left = differing(top, read_record(top) or {})
     except ValueError:
         left = ["record"]
-    if left or stale_names(top):
+    if left or stale_names(top):                                   # a name that holds the data stays, so clark still would not start
         return fallback(could_not=True)
     if restored:
         say("Done. %d files put back. Starting clark." % restored)

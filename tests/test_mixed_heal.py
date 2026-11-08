@@ -477,7 +477,7 @@ class NoDownload(Fixture):
             elif isinstance(node, ast.ImportFrom):
                 names.add((node.module or "").split(".")[0])
         self.assertNotIn("clark", names)
-        self.assertLessEqual(names, {"os", "sys", "hashlib", "json", "subprocess", "zipfile", "pathlib", "termios", "glob", "tempfile"})
+        self.assertLessEqual(names, {"os", "sys", "hashlib", "json", "subprocess", "zipfile", "pathlib", "termios", "fcntl", "glob", "tempfile"})
 
 
 class Guarded(unittest.TestCase):
@@ -739,6 +739,126 @@ class ClarkCommand(Fixture):
                              cwd=str(self.tmp), stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
         self.assertEqual(0, out.returncode, out.stderr)
         self.assertNotIn(str(link), out.stdout)
+
+
+class DataAndServer(Fixture):
+    """CMD 099: the data folder is never moved as a stale name, a clark that is open is never written under, realpath on both sides."""
+
+    def open_lock(self, data):
+        import fcntl
+        Path(data).mkdir(parents=True, exist_ok=True)
+        fd = os.open(str(Path(data) / ".clark-lock"), os.O_RDONLY | os.O_CREAT, 0o600)
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        self.addCleanup(os.close, fd)
+
+    def test_a_relative_data_that_is_a_stale_name_is_not_moved(self):
+        self.add_stale()
+        self.put(self.top / "vendor" / "my data.db", b"the person's data")
+        before = snapshot(self.top / "vendor")
+        code, out, err, _ = self.heal("yy", data="vendor")
+        self.assertEqual(3, code, "vendor is still beside .app, so clark would not start: it is not said to be healed")
+        self.assertNotIn("Starting clark", out)
+        self.assertIn(MESSAGE + "\n" + OPEN_LINE + "\n", err)
+        self.assertEqual(before, snapshot(self.top / "vendor"))
+        self.assertEqual(b"the person's data", (self.top / "vendor" / "my data.db").read_bytes())
+        self.assertFalse((self.top / OLDER / "vendor").exists())
+        self.assertIn("Older clark files are in the way: src, clark.\n", out)
+        self.assertFalse((self.top / "src").exists())
+
+    def test_the_only_stale_name_being_the_data_folder_asks_and_changes_nothing(self):
+        self.add_stale("vendor")
+        before = snapshot(self.top)
+        code, out, err, _ = self.heal("yy", data="vendor")
+        self.assertEqual((0, ""), (code, out))
+        self.assertEqual(before, snapshot(self.top))
+
+    def test_data_spelled_with_dots_a_link_or_an_absolute_path_is_still_the_data(self):
+        self.add_stale()
+        link = self.tmp / "linked data"
+        link.symlink_to(self.top / "src", target_is_directory=True)
+        for data in ("./src/", "x/../src", str(self.top / "src"), str(link)):
+            with self.subTest(data=data):
+                self.assertNotIn("src", self.heal_module.stale_names(self.top, data))
+                self.assertEqual(["vendor", "clark"], [n for n in self.heal_module.stale_names(self.top, data)])
+
+    def test_data_inside_a_stale_name_keeps_that_name_too(self):
+        self.add_stale()
+        self.put(self.top / "clark" / "mine" / "clark.db", b"data")
+        self.assertEqual(["src", "vendor"], self.heal_module.stale_names(self.top, "clark/mine"))
+        self.assertEqual(["src", "vendor"], self.heal_module.stale_names(self.top, str(self.top / "clark" / "mine")))
+
+    def test_a_data_folder_beside_the_stale_names_with_a_similar_name_does_not_hide_them(self):
+        self.add_stale()
+        self.assertEqual(["src", "vendor", "clark"], self.heal_module.stale_names(self.top, "mydata"))
+        self.assertEqual(["src", "vendor", "clark"], self.heal_module.stale_names(self.top, "srcdata"))
+        self.assertEqual(["src", "vendor", "clark"], self.heal_module.stale_names(self.top, str(self.data)))
+
+    def test_put_back_refuses_and_writes_nothing_while_a_clark_is_open(self):
+        self.make_old(".app/src/clark/a.py", ".app/src/clark/b.py")
+        self.zip_of(self.home / "Downloads")
+        self.open_lock(self.data)
+        before = snapshot(self.tmp)
+        files = self.heal_module.read_record(self.top)
+        copies = self.heal_module.find_copies(self.top, [".app/src/clark/a.py", ".app/src/clark/b.py"], files, self.home)
+        self.assertEqual(2, len(copies))
+        self.assertEqual(0, self.heal_module.put_back(self.top, copies, files, self.data))
+        self.assertEqual(before, snapshot(self.tmp))
+
+    def test_put_back_goes_on_when_the_lock_file_is_not_held(self):
+        self.make_old(".app/src/clark/a.py")
+        self.zip_of(self.home / "Downloads")
+        Path(self.data / ".clark-lock").write_bytes(b"")                  # left by a clark that has stopped
+        files = self.heal_module.read_record(self.top)
+        copies = self.heal_module.find_copies(self.top, [".app/src/clark/a.py"], files, self.home)
+        self.assertEqual(1, self.heal_module.put_back(self.top, copies, files, self.data))
+        self.assertEqual(self.good[".app/src/clark/a.py"], (self.top / ".app/src/clark/a.py").read_bytes())
+
+    def test_a_running_clark_gets_the_existing_sentence_and_the_folder_opens_with_nothing_written(self):
+        self.add_stale()
+        self.make_old(".app/src/clark/a.py")
+        self.zip_of(self.home / "Downloads")
+        self.open_lock(self.data)
+        before = snapshot(self.tmp)
+        code, out, err, _ = self.heal("yy")
+        self.assertEqual(3, code)
+        self.assertIn(MESSAGE + "\n" + OPEN_LINE + "\n", err)
+        self.assertNotIn("Put 1 files back", out)
+        self.assertEqual(before, snapshot(self.tmp))
+
+    def test_checking_for_a_clark_creates_nothing_in_the_data_folder(self):
+        before = snapshot(self.data)
+        self.assertFalse(self.heal_module.server_running(self.data))
+        self.assertFalse(self.heal_module.server_running(self.tmp / "no such data"))
+        self.assertEqual(before, snapshot(self.data))
+        self.assertFalse((self.tmp / "no such data").exists())
+
+    def test_a_path_that_is_spelled_through_a_link_cannot_lead_the_path(self):
+        """A Mac's /var against /private/var: the program's folder reached through a link, the path entry given as its real place."""
+        link = self.tmp / "linked clark"
+        link.symlink_to(self.top, target_is_directory=True)
+        here = self.top / ".app" / "src" / "clark"
+        self.put(here / "json.py", b"raise RuntimeError('SHADOWED')\n")
+        env = dict(self.env_plain(), PYTHONPATH=os.path.realpath(str(here)))
+        done = subprocess.run([sys.executable, str(link / ".app" / "src" / "clark" / "same_version_heal.py"), str(self.top), str(self.data)],
+                              cwd=str(self.tmp), env=env, stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertNotIn("SHADOWED", done.stderr)
+
+    def test_the_started_in_folder_reached_through_a_link_cannot_lead_the_path_either(self):
+        real = self.tmp / "started real"
+        real.mkdir()
+        link = self.tmp / "started link"
+        link.symlink_to(real, target_is_directory=True)
+        self.put(real / "json.py", b"raise RuntimeError('SHADOWED')\n")
+        env = dict(self.env_plain(), PYTHONPATH=str(link))
+        done = subprocess.run([sys.executable, str(HEAL_PATH), str(self.top), str(self.data)], cwd=str(link), env=env,
+                              stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=60)
+        self.assertEqual(0, done.returncode, done.stderr)
+        self.assertNotIn("SHADOWED", done.stderr)
+
+    @staticmethod
+    def env_plain():
+        return {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
 
 
 if __name__ == "__main__":
