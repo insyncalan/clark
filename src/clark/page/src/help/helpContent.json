@@ -1360,6 +1360,10 @@
      [
       "p",
       "Assign to: click the owner. Under Recent are the names used lately in this project, then the people clark holds. Type to search them. If the name is new, the box offers to add it “as a new person”, which puts them on the list of people and assigns them in one step; “Keep the name only” assigns the name alone. “TBC (no one yet)” leaves the item with no one yet, and the owner stays as TBC. Recent names are kept in this browser only, not in Excel or a published file. If the browser will not keep them, there is no Recent list, and everything else works."
+     ],
+     [
+      "p",
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
      ]
     ]
    },
@@ -1398,6 +1402,7 @@
        "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
        "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
+       "Under an answer, **Sources** lists the files and notes it came from. A name that is a saved PDF in one of your source folders is a button: it opens that PDF in the system’s viewer at the page the answer used, or at the first page when the page is not known. If the file cannot be opened, a line in the chat says so. Nothing is read or changed by opening it.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
        "Drag its left edge to make it wider."
       ]
@@ -1430,7 +1435,8 @@
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**Activity** (in Edit): each change to the item, newest first: who, how and when."
+       "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],
      [
@@ -1611,7 +1617,8 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and **⋯** (Archive milestone).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
+       "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**The chips**: the state, the agreed date, the forecast and the progress.",
        "**State**: the six states as buttons, and why it has the one it has.",
        "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
@@ -1631,7 +1638,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**. A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line, and its label reads, for example, 3 days later, then Expected and the date.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
@@ -1726,7 +1733,7 @@
      ],
      [
       "p",
-      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables."
+      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables. It also has pictures: a Project health bar under the health line, the milestone plan above the milestones table with one lane for each milestone, a small progress bar under each milestone’s percentage, and a picture of the Gantt section when the project has one. Every word in a picture is also real text in the table beside it. A milestone that has slipped has its days in the Slip column, such as +3 days."
      ],
      [
       "p",
@@ -1845,7 +1852,7 @@
        ],
        [
         "Publishing",
-        "The local folder, and the client’s SharePoint folder."
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, the client’s SharePoint folder. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Data",
@@ -1854,6 +1861,10 @@
        [
         "Version and updates",
         "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
        ],
        [
         "Diagnostics",
