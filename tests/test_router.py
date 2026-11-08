@@ -789,6 +789,46 @@ class BuiltPage(Browser):
             self.assertTrue(wait(lambda: self.scroll_y() == 300), "and Work items to its own place")
             self.no_errors()
 
+    def test_item_1019_a_second_scroller_during_a_restore_keeps_the_page_and_no_listener_is_left(self):
+        with chrome() as cdp:
+            self.draw(cdp, "#dashboard&p=PDF")
+            self.tall()
+            self.ev("""(() => {
+                const left = new Map();                                  // the once-listeners the page has added and not removed
+                const add = window.addEventListener, rem = window.removeEventListener;
+                window.addEventListener = function (t, f, o) { if (o && o.once) left.set(t + ":" + left.size, [t, f]); return add.apply(this, arguments); };
+                window.removeEventListener = function (t, f) { for (const [k, v] of left) if (v[0] === t && v[1] === f) left.delete(k); return rem.apply(this, arguments); };
+                window.onceLeft = () => left.size;
+                const m = document.createElement("div");
+                m.id = "second-scroller"; m.style.cssText = "position:absolute;top:2400px;height:10px";
+                document.body.appendChild(m);
+            })()""")
+            self.scroll_to(700)
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 0), "a first visit to Work items starts at the top")
+            self.scroll_to(300)
+            # back to the Dashboard: its restore puts the page at 700, and a frame or two in something else (scrollIntoView,
+            # as a focus jump does) moves the page to the marker. The page must stay there, not be pulled back to 700.
+            self.ev("""(() => {
+                window.frames_after = 0; window.moved_to = -1;
+                document.querySelector('[data-view=dashboard]').click();
+                requestAnimationFrame(() => requestAnimationFrame(() => {
+                    document.getElementById('second-scroller').scrollIntoView();
+                    window.moved_to = Math.round(window.scrollY);
+                    const tick = () => { if (++window.frames_after < 45) requestAnimationFrame(tick); };
+                    requestAnimationFrame(tick);
+                }));
+            })()""")
+            self.assertTrue(wait(lambda: self.ev("frames_after") >= 45), "the page ran on for 45 frames after the second scroller")
+            there = self.ev("moved_to")
+            self.assertGreater(there, 1000, "the second scroller moved the page well away from the saved 700")
+            self.assertEqual(self.scroll_y(), there, "the restore did not yank the page back to the saved place")
+            self.assertEqual(self.ev("onceLeft()"), 0, "stopping the restore removed its wheel/touch/key/mouse listeners")
+            self.click_tab("work")                                       # a restore that runs to its end also leaves none
+            self.assertTrue(wait(lambda: self.scroll_y() == 300), "Work items came back to its place")
+            self.assertTrue(wait(lambda: self.ev("onceLeft()") == 0), "a finished restore left no listener attached")
+            self.no_errors()
+
     def test_item_1019_back_and_forward_restore_each_screens_place(self):
         with chrome() as cdp:
             self.draw(cdp, "#dashboard&p=PDF")

@@ -107,12 +107,14 @@ function restore(key) {
   const want = spots.get(key) || 0;
   let frames = 0, held = 0, last = -1;                     // last: where this restore left the page, to tell its own placing from someone else's scroll
   const root = document.documentElement;
-  const done = () => { try { root.style.overflowAnchor = ""; } catch (e) { /* none */ } };     // the browser's own scroll anchoring would shift the place while the page redraws
-  const stop = () => { if (mine === restoring) { restoring++; done(); } };
+  const evs = ["wheel", "touchstart", "keydown", "mousedown"];
+  const unhook = () => { for (const ev of evs) { try { removeEventListener(ev, stop); } catch (e) { /* none */ } } };     // none left attached once the restore has stopped or finished
+  const done = () => { unhook(); try { root.style.overflowAnchor = ""; } catch (e) { /* none */ } };     // the browser's own scroll anchoring would shift the place while the page redraws
+  const stop = () => { if (mine === restoring) { restoring++; done(); } else unhook(); };
   try { root.style.overflowAnchor = "none"; } catch (e) { /* none */ }
-  for (const ev of ["wheel", "touchstart", "keydown", "mousedown"]) { try { addEventListener(ev, stop, { once: true, passive: true }); } catch (e) { /* none */ } }
+  for (const ev of evs) { try { addEventListener(ev, stop, { once: true, passive: true }); } catch (e) { /* none */ } }
   const step = () => {
-    if (mine !== restoring) return;
+    if (mine !== restoring) { unhook(); return; }
     try {
       const room = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       const at = Math.min(want, room);
