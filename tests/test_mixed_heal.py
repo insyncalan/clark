@@ -775,6 +775,39 @@ class DataAndServer(Fixture):
         self.assertIn("Older clark files are in the way: src, clark.\n", out)
         self.assertFalse((self.top / "src").exists())
 
+    def test_a_data_folder_called_clark_older_files_or_inside_it_is_never_used_as_the_place_to_move_to(self):
+        self.add_stale()
+        for data in (OLDER, OLDER + "/my data", "./" + OLDER + "/", "x/../" + OLDER + "/deeper/still"):
+            with self.subTest(data=data):
+                self.put(self.top / OLDER / "my data" / "clark.db", b"the person's data")
+                (self.top / OLDER / "deeper" / "still").mkdir(parents=True, exist_ok=True)
+                before = snapshot(self.top)
+                code, out, err, _ = self.heal("yy", data=data)
+                self.assertEqual((0, ""), (code, out), "nothing is asked: the name is the data's")
+                self.assertNotIn(ASK_MOVE, out)
+                self.assertEqual(before, snapshot(self.top), "src, vendor and clark stay, and nothing goes into the data folder")
+        link = self.tmp / "linked data"
+        link.symlink_to(self.top / OLDER, target_is_directory=True)
+        before = snapshot(self.top)
+        self.assertEqual((0, ""), self.heal("yy", data=str(link))[:2])
+        self.assertEqual(before, snapshot(self.top))
+
+    def test_move_stale_itself_refuses_when_the_data_folder_is_the_older_folder_or_inside_it(self):
+        self.add_stale()
+        self.put(self.top / OLDER / "my data" / "clark.db", b"the person's data")
+        before = snapshot(self.top)
+        for data in (OLDER, OLDER + "/my data"):
+            with self.subTest(data=data):
+                self.assertEqual([], self.heal_module.move_stale(self.top, ["src", "vendor", "clark"], data))
+                self.assertEqual(before, snapshot(self.top))
+
+    def test_the_older_folder_is_still_used_when_the_data_folder_is_somewhere_else(self):
+        self.add_stale()
+        self.put(self.top / "clark older files-not" / "x", b"x")                    # a name that only starts the same
+        code, out, err, _ = self.heal("y", data=str(self.top / "clark older files-not"))
+        self.assertEqual(0, code)
+        self.assertIn(DONE_MOVED + "\n", out)
+
     def test_the_only_stale_name_being_the_data_folder_asks_and_changes_nothing(self):
         self.add_stale("vendor")
         before = snapshot(self.top)
