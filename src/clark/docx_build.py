@@ -35,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import docx_graphics, glance, look, platform, sanitise
+from clark import docx_graphics, docx_read, glance, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -214,7 +214,7 @@ def picture(ctx, drawn, width_twips, alt):
     cx = int(width_twips) * EMU_PER_TWIP
     cy = max(1, cx * h // w)
     return (f'<w:r><w:drawing><wp:inline xmlns:wp="{NS_WP}" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="{cx}" cy="{cy}"/>'
-            f'<wp:docPr id="{ctx.drawings}" name="Picture {ctx.drawings}" descr="{attr(alt)}"/>'
+            f'<wp:docPr id="{ctx.drawings}" name="{docx_read.OWN_PICTURE_NAME}{ctx.drawings}" descr="{attr(alt)}"/>'
             f'<a:graphic xmlns:a="{NS_A}"><a:graphicData uri="{NS_PIC}"><pic:pic xmlns:pic="{NS_PIC}"><pic:nvPicPr>'
             f'<pic:cNvPr id="{ctx.drawings}" name="{name}" descr="{attr(alt)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>'
             f'<a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/>'
