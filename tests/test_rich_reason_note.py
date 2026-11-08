@@ -166,6 +166,9 @@ class PublishedReason(unittest.TestCase):
         limit = publish.REASON_LIMIT
         out = publish.reason_html("<p>" + "x" * (limit + 50) + "</p>")
         self.assertEqual(len(sanitise.plain_text(out)), limit)
+        hidden = publish.reason_html("<p>ke\u200bep wa\u200btch</p>")
+        self.assertNotIn("\u200b", hidden)
+        self.assertEqual(sanitise.plain_text(hidden), "keep watch")
 
 
 class Readers(Base):
