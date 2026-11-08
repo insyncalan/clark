@@ -87,7 +87,7 @@ ORDINARY = (        # names, ids and addresses that must never be refused (a ref
     "https://example.com/projects/Tulip_Phase2_Rev03_v2_Final/Site_Survey_Rev03_v2",
     "https://example.com/files/2024/11/Tulip-Phase2-Rev03-v2-Final.pdf?download=1",
     "{9A1B2C3D-4E5F-6071-8293-A4B5C6D7E8F9}", "urn:uuid:123e4567-e89b-12d3-a456-426614174000",
-    "Room7B_Floor7B_Wing7B", "Room4B_Floor12_Building7_Wing2", "Gantt7B_Phase2_Rev03_v2", "Room7B-Floor7B-Wing7B-Annex3",
+    "Room7B_Floor7B_Wing7B", "Room4B_Floor12_Building7_Wing2", "Gantt7B_Phase2_Rev03_v2", "Room7B-Floor7B-Wing7B-Annex3", "Gantt7B-Wing7B-Booking7B-Rev7B", "Phase7B-Floor7B-90-Survey7B",
 )
 KEYS_WITH_SEPARATORS = (    # random keys that contain - or _ and must still be caught
     "Ab3Xk9Qw2Zr7_Lm4Pt8Vn1Cy5-Hd6Jf0Gs", "Ab3Xk9_Qw2Zr7_Lm4Pt8_Vn1Cy5_Hd6Jf0", "live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0",
