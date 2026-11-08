@@ -94,7 +94,7 @@ class DownloadLayout(unittest.TestCase):
 
     def test_the_page_code_finds_the_branding_beside_dot_app(self):
         brand = self.clark / "branding"
-        self.addCleanup(shutil.rmtree, self.clark / "system", True)
+        self.addCleanup(shutil.rmtree, self.clark / "branding", True)
         brand.mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
         code = ("import sys; sys.path[:0] = [sys.argv[1] + '/.app/src', sys.argv[1] + '/.app/vendor']\n"
@@ -109,7 +109,7 @@ class DownloadLayout(unittest.TestCase):
     @unittest.skipUnless(MAC and shutil.which("lsof"), "the launcher is the Mac's; lsof names the server to stop")
     def test_the_server_starts_through_clark_command_and_serves_the_persons_branding(self):
         brand = self.clark / "branding"
-        self.addCleanup(shutil.rmtree, self.clark / "system", True)
+        self.addCleanup(shutil.rmtree, self.clark / "branding", True)
         brand.mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
         stub = self.tmp / "browser"
@@ -142,7 +142,7 @@ class DownloadLayout(unittest.TestCase):
                                                         capture_output=True, text=True).stdout.split():
             time.sleep(0.1)
 
-    def test_an_update_in_place_leaves_system_branding_byte_identical(self):
+    def test_an_update_in_place_leaves_branding_and_system_branding_byte_identical(self):
         """The real unzipped folder, a staged newer copy of it, and the update helper (its platform seams faked)."""
         app = self.tmp / "updating" / "clark"
         shutil.copytree(self.clark, app)
@@ -150,7 +150,10 @@ class DownloadLayout(unittest.TestCase):
         (brand / "assets").mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
         (brand / "assets" / "cover.png").write_bytes(b"\x89PNG my own cover")
-        mine = {p.relative_to(app).as_posix(): p.read_bytes() for p in brand.rglob("*") if p.is_file()}
+        old_place = app / "system" / "branding"             # the 1.0.5 place stays through an update too
+        old_place.mkdir(parents=True)
+        (old_place / "tokens.css").write_bytes(TOKENS)
+        mine = {p.relative_to(app).as_posix(): p.read_bytes() for q in (brand, old_place) for p in q.rglob("*") if p.is_file()}
         old = json.loads((app / package.MANIFEST).read_text(encoding="utf-8"))
         newer = "9.9.9"
         staging = app / (h.STAGING_PREFIX + STAMP)
@@ -174,8 +177,8 @@ class DownloadLayout(unittest.TestCase):
         code, result = h.run_update(marker, FakeSeams(), None)
         self.assertEqual(h.OK, code, result)
         self.assertIn(newer, (app / ".app" / "src" / "clark" / "__init__.py").read_text(encoding="utf-8"))
-        self.assertEqual(mine, {p.relative_to(app).as_posix(): p.read_bytes() for p in brand.rglob("*") if p.is_file()})
-        self.assertEqual(sorted(VISIBLE + [".app", "system"]),
+        self.assertEqual(mine, {p.relative_to(app).as_posix(): p.read_bytes() for q in (brand, old_place) for p in q.rglob("*") if p.is_file()})
+        self.assertEqual(sorted(VISIBLE + [".app", "system", "branding"]),
                          sorted(n for n in os.listdir(app) if not n.startswith(".clark-")))
 
 
