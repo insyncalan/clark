@@ -69,9 +69,9 @@ export function PeekLatest({ row }) {
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
-        <div class="pk-lab"><span id="pk-latest-lab">Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
+        <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span> <button type="button" class="pk-draft" data-pk-draft onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
-        <RichField key={rev} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} />
+        <RichField key={rev} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>

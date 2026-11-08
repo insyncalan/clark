@@ -157,12 +157,15 @@ class Fields(Base):
                 self.assertLessEqual(len(sanitise.plain_text(got)), limit)
                 self.assertEqual(sanitise.rich_or_plain(got), got)
 
-    def test_a_carriage_return_inside_html_is_a_line_break_not_a_hidden_character(self):
+    def test_a_carriage_return_is_refused_in_a_latest_update_and_a_line_break_in_a_description(self):
         for table, field, _ in FIELDS:
             with self.subTest(field):
                 for sent in ("<p>a\rb</p>", "<p>a\r\nb</p>", "<p>a</p>\r<p>b</p>"):
                     status, body = self.send(table, field, sent)
-                    self.assertEqual(status, 200, (sent, body))
+                    if field == "latest_update":                  # as before: a carriage return is a hidden character in a latest update
+                        self.assertEqual((status, body["message"]), (400, changes.LATEST_HIDDEN_WORDS), repr(sent))
+                        continue
+                    self.assertEqual(status, 200, (sent, body))          # a milestone's description folds it into a line break, as it always did
                     self.assertNotIn("\r", self.stored(table, field))
 
 

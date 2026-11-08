@@ -78,13 +78,13 @@
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
 .pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.pk-act { margin: 12px 0 0; }
-.pk-latest { margin: 12px 0 0; padding-top: 10px; border-top: 1px solid var(--grey-100); }
-.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; color: var(--text); font-size: var(--size-small); }
+.pk-act { margin: var(--space-2) 0 0; }
+.pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
+.pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
 .pk-draft { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: 999px; background: var(--surface); color: var(--status-blue-text); font: inherit; font-size: var(--size-small); cursor: pointer; }
 .pk-draft:hover { background: var(--brand-blue-tint); }
-.pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: 64px; margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
 .pk-latest-text:hover { border-color: var(--grey-200); }
 .pk-latest-in { resize: vertical; border-color: var(--brand-blue); background: var(--surface); }
@@ -103,7 +103,9 @@
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
 .pk-latest-err { color: var(--status-red-text); }
-.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; color: var(--text-muted); font-size: var(--size-small); }
+.pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
+/* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
+.peek .pk-fields > .pk-row[data-row] { padding-block: var(--space-2); margin-bottom: var(--space-1); }
 /* The peek's title, edited in place (Edit only): plain text that looks like the title until hovered or focused. */
 .pk-title-in { display: block; box-sizing: border-box; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; overflow-wrap: anywhere; }
 .pk-title-in:hover { border-color: var(--grey-200); }
@@ -115,6 +117,8 @@
 .pk-pick { display: inline-block; max-width: 100%; min-height: var(--space-6); padding: calc(var(--space-1) * 3 / 4) var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; overflow-wrap: anywhere; cursor: pointer; }
 .pk-pick:hover { border-color: var(--grey-300); background: var(--grey-100); }
 .pk-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
+.pk-source-l { font-weight: var(--weight-medium); }
 .pa-list { list-style: none; margin: 0; padding: 0; }
 .pa-row { padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pa-meta { margin: 0; font-size: var(--size-caption); color: var(--text-muted); }
@@ -721,7 +725,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .ucx-step { margin: 6px 0 2px; }
 .ucx-step .field { box-sizing: border-box; width: 100%; max-width: 560px; min-height: 32px; padding: 4px 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .ucx-step .field:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucdetail .add-from { display: inline-flex; align-items: center; min-height: 24px; margin: 4px 0 0; }
+.ucdetail .add-from { display: inline-flex; align-items: center; min-height: 24px; margin: 4px var(--space-3) 0 0; }
 .uclink .pk-search .seg { flex: 0 1 auto; }
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
@@ -845,6 +849,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   @keyframes m-blink { 50% { transform: scaleY(.1); } }
 }
 
+/* row 962: a cell picker (Pop: MenuPick, RatingPick, the date and owner pickers, the bulk menu) fades out as it closes, as a menu does (row 922). Pop.jsx keeps a copy
+   (no id, role=presentation, inert, aria-hidden) for the fade; opacity only, m-out from shell.css, edit-only so the published page carries none of it. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .cpop.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+}
+
 /* Row 881 (motion): press feedback on buttons and cards. Here, not in shell.css, so the published page (no Edit part) carries none of it.
    Gated like the Motion block: absent under reduced motion (the computer's setting or <html data-motion="reduce">). Tokens only; colour and
    transform only, so nothing else moves. */
@@ -930,6 +940,15 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 @media (prefers-reduced-motion: no-preference) {
   :root:not([data-motion="reduce"]) main.view-in { animation: m-view var(--dur-view) var(--ease-enter) 1; }
   @keyframes m-view { from { opacity: 0; transform: translateY(var(--space-2)); } }
+}
+/* row 962: the copy of a menu that has just closed (Menu.jsx fadeCopy: no id, inert, aria-hidden) fades out over --dur-instant; opacity only. A section's options box is .menu; the
+   other menus are .ddmenu.leaving in shell.css. Same gate as the Motion block; where motion is off no copy is drawn at all. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) .menu.leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+}
+/* row 962: the same for the filter suggestion list, a column's filter box, the Gantt Add menu, the template settings box and the Board's small date and decision boxes. */
+@media (prefers-reduced-motion: no-preference) {
+  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
 }
 
 /* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */

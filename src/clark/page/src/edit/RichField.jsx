@@ -9,7 +9,7 @@ import { saveRich } from "./richSave.js";
 
 const shown = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
 
-export function RichField({ field, id, value, label, empty = "Click to write.", save }) {
+export function RichField({ field, id, value, label, empty = "Click to write.", save, viewId, labelledBy }) {
   const [open, setOpen] = useState(false);
   const view = useRef(null), back = useRef(false);
   // Esc or Cmd/Ctrl+Enter closed the editor: the focus goes to the field's view, not to the page body (#188). A close because the
@@ -20,7 +20,7 @@ export function RichField({ field, id, value, label, empty = "Click to write.", 
   }
   const html = shown(value);
   return (
-    <div class="rt-view" ref={view} data-edit-only data-rich={field} role="button" tabindex="0" aria-label={`Edit ${label || "text"}`}
+    <div class="rt-view" ref={view} data-edit-only data-rich={field} role="button" tabindex="0" id={viewId} aria-label={labelledBy ? undefined : `Edit ${label || "text"}`} aria-labelledby={labelledBy}
       onClick={(e) => { if (!e.target.closest("a")) setOpen(true); }}
       onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpen(true); } }}>
       {html ? <div class="sec-body prose" dangerouslySetInnerHTML={{ __html: html }} /> : <p class="quiet">{empty}</p>}

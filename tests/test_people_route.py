@@ -87,6 +87,21 @@ class Writers(Base):
         status, body = self.post({"op": "merge", "from": a, "into": b})
         self.assertEqual((status, body["items"], body["id"]), (200, 1, b))
 
+    def test_an_organisation_or_role_over_100_characters_is_refused_and_changes_nothing(self):
+        pid = self.add("Sam Reed")["id"]
+        before = self.srv.call("GET", "/api/people")[1]["people"]
+        for field in ("organisation", "role"):
+            for req in ({"op": "add", "name": "Li Wen", field: "x" * 101}, {"op": "edit", "id": pid, "changes": {field: "x" * 101}}):
+                status, body = self.post(req)
+                self.assertEqual((status, body["ok"]), (400, False), req)
+                self.assertIn(f"the {field} is too long (at most 100 characters). Shorten it and try again. Nothing was changed.", body["message"])
+        self.assertEqual(self.srv.call("GET", "/api/people")[1]["people"], before)
+
+    def test_an_organisation_or_role_of_exactly_100_characters_is_accepted(self):
+        pid = self.add("Sam Reed", organisation="o" * 100, role="r" * 100)["id"]
+        status, body = self.post({"op": "edit", "id": pid, "changes": {"organisation": "p" * 100, "role": "q" * 100}})
+        self.assertEqual((status, body["people"][0]["organisation"], body["people"][0]["role"]), (200, "p" * 100, "q" * 100))
+
     def test_a_refusal_is_plain_words_and_writes_nothing(self):
         self.add("Sam Reed", email="sam@x.example")
         for req in ({"op": "add", "name": ""}, {"op": "add", "name": "A", "email": "sam@x.example"}, {"op": "add", "name": "A", "kind": "robot"},

@@ -7,7 +7,7 @@ the provider's own lock refuses a second run, and this service looks at it first
 
 THE SWITCH. There is one switch for Claude on this computer, the one in Settings under Asking. AI suggestions are off while it is off.
 
-ONE-SHOT AND STATELESS. A request is {option, place, text, instruction}. It is checked and turned into the prompt by ai_menu
+ONE-SHOT AND STATELESS. A request is {option, place, text, instruction} and, optionally, a project code (#587: only used to read the project's names for the client check). It is checked and turned into the prompt by ai_menu
 (build_prompt: hidden characters, size, the option and place), sent through the provider with no tools, and the reply is checked by
 ai_menu.check_reply and turned into cleaned HTML. The answer is the html, the notes and the word by word changes, or one plain
 line. Nothing is kept: the card lives on the page, and nothing is applied here.
@@ -24,7 +24,7 @@ import threading
 from clark import ai_menu, ask, ask_claude
 
 LOG = logging.getLogger("clark.ai")
-FIELDS = {"option", "place", "text", "instruction"}
+FIELDS = {"option", "place", "text", "instruction", "project"}
 PROVIDER_LABEL = "Claude"
 # The provider's own plain lines that ask clark shows as they are (a timeout, a sign-out, busy): the same lines here, each with its
 # own code. Any other provider line is not shown (its words could hold the request or a path); that is the generic "failed".
@@ -49,10 +49,12 @@ MESSAGES = {
 
 
 class AiService:
-    """`ask_service` is the AskService whose provider, switch and Stop this uses."""
+    """`ask_service` is the AskService whose provider, switch and Stop this uses. `store` is read only to name the project's people
+    and item codes for the client-message check (#587); without one a request naming a project is refused."""
 
-    def __init__(self, ask_service):
+    def __init__(self, ask_service, store=None):
         self.ask_service = ask_service
+        self.store = store
         self.run_lock = threading.Lock()           # this service's own run; the provider's lock covers a question's run
         self.guard = threading.Lock()              # #284: the run is registered, and Stop looks at it, only under this
         self.stopped = threading.Event()           # set by Stop for the run now going; cleared only as a run is registered
@@ -105,22 +107,27 @@ class AiService:
 
     @staticmethod
     def read_body(body):
-        """(option, place, text, instruction) or None for a body of the wrong shape."""
+        """(option, place, text, instruction, project) or None for a body of the wrong shape. `project` is "" when none is named."""
         if not isinstance(body, dict) or not {"option", "place", "text"} <= set(body) or not set(body) <= FIELDS:
             return None
-        got = tuple(body.get(k, "") for k in ("option", "place", "text", "instruction"))
-        return got if all(isinstance(v, str) for v in got) and got[1] in ai_menu.PLACES else None
+        got = tuple(body.get(k, "") for k in ("option", "place", "text", "instruction", "project"))
+        return got if all(isinstance(v, str) for v in got) and got[1] in ai_menu.PLACES and ("project" not in body or got[4]) else None
 
     def suggest(self, body):
         got = self.read_body(body)
         if got is None:
             return 400, self.fail("bad_request")
-        option, place, text, instruction = got
+        option, place, text, instruction, project = got
         # A password or key in the text or in Ask... is refused as it was given, before any cleaning or squeezing (screen
         # before the line breaks are joined), before the run lock and before the provider. Nothing is echoed or logged but the shape.
         if ai_menu.looks_like_secret(text) or ai_menu.looks_like_secret(instruction):
             LOG.info("ai suggest refused: secret option=%s place=%s length=%d", self.checked_option(option), place, len(text))
             return 400, self.fail("secret")
+        known = None
+        if project:      # #587: only a code the store holds counts; what is known is read here, never taken from the request
+            known = ai_menu.known_for(self.store, project) if self.store is not None else None
+            if known is None:
+                return 400, self.fail("bad_request")
         state = self.state()
         if state != "ready":
             return 409, self.fail(state)
@@ -152,9 +159,8 @@ class AiService:
             self.run_lock.release()
         if not isinstance(reply, str):
             return 200, self.fail("failed")
-        # Deferred (#587, Low): no `people` or `known` is given here, so for a client message this check cannot see the project's
-        # names or item codes; the page's own check (which has them) still runs before anything is shown. Fixed with slice 5.
-        checked = ai_menu.check_reply(reply, req["original"], req["option"], req["place"])
+        # With a project named (checked above), the project's people and item codes are known here as on the page (#587).
+        checked = ai_menu.check_reply(reply, req["original"], req["option"], req["place"], (), known)
         if not checked["ok"]:
             return 200, self.fail("failed", checked["message"])
         try:

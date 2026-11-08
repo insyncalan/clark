@@ -1,7 +1,6 @@
 """Row 828 (M4, M5): the milestone peek's fields are editable in place on the Milestones page with no View mode: Name, Owner, Forecast date,
 Achieved on, State, Progress, Description, Workstream, Visible to client and Client wording. Each is one change with one Undo; a refusal
-changes nothing; the Dashboard's View and a published file keep the read-only peek. M6 (Archive milestone) is not built: its toast sentence is
-new wording that is the owner's.
+changes nothing; the Dashboard's View and a published file keep the read-only peek. M6 (row 867, Archive in the peek) uses the work item peek's own words.
 
 Run: python3 dev/run_tests.py test_milestone_peek_828
 Without a browser: the pure rules (msPeek.js) are read from the source; the published build takes none of the new files.
@@ -245,6 +244,30 @@ class Fields(Base):
             self.click(p, "#peek [data-ms-state=On\\ track]")
             p.until("!!document.querySelector('.toast.problem, .toast[data-kind=problem]') || /couldn|nothing was changed/i.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "a refusal is said")
             self.assertIsNone(self.row(self.cur)["state"])
+
+    def calm(self, p):
+        p.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+        p.until("document.getAnimations().length === 0", "no animation running")
+
+    def test_archive_in_the_milestone_peek_hides_it_closes_the_peek_and_one_undo_brings_it_back(self):
+        """Row 867 (M6): the existing Archive button of the peek, with the existing words (no new sentence)."""
+        with chrome() as cdp:
+            p = self.visit_peek(cdp)
+            self.calm(p)
+            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-archive]').length"), 1)
+            self.click(p, "#peek [data-pk-archive]")
+            self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 1), "archived")
+            self.assertEqual((self.sent[-1][1]["kind"], self.sent[-1][1]["op"], self.sent[-1][1]["id"]), ("milestones", "archive", GO_LIVE))
+            p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
+            p.until("!document.querySelector('#peek')", "the peek closed")
+            p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
+
+    def test_no_archive_button_in_the_dashboards_view_peek(self):
+        with chrome() as cdp:
+            p = self.visit_peek(cdp, view="dashboard")
+            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-archive]').length"), 0)
 
     def test_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):

@@ -63,19 +63,18 @@ class Server(unittest.TestCase):
 
     def test_too_long_or_hidden_characters_are_refused_and_nothing_is_written(self):
         was = self.latest()
-        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", "a\tb", "a\ud800b", "<p>a​b</p>", "<p>a&#x200b;b</p>", "<p>a\tb</p>", 5, False, True, ["x"], {"a": 1}):
+        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "a\r\nb", "<p>a\rb</p>", "a\ud800b", "<p>a​b</p>", "<p>a&#x200b;b</p>", "<p>a\tb</p>", 5, False, True, ["x"], {"a": 1}):
             code, body = self.send(text)
             self.assertEqual((code, body["ok"]), (400, False), repr(text)[:20])
         self.assertEqual(self.latest(), was)
         self.assertEqual(self.send("x" * changes.LATEST_UPDATE_MAX)[0], 200, "the limit itself is allowed")
         self.assertEqual(self.send("<p><strong>" + "x" * changes.LATEST_UPDATE_MAX + "</strong></p>")[0], 200, "the limit counts the words, not the markup")
-        self.assertEqual(self.send("a\rb")[0], 200, "a carriage return is a line break, as it is in a milestone's description")
 
     def test_each_refusal_says_what_is_wrong_in_its_own_plain_sentence(self):
         said = lambda text: self.send(text)[1]["message"]
         self.assertEqual(said("x" * (changes.LATEST_UPDATE_MAX + 1)), changes.LATEST_LONG_WORDS)
         self.assertIn(str(changes.LATEST_UPDATE_MAX), changes.LATEST_LONG_WORDS)
-        for text in ("a​b", "a\x00b", "a‮b", "a\tb", "line one\nline two\u200b", "<p>a&#x200b;b</p>"):
+        for text in ("a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "line one\nline two\u200b", "<p>a&#x200b;b</p>"):
             self.assertEqual(said(text), changes.LATEST_HIDDEN_WORDS, repr(text))
         self.assertEqual(said(5), changes.ITEM_VALUE_WORDS)
         self.assertNotIn("line breaks", changes.LATEST_HIDDEN_WORDS, "line breaks are allowed in a latest update, so it never says to remove them")
@@ -155,6 +154,18 @@ class Source(unittest.TestCase):
         self.assertEqual(jsx.count('place: "draft"'), 1)
         self.assertIn('done.place || "cell"', (ROOT / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8"))
         self.assertTrue({"peek", "draft"} <= set(changes.PLACES))
+
+    def test_the_label_ids_come_from_the_item_id_not_fixed_names(self):
+        """#550: two peeks (or a peek and a stale one while it leaves) must not share an id, so the ids carry the item id."""
+        jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertNotIn('id="pk-latest-lab"', jsx)
+        self.assertNotIn('id="pk-latest-txt"', jsx)
+        self.assertIn("id={`pk-latest-lab-${row.id}`}", jsx)
+        self.assertIn("viewId={`pk-latest-txt-${row.id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
+        self.assertIn("labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}", jsx)
+        field = (ROOT / "src/clark/page/src/edit/RichField.jsx").read_text(encoding="utf-8")
+        self.assertIn("id={viewId}", field)
+        self.assertIn("aria-labelledby={labelledBy}", field)
 
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
@@ -467,7 +478,10 @@ class Browser(unittest.TestCase):
                 self.assertIn(self.action(OVERDUE)["latest_update"], box["text"])
                 self.assertEqual(box["ink"], self.want(cdp, sid, "--text"))
                 self.assertGreaterEqual(box["ratio"], 4.5, box)
-                lab = self.look(cdp, sid, "#pk-latest-lab")
+                lab = self.look(cdp, sid, '[id^="pk-latest-lab-"]')
+                ident = cdp.js("document.querySelector('[id^=\"pk-latest-lab-\"]').id.slice('pk-latest-lab-'.length)", sid)
+                self.assertEqual(cdp.js("(e => [e.id, e.getAttribute('aria-labelledby')])(document.querySelector('[data-pk-latest] [data-rich=latest_update]'))", sid),
+                                 ["pk-latest-txt-" + ident, "pk-latest-lab-%s pk-latest-txt-%s" % (ident, ident)], "row 550: the ids carry the item id, and the text is named by its label and itself")
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")
