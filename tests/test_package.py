@@ -90,6 +90,7 @@ class MacZipTest(unittest.TestCase):
         names = set(self.inside())
         for needed in ("clark.command", ".app/clark/__main__.py", ".app/src/clark/__main__.py", ".app/src/clark/page/page.html",
                        ".app/src/clark/schema.sql", ".app/vendor/openpyxl/__init__.py", ".app/vendor/et_xmlfile/__init__.py",
+                       ".app/vendor/pypdf/__init__.py", ".app/vendor/typing_extensions.py", ".app/vendor/licenses/pypdf-6.21.4-LICENSE.txt",
                        ".app/vendor/manifest.json", "README.md", "START-HERE.md"):
             self.assertIn(needed, names)
 

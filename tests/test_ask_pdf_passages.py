@@ -226,25 +226,37 @@ class NoNewWords(unittest.TestCase):
             self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text(encoding="utf-8"))
 
 
+def real_pdf(pages):
+    """A well-formed PDF (with its cross-reference table, which the real library needs) with one line of text on each page."""
+    objs = [b"<</Type/Catalog/Pages 2 0 R>>",
+            b"<</Type/Pages/Kids[%s]/Count %d>>" % (b" ".join(b"%d 0 R" % (5 + 2 * i) for i in range(len(pages))), len(pages)),
+            b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+    for i, text in enumerate(pages):
+        body = b"BT /F1 12 Tf 20 100 Td (%s) Tj ET" % text.encode()
+        objs.append(b"<</Length %d>>stream\n%s\nendstream" % (len(body), body))
+        objs.append(b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents %d 0 R/Resources<</Font<</F1 3 0 R>>>>>>" % (4 + 2 * i))
+    out, offsets = b"%PDF-1.4\n", []
+    for n, o in enumerate(objs, 1):
+        offsets.append(len(out))
+        out += b"%d 0 obj\n%s\nendobj\n" % (n, o)
+    xref = len(out)
+    out += b"xref\n0 %d\n0000000000 65535 f \n" % (len(objs) + 1)
+    out += b"".join(b"%010d 00000 n \n" % o for o in offsets)
+    return out + b"trailer<</Root 1 0 R/Size %d>>\nstartxref\n%d\n%%%%EOF\n" % (len(objs) + 1, xref)
+
+
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")
 class RealLibrary(unittest.TestCase):
     def test_a_real_text_pdf_is_read_with_its_page(self):
-        raw = textwrap.dedent("""\
-            %PDF-1.4
-            1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-            2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-            3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
-            4 0 obj<</Length 44>>stream
-            BT /F1 12 Tf 20 100 Td (Hello from a tiny PDF) Tj ET
-            endstream endobj
-            5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
-            trailer<</Root 1 0 R/Size 6>>
-            %%EOF
-            """).encode()
+        raw = real_pdf(["Hello from a tiny PDF"])
         got = pdf_reader.read(raw)
         self.assertEqual(got.status, "ok")
         self.assertEqual(got.pages[0][0], 1)
         self.assertIn("Hello from a tiny PDF", got.pages[0][1])
+
+    def test_each_page_keeps_its_number(self):
+        got = pdf_reader.read(real_pdf(["First page text", "Second page text"]))
+        self.assertEqual([(n, t) for n, t in got.pages], [(1, "First page text"), (2, "Second page text")])
 
     def test_garbage_is_not_read(self):
         self.assertEqual(pdf_reader.read(os.urandom(500)).status, "not_read")

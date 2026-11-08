@@ -1,10 +1,11 @@
 # Bundled libraries
 
-Everything clark needs at run time is here, so nothing is installed from the internet and clark runs on Python 3.9 or later with the standard library alone. Each library is copied unchanged from creaite v2.6.9 (`db5adb2`); the copies are recorded in the reuse record.
+Everything clark needs at run time is here, so nothing is installed from the internet and clark runs on Python 3.9 or later with the standard library alone. Each library is copied unchanged: openpyxl and et_xmlfile from creaite v2.6.9 (`db5adb2`), recorded in the reuse record; pypdf and typing_extensions from their PyPI wheels, whose SHA-256 is in `manifest.json`.
 
 | Library | Licence | Folder | Used by |
 |---------|---------|--------|---------|
 | openpyxl 3.1.5, plus its dependency et_xmlfile 2.0.0 | MIT (et_xmlfile has parts under PSF-2.0) | `openpyxl/`, `et_xmlfile/`, licences in `licenses/` | Excel export and import (#37, #38) |
+| pypdf 6.21.4 (pure Python, no dependencies of its own on Python 3.11 or later), plus typing_extensions 4.16.0, which it needs on 3.9 and 3.10 | BSD-3-Clause (typing_extensions: PSF-2.0) | `pypdf/`, `typing_extensions.py`, licences in `licenses/` | ask clark reads PDFs (#891) |
 | ed25519_verify 1 (verify only: RFC 8032 Ed25519, strict, pure Python) | public domain (CC0), written for clark | `ed25519_verify/`, licence in `licenses/` | checking the signature on an update (#282) |
 | Preact 10.29.8 with hooks and the JSX runtime, @preact/signals 2.11.2, signals-core 1.14.4 | MIT | `preact/` | the page (#35) |
 | Inter (Regular to ExtraBold) and Montserrat (ExtraBold), Google Fonts, Latin, one static woff2 per weight, each with its OFL licence | SIL Open Font License 1.1 | `fonts/inter/`, `fonts/montserrat/` | the page's fonts, inlined by the build (#35); not from creaite |

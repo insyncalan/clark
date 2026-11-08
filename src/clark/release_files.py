@@ -25,6 +25,8 @@ SHARED = (
     "vendor/licenses/",
     "vendor/manifest.json",
     "vendor/openpyxl/",
+    "vendor/pypdf/",            # #891: PDF text for ask clark
+    "vendor/typing_extensions.py",  # pypdf needs it on Python 3.9 and 3.10
 ) + (("dev/demo_data.py",) if INCLUDE_DEMO else ())
 
 # What each system adds. Windows will add clark.cmd and python\ here; nothing else changes.
