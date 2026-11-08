@@ -322,6 +322,10 @@ class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
     def test_alt_slash_is_not_a_key_the_page_binds(self):
         self.assertNotIn("[[Alt+/]]", self.ALL)                            # no key handler binds Alt+/: the AI menu opens from the bar's AI button and the slash menu
 
+    def test_alt_slash_is_not_named_in_plain_text_either(self):
+        for name, blob in (("helpContent", self.ALL), ("helpLater", json.dumps(LATER, ensure_ascii=False))):
+            self.assertNotIn("Alt+/", blob, name)                          # the plain words too, not only the [[Alt+/]] markup
+
     def test_mod_enter_is_only_what_the_page_does(self):
         row = self.KEYS["[[Mod+Enter]]"]
         self.assertIn("In an editor: keep the text and close it", row)     # core/editor.js
