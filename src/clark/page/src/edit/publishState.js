@@ -5,7 +5,7 @@
 // the same as Export to Word) once the web page is published, in the folder last used for the project, and in the client folder too when To client is ticked.
 import { signal } from "@preact/signals";
 import { data, project, show } from "../stores/report.js";
-import { publishRequest, previewRequest, latestRequest, words } from "./publishApi.js";
+import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { exportWord } from "./wordApi.js";
 import { openInNewTab } from "../router.js";
 import { printUrl } from "../logic/printView.js";
@@ -25,14 +25,11 @@ export const next = signal(0);           // the number the next publication will
 export const PRINT_OPENED = "Your browser’s print box opens in a new tab; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.";
 export const PRINT_NOT_OPENED = "The PDF did not open. Choose Preview the page in a new tab in the profile menu and print it.";
 
-// WHERE THE PRINTED PAGE COMES FROM: this one function. Today it is the preview (POST /api/preview), which rebuilds the page as publish
-// does (hidden rows dropped) but with the next publication number (N+1), so the number the publish reply gave goes on the address
-// (&n=N) and the printed foot uses it first (stores/print.js).
-// To print the kept copy instead (readyPast in pastReportsApi.js), return its url here: that needs the server to
-// accept ?print on /past and to allow print() in its sandbox (server.py), which this change does not touch.
-export async function printSource(code, number) {
-  const p = await previewRequest(code);
-  return p.status === 200 && p.body && typeof p.body.url === "string" ? printUrl(p.body.url, number) : null;
+// WHERE THE PRINTED PAGE COMES FROM: this one function. It is the address the publish answer carries (print_url), kept from the exact
+// bytes written to the Local file (item 465), so the PDF cannot differ from the published file. The number the reply gave goes on
+// the address (&n=N) and the printed foot uses it first (stores/print.js).
+export function printSource(answer, number) {
+  return answer && typeof answer.print_url === "string" ? printUrl(answer.print_url, number) : null;
 }
 // #437: how long the finished dialog shows its tick before it closes by itself (the prototype's 1200 ms, io.js). The test build
 // changes it through window.clarkPage.publishCloseMs (testhook.js); null keeps the dialog open until it is closed.
@@ -162,13 +159,14 @@ export async function go() {
   if (s.phase === "done") return close();
   if (s.phase === "wordclash") return sendWord(s, s.published, s.num);
   const body = request(s, project.value);
+  if (s.pdf) body.print = true;
   set({ phase: "working", message: null });
   let r = null, printed = false;
   if (s.pdf) {      // the new tab is opened now, while the click still counts, and pointed at the page once it is published
     printed = await openInNewTab(async () => {
       r = await publishRequest(body);
       if (!(r.status === 200 && r.body && r.body.ok === true)) return null;
-      return printSource(project.value, Number.isInteger(r.body.publication) ? r.body.publication : 0);
+      return printSource(r.body, Number.isInteger(r.body.publication) ? r.body.publication : 0);
     });
   } else r = await publishRequest(body);
   const b = r.body;
