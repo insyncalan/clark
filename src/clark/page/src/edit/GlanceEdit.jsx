@@ -1,8 +1,8 @@
 // The At a glance controls (Edit only, #45), handed to the page as `tools.glance`: a tile's grip (drag, or Alt with the arrows), its
 // eye (hide it from the published report), a right-click menu for its outline colour, and Project health's pill menu and reason box.
 // Nothing here is in a published file.
-import { useEffect, useRef, useState } from "preact/hooks";
-import { RichText } from "./RichText.jsx";
+import { useRef, useState } from "preact/hooks";
+import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { Menu, MenuPanel } from "../components/Menu.jsx";
@@ -110,11 +110,7 @@ function HealthPill({ health, reason }) {
 // puts the old words back. It is drawn as richOrPlain of what is stored (an old reason is plain text), never the stored text itself.
 // A health picked while it was empty opens it, and is saved with it.
 function Reason({ health, reason }) {
-  const [open, setOpen] = useState(false);
-  const view = useRef(null), back = useRef(false);
   const pending = pendingHealth.value;                 // for the box's look; the save reads the signal itself, as it is when the box is left
-  useEffect(() => { if (pending) setOpen(true); }, [pending]);
-  useEffect(() => { if (!open && back.current) { back.current = false; if (view.current) view.current.focus(); } }, [open]);
   let shown = "";
   try { shown = richOrPlain(reason); } catch (e) { shown = ""; }
   const save = async (html) => {
@@ -130,20 +126,13 @@ function Reason({ health, reason }) {
     return (await sendReason(words ? html : "")) || null;
   };
   const close = (refocus) => {
-    back.current = refocus === true;
     if (pendingHealth.value && refocus !== true) { pendingHealth.value = ""; note("Nothing was changed. A health change needs a reason."); }
     else if (pendingHealth.value) pendingHealth.value = "";
-    setOpen(false);
   };
-  if (open) {
-    return <div class={`hreason edit rich${pending ? " needs" : ""}`} data-reason><RichText value={shown} label="Why the project has this health" onSave={save} onClose={close} /></div>;
-  }
   return (
-    <div class="hreason edit rt-view" ref={view} data-reason role="button" tabindex="0" aria-label="Why the project has this health. Edit it"
-      onClick={(e) => { if (!e.target.closest("a")) setOpen(true); }}
-      onKeyDown={(e) => { if ((e.key === "Enter" || e.key === " ") && e.target === e.currentTarget) { e.preventDefault(); setOpen(true); } }}>
-      {shown ? <div class="prose" dangerouslySetInnerHTML={{ __html: shown }} /> : <p class="quiet">{pending ? `Why is it ${pending}?` : "Say why"}</p>}
-    </div>
+    <RichField field="health_reason" value={shown} label="Why the project has this health" save={save} onClose={close} forceOpen={!!pending}
+      cls={`hreason edit${pending ? " needs" : ""}`} attrs={{ "data-reason": true, "data-rich": undefined }} aria="Why the project has this health. Edit it"
+      empty={pending ? `Why is it ${pending}?` : "Say why"} />
   );
 }
 

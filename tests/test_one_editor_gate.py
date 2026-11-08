@@ -79,7 +79,7 @@ class Source(unittest.TestCase):
 
 # Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
 # of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
-MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichText", "the At a glance Reason")}
+MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason")}
 
 
 class MovedFields(unittest.TestCase):
