@@ -47,6 +47,22 @@ if [ -d .app ]; then PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}"; export P
 export CLARK_TYPED="bash clark.command"
 # Write no bytecode, on any run, before any clark code runs: a __pycache__ folder beside the program files would be an unknown entry the next update finds (issue 743).
 export PYTHONDONTWRITEBYTECODE=1
+# Row 1017: with a terminal attached, a mixed folder (files from different versions, or an older src, vendor or clark beside .app)
+# is put right, but only after the person types y. The script is run by path and isolated (-I), so an older flat clark cannot
+# shadow it. It exits 0 when there is nothing to do or it put things right, 3 when it has said the fallback and opened the
+# folder; any other result (it crashed, or an older .app has no such file) goes on exactly as before. Not for --check or restore.
+if [ -d .app ] && [ -t 0 ] && [ -t 1 ] && [ -f .app/src/clark/same_version_heal.py ]; then
+  case "$1" in
+    --check|restore) ;;
+    *)
+      python3 -I .app/src/clark/same_version_heal.py "$PWD" "$data"
+      if [ "$?" -eq 3 ]; then
+        echo
+        read -r -n 1 -p "Press any key to close this window. " _
+        exit 1
+      fi ;;
+  esac
+fi
 # Row 760: in a download nothing but .app holds program files. An src, vendor or clark folder beside it is an older flat version
 # left by unzipping over it, and the older stand-in would start it instead, so nothing is started (this also covers --check).
 if [ -d .app ] && { [ -e src ] || [ -e vendor ] || [ -e clark ]; }; then
