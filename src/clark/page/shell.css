@@ -205,7 +205,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* Spacing (item 1025): the gaps, paddings and row heights of Work items, per density. Compact is the standard and the fallback for any
    other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
    do not change with the density. */
-:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); --d-pk-bar-b: 10px; --d-pk-title-t: var(--space-4); --d-pk-title-b: var(--space-3); --d-pk-row-y: var(--space-2); --d-pk-card: var(--space-3); --d-pk-card-gap: var(--space-2); --d-dlg-y: 20px; --d-dlg-narrow: var(--space-4); --d-dlg-opts: var(--space-2); --d-dlg-opt-y: var(--space-2); --d-dlg-foot: var(--space-4); --d-blk-callout-y: var(--space-3); --d-blk-contact: var(--space-3); --d-blk-contacts-gap: var(--space-3); --d-blk-cell-y: var(--space-2); --d-blk-date-y: var(--space-2); --d-blk-check-y: 6px; }
+:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); --d-pk-bar-b: 10px; --d-pk-title-t: var(--space-4); --d-pk-title-b: var(--space-3); --d-pk-row-y: var(--space-2); --d-pk-card: var(--space-3); --d-pk-card-gap: var(--space-2); --d-dlg-y: 20px; --d-dlg-narrow: var(--space-4); --d-dlg-opts: var(--space-2); --d-dlg-opt-y: var(--space-2); --d-dlg-foot: var(--space-4); --d-blk-callout-y: var(--space-3); --d-blk-contact: var(--space-3); --d-blk-contacts-gap: var(--space-3); --d-blk-cell-y: var(--space-2); --d-blk-date-y: var(--space-2); --d-blk-check-y: 6px; --d-set-gap: 12px; --d-set-card-y: 16px; --d-set-row: 8px; --d-set-fld: 12px; --d-hp-sec: 34px; --d-hp-tabs: 22px; --d-hp-hero-y: 26px; --d-hp-loop-y: 20px; --d-hp-card-y: 14px; --d-hp-job-y: 16px; --d-hp-grid: 12px; }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
 table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
@@ -458,7 +458,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
 :root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); --d-blk-callout-y: var(--space-4); --d-blk-contact: var(--space-4); --d-blk-contacts-gap: var(--space-4); --d-blk-cell-y: var(--space-3); --d-blk-date-y: var(--space-3); --d-blk-check-y: 10px; }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); --d-blk-callout-y: var(--space-4); --d-blk-contact: var(--space-4); --d-blk-contacts-gap: var(--space-4); --d-blk-cell-y: var(--space-3); --d-blk-date-y: var(--space-3); --d-blk-check-y: 10px; --d-set-gap: 16px; --d-set-card-y: 24px; --d-set-row: 12px; --d-set-fld: 16px; --d-hp-sec: 44px; --d-hp-tabs: 28px; --d-hp-hero-y: 32px; --d-hp-loop-y: 26px; --d-hp-card-y: 18px; --d-hp-job-y: 20px; --d-hp-grid: 16px; }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
@@ -937,7 +937,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-search input { width: 300px; padding-right: 34px; }
 .hp-search kbd { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: var(--size-small); padding: 2px 6px; color: var(--text-muted); pointer-events: none; }
 .hp-search input:focus + kbd, .hp-search input:not(:placeholder-shown) + kbd { display: none; }
-.hp-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--grey-200); margin: 0 0 22px; }
+.hp-tabs { display: flex; gap: var(--space-1); border-bottom: 1px solid var(--grey-200); margin: 0 0 var(--d-hp-tabs); }
 .hp-tabs button { all: unset; position: relative; padding: 10px 14px; font-size: var(--size-body); color: var(--text-muted); cursor: pointer; border-radius: 6px 6px 0 0; transition: color var(--dur-instant) var(--ease-out); }
 .hp-tabs button:hover { color: var(--text); }
 .hp-tabs button[aria-selected="true"] { color: var(--heading); font-weight: 500; }
@@ -947,7 +947,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-pane:focus { outline: none; }
 
 .hp-lab { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); margin-bottom: 2px; }
-.hp-sec { margin-top: 34px; }
+.hp-sec { margin-top: var(--d-hp-sec); }
 .hp-sec > h2, .hp-sh h2, .hp-hero h2 { margin: 0 0 6px; color: var(--heading); font-weight: 500; }
 .hp-sec > h2, .hp-sh h2 { font-size: var(--size-h3); }
 .hp-sh p, .hp-lead { margin: 0 0 14px; color: var(--text-muted); font-size: var(--size-body); max-width: 72ch; }
@@ -955,10 +955,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @keyframes hp-found { 0%, 40% { background: var(--flash); box-shadow: 0 0 0 4px var(--flash); } 100% { background: transparent; box-shadow: 0 0 0 4px transparent; } }
 @media (prefers-reduced-motion: reduce) { .hp-found { animation: none; outline: 2px solid var(--status-amber); } }
 
-.hp-hero { display: block; gap: 20px; align-items: start; padding: 26px 28px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
+.hp-hero { display: block; gap: 20px; align-items: start; padding: var(--d-hp-hero-y) 28px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-hero h2 { font-size: var(--size-h2); line-height: 1.12; letter-spacing: -.01em; max-width: 22ch; }
 .hp-hero p { margin: var(--space-2) 0 0; font-size: var(--size-body); line-height: 1.55; color: var(--text-muted); max-width: 68ch; }
-.hp-loop { padding: 20px 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
+.hp-loop { padding: var(--d-hp-loop-y) 22px; background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); }
 .hp-loop .hp-sh { display: grid; grid-template-columns: minmax(160px, 1fr) 2fr; gap: 6px var(--space-5); align-items: baseline; }
 .hp-steps { list-style: none; margin: var(--space-2) 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 0; }
 .hp-steps li { position: relative; padding: var(--space-3) var(--space-4) 14px; border-right: 1px dashed var(--grey-300); }
@@ -972,14 +972,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-steps p { margin: 0; font-size: var(--size-small); line-height: var(--leading); color: var(--text-muted); }
 .hp-gate { margin-top: var(--space-2); font: 500 var(--size-small)/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
 .hp-ret { display: flex; gap: var(--space-2); align-items: center; margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
-.hp-first { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-3); }
-.hp-first li, .hp-where-g li, .hp-rules li { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 14px var(--space-4); }
+.hp-first { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--d-hp-grid); }
+.hp-first li, .hp-where-g li, .hp-rules li { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--d-hp-card-y) var(--space-4); }
 .hp-big { display: block; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--status-blue-text); line-height: 1; margin-bottom: var(--space-2); }
 .hp-first > li > b, .hp-rules > li > b { display: block; font-weight: 500; color: var(--heading); margin-bottom: var(--space-1); }
 .hp-first p, .hp-rules p, .hp-where-g p { margin: 0; font-size: var(--size-small); color: var(--text-muted); line-height: var(--leading); }
-.hp-jobs { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--space-3); counter-reset: hpj; }
+.hp-jobs { list-style: none; margin: var(--space-4) 0 0; padding: 0; display: grid; gap: var(--d-hp-grid); counter-reset: hpj; }
 .hp-jobs li { counter-increment: hpj; }
-.hp-job { display: flex; gap: var(--space-4); align-items: center; padding: var(--space-4) 20px; background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-lg); color: var(--text); text-decoration: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.hp-job { display: flex; gap: var(--space-4); align-items: center; padding: var(--d-hp-job-y) 20px; background: var(--surface); border: 1px solid var(--grey-300); border-radius: var(--radius-lg); color: var(--text); text-decoration: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .hp-job::before { content: counter(hpj); flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--brand-blue-tint); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .hp-job:hover, .hp-job:focus-visible { border-color: var(--brand-blue); box-shadow: var(--shadow); }
 .hp-job:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -989,10 +989,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-start-jobs { margin-top: 0; }
 .hp-start-jobs > h2 { font-size: var(--size-h3); margin: 0; }
 .hp-jobs-h { margin: var(--space-4) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
-.hp-where-g { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--space-3); }
+.hp-where-g { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: var(--d-hp-grid); }
 .hp-wt { display: block; font-weight: 500; font-size: var(--size-h3); color: var(--heading); margin-bottom: var(--space-1); }
 .hp-keyline { margin: 14px 0 0; font-size: var(--size-small); color: var(--text-muted); line-height: 2; }
-.hp-rules { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-3); }
+.hp-rules { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--d-hp-grid); }
 .hp-foot { margin-top: 34px; padding-top: var(--space-4); border-top: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
 .hp-foot p { margin: 0 0 var(--space-2); }
 
@@ -1262,7 +1262,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.quiet { background: transparent; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
-.setting { margin-top: var(--space-3); }
+.setting { margin-top: var(--d-set-gap); }
 .set-head p { margin: 0; }
 /* The Settings links (item 440, S2; issue 697). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
    as you scroll (and scrolls itself if the window is short). Below 900 px it is the old bar of chips under the head, on the page's own
@@ -1290,10 +1290,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
-.set-cards .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
+.set-cards .frame { padding: var(--d-set-card-y) var(--space-5); box-shadow: none; }
 .set-cards .frame > h2 + p { font-size: var(--size-small); }
 .setting h2 { margin: 0 0 6px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
-.setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--space-2); }
+.setting .row { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-top: var(--d-set-row); }
 .folder-now { overflow-wrap: anywhere; }
 /* item 647: the pasted folder path, under Choose folder; the box takes the row's room and the button stays beside it. */
 .folder-paste { margin-top: var(--space-3); }
@@ -1424,7 +1424,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld.copy-fld { max-width: 640px; }
 /* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
    The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
-.set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; }
+.set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; margin-bottom: var(--d-set-fld); }
 .set-cards .fld > label { grid-column: 1; }
 .set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
 .fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
