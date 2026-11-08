@@ -485,6 +485,10 @@ textarea.tpl-field { resize: vertical; }
 .tpl-edit .btn { align-self: flex-start; }
 .tpl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
+.tpl-quote { padding: var(--space-2) var(--space-4); border-left: 0; border-radius: var(--radius); background: var(--grey-50); }
+.tpl-lc { border-left: 1px solid var(--grey-200); }
+
 /* Section templates, G4 Dates and lists (#96): the Edit parts of Key dates and Checklist. Tokens only. */
 .tple { margin: var(--space-2) 0; min-width: 0; }
 .tple-list { margin: 0 0 var(--space-3); padding: 0; list-style: none; }
