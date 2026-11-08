@@ -9,6 +9,7 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - Python is 3.9 or newer and has SQLite (required)
 - the data folder can be made and saved in (required)
 - the data folder isn't inside OneDrive, where the system can say (required)
+- the data folder isn't inside Dropbox, iCloud Drive or Google Drive, where the system can say (required)
 - clark's own folder is in OneDrive (advice: set it to always keep its files on this device)
 - the browser: Chrome found, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
@@ -48,13 +49,14 @@ class Seen:
     """What the checks look at, and the system calls they make. Each is a seam the tests replace."""
 
     def __init__(self, data=None, port=None, environ=None, home=None, on=None, version=None, sqlite_version=None,
-                 data_dir=None, onedrive_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP):
+                 data_dir=None, onedrive_roots=None, synced_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP):
         self.data, self.port_text, self.home, self.on, self.app = data, port, home, on or platform.system(), Path(app)
         self.environ = os.environ if environ is None else environ
         self.version = tuple(sys.version_info[:3]) if version is None else tuple(version)
         self.sqlite_version = (sqlite3.sqlite_version if sqlite3 else "") if sqlite_version is None else sqlite_version
         self.data_dir = data_dir or (lambda: platform.data_dir(self.home, on=self.on))
         self.onedrive_roots = onedrive_roots or (lambda: platform.onedrive_roots(self.home, on=self.on))
+        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on))     # NEW (step 6)
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
         self.health, self.free = health, free
@@ -129,6 +131,17 @@ def check_data_not_in_onedrive(seen):
                      "Backups can still go to OneDrive.")
 
 
+def check_data_not_in_synced_folder(seen):
+    """NEW (step 6): the data folder isn't inside Dropbox, iCloud Drive or Google Drive (OneDrive has its own check above)."""
+    folder = seen.folder()
+    hit = platform.inside_synced(folder, list(seen.synced_roots()))
+    if hit is None:
+        return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")     # NEW words
+    # NEW words: the owner's proposed line (NEW-WORDS 9), with the service's name in place of {Dropbox}.
+    return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside {hit[0]}. It copies files while "
+                     "they are being written, which damages the data. Choose a folder on this computer that it doesn't sync.")
+
+
 def check_app_folder(seen):
     if platform.inside_onedrive(seen.app, seen.roots()) is None:
         return Line(READY, "Your clark folder isn't in OneDrive.")
@@ -186,6 +199,7 @@ CHECKS = (
     Check("The Python check", True, check_python),
     Check("The data folder check", True, check_data_folder),
     Check("The OneDrive check for your data", True, check_data_not_in_onedrive),
+    Check("The Dropbox, iCloud Drive and Google Drive check for your data", True, check_data_not_in_synced_folder),     # NEW name
     Check("The OneDrive check for the clark folder", False, check_app_folder),
     Check("The browser check", False, check_browser),
     Check("The check that nothing is in the way", True, check_port),

@@ -159,6 +159,37 @@ def onedrive_roots(home=None, on=None):
     return sorted(p for p in found if p.is_dir())
 
 
+SYNCED_SERVICES = ("Dropbox", "iCloud Drive", "Google Drive")      # NEW (step 6): the names the synced-folder lines say
+
+
+def synced_roots(home=None, on=None):
+    """NEW (step 6). The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
+    only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox* and
+    ~/Library/CloudStorage/Dropbox*; iCloud Drive in ~/Library/Mobile Documents (which holds com~apple~CloudDocs and every
+    app's iCloud folder); Google Drive in ~/Library/CloudStorage/GoogleDrive-*, ~/Google Drive and ~/My Drive. Inside the
+    shipped container there is nothing to find (an empty list); on another system that is not the Mac it raises NotBuiltYet."""
+    if (on or system()) == "linux" and container_mode():
+        return []
+    _only_mac("Finding Dropbox, iCloud Drive and Google Drive", on)
+    home = Path(home or Path.home())
+    storage = home / "Library" / "CloudStorage"
+    found = [("Dropbox", p) for p in list(storage.glob("Dropbox*")) + list(home.glob("Dropbox*"))]
+    found += [("iCloud Drive", home / "Library" / "Mobile Documents")]
+    found += [("Google Drive", p) for p in list(storage.glob("GoogleDrive-*")) + [home / "Google Drive", home / "My Drive"]]
+    return sorted((service, p) for service, p in found if p.is_dir())
+
+
+def inside_synced(path, roots=None):
+    """NEW (step 6). The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
+    OneDrive is not here: inside_onedrive is its own check and its behaviour is unchanged."""
+    path = Path(path).expanduser().resolve()
+    for service, root in synced_roots() if roots is None else roots:
+        root = Path(root).resolve()
+        if path == root or root in path.parents:
+            return service, root
+    return None
+
+
 # The places clark never reads, whatever the person saved (#47b). creaite's reach.py names them as rows of (base, pattern,
 # kind): "home" rows are below the home folder, "abs" rows are absolute paths; the pattern is matched one part at a time with
 # shell wildcards and covers everything below it. They live here because seven name a folder under "Library/Application
@@ -216,7 +247,7 @@ def shown(path, home=None):
         return str(path)
 
 
-def check_data_dir(path, roots=None, what="data"):
+def check_data_dir(path, roots=None, what="data", synced=None):
     """`path`, resolved, if clark may keep its database there. A folder inside OneDrive is refused with the reason:
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
     words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly. The way to have copies in
@@ -236,6 +267,16 @@ def check_data_dir(path, roots=None, what="data"):
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
                             "Backups › Copy my backups to): backups can still go to OneDrive.")
+    if what == "data":                                       # NEW (step 6): Dropbox, iCloud Drive and Google Drive, after OneDrive's check
+        try:
+            hit = inside_synced(path, synced)
+        except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse
+            hit = None
+        if hit is not None:
+            # NEW: the refusal's words, from the owner's proposed doctor line (NEW-WORDS 9), in the OneDrive refusal's shape.
+            raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside {hit[0]}. {hit[0]} copies "
+                                "files while they are being written, which damages the database. Choose a folder on this "
+                                f"computer that {hit[0]} doesn't sync.")
     return Path(path).expanduser().resolve()
 
 
