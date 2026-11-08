@@ -104,6 +104,7 @@ export function RichText({ value, label, onSave, onClose }) {
     });
     ed.current = made;
     setH(made);
+    made.editor.view.focus();                     // at once, in this step (the editor's own focus waits for a frame, and a late frame left the box open but not focused)
     made.focus();
     return () => { made.destroy(); ed.current = null; };
   }, []);

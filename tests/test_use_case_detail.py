@@ -510,12 +510,15 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             row = self.row()
             self.assertEqual((row["status"], row["commitment"], row["headline"]), (was["status"], was["commitment"], was["headline"]))
+            cdp.js("document.querySelector('.ucd-h').focus()", sid)      # row 1015: the heading has focus when the box opens
             self.slash(cdp, sid)
             self.slash(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
+            self.until(cdp, sid, "document.activeElement.className === 'sn-in'", "the box took focus")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('[data-sneak]')", "Esc closed the box")
             self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "and stayed on the use case")
+            self.until(cdp, sid, "document.activeElement.classList.contains('ucd-h')", "focus went back to the heading that had it (row 1015: no sparkle to return to)")
 
     def test_two_slashes_open_the_words_box_on_a_use_case_page_with_no_edit_mode(self):
         """Row 825: a use case's own page has no View, so the words box opens from two slashes without Edit."""

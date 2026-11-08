@@ -13,6 +13,7 @@ import shutil
 import tempfile
 import time
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 
 from _demo import USER, DemoStore
@@ -179,7 +180,7 @@ class RealBrowser(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/{hash_}")}, sid)
         self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector('{ready}')", sid)), "the block drew")
         return sid
 
@@ -415,6 +416,27 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('.cal-list li').length", sid), 0)
             cdp.js("document.querySelector('[data-cal-empty] button').click()", sid)
             self.assertTrue(wait(lambda: self.title(cdp, sid) == "October 2026"))
+
+    def test_the_empty_period_line_is_seen_at_laptop_widths_not_only_on_a_phone(self):
+        """item 555: the period list is for a phone only, but 'No milestones in this period' is the calendar's own answer and shows at every width."""
+        port = self.serve()
+        for width in (1400, 900, 390):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
+                cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)))
+                for _ in range(40):
+                    self.key(cdp, sid, "PageDown")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-cal-empty]')", sid)), "an empty period")
+                self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "no animation is running")
+                got = cdp.js("""(() => { const e = document.querySelector('[data-cal-empty]'), r = e.getBoundingClientRect(), cal = document.querySelector('.cal').getBoundingClientRect();
+                    return {h: r.height, w: r.width, vis: getComputedStyle(e).visibility, shown: !!e.offsetParent, inside: r.left >= cal.left - 1 && r.right <= cal.right + 1}; })()""", sid)
+                self.assertTrue(got["shown"], "the line is on the page, not hidden")
+                self.assertGreater(got["h"], 0)
+                self.assertGreater(got["w"], 0)
+                self.assertEqual(got["vis"], "visible")
+                self.assertTrue(got["inside"], "and inside the calendar")
 
     def test_the_keys_move_the_period_and_the_range_message_offers_go_to_today(self):
         port = self.serve()
@@ -979,7 +1001,7 @@ class Crowded(unittest.TestCase):
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for(font)}, sid)
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 600}, sid)
-                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=TUL"}, sid)
+                cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
                 self.check(cdp, sid, f"app {font} font {width}px")
 
@@ -1002,7 +1024,7 @@ class Crowded(unittest.TestCase):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for("wider")}, sid)
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=TUL"}, sid)
+            cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-lab').length", sid) >= len(CROWDED) + len(extra)))
             time.sleep(0.4)
             got = cdp.js(BOXES, sid)

@@ -20,6 +20,12 @@ WATCH = """(() => { window.__seen = []; new MutationObserver(ms => { for (const 
   .observe(document.body, { childList: true }); })()"""
 
 
+# Where the world stands at the moment the copy goes into the page: how many live panels are still in the document.
+APPEND_PROBE = """(() => { window.__live = []; const a = document.body.appendChild.bind(document.body);
+  document.body.appendChild = (n) => { if (n && n.classList && n.classList.contains('leaving'))
+    window.__live.push(document.querySelectorAll('#peek, #help-peek').length); return a(n); }; })()"""
+
+
 class PeekExit(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
@@ -73,6 +79,17 @@ class PeekExit(unittest.TestCase):
             sid = self.load(cdp, 1400, "light", motion="reduce")
             self.close(cdp, sid)
             self.assertEqual(cdp.js("window.__seen", sid), [])
+
+    def test_the_copy_is_made_after_the_render_when_the_live_panel_is_gone(self):
+        """Item 567: the copy is made in an effect, not while the component renders (when the old panel is still in the page)."""
+        for motion in ("no-preference", "reduce"):
+            with self.subTest(motion=motion), chrome() as cdp:
+                sid = self.load(cdp, 1400, "light", motion=motion)
+                cdp.js(APPEND_PROBE, sid)
+                self.close(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the motion has ended")
+                live = cdp.js("window.__live", sid)
+                self.assertEqual(live, [0] if motion == "no-preference" else [], "no live panel was in the page when the copy went in")
 
     def test_the_stylesheet_has_the_prototypes_exit(self):
         css = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
