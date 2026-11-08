@@ -55,6 +55,19 @@ def with_project(p, **fields):
     return p
 
 
+class HostileValues(unittest.TestCase):
+    """A stored value that is not text (a list, a dict, a number) in a field that picks a colour must not break the Word build
+    (an unhashable value in a dict lookup raised TypeError): it just has no colour."""
+    def test_a_priority_or_state_or_status_that_is_not_text_builds_with_no_colour(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                for table, field in (("actions", "priority"), ("raid", "priority"), ("decisions", "status")):
+                    for row in plant["data"].get(table, ()):
+                        row[field] = bad
+                docx_build.build(published(plant))
+
+
 class Repeatable(unittest.TestCase):
     def test_the_same_rows_give_the_same_bytes(self):
         a = docx_build.build(published())
