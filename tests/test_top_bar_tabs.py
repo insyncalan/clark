@@ -58,7 +58,13 @@ class TopBarTabs(Base):
                 p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
                 p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", f"{active} is the open tab")
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
-            return p.js(MEASURE)
+            got = p.js(MEASURE)
+            # each tab can be brought inside the tab row (the row scrolls in its own box): its box then lies within the row's
+            got["reach"] = p.js("Array.from(document.querySelectorAll('.top .tab')).map(function(t){ t.scrollIntoView({inline: 'nearest', block: 'nearest'}); "
+                                "var r = t.getBoundingClientRect(), b = document.querySelector('.top .tabs').getBoundingClientRect(); "
+                                "return {name: t.textContent.trim(), inside: r.left >= b.left - 0.5 && r.right <= b.right + 0.5}; })")
+            got["scroll_after"] = p.js("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+            return got
 
     def box(self, p, selector):
         return p.js(f"(function(){{ var e = document.querySelector({selector!r}); if (!e) return null; var r = e.getBoundingClientRect(); return [r.width, e.scrollWidth, e.clientWidth]; }})()")
@@ -180,6 +186,33 @@ class TopBarTabs(Base):
                     self.assertGreaterEqual(got["name"], 48, f"{where}: the project name box is squeezed to {got['name']:.0f} px")
                     self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"{where}: an item runs past the window")
                     self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+
+    def test_the_tab_row_is_usable_on_the_settings_route_at_420_and_360_px(self):
+        # Row 976 + row 1033: Settings is no tab, so the Settings route shows no open tab; the row still keeps at least 110 px, the page does not scroll
+        # sideways, and every tab (Dashboard, Work items, ...) can be brought into the row.
+        for width in (420, 360):
+            for edit in (False, True):
+                with self.subTest(width=width, edit=edit):
+                    got = self.measure(width, "light", True, edit, active="Settings")
+                    where = f"at {width} px{', Edit' if edit else ''}, Settings route"
+                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is {got['row'][1] - got['row'][0]:.0f} px wide")
+                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+                    self.assertLessEqual(got["scroll_after"][0], got["scroll_after"][1], f"{where}: bringing a tab into view scrolls the page sideways {got['scroll_after']}")
+                    names = [t["name"] for t in got["reach"]]
+                    self.assertEqual(names[0], "Dashboard", where)
+                    self.assertIn("Work items", names, where)
+                    self.assertNotIn("Settings", names, where)
+                    self.assertTrue(all(t["inside"] for t in got["reach"]), f"{where}: a tab cannot be brought into the row {got['reach']}")
+
+    def test_the_tab_row_is_not_squeezed_from_420_to_800_px(self):
+        for width in (420, 480, 481, 600, 700, 800):
+            with self.subTest(width=width):
+                got = self.measure(width, "light", True, False)
+                row = got["row"][1] - got["row"][0]
+                self.assertGreaterEqual(row, 110, f"at {width} px the tab row is only {row:.0f} px wide; the project name is {got['name']:.0f} px")
+                self.assertGreaterEqual(got["name"], 48, f"at {width} px the project name box is {got['name']:.0f} px")
+                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px the page scrolls sideways {got['scroll']}")
+                self.assertGreaterEqual(len(got["tabs"]), 4, f"at {width} px the tabs are {[t['name'] for t in got['tabs']]}")
 
     def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
         # The exact failing case: 900 px, the profile circle in the bar, the last tab open; then the tab row narrows (as it does when the mode switch joins
