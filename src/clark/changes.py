@@ -406,7 +406,7 @@ def _rich_field(value, plain_max, long_words, hidden_words):
         raise Refused(ITEM_VALUE_WORDS)
     if len(value) > TEXT_BODY_MAX:
         raise Refused(long_words)
-    value = unicodedata.normalize("NFC", value.replace("\r\n", "\n").replace("\r", "\n"))     # BEFORE the cleaner: composing after it can turn a tag's ">" into a letter (U+0338 after it makes U+226F); a CR is a line break, in HTML as in plain text
+    value = sanitise.nfc_for_markup(value.replace("\r\n", "\n").replace("\r", "\n"))     # BEFORE the cleaner (a mark after a tag would compose into it and lose the words inside: sanitise.nfc_for_markup); a CR is a line break, in HTML as in plain text
     if not _plain_text(value.replace("\t", " ").replace("\n", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
         raise Refused(hidden_words)
     try:

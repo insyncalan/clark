@@ -109,17 +109,41 @@ class Fields(Base):
                 self.assertEqual(self.send(table, field, "<p>x</p>" * 20000)[0], 400)
 
 
-    def test_a_mark_that_composes_with_a_tag_cannot_break_the_stored_markup(self):
-        """Second read: NFC after cleaning turned '<p' + U+0338 into a letter; it is composed BEFORE the cleaner now, and what is stored is a clean_html fixed point."""
+    # What is sent -> what is stored. A combining mark right after a tag's '<', '>' or name (U+0338 after '>' makes U+226F, another mark makes
+    # another letter) is dropped so the tag stays a tag and the words inside it survive; every other mark is composed (NFC) BEFORE the cleaner.
+    COMPOSING = {
+        "<p\u0338>x</p>": "<p>x</p>",
+        "<p>a</p>\u0338": "<p>a</p>",
+        "<p>a</p><p>b</p>\u0338": "<p>a</p><p>b</p>",
+        "<p>a</p><p>\u0338text</p>": "<p>a</p><p>text</p>",
+        "<p>a</p><p\u0301>text</p>": "<p>a</p><p>text</p>",
+        "<ul><li\u0338>q</li></ul>": "<ul><li>q</li></ul>",
+        "<p>e\u0301 &#x301;</p>": "<p>\u00e9 \u0301</p>",
+        "<p>&lt;\u0338 q</p>": "<p>&lt;\u0338 q</p>",
+        "x <\u0338 y": "<p>x &lt; y</p>",
+        "e\u0301": "<p>\u00e9</p>",
+    }
+
+    def test_a_mark_that_composes_with_a_tag_keeps_the_words_and_the_stored_markup_clean(self):
+        """NFC runs BEFORE the cleaner, and a mark that would compose into a tag does not cost the words inside it (exact stored values)."""
         for table, field, _ in FIELDS:
             with self.subTest(field):
-                for sent in ("<p\u0338>x</p>", "<p>a</p>\u0338", "<p>a</p><p>b</p>\u0338", "<p>a</p><p\u0338>b</p>", "<p>e\u0301 &#x301;</p>", "<p>&lt;\u0338 q</p>", "x <\u0338 y"):
+                for sent, want in self.COMPOSING.items():
                     status, body = self.send(table, field, sent)
                     self.assertEqual(status, 200, (sent, body))
                     got = self.stored(table, field)
-                    self.assertEqual(sanitise.rich_or_plain(got), got, "a fixed point of the cleaner: " + repr(got))
-                    self.assertNotIn("\u226f", got, "no tag end was composed away: " + repr(got))
+                    self.assertEqual(got, want, ascii(sent))
+                    self.assertEqual(sanitise.rich_or_plain(got), got)
+                    self.assertNotIn("\u226f", got)
                     self.assertEqual(self.published(table, field), got)
+
+    def test_direct_call_stores_the_words_and_composes_before_the_cleaner(self):
+        """Fails if NFC is moved after the cleaner (the tag becomes '<p' + U+226F), if NFC is dropped ('e' + U+0301 stays two characters), or if the mark is not dropped (the words are lost)."""
+        for sent, want in self.COMPOSING.items():
+            self.assertEqual(changes._rich_field(sent, 100, "long", "hidden"), want, ascii(sent))
+        got = changes._rich_field("<p>a</p><p>\u0338text</p>", 100, "long", "hidden")
+        self.assertEqual(sanitise.plain_text(got), "a\ntext", "the words survive")
+        self.assertEqual(sanitise.plain_text(changes._rich_field("<p>e\u0301</p>", 100, "long", "hidden")), "\u00e9", "composed: one character")
 
     def test_the_limit_counts_the_final_stored_words_after_nfc_and_cleaning(self):
         """Issue 548: U+0344 written as an entity becomes two characters when composed (NFC), so a text at the limit can end over it. The count is of what is stored."""
