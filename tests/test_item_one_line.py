@@ -206,6 +206,66 @@ class PublishedFileCarriesTheWord(Base):
             self.assertNotRegex(cdp.js("document.querySelector('[data-type=actions]').innerText", sid), r"days? late|\d d late", "a file shows dates, not a count read on the publish day")
 
 
+PUB_ROWS = r"""[...document.querySelectorAll('[data-type=actions] .wl-row, [data-type=raid] .wl-row')].map(r => ({id: r.dataset.id, text: r.innerText.replace(/\s+/g, ' ').trim(),
+  title: r.querySelector('.wl-title').textContent.trim(), word: ((r.querySelector('.ico-w') || {}).textContent || '').trim()}))"""
+EXPECT = {"Cut-over plan to be agreed": "Overdue", SOON: "Due soon", "Training room booked for November": "On track",
+          "Supplier delivery may slip": "Red", "Mid-rated supplier risk": "Amber", "Some test data is missing": "Green", "Urgent site risk": "Red"}
+
+
+class StatusWordInTheFileThePdfAndWord(Base):
+    """Row 1021 reader: the word itself, as visible text, in the published file, in the page the PDF is printed from, and the same word in the Word copy."""
+
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", USER) as st:
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "Mid", "owner": "Mia Hale", "due_date": "2026-11-20",
+                               "impact": "Medium", "likelihood": "Medium", "raised": "2026-10-01", "client_message": "Mid-rated supplier risk", "source": "demo"})
+            st.create("raid", {"project": "ABC", "type": "Risk", "description": "Urgent", "owner": "Mia Hale", "due_date": "2026-11-20",
+                               "priority": "Urgent", "impact": "High", "likelihood": "High", "raised": "2026-10-01", "client_message": "Urgent site risk", "source": "demo"})
+
+    def rows_in(self, printing):
+        path = self.published()
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
+            if printing:      # as the browser prints it: print media, and the beforeprint event Ctrl+P sends
+                cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, sid)
+                cdp.js("window.dispatchEvent(new Event('beforeprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.print-tab')", sid)))
+            rows = cdp.js(PUB_ROWS, sid)
+        return {r["title"]: r for r in rows }, rows
+
+    def check(self, printing):
+        by_title, _ = self.rows_in(printing)
+        for title, word in EXPECT.items():
+            self.assertIn(title, by_title, title)
+            r = by_title[title]
+            self.assertIn(f" {word} ", f" {r['text']} ", f"{title}: the row's visible text carries {word}: {r['text']}")
+            self.assertEqual(r["word"], word, title)
+        return by_title
+
+    def test_the_published_file_text_has_the_word_next_to_each_item(self):
+        self.check(False)
+
+    def test_the_page_the_pdf_is_printed_from_has_the_word_next_to_each_item(self):
+        self.check(True)
+
+    def test_the_word_copy_says_the_same_word_for_the_same_item(self):
+        from clark import docx_build
+        import test_docx_build as t
+        by_title = self.check(False)
+        blocks = t.blocks(docx_build.build(publish.select(publish.read_inputs(self.store, "ABC", AS_AT))))
+        word = {}
+        for b in blocks:
+            if b["kind"] == "table" and b["rows"] and b["rows"][0][0] == "ID" and b["rows"][0][-1] == "Status":
+                word.update({r[0]: r[-1] for r in b["rows"][1:]})
+        ids = {title: r["id"] for title, r in by_title.items()}
+        for title, expected in EXPECT.items():
+            self.assertEqual(word.get(ids[title]), expected, f"{title}: the Word copy's word is the page's word")
+
+
 class WordCopyCarriesTheWord(unittest.TestCase):
     def test_the_word_copy_says_the_status_in_words_in_its_tables(self):
         import test_docx_build as t
