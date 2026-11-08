@@ -236,7 +236,12 @@ def make_sent(path, onedrive_roots=None, by_user=None, today=None, subject_for=N
     one of its work items, the day) and writes one record in one transaction (Store.log_email_sent); nothing else is written.
     Row 983: the request may also hold `person` (a people id), `tone` (0 to 2) and `reply_by` (a day); with `subject_for` (subject_of) the
     store writes the one History sentence (the person's name from their record, the subject composed here), and still never an
-    address or a body. Answer: {"ok": true, "seq": n}, or a refusal in plain words."""
+    address or a body.
+    Answer: {"ok": true, "seq": n}, or a refusal in plain words.
+    The in-flight guard below lives in this seam instance and only refuses a second press (409) while the first is still being written.
+    Once the reply is out, the store holds: Store.log_email_sent (BEGIN IMMEDIATE) returns the existing record for the same project, day,
+    mode, person and ids inside 10 seconds, also from a second server process. A press after that window is a new record on purpose, as
+    the user may really have sent a second email."""
     gate, in_flight = threading.Lock(), set()           # #258: the same record while one is being written is refused, not written twice
 
     def work(store, who, req):
