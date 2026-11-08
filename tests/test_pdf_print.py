@@ -172,9 +172,10 @@ class Source(unittest.TestCase):
 
     def test_the_printed_page_comes_from_one_function_in_the_publish_state(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
-        self.assertEqual(state.count("export async function printSource("), 1)
-        self.assertEqual(state.count("previewRequest("), 1, "the preview is asked for in that one place")
-        self.assertIn("printSource(project.value, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
+        self.assertEqual(state.count("export function printSource("), 1)
+        self.assertNotIn("previewRequest", state, "the print tab is the published bytes (item 465), not a second build")
+        self.assertIn("body.print = true", state)
+        self.assertIn("printSource(r.body, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
 
     def test_the_box_sends_no_pdf_key_and_has_no_pdf_clash_keys(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
