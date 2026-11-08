@@ -45,8 +45,15 @@ let opened = 0;                                // counts the opens, so only the 
 function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
   const at = ++opened;
+  // a dismiss while the list is still being read (Escape, or a press anywhere) cancels this open: the menu never appears after it
+  const stop = () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("pointerdown", cancel, true); };
+  const cancel = () => { if (at === opened) opened++; stop(); };
+  const onKey = (e) => { if (e.key === "Escape") cancel(); };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", cancel, true);
   // #1048: the People list is read first, so the Draft email entry has its reason line from the first paint (the menu never changes size once open, row 848)
   readPeople().then((r) => {
+    stop();
     if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
     state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
   });

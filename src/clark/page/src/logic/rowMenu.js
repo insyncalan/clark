@@ -24,6 +24,8 @@ export function emailOf(data, ownerId) {
 // The server's own rule for an address (draft_email_feed.py ADDRESS, MAX_EMAIL): one plain address, no space, bracket, quote, comma, semicolon,
 // colon or query mark, at most 254 characters. The page sends nothing that the server would refuse, so a bad People address leaves the To line empty.
 const ADDRESS = /^[^@\s<>?,;:"()[\]\\]+@[^@\s<>?,;:"()[\]\\]+\.[^@\s<>?,;:"()[\]\\]+$/;
+// The server also refuses a control character, a line break, a space and any hidden mark (bidi override, zero-width, private use, lone surrogate).
+const HIDDEN = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Zl}\p{Zp}]/u;
 const ADDRESS_MAX = 254, NAME_MAX = 100;
 
 /** The Draft email's recipient from the People list: {email, name} for the owner's id, or null when there is no id, no such person, no
@@ -31,7 +33,7 @@ const ADDRESS_MAX = 254, NAME_MAX = 100;
 export function recipientOf(people, ownerId) {
   if (!Array.isArray(people)) return null;
   const email = emailOf({ people }, ownerId);
-  if (!email || email.length > ADDRESS_MAX || !ADDRESS.test(email)) return null;
+  if (!email || email.length > ADDRESS_MAX || !ADDRESS.test(email) || HIDDEN.test(email)) return null;
   const id = String(ownerId).trim(), p = people.find((x) => x && x.id === id);
   const name = typeof p.name === "string" ? p.name.trim() : "";
   return { email, name: name.length <= NAME_MAX && !/[\r\n]/.test(name) ? name : "" };
@@ -43,7 +45,7 @@ export function recipientOf(people, ownerId) {
 export function draftEntry(row, data) {
   const o = ownerOf(row.owner);
   if (!o.initials) return { name: "Draft email to the owner", reason: "This item has no owner yet, so there is no one to write to.", to: "", disabled: true };
-  const to = emailOf(data, row.owner_id);
+  const who = recipientOf(data && data.people, row.owner_id), to = who ? who.email : "";
   const reason = !(data && Array.isArray(data.people)) ? NO_PEOPLE : to ? "" : `${o.text} has no email on the People list, so the To line is left empty.`;
   return { name: `Draft email to ${o.text}`, reason, to, disabled: false };
 }
