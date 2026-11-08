@@ -90,7 +90,7 @@ def _words(card, row):
     if source == "own":
         return card.get("own") or ""
     if source == "latest":
-        return str(row.get("latest_update") or "").strip()
+        return str(row.get("latest_update") or "").strip()      # row 1005: publish hands the template this as words (see publish.py, the Context), never markup
     said = str(row.get("client_message") or "").strip()
     if said:
         return said
