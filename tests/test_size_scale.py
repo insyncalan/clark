@@ -11,7 +11,8 @@ ROOT = Path(__file__).resolve().parents[1]
 CSS = {"shell.css": ROOT / "src/clark/page/shell.css", "edit.css": ROOT / "src/clark/page/src/edit/edit.css"}
 
 # Not text on the type scale: big figures in the At a glance tiles, and the calendar's month arrows (a glyph sized to its button).
-NOT_TEXT = {(".tile .n", "22px"), (".fig .v", "22px"), (".cp-m", "18px"),
+# .cp-m (18 px) stays the one glyph exemption: it sizes an icon character, not text.
+NOT_TEXT = {(".cp-m", "18px"),
             (".tr-v", "32px"), (".tr-size-large .tr-v", "44px"), (".tr-size-small .tr-v", "24px"), (".tr-size-compact .tr-v", "18px"),
             (".tr-overall .tr-v", "26px")}  # the progress tracker's headline figures (#160; #930: Large 44, Medium 32, Small 24, Compact 18), on screen and in print
 
@@ -57,6 +58,11 @@ class Scale(unittest.TestCase):
     def test_no_token_carries_a_pixel_fallback(self):
         stale = [(name, sel, v) for name, sel, v in all_sizes() if re.search(r"var\(--size-[\w-]+\s*,", v)]
         self.assertEqual(stale, [], "a fallback goes stale when the scale moves (it did for --size-h2 in #87)")
+
+    def test_the_stat_figures_use_the_figure_token(self):
+        found = {sel: v for _, sel, v in all_sizes()}
+        for sel in (".tile .n", ".fig .v"):
+            self.assertEqual(found.get(sel), "var(--size-figure)", sel)
 
     def test_the_tight_boxes_keep_the_caption_size(self):
         found = {sel: v for _, sel, v in all_sizes()}
