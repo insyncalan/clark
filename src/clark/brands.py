@@ -11,6 +11,7 @@ import functools
 import hashlib
 import importlib.util
 import json
+import logging
 import os
 import re
 import secrets
@@ -27,6 +28,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from clark import excel_picture, publish, updates
+
+LOG = logging.getLogger("clark")
+LINKED_OLD = "The old brand folder (system/branding) is a link, so clark did not copy it. Copy its files into branding by hand if you want them."
 
 ZIP_CAP = 16 * 1024 * 1024          # the zip file
 TOTAL_CAP = 24 * 1024 * 1024        # all members unpacked (declared sum, and counted while reading)
@@ -360,6 +364,8 @@ def copy_old_folder(root):
                 return False
             old = root / _entry(root, OLD_PLACE[0]) / old_name
             if not stat.S_ISDIR(os.lstat(old).st_mode):          # a link or a file in the old place is not a folder to copy
+                if stat.S_ISLNK(os.lstat(old).st_mode):
+                    LOG.warning("%s", LINKED_OLD)                # said once per start, in the log only; links are never followed
                 return False
             have = _entry(root, "branding")
             if have is not None:

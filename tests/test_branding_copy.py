@@ -87,8 +87,10 @@ class Copy(unittest.TestCase):
         real.mkdir()
         (real / "secret.txt").write_text("s", encoding="utf-8")
         os.symlink(real, self.old)
-        self.assertFalse(brands.copy_old_folder(self.root))
+        with self.assertLogs("clark", "WARNING") as logged:
+            self.assertFalse(brands.copy_old_folder(self.root))
         self.assertFalse(self.new.exists())
+        self.assertEqual([brands.LINKED_OLD], [r.getMessage() for r in logged.records], "one plain line says why nothing was copied")
 
     def test_a_link_inside_the_old_folder_is_copied_as_a_link(self):
         os.symlink("tokens.css", self.old / "alias")
