@@ -121,6 +121,7 @@ export function Peek({ tools }) {
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
+  const Source = editing && forItem && tools.PeekSource;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
@@ -253,6 +254,7 @@ export function Peek({ tools }) {
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
           {Needed && row && row.kind !== "decision" ? <Needed key={`n-${row.id}`} row={row} /> : null}
+          {Source && row ? <Source key={`s-${row.id}`} row={row} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}

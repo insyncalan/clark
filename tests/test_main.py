@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from clark import __main__ as launcher  # noqa: E402
 from clark import platform as pl  # noqa: E402
 from clark import __version__ as clark_version  # noqa: E402
-from clark import server  # noqa: E402
+from clark import page, server  # noqa: E402
 
 WAIT = 30           # seconds to wait for the address line, or for the process to stop
 
@@ -568,6 +568,27 @@ class InProcess(TempFolder):
             code, out, err, serve = self.run_main("--port", "8123")
         self.assertEqual((code, len(serve.calls)), (0, 1))
         self.assertIn("The page could not be built (x)", err)
+
+    def test_startup_tells_the_server_where_the_brands_live_and_puts_right_a_crash_first(self):
+        """#944: without set_brand_paths the brand routes answer 503; a hidden folder a crash left is put right before serving."""
+        clark_folder = self.tmp / "clarkfolder"
+        branding = clark_folder / "system" / "branding"
+        (branding / ".clark-brand-old-example").mkdir(parents=True)
+        (branding / ".clark-brand-old-example" / "tokens.css").write_text(":root{}", encoding="utf-8")
+        seen = []
+
+        def serve(**kw):
+            seen.append((dict(server.BRAND_PATHS), sorted(p.name for p in branding.iterdir())))
+            return 0
+        saved = dict(server.BRAND_PATHS)
+        self.addCleanup(lambda: server.BRAND_PATHS.update(saved))
+        server.BRAND_PATHS.update(root=None, data=None)
+        with mock.patch.object(page, "BRANDING", branding):
+            self.assertEqual(self.run_main("--data", str(self.tmp / "d"), serve=serve)[0], 0)
+        (paths, names), = seen
+        self.assertEqual(pathlib.Path(paths["root"]), clark_folder)
+        self.assertEqual(pathlib.Path(paths["data"]), self.tmp / "d")
+        self.assertEqual(names, ["example"], "the hidden old folder was moved back before serve()")
 
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""
