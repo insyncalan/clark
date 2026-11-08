@@ -94,6 +94,12 @@ def token_value(css, mode, name):
     raise KeyError(name)
 
 
+def token_size(css, name):
+    """A text-size token's value from the first :root block of tokens.css, such as 15px."""
+    block = re.search(r":root\s*\{(.*?)\n\}", css, re.S).group(1)
+    return re.search(re.escape(name) + r":\s*(\d+px)\s*;", block).group(1)
+
+
 def offline_page(launcher="clark.command"):
     """The page shown when clark isn't running, as bytes, with the launcher's file name and the command to type in Terminal
     (`./` and the name). The name comes from platform.launcher_name(); nothing a person typed is ever put in."""
@@ -101,6 +107,7 @@ def offline_page(launcher="clark.command"):
     css = TOKENS_CSS.read_text(encoding="utf-8")
     for holder, (mode, name) in OFFLINE_COLOURS.items():
         page = page.replace(holder, token_value(css, mode, name))
+    page = page.replace("@SIZE_BODY@", token_size(css, "--size-body"))      # #960: the base text size, not a literal
     page = page.replace("@FONT@", look.family_list("--font", css))      # the page's own list: it loads no font, so the first that is installed shows
     page = page.replace("@LAUNCHER@", html.escape(launcher)).replace("@COMMAND@", html.escape("./" + launcher))
     return page.encode("utf-8")
