@@ -23,7 +23,7 @@ import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
-import { SneakPeek, SneakButton } from "../edit/SneakPeek.jsx";
+import { SneakPeek } from "../edit/SneakPeek.jsx";
 import { wordsOpen } from "../stores/wordsState.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
@@ -221,7 +221,6 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
         </div>
         {!ro ? (
           <div class="ucd-acts">
-            <SneakButton />
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />

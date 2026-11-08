@@ -1,5 +1,5 @@
 // The Draft email editor (FR-44, FR-45; #50): the kind, the ticks, the preview you can edit, Copy for Outlook, Copy as text,
-// Open in mail app and I sent it. It builds nothing and saves nothing: `draft` is what the builder returned for `state`, the
+// Open in your mail app and I sent it. It builds nothing and saves nothing: `draft` is what the builder returned for `state`, the
 // caller asks for a new one in onChange(state) and saves the history entry that onSent(entry) is given (it answers {ok, message}). clark never sends mail.
 // Every word from the data is a text node; the email's own HTML is cleaned (safeHtml) before it is drawn.
 import { useState, useRef, useEffect } from "preact/hooks";

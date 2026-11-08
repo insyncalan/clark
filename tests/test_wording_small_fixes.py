@@ -14,6 +14,7 @@ from pathlib import Path
 from _paths import SRC
 
 from clark import ai_menu, ask, page, section_bodies, server  # noqa: E402
+from clark.section_kinds import textimage  # noqa: E402
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 PROTOTYPE = Path(__file__).resolve().parent.parent / "system" / "prototype"
@@ -70,6 +71,18 @@ class TooBig(unittest.TestCase):
             self.assertNotIn("Shorten some", page_words)
 
 
+class TextPictureTooLong(unittest.TestCase):
+    """Row 1005: the Text and picture section's over-long text (the 40,000 character limit) has its own toast, not the generic Reload one."""
+
+    def test_the_servers_words_for_the_over_long_text_are_known_to_the_page(self):
+        said = textimage.LONG_HTML
+        self.assertEqual(said, "The text can be 40,000 characters at most. Shorten it and try again.")
+        known = known_words()
+        self.assertIn(said, known)
+        self.assertEqual(known[said], said)
+        self.assertNotIn("Reload", known[said])
+
+
 class SecretRefusal(unittest.TestCase):
     """The ask refusal for something that looks like a password or a key."""
     SECRET_VALUE = "Zq7" + "Kd2Lm9Vx4Bn8Tw5"
@@ -80,6 +93,17 @@ class SecretRefusal(unittest.TestCase):
             self.assertIn("a password or a key", words)
         self.assertEqual(ask.SECRET, "That looks like a password or a key, so it wasn't sent. Take it out and try again.")
         self.assertEqual(ask.SECRET, ai_menu.SECRET_MESSAGE)
+
+    def test_the_three_notes_share_one_phrase_and_one_next_step(self):
+        """#406: each note says "looks like a password or a key", then what happened, then its one step."""
+        notes = ((ask.SECRET, "Take it out"), (ask.SECRET_EARLIER, "Start a new chat"), (ask.secret_note(1), "Take it out"))
+        for words, step in notes:
+            self.assertIn("looks like a password or a key", words)
+            self.assertTrue(words.split(". ")[-1].startswith(step), words)
+            self.assertNotIn("a secret", words)
+        self.assertIn("so it wasn't sent", ask.SECRET)
+        self.assertIn("so it was left out", ask.secret_note(1))
+        self.assertIs(ai_menu.SECRET_MESSAGE, ask.SECRET)
 
     def test_a_key_is_refused_in_those_words_and_the_value_is_not_repeated(self):
         text = "my api_key = " + self.SECRET_VALUE

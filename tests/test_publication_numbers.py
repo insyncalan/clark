@@ -357,6 +357,32 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(got["code"], "number_taken", got)
         self.assertEqual((rig.local / "chosen.html").read_text(encoding="utf-8"), "an earlier report")
 
+    def test_a_lost_race_in_the_dialog_puts_back_a_link_it_replaced(self):
+        """#480: the Local file the dialog replaced was a link: it is put back as that link, not removed and not left as a file."""
+        rig = Rig(self)
+        target = rig.local.parent / "elsewhere.html"
+        target.write_bytes(b"the file the link points at")
+        dest = rig.local / "chosen.html"
+        try:
+            os.symlink(target, dest)
+        except (OSError, NotImplementedError, AttributeError):
+            self.skipTest("this system cannot make links")
+        real = store_module.Store.log_publication
+
+        def late(store, *a, **kw):
+            real(store, "PUB", Path("/tmp/clark-fictional/other.html"), None, SHA, "Someone Else")
+            return real(store, *a, **kw)
+        store_module.Store.log_publication = late
+        try:
+            status, got = rig.publish()
+        finally:
+            store_module.Store.log_publication = real
+        self.assertEqual(got["code"], "number_taken", got)
+        self.assertTrue(os.path.islink(dest), "the link is back, not removed and not turned into a file")
+        self.assertEqual(os.readlink(dest), str(target))
+        self.assertEqual(target.read_bytes(), b"the file the link points at", "and the file it points at was never written")
+        self.assertEqual(sorted(p.name for p in rig.local.iterdir()), [dest.name], "nothing else is left in the folder")
+
     def test_a_lost_race_after_an_overwrite_puts_the_clients_earlier_report_back(self):
         rig = Rig(self)
         status, got = rig.publish(to_client=True)                        # the client folder now holds a report

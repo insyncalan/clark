@@ -6,7 +6,6 @@ import { addDays, quickDates } from "./itemEdit.js";
 
 const DAY = 86400000;
 const NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-export const LATEST_MAX = 1000;                 // clark/changes.py LATEST_UPDATE_MAX
 
 const weekday = (iso) => new Date(dayNumber(iso) * DAY).getUTCDay();         // 0 Sunday .. 6 Saturday
 
@@ -46,19 +45,7 @@ export function draftFor({ due, status, owner, milestone }, today) {
   return parts.filter(Boolean).join(" ");
 }
 
-// A character no one can see (control, format such as a zero-width space or a right-to-left override, surrogate, private use, line and
-// paragraph separators), as clark/changes.py refuses (ITEM_BAD_KINDS). A line break is allowed in a latest update, so "\n" is taken out first.
-const HIDDEN = /[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}]/u;
-
-/** What the Latest update box can't take, in words, or "" when the text is fine: the same limit and the same hidden characters clark refuses. */
-export function latestProblem(text) {
-  const n = Array.from(text).length;
-  if (n > LATEST_MAX) return `A latest update can be ${LATEST_MAX} characters at most, and this one has ${n}. It was not saved. Shorten it and try again.`;
-  if (HIDDEN.test(text.replace(/\n/g, ""))) return "That update has a hidden character in it, often from copying and pasting. It was not saved. Type it again, then press Enter.";
-  return "";
-}
-
-/** The text to save: line ends as \n, trimmed; "" clears it. */
+/** A text with line ends as \n, trimmed (the draft is compared with the words of what is stored). */
 export const cleanLatest = (text) => String(text == null ? "" : text).replace(/\r\n?/g, "\n").trim();
 
 /** A stored time (UTC, "2026-10-28 09:00:00.483") as the time on this clock, "28-10-2026 13:00"; "" when it is not a time. */

@@ -229,6 +229,22 @@ class Page(Base):
                     self.assertTrue(p.js(self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect().left >= " + self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect().left - 1"), "the label stays over the bar" + where)
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
 
+    def test_the_planned_label_stays_over_the_bar_at_both_ends_of_the_scale(self):
+        """A marker near 95% must not push its label off the right of the bar, nor one near 5% off the left (the bar's own edges)."""
+        for planned in (950, 50):
+            with self.subTest(planned=planned):
+                body = {"v": 1, "overall": {"health": "", "note": ""}, "groups": [{"name": "A", "lines": [line("One", 1000, planned, 0)]}]}
+                ref = self.make(body)
+                with chrome() as cdp:
+                    p = self.visit(cdp)
+                    for width in (1400, 900):
+                        self.resize(cdp, p, width, "light")
+                        where = " at " + str(width) + " with planned " + str(planned)
+                        label, bar = (self.one(ref, "[data-tr-mark-label]") + ".getBoundingClientRect()", self.one(ref, "[data-tr-bar]") + ".getBoundingClientRect()")
+                        self.assertEqual(p.js(self.text_of(ref, "[data-tr-mark-label]")), "Planned " + str(planned // 10) + "%", "the label says it" + where)
+                        self.assertTrue(p.js(label + ".left >= " + bar + ".left - 1"), "the label's left edge stays over the bar" + where)
+                        self.assertTrue(p.js(label + ".right <= " + bar + ".right + 1"), "the label's right edge stays over the bar" + where)
+
     def test_view_half_is_the_bar_and_a_short_list_with_no_dates(self):
         ref = self.make(BODY, after="ABC-S-005", beside=1)
         with chrome() as cdp:
@@ -362,6 +378,25 @@ class Page(Base):
             self.assertTrue(self.wait_until(lambda: self.stored(full)["overall"]["note"] == ""))
             p.until(self.text_of(full, "[data-tr-words]") + " === '5 points behind plan.'", "the automatic words are back")
             self.assertEqual(p.js(self.count(full, "[data-tr-auto]")), 0, "the link shows only while the words are the owner's own")
+
+    def test_escape_puts_the_old_words_back_even_when_the_field_is_focused_before_any_frame(self):
+        """#992: the words are in the field before the first paint, so a focus that lands before the passive effects ran (a slow or
+        busy machine) still takes the old words. The frame and the 100 ms fallback are held here, so the order is the same everywhere."""
+        ref = self.make(BODY)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.js("(function(){var s=window.setTimeout, r=window.requestAnimationFrame; window.__held=[]; window.__real=[s, r];"
+                 "window.requestAnimationFrame=function(f){window.__held.push(f); return 0;};"
+                 "window.setTimeout=function(f,ms){if(ms===35||ms===100){window.__held.push(f); return 0;} return s.apply(window,arguments);};})()")
+            p.edit()
+            p.until(self.present(ref, "[data-tr-words]"), "the field is drawn")
+            self.assertGreater(p.js("window.__held.length"), 0, "the frame and the fallback are held, so no passive effect has run")
+            p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
+            p.type("something else")
+            p.key("Escape", code="Escape", vk=27)
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "Escape puts the old words back")
+            p.js("(function(){window.setTimeout=window.__real[0]; window.requestAnimationFrame=window.__real[1]; window.__held.splice(0).forEach(function(f){f();});})()")
+            self.assertEqual(p.js(self.text_of(ref, "[data-tr-words]")), "Supplier slipped a week", "and they stay when the held work runs")
 
     def test_the_cog_and_the_grip_menu_open_the_template_settings_and_a_pick_is_one_change_shown_at_once(self):
         ref = self.make(BODY)

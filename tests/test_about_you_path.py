@@ -1,5 +1,5 @@
-"""#422: the words that send a person to their name say Settings › Personal › About you, the path that exists, and
-no Settings path ending in Profile (Settings > Profile, Settings › Profile, the &gt; form) is written anywhere in src,
+"""Row 950 (lifts the row 422 ban): About you is the Profile card, so the words that send a person to their name say Settings › Profile,
+the path that exists, and the old path through Personal (Settings › Personal › About you, in any arrow form) is written nowhere in src,
 page sources and the Help content included."""
 import re
 import unittest
@@ -8,10 +8,15 @@ from pathlib import Path
 import _paths  # noqa: F401
 from clark import history
 
-SRC = Path(__file__).resolve().parent.parent / "src"
-PATH = "Settings › Personal › About you"
-# Any Settings path that ends at "Profile", whatever the arrow: >, ›, &gt;, &rsaquo;, -> or →, with any spaces between.
-OLD_PATH = re.compile(r"Settings\s*(?:>|›|&gt;|&rsaquo;|->|→|&rarr;)\s*Profile", re.IGNORECASE)
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
+DOCS = ROOT / "docs"
+# A document that quotes the 0.2.1 prototype as it was, in its own words, is history and not guidance.
+QUOTES_THE_PROTOTYPE = {"handoff/prototype-gap-list.md"}
+PATH = "Settings › Profile"
+# The old path, Personal then About you, whatever the arrow: >, ›, &gt;, &rsaquo;, -> or →, with any spaces between.
+ARROW = r"(?:>|›|&gt;|&rsaquo;|->|→|&rarr;)"
+OLD_PATH = re.compile(r"Settings\s*" + ARROW + r"\s*Personal\s*" + ARROW + r"\s*About you", re.IGNORECASE)
 
 
 class AboutYouPath(unittest.TestCase):
@@ -20,7 +25,7 @@ class AboutYouPath(unittest.TestCase):
         cover = (SRC / "clark" / "excel_cover.py").read_text(encoding="utf-8")
         self.assertIn("(" + PATH + ")", cover)
 
-    def test_the_path_that_does_not_exist_is_written_nowhere_in_src(self):
+    def test_the_old_path_through_personal_is_written_nowhere_in_src(self):
         found = []
         for p in sorted(SRC.rglob("*")):
             if not p.is_file() or p.suffix in {".png", ".ico", ".woff", ".woff2", ".pyc", ".map", ".zip"}:
@@ -33,11 +38,21 @@ class AboutYouPath(unittest.TestCase):
                 found.append(str(p.relative_to(SRC)))
         self.assertEqual(found, [])
 
+    def test_the_path_that_does_not_exist_is_written_nowhere_in_docs(self):
+        found = []
+        for p in sorted(DOCS.rglob("*.md")):
+            rel = p.relative_to(DOCS).as_posix()
+            if rel in QUOTES_THE_PROTOTYPE:
+                continue
+            if OLD_PATH.search(p.read_text(encoding="utf-8")):
+                found.append(rel)
+        self.assertEqual(found, [])
+
     def test_the_guard_catches_every_form_of_the_old_path(self):
-        for old in ("Settings > Profile", "Settings › Profile", "Settings &gt; Profile", "[Settings › Profile](go:settings#profile)",
-                    "Settings›Profile", "settings > profile"):
+        for old in ("Settings > Personal > About you", "Settings › Personal › About you", "Settings &gt; Personal &gt; About you",
+                    "[Settings › Personal › About you](go:settings#personal)", "Settings›Personal›About you", "settings > personal > about you"):
             self.assertTrue(OLD_PATH.search(old), old)
-        for good in (PATH, "Settings › Personal", "your Profile menu"):
+        for good in (PATH, "Settings › Personal", "Settings › Personal › Keys", "your Profile menu"):
             self.assertFalse(OLD_PATH.search(good), good)
 
 

@@ -14,10 +14,12 @@
 //   onDelete(id)                 "Delete this line" in the edit box
 // Every colour is a token. Bars carry their name as text (beside the bar when the bar is too short), so nothing depends on hover.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
+import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
+import { reduced } from "../../stores/motion.js";
 import {
-  WORDS, SCALES, tidyAll, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
+  WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
   chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
   formatDate, endOf, linesShown,
 } from "../logic/gantt.js";
@@ -60,6 +62,7 @@ export function GanttChart({
 }) {
   const now = today || todayIso();
   const all = useMemo(() => tidyAll(lines), [lines]);
+  const out = useMemo(() => leftOut(lines, { edit }).length, [lines, edit]);      // lines with no usable start date: not drawn, and said so
   const [scale, setScale] = useState("month");
   const [zoom, setZoom] = useState(1);
   const [ownFilter, setOwnFilter] = useState("all");
@@ -137,6 +140,7 @@ export function GanttChart({
     return (
       <section class="gt" data-gantt data-mode={edit ? "edit" : "view"}>
         <p class="gt-none" data-g-none>{WORDS.noLines}</p>
+        {out ? <p data-g-count>{linesShown(0, out)}</p> : null}
       </section>
     );
   }
@@ -331,7 +335,7 @@ export function GanttChart({
               return <div class="gt-hc gt-u" key={`u${c.iso}`} style={{ left: `${X(c.iso)}px`, width: `${room}px` }}>{show ? c.label : ""}</div>;
             })}
             {lowerShown.map(({ c, show }) => <div class={`gt-hc gt-l${c.edge ? " gt-edge" : ""}`} key={`l${c.iso}`} style={{ left: `${X(c.iso)}px` }}>{show ? c.label : ""}</div>)}
-            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
+            <button type="button" class="gt-tflag" style={{ left: `${X(now)}px`, "--tx": `${X(now)}px` }} onClick={goToday} title={WORDS.scrollToday} data-g-today>{WORDS.today}</button>
             <div class="gt-tstem gt-tstem-h" style={{ left: `${X(now)}px` }} />
           </div>
 
@@ -390,7 +394,7 @@ export function GanttChart({
                 );
               }
               const w = q.x2 - q.x1, out = labelOut(l, w);
-              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, true); }
+              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
               if (drag && drag.id === l.id) born.current.set(l.id, false);       // a grabbed bar never grows, nor does it start when let go
               const label = `${l.name}, ${formatDate(l.start)} to ${formatDate(l.end)}, ${l.pct} percent, ${statusWord(st)}`;
               return (
@@ -427,7 +431,7 @@ export function GanttChart({
         <span><b class="gt-sw gt-sw-n" />{WORDS.legendToday}</span>
         <span><b class="gt-sw gt-sw-a" />{WORDS.legendDepends}</span>
         <span class="gt-pill"><b class="gt-sw gt-sw-c" />{WORDS.legendClash}</span>
-        {edit ? <span data-g-count>{linesShown(rows.length, all.length)}</span> : null}
+        {edit || out ? <span data-g-count>{linesShown(rows.length, all.length + out)}</span> : null}
         {msg ? <span class="gt-msg" role="alert" data-g-msg>{msg}</span> : null}
       </div>
 
@@ -442,12 +446,12 @@ export function GanttChart({
       </div>
 
       {menu ? (
-        <div class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
+        <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
             <button type="button" role="menuitem" key={t} data-g-addtype={t} ref={(el) => { if (el && i === 0) el.focus(); }}
               onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
           ))}
-        </div>
+        </Fade>
       ) : null}
 
       {box && live.find((x) => x.id === box.id) ? <EditBox key={box.id} line={live.find((x) => x.id === box.id)} no={nos[box.id]} at={box} onClose={() => setBox(null)}
