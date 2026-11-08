@@ -40,9 +40,9 @@ function refocus(id) {
   setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
-function openFor(el, x, y) {
+function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el) };
+  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -57,7 +57,7 @@ function useOpeners() {
       e.preventDefault();
       const kbd = e.clientX === 0 && e.clientY === 0;             // a key made this one: there is no pointer to put the menu at
       const r = el.getBoundingClientRect();
-      openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY);
+      openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
       if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
@@ -144,6 +144,8 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
   );
 }
 
+const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
+
 function Panel({ s }) {
   const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
@@ -164,9 +166,16 @@ function Panel({ s }) {
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
     clearTimeout(timer.current);
-    if (id) { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); return; }
+    if (id) {      // row 979: a list opens (or swaps for another) only after the pointer has rested on its entry, so a pointer passing over entries does not mount a list at each
+      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); }, REST);
+      return;
+    }
     timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
   };
+  useLayoutEffect(() => {      // row 979: opened by the mouse, the first entry takes the focus without a ring until a key is used (MenuPanel cannot know: its anchor is null on the first draw)
+    const box = s.pointer && wrap.current && wrap.current.querySelector(":scope > .ddmenu");
+    if (box) box.dataset.pointer = "1";
+  }, []);
   useEffect(() => { if (!row) state.value = null; }, [row]);          // the item went (archived, or another project): nothing to act on
   if (!row) return null;
 

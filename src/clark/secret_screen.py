@@ -138,10 +138,10 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
-    character counts as printable, so mostly-text data with a few bad bytes is still read."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file, random bytes); a bad byte
+    (the replacement character) is not printable (#502), so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
-    return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
+    return text if sum((c.isprintable() and c != "\ufffd") or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
 
 def _decoded(run):
@@ -293,7 +293,9 @@ def _cut_bare(text):
     in the key word ("pass", a break, then `word "orangebicycle"`) or between the key word and the quoted word (`my password`, a
     line break (CRLF, blank lines, trailing spaces), `"orangebicycle"`). A break that only ends the line before the key word or
     follows the quote is not inside the hit. Refused on purpose, as the text as written was refused before #340: `Forgot password`
-    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines."""
+    at the end of a line with a quoted word starting the next cannot be told apart from a password written over two lines.
+    Accepted on purpose (#582): the key word, a line break with no space or tab before it, then the quoted word is not a hit, as the text
+    as written was never refused for it; its base64 is accepted too, so base64 matches plain."""
     parts = _BREAKS.split(text)
     if len(parts) < 2:
         return False
