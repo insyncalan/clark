@@ -417,6 +417,9 @@ class HiddenOnTheServedPage(unittest.TestCase):
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#clientreport&p=TUL"}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the page drew")
+            # ready is set when the first draw is queued, before the data arrives: the tab bar and the mode switch come with the data
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.tabs .tab').length > 0 && !!document.querySelector('[data-mode=edit]')", sid)),
+                            "the tab bar and the mode switch are drawn")
             for dashboard_mode in ("view", "edit"):  # Dashboard mode
                 if dashboard_mode == "edit":
                     cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
