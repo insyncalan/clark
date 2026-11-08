@@ -64,7 +64,7 @@ function Text({ m, field, label, value, lines = false, required = false, max = 2
 // Item 1005: the description is on the one rich editor (RichField): the text drawn is cleanHtml of what is stored (the editor's HTML, or the plain
 // text an older clark stored), Cmd or Ctrl with Enter saves, Esc leaves it as it was. One change with one Undo; it stays open if clark refuses.
 function Description({ m }) {
-  const html = (() => { try { return richOrPlain(m.description || ""); } catch (e) { return ""; } })();
+  const html = (() => { try { return richOrPlain(m.description || ""); } catch (e) { return "<p>" + String(m.description || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();
   const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
   return <RichField field="description" id={m.id} value={html} label="Description" empty={DASH} save={put} />;
 }

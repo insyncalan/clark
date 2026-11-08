@@ -25,7 +25,7 @@ sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 import esbuild  # noqa: E402
 
-from clark import changes, page, publish  # noqa: E402
+from clark import changes, history, page, publish, sanitise  # noqa: E402
 from test_milestones_page import CASES, EMPTY_BRANDING, MODULE, TODAY  # noqa: E402
 from test_movement_page import GO_LIVE, INTERNAL, PILOT, Base, in_days  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
@@ -123,7 +123,7 @@ class Requests(unittest.TestCase):
         due = (date.today() + timedelta(days=7)).isoformat()
         got = self.send("actions", {"description": "Recover pilot live", "priority": "High", "due_date": due, "milestone": self.m,
                                     "latest_update": "Pilot live is 3 days behind its agreed date."})
-        self.assertEqual(self.s.read("actions", ref=got["ref"])["latest_update"], "Pilot live is 3 days behind its agreed date.")
+        self.assertEqual(sanitise.rich_plain_text(self.s.read("actions", ref=got["ref"])["latest_update"]), "Pilot live is 3 days behind its agreed date.")      # row 1005: stored as the editor's HTML; the words are pinned
         done = self.send("decisions", {"decision": "Steering decision on pilot live", "needed_by": due, "reasoning": "Pilot live is 3 days behind its agreed date."})
         self.assertEqual(self.s.read("decisions", ref=done["ref"])["reasoning"], "Pilot live is 3 days behind its agreed date.")
         for reply in (got, done):
@@ -334,7 +334,8 @@ class Page(Base):
             text = self.toast(p)
             action = self.store.read("actions", ref=text.split(" ")[0])
             self.assertEqual((action["description"], action["priority"], action["due_date"], action["milestone"]), ("Recover go live", "High", iso, GO_LIVE))
-            self.assertRegex(action["latest_update"], r"^Go live is \d+ days? behind its agreed date\.$")
+            self.assertRegex(sanitise.rich_plain_text(action["latest_update"]), r"^Go live is \d+ days? behind its agreed date\.$")
+            self.assertEqual(history.shown_value("actions", "latest_update", action["latest_update"]), sanitise.rich_plain_text(action["latest_update"]), "history shows the words, not the markup")
             self.assertEqual(action["workstream"], "Build", "the first open workstream (Go live has none of its own)")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(action["id"]), "the action opens in the peek")
             p.js("document.querySelector('[data-pk-close]').click()")

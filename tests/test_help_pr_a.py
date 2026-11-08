@@ -112,7 +112,7 @@ class TypedFilter(unittest.TestCase):
         flt = code("filters.js")
         self.assertIn('FIELDS.filter((f) => f !== "client" && f !== "reviewed")', flt)
         self.assertIn("a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone.", self.FIND)
-        self.assertIn("map[r.id] = [r.id, words, who, r.latest_update, r.client_message, r.use_case]", code("clientView.js"))
+        self.assertIn("map[r.id] = [r.id, words, who, richWords(r.latest_update), r.client_message, r.use_case]", code("clientView.js"))
         self.assertIn("finds words in the ID, the description, the owner, the latest update, the client wording and the use case", self.FIND)
         self.assertIn("a published file keeps the type and Open / Closed / All", wi)
         self.assertIn("**Clear all** removes the filters and the search but keeps the type and Open, Closed or All.", self.FIND)

@@ -53,7 +53,7 @@ export function PeekLatest({ row }) {
   const [rev, setRev] = useState(0);                                   // a new key after Draft, so an open editor is left and drawn from what clark stored
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
-  const html = (() => { try { return richOrPlain(now); } catch (e) { return ""; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
+  const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
   const save = (value) => changeCell("actions", row.id, { latest_update: value },
