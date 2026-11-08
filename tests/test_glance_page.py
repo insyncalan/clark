@@ -511,6 +511,13 @@ class Styles(Setup):
                 p.until("!!document.querySelector('.secs .sec')", "dashboard")
                 flat[value] = p.js("getComputedStyle(document.querySelector('.secs .sec')).boxShadow === 'none'")
             self.assertEqual(flat, {"comfortable": False, "compact": True}, "Comfortable sections are cards, Compact sections run on flat")
+            gap = []
+            for value in ("compact", "comfortable"):
+                p.js(f"document.documentElement.dataset.density = '{value}'")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until("!!document.querySelector('.secs')", "dashboard")
+                gap.append(p.js("(() => { const s = getComputedStyle(document.querySelector('.sec')); return parseFloat(s.paddingTop) + parseFloat(s.paddingBottom); })()"))
+            self.assertGreater(gap[1], gap[0], "a Comfortable section has more padding above and below than a Compact one")
 
 
 class Published(PublishedFile, Setup):

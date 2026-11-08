@@ -3,8 +3,7 @@
 // file carries the choice it was published with (useFileDensity) and has no way to change it.
 //
 // Bridge, until the guarded publish files change (publish.py, publish_flow.py, to_client.py; see the plan on item 1025): they still
-// speak the four old section words, so the choice is also written as html[data-secstyle] (which the Dashboard section rules still read)
-// and sent and read as the old word: Compact is "card", Comfortable is "slim". No other old word is ever sent.
+// speak the four old section words, so the choice is sent and read as the old word: Compact is "card", Comfortable is "slim". No other old word is ever sent.
 import { signal } from "@preact/signals";
 
 export const IDS = ["compact", "comfortable"];
@@ -28,7 +27,6 @@ function paint(v) {
   try {
     const root = document.documentElement;
     root.dataset.density = v;
-    root.dataset.secstyle = sectionWord(v);
   } catch (e) { /* no document: nothing to paint */ }
 }
 paint(density.value);

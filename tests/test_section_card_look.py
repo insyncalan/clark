@@ -39,11 +39,22 @@ class Card(unittest.TestCase):
             self.assertIn(want, sec)
         self.assertNotIn("border-top", sec, "no thin line between sections any more")
 
-    def test_the_gap_between_cards_is_slim_and_roomy_is_roomier(self):
-        slim = re.search(r"\.secs \{ display: grid;.*?gap: (\d+)px (\d+)px", CSS).groups()
-        roomy = re.search(r'html\[data-secstyle="roomy"\] \.secs \{ gap: (\d+)px (\d+)px', CSS).groups()
-        self.assertGreater(int(roomy[0]), int(slim[0]))
-        self.assertGreaterEqual(int(slim[1]), 24, "the side gap leaves room for a right-hand section's control")
+    def test_the_gap_between_cards_is_a_token_and_the_side_gap_leaves_room_for_the_control(self):
+        self.assertIn("gap: var(--secs-gap)", rule(".secs"))
+        token = re.search(r":root \{ --secs-gap: 12px 24px;", CSS)
+        self.assertTrue(token, "12 px between rows, 24 px (a right-hand section's control) between columns, in both densities")
+
+    def test_the_section_spacing_comes_from_tokens_that_comfortable_redefines(self):
+        sec = rule(".sec")
+        for want in ("padding: var(--sec-pad-t) var(--sec-px) var(--sec-pad-b)", "--sec-px: var(--sec-inset)"):
+            self.assertIn(want, sec)
+        root = re.search(r":root \{ --secs-gap[^}]*\}", CSS).group(0)
+        for want in ("--sec-inset: 0px", "--sec-pad-t: 12px", "--sec-pad-b: 4px", "--secs-pad: 4px 0 12px"):
+            self.assertIn(want, root, "Compact is the default")
+        comfortable = rule('html[data-density="comfortable"]')
+        for want in ("--sec-inset: 20px", "--sec-pad-t: 14px", "--sec-pad-b: 10px", "--secs-pad: 0"):
+            self.assertIn(want, comfortable)
+        self.assertNotIn("secstyle", CSS.replace(".secstyles", ""), "the four section looks are gone: one density attribute")
 
     def test_one_square_before_each_heading_from_a_token(self):
         square = rule(".sec-head::before")
@@ -56,54 +67,48 @@ class Card(unittest.TestCase):
         self.assertIn("opacity: .75", rule(".sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h"))
         self.assertIn("border-style: dashed", rule(".sec.is-hidden"))
 
-    def test_a_left_out_title_keeps_4_5_to_1_on_the_card_and_the_grey_band(self):
+    def test_a_left_out_title_keeps_4_5_to_1_on_the_card(self):
         """.75 keeps the title's text above 4.5 to 1 on the card surface in light (.65 gave 4.37 on the band)."""
         self.assertIn("opacity: .75", rule(".sec.is-hidden > :not(.sec-ctl):not(.sec-head), .sec.is-hidden .sec-h"))
 
-    def test_one_card_keeps_the_drag_drop_line(self):
+    def test_compact_keeps_the_drag_drop_line(self):
         """The flat One card rule sets box-shadow: none on .sec and outranks .sec.drop-before, so it restates the line."""
-        self.assertIn("box-shadow: 0 -3px 0 var(--brand-cyan)", rule('html[data-secstyle="card"] .sec.drop-before'))
+        self.assertIn("box-shadow: 0 -3px 0 var(--brand-cyan)", rule('html:not([data-density="comfortable"]) .sec.drop-before'))
 
     def test_the_report_frame_steps_back_so_cards_are_not_inside_a_card(self):
-        self.assertIn('html:not([data-secstyle="card"]) .frame.report { padding: 4px 28px 0; background: transparent; border: 0; box-shadow: none; }', CSS)
+        self.assertIn('html[data-density="comfortable"] .frame.report { padding: 4px 28px 0; background: transparent; border: 0; box-shadow: none; }', CSS)
 
 
 class Styles(unittest.TestCase):
-    def test_grey_headers_put_the_band_on_the_heading_inside_the_card(self):
-        self.assertIn("background: var(--grey-100)", rule('html[data-secstyle="grey"] .sec-head'))
-        self.assertIn("padding-top: 0", rule('html[data-secstyle="grey"] .sec'))
-        self.assertNotIn("border", rule('html[data-secstyle="grey"] .sec'), "the card's one border is not drawn again")
-
     def test_one_card_takes_the_cards_away_and_keeps_one_frame(self):
         """The report's own frame (.frame.report) is the one border; the inner .secs box draws none, so there are never two."""
-        sec = rule('html[data-secstyle="card"] .sec')
+        sec = rule('html:not([data-density="comfortable"]) .sec')
         for want in ("background: transparent", "border: 0", "box-shadow: none", "border-radius: 0", "border-top: 1px solid var(--grey-200)"):
             self.assertIn(want, sec)
-        secs = rule('html[data-secstyle="card"] .secs')
-        for want in ("border: 0", "border-radius: 0", "background: transparent", "padding: 4px 0 12px"):
+        secs = rule('html:not([data-density="comfortable"]) .secs')
+        for want in ("border: 0", "border-radius: 0", "background: transparent"):
             self.assertIn(want, secs)
         self.assertNotIn("1px solid", secs, "the inner box has no border of its own")
-        self.assertNotIn('html[data-secstyle="card"] .frame.report', CSS, "the frame keeps its own look: border, surface and padding")
+        self.assertNotIn('html:not([data-density="comfortable"]) .frame.report', CSS, "the frame keeps its own look: border, surface and padding")
 
     def test_a_pair_has_one_unbroken_line_and_the_first_row_has_none(self):
-        first = rule('html[data-secstyle="card"] .secs > .sec:first-child, html[data-secstyle="card"] .secs > .sec.slot-left:first-child + .sec.slot-right')
+        first = rule('html:not([data-density="comfortable"]) .secs > .sec:first-child, html:not([data-density="comfortable"]) .secs > .sec.slot-left:first-child + .sec.slot-right')
         self.assertIn("border-top: 0", first, "no line in the first row, for either half of a pair")
         self.assertIn("margin-left: -24px; padding-left: 24px", CSS, "the right half reaches back across the 24 px gap, so the line has no break")
-        self.assertIn("@media (min-width: 901px) {\n  html[data-secstyle=\"card\"] .sec.slot-right { margin-left: -24px; padding-left: 24px; }", CSS)
-        self.assertIn('html[data-secstyle="card"] .sec.slot-right > .sec-ctl { left: 0; }', CSS, "the right half's control sits in the gap, inside its own box")
-        self.assertIn(".secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px 24px;", CSS, "the gap the right half reaches back across is 24 px")
+        self.assertIn("@media (min-width: 901px) {\n  html:not([data-density=\"comfortable\"]) .sec.slot-right { margin-left: -24px; padding-left: 24px; }", CSS)
+        self.assertIn('html:not([data-density="comfortable"]) .sec.slot-right > .sec-ctl { left: 0; }', CSS, "the right half's control sits in the gap, inside its own box")
+        self.assertIn(".secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--secs-gap);", CSS, "the gap the right half reaches back across is 24 px")
 
     def test_the_edit_gutter_is_the_frames_side_padding_not_the_inner_boxs(self):
         """1400: the frame's 28 px side padding holds the 24 px control (left: -26px, from the base rule). 900: the frame widens to 36 px in Edit."""
         self.assertIn("left: -26px", rule(".sec-ctl").split("opacity")[0])
         self.assertIn("padding: 24px 28px", rule(".frame"))
-        self.assertIn('html[data-secstyle="card"] #report[data-mode="edit"] { padding-left: 36px; }', CSS)
-        self.assertIn('html[data-secstyle="card"] #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }', CSS)
-        self.assertIn("left: -30px", CSS[CSS.index('html[data-secstyle="card"] #report[data-mode="edit"] .sec > .sec-ctl'):])
+        self.assertIn('html:not([data-density="comfortable"]) #report[data-mode="edit"] { padding-left: 36px; }', CSS)
+        self.assertIn('html:not([data-density="comfortable"]) #report[data-mode="edit"] .sec { --sec-px: 0px; padding-left: 0; }', CSS)
+        self.assertIn("left: -30px", CSS[CSS.index('html:not([data-density="comfortable"]) #report[data-mode="edit"] .sec > .sec-ctl'):])
 
-    def test_each_style_names_only_what_it_changes(self):
-        for style in ("roomy", "grey", "card"):
-            self.assertNotIn("::before", "".join(re.findall(r'html\[data-secstyle="' + style + r'"\][^{]*\{', CSS)), "the square is drawn once, in every style")
+    def test_the_density_rules_name_only_what_they_change(self):
+        self.assertNotIn("::before", "".join(re.findall(r'html[^{,]*data-density[^{]*\{', CSS)), "the square is drawn once, in every density")
 
     def test_edit_at_900_keeps_the_card_padding_in_one_variable(self):
         self.assertIn('#report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; }', CSS)

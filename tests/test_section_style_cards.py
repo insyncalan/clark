@@ -294,7 +294,7 @@ class Cards(Base):
                 self.open_settings(p)
                 p.js(f"document.querySelector('#personal input[name=density][value={pick}]').click()")
                 p.until(f"document.documentElement.dataset.density === '{pick}'", "the choice applied")
-                self.assertEqual(p.js("document.documentElement.dataset.secstyle"), word, "the Dashboard section rules still key on the old word")
+                self.assertEqual(p.js("document.documentElement.dataset.secstyle"), None, "the old attribute is gone: the rules key on data-density")
                 self.rig.save_to = self.rig.local / f"{pick}.html"
                 p.open_publish()
                 p.go()
