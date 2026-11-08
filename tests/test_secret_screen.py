@@ -76,7 +76,36 @@ FAMILIES = {
     "long token near a word": "the api " + "key is " + "Xk9" + "Qm2Lp7" * 5 + "Zt4Rw8Vb1Nc",
 }
 
+ORDINARY = (        # names, ids and addresses that must never be refused (a refusal drops the whole file)
+    "Project_Tulip_Phase2_Rev03_v2", "Tulip_Phase2_Rev03_v2_Final", "Site_Survey_Rev03_v2_2024Q4",
+    "Gantt_Phase2_Rev03_v2_Jan2025", "Phase2_Rev03_Cost_Estimate_V2", "Budget_Q4_2024_Rev3_Approved1",
+    "See Project_Tulip_Phase2_Rev03_v2.xlsx for details", "TUL-A-002_Rev3_Final_2024-11-08.xlsx",
+    "Project-Tulip-Phase2-Rev03-v2-Final", "Meeting-Notes-Tulip-Phase2-Rev03-v2", "Tulip_Phase2_Rev03_Site_Survey_Q4",
+    "Created 2024-11-08T10:15:30.123456Z by the site team", "Updated 2024-11-08T10:15:30+00:00 and 2024-11-09T11:16:31-05:00",
+    "id 123e4567-e89b-12d3-a456-426614174000", "id 123E4567-E89B-12D3-A456-426614174000",
+    "hash d41d8cd98f00b204e9800998ecf8427e",
+    "https://example.com/projects/Tulip_Phase2_Rev03_v2_Final/Site_Survey_Rev03_v2",
+    "https://example.com/files/2024/11/Tulip-Phase2-Rev03-v2-Final.pdf?download=1",
+    "{9A1B2C3D-4E5F-6071-8293-A4B5C6D7E8F9}", "urn:uuid:123e4567-e89b-12d3-a456-426614174000",
+)
+KEYS_WITH_SEPARATORS = (    # random keys that contain - or _ and must still be caught
+    "Ab3Xk9Qw2Zr7_Lm4Pt8Vn1Cy5-Hd6Jf0Gs", "Ab3Xk9_Qw2Zr7_Lm4Pt8_Vn1Cy5_Hd6Jf0", "live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0",
+    "Zt4Rw8Vb1Nc-Xk9Qm2Lp7Ab3Xk9Qw2",
+)
+
+
 class Screen(unittest.TestCase):
+    def test_ordinary_names_ids_and_addresses_are_not_refused(self):
+        for text in ORDINARY:
+            for wrap in ("{}", "Notes before.\n{}\nNotes after.", "| {} | 2024 | ok |"):
+                with self.subTest(text=text, wrap=wrap):
+                    self.assertFalse(secret_screen.looks_like_secret(wrap.format(text)))
+
+    def test_random_keys_with_a_separator_are_still_caught(self):
+        for key in KEYS_WITH_SEPARATORS:
+            with self.subTest(key):
+                self.assertTrue(secret_screen.looks_like_secret("Notes before.\n" + key + "\nNotes after."))
+
     def test_each_family_is_caught(self):
         for name, text in FAMILIES.items():
             with self.subTest(name):
