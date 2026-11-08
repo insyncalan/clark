@@ -180,6 +180,25 @@ class Screen(unittest.TestCase):
                     self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
         self.assertTrue(secret_screen.looks_like_secret("Notes.\nPassword: \"" + "swordfish" + "\" (shared)"))
 
+    def test_token_and_api_key_with_a_letters_only_quoted_value_are_refused_471(self):
+        """#471: like a password, `token` and an api key word followed by : or = and a quoted word of 6 or more letters are refused."""
+        word = "orange" + "bicycle"
+        for q1, q2 in (('"', '"'), ("'", "'"), ("`", "`"), ("\u201c", "\u201d")):
+            for lead in ("token: ", "api_key: ", "api key = ", "API_KEY=", "apikey: ", '"token": ', "github_token: ", "token_prod: "):
+                with self.subTest(lead + q1):
+                    self.assertTrue(secret_screen.looks_like_secret(lead + q1 + word + q2))
+        for text in ('token: "abcdef"', "api_key: 'abcdef'", 'Notes.\napi_key: "swordfish" (shared)', 'token:\n"orangebicycle"'):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
+    def test_near_misses_of_the_quoted_token_rule_pass_471(self):
+        """The rule needs : or = (not prose), a whole quoted word of 6 or more letters, a key word that starts a word and no setting suffix."""
+        for text in ('the token "refresh" is renewed', 'the token is "refresh"', 'token "orangebicycle"', 'token: "abcde"', 'token: "two words here"',
+                     'token: "string"', "api_key: 'placeholder'", 'api_key: "required"', "tokens: 'orangebicycle'", 'Tokenizer: "orangebicycle"',
+                     'api_key_rotation: "monthly"', 'token_auth: "orangebicycle"', 'token: orangebicycle', 'token: "2026 plan"', 'a token: refresh'):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+
     def test_a_short_or_unquoted_word_after_a_password_word_is_not_refused(self):
         for text in ('password "ok"', 'the password "must" be long', "password: reset", "the password policy is reviewed each year",
                      'the token "refresh" is renewed', 'a "required" field', 'pass `revert` to the call', 'password: "two words here"'):

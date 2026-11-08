@@ -3,8 +3,12 @@
 Run: python3 dev/run_tests.py test_cover_band
 Served page (View) and the published file, at 1400 and 900 px, light and dark. Fictional data.
 """
+import base64
+import json
 import shutil
+import struct
 import tempfile
+import zlib
 import unittest
 from datetime import date, timedelta
 from pathlib import Path
@@ -52,6 +56,74 @@ class Served(Setup):
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
 
 
+RADII = """(() => { const c = document.querySelector('header.cover'), s = getComputedStyle(c);
+  return {r: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius], shadow: s.boxShadow}; })()"""
+
+
+class Corners(Setup):
+    """Row 997: a band standing alone over separate section cards has four round corners and the card shadow; as the top of the
+    one-card frame (the Card style) it keeps the top two only and no shadow of its own."""
+
+    def test_the_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
+        for style in ("slim", "roomy", "grey"):
+            with self.subTest(style=style), chrome() as cdp:
+                p = self.show(cdp)
+                p.js(f"document.documentElement.dataset.secstyle = '{style}'")
+                got = p.js(RADII)
+                self.assertEqual(len(set(got["r"])), 1, got)
+                self.assertNotEqual(got["r"][0], "0px", got)
+                self.assertNotEqual(got["shadow"], "none", got)
+
+    def test_the_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.js("document.documentElement.dataset.secstyle = 'card'")
+            got = p.js(RADII)
+            self.assertEqual(got["r"][2:], ["0px", "0px"], got)
+            self.assertNotEqual(got["r"][0], "0px", got)
+            self.assertEqual(got["shadow"], "none", got)
+
+
+PICTURE = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::before');
+  return {band: [r.width, r.height], box: [parseFloat(s.width), parseFloat(s.height)], image: s.backgroundImage, size: s.backgroundSize,
+          pos: s.backgroundPosition, repeat: s.backgroundRepeat, overflow: getComputedStyle(c).overflow}; })()"""
+
+
+def artwork():
+    """A real 650 by 245 picture of one fictional colour, as a CSS url(): the size the owner's artwork was drawn at (row 1003)."""
+    def chunk(kind, data):
+        return struct.pack(">I", len(data)) + kind + data + struct.pack(">I", zlib.crc32(kind + data))
+    rows = b"".join(b"\0" + bytes((20, 60, 120)) * 650 for _ in range(245))
+    png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 650, 245, 8, 2, 0, 0, 0)) + chunk(b"IDAT", zlib.compress(rows))
+           + chunk(b"IEND", b""))
+    return 'url("data:image/png;base64,' + base64.b64encode(png).decode() + '")'
+
+
+def check_fills(test, got, has_picture):
+    test.assertEqual(got["overflow"], "hidden", "the picture is clipped to the band's rounded shape")
+    if not has_picture:
+        test.assertEqual(got["image"], "none", "no brand picture: the plain band, nothing drawn")
+        return
+    test.assertIn("data:image/png", got["image"])
+    test.assertEqual(got["size"], "cover", "the picture is scaled to fill, never drawn at its own size")
+    test.assertEqual(got["repeat"], "no-repeat")
+    test.assertAlmostEqual(got["box"][1], got["band"][1], delta=1.5, msg="the picture's box is as tall as the band: no empty band under it")
+    test.assertAlmostEqual(got["box"][0], got["band"][0] * 0.6, delta=1.5, msg="and reaches the band's right edge")
+
+
+class Picture(Setup):
+    """Row 1003: a brand picture fills the report band (no hard edge with an empty band under it), in the editor's page, light
+    and dark, at 1400 and 900; without a brand picture the band is plain."""
+
+    def test_the_brand_picture_fills_the_band(self):
+        for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                check_fills(self, p.js(PICTURE), False)
+                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
+                check_fills(self, p.js(PICTURE), True)
+
+
 class TheWeek(Setup):
     def coming_friday(self):
         d = date.today()
@@ -81,6 +153,23 @@ class InTheFile(Published):
                 self.assertIn("Week ending 23-10-2026", b["line"])
                 self.assertIn("for Example Client", b["line"])
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+    def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
+        path = self.publish()
+        with chrome() as cdp:
+            got = self.draw(cdp, path).js(RADII)
+        self.assertEqual(len(set(got["r"])), 1, got)
+        self.assertNotEqual(got["r"][0], "0px", got)
+        self.assertNotEqual(got["shadow"], "none", got)
+
+    def test_row_1003_the_published_file_fills_the_band_with_the_brand_picture(self):
+        path = self.publish()
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.draw(cdp, path, width, dark)
+                check_fills(self, p.js(PICTURE), False)
+                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
+                check_fills(self, p.js(PICTURE), True)
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):
         with self.store.step("dashboard", USER) as st:

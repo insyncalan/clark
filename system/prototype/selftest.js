@@ -593,6 +593,9 @@
       ok('Activity: the field by its plain name, with from → to formatted as dates', /Due date \d\d-\d\d-\d{4} → \d\d-\d\d-\d{4}/.test(tx) && !/\bdue\b \d{4}-/.test(tx), tx.slice(0, 200));
       ok('Activity: status as words, owner as names, and the person, how and local time first', /Status Open → Delayed/.test(tx) && /Owner Sam Rivers → Jo Ellis/.test(tx) && /You, in the peek · \d\d-\d\d-\d{4} \d\d:\d\d/.test(tx), tx.slice(0, 200));
       ok('Activity: newest first', $$('#pkFeed .feed > li')[0].textContent.includes('Title') && !!$('#pkFeed .pk-filt')); }
+    { const sc = $('#peek .pk-scroll'), fd = $('#pkFeed'); sc.scrollTop = sc.scrollHeight; await sleep(40); const top0 = sc.scrollTop, h0 = fd.offsetHeight; click($('.pk-tabs [data-tab=source]')); await sleep(60);
+      ok('Source tab: choosing it keeps the scroll and the space (item 1008)', sc.scrollTop === top0 && fd.offsetHeight >= h0 && /Source/.test(fd.textContent), top0 + ' -> ' + sc.scrollTop + ', feed ' + h0 + ' -> ' + fd.offsetHeight);
+      click($('.pk-tabs [data-tab=activity]')); await sleep(40); }
     click($('#pkUpd')); await sleep(120); const upm = $('#pkUpd .ProseMirror'); ok('latest update edits in place', !!upm); await typeIn(upm, ' Supplier answered.'); $('#peek .pk-meta').dispatchEvent(new MouseEvent('mousedown', { bubbles: true })); await sleep(120); ok('latest update saved', item('PDF-A-012').update.includes('Supplier answered.'));
     click($('#pkDraft')); await sleep(80); ok('draft button writes a draft, with Undo', C.plain(item('PDF-A-012').update).length > 10 && !$('#toastUndo').hidden);
     { const h = S().history.filter(r => r.id === 'PDF-A-012' && r.field === 'update').at(-1); ok('a draft records "with a draft", and keeps the whole text', h.how === window.ClarkDB.who('with a draft') && h.from.includes('Supplier answered') && h.to.length > 10);

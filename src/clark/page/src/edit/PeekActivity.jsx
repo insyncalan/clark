@@ -39,6 +39,19 @@ export function PeekTabs() {
   );
 }
 
+// The read-only Source line under the Details fields: where the item came from, then " by <name>" (activity_read.source_line). Edit only; the
+// text is drawn as text, and nothing is drawn while it is read, when it is empty or when the read fails.
+export function PeekSource({ row }) {
+  const [text, setText] = useState("");
+  const d = data.value;
+  useEffect(() => {
+    let live = true;
+    readActivity(project.value, row.id).then((r) => { if (live) setText(r.ok && typeof r.view.source === "string" ? r.view.source : ""); });
+    return () => { live = false; };
+  }, [row.id, d]);                                // eslint-disable-line react-hooks/exhaustive-deps
+  return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
+}
+
 function Change({ r }) {
   if (r.kind === "Created") return <p class="pa-what"><span class="pa-kind">Created</span>{r.to ? <span> {r.to}</span> : null}</p>;
   if (r.kind === "Comment") return <p class="pa-what"><span class="pa-kind">Comment</span> {r.to}</p>;
@@ -155,6 +168,7 @@ export function PeekActivity({ id }) {
                   <div class="pa-body">
                     <p class="pa-meta"><span class="pa-who">{r.who || "Someone on this computer"}</span>{r.how ? <span> · {r.how}</span> : null}<span> · {r.when_text}</span></p>
                     <Change r={r} />
+                    {r.from_file ? <p class="muted pa-from-file" data-pa-from-file>{r.from_file}</p> : null}
                     {why ? <p class="muted pa-why" data-pa-why>{why}</p> : null}
                   </div>
                 </div>

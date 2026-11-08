@@ -41,7 +41,7 @@ class Fields(unittest.TestCase):
         self.assertEqual(self.steps(), before + 1)
         now = self.row()
         self.assertEqual((now["name"], now["owner"], now["workstream"], now["percent_complete"], now["description"]),
-                         ("Go live", "Sam Example", "Delivery", 40, "Line one\nLine two"))
+                         ("Go live", "Sam Example", "Delivery", 40, "<p>Line one</p><p>Line two</p>"))      # row 1005: the description is the editor's HTML; plain text from an older caller is stored as paragraphs
         self.assertTrue(body["undoable"])
         status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
         self.assertEqual((status, undone["ok"]), (200, True), undone)

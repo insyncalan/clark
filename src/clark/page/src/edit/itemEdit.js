@@ -161,6 +161,50 @@ export function changeFor(row, field, value, today) {
   return { error: "Only the owner, due date, priority and status can be changed here. Nothing was changed." };
 }
 
+// Row 986: Assign to, add a new person from the picker. The picker's clear entry reads CLEAR_ENTRY and sends the stored value TBC (an
+// owner is never blank); a new person is sent as `new_person` beside the same owner change, in one step with one Undo.
+export const CLEAR_ENTRY = "TBC (no one yet)";
+const NAME_MAX = 120;                                      // clark/people.py NAME_MAX
+const EMAIL_BAD = /[ ,;<>()[\]"'\\?#%`]/;                // clark/people.py EMAIL_BAD
+
+function backWords(row, name) {
+  const now = String(row.owner == null ? "" : row.owner).trim();
+  return now ? `${name} of ${row.id} is back to ${now}.` : `${name} of ${row.id} is blank again.`;
+}
+
+/** The email as the people list reads it, or {error}: one @, a dot after it, none of the characters it refuses. "" is no email. */
+function checkedEmail(given) {
+  const email = String(given == null ? "" : given).trim();
+  const at = email.indexOf("@");
+  if (!email) return { email: "" };
+  if (HIDDEN.test(email) || EMAIL_BAD.test(email) || at < 1 || at !== email.lastIndexOf("@") || email.length > 254) return { error: "That email can't be used. Check the address and try again." };
+  if (email.indexOf(".", at) < 0 || email.endsWith(".") ) return { error: "That email is not complete (no dot after the @). Check the address and try again." };
+  return { email };
+}
+
+/** Assign to a person who is not on the list yet: {changes, new_person, words, back}, {error} to say in the picker and send nothing, or
+ * null when the name is the owner already shown. `person` is {name, email?}. */
+export function newPersonChange(row, person, today) {
+  const name = fieldName(row, "owner");
+  const text = String(person && person.name == null ? "" : person.name).trim().split(/\s+/).filter(Boolean).join(" ");
+  if (!text) return { error: "Type the person's name." };
+  if (HIDDEN.test(String(person.name))) return { error: "That name has a hidden character in it, often from copying and pasting. Type the name again, then press Enter." };
+  if (text.toLowerCase() === "tbc" || text === CLEAR_ENTRY) return { error: "That isn't a name. Type the person's real name, or choose TBC (no one yet) to leave it open." };
+  if (Array.from(text).length > NAME_MAX) return { error: `A name can be ${NAME_MAX} characters at most. Shorten it and try again.` };
+  const mail = checkedEmail(person.email);
+  if (mail.error) return mail;
+  if (text.toLowerCase() === String(row.owner == null ? "" : row.owner).trim().toLowerCase()) return null;
+  return { changes: { [ownerField(row)]: text }, new_person: mail.email ? { name: text, email: mail.email } : { name: text },
+    words: `${name} of ${row.id} changed to ${text}, added as a new person.`, back: backWords(row, name) };
+}
+
+/** The picker's clear entry: the owner goes to the stored TBC, no new person; null when it is TBC already. */
+export function clearChange(row) {
+  const name = fieldName(row, "owner");
+  if (String(row.owner == null ? "" : row.owner).trim().toUpperCase() === "TBC") return null;
+  return { changes: { [ownerField(row)]: "TBC" }, words: `${name} of ${row.id} changed to TBC.`, back: backWords(row, name) };
+}
+
 /** Everyone named as an owner or a decider in the project's data, in alphabetical order, once each. */
 export function people(data) {
   const names = new Set();

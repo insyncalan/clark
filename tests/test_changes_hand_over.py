@@ -186,6 +186,10 @@ class HandOver(Base):
                 self.assertEqual(self.who(ref), OWNER)
                 self.undo({"project": "ABC", "apply_id": body["apply_id"]})
 
+    def test_the_done_list_holds_exactly_these_statuses(self):
+        # #580: the test above loops over the list itself, so an emptied list would pass it; this pins what is in it
+        self.assertEqual(sorted(changes.HAND_OVER_DONE), sorted(["Closed", "Cancelled", "Made", "Withdrawn"]))
+
     def test_the_closed_list_is_the_pages(self):
         text = (SRC / "clark" / "page" / "src" / "workItems.js").read_text(encoding="utf-8")
         page = re.search(r"const CLOSED = \[([^\]]*)\]", text).group(1)

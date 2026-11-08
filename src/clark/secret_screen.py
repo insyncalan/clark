@@ -91,13 +91,17 @@ _LEFT = r"""(?:(?<![A-Za-z0-9])|(?-i:(?<=[a-z0-9])(?=[PS])))"""
 _PWORD = r"""(?:passw(?:or)?d|pwd|passcode|passphrase|pw(?![A-Za-z]))"""
 _SUFFIX = r"""(?:[_-]?(?:key|value|text|string|phrase|word|plain|prod|production|dev|test|staging|new|old|current|confirm|[0-9])){0,6}"""
 _CONNECTED = (r"""(?:""" + _PWORD + r"""|secret)""" + _SUFFIX + r"""(?:""" + _QS + r"""?[ \t]{0,20}[:=]|[ \t]{1,20}\b(?:is|was)\b)[ \t]{0,20}""")
+# #471: `token` and an api key word are refused before a quoted letters-only word only with `:` or `=` (a quote may sit before it, a JSON key);
+# there is no is/was or bare form for them, since "the token is "refresh"" and `the token "refresh" is renewed` are ordinary prose.
+_KEYWORD = r"""(?:api[_ -]?key|apikey|token)"""
+_CONNECTED_KEY = _KEYWORD + _SUFFIX + _QS + r"""?[ \t]{0,20}[:=][ \t]{0,20}"""
 _BARE = r"""(?<!:)(?<!:[ \t])(?<!:[ \t]{2})""" + r"""(?P<kw>""" + _PWORD + r""")(?![A-Za-z0-9_])[ \t]{1,20}"""
-LETTER_QUOTED = r"""(?i)""" + _LEFT + r"""(?:""" + _CONNECTED + r"""|""" + _BARE + r""")""" + _PLACEHOLDER + _PAIR
+LETTER_QUOTED = r"""(?i)""" + _LEFT + r"""(?:""" + _CONNECTED + r"""|""" + _CONNECTED_KEY + r"""|""" + _BARE + r""")""" + _PLACEHOLDER + _PAIR
 # The same rule without the bare form, for the text read with line breaks taken out (#340): there a bare password word and a quoted
 # word that starts the next line ("Forgot password " at the end of one line, a quoted "Continue" at the start of the next) would join
 # into a hit that the text as written does not have. A key word that a line break cut in two, and a connector (`:`, `=`, is, was)
 # before a quoted word on the next line, are still caught.
-LETTER_QUOTED_JOINED = r"""(?i)""" + _LEFT + _CONNECTED + _PLACEHOLDER + _PAIR
+LETTER_QUOTED_JOINED = r"""(?i)""" + _LEFT + r"""(?:""" + _CONNECTED + r"""|""" + _CONNECTED_KEY + r""")""" + _PLACEHOLDER + _PAIR
 # Known gaps, kept as Tech Debt: a short bare mixed token with no key word ("Hunter2xyz9") and a bare lower-case hex string (accepted in writing by the Head, 02-11-2026; pinned by a test), a key word in another language before a quoted letters-only word (`Passwort: "Sommerzeit"`), an unquoted secret of letters only ("correcthorsebattery"), a spaced passphrase of letters only,
 # a bare 40-character hex string with no key word, a key word with some other suffix (`password_backup: "..."`) and a bare password
 # word after a colon (`Note: password "..."`) are not caught; guessing them would drop too many ordinary files.
