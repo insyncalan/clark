@@ -155,7 +155,7 @@ class Table(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def read(self, code):
+    def read(self, code, archived=None):
         st = open_store(self.path, onedrive_roots=[])
         try:
             return st.data_for(code)
@@ -212,6 +212,20 @@ class Table(unittest.TestCase):
                         self.assertIn("dependency", kinds, where + ": the longest old Type word is on the page")
                         self.assertEqual(got["wide"], [], where + ": a cell has text wider than its box")
                         self.assertLessEqual(got["sw"], got["vw"], where + ": the page scrolls sideways")
+
+    def test_rows_at_900_px_are_at_most_two_title_lines_and_one_meta_line_like_the_prototype(self):
+        """Row 834: at 900 px a row is 61 to 82 px (the prototype's 61 to 81), never the three lines it was: the meta line (ID, use case, plan)
+        is one line, cut short with an ellipsis rather than wrapped. Item 834 is measured in Edit's page, light and dark."""
+        with chrome() as cdp:
+            for theme in ("light", "dark"):
+                sid = self.load(cdp, 900, "edit", theme)
+                got = json.loads(cdp.js("""JSON.stringify([...document.querySelectorAll('#work tr[data-id]')].map((r) => { const m = r.querySelector('.c-item .meta'), t = r.querySelector('.c-item .t');
+                    return { id: r.dataset.id, h: Math.round(r.getBoundingClientRect().height), meta: m ? Math.round(m.getBoundingClientRect().height) : 0, line: m ? parseFloat(getComputedStyle(m).lineHeight) : 0,
+                             title: t ? Math.round(t.getBoundingClientRect().height) : 0 }; }))""", sid))
+                self.assertGreater(len(got), 10, theme)
+                for r in got:
+                    self.assertLessEqual(r["h"], 82, f"{theme}: {r['id']} is {r['h']} px tall (the prototype's tallest is 81)")
+                    self.assertLessEqual(r["meta"], r["line"] + 1, f"{theme}: {r['id']} meta wraps to {r['meta']} px")
 
     def toast_text(self, cdp, sid, want):
         """The toast's text, read until it is the one wanted (the toast is drawn a moment after the store write): the text that wait saw, not a second read."""

@@ -555,7 +555,7 @@ class BuiltPage(Browser):
     """The real bundle in a real browser against the harness's server."""
 
     def serve(self):
-        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         return s
 

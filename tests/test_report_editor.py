@@ -270,7 +270,7 @@ class Modes(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
 
     def test_a_report_with_no_sections_shows_none_and_does_not_crash(self):
-        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)

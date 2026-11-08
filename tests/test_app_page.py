@@ -34,7 +34,7 @@ class Source(unittest.TestCase):
 
 class Live(unittest.TestCase):
     def setUp(self):
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         for patch in (mock.patch.dict(sv.OPEN_GET_ROUTES, appfiles.open_files()), mock.patch.object(sv, "IDLE", idle.Idle(stop_after=60))):
             patch.start()

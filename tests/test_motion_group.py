@@ -18,8 +18,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
 PUBLISHED = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8") if (ROOT / "src/clark/page/page-view.html").exists() else ""
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
-# A group just opened (the tbody the table draws with the class) holding its column names and one row, and a group heading beside it.
-MAKE = """(() => { const t = document.createElement('table'); t.innerHTML = '<tbody class="opening"><tr class="grp"><th>g</th></tr><tr class="colh"><th>c</th></tr><tr class="r"><td>x</td></tr></tbody>'; document.body.appendChild(t);
+# A group just opened (the thead and tbody the table draws with the class) holding its column names and one row, and a group heading beside it.
+MAKE = """(() => { const t = document.createElement('table'); t.innerHTML = '<thead class="opening"><tr class="grp"><th>g</th></tr><tr class="colh"><th>c</th></tr></thead><tbody class="opening"><tr class="r"><td>x</td></tr></tbody>'; document.body.appendChild(t);
   const g = n => getComputedStyle(t.querySelector(n)); return JSON.stringify({colh: [g('.colh').animationName, g('.colh').animationDuration], row: g('.r').animationName, head: g('.grp').animationName}); })()"""
 
 
