@@ -99,6 +99,7 @@ COPY_SLACK = 2.0                       # seconds: a file time may be rounded dow
 
 # Exit codes of main(): installed or nothing to do; rolled back; not everything could be put back; still running.
 OK, ROLLED_BACK, NOT_RESTORED, BUSY = 0, 1, 2, 3
+HELPER_MAX_AGE = 6 * 60 * 60                 # #561: seconds after an update began past which an unreadable identity no longer counts as "still the helper"
 
 MESSAGES = {
     "installed": "Version {to} is installed. One moment while clark restarts.",
@@ -207,18 +208,22 @@ class Seams:
             return False
         return False
 
-    def helper_running(self, pid, ident):
+    def helper_running(self, pid, ident, started_at=None):
         """Whether the helper that wrote `pid` is still running: the id is alive AND, when an identity was recorded, it is still
         the same process (a recycled id belongs to another program and is not the helper). A marker with no recorded identity
         counts by the id alone, the careful way: a live helper is never rolled back from under itself. An identity that can not be
         read right now (None: `ps` failed, timed out or printed nothing, as on a busy Mac) also counts as still the helper; only a
-        different, readable identity means the id was recycled."""
+        different, readable identity means the id was recycled. #561: but only for HELPER_MAX_AGE seconds after the update began
+        (`started_at`, the marker's): past that, an identity that still can not be read means the id was recycled, not that the
+        helper is still working. With no `started_at` there is no bound (the careful way)."""
         if self.process_gone(pid):
             return False
         if not ident:
             return True
         now = self.identity(pid)
-        return now is None or now == ident
+        if now is None:
+            return not (isinstance(started_at, (int, float)) and time.time() - started_at > HELPER_MAX_AGE)
+        return now == ident
 
     def port_free(self, port):
         if not port:
@@ -1147,7 +1152,7 @@ def finish(data_dir, seams=None, fault=None, trace=None, home=None):
     if not same:
         return NOT_RESTORED, {"status": "not_restored", "message": MESSAGES["not_restored"].format(log=tilde(updates_dir(data_dir) / LOG_NAME, home))}
     pid = run.m.get("helper_pid")
-    if pid and pid != os.getpid() and run.seams.helper_running(pid, run.m.get("helper_ident")):
+    if pid and pid != os.getpid() and run.seams.helper_running(pid, run.m.get("helper_ident"), run.m.get("started_at")):
         return BUSY, {"status": "busy", "message": MESSAGES["busy"]}
     started = run.m.get("started_at")
     if run.m.get("phase") == "staged" and not pid and isinstance(started, (int, float)) and 0 <= time.time() - started < STAGED_GRACE:
