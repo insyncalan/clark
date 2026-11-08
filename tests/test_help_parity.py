@@ -301,8 +301,10 @@ class HealthStepsSayWhatThePageDoes(unittest.TestCase):
 
     def test_the_keys_and_words_are_the_tile_s(self):
         tile = read("page", "src", "edit", "GlanceEdit.jsx")
-        self.assertIn('e.key === "Escape"', tile)                          # Esc puts the old words back
-        self.assertNotIn("Enter", tile.split("function Reason")[1].split("export const GLANCE")[0])      # so there is no Mod+Enter to keep it
+        reason = tile.split("function Reason")[1].split("export const GLANCE")[0]
+        self.assertIn("<RichField", reason)                                # row 1005: the Reason is the one rich editor (RichField, then RichText)...
+        self.assertIn('e.key === "Escape") { e.preventDefault(); if (onCancel) onCancel()', read("page", "src", "core", "editor.js"))      # ...and Esc puts the old words back is that editor's
+        self.assertNotIn("Enter", reason)                                  # the Reason itself holds no key handling: nothing of its own to keep it
         self.assertNotIn("Mod+Enter", self.TEXT)
         self.assertIn("A health change needs a reason", tile)
         for name in ("On track", "At risk", "Off track", "Project health"):

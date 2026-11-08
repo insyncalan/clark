@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 
 from _demo import USER, DemoStore
-from clark import glance as g, publish
+from clark import glance as g, publish, sanitise
 from test_glance import ON, PLANTED_MARKER, RULES, action, data, decision, raid, sections, use_case
 
 SHAPE_TILE = {"tile", "label", "value", "detail", "colour", "outline"}
@@ -107,13 +107,32 @@ class ReasonInTheFile(unittest.TestCase):
 
     def test_a_stored_reason_reaches_the_file_cleaned_and_capped(self):
         got = self.reason("A\u202eB\u200bC\x00D\r\nE\ud800F<script>" + "y" * 3000)
-        self.assertEqual(got[:12], "ABCD\nEF<scri")
-        self.assertEqual(len(got), publish.REASON_LIMIT)
+        self.assertEqual(got[:30], "<p>ABCD</p><p>EF&lt;script&gt;")        # row 1005: the file carries the reason as cleaned HTML, an old plain one as escaped paragraphs
+        self.assertEqual(len(sanitise.plain_text(got)), publish.REASON_LIMIT)
+        self.assertNotIn("<script", got)
         self.assertFalse([c for c in got if c != "\n" and (ord(c) < 32 or c in "\u202e\u200b\ud800")])
 
     def test_a_good_reason_and_no_reason_are_carried_as_they_are(self):
-        self.assertEqual(self.reason("Supplier is late\nand tests slip"), "Supplier is late\nand tests slip")
+        self.assertEqual(self.reason("Supplier is late\nand tests slip"), "<p>Supplier is late</p><p>and tests slip</p>")
         self.assertIsNone(self.reason(None))
+
+    def test_the_editors_html_is_cleaned_again_on_the_way_out_and_a_hostile_row_is_safe(self):      # row 1005
+        hostile = ('<p onclick="x()">Late <a href="javascript:alert(1)">link</a></p><script>alert(2)</script><img src=x onerror=alert(3)>'
+                   '<style>p{}</style><iframe src=//evil></iframe><ul><li>one</li></ul><p>a &amp; b</p>')
+        got = self.reason(hostile)
+        for bad in ("onclick", "javascript:", "<script", "<img", "onerror", "<style", "<iframe", "alert"):
+            self.assertNotIn(bad, got, bad)
+        self.assertEqual(got, "<p>Late link</p><ul><li>one</li></ul><p>a &amp; b</p>")
+        self.assertEqual(self.reason(got), got, "cleaning it again changes nothing")
+        self.assertEqual(self.reason('<p>Fine <a href="https://example.com/x">x</a></p>'), '<p>Fine <a href="https://example.com/x" rel="noopener noreferrer">x</a></p>')
+
+    def test_an_old_plain_reason_with_markup_and_quotes_is_published_escaped(self):          # row 1005
+        got = self.reason('Waiting on <b>supplier</b> & "QA" \'soon\'\n\na < b')
+        self.assertEqual(got, "<p>Waiting on &lt;b&gt;supplier&lt;/b&gt; &amp; \"QA\" 'soon'</p><p></p><p>a &lt; b</p>")
+        self.assertNotIn("<b>", got)
+
+    def test_a_reason_of_only_hidden_characters_is_empty_in_the_file(self):
+        self.assertEqual(self.reason("\u200b\u202e"), "")
 
     def test_the_limit_is_the_writers(self):
         from clark import store

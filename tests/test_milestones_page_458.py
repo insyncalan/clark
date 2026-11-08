@@ -384,31 +384,46 @@ class Page(Base):
                 self.assertIsNone(self.store.read("actions", ref=ref))
                 self.assertNotIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "one Undo took the hiding back too")
 
-    def test_the_internal_note_saves_when_the_box_is_left_undoes_and_follows_the_row(self):
+    def test_the_internal_note_is_the_one_rich_editor_saves_when_left_undoes_and_follows_the_row(self):          # item 1005: it was a plain textarea
+        IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
             self.assertEqual(p.js("document.querySelector('#mvNote').previousElementSibling.textContent"), "Internal note")
-            self.assertEqual(p.js("document.querySelector('#mvNote').placeholder"), "What is going on, what you are waiting for")
             self.assertEqual(p.js("document.querySelector('#mvNote-help').textContent"), "Saves when you leave the box. Never published.")
-            self.assertEqual(p.js("document.querySelector('#mvNote').value"), INTERNAL, "the box shows the note the milestone holds")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').textContent"), INTERNAL, "an old plain note reads as the words the milestone holds")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').getAttribute('aria-label')"), "Edit internal note")
             before = len(self.sent)
-            p.js("document.querySelector('#mvNote').focus(); document.querySelector('#mvNote').blur()")
-            self.assertEqual(len(self.sent), before, "leaving the box with no change sends nothing")
-            p.js("(() => { const t = document.querySelector('#mvNote'); t.focus(); t.value = 'Waiting for the vendor\\nChase on Friday'; t.dispatchEvent(new Event('input', {bubbles: true})); let n = 0; t.addEventListener('blur', () => n++); t.blur(); if (!n) t.dispatchEvent(new FocusEvent('blur')); })()")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened")
+            self.assertEqual(p.js("document.querySelectorAll('#mvNote .rt-bar, #mvNote .ProseMirror').length"), 2, "the toolbar and the editor, as everywhere")
+            p.key("Escape", 0, "Escape", 27)          # a key, not blur(): a page with no input event yet has no focus, and the editor ignores a blur then
+            p.until("!document.querySelector('#mvNote .ProseMirror')", "the editor closed")
+            self.assertEqual(len(self.sent), before, "closing the box with no change sends nothing")
+            p.js("document.querySelector('#mvNote .rt-view').click()")
+            p.until(IN, "the editor opened again")
+            p.js("document.execCommand('selectAll')")
+            p.type("Waiting for the vendor")
+            p.key("Enter", 0, "Enter", 13)
+            p.type("/")
+            p.until("!!document.querySelector('.rt-slash')", "the / menu opens in the note too")
+            p.key("Escape", 0, "Escape", 27)
+            p.key("Backspace", 0, "Backspace", 8)
+            p.type("Chase on Friday")
+            p.js("document.activeElement.blur()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Note saved. Undo.'", "the toast")
-            self.assertEqual(self.row(GO_LIVE)["internal_note"], "Waiting for the vendor\nChase on Friday")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], "<p>Waiting for the vendor</p><p>Chase on Friday</p>")
             self.assertEqual(self.sent[-1][1]["place"], "movement")
-            p.until("document.querySelector('#mvNote').value === 'Waiting for the vendor\\nChase on Friday'", "the box keeps what was saved")
+            p.until("document.querySelector('#mvNote .rt-view') && document.querySelector('#mvNote .rt-view .prose').innerHTML === '<p>Waiting for the vendor</p><p>Chase on Friday</p>'", "the box keeps what was saved")
             self.assertNotIn("Waiting for the vendor", p.js("document.querySelector('.mvm-list') ? document.querySelector('.mvm-list').textContent : ''"),
                              "What changed never says what the note says")
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
             self.assertEqual(self.row(GO_LIVE)["internal_note"], INTERNAL)
-            p.until("document.querySelector('#mvNote').value === %s" % json.dumps(INTERNAL), "the box follows the Undo")
+            p.until("document.querySelector('#mvNote .rt-view').textContent === %s" % json.dumps(INTERNAL), "the box follows the Undo")
             p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
-            self.assertEqual(p.js("document.querySelector('#mvNote').value"), "", "another milestone, its own note")
+            self.assertEqual(p.js("document.querySelector('#mvNote .rt-view .quiet').textContent"), "What is going on, what you are waiting for", "another milestone, its own (empty) note")
 
     def test_the_movement_buttons_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):

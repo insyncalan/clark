@@ -188,7 +188,9 @@ class Block(Base):
             for want in ("Original", "10-01-2020", "Agreed", "Forecast", "01-02-2020", "Never moved", "Progress", "Owner", "Priya Example",
                          "What changed", mv.NOTHING_CHANGED, "Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Each choice changes the record at once, with Undo."):
                 self.assertIn(want, text)
-            self.assertNotIn(INTERNAL, p.js("document.body.innerHTML"), "the internal note never reaches the page")
+            outside = p.js("(() => { const c = document.body.cloneNode(true); const n = c.querySelector('#mvNote'); if (n) n.remove(); return c.innerHTML; })()")
+            self.assertNotIn(INTERNAL, outside, "the internal note is in no part of the page but its own box")      # item 1005: the box draws the note's words as its field; it was a textarea, whose text is no part of the markup
+            self.assertIn(INTERNAL, p.js("document.querySelector('#mvNote').textContent"), "an old plain note reads in its own box")
             self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), False)
             p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")

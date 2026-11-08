@@ -176,7 +176,11 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile",      # row 950: the first card, with the About you boxes that were in Personal
+                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
+                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
                                   "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
@@ -196,9 +200,6 @@ class Words(unittest.TestCase):
                                   "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
-                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
-                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
-                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"

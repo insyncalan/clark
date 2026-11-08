@@ -111,7 +111,7 @@ export function Milestones({ tools }) {
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
 // The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
 // narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
-const CARDS = [["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
   ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
@@ -176,6 +176,7 @@ export function Settings({ tools }) {
   const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
   const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
   const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
+  const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
   const GanttSetting = open && tools && tools.GanttSetting;      // Gantt (#926): the two ticks and the tab name, per project
@@ -194,6 +195,7 @@ export function Settings({ tools }) {
     <div class="set-layout">
       <SettingsHead cards={cards} />
       <div class="set-cards">
+      {Profile ? <Profile /> : null}
       {ClientFolder ? <ClientFolder /> : null}
       {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}

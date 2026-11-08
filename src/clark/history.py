@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 from clark import freshness as fresh, timefmt
 from clark.publish import RICH
-from clark.sanitise import SanitiseError, plain_text
+from clark.sanitise import SanitiseError, plain_text, rich_plain_text
 from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
@@ -260,7 +260,7 @@ def original_date(con, item_id, current=None):
 
 # ===== The display rows (#123): one function the peek's Activity tab and the Excel History sheet both call =====
 
-FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Personal \u203a About you."
+FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Profile."
 NO_ZONE = "Time zone not recorded (shown as UTC)"
 ROW_LIMIT = 20000                      # the newest rows the Excel History sheet holds, per project (answered 29-10-2026)
 CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 changes."
@@ -413,6 +413,9 @@ def plain_value(field, value):
     return value
 
 
+OWNER_RICH = (("projects", "health_reason"), ("milestones", "internal_note"))      # row 1005: the Reason and the Internal note moved onto the one rich editor
+
+
 def rich_plain(text):
     """The words of a rich field's HTML (publish.RICH: current_state, standing), for the rows and the sheet: tags and entities
     are gone, paragraphs become lines. One the cleaner refuses (too long) falls back to a plain tag strip. Never used for a
@@ -427,6 +430,8 @@ def shown_value(table, field, value):
     """plain_value, and for a rich field (publish.RICH) the words without the markup."""
     if isinstance(value, str) and field in RICH.get(table, ()):
         return rich_plain(value)
+    if isinstance(value, str) and (table, field) in OWNER_RICH:     # row 1005: HTML now, plain text before: the words either way
+        return rich_plain_text(value)
     return plain_value(field, value)
 
 
