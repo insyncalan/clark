@@ -330,6 +330,62 @@ class Api(Case):
         self.assertEqual(service.api_done()[0], 409)
 
 
+class Relaunch(Case):
+    """Design item 8: when the page's done is accepted and the server has stopped, main starts the normal clark on the chosen folder."""
+
+    def run_main(self, serve_calls, start_error=None):
+        import io
+        started = []
+
+        def start(argv, env, log, cwd=None):
+            started.append((argv, env, log, cwd))
+            if start_error:
+                raise start_error
+        seen = {}
+
+        def serve(port, out, err, setup):
+            setup.checks = []
+            seen["service"] = setup
+            return serve_calls(setup)
+        err = io.StringIO()
+        code = setup_mode.main(["--data", str(self.default), "--port", "8801"], out=io.StringIO(), err=err, serve=serve,
+                               environ={}, start=start)
+        return code, started, err.getvalue()
+
+    def test_an_accepted_done_starts_clark_on_the_chosen_folder_after_the_server_stopped(self):
+        import sys
+        order = []
+
+        def serve(setup):
+            setup.folder = self.good
+            order.append(setup.api_done())
+            order.append("stopped")
+            return 0
+        code, started, _ = self.run_main(serve)
+        self.assertEqual((code, order[0][1]["restart"]), (0, True))
+        (argv, env, log, cwd), = started
+        self.assertEqual(argv, [sys.executable, "-m", "clark", "--data", str(self.good), "--port", "8801"])
+        self.assertEqual((env["CLARK_LAUNCHED"], env["CLARK_PORT"], log, cwd), ("1", "8801", self.good / "server.log", str(self.good)))
+
+    def test_a_server_that_stopped_without_an_accepted_done_starts_nothing(self):
+        self.assertEqual(self.run_main(lambda setup: 0)[:2], (0, []))
+        self.assertEqual(self.run_main(lambda setup: 1)[:2], (1, []))
+
+        def not_ready(setup):
+            setup.checks = [c for c in doctor.CHECKS if c.required]
+            setup.folder = self.onedrive / "clark"
+            self.assertEqual(setup.api_done()[0], 409)
+            return 0
+        self.assertEqual(self.run_main(not_ready)[1], [])
+
+    def test_a_start_that_fails_says_the_systems_words_and_exits_1(self):
+        def serve(setup):
+            setup.api_done()
+            return 0
+        code, started, err = self.run_main(serve, start_error=pl.PlatformError("THE WORDS"))
+        self.assertEqual((code, len(started), "THE WORDS" in err), (1, 1, True))
+
+
 class Source(unittest.TestCase):
     def test_it_reaches_no_store_and_names_no_system_text(self):
         text = (ROOT / "src" / "clark" / "setup_mode.py").read_text(encoding="utf-8")

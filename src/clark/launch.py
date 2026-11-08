@@ -34,6 +34,7 @@ HEALTH_BYTES = 4096             # the most of an answer that is read
 SRC = Path(__file__).resolve().parents[1]
 LOG_NAME = "server.log"         # in the data folder
 SETUP_LOG = "setup.log"         # in the log folder, never in a data folder that setup mode may be refusing
+SETUP_REASONS = ("data_folder",)    # the only reason setup mode can mend; an update that stopped or a folder of mixed versions it cannot
 SETUP_CHECKS = ("data_folder", "data_not_in_onedrive")      # the required checks a person can mend on the setup page (not Python, not the port)
 DB_NAME = "clark.db"
 
@@ -214,7 +215,10 @@ def start_setup(port, folder, reason, say, environ, start, health, wait, find_ch
     `port` and open its window. True when it answered and the window was opened; False when it could not be started or did not
     answer, with nothing said and nothing left running, so the caller says its old line. `reason` ("data_folder", "update",
     "version") is the caller's for its own words; the setup page draws every check itself. The log goes to the log folder and the
-    process runs in clark's own folder: `folder` is the one that may not be used, so it is neither made nor written to."""
+    process runs in clark's own folder: `folder` is the one that may not be used, so it is neither made nor written to.
+    A `reason` setup cannot mend (SETUP_REASONS) is False at once: it would show all ready, finish, and start clark into the same stop."""
+    if reason not in SETUP_REASONS:
+        return False
     mark = appfiles.data_mark(folder)
     env = {**environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(SRC)}
     try:

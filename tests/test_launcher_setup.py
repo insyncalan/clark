@@ -246,7 +246,7 @@ class StartSetup(unittest.TestCase):
                     find_chrome=base["find_chrome"], open_window=base["open_window"], open_browser=base["open_browser"],
                     log_dir=lambda: self.logs)
         args.update(kw)
-        return launch.start_setup(8800, self.folder, "data_folder", **args)
+        return launch.start_setup(8800, self.folder, args.pop("reason", "data_folder"), **args)
 
     def test_it_starts_the_setup_entry_point_beside_the_data_folder_and_opens_the_window(self):
         self.assertTrue(self.go())
@@ -263,6 +263,12 @@ class StartSetup(unittest.TestCase):
         self.assertTrue(self.logs.is_dir())
         self.assertFalse(self.folder.exists())
         self.assertFalse(self.folder.parent.exists())
+
+    def test_setup_is_only_started_for_a_reason_it_can_fix(self):
+        for reason in ("update", "version", "anything else"):
+            f = Fakes([launch.NOTHING])
+            self.assertFalse(self.go(fakes=f, reason=reason), reason)
+            self.assertEqual((f.started, f.windows, f.said), ([], [], []), reason)
 
     def test_it_waits_for_the_mark_of_the_data_folder(self):
         self.go()

@@ -51,6 +51,7 @@ class Setup:
         self.prompt, self._finish = prompt, finish      # the folder window's words (the owner's; None: the folder route is not wired) and the update helper's finish
         self._dialog = threading.Lock()                 # one folder window at a time
         self._finishing = threading.Lock()              # one finish at a time
+        self.done = False                               # true once api_done has answered restart: main then starts clark on self.folder
 
     def seen(self, folder=None):
         extra = {"onedrive_roots": self.onedrive_roots} if self.onedrive_roots else {}
@@ -160,6 +161,7 @@ class Setup:
         report = self.report()
         if not report["ready"]:
             return 409, {"ok": False, "code": "not_ready", "ready": False, "checks": report["checks"]}
+        self.done = True
         return 200, {"ok": True, "restart": True}
 
 
@@ -167,10 +169,12 @@ def _busy():
     return {"ok": False, "code": "busy", "message": platform.TRY_AGAIN}        # existing words: a second try is the right thing
 
 
-def main(argv=None, out=None, err=None, serve=None, environ=None):
+def main(argv=None, out=None, err=None, serve=None, environ=None, start=None):
     """`python3 -m clark.setup_mode --data FOLDER --port N` (what the launcher starts). Serves setup mode for FOLDER, which is
-    neither made nor written to. The exit code: 0 stopped, 1 the port is taken, 2 a bad argument (said on `err`)."""
-    from clark import __version__, appfiles, idle, server, update_helper
+    neither made nor written to. When the page's done was accepted and the server has stopped, the normal clark is started on the
+    folder now chosen (`start` is platform.start_detached's seam; a refusal is said on `err`, exit 1). The exit code: 0 stopped,
+    1 the port is taken or clark could not be started, 2 a bad argument (said on `err`)."""
+    from clark import __version__, appfiles, idle, launch, server, update_helper
     out, err = out or sys.stdout, err or sys.stderr
     environ = os.environ if environ is None else environ
     parser = argparse.ArgumentParser(prog="clark.setup_mode", description="Start clark's setup page.")
@@ -197,7 +201,18 @@ def main(argv=None, out=None, err=None, serve=None, environ=None):
     server.set_version(__version__)
     server.set_code_mark(appfiles.code_mark())
     service = Setup(folder, prompt=FOLDER_PROMPT, finish=finish)
-    return (serve or server.serve)(port=port, out=out, err=err, setup=service)
+    code = (serve or server.serve)(port=port, out=out, err=err, setup=service)
+    if code or not service.done:
+        return code
+    chosen = Path(service.folder)
+    env = {**environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(launch.SRC)}
+    try:
+        (start or platform.start_detached)([sys.executable, "-m", "clark", "--data", str(chosen), "--port", str(port)], env,
+                                           chosen / launch.LOG_NAME, cwd=str(chosen))
+    except platform.PlatformError as e:
+        print(str(e), file=err, flush=True)
+        return 1
+    return 0
 
 
 if __name__ == "__main__":
