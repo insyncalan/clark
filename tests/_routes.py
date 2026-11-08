@@ -13,7 +13,7 @@ GET_ROUTES = (
 )     # #147: export; #136: movement; #180: profile; #47: asking; #42: activity; #443: the Published reports list and Open (neither writes anything); #349: as-at, rebuilt in a copy (writes nothing); #282: the update status; #944: the brand list
 
 POST_ROUTES = (
-    "/api/providers/connect", "/api/providers/disconnect", "/api/providers/model", "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/stop",
+    "/api/providers/connect", "/api/providers/disconnect", "/api/providers/model", "/api/ai/stop", "/api/ai/suggest", "/api/ask", "/api/ask-enabled", "/api/ask-folders", "/api/ask/change/apply", "/api/ask/change/dry", "/api/ask/open-source", "/api/ask/stop",
     "/api/backups/copy-folder", "/api/backups/preview", "/api/backups/restore", "/api/brands/install", "/api/brands/remove", "/api/brands/review", "/api/brands/undo", "/api/change", "/api/client-folder", "/api/demo/clear", "/api/draft-email",
     "/api/draft-email/sent", "/api/excel-import", "/api/logging", "/api/logging/open-folder", "/api/page-error", "/api/people", "/api/people/undo",
     "/api/preview", "/api/profile", "/api/project", "/api/publications/archive", "/api/publications/restore", "/api/publish", "/api/section-body", "/api/section-file", "/api/section-image", "/api/sneak/read", "/api/undo",

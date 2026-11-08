@@ -51,6 +51,11 @@ class WorkNoMode(unittest.TestCase):
                 cdp.js("document.querySelector('#work tbody tr[data-id]').focus()", sid)
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('#peek')", "Enter opens the peek")
+                cdp.js("document.activeElement.blur()", sid)      # row 1015: no sparkle; two slashes open the words box
+                for _ in range(2):
+                    common = {"key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, "text": "/"}, sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
                 self.until(cdp, sid, f"!!document.querySelector({PEEK_PARTS})", "the words box is in the peek in View")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek [role=tablist]')", sid), "the tabs are in the peek in View")
                 self.assertTrue(cdp.js("[...document.querySelectorAll('#peek dt')].some(d => d.textContent === 'Shown to client')", sid), "Shown to client")
