@@ -23,7 +23,7 @@ import sys
 import time
 from pathlib import Path
 
-from clark import __version__, appfiles, platform, same_version, server, typed, update_helper
+from clark import __version__, appfiles, doctor, platform, same_version, server, setup_mode, typed, update_helper
 from clark.__main__ import Usage, free_port_near, port_free, port_number
 
 NOTHING, OURS, OTHER_DATA, NOT_CLARK = "nothing", "ours", "other data folder", "not clark"
@@ -33,6 +33,8 @@ ASK_TIMEOUT = 1.0
 HEALTH_BYTES = 4096             # the most of an answer that is read
 SRC = Path(__file__).resolve().parents[1]
 LOG_NAME = "server.log"         # in the data folder
+SETUP_LOG = "setup.log"         # in the log folder, never in a data folder that setup mode may be refusing
+SETUP_CHECKS = ("data_folder", "data_not_in_onedrive")      # the required checks a person can mend on the setup page (not Python, not the port)
 DB_NAME = "clark.db"
 
 
@@ -195,18 +197,71 @@ def lock_refusal(folder):
         return str(e)
 
 
+def data_problem(folder, environ=None):
+    """The doctor's own words for the first required data check that fails for `folder` (one the setup page can mend), else None.
+    A check that cannot run here is not a failure. Nothing is made or written."""
+    seen = doctor.Seen(data=str(folder), environ=environ)
+    for check in doctor.CHECKS:
+        if check.required and doctor.check_id(check) in SETUP_CHECKS:
+            line = doctor.run_check(check, seen)
+            if line.kind == doctor.FIX:
+                return line.words
+    return None
+
+
+def start_setup(port, folder, reason, say, environ, start, health, wait, find_chrome, open_window, open_browser, log_dir=None):
+    """Row 836 step 4c: start setup mode (python3 -m clark.setup_mode, a process of its own, named by a string) for `folder` on
+    `port` and open its window. True when it answered and the window was opened; False when it could not be started or did not
+    answer, with nothing said and nothing left running, so the caller says its old line. `reason` ("data_folder", "update",
+    "version") is the caller's for its own words; the setup page draws every check itself. The log goes to the log folder and the
+    process runs in clark's own folder: `folder` is the one that may not be used, so it is neither made nor written to."""
+    mark = appfiles.data_mark(folder)
+    env = {**environ, "CLARK_LAUNCHED": "1", "CLARK_PORT": str(port), "PYTHONPATH": str(SRC)}
+    try:
+        logs = Path(log_dir() if log_dir else platform.log_dir())
+        logs.mkdir(parents=True, exist_ok=True)
+        process = start([sys.executable, "-m", "clark.setup_mode", "--data", str(folder), "--port", str(port)], env,
+                        logs / SETUP_LOG, cwd=str(SRC))
+    except (platform.PlatformError, OSError):
+        return False
+    if wait(port, mark, process, health=health) != OURS:
+        try:
+            if process.poll() is None:
+                process.terminate()
+        except (OSError, AttributeError):
+            pass
+        return False
+    return open_clark(address(port), say, environ, find_chrome, open_window, open_browser) == 0
+
+
+def real_setup(say, environ, start, health, wait, find_chrome, open_window, open_browser):
+    """The `setup` seam of launch() and main(), made from the same fakes or system calls as the launcher itself."""
+    return lambda port, folder, reason: start_setup(port, folder, reason, say, environ, start, health, wait, find_chrome,
+                                                    open_window, open_browser)
+
+
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
            open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
-           free=port_free, finish=finish_update, identity=ask_identity, page=ask_page):
+           free=port_free, finish=finish_update, identity=ask_identity, page=ask_page, setup=None, data_problem=data_problem):
     """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
-    (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said)."""
+    (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said).
+    `setup` (off by default) is setup mode's start: setup(port, folder, reason) answers True when its window is open. Where a
+    required data check, an interrupted update or a mixed folder stops the start, it is tried after the old line is said, and
+    when it does not come up the old exit stays."""
     environ = os.environ if environ is None else environ
     folder = Path(folder)
     mark = appfiles.data_mark(folder)
     if not finish(folder, say):
-        return 1
-    if same_version.refuse():                   # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
-        return 1
+        return 0 if setup is not None and setup(port, folder, "update") else 1
+    if setup is None:
+        if same_version.refuse():               # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
+            return 1
+    elif same_version.mixed():
+        say(same_version.MESSAGE)
+        return 0 if setup(port, folder, "version") else 1
+    if setup is not None and (problem := data_problem(folder, environ)):
+        say(problem)
+        return 0 if setup(port, folder, "data_folder") else 1
     seen = health(port, mark)
     if seen in (OTHER_DATA, NOT_CLARK):
         say(report(seen, port, folder, free))
@@ -268,15 +323,26 @@ def parser():
     return p
 
 
+def remembered_folder(default, home=None, onedrive_roots=None):
+    """The data folder the setup page kept (the pointer file beside the default folder), if it still passes every check; else None.
+    This is the only place the pointer is read. A command-line --data never comes here."""
+    roots = (lambda: list(onedrive_roots)) if onedrive_roots is not None else None
+    return setup_mode.Setup(default, home=home, onedrive_roots=roots).remembered()
+
+
 def main(argv=None, say=print, environ=None, home=None, onedrive_roots=None, **seams):
     """The command. `seams` are launch()'s fakes (start, health, find_chrome, ...)."""
     environ = os.environ if environ is None else environ
     args = parser().parse_args(argv)
-    want = None
+    want, port, setup = None, None, seams.get("setup")
     try:
         port = port_number(args.port if args.port is not None else (environ.get("CLARK_PORT") or server.DEFAULT_PORT),
                            "--port" if args.port is not None else "CLARK_PORT")
-        want = Path(args.data).expanduser() if args.data else platform.data_dir(home)
+        if args.data:
+            want = Path(args.data).expanduser()
+        else:
+            want = platform.data_dir(home)
+            want = remembered_folder(want, home, onedrive_roots) or want
         folder = platform.check_data_dir(want, onedrive_roots)
         folder.mkdir(parents=True, exist_ok=True)           # the log goes here; clark itself makes the database on first run
     except Usage as e:
@@ -284,10 +350,10 @@ def main(argv=None, say=print, environ=None, home=None, onedrive_roots=None, **s
         return 2
     except platform.PlatformError as e:
         say(str(e))
-        return 1
+        return 0 if setup is not None and want is not None and setup(port, want, "data_folder") else 1
     except OSError as e:
         say(f"The data folder can't be made ({platform.with_tilde(want)}). Check you can save files there, then try again.")
-        return 1
+        return 0 if setup is not None and setup(port, want, "data_folder") else 1
     return launch(port, folder, say, environ, **seams)
 
 
