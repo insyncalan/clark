@@ -130,6 +130,23 @@ class ServiceWorker(unittest.TestCase):
             self.assertNotIn(text, self.code)
 
 
+TOKEN_BODY = re.search(r"--size-body:\s*(\d+px)\s*;", (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")).group(1)
+
+
+class ServerOwnPagesFollowTheBaseTextSize(unittest.TestCase):
+    """#960: the placeholder page and the gone-preview page use --size-body, kept equal to tokens.css by this test (the server
+    imports nothing from clark)."""
+
+    def test_the_servers_size_is_the_token(self):
+        self.assertEqual(sv.BODY_SIZE, TOKEN_BODY)
+
+    def test_both_pages_carry_it_and_no_literal_16px(self):
+        for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE):
+            self.assertIn(f"font:{TOKEN_BODY}" if page is sv.PLACEHOLDER else f"font: {TOKEN_BODY}/1.5", page)
+            self.assertNotIn("font:16px", page.replace("font: ", "font:"))
+            self.assertNotIn("@SIZE_BODY@", page)
+
+
 class OfflinePage(unittest.TestCase):
     def setUp(self):
         self.page = af.offline_page().decode("utf-8")
@@ -240,10 +257,17 @@ class OfflinePageColours(unittest.TestCase):
         self.assertEqual(self.light["--accent-ink"].upper(), token_in("light", "--text-on-brand"))
 
     def test_the_font_is_the_pages_own_list_and_no_font_is_named_in_the_file(self):
-        self.assertIn(f"font:16px/1.5 {look.family_list('--font')}}}", self.page)      # body, button and title follow tokens.css (16, 14, 30 px; #428)
+        self.assertIn(f"font:{TOKEN_BODY}/1.5 {look.family_list('--font')}}}", self.page)      # body, button and title follow tokens.css (--size-body, 14, 30 px; #428, #960)
         self.assertIn(f"font:500 14px {look.family_list('--font')};", self.page)
         source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
         self.assertNotRegex(source, r"Arial|Helvetica|Calibri|Inter\b")
+
+    def test_the_body_text_is_the_base_text_size_token_not_a_literal(self):
+        """#960: the page follows --size-body; the source holds a holder for it, never 16px."""
+        source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
+        self.assertNotIn("font:16px", source)
+        self.assertNotIn("@SIZE_BODY@", self.page)
+        self.assertNotIn("font:16px", self.page)
 
     def test_the_dark_button_keeps_the_light_blue_not_the_dark_brand_blue(self):
         self.assertNotIn("--accent", self.dark, "the dark block must not override the button fill")
