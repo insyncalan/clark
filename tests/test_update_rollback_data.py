@@ -237,6 +237,72 @@ class RestoredTest(Rolled):
         self.assertIn("NEW", kept)                                                # nothing is lost: both rows are in the folder kept
         self.assertIn("MINE", kept)
 
+    def started_by_a_writing_version(self):
+        """The update is handed over and its early copy taken; the new version's start writes a row and does not answer. Returns the
+        copy's path and a Run over the marker (a helper run, as the marker on disk stands)."""
+        self.seams = MigratingSeams(self, migrate=False)
+        copy = self.edit_after_the_snapshot()
+
+        def start(app_dir, data_dir, port, log_path, original=self.seams.start_server):
+            if not self.seams.started:                                           # the new version's first start only
+                con = sqlite3.connect(str(self.db))
+                con.execute("INSERT INTO projects (code, name) VALUES ('NEW', 'Written by a start that failed')")
+                con.commit()
+                con.close()
+            return original(app_dir, data_dir, port, log_path)
+        self.seams.start_server = start
+        return copy, h.Run(h.marker_path(self.data), self.seams)
+
+    def start_new_and_fail(self, run):
+        self.seams.now += 20
+        with self.assertRaises(h.StepError):
+            run.s_start_new()
+
+    def test_a_helper_run_again_after_the_new_version_wrote_does_not_take_the_digest_afresh(self):
+        """digest_before_start is taken once, before the new version is launched. A run again (the marker as it stands on disk) after
+        the new version wrote must keep it: taken afresh it would equal the live file and the write would never be put back."""
+        copy, run = self.started_by_a_writing_version()
+        taken = run.live_digest()
+        self.start_new_and_fail(run)
+        self.assertEqual(taken, run.m["digest_before_start"])
+        again = h.Run(h.marker_path(self.data), self.seams)                      # the helper run again
+        self.assertEqual(taken, again.m["digest_before_start"])                  # the first run's value was saved
+        self.assertNotEqual(taken, again.live_digest())                          # and the data now holds the new version's write
+        self.start_new_and_fail(again)
+        self.assertEqual(taken, again.m["digest_before_start"])                  # not taken afresh
+        again.r_stop_new()
+        again.r_restore_data()
+        self.assertEqual(digest(copy), digest(self.db))                          # so the write is still seen, and put back
+        self.assertNotIn("NEW", [r[0] for r in rows(self.db, "projects")])
+        self.assertEqual(1, len(self.asides()))
+
+    def put_back_refused_without_a_digest(self, run):
+        run.save(new_pid=4242)
+        run.r_stop_new()
+        run.r_restore_data()
+        self.assertIn("NEW", [r[0] for r in rows(self.db, "projects")])          # the data is left as the new version wrote it
+        self.assertEqual([], self.asides())
+        self.assertFalse(run.m.get("data_restore"))
+
+    def test_a_digest_that_was_not_taken_puts_nothing_back(self):
+        """No digest_before_start (the step never ran, or an older marker): there is nothing to compare with, so same_layout_copy
+        gives None and the data is not put back."""
+        copy, run = self.started_by_a_writing_version()
+        self.seams.start_server(self.app, self.data, 8765, self.data / "server.log")     # the new version wrote; no s_start_new
+        self.assertNotIn("digest_before_start", run.m)
+        self.assertIsNone(run.same_layout_copy(sqlite3.connect(str(self.db))))
+        self.put_back_refused_without_a_digest(run)
+
+    def test_a_digest_that_could_not_be_read_puts_nothing_back(self):
+        """The live file could not be read when the new version was about to start: live_digest gives None, which is saved as the
+        digest, and the later comparison gives None too: no put-back."""
+        copy, run = self.started_by_a_writing_version()
+        with mock.patch.object(h.Run, "live_digest", return_value=None):
+            self.start_new_and_fail(run)
+        self.assertIsNone(run.m["digest_before_start"])
+        self.assertIsNone(run.same_layout_copy(sqlite3.connect(str(self.db))))
+        self.put_back_refused_without_a_digest(run)
+
     def test_the_helper_run_twice_is_safe_and_changes_nothing_the_second_time(self):
         code, result = self.go()
         after_first = (digest(self.db), [a.name for a in self.asides()])
