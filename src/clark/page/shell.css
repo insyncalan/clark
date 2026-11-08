@@ -910,7 +910,7 @@ body.board-full .toasts { z-index: 40; }
 .de-count, .de-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 .de-problem { margin: var(--space-2) 0; color: var(--status-red-text); }
 .de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
-.de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--brand-ink); overflow: auto; max-height: 320px; }
+.de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--black); overflow: auto; max-height: 320px; }
 .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 
@@ -1475,7 +1475,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; min-width: 32px; height: 32px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text); cursor: pointer; }
 .rt-btn:hover { background: var(--grey-100); }
 .rt-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.rt-btn.on { background: var(--brand-blue-tint); color: var(--brand-blue); }
+.rt-btn.on { background: var(--brand-blue-tint); color: var(--brand-blue-strong); }
 .rt-style { min-width: 96px; justify-content: space-between; gap: 6px; }
 .rt-sep { width: 1px; height: 20px; margin: 0 var(--space-1); background: var(--border); }
 .rt-keys { margin-left: auto; padding-left: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
@@ -1499,7 +1499,7 @@ html[data-secstyle="card"] .sec.drop-before { box-shadow: 0 -3px 0 var(--brand-c
 .rt-opt { all: unset; box-sizing: border-box; display: block; padding: var(--space-2) 14px; font-size: var(--size-small); color: var(--text); cursor: pointer; }
 .rt-opt:hover, .rt-opt.on { background: var(--grey-100); }
 .rt-view { border-radius: var(--radius-sm); cursor: text; min-height: 24px; }   /* row 843: a one-line view is 22.5 px at the 15 px base; a click target is 24 px */
-.rt-view:hover { outline: 1px solid var(--grey-300); }
+.rt-view:hover { outline: 1px solid var(--grey-500); }
 .rt-view:focus-visible { outline: 2px solid var(--focus); }
 
 /* The look: pill buttons, the header and the type, from the committed look (tokens only; made by the branding tool). */
