@@ -15,7 +15,7 @@ from clark import pdf, publish, publish_flow, publish_pdf, to_client, word_route
 HIDE_DEFAULT = "show,note,budget,effort,baseline_start,baseline_end,owner"
 
 
-class Markers(unittest.TestCase):
+class Base(unittest.TestCase):
     def setUp(self):
         self.demo = DemoStore()
         self.addCleanup(self.demo.close)
@@ -55,6 +55,8 @@ class Markers(unittest.TestCase):
         built = publish.build(self.s, "ABC", now="2031-06-15")
         return built, list(publish_flow.markers_for(self.s, "ABC", built["published"]))
 
+
+class Markers(Base):
     def test_hidden_columns_and_an_eye_off_line_are_markers_and_shown_values_are_not(self):
         shown = self.line("ZQ-SHOWN-LINE")
         off = self.line("ZQ-EYE-OFF-LINE", owner="ZQ-OFF-OWNER", note="ZQ-OFF-NOTE-X", show=0)
@@ -193,6 +195,77 @@ class Markers(unittest.TestCase):
         self.assertEqual(len(seen), 1, msg="the PDF was checked")
         for m in ("ZQ-OWNER-ONE", "ZQ-NOTE-ONE-X", "2031-05-06", "2031-05-07"):
             self.assertIn(m, seen[0], msg=f"{m!r} is a marker for the PDF as well")
+
+
+def leaky_gantt_for_client(d, code, project_name):
+    """A gantt_for_client with the bug the scan must not share: it keeps every line (eye or not) and every column."""
+    cols = publish.PUBLISH_FIELDS["gantt_lines"]
+    return {"tab_name": "Gantt", "title": project_name, "columns": list(cols), "default_rows": None,
+            "lines": [{f: r.get(f) for f in cols} for r in d.get("gantt_lines") or ()]}
+
+
+class RawMarkers(Base):
+    """Row 998: the markers come from the raw lines, so a gantt_for_client that leaks does not blind the scan. One test per marker."""
+
+    def leaked(self, value):
+        """Build with the leaky gantt_for_client; the value must be in the file, be a marker, and the file must be refused."""
+        with mock.patch.object(publish, "gantt_for_client", leaky_gantt_for_client):
+            built, got = self.got()
+        self.assertIn(value, built["body"].decode("utf-8"), msg="the leaky copy carries it")
+        self.assertIn(value, got, msg=f"{value!r} is a marker though gantt_for_client carried it")
+        self.assertTrue(to_client.check_copy(built["body"], markers=got, folder=None), msg="and the scan refuses the file")
+
+    def test_owner_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", owner="ZQ-LEAK-OWNER")
+        self.leaked("ZQ-LEAK-OWNER")
+
+    def test_note_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", note="ZQ-LEAK-NOTE")
+        self.leaked("ZQ-LEAK-NOTE")
+
+    def test_budget_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", budget=5551234.5)
+        self.leaked("5551234.5")
+
+    def test_effort_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", effort=666123.5)
+        self.leaked("666123.5")
+
+    def test_baseline_start_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", baseline_start="2041-02-03")
+        self.leaked("2041-02-03")
+
+    def test_baseline_end_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE", baseline_end="2041-02-04")
+        self.leaked("2041-02-04")
+
+    def test_deliverable_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.project(hidden=HIDE_DEFAULT + ",deliverable")
+        self.bare("ZQ-SHOWN-LINE", deliverable="ZQ-LEAK-DELIVERABLE")
+        self.leaked("ZQ-LEAK-DELIVERABLE")
+
+    def test_workstream_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.project(hidden=HIDE_DEFAULT + ",workstream")
+        self.bare("ZQ-SHOWN-LINE", workstream="ZQ-LEAK-WORKSTREAM")
+        self.leaked("ZQ-LEAK-WORKSTREAM")
+
+    def test_name_of_an_eye_off_line_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE")
+        self.bare("ZQ-LEAK-EYE-OFF-NAME", show=0)
+        self.leaked("ZQ-LEAK-EYE-OFF-NAME")
+
+    def test_id_of_an_eye_off_line_is_a_marker_when_gantt_for_client_leaks_it(self):
+        self.bare("ZQ-SHOWN-LINE")
+        off = self.bare("ZQ-OFF-LINE-TWO", show=0)
+        self.leaked(off)
+
+    def test_a_shown_column_is_still_not_a_marker_with_the_leaky_copy(self):
+        self.project(hidden="show,note,budget,effort,baseline_start,baseline_end")      # owner shown
+        self.bare("ZQ-SHOWN-LINE", owner="ZQ-OWNER-SHOWN")
+        with mock.patch.object(publish, "gantt_for_client", leaky_gantt_for_client):
+            built, got = self.got()
+        self.assertNotIn("ZQ-OWNER-SHOWN", got)
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
 
 
 if __name__ == "__main__":

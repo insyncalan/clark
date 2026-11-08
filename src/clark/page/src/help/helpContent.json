@@ -267,7 +267,7 @@
      "Press **Publish locally** (or **Publish and send to the client**). The button shows a spinner while it works, then a green tick and, for example, “Published (Publication 3)”. The box closes by itself after a moment; you can press the button to close it at once. If the file name is taken, the box asks what to do: Add a number, Rename it or, where it is allowed, Overwrite the existing file.",
      "To look first, choose **Preview the page in a new tab** in the same menu. Nothing is saved."
     ],
-    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
+    "n": "The file is named after the project’s short code and the week ending date, for example “DPP-report-2026-10-30.html”. Each publish, a local one too, gets the project’s next number (Publication 1, 2, 3 and so on). A number is never used again, and **Undo** does not take it back. The line at the top of the Dashboard says when it was last published, and whether to the client or locally.",
     "next": [
      "howto-save-as-a-pdf",
      "howto-word-in-and-out",

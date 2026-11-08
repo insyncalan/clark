@@ -181,7 +181,8 @@ class Words(unittest.TestCase):
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
-                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
+                                  "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",

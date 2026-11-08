@@ -125,6 +125,72 @@ def blocks(body, **kw):
     return read(docx(body, **kw), NAME).blocks
 
 
+
+WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+IMG_REL = '<Relationship Id="{}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="{}"/>'
+PNG = b"\x89PNG\r\n\x1a\n" + b"0" * 20
+
+
+def DRAW(name, rid="rId5", inside=""):
+    return (f'<w:p><w:r><w:t>x</w:t></w:r><w:r><w:drawing><wp:inline xmlns:wp="{WP}"><wp:docPr id="1" name="{name}"/>'
+            f'<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData><a:blip r:embed="{rid}"/>{inside}'
+            '</a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>')
+
+
+def picture_note(body, target="media/image1.png", media="word/media/image1.png", rel=True):
+    parts = {}
+    if rel:
+        parts["word/_rels/document.xml.rels"] = RELS.format(IMG_REL.format("rId5", target))
+    if media:
+        parts[media] = PNG
+    return [n for n in read(docx(body, parts=parts), NAME).notes if "not read" in n and "picture" in n]
+
+
+class OwnPictures(unittest.TestCase):
+    """Clark's own pictures (a docPr name 'Clark picture N' whose image is a part under word/media) are not counted as unread."""
+
+    def test_clarks_own_picture_is_not_counted(self):
+        self.assertEqual(picture_note(DRAW("Clark picture 1") + DRAW("Clark picture 2")), [])
+
+    def test_a_foreign_picture_is_still_counted(self):
+        self.assertEqual(picture_note(DRAW("Picture 1")), ["1 picture, drawing or text box was not read."])
+
+    def test_only_the_foreign_one_is_counted_among_both(self):
+        self.assertEqual(picture_note(DRAW("Clark picture 1") + DRAW("Logo") + DRAW("Clark picture 2")),
+                         ["1 picture, drawing or text box was not read."])
+
+    def test_the_marker_with_no_matching_media_is_still_counted(self):
+        one = ["1 picture, drawing or text box was not read."]
+        self.assertEqual(picture_note(DRAW("Clark picture 1"), media=None), one)                       # the rel names a part that is not there
+        self.assertEqual(picture_note(DRAW("Clark picture 1"), rel=False), one)                        # no relationship at all
+        self.assertEqual(picture_note(DRAW("Clark picture 1", rid="rId9")), one)                       # a different relationship id
+        self.assertEqual(picture_note(DRAW("Clark picture 1"), target="other/a.png", media="word/other/a.png"), one)     # not under word/media
+        self.assertEqual(picture_note(DRAW("Clark picture 1"), target="../customXml/a.png", media="customXml/a.png"), one)
+
+    def test_a_lookalike_name_is_still_counted(self):
+        for name in ("clark picture 1", "Clark picture", "Clark picture 1 extra", "Clark picture x", "Clark picture 1\u200b", "Clark pictures 1"):
+            self.assertEqual(len(picture_note(DRAW(name))), 1, name)
+
+    def test_the_marker_around_a_text_box_is_still_counted(self):
+        box = '<w:txbxContent><w:p><w:r><w:t>hidden words</w:t></w:r></w:p></w:txbxContent>'
+        self.assertEqual(len(picture_note(DRAW("Clark picture 1", inside=box))), 1)
+
+    def test_the_marker_on_an_old_style_picture_or_object_is_still_counted(self):
+        body = '<w:p><w:r><w:pict><wp:docPr xmlns:wp="%s" name="Clark picture 1"/></w:pict></w:r></w:p>' % WP
+        self.assertEqual(len(picture_note(body)), 1)
+
+    def test_a_marked_drawing_with_two_names_or_two_images_is_still_counted(self):
+        two_names = DRAW("Clark picture 1").replace("<a:graphic ", '<wp:docPr xmlns:wp="%s" name="Other"/><a:graphic ' % WP)
+        self.assertEqual(len(picture_note(two_names)), 1)
+        two_images = DRAW("Clark picture 1", inside='<a:blip r:embed="rId9"/>')
+        self.assertEqual(len(picture_note(two_images)), 1)
+
+    def test_text_beside_own_pictures_is_still_read(self):
+        got = read(docx(DRAW("Clark picture 1"), parts={"word/_rels/document.xml.rels": RELS.format(IMG_REL.format("rId5", "media/image1.png")),
+                                                     "word/media/image1.png": PNG}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["x"])
+
+
 class Refused(unittest.TestCase):
     def refused(self, data, *words, name=NAME):
         started = time.process_time()

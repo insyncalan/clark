@@ -472,7 +472,7 @@ class Dates(unittest.TestCase):
             with self.subTest(day=bad):
                 with self.assertRaises(ValueError) as caught:
                     de.sent_entry(["ABC-A-001"], "chase", bad)
-                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date.")
+                self.assertEqual(str(caught.exception), "The day the email was sent must be a real date. Reload the page and try again. Nothing was saved.")
 
 
     def test_overdue_and_due_soon_in_words_and_colour(self):

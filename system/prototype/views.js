@@ -1053,7 +1053,7 @@
   C.views.work = {
     html() {
       const p = P(); lineLoad();
-      return `<div class="crumbs">${esc(p.name)}</div><div class="head"><div><h1>Work items</h1><p>Select an item to open it beside the list. The eye shows or hides it from the client.</p></div>
+      return `<div class="crumbs">${esc(p.name)}</div><div class="head"><div><h1>Work items</h1></div>
         <div class="hacts">${C.ioBtn('impBtn', 'ul', 'Import from Excel')}${C.ioBtn('expBtn', 'dl', 'Export to Excel')}${C.addBtn('id="newBtn"', addWord(), lineType() === 'all' || lineType() === 'R')}</div></div>
       <div class="wctl" id="wctl">${FL.OPT.VIEWS === 'tabs' ? `<div class="fviews" id="fviews">${viewsHtml()}</div>` : ''}
         <div class="wbar">${lineHtml()}

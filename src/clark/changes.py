@@ -228,6 +228,7 @@ NOT_A_CHOICE = "That choice isn't one clark has."
 NEW_NEEDS = {"actions": "Say what the action is.", "raid": "Say what the risk or issue is, and whether it is a risk, assumption, issue or dependency.",
              "decisions": "Say what the decision is.", "milestones": "Give the milestone a name."}
 NEW_SOURCE = "Added by hand in clark"       # the row's source, as the prototype words it; never taken from a request
+ASK_SOURCE = "Added by ask clark"          # #1009: the source of an item ask clark created (Apply), not "by hand"
 COPY_SOURCE = "Duplicated from "             # #442: a copy's source, then the item's id (system/prototype/peek.js, Duplicate)
 COPY_MARK = " (copy)"                        # #442: the end of a copy's title
 COPIED = {                                   # #442: what Duplicate copies from the stored item (the prototype copies the item whole); never the
@@ -868,7 +869,7 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
         values["raised"] = clark_store.today()
     if table == "decisions":
         values.setdefault("status", "Pending")
-    values.update(project=project, source=NEW_SOURCE)
+    values.update(project=project, source=ASK_SOURCE if isinstance(store, _AskStore) else NEW_SOURCE)
     source = req.get("copy_of")
     if source is not None and (table not in ITEM_KINDS or not isinstance(source, str)):
         raise Refused(ITEM_NOT_MINE)
@@ -2857,13 +2858,15 @@ NO_PEOPLE_UNDO = "That step can't be undone from here."
 PERSON_ID = re.compile(r"P-\d{3}")
 
 
-def _person_value(key, value):
+def _person_value(key, value, capped=True):
     if key == "needs_details":
         return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
     if value is None:
         return value
     if not isinstance(value, str) or len(value) > 2000:
         _refuse_person()
+    if capped and key in ("organisation", "role") and len(" ".join(value.split())) > people_rules.CELL_MAX:
+        raise Refused(f"the {key} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
     return value
 
 
@@ -2903,7 +2906,7 @@ def _paste_people(st, rows):
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
             raise Refused(PASTE_BAD_ROW)
-        given = {k: _person_value(k, v) for k, v in row.items()}
+        given = {k: _person_value(k, v, capped=False) for k, v in row.items()}      # the paste says the cap with the person's name, just below
         name = " ".join(given["name"].split())
         if not name:
             raise Refused("A row has no name. Give each person a name. Nothing was changed.")

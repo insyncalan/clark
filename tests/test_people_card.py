@@ -102,7 +102,7 @@ class PeopleCard(unittest.TestCase):
             self.assertIn("sam.rivers@example.com", js("document.querySelector('[data-person=\"Sam Rivers\"]').innerText"))
             self.assertIn("Sponsor", js("document.querySelector('[data-person=\"Zed Newman\"]').innerText"))
             self.assertEqual(js("document.querySelector('#ppPaste').hidden"), True)
-            self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("2 people updated"), 10), "said in the card, in View too")
+            self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("2 people added or updated"), 10), "said in the card, in View too")
             store = st.open_store(self.db, onedrive_roots=[])
             try:
                 self.assertEqual(sorted(p["name"] for p in store.people(archived=None)), ["Jo Park", "Sam Rivers", "Zed Newman"])
