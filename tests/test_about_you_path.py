@@ -8,7 +8,11 @@ from pathlib import Path
 import _paths  # noqa: F401
 from clark import history
 
-SRC = Path(__file__).resolve().parent.parent / "src"
+ROOT = Path(__file__).resolve().parent.parent
+SRC = ROOT / "src"
+DOCS = ROOT / "docs"
+# A document that quotes the 0.2.1 prototype as it was, in its own words, is history and not guidance.
+QUOTES_THE_PROTOTYPE = {"handoff/prototype-gap-list.md"}
 PATH = "Settings › Profile"
 # The old path, Personal then About you, whatever the arrow: >, ›, &gt;, &rsaquo;, -> or →, with any spaces between.
 ARROW = r"(?:>|›|&gt;|&rsaquo;|->|→|&rarr;)"
@@ -32,6 +36,16 @@ class AboutYouPath(unittest.TestCase):
                 continue
             if OLD_PATH.search(text):
                 found.append(str(p.relative_to(SRC)))
+        self.assertEqual(found, [])
+
+    def test_the_path_that_does_not_exist_is_written_nowhere_in_docs(self):
+        found = []
+        for p in sorted(DOCS.rglob("*.md")):
+            rel = p.relative_to(DOCS).as_posix()
+            if rel in QUOTES_THE_PROTOTYPE:
+                continue
+            if OLD_PATH.search(p.read_text(encoding="utf-8")):
+                found.append(rel)
         self.assertEqual(found, [])
 
     def test_the_guard_catches_every_form_of_the_old_path(self):
