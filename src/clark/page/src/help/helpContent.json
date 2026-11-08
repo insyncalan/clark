@@ -1363,6 +1363,10 @@
      ],
      [
       "p",
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+     ],
+     [
+      "p",
       "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
      ]
     ]
