@@ -10,6 +10,7 @@ import json
 import shutil
 import tempfile
 import unittest
+from _editor_checks import for_url
 
 from _paths import SRC
 
@@ -80,7 +81,7 @@ class Browser(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/{DEMO_HASH}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/{DEMO_HASH}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)), "the block drew")
         if dark:
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)

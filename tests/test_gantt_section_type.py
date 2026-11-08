@@ -319,9 +319,9 @@ class Published(Base):
         self.assertNotIn(SECRET, built["body"].decode("utf-8"))
         self.assertNotIn(SECRET, json.dumps(built["published"], ensure_ascii=False))
 
-    def test_the_word_and_excel_paths_leave_a_gantt_section_out(self):
+    def test_the_excel_path_leaves_a_gantt_section_out_and_the_word_path_only_when_the_file_has_no_gantt(self):
         from clark import docx_build, excel_cover
-        self.assertNotIn("gantt", docx_build.TITLES)
+        self.assertEqual(docx_build.TITLES["gantt"], "Gantt")          # #1012: the Word report draws the Gantt tab (tests/test_docx_gantt.py); it is left out when data.gantt is not in the file
         published = {"sections": [{"id": "a", "type": "gantt", "title": "Gantt", "beside": 0}], "data": {}}
         self.assertEqual(docx_build.sections(published, None), [])
         lines = excel_cover.lines({"name": "Example Programme"}, [{"type": "gantt", "title": "Gantt plan", "body": "", "hidden": 0}], [], "exported now")

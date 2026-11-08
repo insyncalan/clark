@@ -9,6 +9,7 @@ and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or
 """
 import json
 import unittest
+from _editor_checks import for_url
 from datetime import datetime, timezone
 
 from _paths import ROOT
@@ -45,10 +46,10 @@ class Server(unittest.TestCase):
 
     def test_a_latest_update_is_saved_with_a_line_break_and_undone_in_one_step(self):
         was = self.latest()
-        code, body = self.send("Venue confirmed.\nContract next.")
+        code, body = self.send("Venue confirmed.\nContract next.")        # row 1005: plain text from an older caller is stored as the editor's paragraphs
         self.assertEqual((code, body["ok"], body["undoable"]), (200, True, True), body)
-        self.assertEqual(body["item"]["latest_update"], "Venue confirmed.\nContract next.")
-        self.assertEqual(self.latest(), "Venue confirmed.\nContract next.")
+        self.assertEqual(body["item"]["latest_update"], "<p>Venue confirmed.</p><p>Contract next.</p>")
+        self.assertEqual(self.latest(), "<p>Venue confirmed.</p><p>Contract next.</p>")
         code, body2 = self.undo({"project": self.code, "apply_id": body["apply_id"]})
         self.assertEqual(code, 200, body2)
         self.assertEqual(self.latest(), was, "one Undo puts the old text back")
@@ -63,17 +64,18 @@ class Server(unittest.TestCase):
 
     def test_too_long_or_hidden_characters_are_refused_and_nothing_is_written(self):
         was = self.latest()
-        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "a\ud800b", 5, False, True, ["x"], {"a": 1}):
+        for text in ("x" * (changes.LATEST_UPDATE_MAX + 1), "a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "a\r\nb", "<p>a\rb</p>", "a\ud800b", "<p>a​b</p>", "<p>a&#x200b;b</p>", "<p>a\tb</p>", 5, False, True, ["x"], {"a": 1}):
             code, body = self.send(text)
             self.assertEqual((code, body["ok"]), (400, False), repr(text)[:20])
         self.assertEqual(self.latest(), was)
         self.assertEqual(self.send("x" * changes.LATEST_UPDATE_MAX)[0], 200, "the limit itself is allowed")
+        self.assertEqual(self.send("<p><strong>" + "x" * changes.LATEST_UPDATE_MAX + "</strong></p>")[0], 200, "the limit counts the words, not the markup")
 
     def test_each_refusal_says_what_is_wrong_in_its_own_plain_sentence(self):
         said = lambda text: self.send(text)[1]["message"]
         self.assertEqual(said("x" * (changes.LATEST_UPDATE_MAX + 1)), changes.LATEST_LONG_WORDS)
         self.assertIn(str(changes.LATEST_UPDATE_MAX), changes.LATEST_LONG_WORDS)
-        for text in ("a​b", "a\x00b", "a‮b", "a\tb", "line one\nline two\u200b"):
+        for text in ("a​b", "a\x00b", "a‮b", "a\tb", "a\rb", "line one\nline two\u200b", "<p>a&#x200b;b</p>"):
             self.assertEqual(said(text), changes.LATEST_HIDDEN_WORDS, repr(text))
         self.assertEqual(said(5), changes.ITEM_VALUE_WORDS)
         self.assertNotIn("line breaks", changes.LATEST_HIDDEN_WORDS, "line breaks are allowed in a latest update, so it never says to remove them")
@@ -140,12 +142,12 @@ class Source(unittest.TestCase):
         edit = ROOT / "src/clark/page/src/edit"
         jsx = (edit / "PeekLatest.jsx").read_text(encoding="utf-8")
         helper = (edit / "peekLatest.js").read_text(encoding="utf-8")
-        self.assertIn("\\p{Cc}", helper)
-        self.assertIn('replace(/\\n/g, "")', helper, "a line break is allowed in a latest update")
+        self.assertNotIn("\\p{Cc}", helper, "item 1005: the server refuses hidden characters and says so in a toast; the page keeps no copy of the check")
+        self.assertIn("<RichField", jsx, "the one editor (item 1005)")
+        self.assertNotIn("<textarea", jsx)
         save = jsx[jsx.index("const save ="):jsx.index("const draft =")]
-        self.assertLess(save.index("changeCell("), save.rindex("stop()"), "the box closes only after clark has answered")
-        self.assertIn("refused:", save)
-        self.assertEqual(save.count("stop()"), 2, "closed when unchanged and when saved, never before the request")
+        self.assertIn("changeCell(", save)
+        self.assertNotIn("refused:", save, "a refusal is the toast's; RichText keeps the editor open when the save answers null")
 
     def test_each_change_is_sent_with_its_own_place(self):
         jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
@@ -153,6 +155,18 @@ class Source(unittest.TestCase):
         self.assertEqual(jsx.count('place: "draft"'), 1)
         self.assertIn('done.place || "cell"', (ROOT / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8"))
         self.assertTrue({"peek", "draft"} <= set(changes.PLACES))
+
+    def test_the_label_ids_come_from_the_item_id_not_fixed_names(self):
+        """#550: two peeks (or a peek and a stale one while it leaves) must not share an id, so the ids carry the item id."""
+        jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertNotIn('id="pk-latest-lab"', jsx)
+        self.assertNotIn('id="pk-latest-txt"', jsx)
+        self.assertIn("id={`pk-latest-lab-${row.id}`}", jsx)
+        self.assertIn("viewId={`pk-latest-txt-${row.id}`}", jsx)               # item 1005: the text is RichField's view; the id and the label list reach it as props
+        self.assertIn("labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}", jsx)
+        field = (ROOT / "src/clark/page/src/edit/RichField.jsx").read_text(encoding="utf-8")
+        self.assertIn("id={viewId}", field)
+        self.assertIn("aria-labelledby={labelledBy}", field)
 
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
@@ -183,8 +197,11 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None):
         self.fresh()
+        if seed is not None:                                  # a row an older clark wrote: plain text in the column
+            with self.store.step("dashboard", "Demo User") as st:
+                st.update("actions", item, {"latest_update": seed})
         sent = []
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
@@ -199,7 +216,7 @@ class Browser(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p={self.code}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         if dark:
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
@@ -212,6 +229,21 @@ class Browser(unittest.TestCase):
         cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
         return sent, sid
+
+    SHOWN = "[data-pk-latest] [data-rich=latest_update]"           # item 1005: the update drawn as text; a click opens the one rich editor in its place
+    BOX = "#peek .ProseMirror"
+
+    def open_box(self, cdp, sid):
+        click(cdp, sid, self.SHOWN)
+        self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
+
+    def type_in(self, cdp, sid, text):
+        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).cxed.editor.commands.insertContent({json.dumps(text)}); true", sid)
+
+    def save_key(self, cdp, sid):
+        mod = 4 if cdp.js("/Mac/.test(navigator.platform)", sid) else 2
+        for kind in ("keyDown", "keyUp"):
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, "modifiers": mod}, sid)
 
     def due(self, cdp, sid):
         return cdp.js("(d => d ? d.textContent.replace('Changed', '').trim() : '')(document.querySelector('#peek [data-row=due] dd'))", sid)
@@ -277,61 +309,70 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
-                self.assertIn(a["latest_update"], cdp.js("document.querySelector('[data-pk-latest-text]').textContent", sid))
+                self.assertIn(a["latest_update"], cdp.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').textContent", sid))
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-draft]"))
                 click(cdp, sid, "[data-pk-draft]")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest-text]').textContent", sid) == want))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').textContent", sid) == want))
                 self.assertEqual((len(sent), sent[0]["changes"]), (1, {"latest_update": want}), "one request, no AI call")
                 self.assertIn("Latest update drafted from the item's own fields.", self.toast(cdp, sid))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest-text]').textContent", sid) == a["latest_update"]))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').textContent", sid) == a["latest_update"]))
 
-    def test_the_box_saves_on_enter_and_leaves_the_text_on_escape(self):
+    def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sent, sid = self.load(cdp, width, OVERDUE)
-                click(cdp, sid, "[data-pk-latest-text]")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box")
-                cdp.js("(t => { t.value = 'Typed and abandoned'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Typed and abandoned")
                 key(cdp, sid, "Escape")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-text]')", sid)), "Esc closes the box only")
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)}) && !!document.querySelector({json.dumps(self.SHOWN)})", sid)), "Esc closes the box only")
                 self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays")
                 self.assertEqual(sent, [], "nothing was sent")
-                click(cdp, sid, "[data-pk-latest-text]")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
-                cdp.js("(t => { t.value = 'Brand new words'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
-                key(cdp, sid, "Enter")
-                self.assertTrue(wait(lambda: cdp.js("(document.querySelector('[data-pk-latest-text]') || {textContent: ''}).textContent", sid) == "Brand new words"))
-                self.assertEqual((len(sent), sent[0]["changes"]), (1, {"latest_update": "Brand new words"}))
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Brand new words")
+                self.save_key(cdp, sid)
+                self.assertTrue(wait(lambda: "Brand new words" in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)))
+                self.assertEqual(len(sent), 1)
+                self.assertIn("Brand new words", sent[0]["changes"]["latest_update"])
+                self.assertTrue(sent[0]["changes"]["latest_update"].startswith("<p>"), "the editor's HTML is what is sent")
+
+    def test_a_legacy_plain_update_opens_in_the_editor_as_paragraphs_and_is_not_saved_by_looking(self):
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE, seed='Line one: a < b & "c"\nLine two')
+            self.assertEqual(cdp.js(f"[...document.querySelectorAll({json.dumps(self.SHOWN + ' p')})].map(p => p.textContent)", sid), ['Line one: a < b & "c"', "Line two"])
+            self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(self.SHOWN + ' b, ' + self.SHOWN + ' script')}).length", sid), 0, "the < is text, never markup")
+            self.open_box(cdp, sid)
+            self.assertEqual(cdp.js(f"[...document.querySelectorAll({json.dumps(self.BOX + ' p')})].map(p => p.textContent)", sid), ['Line one: a < b & "c"', "Line two"])
+            key(cdp, sid, "Escape")
+            self.assertEqual(sent, [], "opening and leaving saved nothing, so the old row is as it was")
 
     def test_the_box_has_the_focus_as_it_is_drawn_not_a_frame_later(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE, late=True)
-            click(cdp, sid, "[data-pk-latest-text]")
-            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid), "the click opened the box")
-            self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid), "the box has the focus with no frame in between")
+            click(cdp, sid, self.SHOWN)
+            self.assertTrue(cdp.js("!!document.querySelector('#peek .ProseMirror')", sid), "the click opened the editor")
+            self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the editor has the focus with no frame in between")
 
-    def test_a_too_long_update_is_refused_in_words_and_the_box_stays(self):
+    def test_a_too_long_update_is_refused_by_clark_in_words_and_the_box_stays(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
-            click(cdp, sid, "[data-pk-latest-text]")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
-            cdp.js("(t => { t.value = 'x'.repeat(1001); t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
-            key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "1000 characters at most" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)), "the box says the update is too long")
-            self.assertEqual(sent, [])
-            self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid), "the box keeps what was typed")
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "x" * 1001)
+            self.save_key(cdp, sid)
+            self.assertTrue(wait(lambda: "1000 characters" in self.toast(cdp, sid)), "clark says the update is too long: " + self.toast(cdp, sid))
+            self.assertEqual(len(sent), 1)
+            self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(self.BOX)})", sid), "the editor keeps what was typed")
+            self.assertEqual(cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent.replace(/[^x]/g, '').length", sid), 1001)
 
-    def test_a_hidden_character_is_refused_in_words_and_the_box_keeps_the_text(self):
+    def test_a_hidden_character_is_refused_by_clark_in_words_and_the_box_keeps_the_text(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
-            click(cdp, sid, "[data-pk-latest-text]")
-            self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-latest-in')", sid)), "focus is in the box once it is open")
-            cdp.js("(t => { t.value = 'Pasted\\twith a tab'; t.dispatchEvent(new Event('input', {bubbles: true})); })(document.activeElement)", sid)
-            key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "hidden character" in cdp.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent", sid)), "the box says the character is hidden")
-            self.assertEqual(sent, [], "nothing was sent")
-            self.assertEqual(cdp.js("(document.querySelector('[data-pk-latest-in]') || {value: null}).value", sid), "Pasted\twith a tab", "the box keeps what was typed")
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Pasted\u200bwith a zero-width space")
+            self.save_key(cdp, sid)
+            self.assertTrue(wait(lambda: "hidden character" in self.toast(cdp, sid)), "clark says the character is hidden: " + self.toast(cdp, sid))
+            self.assertEqual(len(sent), 1)
+            self.assertIn("Pasted", cdp.js(f"(document.querySelector({json.dumps(self.BOX)}) || {{textContent: ''}}).textContent", sid), "the editor keeps what was typed")
 
     def test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change(self):
         a = self.action(OVERDUE)
@@ -351,7 +392,7 @@ class Browser(unittest.TestCase):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, risk)
             self.assertTrue(cdp.js("!!document.querySelector('[data-pk-last]')", sid))
-            self.assertFalse(cdp.js("!!document.querySelector('[data-pk-draft],[data-pk-latest-text]')", sid))
+            self.assertFalse(cdp.js("!!document.querySelector('[data-pk-draft],[data-rich=latest_update]')", sid))
 
     def kinds(self):
         """(a client-visible action, an internal action) of the demo data."""
@@ -366,12 +407,12 @@ class Browser(unittest.TestCase):
                 sent, sid = self.load(cdp, width, shown)
                 self.assertEqual(cdp.js(probe, sid), "Shown to the client")
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-latest-client]"), "the label fits the peek")
-                click(cdp, sid, "[data-pk-latest-text]")                                  # still there while the box is open
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid)))
+                click(cdp, sid, self.SHOWN)                                               # still there while the box is open
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .ProseMirror')", sid)))
                 self.assertEqual(cdp.js(probe, sid), "Shown to the client")
             with self.subTest(width=width, item="internal"), chrome() as cdp:
                 sent, sid = self.load(cdp, width, internal)
-                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest-text]')", sid))
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pk-latest] [data-rich=latest_update]')", sid))
                 self.assertIsNone(cdp.js(probe, sid), "an internal action's update is not published, so no label")
             with self.subTest(width=width, item="view"), chrome() as cdp:
                 sent, sid = self.load(cdp, width, shown, edit=False)
@@ -433,12 +474,15 @@ class Browser(unittest.TestCase):
                     self.assertTrue(move["shown"], i)
                     self.assertGreaterEqual(move["ratio"], 4.5, move)
                 self.assertTrue(self.inside(cdp, sid, ".pk-warnbar") and self.inside(cdp, sid, "[data-pk-move]:last-child"), "the bar fits the peek")
-                box = self.look(cdp, sid, "[data-pk-latest-text]")
+                box = self.look(cdp, sid, "[data-pk-latest] [data-rich=latest_update] .sec-body")
                 self.assertTrue(box["shown"])
                 self.assertIn(self.action(OVERDUE)["latest_update"], box["text"])
                 self.assertEqual(box["ink"], self.want(cdp, sid, "--text"))
                 self.assertGreaterEqual(box["ratio"], 4.5, box)
-                lab = self.look(cdp, sid, "#pk-latest-lab")
+                lab = self.look(cdp, sid, '[id^="pk-latest-lab-"]')
+                ident = cdp.js("document.querySelector('[id^=\"pk-latest-lab-\"]').id.slice('pk-latest-lab-'.length)", sid)
+                self.assertEqual(cdp.js("(e => [e.id, e.getAttribute('aria-labelledby')])(document.querySelector('[data-pk-latest] [data-rich=latest_update]'))", sid),
+                                 ["pk-latest-txt-" + ident, "pk-latest-lab-%s pk-latest-txt-%s" % (ident, ident)], "row 550: the ids carry the item id, and the text is named by its label and itself")
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")
@@ -446,13 +490,11 @@ class Browser(unittest.TestCase):
                 self.assertEqual(stamp["ink"], self.want(cdp, sid, "--text-muted"))
                 self.assertGreaterEqual(stamp["ratio"], 4.5, stamp)
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-last]"))
-                click(cdp, sid, "[data-pk-latest-text]")                                          # the open box is dark too
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-latest-in]')", sid)))
-                typing = self.look(cdp, sid, "[data-pk-latest-in]")
-                self.assertEqual(typing["bg"], self.want(cdp, sid, "--surface"))
+                self.open_box(cdp, sid)                                                           # the open editor is dark too
+                typing = self.look(cdp, sid, "#peek .rt-host")
                 self.assertEqual(typing["ink"], self.want(cdp, sid, "--text"))
                 self.assertGreaterEqual(typing["ratio"], 4.5, typing)
-                hint = self.look(cdp, sid, ".pk-latest-hint")
+                hint = self.look(cdp, sid, "#peek .rt-keys")
                 self.assertGreaterEqual(hint["ratio"], 4.5, hint)
                 key(cdp, sid, "Escape")
                 self.assertEqual(sent, [], "looking sends nothing")
@@ -472,7 +514,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(cdp.js("(i => !!i && i.getBoundingClientRect().width > 0)(document.querySelector('[data-pk-draft] svg, [data-pk-draft] .i'))", sid), "its icon shows")
                 click(cdp, sid, "[data-pk-draft]")
                 self.assertTrue(wait(lambda: len(sent) == 1), "it still works in dark: one request")
-                self.assertTrue(wait(lambda: cdp.js("(t => !!t && t.textContent.startsWith('Overdue since 22-10-2026.'))(document.querySelector('[data-pk-latest-text]'))", sid)))
+                self.assertTrue(wait(lambda: cdp.js("(t => !!t && t.textContent.startsWith('Overdue since 22-10-2026.'))(document.querySelector('[data-pk-latest] [data-rich=latest_update]'))", sid)))
 
     def test_view_has_all_of_it_on_work_items(self):
         for width in (1400, 900):

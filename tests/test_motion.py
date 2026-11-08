@@ -12,6 +12,7 @@ import re
 import sys
 import time
 import unittest
+from _editor_checks import for_url
 
 from _paths import SRC, TOOLS
 import _testpage as testpage
@@ -244,7 +245,7 @@ class More(tre.Base):
         cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, sid)
         if own:
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": Fade.OWN_EARLY}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         p = tre.Pg(self, cdp, sid)
         p.mode = mode
         return p
@@ -424,7 +425,7 @@ class Fade(tre.Base):
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.WATCH + (self.OWN_EARLY if mode[2] else "")}, sid)
                 cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if mode[1] else ALLOW}, sid)
-                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=ABC"}, sid)
+                cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p=ABC")}, sid)
                 p = tre.Pg(self, cdp, sid)
                 p.until("!!document.querySelector('.skel-frame')", "the placeholder appeared")
                 gate["open"] = True

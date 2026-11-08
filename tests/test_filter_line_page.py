@@ -9,6 +9,7 @@ import re
 import json
 import time
 import unittest
+from _editor_checks import for_url
 import urllib.parse
 
 from _paths import ROOT, SRC  # noqa: F401
@@ -87,7 +88,7 @@ class Line(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{port}/{hash_}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length > 0 || !!document.querySelector('#work-list .empty')", sid)), f"{hash_} drew its list")
         if theme == "dark":
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
@@ -1206,7 +1207,7 @@ class Line(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + "Object.defineProperty(window, 'sessionStorage', {get() { throw new Error('no'); }}); Object.defineProperty(window, 'localStorage', {get() { throw new Error('no'); }});"}, sid)
-            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=TUL"}, sid)
+            cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p=TUL")}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the list drew rows")
             self.put(cdp, sid, "priority:High")
             self.assertTrue(wait(lambda: "priority:High" in self.chips(cdp, sid)), "the priority:High chip is shown")

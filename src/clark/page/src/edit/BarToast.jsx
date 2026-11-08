@@ -1,5 +1,5 @@
-// A message made while the Dashboard is in View (item 439): what the report bar's Week ending field just did (it saves from View too),
-// or the project switcher's "Switched to". Every other message belongs to Edit (Toast.jsx) and is not drawn in View; it is kept, so it
+// A message made while the Dashboard is in View (item 439): what the report bar's Week ending field just did (it saves from View too).
+// Every other message belongs to Edit (Toast.jsx) and is not drawn in View; it is kept, so it
 // is there again, with its Undo, when Edit is entered again. This sits inside the profile menu's live region (ProfileMenu.jsx), which
 // View always has, so a screen reader hears it. It is drawn as every toast is (ToastCard.jsx).
 import { signal } from "@preact/signals";

@@ -17,9 +17,14 @@ from test_server import Running, chrome, wait
 from clark import ai_connect, page, settings
 
 
+# #543: how long a page may take to show Settings. The wait polls and returns the moment the page is there, so a long ceiling costs a
+# passing run nothing; it only stops a loaded runner (load about 33 flaked 20 s once) from failing a test that is not about speed.
+PAGE_UP = 90
+
+
 class Card(unittest.TestCase):
     def setUp(self):
-        self.s = Running(data_for=DATA.get, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(self.s.close)
         self.d = Path(os.path.realpath(tempfile.mkdtemp(prefix="clark-test-")))
         self.addCleanup(shutil.rmtree, self.d, True)
@@ -29,7 +34,7 @@ class Card(unittest.TestCase):
     def show(self, cdp):
         self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
-        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), 20), "the card is in Settings")
+        self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), PAGE_UP), "the card is in Settings")
         return js
 
     def test_connected_shows_both_tiles_and_the_model(self):
@@ -111,7 +116,7 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
             js = lambda e: cdp.js(e, self.sid)      # noqa: E731
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings')"), 20))
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings')"), PAGE_UP))
             self.assertFalse(wait(lambda: js("!!document.querySelector('[data-ai-tile]')"), 1))
 
 

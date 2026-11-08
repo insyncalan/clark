@@ -1,4 +1,4 @@
-// Who you are (#180): the name and email typed in Settings › Personal › About you, kept by clark on this computer (api.js). Edit's
+// Who you are (#180): the name and email typed in Settings › Profile › About you, kept by clark on this computer (api.js). Edit's
 // parts only. Nothing here is read from the computer, the browser or the Claude sign-in: a fresh store has neither.
 import { signal } from "@preact/signals";
 import { getProfile, saveProfile } from "../api.js";
