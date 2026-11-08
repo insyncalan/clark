@@ -84,6 +84,11 @@ class BuildAppMutProof(unittest.TestCase):
         self.assertTrue((made[0] / "clark.app").is_dir())
         self.assertIn(f"Built {made[0]}/clark.app", r.stdout)
 
+    def test_header_comment_names_the_real_dialog_text_path(self):
+        head = "".join(SCRIPT.read_text().splitlines(True)[:20])
+        self.assertIn("FOLDER.applet-out.txt", head)
+        self.assertNotIn("FOLDER/../applet-out.txt", head)
+
 
 if __name__ == "__main__":
     unittest.main()
