@@ -186,8 +186,10 @@ class Requests(unittest.TestCase):
         self.assertNotIn(got["ref"], before)
         status, shown = self.change({"project": "ABC", "kind": "report_hidden", "op": "delete", "id": got["ref"], "place": "report"})
         self.assertEqual((status, shown.get("ok")), (200, True), shown)
+        with self.s.step("dashboard", "Demo User") as st:      # row 560: the update is published for an action that has client wording
+            st.update("actions", got["ref"], {"client_message": "Recovering the pilot date"})
         after = self.published()
-        self.assertIn(self.LINE, after, "shown by the owner: the line comes with the action")
+        self.assertIn(self.LINE, after, "shown by the owner and given client wording: the line comes with the action")
         self.assertIn("Recover pilot live", after)
 
     def test_487_a_steering_decision_with_the_line_starts_hidden_too(self):

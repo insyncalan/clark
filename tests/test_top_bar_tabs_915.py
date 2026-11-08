@@ -34,7 +34,13 @@ class ProjectButtonFit(Base):
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
-            if active:
+            if active == "Settings":      # row 976: Settings is no tab; it opens from the profile circle's menu
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu')", "the profile menu opened")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("document.querySelector('h1') && document.querySelector('h1').textContent === 'Settings'", "Settings opened from the menu")
+                self.assertEqual(p.js("document.querySelectorAll('.top .tab[data-view=settings]').length"), 0, "Settings is not a top-bar tab")
+            elif active:
                 p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
                 p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", active)
             p.js(f"document.querySelector('.top .projbtn > span').textContent = {LONG!r}")
