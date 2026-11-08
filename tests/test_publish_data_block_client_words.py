@@ -9,6 +9,7 @@ Latest update is published on purpose by test_latest_update_publish (#457). The 
 
 Run: python3 dev/run_tests.py test_publish_data_block_client_words
 """
+import contextlib
 import unittest
 from unittest import mock
 
@@ -55,7 +56,11 @@ class DataBlockClientWords(unittest.TestCase):
 
     def without(self, table, field):
         cut = {**publish.PUBLISH_FIELDS, table: tuple(f for f in publish.PUBLISH_FIELDS[table] if f != field)}
-        return mock.patch.dict(publish.PUBLISH_FIELDS, cut)
+        rich = {**publish.RICH, table: tuple(f for f in publish.RICH.get(table, ()) if f != field)}   # select cleans every RICH field of the picked row: a field no longer picked must leave RICH too, or its key is missing (KeyError)
+        stack = contextlib.ExitStack()
+        stack.enter_context(mock.patch.dict(publish.PUBLISH_FIELDS, cut))
+        stack.enter_context(mock.patch.dict(publish.RICH, rich))
+        return stack
 
     def test_mutation_actions_description(self):
         """Mutation per field: with the field out of PUBLISH_FIELDS the team text is gone, so the marked test above is red for that field alone."""
