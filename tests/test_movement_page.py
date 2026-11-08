@@ -80,7 +80,7 @@ class NoBrowser(unittest.TestCase):
     def test_the_pages_words_are_the_python_constants(self):
         js = js_constants()
         same = {"TAG_INTERNAL": mv.TAG_INTERNAL, "HELP_LINE": mv.HELP_LINE, "NOTHING_CHANGED": mv.NOTHING_CHANGED, "HOLD_LABEL": mv.HOLD_LABEL,
-                "MOVE_LABEL": mv.MOVE_LABEL, "KEEP_LABEL": mv.KEEP_LABEL, "CONFIRM": mv.CONFIRM, "TOAST_HOLD": mv.TOAST_HOLD,
+                "MOVE_LABEL": mv.MOVE_LABEL, "KEEP_LABEL": mv.KEEP_LABEL, "CONFIRM": mv.CONFIRM, "TOAST_HOLD": mv.TOAST_HOLD, "TOAST_HOLD_TRIMMED": mv.TOAST_HOLD_TRIMMED,
                 "TOAST_MOVED": mv.TOAST_MOVED, "READ_FAILS": mv.READ_FAILS, "NO_DATE_YET": mv.NO_DATE_YET, "UNDONE": mv.TAG_UNDONE,
                 "ARCHIVED": mv.ARCHIVED, "NOT_HERE": mv.NOT_HERE}
         for name, want in same.items():
@@ -188,7 +188,9 @@ class Block(Base):
             for want in ("Original", "10-01-2020", "Agreed", "Forecast", "01-02-2020", "Never moved", "Progress", "Owner", "Priya Example",
                          "What changed", mv.NOTHING_CHANGED, "Decide what to do", mv.HOLD_LABEL, mv.MOVE_LABEL, "Each choice changes the record at once, with Undo."):
                 self.assertIn(want, text)
-            self.assertNotIn(INTERNAL, p.js("document.body.innerHTML"), "the internal note never reaches the page")
+            outside = p.js("(() => { const c = document.body.cloneNode(true); const n = c.querySelector('#mvNote'); if (n) n.remove(); return c.innerHTML; })()")
+            self.assertNotIn(INTERNAL, outside, "the internal note is in no part of the page but its own box")      # item 1005: the box draws the note's words as its field; it was a textarea, whose text is no part of the markup
+            self.assertIn(INTERNAL, p.js("document.querySelector('#mvNote').textContent"), "an old plain note reads in its own box")
             self.assertEqual(p.js("document.querySelector('#mv-move').disabled"), False)
             p.js("document.querySelector('.mvm-row[data-id=\"%s\"]').click()" % PILOT)
             p.until("document.querySelector('#mv-card-h').textContent === 'Pilot live'", "the card follows the row")
@@ -217,6 +219,20 @@ class Block(Base):
             p.until("!!document.querySelector('.msv') && !document.querySelector('#movement')", "back to the Plan")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
             p.until("!!document.querySelector('[data-mspage-switch]') && !!document.querySelector('.msv') && !document.querySelector('#movement')", "the page keeps the switch and the Plan")
+
+    def test_a_hold_that_trims_the_note_says_so_and_undo_restores_it(self):      # #603
+        whole = "\n".join(["y" * 499] * 4)
+        with self.store.step("dashboard", USER) as st:
+            st.update("milestones", GO_LIVE, {"internal_note": whole})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.open_movement(p)
+            p.js("document.querySelector('#mv-hold').click()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Hold recorded. The oldest lines of the note were removed to fit. Undo.'", "the trimmed Hold toast")
+            self.assertNotEqual(self.row(GO_LIVE)["internal_note"], whole)
+            p.js("document.querySelector('.toast [data-undo]').click()")
+            p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Undone.'", "Undone")
+            self.assertEqual(self.row(GO_LIVE)["internal_note"], whole, "Undo restores the whole note")
 
     def test_hold_is_recorded_with_its_toast_and_undo(self):
         with chrome() as cdp:

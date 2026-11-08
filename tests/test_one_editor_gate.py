@@ -13,6 +13,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from _editor_checks import for_project
 from unittest import mock
 
 from _demo import USER, DemoStore
@@ -77,6 +78,31 @@ class Source(unittest.TestCase):
         self.assertEqual(build_page.main(["--check"]), 0)
 
 
+# Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
+# of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
+MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason")}
+
+
+class MovedFields(unittest.TestCase):
+    def test_each_moved_field_draws_the_one_editor_and_no_textarea(self):
+        for rel, (component, what) in MOVED.items():
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertRegex(text, r"import \{ %s \} from" % component, what)
+            self.assertNotIn("<textarea", text, what)
+            self.assertNotIn("useGrow", text, what)
+        self.assertNotIn("TEXTAREA", (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8"))
+
+    def test_a_moved_field_reads_what_is_stored_through_the_page_twin_never_raw(self):
+        for rel in MOVED:
+            self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+
+    def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
+        glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
+        self.assertIn("HTML_START", glance)
+        self.assertNotIn("cleanHtml", glance)
+        self.assertNotIn("richOrPlain", glance, "the cleaner is the page's own `clean` prop; the published page has none")
+
+
 ORIGINAL = "<p>Original words the programme manager wrote.</p>"
 
 
@@ -121,7 +147,7 @@ class PageGate(unittest.TestCase):
             st.update("report_sections", self.sec, {"body": ORIGINAL})
 
     def edit(self, cdp, s):
-        sid = navigate(cdp, s.port, "#dashboard&p=ABC")
+        sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         self.assertTrue(wait(lambda: js("document.querySelectorAll('.sec').length > 0"), 15))
         js("document.querySelector('[data-mode=edit]').click()")
@@ -131,7 +157,7 @@ class PageGate(unittest.TestCase):
     def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#dashboard&p=ABC")
+            sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
             js = lambda e: cdp.js(e, sid)  # noqa: E731
             self.assertTrue(wait(lambda: js("document.querySelectorAll('.sec').length > 0"), 15))
             self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich]').length"), 0, "View has no rich field")
@@ -159,6 +185,20 @@ class PageGate(unittest.TestCase):
                              js("document.querySelectorAll('.ProseMirror').length + document.querySelectorAll('[contenteditable=plaintext-only]').length"),
                              "no contenteditable but the editors' own and the section titles")
             self.assertEqual(js("document.querySelectorAll('style').length"), before, "a mount adds no <style>")
+
+    def test_the_at_a_glance_reason_opens_the_one_editor_with_its_menu(self):          # item 1005
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"health": "At risk", "health_reason": "Old plain words <b>kept</b>\nand a second line"})      # an old plain row
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            self.assertEqual(js("document.querySelector('[data-reason]').querySelector('.prose').innerHTML"),
+                             "<p>Old plain words &lt;b&gt;kept&lt;/b&gt;</p><p>and a second line</p>", "an old plain reason reads as escaped paragraphs")
+            js("document.querySelector('[data-reason]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-reason] .ProseMirror')"), 10))
+            self.assertEqual(js("!!document.querySelector('[data-reason] .ProseMirror').cxed && typeof document.querySelector('[data-reason] .ProseMirror').cxed.html"), "function")
+            self.assertEqual(js("document.querySelectorAll('[data-reason] .rt-bar').length"), 1, "the toolbar")
+            self.assertEqual(js("document.querySelectorAll('textarea[data-reason]').length"), 0)
 
     def test_a_save_that_the_server_refuses_says_so_in_plain_words_and_keeps_the_field_open(self):
         small = mock.patch.object(changes, "TEXT_BODY_MAX", 10)        # the server thread reads the same module: a body over 10 bytes is too long
@@ -294,6 +334,76 @@ class PageGate(unittest.TestCase):
             shown = js("document.querySelector('[data-rich]').textContent")
             self.assertIn("Original words", shown, "the reply carried no body, so the section kept the one the page had")
             self.assertNotIn("Click to write", shown)
+
+    def test_the_text_and_image_words_open_the_one_editor_and_old_lines_read_in_it(self):
+        """Row 1005: the Text and image template's words are a RichField (the / menu), not a plain box; its old lines open in it."""
+        with self.store.step("dashboard", USER) as st:
+            ref = st.create("report_sections", {"project": "ABC", "type": "textimage", "title": "Fictional words", "sort_order": 999, "hidden": 0})
+        with self.store.step("dashboard", USER) as st:
+            st.update("report_sections", ref, {"body": '{"v":1,"words":["Old a < b & c","He said \\"yes\\""]}'})
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            sel = f"[data-id='{ref}']"
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} [data-rich]\")"), 10), "the words are a rich field")
+            self.assertEqual(js(f"document.querySelectorAll(\"{sel} textarea\").length"), 0, "no plain box for the words")
+            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich] p\")].map(function(e){{ return e.textContent; }})"),
+                             ["Old a < b & c", 'He said "yes"'])
+            js(f"document.querySelector(\"{sel} [data-rich]\").click()")
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} .ProseMirror\")"), 10))
+            self.assertEqual(js(f"typeof document.querySelector(\"{sel} .ProseMirror\").cxed.html"), "function", "it is clarkEditor")
+            js(f"document.querySelector(\"{sel} .ProseMirror\").cxed.editor.commands.insertContent('<p>New words</p>'); true")
+            self.key(cdp, sid, "Enter", "Enter", 13, self.mod(js))
+            self.assertTrue(wait(lambda: '"html"' in next(r for r in self.store.read("report_sections", "ABC") if r["id"] == ref)["body"], 20))
+            body = next(r for r in self.store.read("report_sections", "ABC") if r["id"] == ref)["body"]
+            self.assertNotIn('"words"', body, "the editor saves html and takes the old lines out")
+            self.assertIn("&lt; b &amp; c", body, "the old line came into the editor as text, and is stored escaped")
+
+
+class TextImageSource(unittest.TestCase):
+    def test_the_text_and_image_words_use_the_rich_field_and_no_plain_box(self):
+        edit = (PAGE_SRC / "edit" / "templates" / "TextImage.jsx").read_text(encoding="utf-8")
+        self.assertIn("RichField", edit)
+        self.assertNotIn("WordsField", edit)
+        self.assertNotIn("<textarea", edit)
+
+
+# Item 1005: the plain multiline fields that moved onto the one editor, one entry per field (LATEST_MOVED; the Movement note and the Reason are MOVED, above): (file, the RichField line's field name, the
+# column it writes). A field joins this list when its plain box is replaced; a plain box left in its file is not allowed to come back.
+LATEST_MOVED = (("edit/PeekLatest.jsx", "latest_update", "actions.latest_update"),
+         ("edit/MilestonePeek.jsx", "description", "milestones.description"))
+
+
+class MovedLatestFields(unittest.TestCase):
+    """Each moved field draws through RichField (so through clarkEditor and the / menu), stores through the server's cleaner, and keeps no plain box."""
+
+    def test_each_moved_field_is_a_rich_field_and_its_file_has_no_plain_box_for_it(self):
+        for rel, field, column in LATEST_MOVED:
+            with self.subTest(column):
+                text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+                self.assertRegex(text, r'<RichField[^>]*field="%s"' % field)
+                self.assertIn("richOrPlain(", text, "an old plain value is read through the one legacy rule, never drawn as stored")
+                if rel.endswith("PeekLatest.jsx"):
+                    self.assertNotIn("<textarea", text)
+                else:
+                    self.assertNotRegex(text, r'<Text [^>]*field="description"')
+
+    def test_each_moved_field_is_cleaned_by_the_server_and_again_when_published(self):
+        from clark import publish
+        for table, field in (("actions", "latest_update"), ("milestones", "description")):
+            with self.subTest(field):
+                self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
+                self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
+        from clark import excel
+        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"),), "the workbook carries the words of the same fields, and of the Movement note (never published, so not in the published list)")
+        src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
+        self.assertEqual(src.count("_rich_field("), 4, "the definition and the three fields' writes (latest update, Internal note, description)")
+
+    def test_the_published_page_carries_no_editor_for_them(self):
+        page.ensure_built()
+        view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for word in ("richOrPlain", "legacyToHtml"):
+            self.assertNotIn(word, view, word)
 
 
 if __name__ == "__main__":

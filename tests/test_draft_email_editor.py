@@ -437,7 +437,7 @@ class Component(InBrowser):
 
     def test_a_missing_sender_name_blocks_copying_with_its_next_step(self):
         self.mount(state(), draft(picked=["ABC-A-001"], **{"from": ""}))
-        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Personal › About you so it signs the email.")
+        self.assertEqual(self.text(".de-problem"), "Add your name in Settings › Profile so it signs the email.")
 
     def test_copy_for_outlook_puts_html_and_text_on_the_clipboard_and_says_copied(self):
         self.mount()

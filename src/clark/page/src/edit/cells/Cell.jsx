@@ -9,13 +9,13 @@
 import { signal } from "@preact/signals";
 import { useRef } from "preact/hooks";
 import { data } from "../../stores/report.js";
-import { changeCell, changeRating, say } from "../../stores/changes.js";
+import { changeCell, changeNewPerson, changeRating, say } from "../../stores/changes.js";
 import { workSelection } from "../../stores/selection.js";
 import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
 import { todayIso } from "../../workItems.js";
-import { canPick, changeFor, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
+import { canPick, changeFor, newPersonChange, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
 import { PriorityPick } from "./PriorityPick.jsx";
@@ -63,6 +63,17 @@ export function Cell({ row, field, said, keep, children, place }) {
     if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
     return "";
   };
+  // Row 986: a name that is not on the list, added and assigned in one step. Resolves to {ok: true} (the picker has closed) or the words to
+  // say beside what was typed ({message}, and `person`, the one already on the list, when the server says so). A selection of two or more
+  // takes no new person here: the picker does not offer it.
+  const add = async (person) => {
+    const c = newPersonChange(row, person, todayIso());
+    if (c && c.error) return { ok: false, message: c.error, code: "", person: null };
+    if (!c) { close(true); return { ok: true }; }
+    const r = await changeNewPerson(tableOf(row), row.id, c, place);
+    if (r.ok) { close(true); refocus(k); }
+    return r;
+  };
   const toggle = () => { openCell.value = open ? "" : k; };
   const down = (e) => {
     if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); close(true); }
@@ -73,7 +84,7 @@ export function Cell({ row, field, said, keep, children, place }) {
       <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
-      {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onClose={close} /> : null}
+      {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}
     </>
   );
 }
