@@ -104,6 +104,8 @@ class ProjectSwitch(Base):
             p.js("document.querySelectorAll('#project-menu [role=menuitemradio]')[1].click()")
             p.until("/p=ABC/.test(location.hash) && new URLSearchParams(location.search).get('project') === 'ABC'", "the address names the chosen project, in the page loaded for it")      # #944: its own page load, so the old page's toast is gone
             p.until("document.getElementById('project-name').textContent.includes('Second Programme')", "the new page says the chosen project is open")
+            p.js("document.querySelector('[data-mode=edit]').click()")          # View draws no message on the Dashboard: Edit would show one that came across
+            p.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
             self.assertEqual(p.js("(document.querySelector('.toast-text') || {textContent: ''}).textContent"), "", "no 'Switched to' message: the name is on the screen (#944 ruling)")
 
     def test_C_Project_settings_opens_Settings(self):

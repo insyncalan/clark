@@ -210,6 +210,10 @@ class Editor(unittest.TestCase):
             self.until("document.getElementById('project-name').textContent === 'Second Programme'", "the other project drew")
             self.assertEqual(self.titles("ABC")[0], "Typed, then switched", "saved in ABC before the page went")
             self.assertEqual(self.sent, ["change"], "saved once")
+            self.until("!!document.querySelector('.sec')", "XYZ drew")
+            self.edit()
+            self.until("!!document.querySelector('[data-undo]')", "the page waited for the save, and its message with Undo came across")
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Title changed.")
 
     # ---- menus and a filter's box ----
     def test_back_with_a_section_menu_open_closes_it_and_chooses_nothing(self):
