@@ -35,6 +35,8 @@ const ICONS = {
   doc: '<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
   ext: '<path d="M14 4h6v6M20 4l-9 9M18 14v6H4V6h6"/>',
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 11v5.5M12 7.6v.4"/>',
+  circleminus: '<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>',
+  flag: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
   archive: '<rect x="3.6" y="4.8" width="16.8" height="4.8" rx="1.2"/><path d="M5.4 9.6v9.6h13.2V9.6M10.2 13.2h3.6"/>',
 };
 const SHAPES = new Set(["path", "circle", "rect", "line", "polyline", "polygon", "ellipse"]);

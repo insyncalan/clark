@@ -76,6 +76,20 @@ class Shown(unittest.TestCase):
                      {"ok": False, "message": "   "}, {"ok": False, "message": 7}, None):
             self.assertEqual(self.ask(400, body), {"ok": False, "message": generic}, str(body)[:40])
 
+    def test_no_answer_says_it_may_or_may_not_be_recorded_and_where_to_look(self):
+        code = ('globalThis.addEventListener = () => {}; globalThis.location = { hash: "", search: "", pathname: "/" };'
+                'globalThis.document = { getElementById: () => ({ textContent: "{\\"token\\":\\"t\\"}" }) };'
+                'globalThis.fetch = async () => { throw new TypeError("network"); };'
+                f'const {{ sendEmailSent }} = await import({json.dumps(self.bundle.as_uri())});'
+                'console.log(JSON.stringify(await sendEmailSent("ABC", { ids: ["ABC-A-001"], mode: "chase", date: "2026-11-02" })));')
+        done = subprocess.run(["node", "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        got = json.loads(done.stdout)
+        self.assertFalse(got["ok"])
+        self.assertIn("may or may not have been recorded", got["message"])
+        self.assertIn("history", got["message"])
+        self.assertNotIn("Nothing was saved", got["message"])
+
     def test_the_words_of_a_failure_that_is_not_a_refusal_are_never_shown(self):
         said = sentence(300)
         for status in (403, 500, 503):

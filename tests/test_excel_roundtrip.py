@@ -146,6 +146,36 @@ class FormulaGuard(unittest.TestCase):
         self.assertEqual([got[i] for i in ids], list(self.TEXTS))
 
 
+class RichFields(unittest.TestCase):
+    """Row 1005: Latest update and Description are the editor's HTML (or an older plain text). The sheet carries their words, and an unchanged sheet imports with no change."""
+
+    def test_the_sheet_holds_the_words_and_an_unchanged_export_imports_as_no_change(self):
+        demo = DemoStore()
+        tmp = Path(tempfile.mkdtemp(prefix="clark-rich-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.addCleanup(demo.close)
+        with demo.store.step("dashboard", USER) as st:
+            a_new = st.create("actions", {"project": "ABC", "description": "One", "raised": "2026-10-01", "source": "demo",
+                                          "latest_update": "<p>Done &amp; dusted</p><p>Next: a &lt; b</p>"})
+            a_old = st.create("actions", {"project": "ABC", "description": "Two", "raised": "2026-10-01", "source": "demo",
+                                          "latest_update": 'old < new & "q"\nline two'})
+            st.update("milestones", demo.milestone, {"description": "<p>Scope <strong>bold</strong></p>"})
+        path, state = tmp / "ABC work items.xlsx", tmp / "state.json"
+        excel.export_project(demo.store, "ABC", path, state, on=ON)
+        wb = load_workbook(str(path))
+        head = {c.value: c.column for c in wb["Actions"][1]}
+        cells = {wb["Actions"].cell(r, 1).value: wb["Actions"].cell(r, head["Latest update"]).value for r in range(2, wb["Actions"].max_row + 1)}
+        self.assertEqual(cells[a_new], "Done & dusted\nNext: a < b")
+        self.assertEqual(cells[a_old], 'old < new & "q"\nline two')
+        mhead = {c.value: c.column for c in wb["Milestones"][1]}
+        self.assertEqual([wb["Milestones"].cell(r, mhead["Description"]).value for r in range(2, wb["Milestones"].max_row + 1) if wb["Milestones"].cell(r, 1).value == demo.milestone], ["Scope bold"])
+        plan = xi.read_workbook(demo.store, path, "ABC", state_path=state)
+        self.assertEqual([c for c in plan.changes if c.kind != "unchanged"], [], "the words round trip with no false change")
+        edit(path, "Actions", a_new, **{"Latest update": "Rewritten in Excel"})
+        plan = xi.read_workbook(demo.store, path, "ABC", state_path=state)
+        self.assertEqual([c.id for c in plan.changes if c.kind == "changed"], [a_new], "a real edit is staged, and only that one")
+
+
 class Reading(RoundTrip):
     def test_every_exported_label_reads_back_as_a_column_a_derived_field_or_labels(self):
         for table, labels in excel.COLUMN_OF.items():
