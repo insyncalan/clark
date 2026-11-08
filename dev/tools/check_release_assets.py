@@ -22,6 +22,7 @@ Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh mi
 60 seconds, or an unreadable answer).
 The pure check is `problems(releases, tags, notes)`, tested with made-up data.
 """
+import datetime
 import json
 import os
 import re
@@ -73,11 +74,32 @@ def _asset(r, name):
     return None
 
 
+def _utc(value):
+    """A GitHub time (or a bare date) as an aware UTC moment; None for anything that is not a string or does not parse."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        moment = datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return moment.replace(tzinfo=datetime.timezone.utc) if moment.tzinfo is None else moment.astimezone(datetime.timezone.utc)
+
+
+def _published_by(published_at, limit):
+    """True only when the release was published at or before `limit`, compared as moments in UTC. Fails closed: a missing,
+    non-string or unreadable time counts as later, so the release is asked for its .sig and nothing crashes."""
+    then, bound = _utc(published_at), _utc(limit)
+    return then is not None and bound is not None and then <= bound
+
+
 def _signature_lines(r, tag, want, notes, fetch, key, named=True):
     """The lines for a release whose .sig is missing or does not verify against the release key (none while the key is the placeholder)."""
     if not updates.signature_required(key):
         return []
-    if not named and FIRST_SIGNED and (r.get("published_at") or "~") <= FIRST_SIGNED:
+    if not named and FIRST_SIGNED and _published_by(r.get("published_at"), FIRST_SIGNED):
         return []
     sig_name = want + updates.SIGNATURE_SUFFIX
     sig, zipped = _asset(r, sig_name), _asset(r, want)
@@ -128,7 +150,7 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
         out.append(f"{tag}: the SHA-256 in the release text is not the zip's. GitHub says the zip {want} is {own}. Edit the "
                    f"release text on GitHub and put that line in place of the wrong one (dev/RELEASING.md step 9).")
     attached = max((a.get("created_at") or "" for a in r.get("assets", []) if a.get("name") == want), default="")
-    if r.get("published_at") and attached > r["published_at"]:
+    if isinstance(r.get("published_at"), str) and r["published_at"] and attached > r["published_at"]:     # a time that is not text cannot be compared: no crash
         out.append(f"{tag}: the zip was attached after the release was published. The zip must be attached to the draft and "
                    f"launched for real first, then the release published (dev/RELEASING.md steps 8 to 19). Do not publish "
                    f"the next release until you have followed them in that order.")

@@ -350,6 +350,25 @@ class FirstSigned(unittest.TestCase):
     def test_a_release_published_before_the_key_went_live_needs_no_sig(self):
         self.assertEqual(self.check([self.release("v0.5.0", "2026-11-02T10:00:00Z")]), [])
 
+    def test_an_offset_time_is_compared_as_the_moment_it_is(self):
+        # 2026-11-05T02:00:00+04:00 is 2026-11-04T22:00:00Z: before the key went live, so no sig. As a raw string it sorts after.
+        self.assertEqual(self.check([self.release("v0.5.0", "2026-11-05T02:00:00+04:00")]), [])
+        # 2026-11-04T22:00:00-04:00 is 2026-11-05T02:00:00Z: after, so the sig is asked (raw string sorts before).
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-04T22:00:00-04:00")])), 1)
+
+    def test_a_bare_date_is_midnight_utc(self):
+        self.assertEqual(self.check([self.release("v0.5.0", "2026-11-04")]), [])
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-06")])), 1)
+
+    def test_a_time_that_is_not_a_time_fails_closed_and_does_not_crash(self):
+        for bad in (20261104, ["2026-11-04T00:00:00Z"], {"a": 1}, "yesterday", "", None, 1.5):
+            with self.subTest(bad=bad):
+                self.assertEqual(len(self.check([self.release("v0.5.0", bad)])), 1)
+
+    def test_exactly_the_moment_the_key_went_live_is_exempt_and_one_second_later_is_not(self):
+        self.assertEqual(self.check([self.release("v0.5.0", self.LIVE)]), [])
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-05T00:00:01Z")])), 1)
+
     def test_a_release_published_after_the_key_went_live_needs_its_sig(self):
         out = self.check([self.release("v0.6.0", "2026-11-06T10:00:00Z")])
         self.assertEqual(len(out), 1)
