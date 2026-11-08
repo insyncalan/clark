@@ -78,7 +78,7 @@ FAMILIES = {
 
 ORDINARY = (        # names, ids and addresses that must never be refused (a refusal drops the whole file)
     "Project_Tulip_Phase2_Rev03_v2", "Tulip_Phase2_Rev03_v2_Final", "Site_Survey_Rev03_v2_2024Q4",
-    "Gantt_Phase2_Rev03_v2_Jan2025", "Phase2_Rev03_Cost_Estimate_V2", "Budget_Q4_2024_Rev3_Approved1",
+    "Gantt_Phase2_Rev03_v2_Jan2025", "Phase2_Rev03_Cost_Estimate_V2", "Budget_Q4_2024_Rev3_Approved1", "tt_Phase2_Rev03_v2_Jan2025", "S2_Rev03_v2_2024Q4_Jan2025",
     "See Project_Tulip_Phase2_Rev03_v2.xlsx for details", "TUL-A-002_Rev3_Final_2024-11-08.xlsx",
     "Project-Tulip-Phase2-Rev03-v2-Final", "Meeting-Notes-Tulip-Phase2-Rev03-v2", "Tulip_Phase2_Rev03_Site_Survey_Q4",
     "Created 2024-11-08T10:15:30.123456Z by the site team", "Updated 2024-11-08T10:15:30+00:00 and 2024-11-09T11:16:31-05:00",

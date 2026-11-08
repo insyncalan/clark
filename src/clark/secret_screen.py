@@ -171,13 +171,13 @@ def _clean(plain):
 
 def _name_like(run):
     """Whether a run joined by _ or - reads as a name (a file, a project, a revision) and not as a key: it has at least three parts, no part is a
-    long one with the look of a random key (a key's own pieces are), and either most parts are plain words or one part is a word of three letters or more (Tulip, Final, Jan)."""
+    long one with the look of a random key (a key's own pieces are), and either most parts are plain words or one part is a word of three letters or more, perhaps with a number after it (Tulip, Final, Rev03, Jan2025)."""
     parts = [p for p in re.split(r"[-_]+", run) if p]
     if len(parts) < 3:
         return False
     if any(len(p) >= 12 and _random_look(p) for p in parts):
         return False
-    word = [bool(re.fullmatch(r"[A-Z]?[a-z]{3,}|[A-Z]{3,}", p)) for p in parts]
+    word = [bool(re.fullmatch(r"([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,})\d{0,4}", p)) for p in parts]
     plain = [p.isalpha() or p.isdigit() for p in parts]
     return any(word) or sum(plain) * 2 > len(parts)
 
