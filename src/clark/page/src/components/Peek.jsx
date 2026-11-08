@@ -55,8 +55,8 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
 export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
-  // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"), here and in a published file.
-  const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) && row.priority ? colourOf(row.priority).word : "";
+  // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
+  const kept = (row.kind === "risk" || row.kind === "issue") && !isOpen(row) ? colourOf(row.priority).word : "";
   return (
     <dl class="pk-fields">
       <Row name="Type">{KIND_WORDS[row.kind] || row.kind}</Row>
