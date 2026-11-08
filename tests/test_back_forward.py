@@ -16,6 +16,7 @@ import json
 import os
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -53,11 +54,15 @@ class Editor(unittest.TestCase):
             st.create("projects", {"code": "XYZ", "name": "Second Programme", "health": "On track"})
         self.demo.action(description="Agree the cut-over plan", owner="Sam Rivers")
         self.sent = []
+        self.failure = None          # a function (req) -> (status, body): clark refuses the save on purpose
+        self.slow = 0                # seconds a save takes to be answered
 
         def seam(real, which):
             def call(req):
                 self.sent.append(which)
-                return real(req)
+                if self.slow:
+                    time.sleep(self.slow)
+                return self.failure(req) if self.failure else real(req)
             return call
         self.s = real_server(self.store.path, self.store.data_for, page_html=lambda: testpage.html(), seam=seam)
         self.addCleanup(self.s.close)
@@ -180,6 +185,48 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.sent, ["change", "undo"])
             self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "the carried message is shown once and cleared")
             self.no_errors()
+
+    def stays(self, action, what, problem=None):
+        """#944: the typed title could not be saved (`self.failure`, or too slow): the page stays, in its project, at its address, keeps the
+        field and says the problem; nothing is carried and nothing is loaded."""
+        self.visit(self.cdp, "?project=ABC#dashboard&p=ABC")
+        self.edit()
+        self.js("window.__before = 1")
+        first = self.js("document.querySelector('.secs > .sec').dataset.id")
+        self.type_title(first, "Typed, then refused")
+        abc = self.titles("ABC")
+        n = self.js("history.length")
+        self.js(action)
+        self.until("!!document.querySelector('.toast.problem')", "the problem is said: " + what, 20)
+        time.sleep(1.5)
+        self.assertEqual(self.js("window.__before"), 1, "the same page: " + what)
+        self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
+        self.assertEqual(self.js("new URLSearchParams(location.search).get('project')"), "ABC")
+        self.assertEqual(self.js("clarkPage.project()"), "ABC")
+        self.assertEqual(self.js("location.hash"), "#dashboard&p=ABC", "the address names the open project again")
+        self.assertEqual(self.titles("ABC"), abc, "nothing was saved")
+        self.assertIsNone(self.js("sessionStorage.getItem('clark-toast-carried')"), "nothing is carried")
+        if problem:
+            self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), problem)
+        return n
+
+    def test_a_refused_save_keeps_the_page_when_another_project_is_chosen(self):
+        self.failure = lambda req: (503, {"ok": False})
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("clarkPage.setProject('XYZ')", "project chosen")
+
+    def test_a_refused_save_keeps_the_page_when_an_address_for_another_project_is_typed(self):
+        self.failure = lambda req: (400, {"ok": False, "message": "no"})
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
+
+    def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
+        self.slow = 11
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.stays("clarkPage.setProject('XYZ')", "too slow")
 
     def test_a_carried_message_that_is_not_ours_is_not_shown_and_is_cleared(self):      # #944
         with chrome() as cdp:

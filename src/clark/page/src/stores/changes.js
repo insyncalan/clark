@@ -2,8 +2,8 @@
 // A change is sent as it is; the page never edits its own copy. It redraws from the sections the reply carries, so what is on
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
-import { data, project, reread } from "./report.js";
-import { busy, beforeReload } from "./leave.js";
+import { data, project, reread, plainChange } from "./report.js";
+import { busy, beforeReload, stayed, trouble } from "./leave.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
 import { isProject } from "../router.js";
 import { flashed } from "./wordsState.js";
@@ -35,6 +35,7 @@ export function say(kind, text, undo = null, code = project.value) {
     undoable.push({ step: undo, code });
     if (undoable.length > MAX_KEPT) { undoable.shift(); }
   }
+  if (kind === "problem") trouble.n++;
   clearTimeout(timer);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
@@ -64,6 +65,7 @@ function takeCarried() {
 }
 busy.push(() => tail);                    // report.js waits for what is still being saved before it loads another project
 beforeReload.push(carry);
+stayed.push((late) => { if (late) say("problem", plainChange(0)); });      // a save still not answered: the page stays and says so; a failed one has said why already
 takeCarried();
 
 export function dismiss() {

@@ -10,7 +10,7 @@ import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
 import { useFileStyle } from "./style.js";
-import { leaving, saved, beforeReload } from "./leave.js";
+import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
@@ -35,8 +35,14 @@ function reloadFor(s, wait = true) {
     if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return false;
     const url = "/?project=" + s.project + route.format(s);
     if (!wait) { location.replace(url); return true; }
+    const since = trouble.n;
     leaveField();
-    saved().then(() => { try { beforeReload.forEach((f) => f()); } catch (e) {} location.replace(url); }, () => location.replace(url));
+    // Only a save that worked lets the page go: a refused or slow one keeps the page, its field and the problem, and the address names the open project again.
+    saved(undefined, since).then((ok) => {
+      if (!ok) { route.navigate(where(), { replace: true }); return; }
+      try { beforeReload.forEach((f) => f()); } catch (e) {}
+      location.replace(url);
+    }, () => location.replace(url));
     return true;
   } catch (e) { return false; }
 }
@@ -240,8 +246,10 @@ export function setProject(code) {
 function loadProject(s) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
+  const since = trouble.n;
   leaveField();                                            // what is being typed is saved first, in its own project, and waited for
-  saved().then(() => fetch(url, { cache: "no-store" })).then((r) => {
+  saved(undefined, since).then((ok) => (ok ? fetch(url, { cache: "no-store" }) : null)).then((r) => {
+    if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
     if (!r.ok) { go(s); return; }
     try { beforeReload.forEach((f) => f()); } catch (e) {}
     location.assign(url);
