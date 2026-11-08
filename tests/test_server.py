@@ -1394,11 +1394,18 @@ class _Collect(__import__("logging").Handler):
             self.into.append(record.getMessage())
 
 
+NAVIGATING = "Inspected target navigated or closed"      # Chrome's answer to a call made while the page is navigating (seen on the hosted macOS runner)
+
+
 def wait(check, seconds=15):
     t0 = time.time()
     while time.time() - t0 < seconds:
-        if check():
-            return True
+        try:
+            if check():
+                return True
+        except RuntimeError as e:
+            if NAVIGATING not in str(e):          # a page that is navigating answers a poll with this: the next poll sees the new page
+                raise
         time.sleep(0.2)
     return False
 
@@ -1430,6 +1437,34 @@ class WaitToast(unittest.TestCase):
     def test_no_toast_fails_with_a_plain_message(self):
         with self.assertRaisesRegex(AssertionError, "no toast appeared within 1 s"):
             wait_toast(lambda: "", 1)
+
+
+class WaitNavigating(unittest.TestCase):
+    """wait() waits out a poll that Chrome refuses because the page is navigating, and still fails on any other error."""
+
+    def test_a_poll_made_while_the_page_navigates_is_tried_again(self):
+        answers = iter([RuntimeError({"code": -32000, "message": NAVIGATING}), RuntimeError({"code": -32000, "message": NAVIGATING}), True])
+
+        def check():
+            a = next(answers)
+            if isinstance(a, Exception):
+                raise a
+            return a
+
+        self.assertTrue(wait(check, 5))
+
+    def test_any_other_error_still_fails(self):
+        def check():
+            raise RuntimeError({"code": -32000, "message": "Cannot find context with specified id"})
+
+        with self.assertRaises(RuntimeError):
+            wait(check, 5)
+
+    def test_a_page_that_never_settles_times_out_false(self):
+        def check():
+            raise RuntimeError({"code": -32000, "message": NAVIGATING})
+
+        self.assertFalse(wait(check, 1))
 
 
 class _Pipe:
