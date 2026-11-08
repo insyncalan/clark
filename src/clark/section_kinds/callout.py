@@ -1,18 +1,21 @@
 """Callout (H1, #96): the content of a section of type 'callout': one thing the reader must see. READY.
 
 Stored (canonical JSON, checked by section_bodies before and after this): {"v": 1, "tone": "info" | "decision" | "warning",
-"title": text, "paras": [text, ...]}. Typed only: it holds no reference to a work item, so nothing here can leak a hidden one.
+"title": text, "paras": [text, ...], "html": HTML}. `html` is the words as the one editor writes them (sanitise.clean_html, at most HTML_MAX characters once cleaned); `paras` is what
+older clarks wrote, still read and shown when there is no `html`. The editor saves `html` and empties `paras`. Typed only: it holds no reference to a work item, so nothing here can leak a hidden one.
 Fields are picked by name and rebuilt; an unknown field is dropped. A callout with no title and no paragraph is empty: it
 starts as '' (no content) and stays out of the published file.
 """
+from clark.section_kinds import doclinks
 from clark.section_kinds.base import Bad
 
 READY = True
-LIMIT = 8192
+LIMIT = 32768
 EMPTY = ""
 
 TONES = ("info", "decision", "warning")
 TITLE_MAX, PARA_MAX, PARAS_MAX = 120, 600, 6
+HTML_MAX = PARA_MAX * PARAS_MAX
 
 NOT_OBJECT = "A callout must be one set of fields. Check it and try again."
 BAD_FIELD = "A callout field has the wrong kind of value. Check it and try again."
@@ -49,11 +52,17 @@ def check(value, rules):
     paras = [p for p in (_text(p, PARA_MAX, TOO_LONG_PARA) for p in paras) if p]
     if len(paras) > PARAS_MAX:
         raise Bad(TOO_MANY)
-    return {"v": 1, "tone": tone, "title": title, "paras": paras}
+    out = {"v": 1, "tone": tone, "title": title, "paras": paras}
+    if value.get("html"):
+        html = doclinks.rich(value["html"], rules, HTML_MAX, TOO_LONG_PARA)
+        if html:
+            out["html"] = html
+    return out
 
 
 def published(value, ctx):
     """What the file carries: {"content": {tone, title, paras}}, or None when there is nothing to show."""
-    if not value.get("title") and not value.get("paras"):
+    html = value.get("html")       # cleaned by check, and a publish checks the stored content again first
+    if not value.get("title") and not value.get("paras") and not html:
         return None
-    return {"content": {"tone": value["tone"], "title": value["title"], "paras": list(value["paras"])}}
+    return {"content": {"tone": value["tone"], "title": value["title"], "paras": list(value["paras"]), **({"html": html} if html else {})}}

@@ -132,6 +132,11 @@ class Source(unittest.TestCase):
         self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
         self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
 
+    def test_the_hover_only_legend_button_is_not_printed(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        hide = re.search(r"((?:html\.print-all [^{,]+,\s*)+html\.print-all [^{,]+)\{\s*display: none;", block).group(1)
+        self.assertRegex(hide, r"html\.print-all \.mlg(?![\w-])", "the Legend help control is not content")
+
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
@@ -172,9 +177,10 @@ class Source(unittest.TestCase):
 
     def test_the_printed_page_comes_from_one_function_in_the_publish_state(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
-        self.assertEqual(state.count("export async function printSource("), 1)
-        self.assertEqual(state.count("previewRequest("), 1, "the preview is asked for in that one place")
-        self.assertIn("printSource(project.value, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
+        self.assertEqual(state.count("export function printSource("), 1)
+        self.assertNotIn("previewRequest", state, "the print tab is the published bytes (item 465), not a second build")
+        self.assertIn("body.print = true", state)
+        self.assertIn("printSource(r.body, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
 
     def test_the_box_sends_no_pdf_key_and_has_no_pdf_clash_keys(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
@@ -304,8 +310,9 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!document.getElementById('print-foot')", sid)), "taken off after the print")
 
     def test_the_printed_preview_shows_the_number_just_published_not_the_next(self):
-        # The Publish box prints /api/preview, which is built with the next number: right after Publication 1 is made, the preview's
-        # page carries 2. The box puts the number it was given on the address (&n=1), and that is the one the foot must show.
+        # The Publish box prints the bytes just published (item 465: the publish reply's print_url), not a second build. This test stands
+        # a stale page in at /preview that carries the next number, 2, and the address carries the number it was given (&n=1): that is the
+        # one the foot must show.
         text = self.path.read_text(encoding="utf-8")
         own = re.search(r',"publication":\{"n":1\}', text)
         self.assertTrue(own, "the published file carries its own number, 1")

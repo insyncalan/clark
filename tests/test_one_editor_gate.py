@@ -74,6 +74,15 @@ class Source(unittest.TestCase):
         for word in ("createEditor", "cxed", "prosemirror", "SanitiseError"):
             self.assertNotIn(word, scripts, word)
 
+    def test_the_template_fields_have_no_plain_box_for_their_words(self):
+        """Row 1005: the words on a Link preview card, under a One document file and in a Callout are the one editor (RichField)."""
+        for rel in ("edit/templates/LinkCard.jsx", "edit/templates/OneDoc.jsx", "edit/templates/Callout.jsx"):
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertNotIn("<textarea", text, rel)
+            self.assertIn("<RichField", text, rel)
+        note = (PAGE_SRC / "edit" / "templates" / "noteEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("<textarea", note, "the typed notes' shared field is one line now; the words are RichField")
+
     def test_the_built_pages_are_current(self):
         self.assertEqual(build_page.main(["--check"]), 0)
 
@@ -185,6 +194,33 @@ class PageGate(unittest.TestCase):
                              js("document.querySelectorAll('.ProseMirror').length + document.querySelectorAll('[contenteditable=plaintext-only]').length"),
                              "no contenteditable but the editors' own and the section titles")
             self.assertEqual(js("document.querySelectorAll('style').length"), before, "a mount adds no <style>")
+
+    def test_every_template_field_opens_a_clark_editor_and_nothing_else(self):
+        """Row 1005: the template fields' words (linkcard, onedoc, callout) open clarkEditor() in Edit, hold their old plain lines, and
+        add no plain box and no contenteditable of their own."""
+        import json
+        from clark import store as store_module
+        file = {"name": "Signed SOW.pdf", "rel": "Report files/Signed SOW.pdf", "bytes": 2048}
+        content = {"linkcard": {"href": "https://example.org/x", "text": ["Old <b>card</b> line"]}, "onedoc": {"file": file, "text": ["Old <b>doc</b> line"]},
+                   "callout": {"tone": "info", "title": "Fictional", "paras": ["Old <b>callout</b> line"]}}
+        refs = {}
+        for kind, value in content.items():
+            with self.store.step("dashboard", USER) as st:
+                refs[kind] = st.create("report_sections", {"project": "ABC", "type": kind, "title": "Fictional " + kind, "sort_order": 990})
+            with self.store.step("dashboard", USER) as st:
+                st.update("report_sections", refs[kind], {"body": store_module.check_section_body(kind, json.dumps({"v": 1, **value}))})
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            for kind, ref in refs.items():
+                sec = f"[data-id=\"{ref}\"]"
+                self.assertTrue(wait(lambda: js(f"!!document.querySelector('{sec} [data-rich={kind}]')"), 10), kind)
+                self.assertEqual(js(f"document.querySelectorAll('{sec} textarea').length"), 0, kind)
+                js(f"document.querySelector('{sec} [data-rich]').click()")
+                self.assertTrue(wait(lambda: js(f"!!document.querySelector('{sec} .ProseMirror')"), 10), kind)
+                self.assertEqual(js(f"typeof document.querySelector('{sec} .ProseMirror').cxed.html"), "function", kind)
+                self.assertIn("Old <b>", js(f"document.querySelector('{sec} .ProseMirror').textContent"), "the old plain line opens as text")
+                self.assertEqual(js(f"document.querySelectorAll('{sec} .ProseMirror [contenteditable], {sec} b').length"), 0, kind)
 
     def test_the_at_a_glance_reason_opens_the_one_editor_with_its_menu(self):          # item 1005
         with self.store.step("dashboard", USER) as st:

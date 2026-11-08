@@ -8,6 +8,7 @@ weekend bar's two moves, each one request and one Undo; View has none of it. In 
 and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or more on what it is drawn over.
 """
 import json
+import time
 import unittest
 from _editor_checks import for_url
 from datetime import datetime, timezone
@@ -19,7 +20,7 @@ from clark import changes, sneak  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, where  # noqa: E402
 
 OVERDUE, WEEKEND = "TUL-A-002", "TUL-A-006"       # demo data at 28-10-2026 (a Wednesday): due 22-10-2026, and Saturday 07-11-2026
 
@@ -317,6 +318,26 @@ class Browser(unittest.TestCase):
                 self.assertIn("Latest update drafted from the item's own fields.", self.toast(cdp, sid))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').textContent", sid) == a["latest_update"]))
+
+    def test_pressing_draft_with_the_box_open_does_not_save_the_typed_text_first(self):
+        """Row 549, on the one rich editor: a press on Draft must not move the focus out of the box. Browsers that give a pressed button
+        focus (Chrome) or none at all (Safari, Firefox) both make the box's blur save the typed text before the click, so the click
+        then writes a second change over it. A real press and release must send the draft and nothing else."""
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Typed then Draft pressed")
+            x, y = where(cdp, sid, "[data-pk-draft]")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+            cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
+            self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the box keeps the focus while Draft is held down")
+            time.sleep(0.4)
+            self.assertEqual(sent, [], "holding Draft down saves nothing")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+            self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+            time.sleep(0.4)
+            self.assertEqual([r["changes"] for r in sent if "Typed" in json.dumps(r["changes"])], [], "the typed text was never saved")
+            self.assertEqual(len(sent), 1, "one request: the draft")
 
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
