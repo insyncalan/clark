@@ -52,10 +52,12 @@ LIMITS = {NEEDS: 262144, TRACKER: 262144, **{t: m.LIMIT for t, m in TEMPLATES.it
 class Rules:
     """The store's text rules, handed in (this module has none of its own, so there is one set of rules for text).
     plain(text): True when the text can be saved and a person can read it (no control, format, private-use, surrogate or
-    separator character). visible(text): True when it also holds at least one visible letter, number or symbol."""
+    separator character). visible(text): True when it also holds at least one visible letter, number or symbol.
+    html(text): the words the one editor wrote (HTML) kept through the rich-text cleaner, '' when there is nothing to read in them,
+    or ValueError when the cleaner refuses it (the template fields that hold the editor's words use it: section_kinds/doclinks.rich)."""
 
-    def __init__(self, plain, visible):
-        self.plain, self.visible = plain, visible
+    def __init__(self, plain, visible, html=None):
+        self.plain, self.visible, self.html = plain, visible, html
 
 
 NOT_TEXT = "That content must be a list or an object, sent as text."

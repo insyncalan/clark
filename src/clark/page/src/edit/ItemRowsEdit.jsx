@@ -121,7 +121,7 @@ function AddLine({ type }) {
 
 export function ItemRowsEdit({ type }) {
   const d = data.value;
-  const [pick, setPick] = useState(false);
+  const [pick, setPick] = useState(false), button = useRef(null);
   if (!d) return null;
   const today = todayOf(), words = wordings(d), shown = rowsFor(type);
   const all = candidates(type), canPick = canShow(type, d, all);
@@ -130,7 +130,8 @@ export function ItemRowsEdit({ type }) {
   const text = type === "decisions" ? "decision" : "description";                            // the picker reads the client's wording, never the team's own text
   const here = { [type]: (d[type] || []).filter((r) => left.some((x) => x.id === r.id)).map((r) => ({ ...r, [text]: words[r.id] })) };   // and offers this section's kind only
   const n = idsOf(pickable(here, hidden, "", [])).length;
-  const add = (ids) => change({ kind: "report_hidden", op: "pick", ids, place: "report" }, ids.length === 1 ? `${ids[0]} is on the page.` : `${ids.length} items are on the page.`).then((r) => { if (r) setPick(false); });
+  const back = () => { setPick(false); setTimeout(() => { if (button.current && button.current.isConnected) button.current.focus(); }, 0); };   // the picker's search box leaves with it; focus goes to the button if it is still there
+  const add = (ids) => change({ kind: "report_hidden", op: "pick", ids, place: "report" }, ids.length === 1 ? `${ids[0]} is on the page.` : `${ids.length} items are on the page.`).then((r) => { if (r) back(); });
   return (
     <div class="item-rows-edit" data-edit-only data-item-rows={type}>
       <ul class="wl">
@@ -138,8 +139,8 @@ export function ItemRowsEdit({ type }) {
         <AddLine type={type} />
       </ul>
       <p class="note" data-showing>{`Showing ${shown.length} of ${all.length}. Select any part to change it; the ID opens the full item; the eye takes it off the page.`}</p>
-      {n > 0 && !pick ? <button type="button" class="link add-from" data-addfrom={type} onClick={() => setPick(true)}>{`+ Add from your project record (${n})`}</button> : null}
-      {pick ? <Picker data={here} hiddenIds={hidden} onPage={[]} onAdd={add} onClose={() => setPick(false)} /> : null}
+      {n > 0 && !pick ? <button type="button" class="link add-from" data-addfrom={type} ref={button} onClick={() => setPick(true)}>{`+ Add from your project record (${n})`}</button> : null}
+      {pick ? <Picker data={here} hiddenIds={hidden} onPage={[]} onAdd={add} onClose={back} /> : null}
     </div>
   );
 }

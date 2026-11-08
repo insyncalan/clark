@@ -43,7 +43,7 @@ class Fake:
         self.mode = "ok"
         self.release = threading.Event()
 
-    def __call__(self, code):
+    def __call__(self, code, archived=None):
         if self.mode == "keyerror":
             raise KeyError("secret/path/name")
         if self.mode == "none":
@@ -265,7 +265,7 @@ class Words(unittest.TestCase):
     def test_the_empty_pages_say_why_and_name_one_control(self):
         empty = {"project": {"code": "EMP", "name": "Empty Project"}, "milestones": [], "workstreams": [], "actions": [], "raid": [],
                  "decisions": [], "use_cases": [], "links": [], "labels": {}, "report_sections": []}
-        s = Running(data_for=lambda code: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         want = {"#dashboard&p=EMP": "This report has no sections yet. Switch to Edit to add one.",
                 "#work&p=EMP": "This project has no work items yet. Use Add item to add the first.",
