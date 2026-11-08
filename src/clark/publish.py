@@ -539,7 +539,7 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
-            if not str(r.get("client_message") or "").strip():       # row 560: no client wording, title only
+            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
                 for f in WORDLESS_DROPS.get(k, ()):
                     c[f] = None
             for f in RICH.get(k, ()):
