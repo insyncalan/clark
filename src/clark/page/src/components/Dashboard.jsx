@@ -53,13 +53,16 @@ function nearestTop() {
   const line = bar ? bar.getBoundingClientRect().bottom : 0;
   let best = null;
   let most = 0;
+  let below = null;
   for (const el of document.querySelectorAll(".secs > .sec:not(.is-hidden)")) {
     const r = el.getBoundingClientRect();
     const seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, line);
     if (seen >= MIN_SEEN) return { id: el.dataset.id, top: r.top };
     if (seen > most) { most = seen; best = { id: el.dataset.id, top: r.top }; }
+    if (!below && r.top >= line) below = { id: el.dataset.id, top: r.top };
   }
-  return best;
+  // Row 699: a dimmed (hidden) section can fill the screen, and View drops it. Then hold the first section that stays, even below the fold.
+  return best || below;
 }
 
 export function Dashboard({ tools }) {
