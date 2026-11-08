@@ -50,6 +50,8 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 /* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
 .cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.cover { position: relative; overflow: hidden; isolation: isolate; }      /* row 1003: the brand picture is laid behind the band, filling it (the prototype's cover::before); --image-cover is none without an own look, so the plain band is unchanged */
+.cover::before { content: ""; position: absolute; inset: 0 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .85; }
 .frame .cover h1 { margin: 0 0 6px; color: var(--white); }
 .cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
@@ -695,12 +697,10 @@ input.sec-title { width: 100%; }
 table.items tbody tr { cursor: pointer; }
 table.items tbody tr:hover { background: var(--grey-50); }
 table.items tbody tr:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
-/* Selecting several: not by colour alone. A picked row or card has a tick before its title and a border; the tint is extra. */
+/* Selecting several: not by colour alone. A picked row or card has a border, and a row a bar at its left edge; the tint is extra (row 807: no check mark on either). */
 table.items tbody tr.picked { background: color-mix(in srgb, var(--brand-blue-tint) 60%, var(--surface)); box-shadow: inset 4px 0 0 var(--brand-blue), inset 0 0 0 1px var(--brand-blue); }
 table.items tbody tr.picked:hover { background: var(--brand-blue-tint); }
 table.items tbody tr.picked:focus-visible { outline-offset: -3px; }
-.tick { display: inline-grid; place-items: center; width: 16px; height: 16px; margin-right: 6px; vertical-align: -2px; border-radius: 50%; background: var(--brand-blue); color: var(--surface); }
-.tick .i { width: 11px; height: 11px; stroke-width: 3; }
 .gtick-hit { display: inline-grid; place-items: center; width: 24px; height: 24px; margin-right: var(--space-1); vertical-align: middle; flex: none; cursor: pointer; }   /* the box is 16 px; the label around it is the 24 px target */
 .gtick { width: 16px; height: 16px; margin: 0; accent-color: var(--brand-blue); cursor: pointer; }
 .gtick:disabled { cursor: not-allowed; opacity: .45; }
@@ -1967,6 +1967,28 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
+  /* row 990: the Gantt on paper. No toolbar, menu or hover control; the chart and the table are drawn whole to the page width (no box to scroll, nothing sticky or fixed); the bars, the Today flag and the swatches keep their colour; a row is not split across two pages. */
+  html.print-all .gp-tools, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz, html.print-all .gt-cr { display: none; }
+  html.print-all .gt-full { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; background: none; }
+  html.print-all .gt-gx, html.print-all .gt-full .gt-gx { overflow: clip; max-width: 100%; max-height: none; height: auto !important; }
+  html.print-all .gt-scroll { overflow: visible; max-height: none; }
+  html.print-all .gt-lhead, html.print-all .gt-rhead, html.print-all .gt-left { position: relative; }
+  html.print-all .gt thead th, html.print-all .gt th.gt-fz, html.print-all .gt td.gt-fz, html.print-all .gt .gt-rh, html.print-all .gt .gt-rh0 { position: static; }
+  html.print-all .gt-b, html.print-all .gt-b > i, html.print-all .gt-b-phase, html.print-all .gt-ms, html.print-all .gt-tflag, html.print-all .gt-tstem, html.print-all .gt-sw, html.print-all .gt-dep { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  html.print-all .gt-ln, html.print-all .gt-rw, html.print-all .gt-legend { break-inside: avoid; }
+  /* The print block's "html.print-all button { background: none; border: 0; padding: 0 }" (above) outranks the bars, the milestones and the Today flag, which are role=button elements and buttons: their fills, borders and padding are given back here, one step stronger, so the paper shows the bars. */
+  html.print-all .gt-b.gt-b[role=button] { background: var(--gt-task); padding: 0 var(--space-2); color: var(--text-on-brand); }
+  html.print-all .gt-b.gt-b-phase.gt-b-phase { background: var(--brand-navy); border: 1px solid var(--grey-500); padding: 0 var(--space-2); }
+  html.print-all .gt-ms.gt-ms { background: var(--status-amber); border: 2px solid var(--status-amber-text); }
+  html.print-all .gt-ms.gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
+  html.print-all .gt-tflag.gt-tflag { background: var(--status-red-tint); border: 1px solid var(--status-red); padding: 2px 10px; color: var(--status-red-text); }
+  html.print-all .gt-mslab.gt-flip { --gt-room: none; max-width: var(--gt-room); overflow: hidden; text-overflow: ellipsis; }   /* a word placed left of its bar stays on one line inside the room left of it and ends in an ellipsis, never over the left columns (GanttChart.jsx sets --gt-room on the word itself, which wins over the `none` here; the left columns carry the full name) */
+  html.print-all .gt-in { width: auto; min-width: 0; }
+  /* the .gt-gx box clips (above): the canvas keeps its drawn width (labels beside a bar are placed from its right edge); only the empty tail past the last day is clipped at the page edge */
+  html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
+  html.print-all .gt col { width: auto !important; }
+  html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: anywhere; overflow: visible; height: auto; padding-right: 4px; }
+  html.print-all .gt tr { break-inside: avoid; }
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
