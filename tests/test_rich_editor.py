@@ -264,7 +264,7 @@ class Ui(unittest.TestCase):
         self.assertTrue(self.h.until("!!document.querySelector('.rt-bubble')"))
         self.h.ev("document.querySelector('.rt-bubble [aria-label=Bold]').click(); true")
         self.assertTrue(self.h.until("!!document.querySelector('.ProseMirror strong')"))
-        self.h.key("ArrowRight", 0, "ArrowRight", 39)
+        self.h.key("ArrowRight", 0, "ArrowRight", 39, commands=["moveRight"])
         self.assertTrue(self.h.until("!document.querySelector('.rt-bubble')"))
 
     def test_the_slash_menu_inserts_a_block(self):
