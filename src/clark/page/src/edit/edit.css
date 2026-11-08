@@ -778,6 +778,8 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects table.proj-table { table-layout: auto; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
 .projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
+/* item 842: with the Settings links down the left at exactly 900 px the cards are 596 px wide and the table (Open, Edit, Archive in one line) is 619 px: below 960 px the buttons may wrap onto a second line instead of making the page scroll sideways. */
+@media (max-width: 960px) { .projects table.proj-table td.acts { white-space: normal; } .projects table.proj-table td.acts .btn { margin: 2px 0 2px 8px; } }
 @media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
