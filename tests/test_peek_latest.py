@@ -339,6 +339,21 @@ class Browser(unittest.TestCase):
             self.assertEqual([r["changes"] for r in sent if "Typed" in json.dumps(r["changes"])], [], "the typed text was never saved")
             self.assertEqual(len(sent), 1, "one request: the draft")
 
+    def test_a_real_click_on_draft_with_the_box_open_keeps_the_caret_in_the_editor(self):
+        """Row 549 follow-up: Draft remounts the editor after the mouse is released; the focus must come back to the editor, not BODY."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                x, y = where(cdp, sid, "[data-pk-draft]")
+                for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15),
+                                "the editor holds the focus after Draft (not BODY): " + str(cdp.js("document.activeElement.tagName", sid)))
+                time.sleep(0.5)
+                self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "and it stays there")
+
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
