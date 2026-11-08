@@ -2908,6 +2908,34 @@ def cut_whole_steps(events, cap):
     return [e for e in events if e["step"] in keep]
 
 
+EMAIL_NOTE_KEY = "sent:"             # row 983: the item_events item_id of an "I sent it" sentence, then the email_sent number
+EMAIL_NOTE_MAX = 300                 # item_events.src_ref's own limit
+EMAIL_NOTE_NAME_MAX = 100
+_HIDDEN_CATEGORIES = frozenset({"Cf", "Co", "Cs"})
+
+
+def _note_text(text):
+    """One plain line: line breaks and controls become spaces, hidden marks (bidi, zero width) go, white space is collapsed."""
+    flat = "".join(" " if unicodedata.category(c) in ("Cc", "Zl", "Zp") else "" if unicodedata.category(c) in _HIDDEN_CATEGORIES else c
+                   for c in str(text or ""))
+    return " ".join(flat.split())
+
+
+def email_note(name, day, subject):
+    """The one History sentence for "I sent it" (row 983): NEW words, ruled by the Head, exactly
+    `Emailed Pat Example on 29-10-2026, "Example Programme · ABC-A-004 · Chase: Order the laptops"`, or without the name when no
+    person is named. Never an address, never the body. A double quote inside the subject becomes a single one, and a subject too long
+    for src_ref is cut with an ellipsis, so the sentence always fits (300 characters) and has no line break."""
+    y, m, d = str(day).split("-")
+    who = _note_text(name)[:EMAIL_NOTE_NAME_MAX].rstrip()
+    lead = "Emailed " + (who + " " if who else "") + f"on {d}-{m}-{y}, \""      # NEW
+    what = _note_text(subject).replace('"', "'")
+    room = EMAIL_NOTE_MAX - len(lead) - 1
+    if len(what) > room:
+        what = what[:room - 1].rstrip() + "\u2026"
+    return lead + what + '"'
+
+
 class Store:
     """clark.db, written only through steps."""
 
@@ -3398,14 +3426,20 @@ class Store:
     EMAIL_MAX_IDS = 50
     EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
-    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None, person=None, subject=None):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
         was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
         anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
         id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
-        transaction. Returns the record's number."""
+        transaction. Returns the record's number.
+
+        Row 983: with a `subject` (the server's own, composed again from the ticks, never the page's) the one History sentence is
+        written once, in the same transaction, as an item_events row with no change (place "email", item_id "sent:<seq>", the
+        sentence in src_ref): an existing history store, no schema change, and the email_sent rows still hold ids, mode and day only. `person` is a
+        people id; the name in the sentence is that record's name now (a snapshot: a later rename does not rewrite it), and a
+        person who is not on file, or none, gives the sentence without a name. A press repeated inside the repeat window writes nothing more."""
         if not str(by_user or "").strip():
             raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
@@ -3423,10 +3457,10 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
-        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
-        if sent < now - timedelta(days=1):
+        server_day = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < server_day - timedelta(days=1):
             raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
-        if sent > now + timedelta(days=1):
+        if sent > server_day + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
@@ -3465,6 +3499,14 @@ class Store:
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            if isinstance(subject, str) and subject.strip():
+                name = ""
+                if isinstance(person, str) and person:
+                    found = self.con.execute("SELECT name FROM people WHERE id = ?", (person,)).fetchone()
+                    name = found["name"] if found else ""
+                self.con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                                 "VALUES (?, NULL, ?, NULL, 'change', 'dashboard', 'email', NULL, 'you', ?, NULL)",
+                                 (now(), EMAIL_NOTE_KEY + str(seq), email_note(name, day, subject)))
             self.con.execute("COMMIT")
             return seq
         except BaseException:
