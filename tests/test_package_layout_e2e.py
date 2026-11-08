@@ -1,7 +1,7 @@
 """The download's layout, end to end (issue 694): build the real zip, unzip it with the system's own unzip, and run it.
 
 One folder `clark` with the program files in the hidden `.app`; `bash clark.command --check` runs the doctor from there; the
-server starts through clark.command; the person's own system/branding folder (never in the zip) is found by the page code and
+server starts through clark.command; the person's own branding folder (never in the zip) is found by the page code and
 comes through an update byte for byte. Skips cleanly without python3, bash or unzip. Run: python3 dev/run_tests.py test_package_layout_e2e
 """
 import hashlib
@@ -93,7 +93,7 @@ class DownloadLayout(unittest.TestCase):
         self.assertEqual([], [p for p in self.clark.rglob("__pycache__")], "running it wrote no bytecode into the download")
 
     def test_the_page_code_finds_the_branding_beside_dot_app(self):
-        brand = self.clark / "system" / "branding"
+        brand = self.clark / "branding"
         self.addCleanup(shutil.rmtree, self.clark / "system", True)
         brand.mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
@@ -108,7 +108,7 @@ class DownloadLayout(unittest.TestCase):
 
     @unittest.skipUnless(MAC and shutil.which("lsof"), "the launcher is the Mac's; lsof names the server to stop")
     def test_the_server_starts_through_clark_command_and_serves_the_persons_branding(self):
-        brand = self.clark / "system" / "branding"
+        brand = self.clark / "branding"
         self.addCleanup(shutil.rmtree, self.clark / "system", True)
         brand.mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
@@ -126,7 +126,7 @@ class DownloadLayout(unittest.TestCase):
             self.assertTrue(json.loads(reply.read())["ok"])
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as reply:
             page = reply.read()
-        self.assertIn(b"--e2e-brand-mark: 694", page, "the page carries the tokens from system/branding beside .app")
+        self.assertIn(b"--e2e-brand-mark: 694", page, "the page carries the tokens from branding beside .app")
         self.assertTrue((data / "clark.db").is_file())
         self.assertFalse(list((self.clark / ".app").rglob("clark.db")), "no data was written inside the download")
 
@@ -146,7 +146,7 @@ class DownloadLayout(unittest.TestCase):
         """The real unzipped folder, a staged newer copy of it, and the update helper (its platform seams faked)."""
         app = self.tmp / "updating" / "clark"
         shutil.copytree(self.clark, app)
-        brand = app / "system" / "branding"
+        brand = app / "branding"
         (brand / "assets").mkdir(parents=True)
         (brand / "tokens.css").write_bytes(TOKENS)
         (brand / "assets" / "cover.png").write_bytes(b"\x89PNG my own cover")

@@ -1,7 +1,7 @@
 """Item 711 (4b): the workbook is drawn in the local brand's LIGHT values at export (excel_palette threaded through excel.py).
 
 Run: python3 dev/run_tests.py test_excel_brand_export
-Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from system/branding.
+Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from branding.
 """
 import shutil
 import tempfile

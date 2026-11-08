@@ -242,7 +242,9 @@ class Route(unittest.TestCase):
             self.assertNotRegex(text, r"url\(\s*[\"']?(?!data:)[^)]*\.(png|jpe?g|webp)", f.name)
             self.assertNotIn(PNG[8:20].decode("latin-1"), text)
         self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp"])
-        self.assertIn("system/branding/", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").split()
+        self.assertIn("/branding/", ignored)
+        self.assertIn("system/branding/", ignored)
 
 
 class Layering(unittest.TestCase):

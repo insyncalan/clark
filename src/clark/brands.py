@@ -1,4 +1,4 @@
-"""The brand library (#944 T2): brands live in system/branding/<id>/, come in from a checked zip, and go out again.
+"""The brand library (#944 T2): brands live in branding/<id>/, come in from a checked zip, and go out again.
 
 review(path, root) checks a brand zip and writes nothing; install(review_id, root, data) puts the reviewed brand in place
 (stage, check again, two renames); remove(id, root, data) and undo(root, data) take it out or put the last change back, each
@@ -164,7 +164,7 @@ def _write(brand_id):
 # --- the library --------------------------------------------------------------------------------------------------------
 
 def _branding(root):
-    return Path(root) / "system" / "branding"
+    return Path(root) / "branding"
 
 
 def _read_small(path, cap):
@@ -221,7 +221,7 @@ def _has_top_tokens(base):
 
 
 def installed(root):
-    """[{"id", "name", "version"}]: the folders of system/branding with a valid manifest naming themselves, plus local-brand
+    """[{"id", "name", "version"}]: the folders of branding/ with a valid manifest naming themselves, plus local-brand
     when a tokens.css sits at the top. Hidden folders and the legacy sub-folders are ignored. Read per Settings call."""
     base = _branding(root)
     out = []
@@ -248,7 +248,7 @@ def installed(root):
 
 def folder(root, brand_id):
     """Where a brand lives: GENERIC for generic, an unknown or removed brand and any id that isn't plain; the top folder for
-    local-brand; else system/branding/<id>. An id is matched against ID_RE and looked up as an installed brand, never joined
+    local-brand; else branding/<id>. An id is matched against ID_RE and looked up as an installed brand, never joined
     from request text."""
     if not isinstance(brand_id, str) or not ID_RE.fullmatch(brand_id) or brand_id in ("generic", "assets", "design-system"):
         return GENERIC
@@ -301,6 +301,91 @@ def recover(root):
         for name in names:
             if name.startswith(HIDDEN_NEW):
                 _rmtree(base / name)
+
+
+# --- the one-time copy from the old place (1.0.6) -------------------------------------------------------------------------
+
+OLD_PLACE = ("system", "branding")      # where 1.0.5 and earlier kept the brand folder; it is left exactly as it is (a return to 1.0.5 still finds it)
+COPY_STAGE = ".clark-branding-copying"  # the copy while it is being made: hidden, beside branding/, renamed into place only when whole
+COPY_JOURNAL = ".clark-branding-copy.json"   # written before the first byte is copied; its presence means a copy was cut short
+
+
+def _entry(folder, name):
+    """The real name of `name` in `folder` (letter case does not matter, as on a Mac disk), or None."""
+    try:
+        for n in os.listdir(folder):
+            if n.casefold() == name.casefold():
+                return n
+    except OSError:
+        pass
+    return None
+
+
+def _copy_into(src, dst):
+    """Copy a folder to a new place, links kept as links, never following one."""
+    os.mkdir(dst)
+    for name in sorted(os.listdir(src)):
+        s, d = os.path.join(src, name), os.path.join(dst, name)
+        mode = os.lstat(s).st_mode
+        if stat.S_ISLNK(mode):
+            os.symlink(os.readlink(s), d)
+        elif stat.S_ISDIR(mode):
+            _copy_into(s, d)
+        else:
+            shutil.copy2(s, d, follow_symlinks=False)
+
+
+def recover_copy(root):
+    """Put right a copy a crash cut short: only the hidden stage (a copy) and the journal are removed, never the old folder and never
+    branding/. The copy is then made again by copy_old_folder()."""
+    root = Path(root)
+    _rmtree(root / COPY_STAGE)
+    _rmtree(root / COPY_JOURNAL)
+
+
+def copy_old_folder(root):
+    """The one-time copy (1.0.6): when <root>/system/branding is a folder and <root>/branding is absent or an empty folder, the old folder
+    is copied to <root>/branding. Never overwrites (branding/ with anything in it, or a link or file of that name in any letter
+    case, wins and nothing is done), never deletes or changes the old folder, safe to run twice. The copy is made in a hidden stage
+    after a journal is written, and renamed into place only when whole, so branding/ is never half-made. Returns True when
+    branding/ was made now; False when nothing was to do or it could not be made (the next start tries again)."""
+    root = Path(root)
+    try:
+        with _mutex:
+            if os.path.lexists(root / COPY_JOURNAL) or os.path.lexists(root / COPY_STAGE):
+                recover_copy(root)
+            old_name = _entry(root / OLD_PLACE[0], OLD_PLACE[1]) if _entry(root, OLD_PLACE[0]) else None
+            if old_name is None:
+                return False
+            old = root / _entry(root, OLD_PLACE[0]) / old_name
+            if not stat.S_ISDIR(os.lstat(old).st_mode):          # a link or a file in the old place is not a folder to copy
+                return False
+            have = _entry(root, "branding")
+            if have is not None:
+                target = root / have
+                if not stat.S_ISDIR(os.lstat(target).st_mode) or os.listdir(target):
+                    return False                       # branding/ wins: a link, a file, or a folder with anything in it
+            else:
+                target = root / "branding"
+            stage = root / COPY_STAGE
+            journal, tmp = root / COPY_JOURNAL, root / (COPY_JOURNAL + ".tmp")
+            tmp.write_text(json.dumps({"from": "/".join(OLD_PLACE), "stage": COPY_STAGE}), encoding="utf-8")
+            os.replace(tmp, journal)
+            try:
+                _copy_into(old, stage)
+                if have is None and os.path.lexists(target):
+                    raise OSError("branding appeared while the copy was made")
+                if have is not None and os.listdir(target):
+                    raise OSError("branding was filled while the copy was made")
+                os.rename(stage, target)
+            except BaseException:
+                _rmtree(stage)
+                _rmtree(journal)
+                raise
+            _rmtree(journal)
+            return True
+    except OSError:
+        return False
 
 
 # --- reading a zip ------------------------------------------------------------------------------------------------------

@@ -6,7 +6,7 @@ The contract these tests pin for src/clark/brands.py (see the T2 test list):
   brands.in_use(brand_id) (a context manager a publish or export holds); brands.GENERIC; brands.DENY_WORDS;
   brands.clock (a function returning seconds, patched by tests); brands.after_write (a hook called with the staged folder
   after the files are written and before they are checked again); brands.BrandError with .key, .message, .detail.
-`root` holds system/branding/; `data` is the data folder (brand-backups/ goes in it).
+`root` holds branding/; `data` is the data folder (brand-backups/ goes in it).
 """
 import os
 import tempfile
@@ -34,12 +34,12 @@ def snapshot(folder):
 
 
 def make_dirs(case):
-    """(root, data, scratch) temp folders, removed after the test; root/system/branding exists."""
+    """(root, data, scratch) temp folders, removed after the test; root/branding exists."""
     tmp = tempfile.TemporaryDirectory()
     case.addCleanup(tmp.cleanup)
     base = Path(tmp.name)
     root, data, scratch = base / "app", base / "data", base / "downloads"
-    (root / "system" / "branding").mkdir(parents=True)
+    (root / "branding").mkdir(parents=True)
     data.mkdir()
     scratch.mkdir()
     return root, data, scratch
@@ -52,4 +52,4 @@ def write_zip(scratch, data, brand_id=bz.BRAND_ID, version="1.0.0", name=None):
 
 
 def branding(root):
-    return Path(root) / "system" / "branding"
+    return Path(root) / "branding"

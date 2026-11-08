@@ -1,6 +1,6 @@
 # Design system: components clark adds
 
-The entries for the parts of clark that the main design system (`docs/DESIGN-SYSTEM.md`, section 5) does not describe yet. Each entry says what the part is, how it looks (tokens only, from the committed look), its states, what happens at 900 px, and what is not settled. A person's own look (`system/branding/`) only changes token values, so none of these entries names a brand, a logo or a picture.
+The entries for the parts of clark that the main design system (`docs/DESIGN-SYSTEM.md`, section 5) does not describe yet. Each entry says what the part is, how it looks (tokens only, from the committed look), its states, what happens at 900 px, and what is not settled. A person's own look (`branding/`) only changes token values, so none of these entries names a brand, a logo or a picture.
 
 Every entry is checked on the live page at 1400 and 900 px, in light and dark, against the checks in section 7 of the main design system: text 4.5 to 1, controls and rings 3 to 1, text at least 13 px, targets at least 24 px, no sideways scroll of the page. "Not yet checked" is written where a check has not been made. The 'text under 12 px' figures in the entries were measured with the 12 px caption size as the floor, which is what the measuring script reports; text between 12 and 13 px has not been measured separately against that 13 px floor, so each entry lists it under 'Not yet checked'.
 

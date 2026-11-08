@@ -240,12 +240,13 @@ class Reader(unittest.TestCase):
     def test_covers_accepts_only_declared_folders(self):
         self.assertTrue(release_files.covers("mac", "meet clark/a.md"))
         self.assertTrue(release_files.covers("mac", "intake/deep/er/a.md"))
-        for rel in ("stray/a.md", "Meet Clark/a.md", "meet clark", "meet clark/", "intake2/a.md", "data/x", "system/branding/a.css",
+        for rel in ("stray/a.md", "Meet Clark/a.md", "meet clark", "meet clark/", "intake2/a.md", "data/x", "branding/a.css", "system/branding/a.css",
                     "flat.txt", ".app2/x"):
             with self.subTest(rel=rel):
                 self.assertFalse(release_files.covers("mac", rel))
 
     def test_protected_still_wins(self):
+        self.assertFalse(release_files.covers("mac", "branding/logo.png"))
         self.assertFalse(release_files.covers("mac", "system/branding/logo.png"))
         self.assertFalse(release_files.covers("mac", "data/clark.db"))
 
@@ -322,7 +323,7 @@ class Install(Base):
 
     OLD = {"meet clark/a.md": b"old a", "meet clark/gone.md": b"gone", "intake/f.txt": b"old form"}
     NEW = {"meet clark/a.md": b"new a", "meet clark/new.md": b"new", "intake/f.txt": b"new form", "intake/sub/g.txt": b"g"}
-    PERSON = {"system/branding/logo.png": b"logo", "data/clark.db": b"data"}
+    PERSON = {"branding/logo.png": b"logo", "system/branding/logo.png": b"old logo", "data/clark.db": b"data"}
 
     def setUp(self):
         super().setUp()
@@ -428,7 +429,7 @@ class StartHereExtra(unittest.TestCase):
         self.assertNotIn("meet clark holds", none)
         both = " ".join(package.start_here("mac", extra=("meet clark", "intake")).split())
         self.assertIn("intake holds a sample workbook with made-up data, in the same layout clark exports. "
-                      "meet clark holds an overview and a getting-started guide as PDFs. system/branding holds", both)
+                      "meet clark holds an overview and a getting-started guide as PDFs. branding holds", both)
         one = " ".join(package.start_here("mac", extra=("intake",)).split())
         self.assertIn("intake holds a sample workbook", one)
         self.assertNotIn("meet clark holds", one)

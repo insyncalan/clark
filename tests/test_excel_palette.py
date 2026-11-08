@@ -1,7 +1,7 @@
 """Item 711 (4a): the Excel palette reads the local brand over the committed look (clark.excel_palette), pure and uncached.
 
 Run: python3 dev/run_tests.py test_excel_palette
-Every brand here is invented in a temporary folder; nothing is read from or written to system/branding.
+Every brand here is invented in a temporary folder; nothing is read from or written to branding.
 """
 import shutil
 import tempfile

@@ -572,7 +572,7 @@ class InProcess(TempFolder):
     def test_startup_tells_the_server_where_the_brands_live_and_puts_right_a_crash_first(self):
         """#944: without set_brand_paths the brand routes answer 503; a hidden folder a crash left is put right before serving."""
         clark_folder = self.tmp / "clarkfolder"
-        branding = clark_folder / "system" / "branding"
+        branding = clark_folder / "branding"
         (branding / ".clark-brand-old-example").mkdir(parents=True)
         (branding / ".clark-brand-old-example" / "tokens.css").write_text(":root{}", encoding="utf-8")
         seen = []

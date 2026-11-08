@@ -3,7 +3,7 @@
 page.html and page-view.html are built by dev/tools/build_page.py and are NOT committed (#495): CI, dev/run_tests.py and
 dev/tools/package.py build them, and a source checkout builds them (ensure_built below) the first time it needs them. The
 download holds them already built and has no dev/ folder, so a download never calls the bundler and installs nothing. It carries the demo brand's
-tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in system/branding/ (git ignores it),
+tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in branding/ (git ignores it),
 its text goes in as a second <style id="brand-local"> after the demo one, so the same token names take the user's values. The
 server hashes the exact bytes it sends, so the policy covers both blocks (#33). A user's own brand is a client's, so the
 top bar's clark icon (#73) is hidden by default under it: the block starts with --logo-icon: none, which the brand's own
@@ -42,10 +42,10 @@ HIDDEN_CODE = ".app"              # a download keeps its program files in this f
 
 
 def branding_folder(root):
-    """The person's own branding folder for a code root: system/branding in the clark folder. In a download the code root is
+    """The person's own branding folder for a code root: branding in the clark folder. In a download the code root is
     the hidden .app folder, so the clark folder is its parent; a source checkout is never named .app and is its own."""
     root = Path(root)
-    return (root.parent if root.name == HIDDEN_CODE else root) / "system" / "branding"
+    return (root.parent if root.name == HIDDEN_CODE else root) / "branding"
 
 
 BRANDING = branding_folder(ROOT)
@@ -319,7 +319,7 @@ def brand_picture_of(name, brand_id=None):
     if brand_id is None:
         return brand_picture(name)
     from clark import brands
-    folder = brands.folder(BRANDING.parent.parent, brand_id)
+    folder = brands.folder(BRANDING.parent, brand_id)
     return None if folder is brands.GENERIC else brand_picture(name, folder)
 
 

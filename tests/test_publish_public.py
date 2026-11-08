@@ -97,7 +97,7 @@ class Base(unittest.TestCase):
         root.mkdir()
         sh("init", "-q", cwd=root)
         sh("symbolic-ref", "HEAD", "refs/heads/main", cwd=root)
-        everything = dict({".gitignore": "comms/\nsystem/branding/\n"}, **files)
+        everything = dict({".gitignore": "comms/\nsystem/branding/\n/branding/\n"}, **files)
         for rel, data in list(everything.items()) + list((ignored or {}).items()) + list((forced or {}).items()):
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
@@ -181,33 +181,33 @@ class TheExclusionList(Base):
     def test_the_list_is_pinned_to_the_issue(self):
         self.assertEqual(pp.EXCLUDED, ("dev/HEAD-LOG.md", "docs/DECISIONS.md", HANDOVER,
                                        HANDOVER_OTHER, "docs/TEAM-AND-ROLES.md", ".claude/",
-                                       "comms/", "system/branding/"))
+                                       "comms/", "system/branding/", "branding/"))
         self.assertEqual((pp.PUBLIC_README_SOURCE, pp.PUBLIC_README, pp.PUBLIC_SOURCE_DIR),
                          ("docs/public/README.md", "README.md", "docs/public/"))
 
     def test_what_matches(self):
         for path in ("dev/HEAD-LOG.md", "docs/DECISIONS.md", ".claude/settings.json", ".claude/skills/x/SKILL.md",
                      ".CLAUDE/x", "docs/TEAM-AND-ROLES.md", "docs/team-and-roles.md", "comms/a.md",
-                     "comms/x/y/z.pptx", "system/branding/logo.png", "system/branding/a/b", "Comms/Notes.md",
+                     "comms/x/y/z.pptx", "system/branding/logo.png", "branding/logo.png", "Branding/a/b", "system/branding/a/b", "Comms/Notes.md",
                      "SYSTEM/Branding/x", "docs/decisions.md", HANDOVER,
                      "docs/public/README.md", "docs/public/x/y.md", "Docs/Public/a"):
             self.assertTrue(pp.is_excluded(path), path)
         for path in ("docs/handoff/a.md", "docs/handoff/x/y.md", "docs/handoff.md", "docs/publicity.md", "docs/public.md",
                      "src/docs/public/a", "x.claude/a", "claude/a", "src/.claude/a", "docs/handoffs/a.md", "xcomms/a.md",
                      "docs/DECISIONS.md.bak", "dev/HEAD-LOG.mdx",
-                     "system/brandingx/a", "system/prototype/branding/a", "docs/RULES.md", "src/comms/a.py"):
+                     "system/brandingx/a", "brandingx/a", "src/branding/a", "docs/branding/a", "system/prototype/branding/a", "docs/RULES.md", "src/comms/a.py"):
             self.assertFalse(pp.is_excluded(path), path)
 
     def test_excluded_files_are_absent_whether_ignored_or_force_added(self):
         self.make_private(dict(GOOD, **dict(NOTES, **KEPT)),
-                          ignored={"system/branding/logo.png": "x", "comms/plan.md": "x"})
+                          ignored={"system/branding/logo.png": "x", "branding/logo.png": "x", "comms/plan.md": "x"})
         code, out = self.go()
         self.assertEqual(code, 0, out)
         self.assertEqual(self.tree(), [".gitignore", "README.md", "docs/RULES.md", "docs/handoff/a.md", "docs/handoff/sub/b.md",
                                        "src/app.py"])
 
     def test_a_force_added_file_under_comms_or_branding_is_a_refusal_not_a_removal(self):
-        for forced in ({"comms/forced.md": "x"}, {"system/branding/forced.css": "x"}, {"Comms/Upper.md": "x"},
+        for forced in ({"comms/forced.md": "x"}, {"system/branding/forced.css": "x"}, {"branding/forced.css": "x"}, {"branding/x": "x"}, {"Comms/Upper.md": "x"},
                        {"comms/deep/er/f.md": "x", "system/branding/a.png": "y"}):
             with self.subTest(sorted(forced)):
                 self.setUp()
@@ -218,7 +218,7 @@ class TheExclusionList(Base):
                     self.assertEqual(code, 1, out)
                     self.assertEqual(self.heads(), [])
                     self.assertIn("REFUSED  nothing private is tracked", out)
-                    self.assertRegex(out, r"file #\d+ is tracked under comms/ or system/branding/")
+                    self.assertRegex(out, r"file #\d+ is tracked under comms/, branding/ or system/branding/")
                     for name in forced:
                         self.assertNotIn(name, out.split("Checks:")[1])
                     self.assertNotIn("Traceback", out)
@@ -242,7 +242,7 @@ class TheExclusionList(Base):
             if not pp.names_listed_word(rule):                     # a file name that holds a person's name is not written in the how-to
                 self.assertIn(rule, how_to)
         self.assertIn("docs/handoff/` is published", how_to)
-        for words in ("refuses", "worktree", "SIGTERM", "comms/", "system/branding/"):
+        for words in ("refuses", "worktree", "SIGTERM", "comms/", "system/branding/", "branding/"):
             self.assertIn(words, how_to)
 
     def test_the_private_repos_name_is_not_written_in_the_published_files(self):

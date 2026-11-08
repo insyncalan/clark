@@ -187,7 +187,7 @@ class Layering(unittest.TestCase):
 
     def test_a_local_brand_on_this_laptop_uses_only_names_the_demo_declares(self):
         demo = token_names((ROOT / "src" / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8"))
-        local = ROOT / "system" / "branding" / "design-system" / "tokens.css"
+        local = ROOT / "branding" / "design-system" / "tokens.css"
         if local.is_file():                       # only on a laptop that has the user's own brand (git ignores it)
             self.assertEqual(sorted(token_names(local.read_text(encoding="utf-8")) - demo), [])
 
