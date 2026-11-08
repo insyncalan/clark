@@ -7,7 +7,7 @@ Run: python3 dev/run_tests.py test_publish_hidden_section_markers
 import json
 import unicodedata
 
-from clark import to_client
+from clark import publish, publish_flow, to_client
 from test_gantt_markers import Base
 
 HID_TEXT = "<p>Zqcorp Holdings secret plan</p><ul><li>Zq renewal price is low</li></ul>"
@@ -61,3 +61,22 @@ class HiddenSections(Base):
         self.section("s-hid", "text", "<p>Zq shor</p>", 1)
         built, got = self.got()
         self.assertNotIn("Zq shor", got)
+
+    def test_a_shown_section_whose_body_the_file_does_not_carry_is_no_marker(self):
+        # Only a section the owner hid has markers: a shown built-in section keeps a stored body that is never published, and
+        # that body is not in the file, not in the kept text and not in the page, so only the hidden flag keeps it out of the markers.
+        self.section("s-raid", "raid", "<p>Zq stored raid words nobody publishes</p>", 0)
+        built, got = self.got()
+        self.assertNotIn("Zq stored raid words nobody publishes", built["body"].decode("utf-8"))
+        self.assertNotIn("Zq stored raid words nobody publishes", got)
+        self.section("s-raid-hid", "raid", "<p>Zq stored raid words nobody publishes</p>", 1)
+        self.assertIn("Zq stored raid words nobody publishes", self.got()[1], msg="the same words in a hidden section are a marker")
+
+    def test_words_the_bare_page_has_are_no_marker_and_the_same_words_without_it_are(self):
+        # markers_for(..., template) is the bare page every file holds; its words cannot tell a leak from the page itself.
+        self.section("s-hid", "text", "<p>Zq bare page sentence here</p>", 1)
+        built = publish.build(self.s, "ABC", now="2031-06-15")
+        page = "<html><body><p>Zq BARE page sentence here</p></body></html>"
+        self.assertNotIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], page))
+        self.assertIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], ""))
+        self.assertIn("Zq bare page sentence here", publish_flow.markers_for(self.s, "ABC", built["published"], "<p>Other words</p>"))
