@@ -766,7 +766,7 @@ def _backup(data, root, brand_id):
 
 
 def _unjournal(data):
-    """Drop the undo journal. Called before a swap starts: the journal then never describes a change that did not happen, and
+    """Remove the undo journal. Called before a swap starts: the journal then never describes a change that did not happen, and
     never a stale earlier one. A crash after the swap but before _journal leaves the brand changed with undo unavailable (the
     backup folder stays); that is accepted. The journal is not a backup of user data and is never published."""
     try:
