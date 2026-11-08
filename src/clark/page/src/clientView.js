@@ -4,6 +4,7 @@
 // remembered choice is only ever built from rows the client may see. It mirrors src/clark/client_filters.py (the reference model).
 import { fieldList, valueOf, initial, setFilter, MODES, TYPES } from "./filters.js";
 import { GROUPS } from "./logic/board.js";
+import { richWords } from "./logic/richWords.js";
 
 export const STORAGE_PREFIX = "clark.work.";           // the published page's own key: the editor's is "clark.work.v1" and is never read here
 export const STORAGE_VERSION = 1;
@@ -12,7 +13,7 @@ export const DEFAULT_GROUP = "workstream";
 /** What the search reads, by id: the id, the words, the owner, the latest update, the client message and the use case, case-folded. */
 export function searchIndex(data) {
   const map = {};
-  const add = (r, words, who) => { map[r.id] = [r.id, words, who, r.latest_update, r.client_message, r.use_case].filter(Boolean).join(" ").toLowerCase(); };
+  const add = (r, words, who) => { map[r.id] = [r.id, words, who, richWords(r.latest_update), r.client_message, r.use_case].filter(Boolean).join(" ").toLowerCase(); };
   for (const r of (data && data.actions) || []) add(r, r.description, r.owner);
   for (const r of (data && data.raid) || []) add(r, r.description, r.owner);
   for (const r of (data && data.decisions) || []) add(r, r.decision, r.made_by);
