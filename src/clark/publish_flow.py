@@ -22,7 +22,6 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
-import json
 import os
 import re
 import secrets
