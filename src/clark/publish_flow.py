@@ -213,9 +213,9 @@ def gantt_markers(store, code, published, add):
 def folder_inside(fs, a, b):
     """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
     the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
-    fs = fs or to_client.RealFs()
+    real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
     try:
-        return to_client._inside(a, b) or to_client._inside(fs.realpath(a), fs.realpath(b))
+        return to_client._inside(a, b) or to_client._inside(real(a), real(b))
     except (OSError, ValueError):
         return False
 
