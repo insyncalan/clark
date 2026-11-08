@@ -126,7 +126,9 @@ class DownloadLayout(unittest.TestCase):
             self.assertTrue(json.loads(reply.read())["ok"])
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/", timeout=10) as reply:
             page = reply.read()
-        self.assertIn(b"--e2e-brand-mark: 694", page, "the page carries the tokens from branding beside .app")
+        # Since the per-project brand (row 944, T3) GET / has no project and is the generic look: the person's tokens are layered only
+        # for a project whose brand is the local one (test_the_page_code_finds_the_branding_beside_dot_app pins that the tokens are found).
+        self.assertNotIn(b"--e2e-brand-mark: 694", page, "the page with no project is the generic look, not the person's brand")
         self.assertTrue((data / "clark.db").is_file())
         self.assertFalse(list((self.clark / ".app").rglob("clark.db")), "no data was written inside the download")
 
