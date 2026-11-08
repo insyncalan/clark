@@ -56,7 +56,7 @@ class Fake(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.d, True)
         self.vendor = self.d / "vendor"
         (self.vendor / "pypdf").mkdir(parents=True)
-        (self.vendor / "pypdf" / "__init__.py").write_text(FAKE_PYPDF)
+        (self.vendor / "pypdf" / "__init__.py").write_text(FAKE_PYPDF, encoding="utf-8")
 
     def read(self, raw):
         return pdf_reader.read(raw, vendor=self.vendor)
@@ -185,6 +185,7 @@ class InAsk(Fake):
         labels = {p.label: p.text for p in got.passages}
         self.assertEqual(labels, {"saved/Plan.pdf (page 1)": "ZQ budget is agreed", "saved/Plan.pdf (page 2)": "ZQ deadline is May",
                                   "saved/Plan.pdf (page 3)": "ZQ risks"})
+        self.assertEqual({(p.file, p.page) for p in got.passages}, {("saved/Plan.pdf", 1), ("saved/Plan.pdf", 2), ("saved/Plan.pdf", 3)})   # #943: the open-at-page fields
 
     def test_each_failure_is_counted_with_its_code_and_gives_no_passage(self):
         self.put("good.pdf", pdf(["ZQ fine"]))
@@ -205,7 +206,7 @@ class InAsk(Fake):
 
     def test_a_slow_pdf_does_not_stop_the_other_files(self):
         self.put("slow.pdf", pdf(["HANG"]))
-        (self.box / "note.txt").write_text("ZQ-TEXT still read")
+        (self.box / "note.txt").write_text("ZQ-TEXT still read", encoding="utf-8")
         with mock.patch.object(pdf_reader, "SECONDS", 1.0):
             got = self.run_it()
         self.assertEqual(got.pdf_reasons, (("saved/slow.pdf", "timeout"),))
@@ -222,7 +223,7 @@ class NoNewWords(unittest.TestCase):
         self.assertTrue(pdf_reader.NEW_WORDS)
         src = Path(pdf_reader.__file__).parent
         for name in ("ask_service.py", "ask.py", "ask_data.py"):
-            self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text())
+            self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text(encoding="utf-8"))
 
 
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")
