@@ -12,6 +12,7 @@ import re
 import shutil
 import tempfile
 import unittest
+from _editor_checks import for_url
 from pathlib import Path
 from unittest import mock
 
@@ -174,7 +175,7 @@ class Table(unittest.TestCase):
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/#work&p=TUL&f=mode:all")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0), "the list drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")

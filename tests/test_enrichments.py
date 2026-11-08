@@ -303,7 +303,7 @@ class OtherRows(unittest.TestCase):
     """Work items and Milestones take the same mark (nothing edits them yet, so the page's hook marks them)."""
 
     def test_rows_take_the_tint_the_bar_and_the_word_with_reduced_motion_at_three_widths(self):
-        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             for view, ids, sel in (("work", ["ABC-A-001"], "#work tbody tr[data-id=ABC-A-001]"),
@@ -357,7 +357,7 @@ class Skeleton(tre.Base):
     def slow_server(self, seconds):
         gate = {"open": False}
 
-        def data_for(code):
+        def data_for(code, archived=None):
             end = time.time() + seconds
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)
