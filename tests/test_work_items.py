@@ -243,6 +243,7 @@ class RealBrowser(unittest.TestCase):
                            " && parseFloat(getComputedStyle(e).fontSize) < 12).map(e => e.className)", sid)
             self.assertEqual(small, [], "text is at least 12 px")
             cdp.js("document.querySelector('#fline-input').focus(); document.querySelector('#fline-input').select()", sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)     # row 931: Space opens the list
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
             targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #work .fhint, #fline-list .fopt')]"
