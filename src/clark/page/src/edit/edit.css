@@ -153,7 +153,8 @@
 .rowmenu .ddmenu[data-pointer] [role="menuitem"]:focus-visible:not(:hover) { outline: none; background: none; color: var(--text); }      /* row 979: opened by the mouse, no ring or tint on the first entry (the hovered one keeps its own) */
 /* row 979: the row menu and its list do not move as they open, they fade (opacity only; the page's own fade and tokens); the 4 px drop stays for every other menu. Still under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) .rowmenu .ddmenu { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
+  /* row 962: not on the copy of a closed list (.leaving, inside .rowmenu too): this rule outranks the exit rule in shell.css and it would run m-in over m-out */
+  :root:not([data-motion="reduce"]) .rowmenu .ddmenu:not(.leaving) { animation: m-in var(--dur-instant) var(--ease-enter) 1; }
 }
 
 /* Changing several work items at once (#196): the bar's buttons wrap at 900 px, the "N items" menu, and the question. Tokens only. */
@@ -894,7 +895,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) thead.opening > tr:not(.grp), :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
 /* row 970: a row added to the list rises 4 px and fades in over --dur-state; a deleted row fades out over --dur-instant where it stood (opacity and transform only:
