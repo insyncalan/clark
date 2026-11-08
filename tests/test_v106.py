@@ -110,7 +110,7 @@ COVERED = [
      'test_about_you_path::AboutYouPath::test_the_old_path_through_personal_is_written_nowhere_in_src'),
     ('962', 'M.3 Edit: open a picker or menu and close it | It fades out as it closes; with reduced motion on it goes at once.',
      'test_motion_menu_exit_edit::Live::test_row_962_1_a_cell_picker_fades_out'),
-    ('976', 'unknown (the sheet has a row for 976)',
+    ('976', "Open Settings from the profile circle's menu: Settings is not a tab in the top bar.",
      'test_top_bar_tabs::TopBarTabs::test_the_tab_row_is_usable_on_the_settings_route_at_420_and_360_px'),
     ('977', 'W.1 Work items: right-click a row | The menu has an icon for each choice, evenly spaced; the entry words are not bold. (shared with row 978)',
      'test_row_menu::Menu::test_item_977_the_entry_words_are_plain_not_the_browsers_bold_in_the_menu_and_in_the_list_beside_it'),
