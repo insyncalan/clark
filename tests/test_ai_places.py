@@ -25,9 +25,10 @@ LOGIC = PAGE_SRC / "logic"
 # The editors the plan names, with the place each must have.
 WANTED = {
     "section.body": "current", "current.state": "current", "usecase.standing": "current", "notes.section": "notes",
+    "movement.internal_note": "current", "glance.health_reason": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
     "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email",
 }
-RICH = ("section.body", "current.state", "usecase.standing", "notes.section")
+RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "movement.internal_note", "glance.health_reason")
 # The section title is a one-line plain field and stays out of the AI.
 LEFT_OUT = {"edit/Title.jsx", "edit/TrackerWords.jsx"}     # row 930: the tracker's status words are one limited plain-text line, like a title: no AI place
 

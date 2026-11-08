@@ -78,6 +78,31 @@ class Source(unittest.TestCase):
         self.assertEqual(build_page.main(["--check"]), 0)
 
 
+# Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
+# of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
+MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason")}
+
+
+class MovedFields(unittest.TestCase):
+    def test_each_moved_field_draws_the_one_editor_and_no_textarea(self):
+        for rel, (component, what) in MOVED.items():
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertRegex(text, r"import \{ %s \} from" % component, what)
+            self.assertNotIn("<textarea", text, what)
+            self.assertNotIn("useGrow", text, what)
+        self.assertNotIn("TEXTAREA", (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8"))
+
+    def test_a_moved_field_reads_what_is_stored_through_the_page_twin_never_raw(self):
+        for rel in MOVED:
+            self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+
+    def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
+        glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
+        self.assertIn("HTML_START", glance)
+        self.assertNotIn("cleanHtml", glance)
+        self.assertNotIn("richOrPlain", glance, "the cleaner is the page's own `clean` prop; the published page has none")
+
+
 ORIGINAL = "<p>Original words the programme manager wrote.</p>"
 
 
@@ -160,6 +185,20 @@ class PageGate(unittest.TestCase):
                              js("document.querySelectorAll('.ProseMirror').length + document.querySelectorAll('[contenteditable=plaintext-only]').length"),
                              "no contenteditable but the editors' own and the section titles")
             self.assertEqual(js("document.querySelectorAll('style').length"), before, "a mount adds no <style>")
+
+    def test_the_at_a_glance_reason_opens_the_one_editor_with_its_menu(self):          # item 1005
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"health": "At risk", "health_reason": "Old plain words <b>kept</b>\nand a second line"})      # an old plain row
+        s = self.serve(self.page_on)
+        with chrome() as cdp:
+            js, sid = self.edit(cdp, s)
+            self.assertEqual(js("document.querySelector('[data-reason]').querySelector('.prose').innerHTML"),
+                             "<p>Old plain words &lt;b&gt;kept&lt;/b&gt;</p><p>and a second line</p>", "an old plain reason reads as escaped paragraphs")
+            js("document.querySelector('[data-reason]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-reason] .ProseMirror')"), 10))
+            self.assertEqual(js("!!document.querySelector('[data-reason] .ProseMirror').cxed && typeof document.querySelector('[data-reason] .ProseMirror').cxed.html"), "function")
+            self.assertEqual(js("document.querySelectorAll('[data-reason] .rt-bar').length"), 1, "the toolbar")
+            self.assertEqual(js("document.querySelectorAll('textarea[data-reason]').length"), 0)
 
     def test_a_save_that_the_server_refuses_says_so_in_plain_words_and_keeps_the_field_open(self):
         small = mock.patch.object(changes, "TEXT_BODY_MAX", 10)        # the server thread reads the same module: a body over 10 bytes is too long
