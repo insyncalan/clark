@@ -301,6 +301,21 @@ class RestoredTest(Rolled):
         self.assertEqual("restored", again.m["data_restore"]["status"])
         self.assertEqual(done, (digest(self.db), [a.name for a in self.asides()]))
 
+    def test_a_stop_after_the_put_back_but_before_it_was_recorded_does_not_set_aside_again(self):
+        """#992 follow-up (second read LOW): the helper was killed after put_back_database and before the 'restored' record was saved.
+        A later run finds the live file already equal to the copy: nothing to put back, no second replaced-* folder."""
+        copy, run = self.started_by_a_writing_version()
+        self.start_new_and_fail(run)
+        with mock.patch.object(h.Run, "restored", side_effect=KeyboardInterrupt):
+            with self.assertRaises(KeyboardInterrupt):
+                run.r_restore_data()
+        self.assertEqual(digest(copy), digest(self.db))                               # the put-back itself happened
+        done = (digest(self.db), [a.name for a in self.asides()])
+        self.assertEqual(1, len(done[1]))
+        again = h.Run(h.marker_path(self.data), self.seams)
+        again.r_restore_data()
+        self.assertEqual(done, (digest(self.db), [a.name for a in self.asides()]))
+
     def test_a_digest_that_was_not_taken_puts_nothing_back(self):
         """No digest_before_start (the step never ran, or an older marker): there is nothing to compare with, so same_layout_copy
         gives None and the data is not put back."""

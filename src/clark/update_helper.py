@@ -1083,7 +1083,22 @@ class Run:
         # The copy was taken when the update began; the new version wrote, so the data goes back to it, and whatever the live file
         # held is kept whole in backups/replaced-<stamp>.
         check_copy_file(copy, self.m.get("schema_before"), self.m.get("db_id_before"))
+        if self.holds_the_rows_of(probe, copy):
+            return None                          # #992: an earlier run already put it back (stopped before it was recorded): never twice
         return copy
+
+    def holds_the_rows_of(self, probe, copy):
+        """True when the live data (through `probe`) has exactly the rows of `copy`. A copy that can't be read is not 'the same'."""
+        try:
+            other = sqlite3.connect(f"{Path(copy).resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        except (sqlite3.Error, OSError):
+            return False
+        try:
+            return content_digest(other) == content_digest(probe)
+        except sqlite3.Error:
+            return False
+        finally:
+            other.close()
 
     def find_copy(self, before):
         """The safety copy the new version's migration took: the newest `migrate` copy made since this update began that passes
