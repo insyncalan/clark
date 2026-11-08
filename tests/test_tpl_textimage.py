@@ -21,7 +21,7 @@ import unittest
 from _demo import USER
 from _pictures import BAD, CAMERA, EXIF, GOOD, GOOD_JPEG, GOOD_WEBP, PictureSteps, check, data, jpeg, published
 from _pictures_page import BarePage
-from clark import changes, publish, server as sv
+from clark import changes, publish, section_bodies, server as sv
 from clark import store as store_module
 from clark.section_kinds import base, textimage
 from test_changes import Api
@@ -107,6 +107,49 @@ class Checker(unittest.TestCase):
         self.assertEqual(published(KIND, {"v": 1, "caption": "Fictional hall", "alt": "A hall", "side": "left", "pictures": {"image": GOOD}}),
                          {"content": {"words": [], "side": "left", "image": GOOD, "caption": "Fictional hall", "alt": "A hall"}})
         self.assertTrue(textimage.READY)
+
+
+HOSTILE = ('<p>Fine</p><script>alert(1)</script><p onclick="x()">Clicked</p><a href="javascript:alert(1)">bad link</a>'
+           '<img src=x onerror=alert(1)><style>p{color:red}</style><iframe src="https://x.test"></iframe><div style="a:b">Boxed</div>')
+LEGACY = ["Plain a < b & c", 'He said "yes" and \'no\'', "<script>alert(1)</script>"]
+
+
+class RichWords(unittest.TestCase):
+    """Row 1005: the words are HTML the one rich editor writes (key `html`); the old `words` lines still read, as text."""
+
+    def test_legacy_lines_still_check_and_publish_as_the_same_lines(self):
+        got = check(KIND, {"v": 1, "words": LEGACY})
+        self.assertEqual(got, {"v": 1, "words": LEGACY}, "old lines are stored as they were: text, never read as markup")
+        self.assertEqual(published(KIND, got), {"content": {"words": LEGACY, "side": "right"}})
+
+    def test_html_is_cleaned_on_save_and_again_at_publish_and_wins_over_the_lines(self):
+        got = check(KIND, {"v": 1, "html": HOSTILE, "words": ["old line"]})
+        self.assertEqual(set(got), {"v", "html"}, "the rich words win; the old lines are not kept")
+        for bad in ("<script", "onclick", "javascript:", "<img", "<style", "<iframe", "<div", "onerror"):
+            self.assertNotIn(bad, got["html"])
+        self.assertIn("Fine", got["html"])
+        self.assertEqual(check(KIND, got), got, "idempotent")
+        stored = {"v": 1, "html": HOSTILE}                  # a body written by hand, past the checker: publish cleans it again
+        out = published(KIND, stored)["content"]
+        for bad in ("<script", "onclick", "javascript:", "<img", "<style", "<iframe", "<div", "onerror"):
+            self.assertNotIn(bad, out["html"])
+        self.assertEqual(out["words"], [])
+
+    def test_a_line_break_in_the_html_never_reaches_the_stored_text(self):
+        self.assertNotRegex(section_bodies._clean_rich(KIND, {"html": "<p>a</p>\r\n<p>b</p><div>c</div>d"})["html"], "[\r\n]")
+        refused(self, KIND, {"v": 1, "html": "<p>a</p>\n<p>b</p>"})       # the generic check still refuses a raw line break; the page strips them
+
+    def test_blank_and_empty_html_is_no_words_and_limits_count_the_words(self):
+        self.assertEqual(check(KIND, {"v": 1, "html": "<p></p>"}), {"v": 1})
+        self.assertEqual(check(KIND, {"v": 1, "html": "", "words": ["kept"]}), {"v": 1, "words": ["kept"]})
+        self.assertIsNone(published(KIND, {"v": 1, "html": "<p><br></p>"}))
+        self.assertEqual(refused(self, KIND, {"v": 1, "html": 5}), textimage.NOT_A_LINE)
+        self.assertEqual(refused(self, KIND, {"v": 1, "html": "<p>" + "x" * (textimage.HTML_MAX + 1) + "</p>"}), textimage.LONG_HTML)
+        self.assertEqual(check(KIND, {"v": 1, "html": "<p>" + "x" * 1000 + "</p>"})["html"], "<p>" + "x" * 1000 + "</p>")
+
+    def test_a_published_file_carries_the_cleaned_words_and_word_has_no_part_of_it(self):
+        from clark import docx_build
+        self.assertNotIn(KIND, docx_build.TITLES, "Word writes no section template: the new words have nowhere to leak")
 
 
 class Route(PictureSteps, Api):
@@ -326,6 +369,29 @@ class InThePage(PageBase):
                     self.assertTrue(box["fits"] and box["inside"], (width, theme, box))
                     self.assertNotEqual(box["fg"], box["cap"], "the caption is quieter than the words")
 
+    def test_view_draws_rich_words_cleaned_and_old_lines_as_text_and_edit_opens_old_lines_in_the_editor(self):
+        rich = self.add({"v": 1, "html": "<p>Fictional <strong>bold</strong> words</p><ul><li>one</li></ul>"}, "Fictional rich")
+        old = self.add({"v": 1, "words": LEGACY}, "Fictional old lines")
+        # a row written past the checker (by hand): the page cleans it again and never draws the stored string
+        hostile = self.add({"v": 1, "html": HOSTILE}, "Fictional hostile")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            sel = lambda r: f"[data-id={json.dumps(r)}]"  # noqa: E731
+            p.until(f"!!document.querySelector('{sel(hostile)} .tpl-words')", "the words are drawn")
+            self.assertEqual(p.js(f"document.querySelector('{sel(rich)} .tpl-words strong').textContent"), "bold")
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel(rich)} .tpl-words li').length"), 1)
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel(old)} .tpl-words p')].map(e => e.textContent)"), LEGACY)
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel(old)} .tpl-words script, {sel(old)} .tpl-words *:not(p)').length"), 0, "old lines are text")
+            box = f"{sel(hostile)} .tpl-words"
+            self.assertEqual(p.js(f"document.querySelector('{box}').textContent.includes('Fine')"), True)
+            self.assertEqual(p.js(f"document.querySelectorAll('{box} script, {box} img, {box} style, {box} iframe, {box} div, {box} [onclick], {box} [onerror], {box} [style]').length"), 0)
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{box} a')].filter(a => /javascript/i.test(a.getAttribute('href') || '')).length"), 0)
+            self.assertEqual(p.js("window.__ran === undefined"), True)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel(old)} [data-rich]')", "Edit shows the words as a rich field")
+            self.assertEqual(p.js(f"[...document.querySelectorAll('{sel(old)} [data-rich] .prose p')].map(e => e.textContent)"), LEGACY)
+            self.assertEqual(p.js(f"document.querySelectorAll('{sel(old)} [data-rich] .prose script').length"), 0)
+
     def test_edit_fills_words_in_place_one_step_each_and_adds_a_picture(self):
         ref = self.add()
         sel = f"[data-id={json.dumps(ref)}]"
@@ -336,11 +402,14 @@ class InThePage(PageBase):
             p.until(f"!!document.querySelector('{sel} .tpl-ti-edit')", "the Edit part")
             self.assertIn("stays out of the published page", p.js(f"document.querySelector('{sel} .tpl-hint').textContent"))
             start = self.applies()
-            p.js(f"document.querySelector('{sel} textarea').focus()")
-            p.type(WORDS[0] + "\n" + WORDS[1])
-            p.js(f"document.querySelector('{sel} textarea').blur()")
+            self.assertFalse(p.js(f"!!document.querySelector('{sel} .tpl-ti-edit textarea')"), "the words are not a plain box any more")
+            p.js(f"document.querySelector('{sel} [data-rich]').click()")
+            p.until(f"!!document.querySelector('{sel} .ProseMirror')", "the one rich editor opens")
+            p.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')", "it has the focus")
+            p.js(f"document.querySelector('{sel} .ProseMirror').cxed.editor.commands.insertContent('<p>{WORDS[0]}</p><p>{WORDS[1]}</p>'); true")
+            p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
-            self.assertEqual(self.body(ref), {"v": 1, "words": WORDS})
+            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS)})
             self.assertEqual(self.applies(), start + 1, "one step")
             self.assertEqual(p.toast(), "Text saved.")
             p.clear_toast()
@@ -371,7 +440,7 @@ class InThePage(PageBase):
             raw = base64.b64decode(pic.split(",", 1)[1])
             self.assertEqual(raw[:8], b"\x89PNG\r\n\x1a\n", "a PNG stays a PNG while it fits")
             self.assertEqual(struct.unpack(">II", raw[16:24]), (1600, 800), "the longest side is 1600 px")
-            self.assertEqual(self.body(ref)["words"], WORDS, "the picture kept the words")
+            self.assertEqual(self.body(ref)["html"], "".join(f"<p>{w}</p>" for w in WORDS), "the picture kept the words")
             self.assertEqual(self.applies(), start + 3)
             p.until(f"!!document.querySelector('{sel} .tpl-pic-slot.has-pic img')", "the picture shows in Edit")
             self.assertIn("Pictures in this report: 0.", p.js(f"document.querySelector('{sel} .tpl-total').textContent"))
@@ -388,7 +457,7 @@ class InThePage(PageBase):
             # one Undo takes the picture back out, and keeps the words
             p.js("document.querySelector('[data-undo]').click()")
             p.until(f"!document.querySelector('{sel} .tpl-pic-slot.has-pic')", "Undo took the picture out")
-            self.assertEqual(self.body(ref), {"v": 1, "words": WORDS, "caption": "Fictional hall"})
+            self.assertEqual(self.body(ref), {"v": 1, "html": "".join(f"<p>{w}</p>" for w in WORDS), "caption": "Fictional hall"})
             p.view()
             p.until(f"!!document.querySelector('{sel} .tpl-words')", "View draws the words")
             self.assertFalse(p.js(f"!!document.querySelector('{sel} img')"))

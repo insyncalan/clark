@@ -119,7 +119,7 @@ from pathlib import Path
 
 from openpyxl import load_workbook
 
-from clark import backup, excel
+from clark import backup, excel, sanitise
 from clark import store as writer
 from clark.store import Invalid
 
@@ -886,12 +886,13 @@ class _Reader:
             if f == "commitment" and v is None:
                 continue                                # #709: an empty Commitment cell leaves the flag as it is (never clears it)
             old = cur[f]
+            basis = (lambda x: sanitise.rich_plain_text(x) if isinstance(x, str) else x) if (table, f) in excel.RICH_WORDS else (lambda x: x)   # row 1005: the sheet holds the words of a rich field, so that is what a cell is compared with
             if f == LABELS and sorted(n.lower() for n in writer.label_names(v)) == sorted(n.lower() for n in writer.label_names(old)):
                 continue                                # the same labels, in any order or case
             if clash and was is not None:               # the person's own edit is what differs from the export
-                then = was.get(f)
+                then = basis(was.get(f))
                 if not _differs(v, then, f):
-                    if _differs(then, old, f):
+                    if _differs(then, basis(old), f):
                         kept[f] = old                   # newer in clark: left alone
                     continue
             if v is None:
@@ -906,7 +907,7 @@ class _Reader:
                                  "the row was left out", sheet, rn, rid, f)
                     bad = True
                     continue
-            elif old is not None and (v == old or (isinstance(v, str) and same(v, old))):
+            elif old is not None and (v == basis(old) or (isinstance(v, str) and same(v, basis(old)))):
                 continue
             if table == "milestones" and f == "baseline_date" and old:
                 self.plan.notes.append(f"{sheet}: {rid}'s change to the agreed date ({label}) was ignored: moving an "

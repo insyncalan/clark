@@ -1,4 +1,4 @@
-"""#180: Settings › Personal › About you (Your name, Your email) and the profile menu's top line, in a real browser at 1400 and 900 px.
+"""#180: Settings › Profile › About you (Your name, Your email) and the profile menu's top line, in a real browser at 1400 and 900 px.
 Run: python3 dev/run_tests.py test_about_you
 
 Both are kept by clark in the data folder's settings.json (not in the browser). What is asserted: the two boxes and their words; saving
@@ -149,7 +149,7 @@ class AboutYou(Base):
             p = self.page(cdp)
             self.open_menu(p)
             p.js("document.querySelector('#profile-menu .who-link').click()")
-            p.until("!!document.querySelector('#about-name')", "Settings › Personal drew")
+            p.until("!!document.querySelector('#about-name')", "Settings › Profile drew")
             p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
 
     def test_C_long_values_are_cut_on_one_line_each_and_never_widen_the_menu(self):

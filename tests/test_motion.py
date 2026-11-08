@@ -12,6 +12,7 @@ import re
 import sys
 import time
 import unittest
+from _editor_checks import for_url
 
 from _paths import SRC, TOOLS
 import _testpage as testpage
@@ -88,6 +89,14 @@ class Rules(unittest.TestCase):
         self.assertTrue(rule, "a rule for a section that is changed and dragged over")
         self.assertIn("m-glow", rule.group(1))
         self.assertIn("m-line-top", rule.group(1))
+
+    def test_the_fading_placeholder_sits_where_main_pads_it_at_900(self):
+        """Item 517: main pads 28 px top and the space-5 sides on desktop and 20 px top and the space-4 sides at 900 px; the fading
+        placeholder (.skel-leave) used the desktop offsets at both, so it sat a few px off for its 120 ms."""
+        narrow = re.search(r"@media \(max-width: 900px\)\s*\{\s*\.skel-leave\s*\{([^}]*)\}", MOTION)
+        self.assertTrue(narrow, "a 900 px rule for .skel-leave inside the motion block")
+        for part in ("left: var(--space-4)", "right: var(--space-4)", "top: 20px"):
+            self.assertIn(part, narrow.group(1))
 
     def test_the_still_forms_of_the_ring_and_the_tick_are_in_the_base_rules(self):
         base = CSS[:CSS.index("Motion:")]
@@ -252,7 +261,7 @@ class More(tre.Base):
         cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, sid)
         if own:
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": Fade.OWN_EARLY}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         p = tre.Pg(self, cdp, sid)
         p.mode = mode
         return p
@@ -432,7 +441,7 @@ class Fade(tre.Base):
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.WATCH + (self.OWN_EARLY if mode[2] else "")}, sid)
                 cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if mode[1] else ALLOW}, sid)
-                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=ABC"}, sid)
+                cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p=ABC")}, sid)
                 p = tre.Pg(self, cdp, sid)
                 p.until("!!document.querySelector('.skel-frame')", "the placeholder appeared")
                 gate["open"] = True

@@ -358,6 +358,21 @@ def open_file(path, run=None, on=None):
     _checked(_run(["open", str(path)], run), f"{path.name} could not be opened")
 
 
+CHROME = "Google Chrome"
+
+
+def open_pdf_at(path, url, run=None, on=None):
+    """#943: open the PDF `path` at the page named by `url` (pdf_link.pdf_url: file:///...#page=N) in Chrome, whose viewer takes
+    #page=N. If Chrome is not there or refuses, open the file plainly (open_file) so the person still sees it, at its first page."""
+    _only_mac("Opening a PDF at a page", on)
+    path = _existing(path)
+    url = str(url)
+    if not re.match(r"file:///[^\s]+\Z", url) or not url.lower().split("#")[0].endswith(".pdf"):
+        raise PlatformError("Only the address of a PDF file can be opened here.")
+    if _run(["open", "-a", CHROME, url], run).returncode != 0:
+        open_file(path, run=run, on=on)
+
+
 def reveal_file(path, run=None, on=None):
     """Show `path` selected in its folder in Finder."""
     _only_mac("Showing a file in its folder", on)

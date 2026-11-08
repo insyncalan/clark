@@ -16,7 +16,7 @@ import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
-from clark import excel
+from clark import excel, sanitise
 from clark import excel_import as xi
 from clark import page
 from clark.store import columns, open_store
@@ -144,6 +144,36 @@ class FormulaGuard(unittest.TestCase):
         xi.apply_import(demo.store, plan, USER, state_path=state)
         got = {r["id"]: r["description"] for r in demo.store.read("actions", "ABC") if r["id"] in ids}
         self.assertEqual([got[i] for i in ids], list(self.TEXTS))
+
+
+class RichFields(unittest.TestCase):
+    """Row 1005: Latest update and Description are the editor's HTML (or an older plain text). The sheet carries their words, and an unchanged sheet imports with no change."""
+
+    def test_the_sheet_holds_the_words_and_an_unchanged_export_imports_as_no_change(self):
+        demo = DemoStore()
+        tmp = Path(tempfile.mkdtemp(prefix="clark-rich-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        self.addCleanup(demo.close)
+        with demo.store.step("dashboard", USER) as st:
+            a_new = st.create("actions", {"project": "ABC", "description": "One", "raised": "2026-10-01", "source": "demo",
+                                          "latest_update": "<p>Done &amp; dusted</p><p>Next: a &lt; b</p>"})
+            a_old = st.create("actions", {"project": "ABC", "description": "Two", "raised": "2026-10-01", "source": "demo",
+                                          "latest_update": 'old < new & "q"\nline two'})
+            st.update("milestones", demo.milestone, {"description": "<p>Scope <strong>bold</strong></p>"})
+        path, state = tmp / "ABC work items.xlsx", tmp / "state.json"
+        excel.export_project(demo.store, "ABC", path, state, on=ON)
+        wb = load_workbook(str(path))
+        head = {c.value: c.column for c in wb["Actions"][1]}
+        cells = {wb["Actions"].cell(r, 1).value: wb["Actions"].cell(r, head["Latest update"]).value for r in range(2, wb["Actions"].max_row + 1)}
+        self.assertEqual(cells[a_new], "Done & dusted\nNext: a < b")
+        self.assertEqual(cells[a_old], 'old < new & "q"\nline two')
+        mhead = {c.value: c.column for c in wb["Milestones"][1]}
+        self.assertEqual([wb["Milestones"].cell(r, mhead["Description"]).value for r in range(2, wb["Milestones"].max_row + 1) if wb["Milestones"].cell(r, 1).value == demo.milestone], ["Scope bold"])
+        plan = xi.read_workbook(demo.store, path, "ABC", state_path=state)
+        self.assertEqual([c for c in plan.changes if c.kind != "unchanged"], [], "the words round trip with no false change")
+        edit(path, "Actions", a_new, **{"Latest update": "Rewritten in Excel"})
+        plan = xi.read_workbook(demo.store, path, "ABC", state_path=state)
+        self.assertEqual([c.id for c in plan.changes if c.kind == "changed"], [a_new], "a real edit is staged, and only that one")
 
 
 class Reading(RoundTrip):
@@ -909,6 +939,49 @@ class RichText(RoundTrip):
         for bad in ("<script", "onerror", "alert("):
             self.assertNotIn(bad, out)
         self.assertIn("Live", out)
+
+
+class RichNote(RoundTrip):
+    """Row 1005: the Internal note is the editor's HTML now (or plain text from before). The sheet carries its WORDS; the import compares a
+    cell with the words, so an export that is imported untouched changes nothing, and an edited cell is a change."""
+    HTML = "<p>Keep &amp; watch &lt;b&gt;</p><p>second line</p>"
+    WORDS = "Keep & watch <b>\nsecond line"
+
+    def cell(self):
+        wb = load_workbook(str(self.path))
+        ws = wb["Milestones"]
+        head = {c.value: c.column for c in ws[1]}
+        row = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, 1).value == self.m2)
+        return ws.cell(row, head["Internal note"]).value
+
+    def set_note(self, text):
+        with self.s.step("dashboard", USER) as st:
+            st.update("milestones", self.m2, {"internal_note": text})
+        self.export_again()
+
+    def test_the_sheet_holds_the_words_not_the_markup(self):
+        self.set_note(self.HTML)
+        self.assertEqual(self.cell(), self.WORDS)
+        self.set_note("an old plain note\nwith < and &")
+        self.assertEqual(self.cell(), "an old plain note\nwith < and &")
+
+    def test_an_untouched_export_imports_as_no_change(self):
+        for stored in (self.HTML, "an old plain note\nwith < and &"):
+            self.set_note(stored)
+            p = self.read()
+            self.assertEqual([c for c in p.changes if c.id == self.m2], [], stored)
+            self.assertEqual(p.problems, [])
+
+    def test_an_edited_cell_is_one_change_and_reads_as_the_words_typed(self):
+        self.set_note(self.HTML)
+        edit(self.path, "Milestones", self.m2, **{"Internal note": "New <i>words</i>\nand more"})
+        p = self.read()
+        self.assertEqual([tuple(c.after) for c in p.changes if c.id == self.m2], [("internal_note",)])
+        p.accept_all()
+        self.assertTrue(xi.apply_import(self.s, p, USER, state_path=self.state).applied)
+        stored = self.s.read("milestones", ref=self.m2)["internal_note"]
+        self.assertEqual(sanitise.rich_plain_text(stored), "New <i>words</i>\nand more")
+        self.assertEqual(sanitise.rich_or_plain(stored), "<p>New &lt;i&gt;words&lt;/i&gt;</p><p>and more</p>", "an old-style plain text still reads, escaped")
 
 
 class Clash(RoundTrip):
