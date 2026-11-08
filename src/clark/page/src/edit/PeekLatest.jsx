@@ -50,6 +50,7 @@ export function PeekNeeded({ row }) {
 
 export function PeekLatest({ row }) {
   const rec = raw(row), action = row.kind === "action";
+  const [reopen, setReopen] = useState(false);                       // item 549: Draft pressed with the box open puts the new box open, with the caret in it
   const [rev, setRev] = useState(0);                                   // a new key after Draft, so an open editor is left and drawn from what clark stored
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
@@ -63,15 +64,19 @@ export function PeekLatest({ row }) {
     const a = raw(row), ms = a && a.milestone && ((data.value && data.value.milestones) || []).find((m) => m.id === a.milestone);
     const words = draftFor({ due: row.due_date, status: row.status, owner: row.owner, milestone: ms ? { name: ms.name, agreed: ms.baseline_date } : null }, todayIso());
     if (words === cleanLatest(richWords(now))) { say("note", "The latest update already says that."); return; }
-    setRev((n) => n + 1);                                              // Draft replaces the text: leave the editor without saving what was typed
-    changeCell("actions", row.id, { latest_update: words }, { text: "Latest update drafted from the item's own fields.", back: `Latest update of ${row.id} is back as it was.`, place: "draft" }).then(() => refresh());
+    const focused = document.activeElement;
+    const inBox = !!(focused && focused.closest && focused.closest(".ProseMirror"));    // read before the wait: the caret is where it was when Draft was pressed
+    // The editor is left only once clark has stored the draft and the page has read it again, so the new box is drawn from the drafted
+    // words (never the old text, which the next blur would save over the draft). A refused Draft leaves the box and what was typed as they are.
+    changeCell("actions", row.id, { latest_update: words }, { text: "Latest update drafted from the item's own fields.", back: `Latest update of ${row.id} is back as it was.`, place: "draft" })
+      .then(async (reply) => { if (!reply) return; await refresh(); setReopen(inBox); setRev((n) => n + 1); });
   };
   return (
     <div class="pk-latest" data-pk-latest>
       {action ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span> <button type="button" class="pk-draft" data-pk-draft onMouseDown={(e) => e.preventDefault()} onClick={draft}><Icon name="sparkle" cls="s" />Draft</button>
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
-        <RichField key={rev} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
+        <RichField key={rev} forceOpen={reopen} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>
