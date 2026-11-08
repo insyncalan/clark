@@ -6,8 +6,8 @@ import { Add } from "./Add.jsx";
 import { Title } from "./Title.jsx";
 import { Toggle } from "./Toggle.jsx";
 import { Toast } from "./Toast.jsx";
-import { SneakPeek as Words, SneakButton as WordsButton } from "./SneakPeek.jsx";
-import { PeekTabs, PeekActivity } from "./PeekActivity.jsx";
+import { SneakPeek as Words } from "./SneakPeek.jsx";
+import { PeekTabs, PeekActivity, PeekSource } from "./PeekActivity.jsx";
 import { PeekLatest, PeekWarn, PeekNeeded } from "./PeekLatest.jsx";
 import { PeekTitle } from "./PeekTitle.jsx";
 import { PeekWording } from "./PeekWording.jsx";
@@ -48,6 +48,7 @@ import { richOn } from "./richSave.js";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
 import { Update } from "./Update.jsx";
+import { Brands } from "./Brands.jsx";
 import { Projects } from "./Projects.jsx";
 import { RowMenu } from "./RowMenu.jsx";
 import { UseCasesPage } from "./UseCasesPage.jsx";
@@ -92,4 +93,4 @@ import { HAND_OVER } from "./HandOver.jsx";
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, WordsButton, PeekTabs, PeekActivity, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };
+export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, PeekTabs, PeekActivity, PeekSource, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedReports, exportExcel, ClientFolder, Safety, Update, Brands, Projects, Diagnostics, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };

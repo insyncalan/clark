@@ -234,6 +234,8 @@ class Cards(Base):
             p.js("document.querySelector('input[name=secstyle]:checked').focus()")
             p.key("ArrowRight", code="ArrowRight", vk=39)           # a key makes the focus show as a keyboard one
             p.until("document.documentElement.dataset.secstyle === 'roomy'", "moved")
+            ringed = 'document.querySelector("input[name=secstyle]:focus-visible + .secpick-card")'
+            p.until(f"{ringed} !== null && getComputedStyle({ringed}).outlineStyle === 'solid'", "the focused card shows a ring")      # a bounded wait on the focus state, not one read
             ring = p.js("(() => { const k = document.querySelector('input[name=secstyle]:focus-visible + .secpick-card'); if (!k) return null; const s = getComputedStyle(k); "
                         "return {w: parseFloat(s.outlineWidth), style: s.outlineStyle, c: s.outlineColor, blue: __token('--brand-blue'), bg: __behind(k.parentElement)}; })()")
             self.assertIsNotNone(ring, "the focused card shows a ring")

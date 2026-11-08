@@ -13,13 +13,14 @@ sanitise.href passed and that starts https: or mailto:), never from row text.
 
 Rich text (current_state, a use case's standing, a text section's body) is cleaned again with sanitise.clean_html and mapped from
 its token stream: p, h1 to h3 (one level down, so the section title stays the top), strong, em, s, ul and ol to three levels,
-blockquote, hr, br, a checklist box, and a link only to https: or mailto:. The sanitiser has no img, so Word carries no picture.
+blockquote, hr, br, a checklist box, and a link only to https: or mailto:. The sanitiser has no img, so row text never brings a picture; the only pictures are the ones this module draws (docx_graphics:
+the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media with no label in them.
 
 The same rows give the same bytes: parts in a fixed order, a fixed time, system and permission bits on every zip entry, relationship
 ids numbered in order of use, no clock and nothing left to chance, and the file's author and last editor are the word clark, never a person.
 (The compressed bytes also depend on the zlib in use, so compare two builds made on one machine.)
 
-What is not carried: links between items, labels, pictures, comments, and the editor's tile order and outline colours (they are not
+What is not carried: links between items, labels, comments, and the editor's tile order and outline colours (they are not
 in the published rows). A Cancelled milestone is left out, as the page's client list leaves it out. A shown table with no rows says
 "None recorded."; an empty current state or text section is left out (FR-14c).
 
@@ -34,7 +35,7 @@ import zipfile
 from datetime import date
 
 from clark import excel_colours as colours_table
-from clark import glance, look, platform, sanitise
+from clark import docx_graphics, docx_read, glance, look, platform, sanitise
 
 MAX_BYTES = 5 * 1024 * 1024               # NFR-8: a file larger than this is refused (as publish.MAX_BYTES)
 NONE = "None recorded."                   # creaite's own words (docx_tools.NONE)
@@ -57,7 +58,7 @@ HEX = re.compile(r"#?([0-9A-Fa-f]{6})")
 NOT_XML = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 
 TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use cases", "milestones": "Milestones",
-          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions"}
+          "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
 MAX_LEVELS = 3                                           # list levels written
@@ -96,11 +97,22 @@ class _Ctx:
         self.tok, self.as_at = colours, as_at
         self.today = date.fromisoformat(as_at)
         self.links, self.lists = {}, 0
+        self.images = {}                               # PNG bytes -> (relationship id, part name): the same picture is one part
+        self.next_rid, self.drawings = 5, 0
+
+    def rid(self):
+        self.next_rid += 1
+        return f"rId{self.next_rid - 1}"
 
     def link(self, address):
         if address not in self.links:
-            self.links[address] = f"rId{5 + len(self.links)}"
+            self.links[address] = self.rid()
         return self.links[address]
+
+    def image(self, png):
+        if png not in self.images:
+            self.images[png] = (self.rid(), f"image{len(self.images) + 1}.png")
+        return self.images[png]
 
     def new_list(self):
         self.lists += 1
@@ -185,6 +197,43 @@ def table(ctx, headers, weights, rows, borders=True):
     for r in rows:
         out.append("<w:tr><w:trPr><w:cantSplit/></w:trPr>" + "".join(cell(w, p, f) for w, (p, f) in zip(cols, r)) + "</w:tr>")
     return "".join(out) + "</w:tbl>" + para(spacing=(0, 120))
+
+
+NS_WP = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+NS_A = "http://schemas.openxmlformats.org/drawingml/2006/main"
+NS_PIC = "http://schemas.openxmlformats.org/drawingml/2006/picture"
+EMU_PER_TWIP = 635
+
+
+def picture(ctx, drawn, width_twips, alt):
+    """A run holding an inline picture (a Word drawing) of `drawn` = (png, pixel width, pixel height), `width_twips` wide with
+    its shape kept. `alt` is the picture's alternative text, made only of words the report already shows."""
+    png, w, h = drawn
+    rid, name = ctx.image(png)
+    ctx.drawings += 1
+    cx = int(width_twips) * EMU_PER_TWIP
+    cy = max(1, cx * h // w)
+    return (f'<w:r><w:drawing><wp:inline xmlns:wp="{NS_WP}" distT="0" distB="0" distL="0" distR="0"><wp:extent cx="{cx}" cy="{cy}"/>'
+            f'<wp:docPr id="{ctx.drawings}" name="{docx_read.OWN_PICTURE_NAME}{ctx.drawings}" descr="{attr(alt)}"/>'
+            f'<a:graphic xmlns:a="{NS_A}"><a:graphicData uri="{NS_PIC}"><pic:pic xmlns:pic="{NS_PIC}"><pic:nvPicPr>'
+            f'<pic:cNvPr id="{ctx.drawings}" name="{name}" descr="{attr(alt)}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>'
+            f'<a:blip r:embed="{rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/>'
+            f'<a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic>'
+            "</a:graphicData></a:graphic></wp:inline></w:drawing></w:r>")
+
+
+def picture_para(ctx, make, width_twips, style=None, **kw):
+    """A paragraph holding a picture, or "" when it cannot be made. `make()` gives (drawn, alt text) or None. A picture is only an
+    addition to words the report already carries, so any failure in drawing it (a number too large to read, a bug) leaves the
+    words alone and writes no picture."""
+    try:
+        made = make()
+        if not made:
+            return ""
+        drawn, alt = made
+        return para(picture(ctx, drawn, width_twips, alt), style, **kw)
+    except Exception:
+        return ""
 
 
 def word_cell(text, ctx, colour=None, late=False, extra=()):
@@ -337,6 +386,8 @@ def section_glance(published, ctx, title, sec, kept):
             fill, text = ctx.hexes(health["colour"])
         out.append(para(run("Project health: ", bold=True) + run(health["value"], bold=True, color=text), fill=fill,
                         spacing=(60, 60)))
+        out.append(picture_para(ctx, lambda: (docx_graphics.health_bar(health["colour"], ctx.tok), "Project health: " + str(health["value"])),
+                                TEXT_W, keep_next=True, spacing=(0, 60)))
         if health["reason"].strip():
             out.append(text_paras(health["reason"], ctx, style=None))
     others = [t for t in tiles if t["tile"] != "health"]
@@ -375,10 +426,11 @@ def section_usecases(published, ctx, title, sec, kept):
 
 
 def section_milestones(published, ctx, title, sec):
-    rows = []
+    rows, kept = [], []
     for m in _rows(published, "milestones"):
         if m.get("status") == "Cancelled":
             continue
+        kept.append(m)
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
@@ -388,6 +440,8 @@ def section_milestones(published, ctx, title, sec):
                 name += text_paras(line, ctx, **kw)
         if m.get("percent_complete") is not None:
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
+            name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
+                                 1440, "TableText")
         when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
@@ -396,8 +450,96 @@ def section_milestones(published, ctx, title, sec):
                      word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
-                                   [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
+    def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's
+        drawn = docx_graphics.plan(kept, published["as_at"], ctx.tok)
+        if not drawn:
+            return None
+        image, lanes = drawn
+        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+    chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
+    return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
+                                           [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
+
+
+GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
+GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
+
+
+def _gantt_status(r, today):
+    """The page's statusOf: Done (100%), Late (ended before today and not done), In progress, Not started."""
+    if r["pct"] >= 100:
+        return "done"
+    if r["end"] < today:
+        return "late"
+    return "inprogress" if r["pct"] > 0 or (r["start"] <= today and r["type"] != "milestone") else "notstarted"
+
+
+def _gantt_numbers(drawn):
+    """The page's outline numbers: phases 1, 2, 3; a task under a phase 2.1; a milestone M-1; a task with no phase T-1."""
+    phases = {r["line"].get("id"): r for r in drawn if r["type"] == "phase" and isinstance(r["line"].get("id"), str)}
+    num, p, m, t, under = {}, 0, 0, 0, {}
+    for i, r in enumerate(drawn):
+        if r["type"] == "phase":
+            p += 1
+            num[i] = str(p)
+    by_id = {r["line"].get("id"): num[i] for i, r in enumerate(drawn) if i in num and isinstance(r["line"].get("id"), str)}
+    for i, r in enumerate(drawn):
+        if r["type"] == "milestone":
+            m += 1
+            num[i] = f"M-{m}"
+        elif r["type"] == "task":
+            up = r["line"].get("parent")
+            if isinstance(up, str) and up in phases and up in by_id:
+                under[up] = under.get(up, 0) + 1
+                num[i] = f"{by_id[up]}.{under[up]}"
+            else:
+                t += 1
+                num[i] = f"T-{t}"
+    return [num[i] for i in range(len(drawn))]
+
+
+def section_gantt(published, ctx, title, sec):
+    """The Gantt tab as pictures (docx_graphics.gantt) with the words as Word text under each: the number, name, start, end, how far
+    along and the status of every line the picture holds, in the picture's order. The lines are published data.gantt's (an eye-off
+    line was never copied). No Gantt in the file, or no line, is no section."""
+    g = published["data"].get("gantt")
+    try:
+        made = docx_graphics.gantt((g or {}).get("lines"), published["as_at"], ctx.tok) if isinstance(g, dict) else None
+    except Exception:                                                                       # a picture is only an addition: nothing to draw from, no section
+        made = None
+    if not made:
+        return ""
+    out = [_heading(title)]
+    if made["pictures"]:
+        out.append(para(run(f"{_date(made['start'].isoformat())} to {_date(made['end'].isoformat())}", color=ctx.tok["grey-700"], size=16), keep_next=True))
+        out.append(para(run(" · ".join(GANTT_LEGEND), color=ctx.tok["grey-700"], size=16), keep_next=True))
+    if made["left_out"]:
+        shown = len(made["drawn"])
+        out.append(para(run(f"{shown} of {shown + made['left_out']} lines shown", color=ctx.tok["grey-700"], size=16)))
+    try:
+        numbers = _gantt_numbers(made["drawn"])
+    except Exception:
+        numbers = [""] * len(made["drawn"])
+    at = 0
+    for image, run_lines in made["pictures"]:
+        status = [GANTT_STATUS[_gantt_status(r, ctx.today)] for r in run_lines]
+        out.append(picture_para(ctx, lambda: (image, "; ".join(f"{r['line'].get('name') or ''}, {_date(r['start'].isoformat())}, {s}"
+                                                                for r, s in zip(run_lines, status))), TEXT_W, keep_next=True, spacing=(0, 60)))
+        rows = []
+        for r, s in zip(run_lines, status):
+            line = r["line"]
+            name = para(run(line.get("name") or "", bold=r["type"] == "phase"), "TableText")
+            rows.append([word_cell(numbers[at], ctx), (name, None), word_cell(_date(r["start"].isoformat()), ctx),
+                         word_cell(_date(r["end"].isoformat()), ctx), word_cell(f"{r['pct']}%", ctx),
+                         word_cell(s, ctx, colour={"done": "green", "late": "red"}.get(_status_key(s)))])
+            at += 1
+        out.append(table(ctx, ["No", "Phase / task", "Start", "End", "Done", "Status"], [800, 4238, 1150, 1150, 900, 1400], rows))
+    return "".join(out)
+
+
+def _status_key(word):
+    return {v: k for k, v in GANTT_STATUS.items()}[word]
 
 
 def _due(table_name, field, row, ctx, extra=()):
@@ -455,7 +597,7 @@ def section_decisions(published, ctx, title, sec):
 
 
 SIMPLE = {"current": section_current, "text": section_text, "milestones": section_milestones, "actions": section_actions,
-          "raid": section_raid, "decisions": section_decisions}
+          "raid": section_raid, "decisions": section_decisions, "gantt": section_gantt}
 
 
 def title_block(published, ctx):
@@ -571,10 +713,11 @@ def rels_xml(ctx):
            f'<Relationship Id="rId4" Type="{base}/footer" Target="footer1.xml"/>']
     rel += [f'<Relationship Id="{rid}" Type="{base}/hyperlink" Target="{attr(address)}" TargetMode="External"/>'
             for address, rid in ctx.links.items()]
+    rel += [f'<Relationship Id="{rid}" Type="{base}/image" Target="media/{name}"/>' for rid, name in ctx.images.values()]
     return HEAD + f'<Relationships xmlns="{NS_REL}">' + "".join(rel) + "</Relationships>"
 
 
-def content_types_xml():
+def content_types_xml(pictures=False):
     o = [("/word/document.xml", f"{DOC_TYPE}.document.main+xml"), ("/word/styles.xml", f"{DOC_TYPE}.styles+xml"),
          ("/word/numbering.xml", f"{DOC_TYPE}.numbering+xml"), ("/word/settings.xml", f"{DOC_TYPE}.settings+xml"),
          ("/word/footer1.xml", f"{DOC_TYPE}.footer+xml"),
@@ -582,6 +725,7 @@ def content_types_xml():
          ("/docProps/app.xml", "application/vnd.openxmlformats-officedocument.extended-properties+xml")]
     return HEAD + (f'<Types xmlns="{NS_CT}"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>'
                    '<Default Extension="xml" ContentType="application/xml"/>'
+                   + ('<Default Extension="png" ContentType="image/png"/>' if pictures else "")
                    + "".join(f'<Override PartName="{p}" ContentType="{t}"/>' for p, t in o) + "</Types>")
 
 
@@ -622,7 +766,7 @@ def zip_bytes(parts):
         for name, data in parts:
             info = zipfile.ZipInfo(name, date_time=ZIP_TIME)
             info.compress_type, info.create_system, info.external_attr = zipfile.ZIP_DEFLATED, 3, 0o644 << 16
-            z.writestr(info, data.encode("utf-8"), compresslevel=6)
+            z.writestr(info, data if isinstance(data, bytes) else data.encode("utf-8"), compresslevel=6)
     return buf.getvalue()
 
 
@@ -645,12 +789,13 @@ def build(published, colours=None):
     project = published["data"]["project"]
     ctx = _Ctx(palette(colours), published["as_at"])
     body = title_block(published, ctx) + "".join(xml for _, xml in sections(published, ctx))
-    parts = [("[Content_Types].xml", content_types_xml()), ("_rels/.rels", package_rels_xml()),
+    parts = [("[Content_Types].xml", content_types_xml(bool(ctx.images))), ("_rels/.rels", package_rels_xml()),
              ("docProps/core.xml", core_xml(project.get("name") or project["code"], published["as_at"])),
              ("docProps/app.xml", app_xml()), ("word/document.xml", document_xml(body)),
              ("word/styles.xml", styles_xml(ctx.tok)), ("word/numbering.xml", numbering_xml(ctx.lists)),
              ("word/settings.xml", settings_xml()), ("word/footer1.xml", footer_xml(project["code"], published["as_at"], ctx.tok)),
              ("word/_rels/document.xml.rels", rels_xml(ctx))]
+    parts += [(f"word/media/{name}", png) for png, (_, name) in ctx.images.items()]
     data = zip_bytes(parts)
     if len(data) > MAX_BYTES:
         raise WordError(f"The report is {len(data) / 1048576:.1f} MB, which is over the {MAX_BYTES // 1048576} MB limit. "

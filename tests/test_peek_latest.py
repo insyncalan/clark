@@ -9,6 +9,7 @@ and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or
 """
 import json
 import unittest
+from _editor_checks import for_url
 from datetime import datetime, timezone
 
 from _paths import ROOT
@@ -154,6 +155,15 @@ class Source(unittest.TestCase):
         self.assertIn('done.place || "cell"', (ROOT / "src/clark/page/src/stores/changes.js").read_text(encoding="utf-8"))
         self.assertTrue({"peek", "draft"} <= set(changes.PLACES))
 
+    def test_the_label_ids_come_from_the_item_id_not_fixed_names(self):
+        """#550: two peeks (or a peek and a stale one while it leaves) must not share an id, so the ids carry the item id."""
+        jsx = (ROOT / "src/clark/page/src/edit/PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertNotIn('id="pk-latest-lab"', jsx)
+        self.assertNotIn('id="pk-latest-txt"', jsx)
+        self.assertIn("id={`pk-latest-lab-${row.id}`}", jsx)
+        self.assertIn("id={`pk-latest-txt-${row.id}`}", jsx)
+        self.assertIn("aria-labelledby={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}", jsx)
+
     def test_the_peek_hands_both_parts_to_edit_only(self):
         peek = (ROOT / "src/clark/page/src/components/Peek.jsx").read_text(encoding="utf-8")
         self.assertIn("editing && forItem && tools.PeekWarn", peek)
@@ -199,7 +209,7 @@ class Browser(unittest.TestCase):
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": self.HOLD}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p={self.code}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#work&p={self.code}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
         if dark:
             cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
@@ -438,7 +448,7 @@ class Browser(unittest.TestCase):
                 self.assertIn(self.action(OVERDUE)["latest_update"], box["text"])
                 self.assertEqual(box["ink"], self.want(cdp, sid, "--text"))
                 self.assertGreaterEqual(box["ratio"], 4.5, box)
-                lab = self.look(cdp, sid, "#pk-latest-lab")
+                lab = self.look(cdp, sid, '[id^="pk-latest-lab-"]')
                 self.assertEqual(lab["text"], "Latest update")
                 self.assertGreaterEqual(lab["ratio"], 4.5, lab)
                 stamp = self.look(cdp, sid, "[data-pk-last]")

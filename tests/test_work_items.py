@@ -417,7 +417,7 @@ class RealBrowser(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('main button').length", sid), 1, "Try again")
         broken = [True]
 
-        def data_for(code):
+        def data_for(code, archived=None):
             if broken[0]:
                 raise RuntimeError("the store is not there")
             return self.store.data_for(code)
@@ -444,7 +444,7 @@ class RealBrowser(unittest.TestCase):
                                  (cdp.js("document.querySelector('main').innerText", sid) or "")))
 
     def test_a_project_with_no_work_items_says_so(self):
-        s = self.serve(data_for=lambda code: {"project": {"code": code, "name": "Empty Project"}, "milestones": [], "workstreams": [],
+        s = self.serve(data_for=lambda code, archived=None: {"project": {"code": code, "name": "Empty Project"}, "milestones": [], "workstreams": [],
                                               "actions": [], "raid": [], "decisions": [], "use_cases": [], "links": [], "labels": {}})
         with chrome() as cdp:
             sid = self.load_page(cdp, s.port, 1400, "#work&p=EMPTY")
