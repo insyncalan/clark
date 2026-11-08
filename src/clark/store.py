@@ -1560,7 +1560,7 @@ REASON_MARKUP_LIMIT = 64 * 1024                                           # byte
 def _reason_html(value):
     """Row 1005: a reason written as the editor's HTML, as it is stored: cleaned by the server's own cleaner, the words (not the markup)
     held to REASON_LIMIT, no hidden character among them. No words at all is None."""
-    value = unicodedata.normalize("NFC", value)                           # BEFORE the cleaner: composing after it can turn a tag's ">" into a letter (U+0338 after it makes U+226F)
+    value = sanitise.nfc_for_markup(value)                                # BEFORE the cleaner (a mark after a tag would compose into it and lose the words inside)
     if any(c not in "\n\r\t" and unicodedata.category(c) in _BAD_TITLE_KINDS for c in value):
         raise Invalid(REASON_BAD_CHARS)                                   # a NUL or a bidi mark is refused, not quietly dropped by the cleaner
     try:
@@ -1583,6 +1583,8 @@ def _reason_html(value):
 def health_reason_html(value):
     """Row 1005: what the change route stores for a reason: the editor's HTML cleaned, or plain text from an older caller checked as
     before (health_reason_text) and then made into escaped paragraphs. None (no words) stays None."""
+    if isinstance(value, str):
+        value = sanitise.nfc_for_markup(value)                            # BEFORE the check and the cleaner, so a mark after a tag name cannot hide the tag from the HTML test
     text = health_reason_text(value)
     if text is None or sanitise.HTML_START.match(value):
         return text

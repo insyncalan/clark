@@ -104,11 +104,24 @@ class ReadSide(Base):
         self.assertNotIn("<p>", "\n".join(ask_data.project_lines(project)))
 
 
-COMPOSING = ("<p\u0338>x</p>", "<p>a</p>\u0338", "<p>a</p><p>b</p>\u0338", "<p>a</p><p>\u0338text</p>", "<p>e\u0301 &#x301;</p>", "<p>&lt;\u0338 q</p>", "x <\u0338 y")
+# What is sent -> what is stored. A combining mark right after a tag's '<', '>' or name (U+0338 after '>' makes U+226F, another mark makes another
+# letter) is dropped so the tag stays a tag and the words inside it survive; every other mark is composed (NFC) BEFORE the cleaner.
+COMPOSING = {
+    "<p\u0338>x</p>": "<p>x</p>",
+    "<p>a</p>\u0338": "<p>a</p>",
+    "<p>a</p><p>b</p>\u0338": "<p>a</p><p>b</p>",
+    "<p>a</p><p>\u0338text</p>": "<p>a</p><p>text</p>",
+    "<p>a</p><p\u0301>text</p>": "<p>a</p><p>text</p>",
+    "<ul><li\u0338>q</li></ul>": "<ul><li>q</li></ul>",
+    "<p>e\u0301 &#x301;</p>": "<p>\u00e9 \u0301</p>",
+    "<p>&lt;\u0338 q</p>": "<p>&lt;\u0338 q</p>",
+    "x <\u0338 y": "<p>x &lt; y</p>",
+    "e\u0301": "<p>\u00e9</p>",
+}
 
 
 class Composing(Base):
-    """A mark that composes with a tag's '>' (U+0338 gives U+226F) must be composed BEFORE the cleaner, or the stored markup is broken and a paragraph is lost."""
+    """NFC runs BEFORE the cleaner, and a mark that would compose into a tag does not cost the words inside it."""
 
     def note(self, text):
         change = changes.make_change(self.s.path, [], USER)
@@ -116,24 +129,36 @@ class Composing(Base):
         self.assertEqual(status, 200, (text, got))
         return self.s.read("milestones", ref=self.demo.milestone)["internal_note"]
 
-    def test_the_note_is_a_fixed_point_of_the_cleaner_and_keeps_every_paragraph(self):
-        for sent in COMPOSING:
-            got = self.note(sent)
-            self.assertEqual(sanitise.rich_or_plain(got), got, repr(got))
-            self.assertNotIn("\u226f", got, repr(got))
+    def test_direct_call_stores_the_words_and_composes_before_the_cleaner(self):
+        """Fails if NFC is moved after the cleaner (the second paragraph's tag becomes '<p>' + U+226F), if NFC is dropped ('e' + U+0301 stays two characters), or if the mark is not dropped (the words are lost)."""
+        for sent, want in COMPOSING.items():
+            self.assertEqual(changes._rich_field(sent, 100, "long", "hidden"), want, ascii(sent))
+        got = changes._rich_field("<p>a</p><p>\u0338text</p>", 100, "long", "hidden")
+        self.assertEqual(sanitise.plain_text(got), "a\ntext", "the words survive")
+        self.assertEqual(sanitise.plain_text(changes._rich_field("<p>e\u0301</p>", 100, "long", "hidden")), "\u00e9", "composed: one character")
 
-    def test_the_reason_is_a_fixed_point_of_the_cleaner_and_keeps_every_paragraph(self):
-        for sent in COMPOSING:
+    def test_the_store_reason_check_does_the_same(self):
+        for sent, want in COMPOSING.items():
+            if sanitise.HTML_START.match(sent):                       # the store HTML branch; anything else is plain text, the route's job (health_reason_html)
+                self.assertEqual(clark_store.health_reason_text(sent), want, ascii(sent))
+        self.assertEqual(sanitise.plain_text(clark_store.health_reason_text("<p>a</p><p>\u0338text</p>")), "a\ntext")
+
+    def test_the_note_keeps_the_words_through_the_route(self):
+        for sent, want in COMPOSING.items():
+            got = self.note(sent)
+            self.assertEqual(got, want, ascii(sent))
+            self.assertEqual(sanitise.rich_or_plain(got), got)
+            self.assertNotIn("\u226f", got)
+
+    def test_the_reason_keeps_the_words_through_the_route_and_the_file(self):
+        for sent, want in COMPOSING.items():
             status, got = self.send(health="At risk", health_reason=sent)
             self.assertEqual(status, 200, (sent, got))
-            stored = self.reason()
-            self.assertEqual(sanitise.rich_or_plain(stored), stored, repr(stored))
-            self.assertNotIn("\u226f", stored, repr(stored))
-            self.assertEqual(publish.reason_html(stored), stored, "and the file carries it as it is")
+            self.assertEqual(self.reason(), want, ascii(sent))
+            self.assertEqual(publish.reason_html(self.reason()), want, "and the file carries it as it is")
         with self.s.step("team", USER) as st:                  # a teammate's change, not the route: the store holds every writer to it
             st.update("projects", "ABC", {"health_reason": "<p>a</p><p>\u0338text</p>"})
-        self.assertEqual(sanitise.rich_or_plain(self.reason()), self.reason())
-        self.assertNotIn("\u226f", self.reason())
+        self.assertEqual(self.reason(), "<p>a</p><p>text</p>")
 
 
 class Readers(Base):

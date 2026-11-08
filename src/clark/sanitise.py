@@ -433,3 +433,23 @@ def rich_plain_text(value):
         return plain_text(rich_or_plain(value))
     except SanitiseError:
         return ""
+
+
+_MARKUP_EDGE = re.compile(r"</?[A-Za-z][A-Za-z0-9]*|[<>]")
+
+
+def nfc_for_markup(text):
+    """`text` composed (NFC) so that what the cleaner reads is what is stored. A combining mark right after a '<', a '>' or a tag name
+    would compose INTO it (U+0338 after '>' makes U+226F, a mark after a tag's name makes another letter) and turn the tag into text
+    or an unknown tag, losing the words inside it: such a mark is dropped first (a mark with no letter to sit on means nothing),
+    then the text is composed. Call this BEFORE clean_html, never after."""
+    out, i = [], 0
+    for m in _MARKUP_EDGE.finditer(text):
+        if m.start() < i:
+            continue
+        out.append(text[i:m.end()])
+        i = m.end()
+        while i < len(text) and unicodedata.category(text[i]) in ("Mn", "Me"):
+            i += 1
+    out.append(text[i:])
+    return unicodedata.normalize("NFC", "".join(out))
