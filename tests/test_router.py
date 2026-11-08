@@ -857,6 +857,46 @@ class BuiltPage(Browser):
             reload_to_new_page_cdp(self.cdp, self.sid, "document.documentElement.dataset.ready === '1'")
             self.assertEqual(self.scroll_y(), 0, "a fresh load starts at the top")
 
+    def settled(self, frames=40):
+        """Let the page run `frames` animation frames, so a restore (it lasts up to 30 held frames) would have shown itself."""
+        self.ev(f"window.ran = 0; (function t() {{ if (++window.ran < {frames}) requestAnimationFrame(t); }})()")
+        self.assertTrue(wait(lambda: self.ev("window.ran") >= frames), f"the page ran {frames} frames")
+
+    def test_item_1019_opening_and_closing_a_peek_is_not_leaving_the_screen_so_nothing_is_saved_or_restored(self):
+        with chrome() as cdp:
+            self.draw(cdp, "#work&p=PDF")
+            self.tall()
+            self.scroll_to(400)
+            self.ev("""(() => {
+                window.lowest = Math.round(scrollY); window.scrolls = 0; window.restores = 0;
+                addEventListener("scroll", () => { window.scrolls++; window.lowest = Math.min(window.lowest, Math.round(scrollY)); });
+                const add = window.addEventListener;                     // a restore hooks once-listeners (wheel, touch, key, mouse) and turns scroll anchoring off
+                window.addEventListener = function (t, f, o) { if (o && o.once) window.restores++; return add.apply(this, arguments); };
+            })()""")
+            self.settled()                                               # the scroll to 400 has landed and its event has fired
+            self.ev("window.scrolls = 0")
+
+            def untouched(what):
+                self.settled()
+                self.assertEqual(self.scroll_y(), 400, f"{what}: the page did not move")
+                self.assertEqual(self.ev("window.lowest"), 400, f"{what}: the page never jumped away and back")
+                self.assertEqual(self.ev("window.scrolls"), 0, f"{what}: no scroll happened at all")
+                self.assertEqual(self.ev("window.restores"), 0, f"{what}: no restore was started (the screen did not change)")
+                self.assertEqual(self.ev("document.documentElement.style.overflowAnchor"), "", f"{what}: scroll anchoring was left alone")
+
+            # a restore starts inside navigate, so look in the same turn as the call
+            self.assertEqual(self.ev("(() => { clarkPage.openPeek('A-12'); return [window.restores, document.documentElement.style.overflowAnchor]; })()"),
+                             [0, ""], "opening a peek starts no restore")
+            self.until("location.hash", "#work&p=PDF&item=A-12", "the peek opened")
+            untouched("peek open")
+            self.ev("clarkPage.openPeek('A-13')")                        # another row: the entry is replaced, still the same screen
+            self.until("location.hash", "#work&p=PDF&item=A-13", "the other row")
+            untouched("another row")
+            self.ev("clarkPage.closePeek()")
+            self.until("location.hash", "#work&p=PDF", "the peek closed")
+            untouched("peek closed")
+            self.no_errors()
+
     def test_scroll_resize_escape_and_repeated_calls_add_no_entry(self):
         # The real "history.length unchanged" check for filters, search, sort, Edit and the calendar waits for #64a and #42.
         with chrome() as cdp:
