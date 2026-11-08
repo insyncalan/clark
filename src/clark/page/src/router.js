@@ -105,7 +105,7 @@ function scrollNow() {
 function restore(key) {
   const mine = ++restoring;
   const want = spots.get(key) || 0;
-  let frames = 0, held = 0;
+  let frames = 0, held = 0, last = -1;                     // last: where this restore left the page, to tell its own placing from someone else's scroll
   const root = document.documentElement;
   const done = () => { try { root.style.overflowAnchor = ""; } catch (e) { /* none */ } };     // the browser's own scroll anchoring would shift the place while the page redraws
   const stop = () => { if (mine === restoring) { restoring++; done(); } };
@@ -116,7 +116,10 @@ function restore(key) {
     try {
       const room = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
       const at = Math.min(want, room);
-      if (Math.round(window.scrollY) !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
+      const y = Math.round(window.scrollY);
+      if (last >= 0 && y !== last && last <= room) { stop(); return; }     // something else scrolled the page (scrollIntoView, focus) while it was tall enough to hold the place: leave it there. A page that shrank clamps the place and is not this.
+      if (y !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
+      last = Math.round(window.scrollY);
       if (++frames < 120 && held < 30) requestAnimationFrame(step); else done();
     } catch (e) { /* no window to scroll */ }
   };
