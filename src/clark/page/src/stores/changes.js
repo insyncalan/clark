@@ -319,7 +319,7 @@ export function changeMilestone(req, done) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendMilestoneChange(code, req);
-    if (r.ok && r.reply.apply_id) say("done", done, r.reply.apply_id, code);
+    if (r.ok && r.reply.apply_id) say("done", typeof done === "function" ? done(r.reply) : done, r.reply.apply_id, code);   // #603: `done` may work out its words from the reply
     return r;
   });
 }

@@ -663,6 +663,18 @@ class DefaultAudienceTest(unittest.TestCase):
         self.assertIsNone(package.private_paths(tmp))
         self.assertEqual(self.TEAM, package.audience(tmp))
 
+    def test_a_git_that_hangs_is_team_only_and_is_asked_with_a_timeout(self):
+        """LOW 3 of the tech-debt list for item 463: git is never waited on for ever. A hang reads as 'git cannot say'."""
+        seen = []
+
+        def hang(cmd, **kw):
+            seen.append(kw.get("timeout"))
+            raise subprocess.TimeoutExpired(cmd, kw.get("timeout"))
+        with mock.patch.object(package.subprocess, "run", side_effect=hang):
+            self.assertIsNone(package.private_paths(package.ROOT))
+            self.assertEqual(self.TEAM, package.audience(package.ROOT))
+        self.assertTrue(seen and all(isinstance(t, (int, float)) and t > 0 for t in seen), seen)
+
     def test_a_client_zip_has_no_audience_line(self):
         self.assertNotIn(self.TEAM, package.start_here("mac", for_client=True))
         self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))

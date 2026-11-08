@@ -552,7 +552,7 @@ class RoundTrip(unittest.TestCase):
         notes = docx_read.read(docx_build.build(published()), "report.docx").notes
         pictures = parts(docx_build.build(published()))["word/document.xml"].decode("utf-8").count("<w:drawing>")
         self.assertEqual(pictures, 2)                                            # the Health bar and the milestone plan
-        self.assertEqual(notes, ["2 pictures, drawings or text boxes were not read.", "The web address of 1 link was not read; the words stay."])
+        self.assertEqual(notes, ["The web address of 1 link was not read; the words stay."])             # clark's own 2 pictures are not counted
 
 
 class Source(unittest.TestCase):

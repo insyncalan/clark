@@ -488,9 +488,16 @@ class Live(unittest.TestCase):
                 sid = self.open_page(cdp, width)
                 cell = "[data-cell='TUL-A-001:priority']"
                 self.assertEqual(self.cell_text(cdp, sid, "TUL-A-001", "priority"), "Urgent")
-                # each picker cell looks changeable before any hover: a caret after its value and a quiet edge under it
-                looks = cdp.js("[...document.querySelectorAll('.cell-pick')].map(b => [getComputedStyle(b, '::after').content, getComputedStyle(b).boxShadow !== 'none'])", sid)
-                self.assertTrue(looks and all(x == ['"▾"', True] for x in looks), looks[:4])
+                # item 1013: at rest a picker cell reads as plain text (no edge, no box, no caret showing); hover shows the box and the caret
+                probe = "(b => { const s = getComputedStyle(b), a = getComputedStyle(b, '::after'); return [s.boxShadow, s.backgroundColor, a.opacity, a.content]; })"
+                rest = cdp.js("[...document.querySelectorAll('.cell-pick')].map(" + probe + ")", sid)
+                self.assertTrue(rest and all(x[0] == 'none' and x[1] == 'rgba(0, 0, 0, 0)' and x[2] == '0' for x in rest), rest[:4])
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 5, "y": 5}, sid)
+                r = cdp.js(f"(() => {{ const b = document.querySelector(\"{cell}\"); b.scrollIntoView({{block:'center'}}); const q = b.getBoundingClientRect(); return [q.x + q.width / 2, q.y + q.height / 2]; }})()", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": r[0], "y": r[1]}, sid)
+                self.until(cdp, sid, f"getComputedStyle(document.querySelector(\"{cell}\")).boxShadow !== 'none'", "hover shows the box")
+                self.assertEqual(cdp.js(f"getComputedStyle(document.querySelector(\"{cell}\"), '::after').opacity", sid), "1", "hover shows the caret")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 5, "y": 5}, sid)
                 # by click: the menu opens on the value it has; a pick changes the row and the store, in one step, and the peek stays shut
                 before = self.steps()
                 click(cdp, sid, cell)
