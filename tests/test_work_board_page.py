@@ -264,9 +264,11 @@ class GroupBy(Base):
             self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type", "Nothing"])
             self.view_pick(cdp, sid, "group:status")
             self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status'")
-            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.querySelector('.gc').textContent, 10)])", sid)
+            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.closest('table').querySelector('.gc').textContent, 10)])", sid)
             self.assertTrue(groups and all(n == c for _, n, c in groups), groups)       # the heading says "N items" (#456); its number is the row count
             self.assertEqual(sum(n for _, n, _ in groups), cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid))
+            self.assertEqual(cdp.js("[...document.querySelectorAll('tr.colh')].filter(r => r.parentElement.tagName !== 'THEAD').length", sid), 0)   # item 547: the column names sit in a thead
+            self.assertTrue(cdp.js("document.querySelectorAll('tr.colh').length > 0", sid))
             self.view_pick(cdp, sid, "group:nothing")
             self.until(cdp, sid, "!document.querySelector('tr.grp')", "a flat table")
             self.reload(cdp, sid)
@@ -276,12 +278,12 @@ class GroupBy(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             n = cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid)
-            click(cdp, sid, "tbody[data-group] .grp-b")
-            shut = cdp.js("document.querySelector('tbody[data-group] .grp-b').getAttribute('aria-expanded')", sid)
+            click(cdp, sid, "thead[data-group] .grp-b")
+            shut = cdp.js("document.querySelector('thead[data-group] .grp-b').getAttribute('aria-expanded')", sid)
             self.assertEqual(shut, "false")
             self.assertLess(cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid), n)
             self.reload(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelector('tbody[data-group] .grp-b').getAttribute('aria-expanded')", sid), "false")
+            self.assertEqual(cdp.js("document.querySelector('thead[data-group] .grp-b').getAttribute('aria-expanded')", sid), "false")
 
     def test_the_board_columns_follow_group_by_and_nothing_is_not_offered(self):
         with chrome() as cdp:

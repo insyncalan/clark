@@ -115,18 +115,17 @@ class InThePage(PageBase):
             p.until(f"!!document.querySelector('{sel} [data-save]')", "the Edit part drew")
             self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').textContent"), "Choose another file…")
             self.assertTrue(p.js(f"document.querySelector('{sel} [data-save] button').disabled"), "nothing to save yet")
-            p.js(f"(() => {{ const t = document.querySelector('{sel} textarea'); t.value = 'Signed on 12-01-2030.\\nSent to the board.';"
+            p.js(f"(() => {{ const t = document.querySelector('{sel} input[id$=-label]'); t.value = 'The signed SOW, v2';"
                  " t.dispatchEvent(new Event('input', {bubbles: true})); })()")
             p.js(f"document.querySelector('{sel} [data-save] button').click()")
             p.until("!!document.querySelector('[data-undo]')", "saved, with Undo")
-            self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["text"], ["Signed on 12-01-2030.", "Sent to the board."])
+            stored = json.loads(self.store.read("report_sections", ref=ref)["body"])
+            self.assertEqual((stored["label"], stored["text"]), ("The signed SOW, v2", ["Signed on 12-01-2030."]), "the label save leaves the words alone")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until(f"document.querySelector('{sel} textarea').value === 'Signed on 12-01-2030.'", "Undo put the words back")
-            p.js(f"(() => {{ const t = document.querySelector('{sel} textarea'); t.value = Array(8).fill('Line').join('\\n');"
-                 " t.dispatchEvent(new Event('input', {bubbles: true})); })()")
-            p.js(f"document.querySelector('{sel} [data-save] button').click()")
-            p.until(f"!!document.querySelector('{sel} .tpl-problem')", "too many lines is said in words")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-problem').textContent"), onedoc.BAD_TEXT)
+            p.until(f"document.querySelector('{sel} input[id$=-label]').value === 'The signed SOW'", "Undo put the label back")
+            # the words under the file are the one editor (row 1005): the old line opens in it, and there is no plain box
+            self.assertFalse(p.js(f"!!document.querySelector('{sel} textarea')"), "no plain box for the words")
+            self.assertTrue(p.js(f"!!document.querySelector('{sel} [data-rich=onedoc]')"), "the words are a rich field")
 
     def test_the_published_file_links_the_document_beside_the_report(self):
         ref = self._add({"file": FILE, "label": "", "text": ["Signed on 12-01-2030."]})
