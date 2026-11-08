@@ -91,7 +91,7 @@ class Running:
                                undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()   # shutdown() waits one poll: 0.5 s by default, a test file stops a server per test
 
     @staticmethod
     def _quiet_when_the_client_leaves(handle_error):
@@ -1395,11 +1395,18 @@ class _Collect(__import__("logging").Handler):
 
 
 def wait(check, seconds=15):
+    """True once check() is true, polling every 50 ms for up to `seconds`. A check that reads a page which is navigating at that
+    moment gets Chrome's "Inspected target navigated or closed": that poll counts as not yet (a page that never settles still
+    ends as False at the limit). Any other error is the test's and is raised."""
     t0 = time.time()
     while time.time() - t0 < seconds:
-        if check():
-            return True
-        time.sleep(0.2)
+        try:
+            if check():
+                return True
+        except RuntimeError as e:
+            if "navigated or closed" not in str(e):
+                raise
+        time.sleep(0.05)       # was 0.2: a condition that turns true a moment after the first look cost a fifth of a second
     return False
 
 
@@ -1418,6 +1425,36 @@ def wait_toast(read, seconds=10):
     if not wait(check, seconds):
         raise AssertionError(f"no toast appeared within {seconds} s")
     return seen[-1]
+
+
+class WaitPolls(unittest.TestCase):
+    """wait needs no browser: it is given the function that reads the page."""
+
+    def test_a_poll_made_while_the_page_navigates_counts_as_not_yet(self):
+        reads = iter([RuntimeError({"code": -32000, "message": "Inspected target navigated or closed"}), False, True])
+
+        def check():
+            r = next(reads)
+            if isinstance(r, Exception):
+                raise r
+            return r
+        self.assertTrue(wait(check, 5))
+
+    def test_a_page_that_never_settles_ends_as_false_at_the_limit(self):
+        def check():
+            raise RuntimeError({"code": -32000, "message": "Inspected target navigated or closed"})
+        self.assertFalse(wait(check, 0.3))
+
+    def test_any_other_error_is_raised(self):
+        def check():
+            raise RuntimeError({"code": -32601, "message": "no such method"})
+        with self.assertRaisesRegex(RuntimeError, "no such method"):
+            wait(check, 5)
+
+    def test_it_looks_again_within_a_tenth_of_a_second(self):
+        t0, reads = time.time(), iter([False, True])
+        self.assertTrue(wait(lambda: next(reads), 5))
+        self.assertLess(time.time() - t0, 0.15)
 
 
 class WaitToast(unittest.TestCase):
