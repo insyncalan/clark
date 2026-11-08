@@ -166,6 +166,17 @@ class PublishedReason(unittest.TestCase):
         limit = publish.REASON_LIMIT
         out = publish.reason_html("<p>" + "x" * (limit + 50) + "</p>")
         self.assertEqual(len(sanitise.plain_text(out)), limit)
+        hidden = publish.reason_html("<p>ke\u200bep wa\u200btch</p>")
+        self.assertNotIn("\u200b", hidden)
+        self.assertEqual(sanitise.plain_text(hidden), "keep watch")
+
+    def test_the_file_drops_hidden_characters_from_the_words(self):
+        """Fails if the _UNSEEN filter is removed from publish.reason_html: a zero-width space, a bidi override and a control character would stay."""
+        out = publish.reason_html("<p>a​b‮c\x01d</p>")
+        self.assertEqual(sanitise.plain_text(out), "abcd")
+        for hidden in ("​", "‮", "\x01"):
+            self.assertNotIn(hidden, out)
+        self.assertEqual(sanitise.plain_text(publish.reason_html("a​b")), "ab", "an old plain reason too")
 
 
 class Readers(Base):
