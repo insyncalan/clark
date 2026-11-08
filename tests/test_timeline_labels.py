@@ -33,7 +33,9 @@ PROBE = r"""(() => {
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     lab.scrollIntoView({ block: 'nearest', inline: 'center' });
     const r2 = lab.getBoundingClientRect(), at = document.elementFromPoint(r2.left + r2.width / 2, r2.top + r2.height / 2);
-    out.push({ lab: lab.dataset.lab, on: at ? (at.closest('.mv-lab') === lab ? 'label' : (at.className || at.tagName)) : 'nothing' });
+    const wrap = lab.closest('.mv-wrap'), tops = new Set([...document.querySelectorAll('.mv-strip .mv-lab')].map(l => Math.round(l.getBoundingClientRect().top - s.top)));
+    out.push({ lab: lab.dataset.lab, on: at ? (at.closest('.mv-lab') === lab ? 'label' : (at.className || at.tagName)) : 'nothing',
+      why: { scrollTop: wrap.scrollTop, offsetHeight: wrap.offsetHeight, clientHeight: wrap.clientHeight, stripHeight: Math.round(s.height), labTop: lab.offsetTop, labHeight: lab.offsetHeight, distinctTops: tops.size, rect: [Math.round(r2.left), Math.round(r2.top), Math.round(r2.width), Math.round(r2.height)] } });
   }
   return JSON.stringify({ labels: out });
 })()"""
@@ -79,7 +81,7 @@ class Labels(unittest.TestCase):
                     self.assertNotIn("error", got, where)
                     self.assertGreater(len(got["labels"]), 1, where)
                     for item in got["labels"]:
-                        self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']})")
+                        self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']}); geometry {item['why']}")
 
 
 if __name__ == "__main__":
