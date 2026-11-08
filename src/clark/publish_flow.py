@@ -7,7 +7,8 @@ One class, Publisher, with three public methods (each returns (status, body) for
   that was meant to be left out). Then the system's Save dialog chooses the Local file, Local is written and read back, the same
   bytes are copied into the client folder and read back (to_client.copy_to_client), and one `publications` row records it.
   The request never names a folder or a file: the client folder is the one saved in Settings (projects.publish_client).
-- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear" | "paste", value (paste only)}. Saves or
+- client_folder(body): POST /api/client-folder {project, action: "choose" | "clear" | "paste" | "choose_local" | "clear_local" (row 852: the Local
+  folder, projects.publish_local, where the Save window opens), value (paste only)}. Saves or
   clears that folder as an ordinary step (so it is in history and can be undone). It never writes into the folder. A pasted
   folder (item 647) is a path on this computer (pasted_folder); it must be inside a OneDrive root and then gets exactly the
   checks a chosen one gets. A pasted link is refused by its form alone: it is never opened or matched to a folder.
@@ -22,6 +23,7 @@ Standard library only, Python 3.9.
 import getpass
 import hashlib
 import json
+import os
 import re
 import secrets
 import shutil
@@ -41,6 +43,7 @@ TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",
                "decisions": ("decision",), "use_cases": ("title", "headline")}
 NOTE_FIELDS = ("internal_note", "movement", "reasoning", "options", "response_action")      # working notes: never in a report
 PICK_PROMPT = "Choose the folder OneDrive syncs for the client"
+LOCAL_PROMPT = "Choose the folder to save this report in"
 SAVE_PROMPT = "Save the report"
 PREVIEW_KEEP = 4                     # previews waiting to be opened; the oldest goes first
 PREVIEW_SECONDS = 120                # a preview that is not opened in this time is dropped
@@ -72,6 +75,9 @@ MESSAGES = {
     "folder_saved": "The client folder is saved.",
     "folder_cleared": "The client folder is cleared.",
     "folder_unchanged": "That is already the client folder.",
+    "local_not_saved": "The local folder could not be saved. Nothing was changed. Try again.",
+    "local_saved": "Local folder saved",
+    "local_cleared": "Local folder cleared",
     "bad_action": "Say whether to choose a folder or clear it.",
     "paste_unknown": "That isn't a folder clark can find. Choose folder picks it for you.",
     "paste_not_synced": "That folder isn't one OneDrive syncs on this computer. Choose folder picks it for you.",
@@ -279,7 +285,7 @@ class Publisher:
         # Nothing has been written. The system's own Save dialog chooses the Local file; Cancel cancels everything.
         default = publish.file_name(code, week, today)
         try:
-            chosen = self.choose_save_file(SAVE_PROMPT, default, start=last)
+            chosen = self.choose_save_file(SAVE_PROMPT, default, start=self.local_start(row, last))
         except platform.PlatformError as e:
             return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()))
         if chosen is None:
@@ -328,6 +334,7 @@ class Publisher:
             return 409, self.fail("local_clark_files")
         try:
             earlier_local = self.earlier_bytes(dest)    # #120: a file this one replaces is put back if the record is refused
+            earlier_link = self.earlier_link(dest) if earlier_local is None else None      # #480: so is a link it replaces (the link, not its target)
             earlier_client = None
             if plan is not None and plan["replaces"]:   # #120: an Overwrite's old file is put back if the record is refused, as Local's is
                 earlier_client = self.earlier_bytes(Path(plan["folder"]) / plan["name"])
@@ -362,7 +369,7 @@ class Publisher:
         try:
             seq = store.log_publication(code, dest, week, digest, self.by_user(), client_path=client_path, number=number)
         except NumberTaken:               # #120: the files say a number they do not have: take back what this call wrote, and only that
-            self.take_back(dest, digest, earlier_local)
+            self.take_back(dest, digest, earlier_local, earlier_link)
             if client_path is not None:
                 self.take_back(client_path, digest, earlier_client)
             return 409, self.fail("number_taken")
@@ -447,15 +454,25 @@ class Publisher:
         except OSError:
             return None
 
-    def take_back(self, path, digest, earlier):
-        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back."""
+    def earlier_link(self, path):
+        """#480: where a link at `path` points, else None: what a refused record puts back in place of the file this publish wrote."""
         try:
-            if publish.still_ours(path, digest):
+            return os.readlink(path)
+        except OSError:
+            return None
+
+    def take_back(self, path, digest, earlier, earlier_link=None):
+        """Remove a file this publish wrote, only while it still holds the bytes written; a file it replaced is put back, and
+        so is a link it replaced (#480: publish.put_link_back, which never replaces anything that is not our file)."""
+        try:
+            if earlier is None and earlier_link is not None:
+                publish.put_link_back(path, earlier_link, digest)
+            elif publish.still_ours(path, digest):
                 if earlier is None:
                     Path(path).unlink()
                 else:
                     platform.write_file(Path(path), earlier)
-        except (OSError, platform.PlatformError):
+        except (OSError, platform.PlatformError, publish.PublishError):
             pass
 
     def result(self, ok, action, message, **extra):
@@ -477,14 +494,66 @@ class Publisher:
             return 200, out
         return 409, out
 
+    def local_start(self, row, last):
+        """Where the Save window opens (row 852): the Local folder saved in Settings while it is still a folder, else where the report was last saved."""
+        saved = row.get("publish_local")
+        return saved if saved and Path(saved).is_dir() else last
+
+    # ----- the local folder setting (row 852) -----
+    def local_folder(self, store, row, code, action):
+        saved = row.get("publish_local") or None
+        if action == "clear_local":
+            return self.save_local(store, code, saved, None)
+        try:
+            picked = self.choose_folder(LOCAL_PROMPT, start=saved if saved and Path(saved).is_dir() else None)
+        except platform.PlatformError as e:
+            return 409, self.fail("dialog_failed", MESSAGES["dialog_failed"].format(reason=str(e).rstrip()).replace(" Nothing was published.", ""))
+        if picked is None:
+            return 200, {"ok": True, "changed": False, "folder": saved}
+        try:
+            real = Path(picked).resolve(strict=True)
+        except (OSError, RuntimeError, ValueError):
+            return 409, self.fail("paste_unknown")
+        if not real.is_dir() or not real.is_absolute():
+            return 409, self.fail("paste_unknown")
+        return self.save_local(store, code, saved, str(real))
+
+    def undo_local(self, store, code, step):
+        """Put the Local folder back as the step left it, only for a step that changed this project's publish_local and nothing else."""
+        rows = store.step_rows(step)
+        if not rows or not all(r["table"] == "projects" and r["key"] == code and r.get("field") in ("publish_local", "updated_at") for r in rows) \
+                or not any(r.get("field") == "publish_local" for r in rows):
+            return 409, self.fail("local_not_saved")
+        try:
+            done = store.undo(step, self.by_user(), place="menu")
+        except Invalid:
+            return 409, self.fail("local_not_saved")
+        if not done.get("reversed"):
+            return 409, self.fail("local_not_saved")
+        return 200, {"ok": True, "changed": True, "folder": (store.read("projects", ref=code) or {}).get("publish_local") or None}
+
+    def save_local(self, store, code, saved, folder):
+        if folder == saved:
+            return 200, {"ok": True, "changed": False, "folder": saved, "message": MESSAGES["local_saved" if folder else "local_cleared"]}
+        try:
+            with store.step("dashboard", self.by_user(), place="menu") as st:
+                st.update("projects", code, {"publish_local": folder})
+                apply_id = st.peek_apply_id()
+        except Invalid:
+            return 409, self.fail("local_not_saved")
+        return 200, {"ok": True, "changed": True, "folder": folder, "folder_name": to_client.folder_name(folder) if folder else None,
+                     "message": MESSAGES["local_saved" if folder else "local_cleared"], "apply_id": apply_id}
+
     # ----- the client folder setting -----
     def client_folder(self, body):
         body = body if isinstance(body, dict) else {}
         code, action = body.get("project"), body.get("action")
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
-        allowed = {"project", "action", "value"} if action == "paste" else {"project", "action"}
-        if set(body) - allowed or action not in ("choose", "clear", "paste") or (action == "paste" and not isinstance(body.get("value"), str)):
+        allowed = {"project", "action", "value"} if action == "paste" else {"project", "action", "apply_id"} if action == "undo_local" else {"project", "action"}
+        if action == "undo_local" and (type(body.get("apply_id")) is not int or not 1 <= body["apply_id"] < 2 ** 63):
+            return 400, self.fail("bad_action")
+        if set(body) - allowed or action not in ("choose", "clear", "paste", "choose_local", "clear_local", "undo_local") or (action == "paste" and not isinstance(body.get("value"), str)):
             return 400, self.fail("bad_action")
         with self.lock:
             store = self.store()
@@ -492,6 +561,10 @@ class Publisher:
                 row = store.read("projects", ref=code)
                 if row is None:
                     return 404, self.fail("project_not_found")
+                if action == "undo_local":
+                    return self.undo_local(store, code, body["apply_id"])
+                if action.endswith("_local"):
+                    return self.local_folder(store, row, code, action)
                 saved = row.get("publish_client") or None
                 if action == "clear":
                     return self.save_folder(store, code, saved, None)

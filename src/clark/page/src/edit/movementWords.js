@@ -18,6 +18,7 @@ export const MOVE_LABEL = "Move the agreed date";
 export const KEEP_LABEL = "Keep the date";
 export const CONFIRM = "Move the agreed date of %s from %s to %s? The original date (%s) is kept and a decision is recorded. You can undo this.";
 export const TOAST_HOLD = "Hold recorded in the note. Undo.";
+export const TOAST_HOLD_TRIMMED = "Hold recorded. The oldest lines of the note were removed to fit. Undo.";
 export const TOAST_MOVED = "%s: the agreed date is now %s. Undo.";
 export const UNDONE = "Undone";
 export const RECOVER_LABEL = "Add a recovery action";
