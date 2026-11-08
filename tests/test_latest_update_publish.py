@@ -32,7 +32,7 @@ class LatestUpdatePublished(unittest.TestCase):
         return publish.build(self.s, "ABC", now="2026-10-29")["body"].decode("utf-8")
 
     def test_a_client_message_of_only_invisible_characters_is_no_client_wording(self):
-        """Row 560 (Wanda): zero-width characters are not wording: the latest update stays out, as for a blank client message."""
+        """Row 560: zero-width characters are not wording: the latest update stays out, as for a blank client message."""
         for hidden in ("\u200b", "\ufeff", "\u200b\ufeff\u2060", " \u200b "):
             with self.subTest(hidden=hidden):
                 ref = self.demo.action(description="Hidden wording", client_message="x")
