@@ -284,9 +284,18 @@ class Publisher:
         try:
             store = self.store()
             self.pdf_step = None
+            self.written_bytes = None
+            body = body if isinstance(body, dict) else {}
+            print_ask = body.get("print")
+            body = {k: v for k, v in body.items() if k != "print"}      # asked for here; the rest of the route never sees it
             try:
-                status, out = self._publish(store, body if isinstance(body, dict) else {})
+                if print_ask is not None and not isinstance(print_ask, bool):
+                    return 400, self.fail("bad_pdf_request")
+                status, out = self._publish(store, body)
                 publish_pdf.finish(self.pdf_step, out, status)          # the PDF is saved only once the report is
+                if print_ask is True and status == 200 and out.get("ok") is True and self.written_bytes is not None:
+                    out["print_url"] = self.keep_preview(self.written_bytes)      # the print tab shows the bytes just published (item 465)
+                self.written_bytes = None
                 return status, out
             finally:
                 store.close()
@@ -424,6 +433,7 @@ class Publisher:
         except (Invalid, OSError) as e:
             return 409, self.fail("not_recorded", MESSAGES["not_recorded"],
                                   local_saved=True, local_name=dest.name)
+        self.written_bytes = body_bytes
         self.pdf_step.record(store, seq)           # #269: the PDF is saved after this, and its name goes on this row then
         if client is None:
             return 200, {"ok": True, "code": "done", "action": "done",
@@ -703,14 +713,18 @@ class Publisher:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
             store.close()
+        return 200, {"ok": True, "code": "preview_ready", "message": MESSAGES["preview_ready"], "url": self.keep_preview(built["body"])}
+
+    def keep_preview(self, page_bytes):
+        """Keep `page_bytes` in memory for one visit; the address that opens it."""
         nonce, now = secrets.token_urlsafe(24), time.monotonic()
         with self.preview_lock:
             for k in [k for k, v in self.previews.items() if now - v[1] > PREVIEW_SECONDS]:
                 del self.previews[k]
             while len(self.previews) >= PREVIEW_KEEP:
                 del self.previews[next(iter(self.previews))]
-            self.previews[nonce] = (built["body"], now)
-        return 200, {"ok": True, "code": "preview_ready", "message": MESSAGES["preview_ready"], "url": "/preview?id=" + nonce}
+            self.previews[nonce] = (page_bytes, now)
+        return "/preview?id=" + nonce
 
     def take_preview(self, nonce):
         """The page's bytes for an address from preview(), once; None when it is unknown, used or too old."""
