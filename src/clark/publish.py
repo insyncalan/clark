@@ -1444,9 +1444,9 @@ def read_earlier(path):
 
 
 def still_ours(path, digest):
-    """Whether the file at `path` still holds exactly the bytes whose SHA-256 is `digest`."""
+    """Whether the ordinary file at `path` still holds exactly the bytes whose SHA-256 is `digest`. A link there is not ours (#597)."""
     try:
-        return hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+        return hashlib.sha256(read_plain(path)).hexdigest() == digest
     except OSError:
         return False
 
