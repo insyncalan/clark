@@ -572,7 +572,7 @@ class RealBrowser(unittest.TestCase):
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
     def serve(self):
-        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
+        s = Running(data_for=lambda code, archived=None: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
                     page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         return s

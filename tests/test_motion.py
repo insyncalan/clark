@@ -418,7 +418,7 @@ class Fade(tre.Base):
     def test_it_fades_out_once_the_data_arrives_and_is_not_drawn_in_either_reduced_form(self):
         gate = {"open": False}
 
-        def data_for(code):
+        def data_for(code, archived=None):
             end = time.time() + 20
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)
