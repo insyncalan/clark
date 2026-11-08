@@ -336,17 +336,17 @@ class PageGate(unittest.TestCase):
             self.assertNotIn("Click to write", shown)
 
 
-# Item 1005: the plain multiline fields that moved onto the one editor, one entry per field: (file, the RichField line's field name, the
+# Item 1005: the plain multiline fields that moved onto the one editor, one entry per field (LATEST_MOVED; the Movement note and the Reason are MOVED, above): (file, the RichField line's field name, the
 # column it writes). A field joins this list when its plain box is replaced; a plain box left in its file is not allowed to come back.
-MOVED = (("edit/PeekLatest.jsx", "latest_update", "actions.latest_update"),
+LATEST_MOVED = (("edit/PeekLatest.jsx", "latest_update", "actions.latest_update"),
          ("edit/MilestonePeek.jsx", "description", "milestones.description"))
 
 
-class MovedFields(unittest.TestCase):
+class MovedLatestFields(unittest.TestCase):
     """Each moved field draws through RichField (so through clarkEditor and the / menu), stores through the server's cleaner, and keeps no plain box."""
 
     def test_each_moved_field_is_a_rich_field_and_its_file_has_no_plain_box_for_it(self):
-        for rel, field, column in MOVED:
+        for rel, field, column in LATEST_MOVED:
             with self.subTest(column):
                 text = (PAGE_SRC / rel).read_text(encoding="utf-8")
                 self.assertRegex(text, r'<RichField[^>]*field="%s"' % field)
