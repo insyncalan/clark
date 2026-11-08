@@ -3442,7 +3442,7 @@ class Store:
                                             "AND (archived = 1 OR status IN (?, ?))", (code, *values, *states)).fetchone()
                            for t, states in (("actions", ("Closed", "Cancelled")), ("raid", ("Closed", "Cancelled")),
                                              ("decisions", ("Withdrawn", "Withdrawn"))))):
-                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or marked Sensitive. Nothing was saved. Reload the page and tick again.")
+                raise Invalid("One of the ticked items can't be recorded: it is hidden, closed or labelled to be kept out of emails. Nothing was saved. Reload the page and tick again.")
             # The same person pressing the same record again within seconds (a second tab) is the same record, not a second chase.
             for r in self.con.execute("SELECT seq FROM email_sent WHERE project = ? AND day = ? AND mode = ? AND by_user = ? "
                                       "AND at >= datetime('now', ?)",

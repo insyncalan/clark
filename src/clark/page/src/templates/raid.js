@@ -36,7 +36,7 @@ export function bodyOf(cards) {
 export function wordsOf(card, row) {
   if (card.source === "own") return card.own || "";
   if (card.source === "latest") return kindOfId(card.id) === "actions" ? String((row && row.latest_update) || "").trim() : "";
-  return String((row && row.client_message) || "").trim();
+  return String((row && row.client_message) || "").trim() || (row ? titleOf(row, kindOfId(card.id)) : "");
 }
 
 export const titleOf = (row, kind) => String((kind === "decisions" ? row.decision : row.description) || "").trim();
