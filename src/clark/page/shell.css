@@ -1971,7 +1971,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
 /* The peek's coloured icons: one class per tone, each from a design token (iconColours.js picks the tone). The word beside the icon always says the same thing. */
 .pk-val { display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.pk-row[data-row=status] .pk-val { flex-wrap: nowrap; }
+.pk-row[data-row=status] .pk-val { flex-wrap: nowrap; white-space: nowrap; }
+.pk-fields > .pk-row[data-row=status]:has([data-pk-rating]) { grid-column: 1 / -1; }  /* a status with its rating word is too wide for half a row */
 .pk-val .i { width: 16px; height: 16px; }
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
