@@ -10,6 +10,7 @@ import { showDate, timelineSpan, monthStarts, clampZoom, labelLines, addDays, fa
 import { dayNumber } from "../workItems.js";
 import { recall, remember } from "../logic/remember.js";
 import { printing } from "../stores/print.js";
+import { reduced } from "../stores/motion.js";
 
 const PXD0 = 5, BASE = 76, LINE = 34;       // pixels a day at 100%, the strip's own height and each label line's (zoom scale)
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
@@ -70,7 +71,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
     return () => { gone = true; window.removeEventListener("resize", again); };
   }, []);
 
-  const toToday = (smooth) => { const w = wrap.current; if (w) w.scrollTo({ left: Math.max(0, x(today) - w.clientWidth * 0.35), behavior: smooth ? "smooth" : "auto" }); };
+  const toToday = (smooth) => { const w = wrap.current; if (w) w.scrollTo({ left: Math.max(0, x(today) - w.clientWidth * 0.35), behavior: reduced() ? "auto" : (smooth ? "smooth" : "auto") }); };
   useEffect(() => { toToday(false); }, [place]);     // opens on today
   useEffect(() => {                                   // keeps the middle of what is shown when the zoom changes
     const w = wrap.current;
@@ -97,7 +98,7 @@ export function MsTimeline({ rows: all, today, place, open }) {
   }, [height, nLines, place, sb]);
 
   const reset = () => { centre.current = (wrap.current.scrollLeft + wrap.current.clientWidth / 2) / (wrap.current.scrollWidth || 1); remember(`tlZoom.${place}`, 1); setZoom(1); };
-  const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD0 * z, behavior: "smooth" }); };
+  const step = (k) => { const w = wrap.current; if (w) w.scrollBy({ left: k * 30 * PXD0 * z, behavior: reduced() ? "auto" : "smooth" }); };
   const range = (iso) => `${MONTHS[+iso.slice(5, 7) - 1].slice(0, 3)} ${iso.slice(0, 4)}`;
 
   return (

@@ -167,7 +167,6 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
   .toc.open .toc-card { transform: none; }
   .toc li button { min-height: 32px; }
 }
-@media (max-width: 900px) and (prefers-reduced-motion: reduce) { .toc-card, .toc.open .toc-card { transition: none; transform: none; } .toc-lines { transition: none; } }
 
 /* The project-record picker (FR-16, #67): one panel, never wider than its place. */
 .picker { display: flex; flex-direction: column; width: min(640px, 100%); max-height: min(560px, 90vh); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
@@ -2234,3 +2233,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 [data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
 [data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
 .ddmenu, .menu, .cpop, .flist { border-color: var(--menu-border); }   /* last in the file, so it wins over each menu's own `border: 1px solid var(--border)` */
+
+/* Sweep c11: reduced motion for the contents card, legend popover, milestone marker and both tab underlines. Last in the file so it wins at any width. */
+@media (prefers-reduced-motion: reduce) {
+  .toc-card, .toc.open .toc-card, .toc-lines, .toc-lines i, .toc-lines:hover, .toc.open .toc-lines { transition: none; }
+  .toc-card, .toc.open .toc-card { transform: none; }
+  .mlg-p { transition: none; transform: none; }
+  .mv-mk { transition: none; } .mv-mk:hover, .mv-mk:focus-visible { transform: none; }
+  .hp-tabs button, .hp-tabs button::after, .tab, .tab::after { transition: none; }
+}
