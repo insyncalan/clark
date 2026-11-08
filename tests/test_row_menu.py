@@ -233,8 +233,8 @@ class Menu(board.Base):
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
                                                    "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
             by = {e[0]: e for e in got}
-            self.assertEqual(by["draft"][2:], [False, "The To line is left empty: there is no People list to take the address from yet."],
-                             "open, with the To line's reason in words")
+            self.assertEqual(by["draft"][2:], [False, "Sara Khan has no email on the People list, so the To line is left empty."],
+                             "open, with the To line's reason in words (#1048: the People list is read when the menu opens)")
             self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
             self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
