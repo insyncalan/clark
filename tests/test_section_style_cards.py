@@ -251,11 +251,21 @@ class Cards(Base):
 
     def test_C_hover_changes_the_edge(self):
         def check(p, w, look):
-            p.js(f"{CARDS}[1].scrollIntoView({{block: 'center'}})")       # the cards sit below the first screen: the pointer must be over one
+            # the cards sit below the first screen and the page can still move a little after it is drawn: aim again at where the card is now until the pointer is over it
             before = p.js(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor")
-            box = p.js(f"(() => {{ const r = {CARDS}[1].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
-            p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, p.sid)
-            p.until(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor !== {json.dumps(before)}", "hover changed the edge")
+
+            def hovered():
+                p.js(f"{CARDS}[1].scrollIntoView({{block: 'center', behavior: 'instant'}})")
+                box = p.js(f"(() => {{ const r = {CARDS}[1].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+                p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, p.sid)
+                return p.js(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor") != before
+
+            for _ in range(40):
+                if hovered():
+                    break
+                time.sleep(0.2)
+            else:
+                self.fail("hover changed the edge")
 
         self.each_look(check)
 
