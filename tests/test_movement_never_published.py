@@ -21,7 +21,8 @@ REASON = "ZQ-REASON-7710 build ran long"
 WHO = "ZQ-AGREED-WITH-3302 Pat Placeholder"
 SOURCE = "ZQ-SOURCE-9184 steering minutes"
 HOLD_WORDS = "ZQ-HOLD-4417"
-MARKERS = {"internal note": INTERNAL, "reason": REASON, "agreed with": WHO, "source": SOURCE}
+RICH_NOTE = "ZQ-RICH-NOTE-4418"            # row 1005: a note written as the one rich editor's HTML, through the change route, on the second milestone
+MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE}
 PHRASES = ("Rebaselined", "Movement choice", "Undone", "Internal only", "Never moved", "Agreed date moved", "What changed",
            "Decide what to do", "Move the agreed date", "holding; agreed date unchanged", "Nothing has changed since it was first agreed")
 M = "PUB-M-001"                                   # agreed 15-10-2026, client-visible, in the published file
@@ -42,6 +43,10 @@ def history_on(rig):
     go({"state": "At risk", "state_reason": "Waiting on the vendor"})
     with rig.store.step("dashboard", USER) as st:
         st.update("milestones", M, {"internal_note": INTERNAL})
+    status, got = change({"project": "PUB", "kind": "milestones", "op": "update", "id": "PUB-M-002", "place": "movement",
+                          "changes": {"internal_note": '<p><strong>%s</strong> <a href="https://example.com/x">link</a></p><ul><li>second</li></ul>' % RICH_NOTE}})
+    assert status == 200, got
+    assert "<strong>" + RICH_NOTE in rig.store.read("milestones", ref="PUB-M-002")["internal_note"]
     return moved
 
 

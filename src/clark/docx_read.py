@@ -55,6 +55,10 @@ W_NAMESPACES = ("http://schemas.openxmlformats.org/wordprocessingml/2006/main", 
 MC = "http://schemas.openxmlformats.org/markup-compatibility/2006"
 REL_NS = "http://schemas.openxmlformats.org/package/2006/relationships"
 CT_NS = "http://schemas.openxmlformats.org/package/2006/content-types"
+WP_NS = "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"
+A_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
+OWN_PICTURE_NAME = "Clark picture "                      # the docPr name docx_build gives each picture it draws, then its number
+OWN_PICTURE = re.compile(re.escape(OWN_PICTURE_NAME) + r"[0-9]{1,6}\Z")         # the docPr name docx_build gives each picture it draws
 OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"      # an older Word file, or an Office file with a password
 
 # Elements whose whole content is not read: deleted text, pictures and drawings, text boxes, the old-style fallback of a drawing.
@@ -272,6 +276,23 @@ def _check_rels(name, raw):
     _run(name, raw, start)
 
 
+def _own_images(name, raw, names):
+    """The relationship ids (of word/_rels/document.xml.rels) that name an image part inside word/media that is in the file."""
+    found = {}
+
+    def start(tag, attrs, depth):
+        ns, local = _local(tag)
+        if ns == REL_NS and local == "Relationship":
+            target = (_attr(attrs, "Target") or "").replace("\\", "/")
+            if (_attr(attrs, "Type") or "").lower().endswith("/image") and (_attr(attrs, "TargetMode") or "").lower() != "external":
+                part = target[1:] if target.startswith("/") else "word/" + target
+                if part.startswith("word/media/") and ".." not in part.split("/") and part in names:
+                    found[_attr(attrs, "Id")] = part
+
+    _run(name, raw, start)
+    return found
+
+
 def _styles(name, raw):
     """{style id: {"name", "outline", "based", "num"}} from styles.xml (the parts of a style that say heading or list)."""
     out, cur = {}, {}
@@ -363,8 +384,10 @@ def clean_text(text):
 class _Body:
     """The state of one pass over word/document.xml."""
 
-    def __init__(self, name, styles, numbering):
+    def __init__(self, name, styles, numbering, own_images=None):
         self.name, self.styles, self.numbering = name, styles, numbering
+        self.own_images = own_images or {}
+        self.draw = None              # the facts about the drawing being skipped: its names, images and whether it holds a text box
         self.blocks, self.counts = [], {"hidden": 0, "pictures": 0, "links": 0}
         self.skip = 0                 # the depth of the element being skipped, or 0
         self.para = None              # the paragraph being read
@@ -397,6 +420,13 @@ class _Body:
 
     def start(self, tag, attrs, depth):
         ns, local = _local(tag)
+        if self.draw is not None:
+            if ns == WP_NS and local == "docPr":
+                self.draw["names"].append(_attr(attrs, "name"))
+            elif ns == A_NS and local == "blip":
+                self.draw["images"].append(_attr(attrs, "embed"))
+            elif local in ("txbxContent", "drawing", "pict", "object", "AlternateContent", "Fallback"):
+                self.draw["other"] = True
         if ns == MC and local == "Fallback" and not self.skip:
             self.skip = depth
             return
@@ -408,7 +438,9 @@ class _Body:
             return
         if local in SKIP:
             self.skip = depth
-            if local in ("drawing", "pict", "object"):
+            if local == "drawing":
+                self.draw = {"names": [], "images": [], "other": False}     # counted when it ends, unless it is clark's own
+            elif local in ("pict", "object"):
                 self.counts["pictures"] += 1             # a text box lives inside one of these
             return
         val = _attr(attrs, "val")
@@ -458,6 +490,10 @@ class _Body:
         if self.skip:
             if depth == self.skip:
                 self.skip = 0
+                if self.draw is not None:
+                    d, self.draw = self.draw, None
+                    if not self.is_own(d):
+                        self.counts["pictures"] += 1
             return
         if ns not in W_NAMESPACES:
             return
@@ -488,6 +524,12 @@ class _Body:
                     outer["cell"] += [" | ".join(c.replace("\n", " ") for c in row) for row in done["rows"]]
             elif done["rows"]:
                 self.emit({"kind": "table", "rows": done["rows"]})
+
+    def is_own(self, d):
+        """True for a picture clark drew: one docPr named 'Clark picture N' and one image that is a part of this file under
+        word/media, and nothing else inside (a text box or a second picture makes it a foreign drawing)."""
+        return (not d["other"] and len(d["names"]) == 1 and len(d["images"]) == 1 and bool(OWN_PICTURE.match(d["names"][0] or ""))
+                and d["images"][0] in self.own_images)
 
     def emit(self, block):
         self.blocks.append(block)
@@ -601,7 +643,9 @@ def read(data, name="This file"):
         styles = _styles(name, _part(z, name, "word/styles.xml", SMALL_PART_BYTES)) if "word/styles.xml" in names else {}
         numbering = (_numbering(name, _part(z, name, "word/numbering.xml", SMALL_PART_BYTES))
                      if "word/numbering.xml" in names else {})
-        body = _Body(name, styles, numbering)
+        own = (_own_images(name, _part(z, name, "word/_rels/document.xml.rels", SMALL_PART_BYTES), names)
+               if "word/_rels/document.xml.rels" in names else {})
+        body = _Body(name, styles, numbering, own)
         _run(name, _part(z, name, "word/document.xml"), body.start, body.end, body.text)
         comments = "word/comments.xml" in names
     if not body.body_seen:

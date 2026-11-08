@@ -95,6 +95,16 @@ class Canary(tr.Base):
         self.assertEqual(sum("private marker" in line for line in self.log.lines), 1, self.log.lines)
         self.assertEqual(sorted(body), ["code", "message", "ok"])
 
+    def test_a_reply_held_for_a_secret_has_no_held_flag_and_logs_no_private_marker_line(self):
+        """#470, by design: `held` exists only so the route can log "it held the private marker" (#300). A reply held back for a password
+        or a key (HELD_BACK_SECRET) is not that, so it carries no flag and the log must not say it; the page sees the same plain
+        no_answer reply either way (the route takes the flag out)."""
+        self.use(lambda c: "The key is " + "sk-" + "a1b2c3d4e5f6g7h8i9j0k1l2" + "\nCITE: P1")
+        status, body = self.question()
+        self.assertEqual((status, body["ok"], body["code"], body["message"]), (200, False, "no_answer", ask.HELD_BACK_SECRET))
+        self.assertNotIn("held", body)
+        self.assertFalse(any("private marker" in line for line in self.log.lines), self.log.lines)
+
     def test_a_failure_whose_text_holds_the_canary_gives_the_plain_refusal(self):
         """#299: a provider's Failure text goes through the same check as a reply."""
         for make in (lambda c: ask.Failure("It broke: " + c), lambda c: ask.Failure(" ".join(c.upper()))):

@@ -11,6 +11,7 @@ import json
 import sys
 import time
 import unittest
+from _editor_checks import for_project, for_url
 
 from _paths import SRC
 
@@ -83,7 +84,7 @@ class Rules(unittest.TestCase):
         cls.server = Running(page_html=lambda: "<!doctype html><title>t</title>")
         tid = next(t["targetId"] for t in cls.cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
         cls.sid = cls.cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
-        cls.cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{cls.server.port}/"}, cls.sid)
+        cls.cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{cls.server.port}/")}, cls.sid)
         assert wait(lambda: cls.cdp.js("document.readyState === 'complete'", cls.sid))
         cls.cdp.js(bundled(LOGIC, "SEL"), cls.sid)
 
@@ -432,8 +433,9 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, "#project-name")     # the bar's own text: its middle is a tab now (Use cases)
+            tap(cdp, sid, "header.top .divider")     # a neutral spot on the bar: not the project name, which opens the project menu
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
+            self.assertFalse(cdp.js("!!document.querySelector('#project-menu')", sid), "the click outside opened no menu")
             pick2()
             tap(cdp, sid, "#work h1")
             self.assertEqual(len(self.picked(cdp, sid)), 2, "a click on the page itself, inside Work items, keeps it")
@@ -561,9 +563,9 @@ class Page(Base):
             tap(cdp, sid, self.rsel(rows[1]), MOD)
             on = f"document.querySelector(\"tr[data-id='{rows[0]}']\")"
             self.assertEqual(cdp.js(f"{on}.getAttribute('aria-selected')", sid), "true")
-            self.assertTrue(cdp.js(f"!!{on}.querySelector('.c-item .tick + .t')", sid), "a tick mark before the title")
+            self.assertFalse(cdp.js(f"!!{on}.querySelector('.tick')", sid), "row 807: no check mark on a selected row; the border, the bar and the tint show it")
             self.assertTrue(cdp.js(f"getComputedStyle({on}).boxShadow.includes('inset')", sid), "a border")
-            self.assertTrue(cdp.js(f"{on}.querySelector('.tick').getAttribute('aria-hidden') === 'true'", sid), "the tick is not read twice")
+            self.assertTrue(cdp.js(f"{on}.classList.contains('picked')", sid), "the row is marked picked")
             live = "document.querySelector('#sel-live')"
             self.assertEqual(cdp.js(f"[{live}.getAttribute('role'), {live}.getAttribute('aria-live'), {live}.textContent.trim()]", sid), ["status", "polite", "2 selected"])
             self.assertEqual(cdp.js("document.querySelector('#sel-clear').getAttribute('aria-label')", sid), "Clear the selection")
@@ -635,7 +637,7 @@ class PublishedFile(unittest.TestCase):
         s = Running(data_for=DATA.get, page_html=published_page)
         self.addCleanup(s.close)
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#work&p=ABC")
+            sid = navigate(cdp, s.port, for_project("#work&p=ABC"))
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tr[data-id]').length > 1", sid)), "the rows drew")
             cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
             rows = cdp.js("[...document.querySelectorAll('#work tr[data-id]')].map(r => r.dataset.id)", sid)
