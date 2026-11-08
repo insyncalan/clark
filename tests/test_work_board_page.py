@@ -730,7 +730,7 @@ class Moves(Base):
                     self.assertEqual(t["text"], f"{a} is now Delayed.")
                     self.assertEqual((self.row(a)["status"], self.steps()), ("Delayed", before + 1))
                     dblclick(cdp, sid, ".col[data-col='Open'] .col-rz")          # the LOW: a reset never takes the move's Undo away
-                    self.until(cdp, sid, "/back to its usual width/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
+                    self.until(cdp, sid, "/^Column width reset\.$/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
                     self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid), f"{a} is now Delayed.")
                     self.assertTrue(cdp.js("!!document.querySelector('.toast [data-undo]')", sid), "the move's Undo is still offered")
                     self.assertTrue(cdp.js("(() => { const r = document.querySelector('.toast').getBoundingClientRect(); return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.bottom <= innerHeight; })()", sid))

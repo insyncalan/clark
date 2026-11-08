@@ -47,6 +47,7 @@ KEEP_LABEL = "Keep the date"
 CONFIRM = ("Move the agreed date of %s from %s to %s? The original date (%s) is kept and a decision is recorded. "
            "You can undo this.")
 TOAST_HOLD = "Hold recorded in the note. Undo."
+TOAST_HOLD_TRIMMED = "Hold recorded. The oldest lines of the note were removed to fit. Undo."
 TOAST_MOVED = "%s: the agreed date is now %s. Undo."
 READ_FAILS = "Movement couldn't be loaded. Check that clark is still running, then try again."
 ARCHIVED = "That milestone is archived. Restore it first."
@@ -213,8 +214,8 @@ def refusal_text(row, to=None, agreed_with=None, reason=None, source=None, today
     return errors
 
 
-def toast_hold():
-    return TOAST_HOLD
+def toast_hold(note_trimmed=False):
+    return TOAST_HOLD_TRIMMED if note_trimmed else TOAST_HOLD
 
 
 def toast_moved(name, to):
