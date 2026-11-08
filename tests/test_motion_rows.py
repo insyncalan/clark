@@ -6,6 +6,7 @@ motion nothing animates and the row is gone at once. Edit build only: the rules 
 """
 import json
 import unittest
+from _editor_checks import for_url
 
 from _paths import ROOT
 import _testpage as testpage
@@ -53,7 +54,7 @@ class MotionRows(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": motion}]}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/{hash_ or '#work&p=' + self.code + '&f=mode:all'}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/{hash_ or '#work&p=' + self.code + '&f=mode:all'}")}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 2))
         self.assertTrue(wait(lambda: cdp.js(QUIET, sid), 15))
         return sid

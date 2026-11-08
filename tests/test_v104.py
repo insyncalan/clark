@@ -88,8 +88,8 @@ COVERED = [
      "test_gantt_section_type::TheChangeRoute::test_a_gantt_section_can_be_retitled_hidden_moved_and_deleted_each_with_one_undo"),
     ("#926", "A published file holds the Gantt section only with the Gantt tab.",
      "test_gantt_section_type::Published::test_the_section_is_in_the_file_exactly_with_the_gantt_tab"),
-    ("#926", "The Word and Excel files leave the Gantt section out.",
-     "test_gantt_section_type::Published::test_the_word_and_excel_paths_leave_a_gantt_section_out"),
+    ("#926", "The Excel file leaves the Gantt section out; the Word file draws the Gantt tab, and leaves it out only when the file has no Gantt.",
+     "test_gantt_section_type::Published::test_the_excel_path_leaves_a_gantt_section_out_and_the_word_path_only_when_the_file_has_no_gantt"),
     ("#926", "An in-clark update from layout 17 reaches layout 19 and 1.0.3 refuses it.",
      "test_gantt_section_type::Migrating::test_a_layout_17_file_is_brought_to_19_with_the_copy_first_every_row_kept_idempotent_and_refused_by_an_older_clark"),
 ]
