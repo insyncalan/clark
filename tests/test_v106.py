@@ -180,7 +180,7 @@ COVERED = [
      'test_reduce_motion_sweep_c11::Scroll::test_to_today_asks_reduced'),
     ('1149', 'H.4: People table, edit rows, Settings chips and profile menu (1400 and 900 px) -> No sideways scroll; chips and menu rows are 44 px high',
      'test_phone_tap_c7::PhoneWidth::test_people_table_does_not_run_past_the_window'),
-    ('1197', 'Word report: a priority or status saved in an odd form or status shows Not rated',
+    ('1197', 'Word report: a priority or status saved in an odd form shows Not rated',
      'test_docx_build::HostileValues::test_a_priority_that_is_not_text_is_not_rated_on_a_linked_risk'),
     ('1213', 'The On this page list stays centred and inside the window when Reduce motion is on',
      'test_inline_67::Minimap::test_it_fits_a_short_window_with_reduced_motion_at_1400_and_900'),
