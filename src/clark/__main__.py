@@ -513,7 +513,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 return 1
             print(str(e), file=err or sys.stderr)
         brand_root = page.BRANDING.parent         # #944: the clark folder that holds branding/ (as page.BRANDING finds it)
-        brands.copy_old_folder(brand_root)        # 1.0.6: the first start copies system/branding to branding/ (never over one, never deleting); before the server or the page reads it
+        try:
+            brands.copy_old_folder(brand_root)    # 1.0.6: the first start copies system/branding to branding/ (never over one, never deleting); before the server or the page reads it
+        except Exception as e:                    # a very deep folder (RecursionError) or anything else: start without the copy, branding/ stays absent, the next start tries again
+            LOG.warning("brands: could not copy the old brand folder: %s", e)
         server.set_brand_paths(brand_root, store.path.parent)       # before serve(): until it is told, the brand routes answer 503
         try:
             brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action

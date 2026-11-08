@@ -66,7 +66,7 @@ class Copy(unittest.TestCase):
         (self.root / "Branding").mkdir()
         (self.root / "Branding" / "own.css").write_text("x", encoding="utf-8")
         self.assertFalse(brands.copy_old_folder(self.root))
-        self.assertFalse(self.new.exists())
+        self.assertEqual(["Branding"], [n for n in os.listdir(self.root) if n.lower() == "branding"], "one folder of that name, whatever the disk's case rules")
         self.assertEqual(["own.css"], os.listdir(self.root / "Branding"))
 
     def test_a_link_at_branding_wins(self):

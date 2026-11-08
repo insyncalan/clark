@@ -322,7 +322,8 @@ def _entry(folder, name):
 
 
 def _copy_into(src, dst):
-    """Copy a folder to a new place, links kept as links, never following one."""
+    """Copy a folder to a new place, links kept as links, never following one. A link is copied as it is (its target text unchanged), so a
+    relative link that climbs out of the folder (../../x) points from branding/ to a different place than it did from system/branding/."""
     os.mkdir(dst)
     for name in sorted(os.listdir(src)):
         s, d = os.path.join(src, name), os.path.join(dst, name)
