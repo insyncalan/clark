@@ -27,7 +27,7 @@ export const LABELS = {
   includeUpdate: "Include the latest update on each item",
   copyOutlook: "Copy for Outlook",
   copyText: "Copy as text",
-  mail: "Open in mail app",
+  mail: "Open in your mail app",
   sent: "I sent it",
   close: "Close",
   edit: "You can edit the wording below before you copy it.",
@@ -211,7 +211,7 @@ export function oneLine(x) {
   return text(x).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ").split(/\s+/).filter(Boolean).join(" ");
 }
 
-/** The mail link for Open in mail app, only when the finished link fits MAILTO_LIMIT; else the words. */
+/** The mail link for Open in your mail app, only when the finished link fits MAILTO_LIMIT; else the words. */
 export function mailLink(draft, limit) {
   if (blocked(draft)) return { href: "", message: blocked(draft) };
   const href = `mailto:${encodeURIComponent(oneLine(draft.to))}?subject=${encodeURIComponent(oneLine(draft.subject))}&body=${encodeURIComponent(text(draft.text))}`;

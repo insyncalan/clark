@@ -1,11 +1,11 @@
 // The peek (#42a): one work item's or milestone's fields beside the list. Read only on a Dashboard in View and in a published file: fields and
-// nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.WordsButton`, `tools.PeekTabs` and
+// nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.PeekTabs` and
 // `tools.PeekActivity` (Details and Activity, #42) are the editing part (every page but a Dashboard in View).
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
 // The arrow keys (#246, #289): Up and Down on one of its buttons step like Previous and Next, an arrow that moves the focus to
 // another row or card moves the peek with it, and Esc puts the focus on the row of the item shown. Nothing else takes an arrow.
-import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
+import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
@@ -113,14 +113,16 @@ export function Edge() {
 export function Peek({ tools }) {
   const p = peek.value;
   const box = useRef(null), back = useRef(null), opened = useRef(""), shown = useRef(""), stepped = useRef(false);
+  const lastBox = useRef(null), keep = useCallback((n) => { box.current = n; if (n) lastBox.current = n; }, []);
   const editing = !!tools && !fromFile.value && isEditing();      // every page but a Dashboard in View (row 824)
   const msEditing = !!tools && !!tools.MilestoneEdit && !fromFile.value && (mode.value === "edit" || view.value === "milestones");     // row 828: the milestone's own fields are editable on the Milestones page with no View mode, and in Edit elsewhere
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
-  const Words = editing && !!p && tools.Words, WordsButton = editing && !!p && tools.WordsButton;
+  const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
-  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive;
+  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
+  const Source = editing && forItem && tools.PeekSource;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
@@ -220,26 +222,30 @@ export function Peek({ tools }) {
     document.addEventListener("click", click);
     return () => { document.removeEventListener("pointerdown", press, true); document.removeEventListener("click", click); };
   }, [!!p]);                                              // eslint-disable-line react-hooks/exhaustive-deps
-  if (!p) slideOut(box.current);                       // closed: the panel slides out (a copy of it; the live one is gone)
+  // Closed: the panel slides out. Its node is kept as it mounts and the copy is made in a layout effect, not while rendering.
+  useLayoutEffect(() => {
+    if (!p && lastBox.current) { slideOut(lastBox.current, true); lastBox.current = null; }
+  }, [!p]);                                               // eslint-disable-line react-hooks/exhaustive-deps
+  if (p && (!data.value)) lastBox.current = null;
   if (!p || !data.value) return null;
   const milestone = p.kind === "milestone";
   const row = milestone ? null : rows.value.find((r) => r.id === p.id);
   const m = milestone ? (data.value.milestones || []).find((x) => x.id === p.id) : null;
-  if (!row && !m) return null;
+  if (!row && !m) { lastBox.current = null; return null; }
   const near = around(milestone ? milestoneIds() : itemIds(), p.id);
   const go = (id) => id && openPeek(id, p.kind);
   const title = row ? row.title : m.name;
   return (
-    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={box} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
+    <aside class={`peek${wide.value ? " wide" : ""}`} id="peek" ref={keep} aria-label={`${p.id} details`} style={wide.value ? "" : `width:${Math.min(width.value, document.documentElement.clientWidth)}px`} data-peek={p.id}>
       <Edge />
       <div class="pk-bar">
         <button type="button" class="pkp-btn" data-pk-prev title="Previous item" aria-label="Previous item" disabled={!near.prev} onClick={() => go(near.prev)}><Icon name="chevleft" /></button>
         <button type="button" class="pkp-btn" data-pk-next title="Next item" aria-label="Next item" disabled={!near.next} onClick={() => go(near.next)}><Icon name="chevright" /></button>
         <span class="pk-id num">{p.id}</span>
         <span class="pk-sp" />
-        {WordsButton ? <WordsButton /> : null}
         {DupBtn && row ? <DupBtn row={row} /> : null}
         {ArchBtn && row ? <ArchBtn row={row} /> : null}
+        {MsArchBtn && m ? <MsArchBtn row={m} milestone /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
@@ -253,6 +259,7 @@ export function Peek({ tools }) {
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
           {Needed && row && row.kind !== "decision" ? <Needed key={`n-${row.id}`} row={row} /> : null}
+          {Source && row ? <Source key={`s-${row.id}`} row={row} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}

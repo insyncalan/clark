@@ -12,6 +12,7 @@ import tempfile
 import threading
 import time
 import unittest
+from _editor_checks import for_project
 from pathlib import Path
 from unittest import mock
 
@@ -70,7 +71,7 @@ class Words(unittest.TestCase):
         self.addCleanup(quiet.stop)
 
     def visit(self, cdp, hash_="#dashboard&p=ABC"):
-        return navigate(cdp, self.s.port, hash_)
+        return navigate(cdp, self.s.port, for_project(hash_))
 
     def shown(self, cdp, sid, expected):
         self.assertTrue(wait(lambda: lines(cdp, sid) == expected, WAIT), f"wanted {expected}, the page shows {lines(cdp, sid)}")
@@ -112,7 +113,7 @@ class Words(unittest.TestCase):
             return page.page_html(tempfile.mkdtemp())
         self.s.httpd.page_html = page_then_stop
         with chrome() as cdp:
-            sid = navigate(cdp, port, "#dashboard&p=ABC")
+            sid = navigate(cdp, port, for_project("?project=ABC#dashboard&p=ABC"))      # #944: served for ABC already, so the page does not load itself again from a server that is gone
             self.shown(cdp, sid, [WENT_WRONG, NOT_ANSWERING, "Try again"])
             back = sv.LocalServer((sv.HOST, port), data_for=self.fake)       # clark is opened again, on the same port
             threading.Thread(target=back.serve_forever, daemon=True).start()
@@ -159,14 +160,14 @@ class Words(unittest.TestCase):
         none = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])   # #36: no projects yet
         self.addCleanup(none.close)
         with chrome() as cdp:
-            sid = navigate(cdp, none.port, "#dashboard")
+            sid = navigate(cdp, none.port, for_project("#dashboard"))
             self.shown(cdp, sid, ["No project open", "There are no projects yet.", "New project",     # #731: the one button
                                   "To look around with made-up projects, close clark and start it again from the clark folder with bash clark.command --demo."])
         # item 427: in the container the Docker route has no --demo flag, so the page leaves that sentence out
         boxed = Running(data_for=self.fake, page_html=lambda: page.page_html(tempfile.mkdtemp()), projects=lambda archived=False: [])
         self.addCleanup(boxed.close)
         with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
-            sid = navigate(cdp, boxed.port, "#dashboard")
+            sid = navigate(cdp, boxed.port, for_project("#dashboard"))
             self.shown(cdp, sid, ["No project open", "There are no projects yet.", "New project"])
             self.assertNotIn("made-up projects", cdp.js("document.body.innerText", sid))
         with chrome() as cdp:
@@ -175,9 +176,14 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('[data-view=settings]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile",      # row 950: the first card, with the About you boxes that were in Personal
+                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
+                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
+                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
-                                  "Local folder", "Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.",
+                                  "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
+                                  "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
@@ -194,9 +200,6 @@ class Words(unittest.TestCase):
                                   "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
                                   "One card", "All the sections in one long card.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
-                                  "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
-                                  "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
-                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"
@@ -223,6 +226,8 @@ class Words(unittest.TestCase):
                                   "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
                                   "settings and published reports are kept.",
                                   "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
+                                  "Brands can't be shown right now. Restart clark the usual way and try again. Try again",
                                   "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
@@ -264,7 +269,7 @@ class Words(unittest.TestCase):
                 "#work&p=EMP": "This project has no work items yet. Use Add item to add the first.",
                 "#milestones&p=EMP": "No milestones are shown yet."}
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#dashboard&p=EMP")
+            sid = navigate(cdp, s.port, for_project("#dashboard&p=EMP"))
             for hash_, words in want.items():
                 cdp.js("location.hash = %r" % hash_, sid)
                 self.assertTrue(wait(lambda: words in " ".join(lines(cdp, sid)), WAIT), f"{hash_}: {lines(cdp, sid)}")

@@ -97,6 +97,9 @@ export function tidy(line) {
     pct: cleanPct(line.pct), depends: Array.isArray(line.depends) ? line.depends.map(String) : [], show: line.show !== false && line.show !== 0 };
 }
 export const tidyAll = (lines) => (lines || []).map(tidy).filter((l) => l.start);
+// The lines tidyAll leaves out because their start is no usable date (so they have nowhere on the time line), in their order. The chart says
+// how many with the existing "N of M lines shown"; in the View only the lines with their eye on count (the others are not the viewer's).
+export const leftOut = (lines, { edit = true } = {}) => (lines || []).map(tidy).filter((l) => !l.start && (edit || l.show));
 
 // The next free steady id: GNT-001, GNT-002 ...
 export function nextId(lines) {

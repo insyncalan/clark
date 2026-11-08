@@ -86,8 +86,6 @@
  ],
  "missing": {
   "howto-excel-file-layout": "the Excel preview, which the page does not have yet",
-  "ref-since-last-report": "the Since the last report panel, which the page does not have yet",
-  "howto-start-from-last-report": "Start from last week's report, which the page does not have yet",
   "howto-check-before-you-publish": "the Not reviewed in 14 days chip in the Publish box, which the page does not have yet"
  },
  "renamed": {
