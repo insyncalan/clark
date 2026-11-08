@@ -164,7 +164,7 @@ class Workflow(unittest.TestCase):
         self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi', tests)
         self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', tests)
         # the second Python and macOS exist only on the full path
-        self.assertIn("if: ${{ needs.plan.outputs.full == '1' }}", self.jobs["tests-py39"])
+        self.assertIn("if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}", self.jobs["tests-py39"])
         self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", self.jobs["macos"])
 
     def test_a_pull_request_fetches_the_whole_history_so_the_base_is_there(self):
@@ -215,12 +215,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("if: ${{ !cancelled() }}", passed)         # a run cancelled by a newer one posts no red gate
         self.assertNotIn("always()", passed)
         for line in ("PLAN: ${{ needs.plan.result }}", "TESTS: ${{ needs.tests.result }}", "PY39: ${{ needs.tests-py39.result }}",
-                     "MACOS: ${{ needs.macos.result }}", "WANT_FULL: ${{ needs.plan.outputs.full }}",
+                     "MACOS: ${{ needs.macos.result }}", "WANT_PY39: ${{ needs.plan.outputs.py39 }}",
                      "WANT_MACOS: ${{ needs.plan.outputs.macos }}"):
             self.assertIn(line, passed)
         self.assertIn('test "$PLAN" = "success"', passed)
         self.assertIn('test "$TESTS" = "success"', passed)
-        self.assertIn('if [ -n "$WANT_FULL" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
+        self.assertIn('if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
         self.assertIn('if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi', passed)
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
@@ -274,7 +274,9 @@ class Workflow(unittest.TestCase):
         extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
                   "src/clark/platform.py", "src/clark/updates.py", ".github/*",
                   "clark.command", "clark/__main__.py", "clark/launch.py", "clark/doctor.py", "src/clark/launch.py", "src/clark/doctor.py",
-                  "src/clark/release_files.py", "dev/tools/package.py"}
+                  "src/clark/release_files.py", "dev/tools/package.py",
+                  # the WIDE patterns (a stylesheet or the page reaches nearly every test file: six Ubuntu shards, not three), not guarded files
+                  "*.css", "src/clark/brand/*", "src/clark/page/*", "src/clark/templates/*"}
         self.assertTrue(sources, "no source file found in run_tests.GUARDED")
         self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
         missing = sorted(sources - listed)
