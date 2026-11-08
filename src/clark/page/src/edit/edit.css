@@ -399,6 +399,10 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs { flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
 }
+@media (max-width: 480px) {      /* row 1033: at 420 px the project name kept 160 px and the tab row got 61 px (360 px: 1 px), so Settings was out of reach; the name gives way first, as from 801 to 1000 px; down to 48 px, an initial and the chevron */
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: 48px; }
+  .top .tabs { flex: 0 1 auto; min-width: 0; }
+}
 
 /* Use cases page: detail */
 /* One use case on its own page (Edit only): the crumb, the title, two columns at 1400 px and one at 900 px; tokens only, 13 px text at least, 24 px targets, no sideways scroll. */

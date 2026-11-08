@@ -72,7 +72,9 @@ class Browser(unittest.TestCase):
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways page scroll")
                     cdp.js("document.querySelector('[data-view=work]').click()", sid)
                     self.until(cdp, sid, "document.querySelector('main').innerText.includes('No project open')", "the Gate on Work items")
-                    cdp.js("document.querySelector('[data-view=settings]').click()", sid)
+                    cdp.js("document.querySelector('#profile-btn').click()", sid)
+                    self.until(cdp, sid, "!!document.querySelector('#profile-menu')", "the profile menu")
+                    cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)      # row 976: Settings is no tab; the circle's menu opens it
                     self.until(cdp, sid, "document.querySelector('#npBtn')", "Settings again from its tab")
 
     def test_item_682_only_the_cards_that_work_show_and_import_says_why(self):

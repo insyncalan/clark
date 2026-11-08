@@ -49,11 +49,22 @@ class TopBarTabs(Base):
                                      "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
                                 f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
                                 "so it did not test a long name at all; the bar's markup has changed")
-            if active:
+            if active == "Settings":      # row 976: Settings is no tab; it opens from the profile circle's menu
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu')", "the profile menu opened")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("document.querySelector('h1') && document.querySelector('h1').textContent === 'Settings'", "Settings opened from the menu")
+            elif active:
                 p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
                 p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", f"{active} is the open tab")
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
-            return p.js(MEASURE)
+            got = p.js(MEASURE)
+            # each tab can be brought inside the tab row (the row scrolls in its own box): its box then lies within the row's
+            got["reach"] = p.js("Array.from(document.querySelectorAll('.top .tab')).map(function(t){ t.scrollIntoView({inline: 'nearest', block: 'nearest'}); "
+                                "var r = t.getBoundingClientRect(), b = document.querySelector('.top .tabs').getBoundingClientRect(); "
+                                "return {name: t.textContent.trim(), inside: r.left >= b.left - 0.5 && r.right <= b.right + 0.5}; })")
+            got["scroll_after"] = p.js("[document.documentElement.scrollWidth, document.documentElement.clientWidth]")
+            return got
 
     def box(self, p, selector):
         return p.js(f"(function(){{ var e = document.querySelector({selector!r}); if (!e) return null; var r = e.getBoundingClientRect(); return [r.width, e.scrollWidth, e.clientWidth]; }})()")
@@ -89,7 +100,8 @@ class TopBarTabs(Base):
             if t["open"] or not scrolls:       # the open tab is whole inside the tab row's box; with no scroll every tab is
                 self.assertGreaterEqual(t["left"], got["row"][0] - 0.5, f"{where}: {t['name']!r} starts left of the tab row")
                 self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
-        self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 1, where)
+        self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
+        self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
         if scrolls and width > 800:       # 800 px and below stay as main has them (the name keeps its width, the row scrolls): row 757 is 900 px only
             self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
         self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
@@ -161,8 +173,49 @@ class TopBarTabs(Base):
                 self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px, {active}: the page scrolls sideways {got['scroll']}")
                 self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
 
+    def test_the_tab_row_keeps_room_for_its_tabs_at_420_and_360_px(self):
+        # Row 1033: at 420 px the project name kept 160 px, so the tab row got 61 px (360 px: 1 px) and Settings, last of the five tabs, sat far off the
+        # bar's edge. The name gives way first (as it does from 801 to 1000 px); the row keeps room for at least a tab and a quarter and still scrolls inside its box.
+        # Row 976 (a branch) drops the Settings tab from the bar; this test then needs only the row's room, so it names the last tab, whichever it is.
+        for width in (420, 360):
+            for edit in (False, True):
+                with self.subTest(width=width, edit=edit):
+                    got = self.measure(width, "light", True, edit)
+                    where = f"at {width} px{', Edit' if edit else ''}"
+                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is only {got['row'][1] - got['row'][0]:.0f} px wide; the project name is {got['name']:.0f} px")
+                    self.assertGreaterEqual(got["name"], 48, f"{where}: the project name box is squeezed to {got['name']:.0f} px")
+                    self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"{where}: an item runs past the window")
+                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+
+    def test_the_tab_row_is_usable_on_the_settings_route_at_420_and_360_px(self):
+        # Row 976 + row 1033: Settings is no tab, so the Settings route shows no open tab; the row still keeps at least 110 px, the page does not scroll
+        # sideways, and every tab (Dashboard, Work items, ...) can be brought into the row.
+        for width in (420, 360):
+            for edit in (False, True):
+                with self.subTest(width=width, edit=edit):
+                    got = self.measure(width, "light", True, edit, active="Settings")
+                    where = f"at {width} px{', Edit' if edit else ''}, Settings route"
+                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is {got['row'][1] - got['row'][0]:.0f} px wide")
+                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
+                    self.assertLessEqual(got["scroll_after"][0], got["scroll_after"][1], f"{where}: bringing a tab into view scrolls the page sideways {got['scroll_after']}")
+                    names = [t["name"] for t in got["reach"]]
+                    self.assertEqual(names[0], "Dashboard", where)
+                    self.assertIn("Work items", names, where)
+                    self.assertNotIn("Settings", names, where)
+                    self.assertTrue(all(t["inside"] for t in got["reach"]), f"{where}: a tab cannot be brought into the row {got['reach']}")
+
+    def test_the_tab_row_is_not_squeezed_from_420_to_800_px(self):
+        for width in (420, 480, 481, 600, 700, 800):
+            with self.subTest(width=width):
+                got = self.measure(width, "light", True, False)
+                row = got["row"][1] - got["row"][0]
+                self.assertGreaterEqual(row, 110, f"at {width} px the tab row is only {row:.0f} px wide; the project name is {got['name']:.0f} px")
+                self.assertGreaterEqual(got["name"], 48, f"at {width} px the project name box is {got['name']:.0f} px")
+                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px the page scrolls sideways {got['scroll']}")
+                self.assertGreaterEqual(len(got["tabs"]), 4, f"at {width} px the tabs are {[t['name'] for t in got['tabs']]}")
+
     def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
-        # The exact failing case: 900 px, the profile circle in the bar, Settings open; then the tab row narrows (as it does when the mode switch joins
+        # The exact failing case: 900 px, the profile circle in the bar, the last tab open; then the tab row narrows (as it does when the mode switch joins
         # the bar on leaving the Dashboard) and the open tab, already scrolled to, must be brought into the row again.
         with sqlite3.connect(str(self.store.path)) as con:
             con.execute("UPDATE app_settings SET ask_enabled = 1 WHERE id = 1")
@@ -170,7 +223,7 @@ class TopBarTabs(Base):
             p = self.visit(cdp)
             size(cdp, p, 900, 700)
             p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
-            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Settings')[0].click()")
+            p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Use cases')[0].click()")      # row 976: the last tab (Settings was it before)
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
                  "document.querySelector('.top .tabs').after(s); })()")
@@ -182,8 +235,8 @@ class TopBarTabs(Base):
             p.js("new Promise(r => setTimeout(r, 1500))")
             got = p.js("(function(){ var row = document.querySelector('.top .tabs').getBoundingClientRect(), "
                        "t = document.querySelector('.top .tab[aria-selected=true]').getBoundingClientRect(); return [t.left, t.right, row.left, row.right]; })()")
-            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Settings starts left of the tab row {got}")
-            self.assertLessEqual(got[1], got[3] + 0.5, f"Settings is cut off by the tab row's right edge {got}")
+            self.assertGreaterEqual(got[0], got[2] - 0.5, f"Use cases starts left of the tab row {got}")
+            self.assertLessEqual(got[1], got[3] + 0.5, f"Use cases is cut off by the tab row's right edge {got}")
 
 
 class SkipLink(Base):
