@@ -135,10 +135,10 @@ jobs:
           # (one shard hit the cap on PR 440, twice). The cheap path (--push) is sharded the same way: a change to shell.css or another
           # shared file reaches every test file, and as one shard that hit the cap too (PRs 445 and 447). A pull request that reaches few
           # files leaves most shards nearly empty: they finish in the time it takes to set up, and the minutes are free.
-          # Python 3.9 (the oldest supported) runs on a push to main, by hand, and wherever macOS runs (release line, label full-ci,
-          # Mac-specific files); a guarded pull request that is not Mac-specific gets Ubuntu 3.x only (about 12 percent of the Ubuntu minutes).
+          # Python 3.9 (the oldest supported) runs by hand and wherever macOS runs (release line, label full-ci,
+          # Mac-specific files), NOT on a push to main (owner's order 08-11: Python 3.9 and macOS only on a release or a Mac-relevant PR); a guarded pull request that is not Mac-specific gets Ubuntu 3.x only (about 12 percent of the Ubuntu minutes).
           PY39=""
-          case "$EVENT" in push|workflow_dispatch) PY39=1 ;; esac
+          case "$EVENT" in workflow_dispatch) PY39=1 ;; esac
           if [ -n "$MACOS" ]; then PY39=1; fi
           # Ubuntu 3.x shards: six on the full path (every file) and for a pull request that touches a stylesheet or the page (it reaches
           # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
