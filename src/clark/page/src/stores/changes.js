@@ -2,9 +2,12 @@
 // A change is sent as it is; the page never edits its own copy. It redraws from the sections the reply carries, so what is on
 // the page is what clark saved. A failed change draws nothing and the toast says why, in plain words (api.js).
 import { signal } from "@preact/signals";
-import { data, project, reread } from "./report.js";
+import { data, project, reread, plainChange } from "./report.js";
+import { busy, beforeReload, stayed, trouble } from "./leave.js";
 import { sendChange, sendUndo, sendUndoMany, sendItemChange, sendRecordChange, sendCellChange, sendMilestoneChange, sendMilestoneRestore, sendBulk, readData, sendRestore } from "../api.js";
+import { isProject } from "../router.js";
 import { flashed } from "./wordsState.js";
+import { assignNewPerson } from "../edit/peopleApi.js";
 import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
@@ -33,11 +36,38 @@ export function say(kind, text, undo = null, code = project.value) {
     undoable.push({ step: undo, code });
     if (undoable.length > MAX_KEPT) { undoable.shift(); }
   }
+  if (kind === "problem") trouble.n++;
   clearTimeout(timer);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
   if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
 }
+
+// A different project is a page load (report.js), which would take the message with its Undo away: the one message on show goes with the
+// person, once, in sessionStorage (cleared when it is read; never kept longer), and is said again, with the same Undo and project, in the page that loads.
+const CARRIED = "clark-toast-carried";
+function carry() {
+  try {
+    const t = toast.value;
+    if (t && !t.local && (t.kind === "done" || t.kind === "note") && typeof t.text === "string") {
+      window.sessionStorage.setItem(CARRIED, JSON.stringify({ kind: t.kind, text: t.text.slice(0, 400), undo: t.undo, code: t.code }));
+    }
+  } catch (e) { /* storage unavailable: the message stays behind */ }
+}
+function takeCarried() {
+  try {
+    const raw = window.sessionStorage.getItem(CARRIED);
+    if (raw === null) return;
+    window.sessionStorage.removeItem(CARRIED);
+    const c = JSON.parse(raw);
+    if (c && (c.kind === "done" || c.kind === "note") && typeof c.text === "string" && c.text && c.text.length <= 400
+      && (c.undo === null || Number.isInteger(c.undo)) && isProject(c.code)) say(c.kind, c.text, c.undo, c.code);
+  } catch (e) { /* nothing usable was kept */ }
+}
+busy.push(() => tail);                    // report.js waits for what is still being saved before it loads another project
+beforeReload.push(carry);
+stayed.push((late) => { if (late) say("problem", plainChange(0)); });      // a save still not answered: the page stays and says so; a failed one has said why already
+takeCarried();
 
 export function dismiss() {
   clearTimeout(timer);
@@ -237,7 +267,7 @@ export function changeCell(table, id, changes, done) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendCellChange(code, table, id, changes, done.place || "cell");
-    if (!r.ok) { if (typeof done.refused === "function") done.refused(r.message); else say("problem", r.message); return null; }
+    if (!r.ok) { if (typeof done.refused === "function") { trouble.n++; done.refused(r.message); } else say("problem", r.message); return null; }      // a refusal the box shows is still a problem for saved() (#944)
     const item = r.reply.item;
     const d = data.value;
     if (d && project.value === code && Array.isArray(d[table])) {
@@ -247,6 +277,23 @@ export function changeCell(table, id, changes, done) {
     if (step) { itemSteps.set(step, done.back || ""); say("done", done.text, step, code); }
     else if (done.always) say("done", done.text, null, code);                   // a decision that is made: it changed, and has no Undo
     return r.reply;
+  });
+}
+
+// Row 986: Assign to a person who is not on the list yet, in one step with one Undo (the person and the owner go back together).
+// Resolves to {ok: true} or {ok: false, message, code, person}: a refusal is shown by the picker that is still open, beside what was typed.
+export function changeNewPerson(table, id, c, place) {
+  const code = project.value;
+  return enqueue(async () => {
+    const r = await assignNewPerson(table, id, c.changes, c.new_person, place || "cell");
+    if (!r.ok) return r;
+    const item = r.reply.item;
+    const d = data.value;
+    if (d && project.value === code && Array.isArray(d[table])) data.value = { ...d, [table]: d[table].map((row) => (row.id === item.id ? { ...row, ...item } : row)) };
+    const step = r.reply.undoable === true && r.reply.apply_id ? r.reply.apply_id : null;
+    if (step) { itemSteps.set(step, c.back || ""); say("done", c.words, step, code); }
+    else say("done", c.words, null, code);
+    return { ok: true };
   });
 }
 
@@ -290,7 +337,7 @@ export function changeMilestone(req, done) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendMilestoneChange(code, req);
-    if (r.ok && r.reply.apply_id) say("done", done, r.reply.apply_id, code);
+    if (r.ok && r.reply.apply_id) say("done", typeof done === "function" ? done(r.reply) : done, r.reply.apply_id, code);   // #603: `done` may work out its words from the reply
     return r;
   });
 }
@@ -337,7 +384,7 @@ export function undoSeveral(steps, { preview = false, confirm = false } = {}) {
   if (preview) return sendUndoMany(code, steps, { preview: true });
   return enqueue(async () => {
     const r = await sendUndoMany(code, steps, { confirm });
-    if (!r.ok) { if (!r.confirm) say("problem", r.message); return r; }
+    if (!r.ok) { if (r.confirm) trouble.n++; else say("problem", r.message); return r; }      // clark asking first is no save either: saved() sees it (#944)
     redraw(code, r.reply);
     undone.value++;
     for (const s of steps) { const at = undoable.findIndex((u) => u.step === s); if (at >= 0) undoable.splice(at, 1); }

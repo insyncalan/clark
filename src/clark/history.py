@@ -7,8 +7,8 @@ import threading
 from datetime import datetime, timedelta, timezone
 
 from clark import freshness as fresh, timefmt
-from clark.publish import RICH
-from clark.sanitise import SanitiseError, plain_text
+from clark.publish import LEGACY_RICH, RICH
+from clark.sanitise import SanitiseError, plain_text, rich_plain_text
 from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
@@ -260,7 +260,7 @@ def original_date(con, item_id, current=None):
 
 # ===== The display rows (#123): one function the peek's Activity tab and the Excel History sheet both call =====
 
-FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Personal \u203a About you."
+FOOTNOTE = "Names come from this computer until you add your name in Settings \u203a Profile."
 NO_ZONE = "Time zone not recorded (shown as UTC)"
 ROW_LIMIT = 20000                      # the newest rows the Excel History sheet holds, per project (answered 29-10-2026)
 CLOSING_LINE = "Older history is kept in clark. Showing the newest 20,000 changes."
@@ -279,7 +279,9 @@ HOW_EMAIL, HOW_TEXT, HOW_UNDO = "By a sent email", "From selected text", "Undo"
 HOW_UNDO_MANY = "Undo (" + BATCH_UNDO + ")"      # #239: every row of one Undo several names it, so the rows read as one batch
 HOW_PLACES = {"peek": HOW_PEEK, "cell": HOW_TABLE, "bulk": HOW_TABLE, "menu": HOW_TABLE, "board": HOW_BOARD, "report": HOW_REPORT,
               "eye": HOW_EYE, "draft": HOW_DRAFT, "email": HOW_EMAIL, "text": HOW_TEXT}
+HOW_WORD = "By Word import"
 EXCEL_PREFIX = "Excel import:"
+WORD_PREFIX = "Added from Word"
 FILE_NAME_LIMIT = 60
 
 # Plain names for fields. A column listed here under a table wins; otherwise the same column under COMMON.
@@ -347,19 +349,36 @@ TITLE_SQL = {
 TITLE_LIMIT = 120
 
 
-def how_text(route, place, src_ref):
-    """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
-    if route == "undo":
-        return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
-    if route == "excel":
-        name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
+def file_name(route, src_ref):
+    """The file an Excel or Word import stored in src_ref, as its bare name (folders dropped, spaces tidied, cut at FILE_NAME_LIMIT); '' if none."""
+    name = re.sub(r"\s+", " ", str(src_ref or "")).strip()
+    if route == "word":
+        wrapped = re.fullmatch(re.escape(WORD_PREFIX) + r" \((.*)\)", name, re.IGNORECASE)    # what the Word route stores: "Added from Word (x.docx)"
+        name = wrapped.group(1).strip() if wrapped else name
+    else:
         wrapped = re.fullmatch(r"by excel import \((.*)\)", name, re.IGNORECASE)      # what the import stores: "by Excel import (x.xlsx)"
         if wrapped:
             name = wrapped.group(1).strip()
         elif name[:len(EXCEL_PREFIX)].lower() == EXCEL_PREFIX.lower():
             name = name[len(EXCEL_PREFIX):].strip()
-        name = re.split(r"[\\/]", name)[-1].strip()[:FILE_NAME_LIMIT]
-        return f"{HOW_EXCEL} ({name})" if name else HOW_EXCEL
+    return re.split(r"[\\/]", name)[-1].strip()[:FILE_NAME_LIMIT]
+
+
+def updated_from(file, when, who):
+    """'Updated from <file>, <date>, by <name>'; ', by <name>' is left out when the name is empty."""
+    date = str(when).split(" ")[0]
+    who = re.sub(r"\s+", " ", str(who or "")).strip()
+    return f"Updated from {file}, {date}" + (f", by {who}" if who else "")
+
+
+def how_text(route, place, src_ref):
+    """One of the eleven phrases for how and where a change was made. Anything else is OTHER, never the stored code."""
+    if route == "undo":
+        return HOW_UNDO_MANY if src_ref == BATCH_UNDO else HOW_UNDO
+    if route in ("excel", "word"):
+        name = file_name(route, src_ref)
+        base = HOW_EXCEL if route == "excel" else HOW_WORD
+        return f"{base} ({name})" if name else base
     if route == "assistant":
         return HOW_ASK
     return HOW_PLACES.get(place, OTHER)
@@ -394,6 +413,9 @@ def plain_value(field, value):
     return value
 
 
+OWNER_RICH = (("projects", "health_reason"), ("milestones", "internal_note"))      # row 1005: the Reason and the Internal note moved onto the one rich editor
+
+
 def rich_plain(text):
     """The words of a rich field's HTML (publish.RICH: current_state, standing), for the rows and the sheet: tags and entities
     are gone, paragraphs become lines. One the cleaner refuses (too long) falls back to a plain tag strip. Never used for a
@@ -406,8 +428,12 @@ def rich_plain(text):
 
 def shown_value(table, field, value):
     """plain_value, and for a rich field (publish.RICH) the words without the markup."""
+    if isinstance(value, str) and (table, field) in LEGACY_RICH:     # row 1005: HTML now, plain text before
+        return rich_plain_text(value)
     if isinstance(value, str) and field in RICH.get(table, ()):
         return rich_plain(value)
+    if isinstance(value, str) and (table, field) in OWNER_RICH:     # row 1005: HTML now, plain text before: the words either way
+        return rich_plain_text(value)
     return plain_value(field, value)
 
 
@@ -538,9 +564,12 @@ def _display(con, rows, keep):
             folded[fold]["_values"][field_key] = after
             continue
         when, note = when_text(r["logged"], r["utc_offset"])
+        from_file = ""
+        if kind == "Changed" and r["route"] in ("excel", "word") and file_name(r["route"], r["src_ref"]):
+            from_file = updated_from(file_name(r["route"], r["src_ref"]), when, r["by_user"])      # an item a file changed; Created keeps its own wording
         items = [{"id": e, "title": titles.of(e)} for e in ends if e]
         row = {"when": when, "zone_note": note, "when_text": when + (" - " + note if note else ""), "who": r["by_user"] or "",
-               "how": how_text(r["route"], r["place"], r["src_ref"]),
+               "how": how_text(r["route"], r["place"], r["src_ref"]), "from_file": from_file,
                "item_id": items[0]["id"] if items else "", "title": items[0]["title"] if items else "", "items": items,
                "item": "; ".join((i["id"] + " " + i["title"]).strip() for i in items),
                "field": field, "from": "" if before is None else before, "to": "" if after is None else after, "kind": kind,

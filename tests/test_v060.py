@@ -164,26 +164,26 @@ class Cut(unittest.TestCase):
         self.assertTrue((ROOT / "dev" / "handchecks" / f"{v}-sheet.md").is_file())
 
 
-def _skips():
+def _skips_early():
     for i, (item, check, kind, why, does) in enumerate(WALK_THROUGH):
         def t(self, _m=f"needs a person ({kind}): {why}. Do this: {does}"):
             self.skipTest(_m)
         t.__name__ = "test_%s_%d_needs_a_person" % (re.sub(r"\W", "_", item), i)
         t.__doc__ = check
-        setattr(Walk, t.__name__, t)
+        setattr(WalkEarly, t.__name__, t)
     for i, (item, check, q) in enumerate(WAITING):
         def w(self, _m=f"waiting: {q}"):
             self.skipTest(_m)
         w.__name__ = "test_%s_%d_waiting" % (re.sub(r"\W", "_", item), i)
         w.__doc__ = check
-        setattr(Walk, w.__name__, w)
+        setattr(WalkEarly, w.__name__, w)
 
 
-class Walk(unittest.TestCase):
+class WalkEarly(unittest.TestCase):
     """One skipped test per walk-through or waiting check, so the run lists them by name with the reason."""
 
 
-_skips()
+_skips_early()
 
 if __name__ == "__main__":
     unittest.main()

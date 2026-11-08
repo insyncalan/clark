@@ -269,6 +269,21 @@ class Seam(Base):
         self.assertEqual(self.past.take("x"), None)
         self.assertEqual(len(self.past.visits), 0, "nothing was made ready for any of those")
 
+    def test_a_restored_database_that_reuses_a_number_for_another_page_is_refused_not_shown(self):
+        """#578: Backups carry the kept copies and a restore never touches them (backup.py), so a restored database whose row for a
+        number holds another page's SHA-256 than the kept copy meets copy_changed. That refusal is intended: nothing is shown."""
+        done, body = self.publish()
+        self.store.close()
+        self.db.unlink()                                       # the restore: an older database, where this number is another page's
+        fx.build_db(self.db, self.plant)
+        self.store = open_store(self.db, onedrive_roots=[])
+        self.addCleanup(self.store.close)
+        self.store.log_publication("PUB", Path("/tmp/clark-fictional/other.html"), "2026-10-23", sha(b"another page"), USER)
+        status, got = self.past.visit("PUB", done["number"])
+        self.assertEqual((status, got["code"]), (409, "copy_changed"))
+        self.assertEqual(len(self.past.visits), 0, "nothing was made ready")
+        self.assertEqual((self.copies / f"PUB-{done['number']}.html").read_bytes(), body, "the kept copy is untouched")
+
     def test_a_copy_of_the_wrong_size_or_kind_is_changed_not_shown(self):
         done, body = self.publish()
         kept = self.copies / f"PUB-{done['number']}.html"
