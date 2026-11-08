@@ -161,8 +161,23 @@ class Setup:
         report = self.report()
         if not report["ready"]:
             return 409, {"ok": False, "code": "not_ready", "ready": False, "checks": report["checks"]}
+        refusal = start_refusal(self.folder)
+        if refusal:                         # D1: python -m clark would refuse this folder, so the page is told now, not left waiting
+            return 409, {"ok": False, "code": "start_refused", "message": refusal}
         self.done = True
         return 200, {"ok": True, "restart": True}
+
+
+def start_refusal(folder):
+    """The launcher's own line when clark would refuse to start on `folder` (an update left part way, files of mixed versions, a
+    clark already open there or a lock that can't be checked), else None. The same checks as launch(), nothing is written."""
+    from clark import same_version, update_helper
+    from clark.launch import lock_refusal
+    if update_helper.marker_path(folder).exists():
+        return update_helper.MESSAGES["not_restored"].format(log=platform.with_tilde(update_helper.updates_dir(folder) / update_helper.LOG_NAME))
+    if same_version.mixed():
+        return same_version.MESSAGE
+    return lock_refusal(folder)
 
 
 def _busy():

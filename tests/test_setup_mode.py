@@ -330,6 +330,54 @@ class Api(Case):
         self.assertEqual(service.api_done()[0], 409)
 
 
+class DoneRefusals(Case):
+    """D1: done is answered only when clark would start on the chosen folder; else the page is told in the launcher's own words."""
+
+    def test_mixed_version_refuses_done_in_the_launchers_words(self):
+        from unittest import mock
+        from clark import same_version
+        service = self.setup(checks=[])
+        with mock.patch.object(same_version, "mixed", return_value=True):
+            status, body = service.api_done()
+        self.assertEqual((status, body["ok"], body["code"], body["message"]), (409, False, "start_refused", same_version.MESSAGE))
+        self.assertFalse(service.done)
+
+    def test_a_clark_open_on_the_folder_refuses_done_in_its_words(self):
+        from unittest import mock
+        service = self.setup(checks=[])
+        with mock.patch.object(pl, "data_lock_held", return_value=True):
+            status, body = service.api_done()
+        self.assertEqual((status, body["code"], body["message"]), (409, "start_refused", pl.already_open(service.folder)))
+        self.assertFalse(service.done)
+
+    def test_a_lock_that_cannot_be_checked_refuses_done(self):
+        from unittest import mock
+        service = self.setup(checks=[])
+        with mock.patch.object(pl, "data_lock_held", side_effect=pl.PlatformError("no lock")):
+            status, body = service.api_done()
+        self.assertEqual((status, body["message"]), (409, "no lock"))
+        self.assertFalse(service.done)
+
+    def test_an_update_marker_left_in_the_folder_refuses_done(self):
+        from clark import update_helper
+        service = self.setup(checks=[])
+        marker = update_helper.marker_path(service.folder)
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        marker.write_text("{}", encoding="utf-8")
+        status, body = service.api_done()
+        self.assertEqual((status, body["code"]), (409, "start_refused"))
+        self.assertIn("update", body["message"].lower())
+        self.assertFalse(service.done)
+
+    def test_the_lock_is_asked_for_the_chosen_folder(self):
+        from unittest import mock
+        service = self.setup(checks=[])
+        service.folder = self.good
+        with mock.patch.object(pl, "data_lock_held", return_value=False) as held:
+            self.assertEqual(service.api_done()[0], 200)
+        held.assert_called_once_with(self.good)
+
+
 class Relaunch(Case):
     """Design item 8: when the page's done is accepted and the server has stopped, main starts the normal clark on the chosen folder."""
 
