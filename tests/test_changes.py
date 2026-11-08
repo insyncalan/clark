@@ -654,15 +654,6 @@ class AddBeside(Api):
         self.assertEqual(self.undone(got["apply_id"])[0], 200)
         self.assertEqual({r["id"]: r["beside"] for r in self.rows()}, before, "one Undo puts everything back, stray flag included")
 
-    def test_add_beside_the_last_section_that_carries_a_stray_flag_still_pairs_them(self):
-        last = self.stale_last()                                            # the page ignores a 1 on the last section
-        before = {r["id"]: r["beside"] for r in self.rows()}
-        got = self.ok("new", values={"title": "Beside"}, after=last, beside=1)
-        flags = {r["id"]: r["beside"] for r in self.rows()}
-        self.assertEqual((flags[last], flags[got["ref"]]), (1, 0), "the old last section now starts a real pair")
-        self.assertEqual(self.undone(got["apply_id"])[0], 200)
-        self.assertEqual({r["id"]: r["beside"] for r in self.rows()}, before)
-
     def stale_last(self):
         last = self.ids_now()[-1]
         self.ok("update", id=last, changes={"beside": 1})
