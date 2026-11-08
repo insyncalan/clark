@@ -261,6 +261,10 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
 .ask-form { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+/* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
+.ask-form { position: relative; }
+.ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
+@media print { .ask-form::before { display: none; } }
 .ask-form textarea { width: 100%; box-sizing: border-box; min-height: 56px; max-height: 140px; padding: 10px 14px; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: vertical; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }

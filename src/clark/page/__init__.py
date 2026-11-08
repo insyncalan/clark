@@ -335,7 +335,19 @@ def page_html(branding=None, view=False):
     return layer_brand(html, local_tokens(branding))
 
 
-BACKDROP_CSS = ""      # row 1023: filled in by the next commit (the rules that ride with a brand that has a cover picture)
+# Row 1023: the brand's page background picture, on every page of the app and of the published file. It is drawn from the
+# --image-cover the brand already sets (the report band uses the same one: the file holds the picture once), fixed behind the
+# page below the top bar over the right 60%, faded in from the left (the prototype's body::before, system/prototype/app.css:634).
+# These rules go in the brand block ONLY when the brand sets a cover picture, so a page with no own look (or --image-cover: none)
+# is byte for byte what it was. The picture is washed to a faint tint (opacity) so text over it keeps 4.5:1 in light and dark
+# (tests/test_brand_backdrop.py measures it from the drawn pixels). Paper (print, PDF) gets none; reduced motion no fade-in.
+BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topbar) 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .14; transform: scale(1.03); }
+:root[data-theme=dark] body::before { opacity: .14; }
+@media (prefers-color-scheme: dark) { :root[data-theme=auto] body::before { opacity: .14; } }
+@keyframes bg-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) body::before { animation: bg-in var(--dur-state) var(--ease-enter) both; } }
+@media print { body::before { display: none; } }
+"""
 HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!none\b)[^;}\s]", re.I)
 
 
