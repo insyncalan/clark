@@ -162,7 +162,6 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
         <div class="tcell">
           <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
           <span class="tx">
-            {picked ? <span class="tick" aria-hidden="true"><Icon name="check" /></span> : null}
             <span class="t">{row.title}</span>
             <span class="meta">{metaOf(row, group)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
           </span>
@@ -195,6 +194,7 @@ function Heads({ eye, hand }) {
 }
 function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
 
+const opened = (key) => (e) => { if (justOpened === key) justOpened = ""; e.currentTarget.classList.remove("opening"); };
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
 function Table({ rows, today, type, Cell, Eye }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
@@ -228,7 +228,7 @@ function Table({ rows, today, type, Cell, Eye }) {
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
               <Cols eye={Eye} hand={hand} />
-              <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={(e) => { if (justOpened === c.key) justOpened = ""; e.currentTarget.classList.remove("opening"); }}>
+              <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
                     : on ? <GroupTick ids={c.rows.map((r) => r.id)} label={c.label} shut={shut} /> : null}
@@ -237,6 +237,8 @@ function Table({ rows, today, type, Cell, Eye }) {
                   </button>
                 </th></tr>
                 {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} /></tr>}
+              </thead>
+              <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 {shut ? null : rowsOf(c.key, c.rows, stop)}
               </tbody>
             </table>

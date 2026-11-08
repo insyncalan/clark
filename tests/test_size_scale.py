@@ -22,9 +22,9 @@ CAPTION = [".asat", ".av", ".cp-name .av", ".type", ".tpl-check-box", ".sb-a"]
 
 # Headings sit on the heading sizes, so none is smaller than the body text around it. The wordmark is 24 px (--size-h2): the owner's
 # answer to #453 question 1, "Make these changes", restores PR 240's size, which #428 had set back to 20 px.
-HEADINGS = {".logo .wm": "--size-h2", ".hp-sec > h2, .hp-sh h2": "--size-h2", ".hp-col .hp-sh h2": "--size-h2",
+HEADINGS = {".logo .wm": "--size-h2", ".hp-sec > h2, .hp-sh h2": "--size-h3", ".hp-hero h2": "--size-h2", ".hp-col .hp-sh h2": "--size-h3",
             ".hp-big": "--size-h2", ".hp-task h3, .hp-ref h3": "--size-h3", ".ucp-body h2": "--size-h3",
-            ".ask-head h2": "--size-h3", ".pk-title": "--size-h2"}
+            ".ask-head h2": "--size-h3", ".pk-title": "--size-h2", ".hp-start-jobs > h2": "--size-h3"}
 
 
 def rules(text):

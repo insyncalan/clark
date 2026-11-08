@@ -161,6 +161,24 @@ class Composing(Base):
         self.assertEqual(self.reason(), "<p>a</p><p>text</p>")
 
 
+class PublishedReason(unittest.TestCase):
+    def test_the_file_cuts_the_words_at_the_limit_and_drops_hidden_characters(self):
+        limit = publish.REASON_LIMIT
+        out = publish.reason_html("<p>" + "x" * (limit + 50) + "</p>")
+        self.assertEqual(len(sanitise.plain_text(out)), limit)
+        hidden = publish.reason_html("<p>ke\u200bep wa\u200btch</p>")
+        self.assertNotIn("\u200b", hidden)
+        self.assertEqual(sanitise.plain_text(hidden), "keep watch")
+
+    def test_the_file_drops_hidden_characters_from_the_words(self):
+        """Fails if the _UNSEEN filter is removed from publish.reason_html: a zero-width space, a bidi override and a control character would stay."""
+        out = publish.reason_html("<p>a​b‮c\x01d</p>")
+        self.assertEqual(sanitise.plain_text(out), "abcd")
+        for hidden in ("​", "‮", "\x01"):
+            self.assertNotIn(hidden, out)
+        self.assertEqual(sanitise.plain_text(publish.reason_html("a​b")), "ab", "an old plain reason too")
+
+
 class Readers(Base):
     """The readers that showed the raw HTML now show the words, for a new value and for an old plain one."""
     HTML = "<p>Keep &amp; watch &lt;b&gt;</p><p>second line</p>"
