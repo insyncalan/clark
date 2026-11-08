@@ -14,6 +14,7 @@ from pathlib import Path
 from _paths import SRC
 
 from clark import ai_menu, ask, page, section_bodies, server  # noqa: E402
+from clark.section_kinds import textimage  # noqa: E402
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 PROTOTYPE = Path(__file__).resolve().parent.parent / "system" / "prototype"
@@ -68,6 +69,18 @@ class TooBig(unittest.TestCase):
             self.assertIn("Make the text shorter, or take some of the list out.", page_words)
             self.assertNotIn("rows", page_words)
             self.assertNotIn("Shorten some", page_words)
+
+
+class TextPictureTooLong(unittest.TestCase):
+    """Row 1005: the Text and picture section's over-long text (the 40,000 character limit) has its own toast, not the generic Reload one."""
+
+    def test_the_servers_words_for_the_over_long_text_are_known_to_the_page(self):
+        said = textimage.LONG_HTML
+        self.assertEqual(said, "The text can be 40,000 characters at most. Shorten it and try again.")
+        known = known_words()
+        self.assertIn(said, known)
+        self.assertEqual(known[said], said)
+        self.assertNotIn("Reload", known[said])
 
 
 class SecretRefusal(unittest.TestCase):

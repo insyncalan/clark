@@ -389,6 +389,8 @@ const CHANGE_KNOWN = {
   "By must be a real day between 2000 and 2100, or empty.": "By must be a real day between 2000 and 2100, or empty. Nothing was changed.",
   // the change route's own limit (server.py MESSAGES change_too_large): said as the route says it, and that nothing was changed
   "That is too big to save. Shorten a line or remove some lines, then try again.": "That is too big to save, and nothing was changed. Make it shorter, then try again.",
+  // row 1005: the Text and picture section's text over its limit (section_kinds/textimage.py's words, said as the server says them)
+  "The text can be 40,000 characters at most. Shorten it and try again.": "The text can be 40,000 characters at most. Shorten it and try again.",
   // #189: a 'Progress tracker' clark would not save (clark/section_bodies.py's words; the page checks first and says the same)
   "The progress tracker holds an overall figure, the columns shown, and groups of lines.": "That tracker can't be saved, and nothing was changed. Reload the page and try again.",
   "The overall figures are two numbers from 0 to 100, a health word, and a short note, or empty.": "The overall figures could not be saved. Nothing was changed. Use numbers from 0 to 100, then try again.",
