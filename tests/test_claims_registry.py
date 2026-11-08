@@ -26,7 +26,7 @@ PR58 = [
     Claim("cover", "the cover", HELP_FILE, selector(r'class="cover"')),
 ]
 PR58_TEXT = {HELP_FILE: "the search; the import and export icons and +; The eye: Client-visible; Add from your project record; Done (grey); the cover"}
-PR58_PAGE = {                      # what the page of that day had: no search box, no icons, six columns, an unmounted Picker, three statuses, no cover
+PR58_PAGE = {                      # what the page of that day had: no search box, no icons, six columns, an unmounted Picker, and no cover
     "components/WorkItems.jsx": '<th class="c-type">Type</th><th class="c-item">Item</th><th>Owner</th><th>Due</th><th>Priority</th><th>Status</th>',
     "components/Picker.jsx": "export function Picker() { return <input/> }",
     "components/UseCases.jsx": 'const STATUS = ["On track", "Flag", "High risk"]',
