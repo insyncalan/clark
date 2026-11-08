@@ -19,6 +19,8 @@ SCHEMA = 20              # 1.0.5 ended at layout 20 (projects.brand); 1.0.6 stay
 
 # Rows are filled by the cut bookkeeping from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
+# The cut commit must fill COVERED, NO_VISIBLE_CHANGE and TEST_ONLY from the merged list BEFORE it sets the version to 1.0.6:
+# once the version says 1.0.6 every MERGED row must be in one of them (see StatusTable).
 COVERED = []
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -120,6 +122,7 @@ class Tables(unittest.TestCase):
     def setUp(self):
         if version() != VERSION:
             self.skipTest(f"the cut commit is not made yet (version is {version()}); it sets {VERSION}")
+
     def test_every_covering_test_named_here_exists(self):
         out = []
         for item, check, where in COVERED:
