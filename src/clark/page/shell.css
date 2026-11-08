@@ -1362,11 +1362,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--space-3) 72px; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
-.ucdcols { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-5); }
+.ucdcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
+@media (max-width: 600px) { .ucdcols { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); } }   /* row 1004: one column on a phone, so a next step has the whole line and its id stays whole */
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
-.ucdetail ul.ucstepl li { display: flex; align-items: center; gap: 8px; }
+.ucdetail ul.ucstepl li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }   /* wraps, so an id longer than the rest of the line goes to a line of its own */
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
+.ucstepl [data-stepid] { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */

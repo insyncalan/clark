@@ -76,7 +76,7 @@ function Row({ s, shown, toggle, ed }) {
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => {
                 const see = () => openPeek(r.id, "item");
-                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} style="overflow-wrap:anywhere" onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
+                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>
