@@ -6,6 +6,7 @@ import shutil
 import tempfile
 import threading
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT
@@ -549,7 +550,10 @@ class Relaunch(Case):
             setup.folder = self.onedrive / "clark"
             self.assertEqual(setup.api_done()[0], 409)
             return 0
-        self.assertEqual(self.run_main(not_ready)[1], [])
+        # main() builds its own service, which looks for OneDrive folders in the machine's real home folder (a Mac
+        # answers from ~/Library/CloudStorage, Linux refuses); say here which folders are OneDrive's, whatever the machine
+        with mock.patch.object(pl, "onedrive_roots", lambda home=None, on=None: [self.onedrive]):
+            self.assertEqual(self.run_main(not_ready)[1], [])
 
     def test_a_start_that_fails_says_the_systems_words_and_exits_1(self):
         def serve(setup):
