@@ -1438,6 +1438,10 @@ class _Pipe:
     def __init__(self, w, r):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
 
+    # Pages attached through this pipe get focus emulation. A test whose page behaviour assumes an UNFOCUSED page (a field's blur-save or
+    # close-on-blur that real focus would add to) sets `cdp.FOCUS_EMULATION = False` on its own pipe before it navigates.
+    FOCUS_EMULATION = True
+
     NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
     NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
 
@@ -1450,7 +1454,7 @@ class _Pipe:
             # A headless page starts without page focus: focus, blur and hover tests read None or a stale state (macOS runners).
             # Every page a test attaches to gets focus emulation here, once, so no test file has to ask for it.
             sid = attached.get("sessionId") if isinstance(attached, dict) else None
-            if sid:
+            if sid and self.FOCUS_EMULATION:
                 try:
                     self._call_once("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
                 except RuntimeError:
@@ -1529,6 +1533,12 @@ class PipeFocus(unittest.TestCase):
         p = self.pipe()
         p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
         self.assertEqual(p.sent, [("Target.attachToTarget", None), ("Emulation.setFocusEmulationEnabled", "S1")])
+
+    def test_a_pipe_switched_off_leaves_the_page_unfocused(self):
+        p = self.pipe()
+        p.FOCUS_EMULATION = False
+        p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(p.sent, [("Target.attachToTarget", None)])
 
     def test_other_calls_are_left_alone(self):
         p = self.pipe()
