@@ -1627,6 +1627,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .sec-ctl.hint { opacity: 1; z-index: 20; }
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
 @media (max-width: 640px) { .sec-hint { white-space: normal; max-width: calc(100vw - 72px); } }
+/* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
+@media (max-width: 640px) {
+  table.pp-table { table-layout: fixed; }
+  .set-chip { min-height: 44px; }
+  .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"], .ddmenu [role="menuitemradio"].hp { min-height: 44px; display: flex; align-items: center; }
+}
 
 /* Motion: motion that explains and never decorates. Every rule here is inside one block, so a motion is absent (not switched
    off afterwards) when the computer asks for reduced motion or clark's own setting (<html data-motion="reduce">) is on. Nothing
