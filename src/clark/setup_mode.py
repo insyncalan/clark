@@ -8,6 +8,9 @@ Every system call is in platform.py: the folder window is the `choose_folder` se
 never named at import time and never run in a test); the pointer file is written with platform.write_file. A refusal carries the
 doctor's own words, unchanged. This module imports neither the store nor anything that publishes. Standard library only.
 """
+import argparse
+import os
+import sys
 import threading
 from pathlib import Path
 
@@ -162,3 +165,40 @@ class Setup:
 
 def _busy():
     return {"ok": False, "code": "busy", "message": platform.TRY_AGAIN}        # existing words: a second try is the right thing
+
+
+def main(argv=None, out=None, err=None, serve=None, environ=None):
+    """`python3 -m clark.setup_mode --data FOLDER --port N` (what the launcher starts). Serves setup mode for FOLDER, which is
+    neither made nor written to. The exit code: 0 stopped, 1 the port is taken, 2 a bad argument (said on `err`)."""
+    from clark import __version__, appfiles, idle, server, update_helper
+    out, err = out or sys.stdout, err or sys.stderr
+    environ = os.environ if environ is None else environ
+    parser = argparse.ArgumentParser(prog="clark.setup_mode", description="Start clark's setup page.")
+    parser.add_argument("--data", required=True, metavar="FOLDER", help="the data folder that may not be used")
+    parser.add_argument("--port", required=True, metavar="N", help="the port to listen on")
+    try:
+        args = parser.parse_args(argv)
+        port = int(args.port)
+        if not 1 <= port <= 65535:
+            raise ValueError(args.port)
+    except ValueError:
+        print("The port must be a number from 1 to 65535.", file=err, flush=True)
+        return 2
+    except SystemExit as e:
+        return 2 if e.code else 0
+    folder = Path(args.data).expanduser()
+
+    def finish():
+        code, result = update_helper.finish(folder)
+        return code == update_helper.OK, [result["message"]] if result else []
+
+    server.set_idle(idle.Idle.from_environ(environ) if idle.launched(environ) else None)
+    server.set_data_mark(appfiles.data_mark(folder))
+    server.set_version(__version__)
+    server.set_code_mark(appfiles.code_mark())
+    service = Setup(folder, prompt=FOLDER_PROMPT, finish=finish)
+    return (serve or server.serve)(port=port, out=out, err=err, setup=service)
+
+
+if __name__ == "__main__":
+    sys.exit(main())

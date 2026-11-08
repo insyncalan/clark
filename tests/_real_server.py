@@ -8,7 +8,11 @@ a seam passes `seam(real, which)` (the tests' usual shape), which returns the fu
 "undo" handler (`which` is that word); one that needs a route which is not made from the file alone (publisher, use_cases, movement, ask,
 profile, logs) passes it as a keyword, as it would to Running.
 """
+import subprocess
+import sys
+
 from _demo import USER
+from _paths import SRC
 from clark import (activity_read, app_settings, as_at, ask_folders, changes, draft_email_feed, milestone_feed, safety, sneak,
                    word_route)
 from test_server import Running
@@ -51,3 +55,26 @@ def real_server(path, data_for, who=USER, roots=None, seam=None, choose_folder=N
         if name not in ("change", "undo"):
             setattr(running.httpd, name, handler)
     return running
+
+
+def real_setup_start(spawned):
+    """#836: the `start` seam of launch.start_setup made real: the argument list the launcher built is run as a process (the real
+    `python3 -m clark.setup_mode`), its output added to the log the launcher named. Each process is put in `spawned` for the caller
+    to stop. This is the only way a test starts setup mode for real."""
+    def start(argv, env, log_path, cwd=None):
+        with open(log_path, "ab") as log:
+            process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+        spawned.append(process)
+        return process
+    return start
+
+
+def stop_all(spawned):
+    for process in spawned:
+        if process.poll() is None:
+            process.terminate()
+        try:
+            process.wait(10)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait()
