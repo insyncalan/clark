@@ -21,7 +21,7 @@ READ = """(() => { const p = document.querySelector('#peek');
   const cells = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = p.querySelector('.pk-fields > [data-row=' + k + ']'); if (e) cells[k] = b(e); }
   const rows = [...p.querySelectorAll('.pk-fields > .pk-row:not([data-row])')].map(b);
   return { cells, lastRow: rows[rows.length - 1], act: b(p.querySelector('.pk-act')), latest: b(p.querySelector('.pk-latest')), lab: b(p.querySelector('.pk-lab')),
-    text: b(p.querySelector('.pk-latest-text')), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
+    text: b(p.querySelector('.pk-latest-text')), src: b(p.querySelector('.pk-latest')?.previousElementSibling?.matches('.pk-source') ? p.querySelector('.pk-source') : null), stamp: b(p.querySelector('.pk-last')), body: b(p.querySelector('.pk-body')) }; })()"""
 
 
 class Spacing(unittest.TestCase):
@@ -50,6 +50,13 @@ class Spacing(unittest.TestCase):
                             self.assertLessEqual(c["h"], hi, f"{where} {k}: tighter than the old 74.5 / 93")
                         self.assertTrue(4 <= g["act"]["t"] - g["lastRow"]["b"] <= 10, f"{where}: last field to the switch")
                         self.assertGreaterEqual(g["act"]["h"], 40, f"{where}: the switch keeps its touch height")
+                        if g["src"]:
+                            # item 1009 put a Source line between the switch and Latest update: pin each gap around it, then take it
+                            # out of the page and pin the switch-to-Latest-update gap itself, exactly as before
+                            self.assertTrue(8 <= g["src"]["t"] - g["act"]["b"] <= 16, f"{where}: switch to the Source line")
+                            self.assertTrue(4 <= g["latest"]["t"] - g["src"]["b"] <= 10, f"{where}: Source line to Latest update")
+                            cdp.js("document.querySelector('#peek .pk-source').remove()", sid)
+                            g = cdp.js(READ, sid)
                         self.assertTrue(4 <= g["latest"]["t"] - g["act"]["b"] <= 10, f"{where}: switch to Latest update")
                         self.assertTrue(4 <= g["lab"]["t"] - g["latest"]["t"] <= 14, f"{where}: rule to the label")
                         self.assertTrue(44 <= g["text"]["h"] <= 56, f"{where}: the empty Latest update area, {g['text']['h']}")
