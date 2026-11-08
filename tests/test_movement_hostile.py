@@ -14,7 +14,7 @@ import unittest
 
 import _paths  # noqa: F401  (src/ on the path, so the test runs alone)
 import _publish_fixture as fx
-from clark import movement_read
+from clark import movement_read, sanitise
 from clark import server as sv
 from clark import store as clark_store
 from test_publish_route import DAY, USER, Rig
@@ -194,8 +194,10 @@ class Hostile(unittest.TestCase):
         status, got = self.change({"movement": "hold", "state_reason": "x"})
         self.assertEqual(status, 200, got)
         after = self.milestone(M)
-        self.assertTrue(after["internal_note"].startswith(before["internal_note"] + "\n"), "the owner's note is kept and a line added")
-        self.assertRegex(after["internal_note"][len(before["internal_note"]) + 1:], r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
+        kept = before["internal_note"]                                 # a note from before stays plain: the line joins it on a new line; an HTML note gets a paragraph
+        joiner = "<p>" if sanitise.HTML_START.match(kept) else "\n"
+        self.assertTrue(after["internal_note"].startswith(kept + joiner), "the owner's note is kept and a line added")
+        self.assertRegex(sanitise.plain_text(after["internal_note"][len(kept):]).strip(), r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
         self.assertNotIn(INTERNAL, json.dumps(got), "the reply never carries the note")
         for field in ("owner", "name", "workstream", "archived", "client_visible"):
             self.assertEqual(after[field], before[field], field)
@@ -206,6 +208,37 @@ class Hostile(unittest.TestCase):
             con.close()
         self.assertIn("internal_note", fields)        # the hold's line is in the note, in this one step
         self.assertTrue(fields <= {"movement", "state_reason", "internal_note", "note", "updated_at"}, fields)
+
+    # ---- row 1005: the note is the one rich editor's HTML
+    def test_a_hostile_html_note_is_stored_clean_and_never_comes_back_in_the_read(self):
+        hostile = ('<p onclick="alert(1)">ZQ-RICH-NOTE-3361 <a href="javascript:alert(2)">x</a></p><script>alert(3)</script>'
+                   '<img src=x onerror=alert(4)><style>p{}</style><iframe src=//evil></iframe><p>ok &amp; <b>bold</b></p>')
+        status, got = self.change({"internal_note": hostile})
+        self.assertEqual(status, 200, got)
+        stored = self.milestone(M)["internal_note"]
+        for bad in ("onclick", "onerror", "javascript:", "<script", "<img", "<style", "<iframe", "alert"):
+            self.assertNotIn(bad, stored, bad)
+        self.assertIn("ZQ-RICH-NOTE-3361", stored)
+        self.assertEqual(sanitise.clean_html(stored), stored, "what is stored is already clean")
+        status, buf = self.req("GET", "/api/movement?project=PUB")
+        text = buf.partition(b"\r\n\r\n")[2].decode()
+        self.assertEqual(status, 200)
+        self.assertNotIn("ZQ-RICH-NOTE-3361", text)
+
+    def test_a_plain_note_from_before_still_reads_and_a_plain_write_is_escaped(self):
+        legacy = 'Line one <b>not bold</b> & "quoted" \'single\'\nLine two a < b'
+        with self.rig.store.step("dashboard", USER) as st:               # written around the writer, as an old row is
+            st.update("milestones", M, {"internal_note": legacy})
+        shown = sanitise.rich_or_plain(self.milestone(M)["internal_note"])
+        self.assertEqual(shown, "<p>Line one &lt;b&gt;not bold&lt;/b&gt; &amp; \"quoted\" 'single'</p><p>Line two a &lt; b</p>")
+        self.assertEqual(sanitise.rich_plain_text(legacy), legacy)
+        status, got = self.change({"internal_note": legacy})
+        self.assertEqual(status, 200, got)
+        self.assertEqual(self.milestone(M)["internal_note"], shown)
+        self.refused_and_unchanged("too long plain", lambda: self.change({"internal_note": "x" * 2001}))
+        self.refused_and_unchanged("too long words in markup", lambda: self.change({"internal_note": "<p>" + "x" * 2001 + "</p>"}))
+        for bad in ("<p>a\x00b</p>", "<p>a\u202eb</p>", "a\x00b", "<p>\u200b</p>"):
+            self.refused_and_unchanged("note %r" % bad, lambda bad=bad: self.change({"internal_note": bad}))
 
     # ---- the change door
     def test_change_door_checks(self):

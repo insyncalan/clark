@@ -9,7 +9,7 @@ import unittest
 
 from _demo import USER, DemoStore
 from _paths import SRC
-from clark import changes, glance, store as store_module
+from clark import changes, glance, sanitise, store as store_module
 
 
 GANTT_DEFAULTS = {"show_gantt_editor": 0, "show_gantt_client": 0, "gantt_tab_name": "Gantt", "gantt_title": "", "gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner", "gantt_default_rows": None, "brand": "generic"}   # row 926: the project echo carries the Gantt settings
@@ -240,7 +240,7 @@ class Health(Base):
     def test_a_health_change_with_a_reason_is_one_step_and_undo_puts_both_back(self):
         week = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Test environment is late"))
-        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Test environment is late", "week_ending": week, "review_after_days": 14, **GANTT_DEFAULTS})
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "<p>Test environment is late</p>", "week_ending": week, "review_after_days": 14, **GANTT_DEFAULTS})
         self.assertEqual(set(body), {"ok", "apply_id", "ref", "project"})
         status, back = self.back(body["apply_id"])
         self.assertEqual(status, 200, back)
@@ -258,10 +258,10 @@ class Health(Base):
     def test_a_reason_alone_is_its_own_step(self):
         self.ok(self.proj(health="At risk", health_reason="First"))
         body = self.ok(self.proj(health_reason="Second line\nand a third"))
-        self.assertEqual(self.project()["health_reason"], "Second line\nand a third")
+        self.assertEqual(self.project()["health_reason"], "<p>Second line</p><p>and a third</p>")      # row 1005: stored as the editor's HTML
         status, back = self.back(body["apply_id"])
         self.assertEqual((status, back["words"]), (200, "Put back: the reason for the project's health."))
-        self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("At risk", "First"))
+        self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("At risk", "<p>First</p>"))
 
     def test_the_same_health_and_reason_makes_no_step(self):
         self.ok(self.proj(health="At risk", health_reason="Late"))
@@ -276,7 +276,7 @@ class Health(Base):
         status, back = self.back(second["apply_id"])
         self.assertEqual(status, 200, back)
         self.assertNotIn("Nothing was put back", back["words"])
-        self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("At risk", "Same reason"))
+        self.assertEqual((self.project()["health"], self.project()["health_reason"]), ("At risk", "<p>Same reason</p>"))
 
     def test_a_later_change_is_left_and_the_toast_says_so(self):
         first = self.ok(self.proj(health="At risk", health_reason="Late"))["apply_id"]
@@ -340,7 +340,7 @@ class Health(Base):
     def test_week_ending_and_health_change_in_one_step(self):
         old = self.project()["week_ending"]
         body = self.ok(self.proj(health="At risk", health_reason="Late", week_ending="2026-11-13"))
-        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "Late", "week_ending": "2026-11-13", "review_after_days": 14, **GANTT_DEFAULTS})
+        self.assertEqual(body["project"], {"health": "At risk", "health_reason": "<p>Late</p>", "week_ending": "2026-11-13", "review_after_days": 14, **GANTT_DEFAULTS})
         status, back = self.back(body["apply_id"])
         self.assertEqual(status, 200, back)
         self.assertEqual((self.project()["health"], self.project()["week_ending"]), ("On track", old))
@@ -392,9 +392,9 @@ class ReasonText(Base):
 
     def test_two_thousand_characters_pass_and_one_more_does_not(self):
         self.ok(self.proj(health_reason="x" * 2000))
-        self.assertEqual(len(self.project()["health_reason"]), 2000)
+        self.assertEqual(self.project()["health_reason"], "<p>" + "x" * 2000 + "</p>")          # row 1005: stored as the editor's HTML; the words are counted
         self.refused(self.proj(health_reason="x" * 2001), store_module.REASON_TOO_LONG)
-        self.assertEqual(len(self.project()["health_reason"]), 2000)
+        self.assertEqual(len(self.project()["health_reason"]), 2007)
 
     def test_the_store_holds_every_writer_to_it_not_only_the_route(self):
         self.refused_in_store("x" * 2001, store_module.REASON_TOO_LONG)
@@ -406,7 +406,7 @@ class ReasonText(Base):
 
     def test_a_windows_line_break_is_made_a_newline_and_counted_after(self):
         self.ok(self.proj(health_reason="one\r\ntwo\r\nthree"))
-        self.assertEqual(self.project()["health_reason"], "one\ntwo\nthree")
+        self.assertEqual(self.project()["health_reason"], "<p>one</p><p>two</p><p>three</p>")
         with self.s.step("team", USER) as st:
             st.update("projects", "ABC", {"health_reason": "a\r\nb"})
         self.assertEqual(self.project()["health_reason"], "a\nb", "normalised in the store too")
@@ -422,14 +422,16 @@ class ReasonText(Base):
 
     def test_a_tab_becomes_a_space_instead_of_being_refused(self):
         self.ok(self.proj(health="At risk", health_reason="Cost\tOwner\tLate"))
-        self.assertEqual(self.project()["health_reason"], "Cost Owner Late")
+        self.assertEqual(self.project()["health_reason"], "<p>Cost Owner Late</p>")
         self.assertEqual(store_module.health_reason_text("a\tb"), "a b")
 
     def test_text_is_kept_as_given_and_never_trimmed_or_quoted_back(self):
         text = "  Caf\u00e9 \U0001F600 late <b>not html</b> & \u201cquoted\u201d  \n\n end "
         body = self.ok(self.proj(health_reason=text))
-        self.assertEqual(self.project()["health_reason"], text)
-        self.assertEqual(body["project"]["health_reason"], text)
+        kept = "<p>  Caf\u00e9 \U0001F600 late &lt;b&gt;not html&lt;/b&gt; &amp; \u201cquoted\u201d  </p><p></p><p> end </p>"          # row 1005: every word kept, escaped, one paragraph a line
+        self.assertEqual(self.project()["health_reason"], kept)
+        self.assertEqual(body["project"]["health_reason"], kept)
+        self.assertEqual(sanitise.rich_plain_text(kept), text.strip())
         self.refused(self.proj(health_reason="SECRET-BAD\x00TEXT"), store_module.REASON_BAD_CHARS)
         self.assertNotIn("SECRET", store_module.REASON_BAD_CHARS)
 
@@ -454,7 +456,7 @@ class ReasonText(Base):
         for blank in (None, "", "  \n "):
             with self.subTest(blank=blank):
                 self.refused(self.proj(health_reason=blank), changes.HEALTH_NEEDS_REASON)
-        self.assertEqual(self.project()["health_reason"], "Late")
+        self.assertEqual(self.project()["health_reason"], "<p>Late</p>")
 
     def test_undo_puts_back_an_old_reason_even_one_over_the_limit(self):
         con = sqlite3.connect(str(self.path))                  # an older file's long reason (before this rule)

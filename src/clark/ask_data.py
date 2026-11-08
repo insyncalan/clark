@@ -15,7 +15,7 @@ import html
 import re
 from dataclasses import dataclass
 
-from clark import publish
+from clark import publish, sanitise
 from clark import ask
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
@@ -80,7 +80,7 @@ def row_line(kind, row):
 def project_lines(project):
     lines = []
     for f in ("name", "code", "sponsor", "phase", "health", "health_reason", "client_name", "week_ending"):
-        p = _field(f, project.get(f))
+        p = _field(f, sanitise.rich_plain_text(project.get(f)) if f == "health_reason" else project.get(f))      # row 1005: the reason's words, not its markup
         if p:
             lines.append(p)
     current = plain(project.get("current_state") or "")

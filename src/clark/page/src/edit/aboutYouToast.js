@@ -1,4 +1,4 @@
-// The toast for a saved name or email in Settings › Personal › About you, with Undo (#429). The name and email are kept in clark's
+// The toast for a saved name or email in Settings › Profile › About you, with Undo (#429). The name and email are kept in clark's
 // settings, not in the change history, so this Undo is the page saving the old value again through the same route as any save
 // (stores/profile.js setProfile). It is offered only when the save changed something, and only while the boxes still hold what was
 // saved: a person who has typed again since is never put back.

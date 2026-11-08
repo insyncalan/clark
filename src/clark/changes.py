@@ -94,7 +94,9 @@ KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy
                 "report_sections": {NEW: ("values", "after", "beside")},
                 "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
 KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
-KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline")     # #136: a milestone's agreed date moves with a `rebaseline`
+KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline", "new_person")     # #136: a milestone's agreed date moves with a `rebaseline`; row 986: and an owner may be a new person
+for _k in ("actions", "raid", "decisions"):
+    KIND_OP_KEYS[_k][UPDATE] = ("id", "changes", "new_person")     # row 986: the owner update alone takes `new_person` (no other op, no other kind)
 TILES = ("health", "overdue", "risks", "decisions")  # glance_tiles.tile (the store's ALLOWED holds the same four; a test says so)
 TILE_WORDS = {"health": "Project health", "overdue": "Overdue actions", "risks": "High risks and issues",
               "decisions": "Decisions needed"}      # the tiles as the page says them (glance.TILE_TITLES; a test says they agree)
@@ -397,6 +399,36 @@ def _plain_text(v):
     return not any(unicodedata.category(c) in ITEM_BAD_KINDS for c in v)
 
 
+def _rich_field(value, plain_max, long_words, hidden_words):
+    """Row 1005: a field on the one rich editor, as it is stored: clean HTML (sanitise.rich_or_plain: the editor's markup is cleaned by
+    the server's own cleaner, plain text from an older caller is escaped into paragraphs), or None when it holds no words. The limit counts
+    the WORDS (as the plain field did), the markup is held to TEXT_BODY_MAX bytes. Not text, too long, or a hidden character: Refused."""
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise Refused(ITEM_VALUE_WORDS)
+    if len(value) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    value = sanitise.nfc_for_markup(value.replace("\r\n", "\n").replace("\r", "\n"))     # BEFORE the cleaner (a mark after a tag would compose into it and lose the words inside: sanitise.nfc_for_markup); a CR is a line break, in HTML as in plain text
+    if not _plain_text(value.replace("\t", " ").replace("\n", " ")):     # a NUL, a bidi mark or a zero-width space is refused as it always was, never dropped quietly by the cleaner
+        raise Refused(hidden_words)
+    try:
+        html = sanitise.rich_or_plain(value)
+    except sanitise.SanitiseError:
+        raise Refused(long_words) from None
+    again = unicodedata.normalize("NFC", html)                 # an entity can decode to a mark that composes: take the composed text only if it is still clean
+    if sanitise.rich_or_plain(again) == again:
+        html = again
+    words = sanitise.plain_text(html)                          # every check below is of the FINAL stored value (a count before NFC could end over the limit)
+    if not _plain_text(words.replace("\n", " ")):
+        raise Refused(hidden_words)
+    if not words.strip():
+        return None
+    if len(words) > plain_max or len(html.encode("utf-8")) > TEXT_BODY_MAX:
+        raise Refused(long_words)
+    return html
+
+
 def _checked_item_changes(fields, blank_clears=()):
     """A work item's fields with their values checked: plain text or None (None only where the field may be cleared), and
     short. The store checks the rest (the words a status may take, a real date, an active workstream, this project's
@@ -408,14 +440,10 @@ def _checked_item_changes(fields, blank_clears=()):
     fields = {k: v for k, v in fields.items() if k not in cleared}
     sent_latest = "latest_update" in fields                        # a JSON false is a value to refuse, not a field left out
     latest = fields.pop("latest_update", None)                     # the peek's Latest update: plain text, line breaks allowed, up to 1000 characters, blank clears it
-    if sent_latest:
-        if latest is not None and not isinstance(latest, str):
-            raise Refused(ITEM_VALUE_WORDS)
-        if isinstance(latest, str) and len(latest) > LATEST_UPDATE_MAX:
-            raise Refused(LATEST_LONG_WORDS)
-        if isinstance(latest, str) and not _plain_text(latest.replace("\n", "")):
+    if sent_latest:                                                # row 1005: the rich editor's HTML (or plain text from an older caller), stored as clean HTML
+        if isinstance(latest, str) and "\r" in latest:             # as before: a carriage return is a hidden character in a latest update (a milestone's description folds it into a line break)
             raise Refused(LATEST_HIDDEN_WORDS)
-        latest = unicodedata.normalize("NFC", latest).strip() or None if isinstance(latest, str) else None
+        latest = _rich_field(latest, LATEST_UPDATE_MAX, LATEST_LONG_WORDS, LATEST_HIDDEN_WORDS)
     flag = {k: _flag(v) for k, v in fields.items() if k in ("client_visible", "client_action")}         # #97: the eye, 0 or 1 as on a use case; nothing else is a number
     fields = {k: v for k, v in fields.items() if k not in flag}
     for k, v in fields.items():
@@ -910,18 +938,69 @@ def _do_new_row(store, by_user, req, project, table, columns, place):
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "item": {k: row[k] for k in dict.fromkeys(shown)}}
 
 
+NEW_PERSON_KEYS = ("name", "email")                         # row 986: the only two things a request may say of a new person
+NEW_PERSON_BAD = "That isn't a name clark can add as a person. Check it and try again. Nothing was changed."
+NEW_PERSON_NOT_A_NAME = "That isn't a name. Type the person's real name, or choose TBC (no one yet) to leave it open. Nothing was changed."
+NEW_PERSON_ELSEWHERE = "A new person can only be added when the owner is being set. Nothing was changed."
+CLEAR_ENTRY = "TBC (no one yet)"                            # row 986: the picker's label for the stored TBC; never a name to store
+
+
+def _checked_new_person(req, table, place):
+    """Row 986: the request's `new_person` ({name, email?}) checked for shape and text, or None when it is not there. It must go with
+    the owner field alone (made_by for a decision) and name the same person (spacing aside). Returns (name, email, changes)."""
+    if "new_person" not in req:
+        return None
+    given, field = req["new_person"], {**HAND_OVER_FIELD, "milestones": "owner"}[table]
+    if place == MOVEMENT_PLACE or not isinstance(given, dict) or any(k not in NEW_PERSON_KEYS for k in given) or not isinstance(given.get("name"), str) \
+            or not isinstance(given.get("email"), (str, type(None))) \
+            or (given.get("email") and not _plain_text(given["email"])):
+        raise Refused(NEW_PERSON_BAD)
+    sent = req.get("changes")
+    if not isinstance(sent, dict) or list(sent) != [field]:
+        raise Refused(NEW_PERSON_ELSEWHERE)
+    name = _checked_item_changes({field: given["name"]})[field]
+    owner = _checked_item_changes({field: sent[field]})[field]
+    name, owner = " ".join(name.split()), " ".join(owner.split())
+    if people_rules.name_key(name) in people_rules.NO_PERSON or name == CLEAR_ENTRY:
+        raise Refused(NEW_PERSON_NOT_A_NAME, code="not_a_name")
+    if name != owner or len(name) > people_rules.NAME_MAX:
+        raise Refused(NEW_PERSON_BAD)
+    return name, given.get("email"), {field: name}
+
+
+def _add_new_person(st, store, name, email):
+    """Row 986: inside the item's step, the person is added as the people list adds one by hand; a name already on the list (any case,
+    accent, alias; live or archived) or a bad or taken email refuses the whole step. Returns the person's id."""
+    have = store.people(archived=None)
+    found = people_rules.resolve(name, have)
+    if found["status"] in ("one", "many", "archived"):
+        person = next(p for p in have if p["id"] == found["ids"][0])
+        shown = {"id": person["id"], "name": person["name"]}
+        if found["status"] == "archived":
+            raise Refused(people_rules.archived_prompt(person["name"]), code="person_archived", extra={"person": shown})
+        raise Refused(f"{person['name']} is already on the people list. Use this one.", code="person_exists", extra={"person": shown})
+    clean, problems = people_rules.check_person({"name": name, "email": email}, have)
+    if problems:
+        raise Refused(" ".join(problems) + " Nothing was changed.")
+    return st.add_person(source=PEOPLE_SOURCE, name=clean["name"], needs_details=0 if clean["email"] else 1, **({"email": clean["email"]} if clean["email"] else {}))
+
+
 def _do_item_change(store, by_user, req, project, table, columns, place):
     """#68: change fields of one work item of THIS project, in one step (several fields, one Undo). Only `update` gets here
     (CHANGE_KINDS has no other op for these kinds). The store applies its own rules (closing, a Made decision's date, an
     active workstream, this project's milestone); a rule it refuses comes back in its words and nothing is written."""
     ref = req.get("id")
+    new = _checked_new_person(req, table, place)
     changes = _checked_item_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"), blank_clears=("client_message",))
     if not changes:
         raise Refused("Say what to change.")
+    if new:
+        changes = dict(new[2])
     with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
         row = store.read(table, ref=ref) if isinstance(ref, str) else None
         if row is None or row["project"] != project or row["archived"]:
             raise Refused(ITEM_NOT_MINE)
+        person = _add_new_person(st, store, new[0], new[1]) if new else None
         if table == "raid" and any(f in changes for f in RATING_FIELDS):   # D-12: a risk or issue only, whatever its status (#448), High, Medium or Low
             if row["type"] not in RATING_KINDS:
                 raise Refused(RATING_NOT_THIS_KIND)
@@ -948,7 +1027,7 @@ def _do_item_change(store, by_user, req, project, table, columns, place):
     now = store.read(table, ref=ref)
     made = was_pending and now["status"] == "Made"                  # a decision that is made is replaced by a new one, never put back
     return 200, {"ok": True, "apply_id": None if made else apply_id, "undoable": apply_id is not None and not made, "ref": ref,
-                 "item": {k: now[k] for k in ITEM_SHOWN[table]}}
+                 "item": {k: now[k] for k in ITEM_SHOWN[table]}, **({"person": {"id": person, "name": new[0]}} if person else {})}
 
 
 DOC_SHOWN = ("id",) + DOC_FIELDS + ("sort_order",)                  # #74: what a reply says of a document
@@ -1065,7 +1144,8 @@ MILESTONE_DATES = ("baseline_date", "forecast_date", "actual_date")
 MILESTONE_STATUSES = ("Planned", "Done")                 # Cancelled is its own matter, never set from a request
 MILESTONE_MOVEMENTS = ("hold", "rebaseline")             # recover and escalate come with their own item
 MILESTONE_TEXT = {"state_reason": 300, "client_message": 500, "owner": 200, "workstream": 200}
-MILESTONE_DESCRIPTION_MAX = 2000                         # row 828: the description, in characters; it may run over several lines
+MILESTONE_DESCRIPTION_LONG_WORDS = ITEM_VALUE_WORDS      # row 1005: the refusal it always had when too long (no new word)
+MILESTONE_DESCRIPTION_MAX = 2000                        # row 828: the description, in characters; it may run over several lines
 INTERNAL_NOTE_MAX = 2000                                 # #458: the internal note, in characters; it may run over several lines
 MILESTONE_SHOWN = ("id", "status", "baseline_date", "forecast_date", "actual_date", "state", "state_set", "state_reason",
                    "client_message", "movement")          # what a reply says of a milestone: never its internal note
@@ -1097,16 +1177,10 @@ def _checked_milestone_changes(fields):
             if v not in (None, "") and (not isinstance(v, str) or v not in MILESTONE_MOVEMENTS):
                 raise Refused(BAD_MOVEMENT)
             out[k] = v or None
-        elif k == "internal_note":                                  # #458: plain text over several lines; the line breaks are the only control character let through
-            if v is not None and not isinstance(v, str):
-                raise Refused(ITEM_VALUE_WORDS)
-            if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")            # folded first, so a CRLF counts once
-                if len(v) > INTERNAL_NOTE_MAX:
-                    raise Refused(ITEM_VALUE_WORDS)
-                if not _plain_text(v.replace("\n", " ")):
-                    raise Refused(NOTE_TEXT_WORDS)
-            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+        elif k == "internal_note":                                  # #458, row 1005: the owner's note, on the one rich editor: clean HTML, or plain text from an older caller made into paragraphs; the limit counts the words
+            if isinstance(v, str) and not _plain_text(v.replace("\r", "\n").replace("\n", " ") if not sanitise.HTML_START.match(v) else v.replace("\r", "").replace("\n", "").replace("\t", "")):
+                raise Refused(NOTE_TEXT_WORDS)                      # as before: a NUL, tab or bidi mark is refused, not quietly dropped by the cleaner
+            out[k] = _rich_field(v.strip() if isinstance(v, str) and not sanitise.HTML_START.match(v) else v, INTERNAL_NOTE_MAX, ITEM_VALUE_WORDS, NOTE_TEXT_WORDS)
         elif k == "name":                                           # row 828: a milestone is never nameless; the same limit as a work item's title
             text = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""
             if not text or len(text) > ITEM_TITLE_MAX or not _plain_text(text):
@@ -1116,14 +1190,8 @@ def _checked_milestone_changes(fields):
             if v is not None and (type(v) is not int or not 0 <= v <= 100):
                 raise Refused(ITEM_VALUE_WORDS)
             out[k] = v
-        elif k == "description":                                    # row 828: plain text over several lines, as the internal note
-            if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_DESCRIPTION_MAX):
-                raise Refused(ITEM_VALUE_WORDS)
-            if isinstance(v, str):
-                v = v.replace("\r\n", "\n").replace("\r", "\n")
-                if not _plain_text(v.replace("\n", " ")):
-                    raise Refused(NOTE_TEXT_WORDS)
-            out[k] = unicodedata.normalize("NFC", v).strip() or None if isinstance(v, str) else None
+        elif k == "description":                                    # row 828: several lines; row 1005: the rich editor's HTML, stored cleaned (plain text from an older caller is escaped into paragraphs)
+            out[k] = _rich_field(v, MILESTONE_DESCRIPTION_MAX, MILESTONE_DESCRIPTION_LONG_WORDS, NOTE_TEXT_WORDS)
         else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
@@ -1165,12 +1233,56 @@ def _milestone_words(e):
     return ITEM_VALUE_WORDS
 
 
+_TAG = re.compile(r"<(/?)([A-Za-z][A-Za-z0-9]*)[^>]*>")
+_VOID = {"br", "hr", "img"}
+
+
+def _first_block_end(html):
+    """Where the first top-level block of clean markup ends: nesting is counted, so a list inside a list goes whole; text before the
+    first tag is a block of its own; markup that never closes is one block to the end."""
+    if not html.startswith("<"):
+        cut = html.find("<")
+        return len(html) if cut < 0 else cut
+    depth = 0
+    for m in _TAG.finditer(html):
+        name = m.group(2).lower()
+        if name in _VOID:
+            if depth == 0:
+                return m.end()
+        elif m.group(1):
+            depth -= 1
+            if depth <= 0:
+                return m.end()
+        else:
+            depth += 1
+    return len(html)
+
+
+def _note_with_line_trimmed(was, line):
+    """(the internal note with a dated line added at the end, whether anything was dropped): the oldest go first when it would pass the limit.
+    Row 1005: a stored note that is the editor's HTML (or none yet) gets the line as an escaped paragraph and loses whole blocks, counted on
+    the words; an older plain note keeps its own form: newline-joined lines, trimmed by line."""
+    if was and not sanitise.HTML_START.match(was):
+        text = (was.strip() + "\n" + line).strip()
+        kept = text
+        while len(kept) > INTERNAL_NOTE_MAX and "\n" in kept:
+            kept = kept.split("\n", 1)[1]
+        return kept, kept != text
+    html = (was or "") + "<p>%s</p>" % sanitise.text_escape(line)
+    whole = html
+    while len(sanitise.plain_text(html)) > INTERNAL_NOTE_MAX:
+        end = _first_block_end(html)
+        if end <= 0 or end >= len(html):                           # the last block (the new line) is never the one dropped
+            break
+        html = html[end:]
+    if html != whole:
+        html = sanitise.clean_html(html)                           # the Hold stores without the route's cleaner: the cut is cleaned here
+    return html, html != whole
+
+
 def _note_with_line(was, line):
-    """The internal note with a dated line added at the end; the oldest lines go first when it would pass the limit."""
-    text = ((was or "").strip() + "\n" + line).strip()
-    while len(text) > INTERNAL_NOTE_MAX and "\n" in text:
-        text = text.split("\n", 1)[1]
-    return text
+    """The internal note with a dated line added at the end; the oldest go first when it would pass the limit."""
+    return _note_with_line_trimmed(was, line)[0]
 
 
 def _hold_line(today, forecast):
@@ -1187,11 +1299,14 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
     writes nothing."""
     ref = req.get("id")
     sent = _fields(req.get("changes"), table, UPDATE, columns, "the changes")
-    if place != PEEK_PLACE:                                         # row 828: the peek's own fields come from the peek only; Movement (and any other place) keeps its narrow list
+    new = _checked_new_person(req, table, place)
+    if place != PEEK_PLACE and not new:                             # row 828: the peek's own fields come from the peek only; Movement (and any other place) keeps its narrow list (row 986: a new person's owner is set from the picker, in any place but Movement)
         for k in sent:
             if k in MILESTONE_PEEK_FIELDS:
                 raise Refused(f"The field '{_shown(k)}' can't be set here.")
     changes = _checked_milestone_changes(sent)
+    if new:
+        changes = dict(new[2])
     given = _checked_rebaseline(req.get("rebaseline"))
     if not changes:
         raise Refused("Say what to change.")
@@ -1201,6 +1316,7 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
             raise Refused(NO_MILESTONE)
         if row["archived"]:
             raise Refused(ARCHIVED_MILESTONE)
+        person = _add_new_person(st, store, new[0], new[1]) if new else None
         if changes.get("movement") and (changes.get("status") or row.get("status") or "Planned") != "Planned":
             raise Refused(NOT_PLANNED)                              # a Hold on a Done or Cancelled milestone means nothing
         today = clark_store.today()
@@ -1221,12 +1337,12 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
                 changes["movement"] = None                          # a Hold was for the old agreed date; the new one starts clear (an Undo puts it back)
         elif given and agreed:
             raise Refused(NEEDS_NEW_DATE)
-        note = None
+        note, trimmed = None, False
         if changes.get("movement") == "hold" and rebase is None:
             note = _hold_line(today, changes.get("forecast_date", row.get("forecast_date")))
-            last = (row.get("internal_note") or "").strip().split("\n")[-1]
+            last = sanitise.rich_plain_text(row.get("internal_note")).split("\n")[-1]
             if "internal_note" not in changes and last != note:     # #458: the Hold's dated line goes into the internal note too (the prototype's), in this same step and Undo; not twice when the last line is this same Hold today
-                changes["internal_note"] = _note_with_line(row.get("internal_note"), note)
+                changes["internal_note"], trimmed = _note_with_line_trimmed(row.get("internal_note"), note)   # #603: trimmed says so in the reply
         if "owner" in changes:                                      # row 828: the link follows the owner text, as a hand over writes it: the one live person it names, else none
             found = store.resolve_owner(changes["owner"] or "")
             changes["owner_id"] = found["id"] if found["status"] == "one" else None
@@ -1243,8 +1359,11 @@ def _do_milestone_change(store, by_user, req, project, table, columns, place):
         if decision:                                                # the decision names who agreed the date: owner only, so it is
             st.update("decisions", decision, {"client_visible": 0})  # made not client-visible, in this same step (an Undo removes it)
     now = store.read(table, ref=ref)
-    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
-                 "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision}
+    reply = {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref,
+             "milestone": {k: now[k] for k in MILESTONE_SHOWN}, "decision": decision, **({"person": {"id": person, "name": new[0]}} if person else {})}
+    if trimmed and apply_id is not None:
+        reply["note_trimmed"] = True                                # #603: the Hold's line pushed the oldest note lines out; the page says so (an Undo restores them)
+    return 200, reply
 
 
 
@@ -1771,7 +1890,7 @@ def _checked_project_changes(fields):
                 raise Refused(str(e)) from None
         if k == "health_reason":
             try:
-                out[k] = clark_store.health_reason_text(v)      # the store's own check, called here so the first refusal is the route's
+                out[k] = clark_store.health_reason_html(v)      # the store's own check, called here so the first refusal is the route's; row 1005: stored as the editor's HTML (plain text from an older caller is made into paragraphs)
             except Invalid as e:
                 raise Refused(str(e)) from None
     return out
@@ -2208,8 +2327,12 @@ def _eligible(rows, project, hand_over=False):
     made_item = any(r.get("op") == MADE_OP and r["table"] in ("actions", "decisions") and of_item(r) for r in rows)      # #487: a new row that started hidden is a work-item step with its hiding in it
     if not made_item and (picked or any(r["table"] == "report_hidden" for r in rows)) and any(r.get("field") == "client_visible" for r in rows):
         return all(r["via"] in (VIA, clark_store.SEED_VIA) and not r["via"].startswith(clark_store.REVERT_VIA) and pick_row(r) for r in rows)
+    made_people = {str(r["key"]) for r in rows if r["table"] == "people" and r.get("op") == MADE_OP}      # row 986: the person an owner edit added, in the same step
+
+    def person_row(r):
+        return r["table"] == "people" and str(r["key"]) in made_people and r["via"] == VIA
     if any(item_field_row(r) for r in rows):                        # a step of work-item fields: nothing else in it (#47e: ask clark's too)
-        return all((r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
+        return all(person_row(r) or (r["via"] in (VIA, clark_store.SEED_VIA) or (r["via"] == ASSISTANT and r["table"] in ASK_KINDS))      # ask clark's: its own kinds only, never a use case
                    and not r["via"].startswith(clark_store.REVERT_VIA) and (item_field_row(r) or item_stamp_row(r) or (made_item and r["table"] == "report_hidden" and _row_is_ours(r, project, False, flagged))) for r in rows)
     archive_family = any(r.get("field") in ("archived", "active") for r in rows)
     page_family = any(r["table"] in ("report_sections", "glance_tiles", "report_hidden") or (r["table"] == "projects" and r.get("field") in PROJECT_FIELDS + ("note",))
@@ -2858,13 +2981,15 @@ NO_PEOPLE_UNDO = "That step can't be undone from here."
 PERSON_ID = re.compile(r"P-\d{3}")
 
 
-def _person_value(key, value):
+def _person_value(key, value, capped=True):
     if key == "needs_details":
         return value if isinstance(value, bool) or value in (0, 1) and type(value) is int else _refuse_person()
     if value is None:
         return value
     if not isinstance(value, str) or len(value) > 2000:
         _refuse_person()
+    if capped and key in ("organisation", "role") and len(" ".join(value.split())) > people_rules.CELL_MAX:
+        raise Refused(f"the {key} is too long (at most {people_rules.CELL_MAX} characters). Shorten it and try again. Nothing was changed.")
     return value
 
 
@@ -2904,7 +3029,7 @@ def _paste_people(st, rows):
     for row in rows:
         if not isinstance(row, dict) or not isinstance(row.get("name"), str) or any(k not in PASTE_FIELDS for k in row):
             raise Refused(PASTE_BAD_ROW)
-        given = {k: _person_value(k, v) for k, v in row.items()}
+        given = {k: _person_value(k, v, capped=False) for k, v in row.items()}      # the paste says the cap with the person's name, just below
         name = " ".join(given["name"].split())
         if not name:
             raise Refused("A row has no name. Give each person a name. Nothing was changed.")

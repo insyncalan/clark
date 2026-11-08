@@ -61,7 +61,7 @@ class Tiles(unittest.TestCase):
         return sid
 
     def serve(self):
-        s = Running(data_for=lambda code: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
+        s = Running(data_for=lambda code, archived=None: copy.deepcopy(self.data.get(code)), projects=lambda archived=False: self.projects,
                     page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         return s

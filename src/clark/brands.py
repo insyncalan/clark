@@ -738,13 +738,22 @@ def _verify(stage, files):
 
 
 def _swap(base, brand_id, stage):
-    """Rename the old folder aside, the new one into place, then delete the old. A crash between the renames is put right by
-    recover() at the next brand action."""
+    """Rename the old folder aside, the new one into place, then delete the old. If the second rename fails the old folder is renamed back
+    at once (#944); a crash between the renames, or a failed way back, is put right by recover() at the next brand action."""
     target, aside = base / brand_id, base / (HIDDEN_OLD + brand_id)
     _rmtree(aside)
-    if os.path.lexists(target):
+    moved = os.path.lexists(target)
+    if moved:
         os.rename(target, aside)
-    os.rename(stage, target)
+    try:
+        os.rename(stage, target)
+    except BaseException:
+        if moved:
+            try:
+                os.rename(aside, target)
+            except OSError:
+                pass
+        raise
     _rmtree(aside)
 
 
@@ -776,6 +785,27 @@ def _journal(data, kind, brand_id, backup):
         _rmtree(backups / old)
 
 
+def _journalled(data, kind, brand_id, backup, act):
+    """Write the undo journal, then do `act` (#944). If the journal cannot be written nothing has been changed; if `act` fails the journal
+    is put back as it was, so Undo never offers a change that was not made."""
+    path = Path(data) / JOURNAL
+    before = _read_small(path, 4096)
+    _journal(data, kind, brand_id, backup)
+    try:
+        act()
+    except BaseException:
+        try:
+            if before is None:
+                _rmtree(path)
+            else:
+                tmp = Path(data) / (JOURNAL + ".tmp")
+                tmp.write_bytes(before)
+                os.replace(tmp, path)
+        except OSError:
+            pass
+        raise
+
+
 @_refusing
 def install(review_id, root, data):
     """Put a reviewed brand in place, replacing the same id; one go per review."""
@@ -797,8 +827,11 @@ def install(review_id, root, data):
                 raise BrandError("link", "the brand's place is not a folder")
             backup = _backup(data, root, brand_id) if had else None
             stage = _stage(base, brand_id, files)
-            _swap(base, brand_id, stage)
-            _journal(data, "replace" if had else "install", brand_id, backup)
+            try:
+                _journalled(data, "replace" if had else "install", brand_id, backup, lambda: _swap(base, brand_id, stage))
+            except BaseException:
+                _rmtree(stage)            # not swapped in (the journal or a rename failed): the staged copy does not stay behind
+                raise
 
 
 @_refusing
@@ -815,9 +848,11 @@ def remove(brand_id, root, data):
             base = _branding(root)
             aside = base / (HIDDEN_OLD + brand_id)
             _rmtree(aside)
-            os.rename(base / brand_id, aside)
-            _rmtree(aside)
-            _journal(data, "remove", brand_id, backup)
+
+            def take_out():
+                os.rename(base / brand_id, aside)
+                _rmtree(aside)
+            _journalled(data, "remove", brand_id, backup, take_out)
 
 
 @_refusing

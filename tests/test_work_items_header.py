@@ -10,7 +10,7 @@ import unittest
 
 from test_server import chrome
 from test_work_board_page import Base
-from test_work_filters import click, hover, key, select_line, set_line
+from test_work_filters import arm, click, hover, key, select_line, set_line
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -79,6 +79,7 @@ class Header(Base):
         click(cdp, sid, "#fline-input")
         select_line(cdp, sid)
         key(cdp, sid, "Backspace")
+        arm(cdp, sid)
         self.until(cdp, sid, "document.querySelector('#fline-list')", "the suggestion list")
 
     def floats(self, cdp, sid, board):
@@ -151,6 +152,10 @@ class Header(Base):
         self.each(check)
 
     # ---- row 844 ----
+    CLICK_DIAG = """(() => { const t = document.querySelector('.vtab[data-view-id=risky]'), r = t.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return JSON.stringify({tab: t.outerHTML.slice(0, 300), rect: [r.x, r.y, r.width, r.height], scroll: [scrollX, scrollY, document.querySelector('.vtabs').scrollLeft], at_point: e && e.outerHTML.slice(0, 200),
+        vtabs: document.querySelector('.vtabs').innerHTML.slice(0, 1500), line: document.querySelector('[data-fline]').dataset.line}); })()"""
+
     def test_row_844_a_changed_view_keeps_its_tab_with_a_dot_and_save_view_and_discard_changes_act_on_it(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
 
@@ -174,7 +179,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
             click(cdp, sid, ".vtab[data-view-id=risky]")
-            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open", why=lambda: cdp.js(self.CLICK_DIAG, sid))
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
             cdp.call("Input.insertText", {"text": " no:owner "}, sid)
@@ -251,6 +256,7 @@ class Header(Base):
         def check(cdp, sid, width):
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
+            arm(cdp, sid)
             cdp.call("Input.insertText", {"text": " status:"}, sid)
             self.until(cdp, sid, "document.querySelector('#fline-list [data-ins^=\"status:\"]')", "the values")
             got = cdp.js("[...document.querySelectorAll('#fline-list [data-ins^=\"status:\"]')].map((o) => [o.dataset.ins, o.querySelector('.c') ? o.querySelector('.c').textContent : null])", sid)

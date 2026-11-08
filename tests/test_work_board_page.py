@@ -10,6 +10,7 @@ import json
 import re
 import sqlite3
 import time
+from _editor_checks import for_url
 import unittest
 from unittest import mock
 
@@ -100,7 +101,7 @@ class Base(unittest.TestCase):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/{hash_}"}, sid)
+        cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{self.s.port}/{hash_}")}, sid)
         self.until(cdp, sid, f"!!document.querySelector({json.dumps(wait_for)})", "the work items page")
         # row 804: no View | Edit switch off the Dashboard; the page is always editable, so `edit` changes nothing (kept for the callers)
         self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch on Work items")
@@ -141,8 +142,9 @@ class Base(unittest.TestCase):
             return cdp.js("[...document.querySelectorAll('#work [data-lay][aria-pressed=true]')].map(b => 'layout:' + b.dataset.lay)", sid)
         return [k for k, _, c in self.view_items(cdp, sid) if k.startswith(prefix) and c == "true"]
 
-    def until(self, cdp, sid, expr, what="", secs=30):
-        self.assertTrue(wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs), f"timed out waiting for {what or expr}")
+    def until(self, cdp, sid, expr, what="", secs=30, why=None):
+        ok = wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs)
+        self.assertTrue(ok, f"timed out waiting for {what or expr}" + (f"; the page showed: {why()}" if why else ""))
 
     def reload(self, cdp, sid):
         reload_to_new_page_cdp(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work-list')", "the page after a reload", 30)

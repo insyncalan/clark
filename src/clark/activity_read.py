@@ -7,11 +7,14 @@ plain reason (`undo_refused`, else "") so the tab withholds the tick. Writes not
 It is thin in what it does, not in what it loads: it imports `changes` (a large module) for the one function undo_refusals, which
 shares its checks with Undo several, so importing it keeps the tab and Undo in step.
 Standard library only, Python 3.9."""
+import re
+from datetime import date
+
 from clark import changes, history
-from clark.store import Store, connect
+from clark.store import OP_MADE, Store, connect
 
 TABLES = ("actions", "raid", "decisions", "milestones")      # the rows a peek opens on
-ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "undo_refused")
+ROW_KEYS = ("step", "when_text", "who", "how", "kind", "field", "from", "to", "diff", "diff_note", "from_file", "undo_refused")
 ROW_LIMIT = 200                      # the newest changes the tab shows; the closing line says when older ones are left out
 CLOSING = "Older changes are kept in clark. Showing the newest 200."
 TEXT_LIMIT = 4000                    # characters of a from or to value the tab gets; a longer text ends with an ellipsis
@@ -28,12 +31,41 @@ def _row(r):
     out["undo_refused"] = out["undo_refused"] or ""
     if out["diff_note"] is None:
         out.pop("diff_note")
+    if not out["from_file"]:
+        out.pop("from_file")
     return out
 
 
 def has_item(data, item_id):
     """True when `item_id` is a row of the project's data (an action, a register item, a decision or a milestone)."""
     return any(isinstance(r, dict) and r.get("id") == item_id for t in TABLES for r in (data.get(t) or []))
+
+
+_ISO_DAY = re.compile(r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])")
+
+
+def _day_as_shown(m):
+    """One stored YYYY-MM-DD as DD-MM-YYYY (history._dmy, the Activity row's own), only when it is a real calendar day."""
+    try:
+        date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return m.group(0)
+    return history._dmy(m.group(0))
+
+
+def source_line(con, item_id, events):
+    """The Source line for the Peek: the item's stored `source` words, then " by <name>" when its first insert step has a name.
+    Edit only: `source` is never copied into a published file. "" when the row has none (the table name is from TABLES, never a caller's)."""
+    for table in TABLES:
+        row = con.execute("SELECT source FROM " + table + " WHERE id = ?", (item_id,)).fetchone()
+        if row is not None:
+            break
+    else:
+        return ""
+    words = _ISO_DAY.sub(_day_as_shown, str(row[0] or "").strip())      # the stored text has YYYY-MM-DD; the person reads DD-MM-YYYY. The column is untouched
+    made = [e for e in events if e.get("op") == OP_MADE and e.get("ref") == item_id and e.get("table") == table]
+    who = str(made[-1].get("by_user") or "").strip() if made else ""      # events are newest first: the last is the first insert
+    return words + (" by " + who if who and words else "")
 
 
 def make_read(path, data_for):
@@ -46,10 +78,11 @@ def make_read(path, data_for):
         con = connect(path, readonly=True)
         try:
             view = history.activity_for_item(con, item_id, "all", ROW_LIMIT)
+            source = source_line(con, item_id, history.history(con, item_id))
             refused = changes.undo_refusals(Store(con, path), code, {r["step"] for r in view["rows"] if isinstance(r.get("step"), int)})
         finally:
             con.close()
         rows = [_row(dict(r, undo_refused=refused.get(r.get("step"), ""))) for r in view["rows"]]
         return {"rows": rows, "empty": "" if rows else "Nothing has changed on this item yet.",
-                "closing": CLOSING if view["closing"] else ""}
+                "closing": CLOSING if view["closing"] else "", "source": source}
     return read
