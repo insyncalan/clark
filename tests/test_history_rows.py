@@ -40,6 +40,20 @@ class Rows(unittest.TestCase):
     def make_action(self):
         self.action = self.demo.action()
 
+    # -- row 875: a use case's owner
+    def test_a_use_case_owner_is_one_owner_line_whatever_the_edit_and_the_link_is_no_second_line(self):
+        uc = self.demo.use_case
+        with self.demo.store.step("dashboard", USER) as st:
+            anna = st.add_person(name="Anna Example", source="People list")
+            ben = st.add_person(name="Ben Example", source="People list")
+        for name, person in (("Anna Example", anna), ("Ben Example", ben), (None, None)):
+            with self.demo.store.step("dashboard", USER) as st:
+                st.update("use_cases", uc, {"owner": name, "owner_id": person})
+        lines = [(r["field"], r["from"], r["to"]) for r in self.of("Changed") if r.get("item_id", r.get("ref")) == uc or uc in str(r.get("item", ""))]
+        self.assertEqual(sorted(l for l in lines if l[0].startswith("Owner")),
+                         sorted([("Owner", "", "Anna Example"), ("Owner", "Anna Example", "Ben Example"), ("Owner", "Ben Example", "")]))
+        self.assertNotIn("Owner (linked person)", [l[0] for l in lines])
+
     # -- how and where
     def test_each_phrase_pinned(self):
         self.assertEqual(
