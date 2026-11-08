@@ -2293,8 +2293,11 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 /* Sweep c11: reduced motion for the contents card, legend popover, milestone marker and both tab underlines. Last in the file so it wins at any width. */
 @media (prefers-reduced-motion: reduce) {
   .toc-card, .toc.open .toc-card, .toc-lines, .toc-lines i, .toc-lines:hover, .toc.open .toc-lines { transition: none; }
-  .toc-card, .toc.open .toc-card { transform: none; }
+  .toc-card, .toc.open .toc-card { transform: none; }      /* the narrow layout (bottom right button) has no centring to keep */
   .mlg-p { transition: none; transform: none; }
   .mv-mk { transition: none; } .mv-mk:hover, .mv-mk:focus-visible { transform: none; }
   .hp-tabs button, .hp-tabs button::after, .tab, .tab::after { transition: none; }
+}
+@media (prefers-reduced-motion: reduce) and (min-width: 901px) {
+  .toc-card, .toc.open .toc-card { transform: translate(0, -50%); }      /* the rail's card stays centred on the rail (only the slide is dropped) */
 }
