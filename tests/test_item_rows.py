@@ -366,6 +366,7 @@ class EditRows(unittest.TestCase):
             self.click(p, f"document.querySelector('[data-id={gone}] [data-eye]').click()", f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "the row left the page")
             p.js("document.querySelector('[data-addfrom=raid]').click()")
             p.until("!!document.querySelector('.picker')", "the picker opened")
+            p.until("!!document.activeElement && !!document.activeElement.closest('.picker')", "the search box has the focus")
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('.picker')", "the picker closed")
             p.until("document.activeElement && document.activeElement.getAttribute('data-addfrom') === 'raid'", "the focus is on the Add from button")
