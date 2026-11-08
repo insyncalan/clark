@@ -167,7 +167,7 @@ class Protected(unittest.TestCase):
             self.assertIn("data", lst)
         for rel in ("branding/logo.png", "Branding/a", "BRANDING", "system/branding/x"):
             self.assertTrue(release_files.protected(rel), rel)
-            self.assertTrue(update_helper.protected(rel) if hasattr(update_helper, "protected") else True, rel)
+            self.assertTrue(update_helper.protected_name(rel), rel)
         self.assertFalse(release_files.covers("mac", "branding/logo.png"))
 
 
