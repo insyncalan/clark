@@ -166,7 +166,7 @@ class Rows(unittest.TestCase):
         self.assertIn(f"Not checked: {words}", lines)
         rows, report = self.page(self.default, checks=checks)
         self.assertEqual(rows["data_not_in_onedrive"], {"id": "data_not_in_onedrive", "status": "not checked", "words": words,
-                                                        "required": True})
+                                                        "required": True, "page": words})      # nothing here sends a person to Terminal, so the page says it as is
         self.assertFalse(report["ready"])
 
     def test_row_24_couldnt_finish_in_a_checkout(self):
@@ -215,8 +215,12 @@ class Rows(unittest.TestCase):
         _, report = self.page(data, **over)
         self.assertEqual(sorted(report), ["checks", "folder", "ok", "ready"])
         for row in report["checks"]:
-            self.assertEqual(sorted(row), ["id", "required", "status", "words"])
+            self.assertEqual(sorted(row), ["id", "page", "required", "status", "words"])
             self.assertNotIn("to fix before clark", row["words"])
+            self.assertNotIn("to fix before clark", row["page"])
+            self.assertNotIn("python3 -m clark.doctor", row["page"])          # the page says "Check again", never a command
+            self.assertNotIn("bash clark.command", row["page"])
+            self.assertTrue(row["page"])
         service = Page(data, home=self.home, on=pl.MAC, onedrive_roots=lambda: [self.onedrive], environ={},
                        seams=dict(self.seams(**over), app=self.app, **SEEN))
         status, body = service.api_done()
