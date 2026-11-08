@@ -389,6 +389,22 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
+    def test_the_printed_milestone_marks_are_drawn_shapes_with_a_colour(self):
+        # #1012: the milestone graphics on paper. Every mark is an svg with a visible width and at least one shape that is filled or stroked.
+        probe = """JSON.stringify([...document.querySelectorAll('.print-tab .mv-mk svg')].map((s) => { const r = s.getBoundingClientRect();
+          const shapes = [...s.querySelectorAll('circle, path')].filter((e) => { const c = getComputedStyle(e); return (c.fill !== 'none' && c.fill !== 'rgba(0, 0, 0, 0)') || (c.stroke !== 'none' && c.strokeWidth !== '0px'); });
+          return [Math.round(r.width), shapes.length]; }))"""
+        with chrome() as cdp:
+            sid = open_page(cdp, self.path.as_uri(), 1400, "light")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+            self.printed(cdp, sid)
+            time.sleep(0.6)
+            got = json.loads(cdp.js(probe, sid))
+            self.assertTrue(got, "the printed milestones draw marks")
+            for width, shapes in got:
+                self.assertGreater(width, 4)
+                self.assertGreater(shapes, 0, "a mark has a painted shape")
+
     def test_the_printed_stack_is_light_whatever_the_page_theme_and_the_computer_prefer(self):
         # row 767: the PDF is light only. Every colour that is drawn in the stack is the same in the print of a dark computer as in a light one
         # (the published file carries no data-theme, and the print block sets color-scheme: light), whole stack, not just the body.

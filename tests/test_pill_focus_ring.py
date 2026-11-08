@@ -48,8 +48,9 @@ class PillFocusRing(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=TUL"}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"), "the bundle ran")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-        cdp.js("(document.querySelector('[data-mode=edit]') || {click() {}}).click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.rbar .modes.seg .mode[aria-pressed=\"true\"]')", sid)), "the pill is on the page")
+        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid)), "the Edit half is on the page")
+        cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.rbar .modes.seg .mode[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)), "the Edit half is the chosen one")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         for kind in ("keyDown", "keyUp"):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
@@ -61,6 +62,7 @@ class PillFocusRing(unittest.TestCase):
                 for theme in ("light", "dark"):
                     got = self.measure_pill(cdp, width, theme)
                     where = f"{width} px, {theme}, {got['text']}"
+                    self.assertEqual(got["text"], "Edit", where + ": the half measured is the Edit half")
                     on = got["on"]
                     self.assertTrue(on["visible"], where + ": shows its keyboard focus")
                     self.assertEqual(on["offset"], 1, where + ": the pill keeps its outset ring")
