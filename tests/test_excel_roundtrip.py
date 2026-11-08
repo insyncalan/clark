@@ -137,8 +137,10 @@ class RoundTrip(unittest.TestCase):
         shutil.copy(t["folder"] / "ABC work items.xlsx", self.path)
         # the state file is keyed by the workbook's path: the copy's, not the template's
         old = json.loads((t["folder"] / "state.json").read_text(encoding="utf-8"))
-        (key, record), = old["workbooks"].items()
-        self.state.write_text(json.dumps({**old, "workbooks": {str(self.path): record}}, indent=1, ensure_ascii=False),
+        template_path = str(t["folder"] / "ABC work items.xlsx")
+        record = old["workbooks"][template_path]
+        keyed = {k: v for k, v in old["workbooks"].items() if k.startswith(excel.KEYED)}     # keep the export's id: and sha256: keys: excel._find looks a workbook up by its id first
+        self.state.write_text(json.dumps({**old, "workbooks": {**keyed, str(self.path): record}}, indent=1, ensure_ascii=False),
                               encoding="utf-8")
         for name, value in t["ids"].items():
             setattr(self, name, value)
