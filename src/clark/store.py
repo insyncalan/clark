@@ -33,6 +33,7 @@ from clark.order import GAP
 LOG = logging.getLogger("clark.store")
 
 SCHEMA = Path(__file__).with_name("schema.sql")
+EMAIL_PROJECT_ARCHIVED = "That project is archived, so no email can be drafted for it. Restore it first."   # one sentence: the Draft email refusal (draft_email_feed) and the I sent it refusal share it
 SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's tables as they were made, frozen: migrate_to_2 reads this, never schema.sql
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
@@ -3387,7 +3388,7 @@ class Store:
             if row is None:
                 raise Invalid("There is no project with that code. Nothing was saved.")
             if row["archived"]:
-                raise Invalid("That project is archived, so no email can be drafted for it. Restore it first. Nothing was saved.")
+                raise Invalid(f"{EMAIL_PROJECT_ARCHIVED} Nothing was saved.")
             def ours(item):
                 return any(self.con.execute(f"SELECT 1 FROM {_table(table)} WHERE project = ? AND id = ?", (code, item)).fetchone()
                            for table in ("actions", "raid", "decisions"))
