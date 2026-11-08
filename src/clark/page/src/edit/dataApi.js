@@ -16,7 +16,6 @@ async function post(path, payload) {
 }
 
 export const saveProject = (req) => post("/api/project", req);
-export const checkWorkbook = (project, name, data) => post("/api/excel-import", { op: "check", project, name, data });
 // #655: which sheets the workbook has (and their row counts); the server keeps the workbook, named by `file` in the reply.
 export const listSheets = (project, name, data) => post("/api/excel-import", { op: "sheets", project, name, data });
 // ...then the check of only the ticked sheets (`tables`: "actions", "raid", "decisions", "milestones", "use_cases") of that kept workbook.

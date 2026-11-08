@@ -140,13 +140,6 @@ export function sheetLine(r) {
   return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
 }
 
-// The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.
-export function summaryLine(r) {
-  const c = (r && r.counts) || {};
-  const part = (n, w) => `${n} ${w}`;
-  return [part(c.new || 0, "new"), part(c.changed || 0, "changed"), part(c.removed || 0, "no longer in the workbook"), part(r && r.unchanged || 0, "unchanged")].join(", ") + ".";
-}
-
 // The numbers ticked, in order. `ticked` is an object {n: true}. Items past the shown ones follow their own default.
 export function acceptedNumbers(items, ticked) {
   return items.filter((i) => (Object.prototype.hasOwnProperty.call(ticked, i.n) ? ticked[i.n] : i.default) && !i.problem).map((i) => i.n);

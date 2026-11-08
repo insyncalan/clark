@@ -145,10 +145,6 @@ export function withType(line, type, rows, ctx, extra) {
   const w = type === "risk" ? RAID : type === "action" || type === "decision" ? type : "";
   return join({ ...g, type: w ? [`type:${w}`] : [] });
 }
-/** The line with every token that `pred(token)` is true of taken out. */
-export function withoutTokens(line, pred, rows, ctx, extra) {
-  return parseFor(line, rows, ctx, extra).tokens.filter((t) => !pred(t)).map((t) => t.raw).join(" ");
-}
 
 // ── Autocomplete ──────────────────────────────────────────────────────────────────────────────────────────────────────────
 

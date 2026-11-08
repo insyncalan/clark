@@ -208,10 +208,6 @@ export function leaveUseCase() {
   route.navigate(where(), { replace: true });
 }
 
-export function openUseCases() {
-  go({ view: "usecases", project: project.value, item: "", ms: "", f: "", uc: "" });
-}
-
 /** Open a work item's or a milestone's peek (`kind` "milestone" or "item"; left out, the project's data says which): one new entry; with a peek already open, this entry is rewritten (Previous, Next, another row). An id the loaded data doesn't have does nothing. */
 export function openPeek(id, kind) {
   const d = data.value;

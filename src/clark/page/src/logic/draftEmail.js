@@ -40,12 +40,6 @@ const MAX_IDS = 50;
 function text(x) { return x == null ? "" : String(x); }
 function modeKnown(mode) { return MODES.some((m) => m.mode === mode); }
 
-/** The label of a kind, or the plain choice message when the kind is unknown. */
-export function modeLabel(mode) {
-  const m = MODES.find((x) => x.mode === mode);
-  return m ? m.label : CHOOSE_A_KIND;
-}
-
 /** The ticks the editor starts with: the builder's own choice (default_picked) when given, else every offered item. */
 export function startPicks(items, picked) {
   const all = (items || []).map((i) => i.id);

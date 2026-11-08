@@ -33,7 +33,6 @@ export const hiddenForTable = (keys) => (keys || []).map((k) => TABLE_KEY[k]).fi
 export const HIDEABLE = ["parent", "health", "depends", "owner", "workstream", "priority", "baseline_start", "baseline_end", "effort", "budget", "deliverable", "show", "note"];      // the data layer's GANTT_HIDEABLE: type, start, end and pct are never hidden
 export const onlyHideable = (keys) => (keys || []).filter((k) => HIDEABLE.includes(k));
 export const hiddenFromTable = (keys) => onlyHideable((keys || []).map((k) => STORED_KEY[k]).filter(Boolean));
-export const CHART_COLUMNS = { start: "Start", end: "End", pct: "Done" };
 
 const TYPE_SHORT = { phase: "p", task: "t", milestone: "m" };
 const TYPE_LONG = { p: "phase", t: "task", m: "milestone" };

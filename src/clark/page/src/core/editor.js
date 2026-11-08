@@ -52,7 +52,6 @@ const COMMANDS = {
   quote: (c) => c.toggleBlockquote(), rule: (c) => c.setHorizontalRule(),
   undo: (c) => c.undo(), redo: (c) => c.redo(),
 };
-export const COMMAND_NAMES = Object.keys(COMMANDS).concat(["link", "unlink"]);
 
 const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["heading", { level: 1 }], h2: ["heading", { level: 2 }],
   h3: ["heading", { level: 3 }], bullet: ["bulletList"], numbered: ["orderedList"], checklist: ["taskList"], quote: ["blockquote"],

@@ -11,7 +11,6 @@ import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
 import { shrink, dataBytes, TYPES } from "./shrink.js";
 
-export const PAGE_LIMIT = 5 * 1024 * 1024;         // publish.MAX_BYTES: a published page over this is refused
 export const NEAR = 4 * 1024 * 1024;              // pictures past this are close to it (the rest of the page needs room too)
 const PLACE = "report";
 
