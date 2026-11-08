@@ -500,7 +500,7 @@ class Refused:
                     except (RuntimeError, OSError):      # no thread could be started: the next request or the stop writes the window
                         noted, self.timer_noted = self.timer_noted, True
                         if not noted:
-                            LOG.warning(TIMER_SKIPPED)   # #553: fixed words, once; nothing of the error
+                            LOG.warning("The timer for the turned-away count could not start. The count is written by the next request, or when clark stops.")   # #553: fixed words (the same as TIMER_SKIPPED, which the test pins), once; nothing of the error
             self.n += 1
         self._say(done)
 
