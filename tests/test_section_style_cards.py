@@ -155,8 +155,7 @@ class Cards(Base):
             else:
                 self.assertGreater(rows, 1, "wrapped")
                 tops = p.js(f"{CARDS}.map(c => Math.round(c.getBoundingClientRect().top))")
-                # at 900 the links list takes the left (row 842), the section is 596 px wide and the cards wrap two and two
-                self.assertLess(max(tops.count(t) for t in set(tops)), 4, "not four across")
+                self.assertEqual([tops.count(t) for t in sorted(set(tops))], [2, 2], "two and two")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
             self.assertTrue(p.js(f"{CARDS}.every(c => {{ const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; }})"), "every card is on the screen")
 

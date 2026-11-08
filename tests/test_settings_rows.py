@@ -52,8 +52,7 @@ class Rows(Head):
                 self.assertLess(f["label_left"], 1, "the label is at the left edge of the row")
                 self.assertGreater(f["input_left"], f["label_w"], "the control is beside the label, not under it")
                 self.assertTrue(f["same_row"], "the label and the control share a row")
-                if p.js("window.innerWidth") > 900:        # at 900 the links list takes the left (row 842), the cards are 596 px and the control is 415 px
-                    self.assertGreater(f["input_w"], 420, "the control is not capped at 420 px")
+                self.assertGreater(f["input_w"], 420, "the control is not capped at 420 px")
                 self.assertGreater(f["input_w"], f["card_w"] * 0.6, "the control takes the rest of the row")
                 self.assertAlmostEqual(f["input_left"], 140, delta=1, msg="a 12 px gap after the label column")
                 if f["hint_left"] is not None:
