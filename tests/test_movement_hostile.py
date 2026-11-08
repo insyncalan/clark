@@ -194,9 +194,10 @@ class Hostile(unittest.TestCase):
         status, got = self.change({"movement": "hold", "state_reason": "x"})
         self.assertEqual(status, 200, got)
         after = self.milestone(M)
-        kept = sanitise.rich_or_plain(before["internal_note"])         # row 1005: the note is the editor's HTML; the old plain note reads as paragraphs
-        self.assertTrue(after["internal_note"].startswith(kept + "<p>"), "the owner's note is kept and a line added")
-        self.assertRegex(sanitise.plain_text(after["internal_note"][len(kept):]), r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
+        kept = before["internal_note"]                                 # a note from before stays plain: the line joins it on a new line; an HTML note gets a paragraph
+        joiner = "<p>" if sanitise.HTML_START.match(kept) else "\n"
+        self.assertTrue(after["internal_note"].startswith(kept + joiner), "the owner's note is kept and a line added")
+        self.assertRegex(sanitise.plain_text(after["internal_note"][len(kept):]).strip(), r"^\d\d-\d\d-\d{4}: holding; agreed date unchanged(, forecast \d\d-\d\d-\d{4})?\.$")
         self.assertNotIn(INTERNAL, json.dumps(got), "the reply never carries the note")
         for field in ("owner", "name", "workstream", "archived", "client_visible"):
             self.assertEqual(after[field], before[field], field)

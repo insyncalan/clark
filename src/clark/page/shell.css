@@ -684,13 +684,13 @@ input.sec-title { width: 100%; }
 /* Work items cells that change in place (#80, Edit only): the cell's content is a button, and its picker opens in one panel under
    it. The panels are the prototype's (.cell-pick, .menu, .cp), in clark's tokens, so dark mode follows. */
 .cell-pick { all: unset; box-sizing: border-box; display: inline-flex; flex-wrap: nowrap; align-items: center; gap: var(--space-1) var(--space-2); max-width: 100%; min-height: 28px; padding: 3px 6px; margin: -3px -6px; border-radius: var(--radius-sm); cursor: pointer; }
-.cell-pick { box-shadow: inset 0 -1px 0 var(--grey-300); }                                   /* at rest too: a quiet edge and a caret say it can be changed */
-.cell-pick::after { content: "▾"; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
+.cell-pick::after { content: "▾"; opacity: 0; flex: none; color: var(--text-muted); font-size: var(--size-small); line-height: 1; }
 .cell-val { display: block; min-width: 0; }                                                                  /* the caret stays beside the value: the value shrinks and wraps by word, the caret never drops to a line of its own (tech debt 203) */
 .cell-pick { overflow-wrap: normal; }                                                              /* the table lets a cell break anywhere; a picker's value breaks only between words */
 .cell-pick[data-cell$=":priority"], .cell-pick[data-cell$=":status"], .cell-pick[data-cell$=":due"] { white-space: nowrap; }
 .cell-pick[data-cell$=":priority"] .cell-val, .cell-pick[data-cell$=":status"] .cell-val, .cell-pick[data-cell$=":due"] .cell-val { min-width: auto; flex: none; }   /* these never wrap, so the value keeps its own width and the caret sits after it, not under the pill */
 .cell-pick:hover, .cell-pick[aria-expanded="true"] { background: var(--grey-100); box-shadow: inset 0 0 0 1px var(--grey-300); }
+.cell-pick:hover::after, .cell-pick:focus-visible::after, .cell-pick[aria-expanded="true"]::after { opacity: 1; }   /* item 1013: plain text at rest; the box and the caret show on hover or focus (the caret keeps its room, so nothing moves) */
 .cell-pick:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 table.items tbody tr { cursor: pointer; }
 table.items tbody tr:hover { background: var(--grey-50); }

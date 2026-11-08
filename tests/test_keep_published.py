@@ -163,6 +163,36 @@ class WhenKeepingFails(Base):
         self.assertIsNone(pc.data_of("text"))
 
 
+class NotKeptIsLogged(Base):
+    """#577: a copy that could not be kept is not silent: one log line says it, with no path and no hash in it."""
+
+    def test_a_copy_that_could_not_be_kept_logs_why_without_a_path_or_a_hash(self):
+        self.copies.write_bytes(b"not a folder")                  # the kept folder cannot be used
+        with self.assertLogs("clark.store", level="WARNING") as cap:
+            done, _ = self.publish()
+        text = "\n".join(cap.output)
+        self.assertIn("published copy not kept", text)
+        self.assertIn("PUB", text)
+        self.assertNotIn(str(self.root), text, "no path in the line")
+        self.assertNotIn(done["sha256"], text, "no hash in the line")
+
+    def test_a_fault_while_keeping_logs_the_kind_of_fault_only(self):
+        with mock.patch.object(pc, "keep", side_effect=OSError("/secret/place disk full")):
+            with self.assertLogs("clark.store", level="WARNING") as cap:
+                done, _ = self.publish()
+        text = "\n".join(cap.output)
+        self.assertIn("OSError", text)
+        self.assertNotIn("/secret/place", text, "the fault's own words can hold a path: only its kind is logged")
+        self.assertEqual(self.store.number_of(done["seq"]), done["number"], "the publication stands")
+
+    def test_a_copy_that_was_kept_logs_nothing(self):
+        with self.assertLogs("clark.store", level="WARNING") as cap:
+            import logging
+            logging.getLogger("clark.store").warning("marker")      # assertLogs needs one line to pass; the marker is the only one
+            self.publish()
+        self.assertEqual(cap.output, ["WARNING:clark.store:marker"])
+
+
 class Archive(Base):
     def test_archive_hides_one_without_deleting_it(self):
         made = [self.publish(now=f"2026-11-{i + 1:02d}") for i in range(3)]

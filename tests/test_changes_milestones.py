@@ -315,7 +315,40 @@ class TheHold(Base):
         note = self.row()["internal_note"]
         self.assertLessEqual(len(sanitise.plain_text(note)), changes.INTERNAL_NOTE_MAX)      # row 1005: the words are counted, not the markup
         self.assertIn("holding; agreed date unchanged", sanitise.plain_text(note).split("\n")[-1])
-        self.assertEqual(changes._note_with_line("a" * 2000, "L"), "<p>L</p>")
+        self.assertEqual(changes._note_with_line("<p>%s</p>" % ("a" * 2000), "L"), "<p>L</p>")      # an HTML note drops whole blocks
+        self.assertEqual(changes._note_with_line("a" * 2000, "L"), "L")                              # a plain one drops lines, as before
+
+    def test_a_hold_that_drops_lines_says_so_in_its_reply_and_one_undo_restores_the_whole_note(self):      # #603
+        self.slip()
+        filler = "\n".join(["x" * 99] * 20)
+        self.ok({"internal_note": filler})
+        stored = self.row()["internal_note"]                      # row 1005: stored as the editor's HTML, a paragraph a line
+        got = self.ok({"movement": "hold"})
+        self.assertIs(got.get("note_trimmed"), True)
+        self.assertNotEqual(self.row()["internal_note"], stored)
+        status, undone = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
+        self.assertEqual(status, 200, undone)
+        self.assertEqual(self.row()["internal_note"], stored, "Undo puts back the whole note, the dropped lines too")
+        self.assertEqual(sanitise.rich_plain_text(stored), filler)
+
+    def test_a_hold_that_drops_nothing_does_not_say_the_note_was_trimmed(self):      # #603
+        self.slip()
+        self.ok({"internal_note": "Chase the vendor"})
+        self.assertNotIn("note_trimmed", self.ok({"movement": "hold"}))
+        self.assertNotIn("note_trimmed", self.ok({"forecast_date": "2030-03-21"}), "other changes never carry it")
+
+    def test_the_trim_flag_is_only_for_a_hold_that_wrote_the_line(self):      # #603
+        self.slip()
+        self.ok({"internal_note": "\n".join(["x" * 99] * 20)})
+        self.assertNotIn("note_trimmed", self.ok({"movement": "hold", "internal_note": "Mine"}), "a note sent with the Hold is the owner's, as sent")
+
+    def test_note_with_line_reports_whether_it_dropped_lines(self):      # #603
+        self.assertEqual(changes._note_with_line_trimmed("a\nb", "L"), ("a\nb\nL", False))
+        self.assertEqual(changes._note_with_line_trimmed("a" * 2000, "L"), ("L", True))
+        self.assertEqual(changes._note_with_line_trimmed("<p>a</p><p>b</p>", "L<"), ("<p>a</p><p>b</p><p>L&lt;</p>", False))      # HTML: appended escaped, nothing dropped
+        self.assertEqual(changes._note_with_line_trimmed("<p>%s</p><p>b</p>" % ("a" * 1999), "L"), ("<p>b</p><p>L</p>", True))   # HTML: the oldest block goes
+        self.assertEqual(changes._note_with_line_trimmed(None, "L"), ("<p>L</p>", False))
+        self.assertEqual(changes._note_with_line_trimmed("", "L"), ("<p>L</p>", False))
 
     def test_a_hold_shows_in_the_movement_read_with_its_line_and_clearing_it_is_a_change(self):
         self.ok({"movement": "hold"})
