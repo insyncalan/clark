@@ -1247,11 +1247,11 @@
       [
        [
         "Compact",
-        "Tighter gaps and shorter rows, so more fits on the screen."
+        "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."
        ],
        [
         "Comfortable",
-        "Looser gaps and taller rows, with more room around everything."
+        "Each Dashboard section is its own card, with room between them."
        ]
       ]
      ]

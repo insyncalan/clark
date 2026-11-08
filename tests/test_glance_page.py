@@ -501,13 +501,16 @@ class Styles(Setup):
             p.js("document.querySelector('input[name=density][value=comfortable]').click()")
             reload_to_new_page(p.js)
             p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
-            gap = []
-            for value in ("card", "roomy"):
-                p.js(f"document.documentElement.dataset.secstyle = '{value}'")
+            flat = {}
+            for value in ("comfortable", "compact"):
+                p.js("location.hash = '#settings&p=ABC'")
+                p.until(f"!!document.querySelector('input[name=density][value={value}]')", "Personal")
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
                 p.js("location.hash = '#dashboard&p=ABC'")
-                p.until("!!document.querySelector('.secs')", "dashboard")
-                gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
-            self.assertGreater(gap[1], gap[0], "the looser section rules are roomier than the One card ones")
+                p.until("!!document.querySelector('.secs .sec')", "dashboard")
+                flat[value] = p.js("getComputedStyle(document.querySelector('.secs .sec')).boxShadow === 'none'")
+            self.assertEqual(flat, {"comfortable": False, "compact": True}, "Comfortable sections are cards, Compact sections run on flat")
 
 
 class Published(PublishedFile, Setup):

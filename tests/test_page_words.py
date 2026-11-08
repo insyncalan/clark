@@ -197,9 +197,9 @@ class Words(unittest.TestCase):
                                   "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.",
                                   "Day", "Show",      # the box's label is read by a screen reader only
                                   "Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. The Spacing is used on the published report too; Light or Dark is yours alone.",
-                                  "Spacing", "Compact", "Tighter gaps and shorter rows, so more fits on the screen.",
-                                  "Comfortable", "Looser gaps and taller rows, with more room around everything.",
+                                  "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
+                                  "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
+                                  "Comfortable", "Each Dashboard section is its own card, with room between them.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",

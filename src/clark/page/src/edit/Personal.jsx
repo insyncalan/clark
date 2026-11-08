@@ -10,8 +10,8 @@ import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { aliasOffer } from "../logic/alias.js";
 
 export const DENSITIES = [
-  ["compact", "Compact", "Tighter gaps and shorter rows, so more fits on the screen."],
-  ["comfortable", "Comfortable", "Looser gaps and taller rows, with more room around everything."],
+  ["compact", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."],
+  ["comfortable", "Comfortable", "Each Dashboard section is its own card, with room between them."],
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
@@ -163,7 +163,7 @@ export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h" tabIndex={-1}>Personal</h2>
-      <p class="muted">These are for you, on this computer. The Spacing is used on the published report too; Light or Dark is yours alone.</p>
+      <p class="muted">These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.</p>
       <fieldset class="styles secstyles" role="radiogroup" data-density-pick>
         <legend>Spacing</legend>
         {DENSITIES.map(([id, name, line]) => (

@@ -110,7 +110,7 @@ class Styles(unittest.TestCase):
 
     def test_the_settings_words_describe_the_default(self):
         jsx = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        self.assertIn('["compact", "Compact", "Tighter gaps and shorter rows, so more fits on the screen."]', jsx)
+        self.assertIn('["compact", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."]', jsx)
 
 
 class Contrast(unittest.TestCase):

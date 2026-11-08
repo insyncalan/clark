@@ -1,4 +1,4 @@
-"""Settings > Personal > Spacing (item 1025, PR 1 of 8): the two picture cards, Compact and Comfortable (a drawing, the name, one line), in a
+"""Settings › Personal › Spacing (item 1025, PR 1 of 8): the two picture cards, Compact and Comfortable (a drawing, the name, one line), in a
 real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_section_style_cards
 
 What is asserted: two cards, each with a drawing and one real radio, in a radio group named Spacing; the arrow keys move the choice, which
@@ -23,7 +23,7 @@ WIDTHS = (1400, 900)
 LOOKS = ("light", "dark")
 NAMES = ["Compact", "Comfortable"]
 IDS = ["compact", "comfortable"]
-NOTE = "These are for you, on this computer. The Spacing is used on the published report too; Light or Dark is yours alone."
+NOTE = "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone."
 
 # Colour maths, in the page: a computed colour is rgb(...) or rgba(...); a clear one is looked through to what is behind it.
 JS_HELPERS = """
@@ -74,7 +74,7 @@ class Cards(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-        p.until("!!document.querySelector('#personal')", "Settings > Personal drew")
+        p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
         p.js(JS_HELPERS)
@@ -124,7 +124,7 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-                p.until("!!document.querySelector('#personal')", "Settings > Personal drew")
+                p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
 
@@ -172,6 +172,43 @@ class Cards(Base):
 
         self.each_look(check)
 
+    def test_C_the_drawings_differ_and_can_be_seen(self):
+        def check(p, w, look):
+            shapes = p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => {{ const r = i.getBoundingClientRect(), t = c.querySelector('.secpick-pic').getBoundingClientRect().top; const s = getComputedStyle(i); return [Math.round(r.top - t), Math.round(r.height), s.backgroundImage !== 'none']; }}).join('|'))")
+            self.assertEqual(len(set(shapes)), 2, "two different drawings")
+            # the drawing's header bar and its block edges stand out from the picture they sit on (3:1)
+            seen = p.js(f"{CARDS}.map(c => {{ const pic = c.querySelector('.secpick-pic'), bg = getComputedStyle(pic).backgroundColor, is = pic.querySelectorAll('i'); "
+                        "return [__ratio(getComputedStyle(is[0]).backgroundColor, bg), __ratio(getComputedStyle(is[1]).borderTopColor, bg)]; })")
+            for bar, edge in seen:
+                self.assertGreaterEqual(bar, 3, "the header bar reads on the picture")
+                self.assertGreaterEqual(edge, 3, "the block edges read on the picture")
+            self.assertEqual(p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => i.style.cssText).join(''))"), [""] * 2, "tokens in the sheet only")
+
+        self.each_look(check)
+
+    def test_C_the_choice_shows_on_the_dashboard(self):
+        # Chosen in Settings with the real cards, then read on the Dashboard: Compact runs the sections on in one flat page (no shadow, square),
+        # Comfortable makes each section its own card (a shadow, round corners), which is what the Settings and Help lines say.
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            look = {}
+            for value in ("comfortable", "compact"):
+                p.js(f"document.querySelector('input[name=density][value={value}]').closest('label').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", value)
+                p.js("location.hash = '#dashboard&p=PUB'")
+                p.until("!!document.querySelector('.secs .sec')", "dashboard")
+                look[value] = p.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [s.boxShadow === 'none', s.backgroundColor, s.borderTopLeftRadius]; })()")
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal")
+            self.assertEqual(look["compact"][0], True, "Compact sections have no card shadow")
+            self.assertEqual(look["compact"][2], "0px", "Compact sections are flat")
+            self.assertEqual(look["comfortable"][0], False, "Comfortable sections are cards with a shadow")
+            self.assertNotEqual(look["comfortable"][2], "0px", "Comfortable sections have round corners")
+            self.assertNotEqual(look["comfortable"][1], look["compact"][1], "the two do not look the same")
+
     def test_C_selected_is_an_edge_and_a_tick_not_colour_alone(self):
         def check(p, w, look):
             for pick in IDS:
@@ -212,6 +249,16 @@ class Cards(Base):
 
         self.each_look(check)
 
+    def test_C_hover_changes_the_edge(self):
+        def check(p, w, look):
+            p.js(f"{CARDS}[1].scrollIntoView({{block: 'center'}})")       # the cards sit below the first screen: the pointer must be over one
+            before = p.js(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor")
+            box = p.js(f"(() => {{ const r = {CARDS}[1].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+            p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, p.sid)
+            p.until(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor !== {json.dumps(before)}", "hover changed the edge")
+
+        self.each_look(check)
+
     def test_C_text_and_edges_are_readable_in_light_and_dark(self):
         def check(p, w, look):
             got = p.js(f"{CARDS}.map(c => {{ const k = c.querySelector('.secpick-card'), bg = getComputedStyle(k).backgroundColor, b = c.querySelector('b'), s = c.querySelector('small'); "
@@ -237,7 +284,7 @@ class Cards(Base):
             self.open_settings(p)
             self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"), ["Spacing", "Appearance", "Keys"])
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent)"), [
-                "Tighter gaps and shorter rows, so more fits on the screen.", "Looser gaps and taller rows, with more room around everything."])
+                "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.", "Each Dashboard section is its own card, with room between them."])
 
     def test_C_the_choice_goes_to_publish_as_the_word_the_guarded_code_knows(self):
         # The bridge: Compact is "card", Comfortable is "slim" (publish.STYLES). Nothing else is ever sent.

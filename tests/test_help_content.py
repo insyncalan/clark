@@ -358,7 +358,7 @@ class LowWordsRound(unittest.TestCase):
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
     def test_the_section_style_lines_are_the_ones_settings_shows(self):
-        """Help and Settings > Personal give the same two lines for Compact and Comfortable (item 1025). The prototype predates the Spacing
+        """Help and Settings › Personal give the same two lines for Compact and Comfortable (item 1025). The prototype predates the Spacing
         setting, so these lines are checked against Settings only."""
         table = next(b for sec in SECTIONS if sec["id"] == "layouts" for b in sec["b"] if b[0] == "tbl")
         card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
