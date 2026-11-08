@@ -1630,6 +1630,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   :root:not([data-motion="reduce"]) {
     /* the placeholder fades out as the screen arrives */
     .skel-leave { position: absolute; left: var(--space-5); right: var(--space-5); top: 28px; z-index: 1; pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+    @media (max-width: 900px) { .skel-leave { left: var(--space-4); right: var(--space-4); top: 20px; } }     /* item 517: main's padding at 900 px */
     /* row 887: the dragged card lifts (its ghost, which follows the pointer, grows into place with the scale property; the card itself
        gets no transform, as its date picker and menu are drawn inside it), the column it would land in eases its highlight in, and a
        column dragged by its heading lifts the same way. Still: the highlight and the dimming only */
