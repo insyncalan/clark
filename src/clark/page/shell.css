@@ -205,7 +205,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* Spacing (item 1025): the gaps, paddings and row heights of Work items, per density. Compact is the standard and the fallback for any
    other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
    do not change with the density. */
-:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); }
+:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); --d-pk-bar-b: 10px; --d-pk-title-t: var(--space-4); --d-pk-title-b: var(--space-3); --d-pk-row-y: var(--space-2); --d-pk-card: var(--space-3); --d-pk-card-gap: var(--space-2); --d-dlg-y: 20px; --d-dlg-narrow: var(--space-4); --d-dlg-opts: var(--space-2); --d-dlg-opt-y: var(--space-2); --d-dlg-foot: var(--space-4); }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
 table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
@@ -458,7 +458,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
 :root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
@@ -658,7 +658,7 @@ input.sec-title { width: 100%; }
 .pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
 .pk-edge:hover { background: var(--brand-cyan); opacity: .5; }
 .pk-edge:focus-visible { background: var(--brand-blue); opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
-.pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: 10px; border-bottom: 1px solid var(--grey-100); }
+.pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: var(--d-pk-bar-b); border-bottom: 1px solid var(--grey-100); }
 .pk-sp { flex: 1; }
 .pk-id { color: var(--text-muted); font-size: var(--size-caption); margin-left: 6px; }
 .pkp-btn { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); cursor: pointer; color: var(--text); }
@@ -667,9 +667,9 @@ input.sec-title { width: 100%; }
 .pkp-btn:disabled { opacity: .35; cursor: default; }
 .pkp-btn[aria-pressed=true] { background: var(--brand-blue-tint); }
 .pkp-btn .i { width: 18px; height: 18px; }
-.pk-title { margin: var(--space-4) 0 var(--space-3); font-size: var(--size-h2); font-weight: var(--weight-medium); line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
+.pk-title { margin: var(--d-pk-title-t) 0 var(--d-pk-title-b); font-size: var(--size-h2); font-weight: var(--weight-medium); line-height: 1.3; color: var(--heading); overflow-wrap: anywhere; }
 .pk-fields { margin: 0; }
-.pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
+.pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
 .wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of the peek, not a panel below the list (row 776) */
@@ -1215,12 +1215,12 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .top .dd { position: relative; display: inline-flex; }
 .dlg { width: min(520px, calc(100vw - 32px)); max-height: calc(100vh - 32px); overflow: auto; padding: 0; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); color: var(--text); box-shadow: var(--shadow); }
 .dlg::backdrop { background: color-mix(in srgb, var(--black) 40%, transparent); }
-.dlg-form { padding: 20px var(--space-5); }
+.dlg-form { padding: var(--d-dlg-y) var(--space-5); }
 .dlg h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 .dlg-sub { margin: 0 0 var(--space-3); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .dlg-warn { margin: 10px 0 0; font-size: var(--size-caption); }
-.pubopts, .pub-clash { display: flex; flex-direction: column; gap: var(--space-2); margin: var(--space-3) 0 0; padding: 0; border: 0; min-width: 0; }
-.pubopt { display: flex; align-items: flex-start; gap: 10px; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
+.pubopts, .pub-clash { display: flex; flex-direction: column; gap: var(--d-dlg-opts); margin: var(--space-3) 0 0; padding: 0; border: 0; min-width: 0; }
+.pubopt { display: flex; align-items: flex-start; gap: 10px; padding: var(--d-dlg-opt-y) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); cursor: pointer; }
 .pubopt.off { color: var(--text-muted); }
 .pubopt b { font-weight: var(--weight-medium); }   /* row 796: the option titles take the box's text size and the medium weight, not bold */
 .pubopt input { margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
@@ -1251,7 +1251,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pub-msg .success { display: flex; align-items: center; gap: var(--space-2); }
 .pub-tick { flex: none; display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 50%; background: var(--status-green-text); color: var(--surface); }
 .pub-tick .i { width: 11px; height: 11px; stroke-width: 3; }
-.dlg-f { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+.dlg-f { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--d-dlg-foot); }
 .btn.pri { background: var(--brand-blue); border-color: var(--brand-blue); color: var(--text-on-brand); }
 .btn.pri:disabled { opacity: .55; cursor: default; }
 .btn.pri[data-go] { display: inline-flex; align-items: center; gap: 8px; }
@@ -1343,7 +1343,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pv-banner p { margin: 0; font-size: var(--size-small); } .pv-banner b { font-weight: var(--weight-medium); } .pv-banner small { color: var(--text-muted); font-size: var(--size-caption); }
 .pv-banner .link { display: inline-flex; align-items: center; min-height: 24px; box-sizing: border-box; }
 .report.asat-frame, html[data-density="comfortable"] .frame.report.asat-frame { border: 3px dashed var(--status-amber); background: var(--status-amber-tint); }      /* the second selector outranks the flat style's border: 0 on .frame.report */
-@media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--space-4); } }
+@media (max-width: 900px) { .pubnote { display: none; } .dlg-form { padding: var(--d-dlg-narrow); } }
 /* #43: on a phone the Publish button must not push the top bar wider than the window; only top-bar rules, after the phone card rules. */
 @media (max-width: 640px) { .pubbar { gap: var(--space-1); } .pubbtn { padding: 0 var(--space-2); font-size: var(--size-small); } .top:has(.pubbar) .logo .wm { display: none; } }   /* the Edit top bar only: the logo keeps its icon (its aria-label names it) */
 
@@ -2030,7 +2030,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .peek .pk-body { container-type: inline-size; }
 .pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
 .pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
-.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--space-3); margin-bottom: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--d-pk-card); margin-bottom: var(--d-pk-card-gap); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
 .pk-fields > .pk-row[data-row=status] { order: 1; }
 .pk-fields > .pk-row[data-row=priority] { order: 2; }
 .pk-fields > .pk-row[data-row=owner] { order: 3; }
