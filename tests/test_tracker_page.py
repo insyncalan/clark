@@ -449,13 +449,13 @@ class Page(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.edit()
-            self.failure = lambda req: (400, {"ok": False, "code": "too_large", "message": "That is too big to save. Shorten a line or remove some lines, then try again."})
+            self.failure = lambda req: (400, {"ok": False, "code": "too_large", "message": "That is too big to save. Make the text shorter, or take some of the list out, then try again."})
             self.click(p, ref, "[data-group='0'] [data-add-line]")
             p.until(self.present(ref, "[data-line-form]"), "the form")
             self.fill(p, ref, text="Fine")
             self.click(p, ref, "[data-save]")
             p.until("!!document.querySelector('.toast-text') && /too big to save/i.test(document.querySelector('.toast-text').textContent)", "the plain sentence")
-            self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Make it shorter, then try again.")
+            self.assertEqual(p.toast(), "That is too big to save, and nothing was changed. Make the text shorter, or take some of the list out.")
             self.assertTrue(p.js(self.present(ref, "[data-line-form]")), "the form stays open")
 
     def test_the_totals_sit_under_their_headings_at_1400_and_900(self):
