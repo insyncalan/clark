@@ -90,7 +90,7 @@ ORDINARY = (        # names, ids and addresses that must never be refused (a ref
 )
 KEYS_WITH_SEPARATORS = (    # random keys that contain - or _ and must still be caught
     "Ab3Xk9Qw2Zr7_Lm4Pt8Vn1Cy5-Hd6Jf0Gs", "Ab3Xk9_Qw2Zr7_Lm4Pt8_Vn1Cy5_Hd6Jf0", "live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0",
-    "Zt4Rw8Vb1Nc-Xk9Qm2Lp7Ab3Xk9Qw2",
+    "Zt4Rw8Vb1Nc-Xk9Qm2Lp7Ab3Xk9Qw2", "my_live_" + "Ab3Xk9Qw2Zr7Lm4Pt8Vn1Cy5Hd6Jf0", "Prod-Token-" + "Zt4Rw8Vb1NcXk9Qm2Lp7Ab3",
 )
 
 
