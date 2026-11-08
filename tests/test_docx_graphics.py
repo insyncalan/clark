@@ -77,7 +77,7 @@ def lane_x(rows, today, iso):
     from clark import milestone_rows as mr
     drawn = g._rows(rows)
     start, end = (date.fromisoformat(d) for d in mr.timeline_span(drawn, today))
-    return g.PAD + round((date.fromisoformat(iso) - start).days * (g.WIDTH - 2 * g.PAD) / (end - start).days)
+    return g.X0 + round((date.fromisoformat(iso) - start).days * (g.X1 - g.X0) / (end - start).days)
 
 
 class PngWriter(unittest.TestCase):
@@ -283,6 +283,92 @@ NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main", "wp":
       "a": "http://schemas.openxmlformats.org/drawingml/2006/main", "pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
       "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships", "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
       "ct": "http://schemas.openxmlformats.org/package/2006/content-types"}
+
+
+class Labels(unittest.TestCase):
+    """#1036: the lane names and the axis dates are in the picture, so the picture reads without the table beside it."""
+    TODAY = "2026-11-08"
+
+    def ink(self, png, x0, x1, y0, y1):
+        """How many pixels of the text colour lie in x0 <= x < x1, y0 <= y < y1."""
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        return sum(1 for y in range(y0, min(y1, h)) for x in range(x0, min(x1, w)) if palette[rows[y][x]] == want)
+
+    def gutter(self, png, i):
+        w, h, palette, rows = read_png(png)
+        return [bytes(rows[y][:g.LABEL_W]) for y in range(g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)]
+
+    def draw(self, rows):
+        return g.plan(rows, self.TODAY, TOKENS)[0][0]
+
+    def test_a_named_lane_has_ink_in_its_own_band_of_the_name_column_and_an_unnamed_one_none(self):
+        png = self.draw([ms(1, name="Go live"), ms(2, name=None), ms(3, name="   ")])
+        band = lambda i: self.ink(png, 0, g.LABEL_W, g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)
+        self.assertGreater(band(0), 20)
+        self.assertEqual((band(1), band(2)), (0, 0))
+
+    def test_the_same_name_looks_the_same_in_any_lane_and_a_different_name_looks_different(self):
+        png = self.draw([ms(1, name="Go live"), ms(2, name="Sign off"), ms(3, name="Go live")])
+        a, b, c = (self.gutter(png, i) for i in range(3))
+        self.assertNotEqual(a, b)
+        self.assertEqual(a, c)
+
+    def test_a_small_letter_and_a_capital_are_the_same_picture_but_two_letters_are_not(self):
+        png = self.draw([ms(1, name="go live"), ms(2, name="GO LIVE"), ms(3, name="GO LIVF")])
+        a, b, c = (self.gutter(png, i) for i in range(3))
+        self.assertEqual(a, b)
+        self.assertNotEqual(b, c)
+
+    def test_a_name_stays_in_the_name_column_and_its_own_lane(self):
+        png = self.draw([ms(1, name="W" * 400), ms(2, name="x"), ms(3, name="W" * 400)])
+        # the time line starts right of the column: no ink between the column and the first mark's lane start but the marks'
+        self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + 3 * g.LANE), 0)
+        w, h, palette, rows = read_png(png)
+        self.assertEqual(self.ink(png, 0, g.LABEL_W, 0, g.TOP), 0)                       # the month band holds no lane name
+        self.assertLessEqual(max(x for y in range(g.TOP, g.TOP + 3 * g.LANE) for x in range(g.LABEL_W)
+                                 if palette[rows[y][x]] == tok()["text"]), g.PAD + g.LABEL_MAX * 12)
+
+    def test_hostile_names_are_only_pixels_and_never_stop_the_picture(self):
+        for name in ('"/><w:p>INJECTED</w:p>', "\u05e9\u05dc\u05d5\u05dd \u202e abc", "\x00\x1b[31m", "&amp; <b>", "\U0001f600" * 50, "a\nb\tc"):
+            png = self.draw([ms(1, name=name)])
+            read_png(png)
+            self.assertGreater(self.ink(png, 0, g.LABEL_W, g.TOP, g.TOP + g.LANE), 0, repr(name))
+            self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + g.LANE), 0, repr(name))
+
+    def test_a_character_the_font_lacks_is_a_question_box_not_a_gap(self):
+        a = self.gutter(self.draw([ms(1, name="\u05e9")]), 0)
+        b = self.gutter(self.draw([ms(1, name="?")]), 0)
+        self.assertEqual(a, b)
+        self.assertEqual(g.label("a\u05e9  b\n"), "A? B")
+
+    def test_a_long_name_ends_in_two_dots(self):
+        self.assertEqual(g.label("x" * 100), "X" * (g.LABEL_MAX - 2) + "..")
+        self.assertEqual(g.label("x" * g.LABEL_MAX), "X" * g.LABEL_MAX)
+
+    def test_the_axis_dates_are_in_the_month_band_over_the_time_line_only(self):
+        png = self.draw([ms(1), ms(2, baseline_date="2027-02-20")])
+        self.assertGreater(self.ink(png, g.X0, g.WIDTH, 0, g.TOP), 40)
+        self.assertEqual(self.ink(png, 0, g.X0 - 4, 0, g.TOP), 0)
+
+    def test_the_axis_dates_follow_the_months_shown(self):
+        a = self.draw([ms(1), ms(2, baseline_date="2027-02-20")])
+        b = self.draw([ms(1, baseline_date="2028-05-20"), ms(2, baseline_date="2028-08-20")])
+        band = lambda png: [bytes(r) for r in read_png(png)[3][:g.TOP]]
+        self.assertNotEqual(band(a), band(b))
+
+    def test_a_hundred_years_keeps_the_dates_from_touching(self):
+        png = self.draw([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")])
+        self.assertGreater(self.ink(png, g.X0, g.WIDTH, 0, g.TOP), 0)
+
+    def test_the_picture_is_as_wide_as_before_and_the_word_file_holds_it_with_the_names_escaped(self):
+        nasty = '"/><w:p>INJECTED</w:p>'
+        _, data = build_with(milestones=[ms(1, name=nasty), ms(2, name="\u05e9\u05dc\u05d5\u05dd")])
+        doc = parts(data)["word/document.xml"]
+        ET.fromstring(doc)
+        self.assertNotIn(b"<w:p>INJECTED", doc)
+        sizes = [read_png(raw)[:2] for n, raw in parts(data).items() if n.startswith("word/media/")]
+        self.assertIn((g.WIDTH, g.TOP + 2 * g.LANE + 2), sizes)
 
 
 class InTheWordFile(unittest.TestCase):
