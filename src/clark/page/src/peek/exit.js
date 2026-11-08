@@ -2,8 +2,10 @@
 // var(--dur-instant) with var(--ease-exit), instead of vanishing. The live panel is already gone from the page by then, so a
 // copy of it (no id, inert, hidden from reading aids) is the thing that slides, and it removes itself when the motion ends.
 // Nothing here changes what is on the page once it has ended; under reduced motion no copy is made at all.
-export function slideOut(el) {
-  if (!el || !el.isConnected || !el.parentNode || typeof el.cloneNode !== "function") return null;
+// `gone` is for a panel the page has already dropped: it is read from where it was left, a layout effect after the render.
+export function slideOut(el, gone) {
+  if (!el || typeof el.cloneNode !== "function") return null;
+  if (!gone && (!el.isConnected || !el.parentNode)) return null;
   try { if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return null; } catch (e) { /* no media query: slide */ }
   const copy = el.cloneNode(true);
   copy.removeAttribute("id");

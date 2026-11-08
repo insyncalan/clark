@@ -7,13 +7,19 @@ import { moveUp, moveDown, setHidden, besideNext, fullWidth, canStep, canBeside,
 import { startDrag } from "./drag.js";
 import { askToAdd } from "./addSection.js";
 import { note } from "./notes.js";
-import { useMenuState } from "../components/Menu.jsx";
+import { useMenuState, useFadeOut } from "../components/Menu.jsx";
 import { handleHint, HINT_WORDS } from "../stores/motion.js";
 import { hasSettings, openSettings, SettingsPopover, MENU_WORD } from "./TemplateSettings.jsx";
 
 // An item that cannot apply stays in the menu, unavailable, with the reason on it.
 const why = (r) => (r.ok || r.quiet ? {} : { off: true, reason: r.message });
 const MOVED = 4;                               // px: more than this between press and release was a drag, not a click
+
+// Row 962: the options box fades out as it closes (a copy drawn where it was; see useFadeOut).
+function OptionsBox({ boxRef, label, onKeyDown, children }) {
+  useFadeOut(boxRef, true, "");
+  return <div class="menu" role="menu" ref={boxRef} data-edit-only aria-label={label} onKeyDown={onKeyDown}>{children}</div>;
+}
 
 export function Gutter({ section, count }) {
   const [open, setOpen] = useMenuState();
@@ -99,13 +105,13 @@ export function Gutter({ section, count }) {
       {hinted ? <span class="sec-hint" role="status">{HINT_WORDS}</span> : null}
       <SettingsPopover section={section} />
       {open ? (
-        <div class="menu" role="menu" ref={menu} data-edit-only aria-label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
+        <OptionsBox boxRef={menu} label={`Options for ${section.title}`} onKeyDown={onMenuKey}>
           {items.map((it) => [
             <button type="button" role="menuitem" class="menu-item" key={it.act} data-act={it.act} aria-disabled={it.off ? "true" : undefined}
               aria-describedby={it.off ? `why-${section.id}-${it.act}` : undefined} onClick={() => pick(it)}>{it.text}</button>,
             it.off ? <div class="menu-why" key={`${it.act}-why`} id={`why-${section.id}-${it.act}`} role="none">{it.reason}</div> : null,
           ])}
-        </div>
+        </OptionsBox>
       ) : null}
     </div>
   );

@@ -42,6 +42,7 @@ class PillFocusRing(unittest.TestCase):
     def measure_pill(self, cdp, width, theme):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
+        cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)      # pinned: no transition is mid-way when the ring is measured
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#dashboard&p=TUL"}, sid)

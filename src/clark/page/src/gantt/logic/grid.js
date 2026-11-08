@@ -38,7 +38,7 @@ export const COLUMNS = [
   { key: "eff", label: "Effort (days)", width: 104, type: "num0" },
   { key: "cost", label: "Budget", width: 96, type: "num0" },
   { key: "del", label: "Deliverable", width: 170, type: "text" },
-  { key: "show", label: "On dashboard", width: 112, type: "select", options: ["Yes", "No"] },
+  { key: "show", label: "On dashboard", width: 136, type: "select", options: ["Yes", "No"] },
   { key: "note", label: "Notes", width: 240, type: "text" },
 ];
 

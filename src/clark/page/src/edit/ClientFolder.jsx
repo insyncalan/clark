@@ -1,20 +1,31 @@
 // Settings: the client folder (#43). A folder on this computer that OneDrive syncs to the client's SharePoint, chosen with the
 // system's own folder window (the server opens it) and saved as the project's setting. Since item 647 the page may also send a
 // pasted folder path (action "paste"): the server checks it exactly as a chosen one (it must be inside OneDrive) and refuses a
-// pasted link by its form, never opening it, so the page decides nothing. Undo can put the old one back.
+// pasted link by its form, never opening it, so the page decides nothing. Undo can put the old one back. Row 852: the Local folder is
+// chosen the same way (actions choose_local and clear_local), saved once, and said in the toast with its Undo.
 // Edit parts only.
 import { useState } from "preact/hooks";
 import { data, project } from "../stores/report.js";
-import { savedFolder, folderName } from "./publishState.js";
-import { folderRequest, words } from "./publishApi.js";
+import { savedFolder, savedLocal, folderName } from "./publishState.js";
+import { folderRequest, localUndoRequest, words } from "./publishApi.js";
+import { say, toast } from "../stores/changes.js";
 
 const PASTE_MAX = 2000;            // the server refuses anything longer (publish_flow.MAX_PASTE)
+
+async function undoLocal(code, applyId) {
+  const r = await localUndoRequest(code, applyId);
+  if (r.status === 200 && r.body && r.body.ok === true) {
+    const d = data.value;
+    if (project.value === code && d) data.value = { ...d, project: { ...d.project, publish_local: r.body.folder || null } };
+    say("done", "Undone.");
+  } else say("problem", words(r, "save the local folder"));
+}
 
 export function ClientFolder() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
   const [pasted, setPasted] = useState("");
-  const saved = savedFolder();
+  const saved = savedFolder(), local = savedLocal();
 
   async function run(action, value) {
     setBusy(true);
@@ -36,6 +47,24 @@ export function ClientFolder() {
     setMsg({ kind: "error", text: words(r, "save the client folder") });
   }
 
+  async function runLocal(action) {
+    setBusy(true);
+    setMsg(null);
+    const r = await folderRequest(project.value, action);
+    setBusy(false);
+    const b = r.body;
+    if (r.status === 200 && b && b.ok === true) {
+      if (b.changed) {
+        const d = data.value;
+        data.value = { ...d, project: { ...d.project, publish_local: b.folder || null } };
+        say("done", b.message);
+        if (b.apply_id) toast.value = { ...toast.value, local: () => undoLocal(project.value, b.apply_id) };   // the toast's own Undo (aboutYouToast.js): this setting has its own route
+      }
+      return;
+    }
+    setMsg({ kind: "error", text: words(r, "save the local folder") });
+  }
+
   function usePasted(e) {
     e.preventDefault();
     if (pasted.trim() && !busy) run("paste", pasted);
@@ -47,7 +76,12 @@ export function ClientFolder() {
       <p class="muted">Where Publish saves the report. Local is always used; the client folder only when you tick To client.</p>
       <div class="setting-part" id="local-folder">
         <h3>Local folder</h3>
-        <p class="muted">Always saved. Publish opens the save window where you last saved this report, so you choose the local folder there each time.</p>
+        <p class="muted">Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.</p>
+        <p class="folder-now" id="local-folder-now">{local ? <b>{folderName(local)}</b> : <span class="muted">No local folder yet.</span>}</p>
+        <div class="row">
+          <button type="button" class="btn" data-choose-local onClick={() => runLocal("choose_local")} disabled={busy}>Choose folder</button>
+          {local ? <button type="button" class="btn quiet" data-clear-local onClick={() => runLocal("clear_local")} disabled={busy}>Clear</button> : null}
+        </div>
       </div>
       <div class="setting-part" id="client-folder">
         <h3>Client folder</h3>

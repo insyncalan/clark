@@ -68,7 +68,8 @@
 
   function draw(swap, how) {
     const p = pk(); applyWidth();
-    const a = document.activeElement, inside = !!a && p.contains(a), had = inside && a.id && a.tagName === 'BUTTON' ? a.id : '';   // the button that had the focus, to give it back after the redraw
+    const a = document.activeElement, inside = !!a && p.contains(a), had = inside && a.id && a.tagName === 'BUTTON' ? a.id : '',
+      keep = !swap && how === 'redraw' ? { top: (C.$('.pk-scroll', p) || {}).scrollTop || 0, id: inside && a.id && a.tagName !== 'BUTTON' ? a.id : '' } : null;   // the button that had the focus, to give it back after the redraw; a redraw after a choice keeps the scroll and the field's focus (item 1007)
     if (cur.kind === 'item') { const x = findItem(cur.id); if (!x) return C.closePeek(); if (x.archived) { p.innerHTML = archHtml('item', x); wireArch('item', x); } else { p.innerHTML = itemHtml(x); wireItem(x); } }
     else { const m = findMs(cur.id); if (!m) return C.closePeek(); if (m.archived) { p.innerHTML = archHtml('ms', m); wireArch('ms', m); } else { p.innerHTML = msHtml(m); wireMs(m); } }
     p.insertAdjacentHTML('afterbegin', '<div class="resize" title="Drag to change the width; double-click for the usual width"></div>');
@@ -89,6 +90,7 @@
        (Previous, Next), or on whatever was clicked outside; it is never left on nothing */
     if (how) { const was = had && C.$('#' + had, p), act = document.activeElement, lost = !act || act === document.body, go = was && !was.disabled ? was : null;
       if (go) go.focus({ preventScroll: true }); else if (how === 'open' && (!swap || lost)) C.$('#pkClose', p)?.focus({ preventScroll: true }); }
+    if (keep) { const s = C.$('.pk-scroll', p); if (s) s.scrollTop = keep.top; const f = keep.id && C.$('#' + keep.id, p); if (f && !f.disabled) f.focus({ preventScroll: true }); }   /* the peek stays still after a dropdown choice */
     if (swap) { const s = C.$('.pk-scroll', p); s.style.animation = 'none'; void s.offsetWidth; s.style.animation = 'view-in 260ms var(--ease-enter)'; }
   }
 
@@ -187,7 +189,7 @@
       const go = () => { const u = D.undoMany(kind, rec2() || rec, plan()), n = sel.size; sel.clear(); phase = null; lastTick = null; if (u) { C.refresh(); C.toast(`${n} change${n === 1 ? '' : 's'} undone`, u); } else { redraw(); C.toast('Those changes cancel each other out, so nothing was changed.'); } };
       C.$('[data-pa-go]', pk())?.addEventListener('click', () => { if (sel.size > D.CONFIRM_ABOVE) { phase = { kind: 'sure', plan: phase.plan }; drawBar(); C.$('[data-pa-head]', pk())?.focus(); } else go(); });
       C.$('[data-pa-yes]', pk())?.addEventListener('click', go); }
-    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { tab = b.dataset.tab; redraw(); })); redraw(); }
+    C.$$('.pk-tabs button').forEach(b => b.addEventListener('click', () => { if (tab === b.dataset.tab) return; const sc = C.$('.pk-scroll', pk()), fd = C.$('#pkFeed', pk()), top = sc ? sc.scrollTop : 0, all = sc ? sc.scrollHeight : 0; const h = fd.offsetHeight; tab = b.dataset.tab; fd.style.minHeight = h + 'px'; redraw(); if (sc) { const lack = all - sc.scrollHeight; if (lack > 0) fd.style.minHeight = (h + lack) + 'px'; sc.scrollTop = top; } /* a shorter tab keeps the space and the place (item 1008) */ })); redraw(); }
   C.peekSel = () => ({ size: sel.size, steps: [...sel] });
   /* Esc clears the ticked rows first; the next Esc closes the peek */
   document.addEventListener('keydown', e => { if (e.key !== 'Escape' || !UI.peek || !sel.size || C.popOpen() || document.querySelector('dialog[open]') || (C.sneakIsOpen && C.sneakIsOpen()) || C.askIsOpen()) return; e.preventDefault(); e.stopPropagation(); sel.clear(); phase = null; C.redrawPeek(); }, true);

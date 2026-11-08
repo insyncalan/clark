@@ -234,8 +234,12 @@ def version(root=ROOT):
     return found.group(1)
 
 
+GIT_TIMEOUT = 60     # seconds; git is never waited on for ever (a hang reads as 'git cannot say')
+
+
 def tracked(root, paths):
-    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", *paths], capture_output=True, check=True).stdout
+    out = subprocess.run(["git", "-C", str(root), "ls-files", "-z", "--", *paths], capture_output=True, check=True,
+                         timeout=GIT_TIMEOUT).stdout
     return [p for p in out.decode("utf-8").split("\0") if p]
 
 
@@ -303,11 +307,12 @@ def publish_tool():
 
 def private_paths(root):
     """The paths git tracks in `root` that only the private copy holds (publish_public.is_excluded); None when git
-    cannot say, which the caller treats as private."""
+    cannot say (an error or a timeout), which the caller treats as private. EXCLUDED is the single list and the claim is
+    about what the tree holds, so a wider EXCLUDED is a change to that one list, not here."""
     pub = publish_tool()
     try:
         return [p for p in tracked(root, []) if pub.is_excluded(p)]
-    except (subprocess.CalledProcessError, OSError):
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError):
         return None
 
 

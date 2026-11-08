@@ -33,7 +33,7 @@ import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 
-from clark import ask, ask_apply, ask_data, ask_passages, platform, publish, secret_screen
+from clark import ask, ask_apply, ask_data, ask_passages, pdf_link, platform, publish, reach, secret_screen
 from clark.store import Store, connect
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -49,10 +49,12 @@ MESSAGES = {
     "change_bad_request": "That change could not be read. Nothing was changed. Reload the page and ask again.",
     "no_reply": "That answer's changes are no longer waiting. Nothing was changed. Ask again.",
     "shown_already": "Those changes were shown already. Nothing was changed. Ask again to see them afresh.",
+    "file_unavailable": "That file can't be opened from here.",
     "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
 FIELDS = {"project", "question", "earlier"}
 DRY_FIELDS = {"project", "reply"}
+OPEN_FIELDS = {"project", "file", "page"}
 APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
 MAX_REPLIES = 20
@@ -64,7 +66,7 @@ class AskService:
     """`db_path` is the database; `provider` an ask.Provider (the one provider module's in clark; a stub in tests); `onedrive_roots` as
     the launcher's."""
 
-    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic):
+    def __init__(self, db_path, provider, onedrive_roots=None, *, data_dir=None, home=None, applier=None, clock=time.monotonic, open_pdf=None):
         self.db_path = Path(db_path)
         self.data_dir = Path(data_dir) if data_dir else self.db_path.parent
         self.home = home
@@ -74,6 +76,7 @@ class AskService:
         self.lock = threading.Lock()                 # the store is opened by one question at a time
         self.applier = applier or ask_apply.AskApply(self.db_path, self.onedrive_roots)
         self.clock = clock
+        self.open_pdf = open_pdf or platform.open_pdf_at      # #943: the one thing that starts a viewer (a stub in tests)
         self.replies = {}                            # reply ID -> Held: the changes an answer suggested, kept on the server
         self.replies_lock = threading.Lock()
 
@@ -182,10 +185,56 @@ class AskService:
         texts = {pid: sent[i].text for (pid, _label), i in zip(request.passages, request.kept)}
         held = self.hold(code, reply, request, folder_ids, texts) if reply.changes else None
         return 200, {"ok": True, "answer": reply.answer, "parsed": reply.parsed, "cites": list(reply.cites),
-                     "sources": [{"id": pid, "label": label} for pid, label in request.passages if pid in reply.cites],
+                     "sources": [{"id": pid, "label": label, "page": page_of(sent[i]), "file": file_of(sent[i])}
+                                 for (pid, label), i in zip(request.passages, request.kept) if pid in reply.cites],
                      "flags": [{"kind": f.kind, "ref": f.ref, "message": f.message} for f in reply.flags],
                      "changes": [dict(c) for c in reply.changes], "notes": notes, "reply": held,
                      "left_out_for_safety": found.safety}
+
+    # ----- POST /api/ask/open-source (#943) -----
+    def open_source(self, body):
+        """{project, file, page} -> the PDF `file` (a source's `file`: a name inside one of the project's saved folders) opened at
+        `page` (a whole number, or null for the file alone) in the system's PDF viewer. The name is mapped back to the saved folder
+        here, judged again by reach and pdf_link (a .pdf, no links, inside the folder), and opened only by platform.open_pdf_at.
+        Nothing is read, sent or changed."""
+        if not isinstance(body, dict) or set(body) != OPEN_FIELDS or not isinstance(body["project"], str) or not isinstance(body["file"], str):
+            return 400, self.fail("bad_request")
+        code, name, page = body["project"], body["file"], body["page"]
+        if not PROJECT_CODE.fullmatch(code):
+            return 400, self.fail("bad_project_code")
+        if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
+            return 400, self.fail("bad_request")
+        parts = name.split("/")
+        if len(parts) < 2 or any(p in ("", ".", "..") for p in parts) or "\x00" in name or "\\" in name:
+            return 400, self.fail("file_unavailable")
+        with self.lock:
+            try:
+                store = self.reader()
+            except (sqlite3.Error, OSError, TypeError):
+                return 409, self.fail("busy")
+            try:
+                if store.read("projects", ref=code) is None:
+                    return 404, self.fail("project_not_found")
+                folders = [r["path"] for r in store.read("source_folders", code) if r.get("project", code) == code]
+            finally:
+                store.close()
+        for folder in folders:
+            if Path(str(folder)).name != parts[0]:
+                continue
+            path = Path(str(folder)).joinpath(*parts[1:])
+            try:
+                kind, _why = reach.classify(path, "read", folders, self.data_dir, self.home)
+                url = pdf_link.pdf_url(path, page, folders)
+            except (pdf_link.PdfLinkRefused, OSError, ValueError, RuntimeError):
+                continue
+            if kind != "ordinary":
+                continue
+            try:
+                self.open_pdf(path, url)
+            except platform.PlatformError as e:
+                return 409, self.fail("file_unavailable", str(e))
+            return 200, {"ok": True}
+        return 409, self.fail("file_unavailable")
 
     # ----- the changes an answer suggested, held on the server (#47e) -----
     def hold(self, code, reply, request, folder_ids, texts):
@@ -255,6 +304,18 @@ class Held:
     passages: tuple
     at: float
     shown: bool = field(default=False)
+
+
+def page_of(passage):
+    """#943: the page a passage starts on, as a whole number, or None (page numbers come with #891)."""
+    page = getattr(passage, "page", None)
+    return page if isinstance(page, int) and not isinstance(page, bool) else None
+
+
+def file_of(passage):
+    """#943: the name inside its saved folder of the file a passage came from, or None (project data has no file)."""
+    file = getattr(passage, "file", None)
+    return file if isinstance(file, str) else None
 
 
 def left_out_note(count):
