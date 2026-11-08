@@ -501,5 +501,20 @@ class Table(unittest.TestCase):
                         self.assertLessEqual(self.val("document.documentElement.scrollWidth"), width, "the page does not scroll sideways")
 
 
+    def test_on_dashboard_and_days_headings_are_read_in_full_in_the_scrolled_edit_table(self):
+        # #995 D3 and D4: the heading text must fit between the cell's padding and the eye (when it has one), the table scrolled to its far edge
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.load(width=width, scheme=scheme)
+                    self.go("var s = document.querySelector('.gt-scroll'); s.scrollLeft = s.scrollWidth")
+                    cut = self.val("[...document.querySelectorAll('th[data-k=show], th[data-k=dur]')].map((th) => {"
+                                   " var l = th.querySelector('.gt-hl'), eye = th.querySelector('.gt-eye'), r = th.getBoundingClientRect();"
+                                   " var b = document.createRange(); b.selectNodeContents(l); var t = b.getBoundingClientRect();"
+                                   " var room = (eye ? eye.getBoundingClientRect().left : r.right) - 1;"
+                                   " return {k: th.dataset.k, text: l.textContent, over: Math.round((t.right - room) * 10) / 10, w: Math.round(r.width)}; }).filter((x) => x.over > 0.5)")
+                    self.assertEqual(cut, [], f"nothing cut at {width} {scheme}")
+
+
 if __name__ == "__main__":
     unittest.main()
