@@ -205,7 +205,7 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* Spacing (item 1025): the gaps, paddings and row heights of Work items, per density. Compact is the standard and the fallback for any
    other word, and is exactly the look before this item; Comfortable is one step looser. Type sizes, colours and the 44 px tap targets
    do not change with the density. */
-:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); --d-pk-bar-b: 10px; --d-pk-title-t: var(--space-4); --d-pk-title-b: var(--space-3); --d-pk-row-y: var(--space-2); --d-pk-card: var(--space-3); --d-pk-card-gap: var(--space-2); --d-dlg-y: 20px; --d-dlg-narrow: var(--space-4); --d-dlg-opts: var(--space-2); --d-dlg-opt-y: var(--space-2); --d-dlg-foot: var(--space-4); }
+:root { --d-row-y: 9px; --d-colh-y: var(--space-2); --d-grp-y: 10px; --d-group-gap: var(--space-3); --d-card-gap: var(--space-2); --d-card-row-y: 10px; --d-bcard-y: 7px; --d-colbody-top: 10px; --d-colbody-bottom: 14px; --d-fbar-top: 10px; --d-fbar-gap: 6px; --d-fline-top: 12px; --d-fline-y: 5px; --d-msl-top: 14px; --d-msl-y: 2px; --d-msl-det-y: 6px; --d-uc-strip-b: 10px; --d-uc-bar-y: 6px; --d-uc-detail-b: var(--space-3); --d-pk-bar-b: 10px; --d-pk-title-t: var(--space-4); --d-pk-title-b: var(--space-3); --d-pk-row-y: var(--space-2); --d-pk-card: var(--space-3); --d-pk-card-gap: var(--space-2); --d-dlg-y: 20px; --d-dlg-narrow: var(--space-4); --d-dlg-opts: var(--space-2); --d-dlg-opt-y: var(--space-2); --d-dlg-foot: var(--space-4); --d-blk-callout-y: var(--space-3); --d-blk-contact: var(--space-3); --d-blk-contacts-gap: var(--space-3); --d-blk-cell-y: var(--space-2); --d-blk-date-y: var(--space-2); --d-blk-check-y: 6px; }
 table.items { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: var(--size-small); margin-top: var(--space-2); }
 table.items th { text-align: left; font-weight: var(--weight-regular); font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); padding: var(--d-colh-y) 10px; border-top: 1px solid var(--grey-200); }
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
@@ -458,7 +458,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
 :root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); --d-blk-callout-y: var(--space-4); --d-blk-contact: var(--space-4); --d-blk-contacts-gap: var(--space-4); --d-blk-cell-y: var(--space-3); --d-blk-date-y: var(--space-3); --d-blk-check-y: 10px; }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
@@ -1733,7 +1733,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 
 
 /* G5 typed notes (#96): Callout, Quote, Contacts, Table, as the report and the published file draw them. Tokens only. */
-.tpl-callout { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
+.tpl-callout { margin: var(--space-2) 0; padding: var(--d-blk-callout-y) var(--space-4); border: 1px solid var(--border); border-left-width: 4px; border-radius: var(--radius); background: var(--surface-muted); color: var(--text); overflow-wrap: anywhere; }
 .tpl-callout.tone-info { border-left-color: var(--status-blue); }
 .tpl-callout.tone-decision { border-left-color: var(--status-amber); }
 .tpl-callout.tone-warning { border-left-color: var(--status-red); }
@@ -1748,8 +1748,8 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
 .tpl-quote-q p { margin: 0; }
 .tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
-.tpl-contacts { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-3); }
-.tpl-contact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
+.tpl-contacts { list-style: none; margin: var(--space-2) 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--d-blk-contacts-gap); }
+.tpl-contact { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: var(--d-blk-contact); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); overflow-wrap: anywhere; }
 .tpl-contact-name { font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-contact-role { font-size: var(--size-caption); color: var(--text-muted); }
 .tpl-contact-line { font-size: var(--size-caption); }
@@ -1757,12 +1757,12 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-table-wrap { margin: var(--space-2) 0; max-width: 100%; overflow-x: auto; }
 .tpl-table { width: 100%; border-collapse: collapse; font-size: var(--size-body); }
 .tpl-table caption { caption-side: bottom; padding-top: var(--space-2); text-align: left; font-size: var(--size-caption); color: var(--text-muted); }
-.tpl-table th, .tpl-table td { padding: var(--space-2) var(--space-3); border: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+.tpl-table th, .tpl-table td { padding: var(--d-blk-cell-y) var(--space-3); border: 1px solid var(--border); text-align: left; vertical-align: top; overflow-wrap: anywhere; }
 .tpl-table th { background: var(--surface-muted); color: var(--heading); font-weight: var(--weight-medium); }
 
 /* Section templates, G4 Dates and lists (#96): Key dates and Checklist. Tokens only; status is always in words as well as colour. */
 .tpl-dates { margin: var(--space-2) 0; padding: 0; list-style: none; }
-.tpl-dates-row { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-1) 14px; padding: var(--space-2) 0; border-top: 1px solid var(--grey-200); }
+.tpl-dates-row { display: grid; grid-template-columns: minmax(96px, max-content) minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-1) 14px; padding: var(--d-blk-date-y) 0; border-top: 1px solid var(--grey-200); }
 .tpl-dates-row:first-child { border-top: 0; }
 .tpl-dates-day { font-weight: var(--weight-medium); color: var(--heading); font-variant-numeric: tabular-nums; }
 .tpl-dates-label { min-width: 0; overflow-wrap: anywhere; color: var(--text); }
@@ -1772,7 +1772,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-check { margin: var(--space-2) 0; }
 .tpl-check-count { margin: 0 0 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .tpl-check-list { margin: 0; padding: 0; list-style: none; }
-.tpl-check-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-1) 10px; padding: 6px 0; border-top: 1px solid var(--grey-200); }
+.tpl-check-row { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: baseline; gap: var(--space-1) 10px; padding: var(--d-blk-check-y) 0; border-top: 1px solid var(--grey-200); }
 .tpl-check-row:first-child { border-top: 0; }
 .tpl-check-box { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border: 2px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--status-green-text); font-size: var(--size-caption); line-height: 1; font-weight: var(--weight-semibold); }
 .tpl-check-row.is-done .tpl-check-box { border-color: var(--status-green); background: var(--status-green-tint); }
