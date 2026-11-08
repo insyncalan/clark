@@ -885,7 +885,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* row 880: opening a group, its column names and rows rise 4 px and fade in over --dur-layout (transform and opacity only: no height moves). Edit build only: the published file has no glide. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
+  :root:not([data-motion="reduce"]) thead.opening > tr:not(.grp), :root:not([data-motion="reduce"]) tbody.opening > tr:not(.grp) { animation: m-rise var(--dur-layout) var(--ease-enter) 1; }
 }
 
 /* row 970: a row added to the list rises 4 px and fades in over --dur-state; a deleted row fades out over --dur-instant where it stood (opacity and transform only:
