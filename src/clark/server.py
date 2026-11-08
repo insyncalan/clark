@@ -42,7 +42,7 @@ Routes:
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
 - POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
-- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
+- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
 - POST /api/ask/open-source   {project, file, page|null}: open a saved folder's PDF at a page in the system's viewer (#943; ask_service.py, platform.py)
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
@@ -1081,7 +1081,7 @@ def safety_route(method):
 
 def draft_email_route(seam_name):
     """POST /api/draft-email and /api/draft-email/sent (#50): hand the request to the server's seam of that name, which answers
-    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day; never any text of
+    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day, and the one History sentence the server composes; never the address or the body of
     the email). With no seam there is nothing to ask: not found. Checked like change_route before this runs (token, Host, Origin,
     JSON only, a Content-Length, the route's own limit)."""
     def route(handler, req):
