@@ -187,9 +187,11 @@ class Tab(unittest.TestCase):
     def test_clark_asking_for_the_second_confirm_counts_as_a_problem_when_another_project_is_chosen(self):      # #944 follow-up
         done = self.alter(26)
         real = self.s.httpd.undo
+        asked = []
 
         def asks(req):
             if req.get("confirm"):
+                asked.append(1)
                 time.sleep(1)                                        # still in the queue when the other project is chosen
                 return 409, {"ok": False, "code": "confirm", "message": "Are you sure?"}
             return real(req)
@@ -204,7 +206,8 @@ class Tab(unittest.TestCase):
             cdp.js("document.querySelector('[data-pa-go]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('[data-pa-yes]')", "asks again")
             cdp.js("window.__before = 1; document.querySelector('[data-pa-yes]').click(); clarkPage.setProject('MOSS')", sid)
-            time.sleep(3)
+            self.assertTrue(wait(lambda: asked, 10), "the second confirm reached clark")
+            time.sleep(3)              # the proof is that no page load follows the answer: a bounded settle, after the real condition
             self.assertEqual(cdp.js("window.__before", sid), 1, "the same page: clark asking first is no save")
             self.assertEqual(cdp.js("location.search + '|' + document.getElementById('project-name').textContent", sid), "?project=TUL|Tulip Records Migration")
 
