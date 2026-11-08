@@ -141,8 +141,9 @@ class Base(unittest.TestCase):
             return cdp.js("[...document.querySelectorAll('#work [data-lay][aria-pressed=true]')].map(b => 'layout:' + b.dataset.lay)", sid)
         return [k for k, _, c in self.view_items(cdp, sid) if k.startswith(prefix) and c == "true"]
 
-    def until(self, cdp, sid, expr, what="", secs=30):
-        self.assertTrue(wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs), f"timed out waiting for {what or expr}")
+    def until(self, cdp, sid, expr, what="", secs=30, why=None):
+        ok = wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs)
+        self.assertTrue(ok, f"timed out waiting for {what or expr}" + (f"; the page showed: {why()}" if why else ""))
 
     def reload(self, cdp, sid):
         reload_to_new_page_cdp(cdp, sid, "document.documentElement.dataset.ready === '1' && !!document.querySelector('#work-list')", "the page after a reload", 30)
