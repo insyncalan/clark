@@ -50,6 +50,8 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 .frame h1 { margin: 0 0 var(--space-3); font-size: var(--size-h1); line-height: 1.2; font-weight: var(--weight-medium); color: var(--heading); }
 /* The report's cover band (A-D1): navy, full width of the frame, the name, the kind of report, the week and the client. */
 .cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.cover { position: relative; overflow: hidden; isolation: isolate; }      /* row 1003: the brand picture is laid behind the band, filling it (the prototype's cover::before); --image-cover is none without an own look, so the plain band is unchanged */
+.cover::before { content: ""; position: absolute; inset: 0 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .85; }
 .frame .cover h1 { margin: 0 0 6px; color: var(--white); }
 .cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
