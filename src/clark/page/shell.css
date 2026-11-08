@@ -2234,3 +2234,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 [data-gt] .gt-menu button.gt-danger { color: var(--status-red-text); }
 [data-gt] .gt-menu hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
 .ddmenu, .menu, .cpop, .flist { border-color: var(--menu-border); }   /* last in the file, so it wins over each menu's own `border: 1px solid var(--border)` */
+/* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
+@media (max-width: 640px) {
+  table.pp-table { table-layout: fixed; }
+  .set-chip { min-height: 44px; }
+  .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"], .ddmenu [role="menuitemradio"].hp { min-height: 44px; display: flex; align-items: center; }
+}

@@ -1019,3 +1019,16 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 
 /* Settings › Brands review panel: the plain label first, the file's name small and grey after it. Tokens only. */
 .brand-file { font-size: var(--size-small); color: var(--text-muted); margin-left: 4px; }
+/* sweep c7: the edit rows' owner and due wording wrap inside the window, and the use case link and eye are 44 px to tap */
+@media (max-width: 640px) {
+  .item-rows-edit .wl-meta .cell-val { flex-wrap: wrap; min-width: 0; }
+  .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
+  .ucl-go { min-height: 44px; display: flex; align-items: center; }
+  .ucl-eye { width: 44px; height: 44px; }
+  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 44px; gap: 4px 10px; }
+  .ucl-row > .ucl-name { grid-column: 2; }
+  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2; justify-self: start; }
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1 / span 3; align-self: start; justify-self: end; }
+  .ucl-row > .ucl-ref { grid-row: 1; }
+  .ucl-hd { display: none; }
+}
