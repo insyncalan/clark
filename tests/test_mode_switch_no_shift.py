@@ -21,13 +21,14 @@ MEASURE = """(() => {
 
 NEAREST = """(() => {
   const line = document.querySelector('.top').getBoundingClientRect().bottom;
-  let best = null, most = 0;
+  let best = null, most = 0, below = null;
   for (const e of document.querySelectorAll('.secs > .sec:not(.is-hidden)')) {
     const r = e.getBoundingClientRect(); const seen = Math.min(r.bottom, innerHeight) - Math.max(r.top, line);
     if (seen >= 64) return [e.dataset.id, r.top];
     if (seen > most) { most = seen; best = [e.dataset.id, r.top]; }
+    if (!below && r.top >= line) below = [e.dataset.id, r.top];
   }
-  return best;
+  return best || below;
 })()"""
 
 
@@ -77,6 +78,39 @@ class NoShift(Setup):
                 with self.subTest(page=label, at=frac):
                     for step, near, moved, before, after in self.one(1400, False, frac, via_key=True, tall=tall):
                         self.assertLessEqual(moved, 1, f"{step} by key: {near} moved {moved}px")
+
+    def test_a_hidden_section_nearest_the_top_does_not_move_the_one_after_it(self):
+        """Row 699: Edit draws a hidden section dimmed and View drops it. With one at the top of the screen, switching to View must hold
+        the next section that stays in View where it was, not shift the page by the height of the dimmed one."""
+        rows = self.store.read("report_sections", "ABC")
+        with self.store.step("dashboard", "test") as st:
+            for r in [r for r in rows if r["type"] != "glance"][1:4]:
+                st.update("report_sections", r["id"], {"hidden": 1})
+        with chrome() as cdp:
+            p = self.show(cdp, 1400, False)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 700, "deviceScaleFactor": 1, "mobile": False}, p.sid)      # View keeps room to scroll
+            p.edit()
+            p.js("new Promise(r => setTimeout(r, 300))")
+            ids = p.js("[...document.querySelectorAll('.secs > .sec.is-hidden')].map(e => e.dataset.id)")
+            self.assertTrue(ids, "Edit draws a hidden section")
+            for hid in ids:
+                with self.subTest(hidden=hid):
+                    p.js(f"(() => {{ const e = document.querySelector('.secs > .sec[data-id=\"{hid}\"]'); const bar = document.querySelector('.top').getBoundingClientRect().bottom; window.scrollBy(0, e.getBoundingClientRect().top - bar - 8); }})()")
+                    p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+                    near = p.js(NEAREST)
+                    b4 = p.js(MEASURE)
+                    self.assertNotIn(near[0], ids, "the section held is one that stays in View")
+                    p.view()
+                    p.js("new Promise(r => setTimeout(r, 300))")
+                    m = p.js(MEASURE)
+                    if os.environ.get("PROBE"):
+                        print(hid, near, b4["y"], b4["h"], m["y"], m["h"])
+                    after = dict((s[0], s[1]) for s in m["secs"])
+                    if m["y"] == 0 and after[near[0]] < near[1]:
+                        continue            # View is shorter and the page cannot scroll above its top: nothing can hold it
+                    self.assertLessEqual(abs(after[near[0]] - near[1]), 1, f"{near[0]} moved with {hid} hidden at the top")
+                    p.edit()
+                    p.js("new Promise(r => setTimeout(r, 300))")
 
 
 if __name__ == "__main__":
