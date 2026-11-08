@@ -18,7 +18,7 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import page, server as sv  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_server import CHROME, Running, chrome, wait  # noqa: E402
-from test_work_filters import set_line  # noqa: E402
+from test_work_filters import arm, set_line  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
@@ -64,6 +64,7 @@ class ListAndError(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-input')", sid)), "the filter line drew")
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         set_line(cdp, sid, text)      # a real click and real typing, then the pause after which the list follows the box
+        arm(cdp, sid)                 # row 931: and Space, which opens the list
         self.assertTrue(wait(lambda: bool(cdp.js("(document.querySelector('#fline-msg') || {}).textContent", sid)) == want_message), "the message line settled")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         return json.loads(cdp.js(BOXES, sid))

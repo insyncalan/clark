@@ -25,7 +25,7 @@ import test_bulk_bar as bb  # noqa: E402
 import test_use_cases_list as ucl  # noqa: E402
 from test_row_menu import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import arm, click  # noqa: E402
 
 SRC = ROOT / "src/clark/page/src"
 read = lambda p: (SRC / p).read_text(encoding="utf-8")   # noqa: E731
@@ -109,6 +109,7 @@ class Live(rm.Menu):
                 d = self.drive(cdp, sid)
                 click(cdp, sid, "#fline-input")
                 cdp.js("document.querySelector('#fline-input').select()", sid)
+                arm(cdp, sid)                                           # row 931: the list follows Space
                 cdp.call("Input.insertText", {"text": "s"}, sid)
                 d.until("!!document.querySelector('#fline-list')", "the list")
                 d.fades(motion, lambda: key(cdp, sid, "Escape"), ".flist.leaving")

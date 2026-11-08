@@ -223,6 +223,26 @@ class Editor(unittest.TestCase):
             self.cdp = cdp
             self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
 
+    def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up: a refusal the box shows is a problem too
+        self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
+        with chrome() as cdp:
+            self.visit(cdp, "?project=ABC#dashboard&p=ABC")
+            self.edit()
+            ref = self.store.data_for("ABC")["actions"][0]["id"]
+            self.js("window.__before = 1")
+            self.js(f"clarkPage.openPeek('{ref}', 'item')")
+            self.until("!!document.querySelector('[data-pk-latest-text]')", "the peek drew")
+            self.js("document.querySelector('[data-pk-latest-text]').click()")
+            self.until("document.activeElement.hasAttribute('data-pk-latest-in')", "the box is open")
+            self.cdp.call("Input.insertText", {"text": "Typed, then refused"}, self.sid)
+            self.js("clarkPage.setProject('XYZ')")
+            self.assertTrue(wait(lambda: "change" in self.sent, 10), "the box's change was sent, and refused")
+            time.sleep(1.5)
+            self.assertEqual(self.js("window.__before"), 1, "the same page")
+            self.assertEqual(self.js("clarkPage.project()"), "ABC")
+            self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
+            self.assertEqual(self.js("(document.querySelector('[data-pk-latest-err]') || {textContent: ''}).textContent"), "That change could not be made, and nothing was changed. Reload the page and try again.", "the box says why")
+
     def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
         self.slow = 11
         with chrome() as cdp:
