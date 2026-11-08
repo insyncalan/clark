@@ -965,6 +965,30 @@ class Line(unittest.TestCase):
                     self.arm(cdp, sid)
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 1), "Space opens the fields")
 
+    def test_the_view_name_form_gives_the_focus_back_when_it_closes(self):
+        """The form's input is removed when it closes; focus goes back to the button that opened it, not to the top of the page."""
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            for how in ("Escape", "#vcancel", "Enter"):
+                click(cdp, sid, "#viewNew")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
+                if how == "Enter":
+                    self.type(cdp, sid, "Back focus")
+                    key(cdp, sid, "Enter")
+                elif how == "Escape":
+                    key(cdp, sid, "Escape")
+                else:
+                    cdp.js("document.querySelector('.vform .btn.sm[type=button]').click()", sid)
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#vname')", sid)), "the form closed")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), f"{how}: the focus is on + New view")
+            click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
+            click(cdp, sid, "#viewTabMenu")
+            click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewTabMenu"), "a rename gives the focus back to the tab's menu button")
+
     def test_the_list_opens_after_space_or_arrow_down_and_closes_on_a_choice_or_escape_row_931(self):
         s = self.serve()
         with chrome() as cdp:
