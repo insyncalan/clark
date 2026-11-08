@@ -375,7 +375,10 @@ test_publish_public_slow.py 148.1
 test_publish_ring.py 15.1
 test_publish_route.py 138.7
 test_publish_scan_budget.py 97.9
-test_publish_scan_gaps.py 333.3
+test_publish_scan_brand.py 13.1
+test_publish_scan_foreign.py 103.5
+test_publish_scan_gaps.py 110.8
+test_publish_scan_gaps_more.py 110.8
 test_publish_scan_linear.py 39.3
 test_publish_scan_time.py 430.2
 test_publish_section_bodies.py 23.4
