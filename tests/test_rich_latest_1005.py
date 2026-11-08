@@ -203,8 +203,8 @@ class PlainReaders(Base):
         self.assertEqual(history.shown_value("milestones", "description", "<p>x</p><p>y</p>"), "x\ny")
 
     def test_the_card_words_are_the_words_of_either_kind(self):
-        self.assertEqual(raid3._words({"source": "latest"}, {"latest_update": "<p>Done &amp; dusted</p>"}), "Done & dusted")
-        self.assertEqual(raid3._words({"source": "latest"}, {"latest_update": "old < new"}), "old < new")
+        # the pure template reads what publish hands it as words (publish.py converts; test_tpl_raid3 pins the published file for both kinds)
+        self.assertEqual(raid3._words({"source": "latest"}, {"latest_update": "Done & dusted"}), "Done & dusted")
 
     def test_the_client_filters_read_the_words(self):
         row = client_filters._row("action", {"id": "ABC-A-001", "description": "t", "latest_update": "<p>Moved &amp; fixed</p>"}, "2026-10-29")
