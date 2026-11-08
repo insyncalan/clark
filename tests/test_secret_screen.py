@@ -301,6 +301,23 @@ class Screen(unittest.TestCase):
         self.assertIsNone(secret_screen._plain(many))
         self.assertFalse(secret_screen.looks_like_secret(coded(many)))
 
+    def test_a_key_word_then_a_line_break_with_no_space_then_a_quoted_word_is_accepted_plain_and_in_base64(self):
+        """#582, a known gap accepted in writing: `password`, a line break with no space or tab before it, then a quoted word passes as plain
+        text (it did on main before #340), so its base64 passes too. With a space or tab before the break it is refused, plain and in base64."""
+        import base64
+
+        def b64(text):
+            return base64.b64encode(text.encode()).decode()
+        for text in ("pass" + 'word\n"orangebicycle"', "pass" + 'word\r\n"orangebicycle"', "api key" + '\n"orangebicycle"', "my pass" + 'word\n\n"orangebicycle"'):
+            with self.subTest("accepted " + repr(text)):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+                self.assertFalse(secret_screen.looks_like_secret(b64(text)))
+                self.assertFalse(secret_screen.looks_like_secret("Notes.\n" + b64("so we know " + text + " in full") + "\n(more notes)"))
+        for text in ("my pass" + 'word \n"orangebicycle"', "my pass" + 'word\t\n"orangebicycle"', "pass" + 'word: \n"orangebicycle"'):
+            with self.subTest("refused " + repr(text)):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+                self.assertTrue(secret_screen.looks_like_secret(b64(text)))
+
     def test_the_three_prose_texts_the_old_random_guess_caught_in_base64_are_allowed_as_they_are_plain(self):
         """A known gap, accepted in writing: these pass as plain text, so they pass as base64 too (the base64 of prose with a space is
         read as the text it is, not guessed at as a random key). A change that refuses them again must change this test on purpose."""
