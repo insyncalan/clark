@@ -13,6 +13,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from _editor_checks import for_project
 from unittest import mock
 
 from _demo import USER, DemoStore
@@ -121,7 +122,7 @@ class PageGate(unittest.TestCase):
             st.update("report_sections", self.sec, {"body": ORIGINAL})
 
     def edit(self, cdp, s):
-        sid = navigate(cdp, s.port, "#dashboard&p=ABC")
+        sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         self.assertTrue(wait(lambda: js("document.querySelectorAll('.sec').length > 0"), 15))
         js("document.querySelector('[data-mode=edit]').click()")
@@ -131,7 +132,7 @@ class PageGate(unittest.TestCase):
     def test_only_the_three_text_sections_have_a_rich_field_and_only_in_edit(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
-            sid = navigate(cdp, s.port, "#dashboard&p=ABC")
+            sid = navigate(cdp, s.port, for_project("#dashboard&p=ABC"))
             js = lambda e: cdp.js(e, sid)  # noqa: E731
             self.assertTrue(wait(lambda: js("document.querySelectorAll('.sec').length > 0"), 15))
             self.assertEqual(js("document.querySelectorAll('.ProseMirror, [data-rich]').length"), 0, "View has no rich field")
