@@ -264,6 +264,10 @@ class Ui(unittest.TestCase):
         self.assertTrue(self.h.until("!!document.querySelector('.rt-bubble')"))
         self.h.ev("document.querySelector('.rt-bubble [aria-label=Bold]').click(); true")
         self.assertTrue(self.h.until("!!document.querySelector('.ProseMirror strong')"))
+        # The Bold command hands the focus back to the text a frame later, which puts the old selection back on the page. A key sent
+        # before that frame is undone by it (about 4 runs in 100), so wait two frames, then press.
+        self.h.ev("window.settled = false; requestAnimationFrame(() => requestAnimationFrame(() => { window.settled = true; })); true")
+        self.assertTrue(self.h.until("window.settled === true"))
         self.h.key("ArrowRight", 0, "ArrowRight", 39, commands=["moveRight"])
         self.assertTrue(self.h.until("!document.querySelector('.rt-bubble')"))
 

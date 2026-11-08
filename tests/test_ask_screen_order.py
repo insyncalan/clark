@@ -27,6 +27,8 @@ class Rows(route.Base):
             with store.step("dashboard", "tester", place="menu") as s:
                 row = {"project": route.CODE, "description": "Order the ZQ-SCREEN-ROW chairs", "raised": "2026-10-01",
                        "source": "demo", field: update, **(extra or {})}
+                if field != "client_message" and "client_message" not in row:
+                    row["client_message"] = "A note for the client"      # row 560: the update is shared only for a row with client wording
                 s.create(kind, row)
         finally:
             store.close()
