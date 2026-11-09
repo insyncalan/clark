@@ -263,9 +263,9 @@ class Edit(Setup):
                     p = self.edit(cdp, width, dark)
                     p.js("document.querySelector('[data-uc-eye=\"%s\"]').click()" % self.uc2)
                     p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
-                    p.js("document.activeElement && document.activeElement.blur()")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 1.2 taken off the page.'", "the toast")
                     p.until("document.getAnimations().length === 0", "the toast finished arriving")
+                    p.js("document.activeElement && document.activeElement.blur()")      # after the page has settled: focus is dropped just before Undo
                     p.js("document.querySelector('[data-undo]').click()")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Undone: Use case 1.2 taken off the page.'", "Undo names the use case")
                     p.until("document.getAnimations().length === 0", "the animations ended before focus is read")
