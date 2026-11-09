@@ -176,9 +176,20 @@ class Cards(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            p.js("Storage.prototype.setItem = function () { throw new Error('storage is blocked'); }")
+            for domain in ("Runtime", "Log"):
+                cdp.call(domain + ".enable", {}, p.sid)
+            p.js("window.__tried = 0; Storage.prototype.setItem = function () { window.__tried++; throw new Error('storage is blocked'); }")
+            cdp.events.clear()
             p.js("document.querySelector('#personal input[name=density][value=comfortable]').click()")
-            p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once, with no error")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once")
+            time.sleep(0.3)                     # let a late error or an unhandled rejection arrive
+            p.js("1")                           # reads any waiting events
+            errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
+                      if e["method"] == "Runtime.exceptionThrown"
+                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error")
+                      or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
+            self.assertEqual(errors, [], "no uncaught exception and no console error")
+            self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")
             self.assertEqual(self.chosen(p), ["comfortable"])
             self.assertEqual(p.js("localStorage.getItem('clark.density')"), None, "nothing was kept")
             p.js("window.__before = 1; location.reload()")
