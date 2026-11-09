@@ -172,6 +172,19 @@ class Cards(Base):
 
         self.each_look(check)
 
+    def test_C_when_the_browser_will_not_remember_the_choice_still_applies_now_and_is_not_kept(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("Storage.prototype.setItem = function () { throw new Error('storage is blocked'); }")
+            p.js("document.querySelector('#personal input[name=density][value=comfortable]').click()")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once, with no error")
+            self.assertEqual(self.chosen(p), ["comfortable"])
+            self.assertEqual(p.js("localStorage.getItem('clark.density')"), None, "nothing was kept")
+            p.js("window.__before = 1; location.reload()")
+            settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
+            settled(p, "document.documentElement.dataset.density === 'compact'", "back to Compact, the default")
+
     def test_C_the_drawings_differ_and_can_be_seen(self):
         def check(p, w, look):
             shapes = p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => {{ const r = i.getBoundingClientRect(), t = c.querySelector('.secpick-pic').getBoundingClientRect().top; const s = getComputedStyle(i); return [Math.round(r.top - t), Math.round(r.height), s.backgroundImage !== 'none']; }}).join('|'))")
@@ -339,9 +352,11 @@ class Cards(Base):
                 f.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.secs .sec')", "the file drew")
                 drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [document.documentElement.dataset.density,"
                                    " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
+                drawn[pick + "-stored"] = f.js("localStorage.getItem('clark.density')")
         self.assertEqual(drawn["compact"][0], "compact")
         self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word slim")
         self.assertGreater(drawn["comfortable"][1], drawn["compact"][1], "its sections have more room above and below")
+        self.assertEqual((drawn["compact-stored"], drawn["comfortable-stored"]), (None, None), "a published file never remembers its density as a reader's choice")
         self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, False), "Compact sections run on flat, Comfortable ones are cards")
 
     def test_the_reading_of_a_files_word_is_slim_for_comfortable_and_compact_for_the_rest(self):
