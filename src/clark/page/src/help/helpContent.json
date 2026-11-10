@@ -2866,6 +2866,39 @@
     "howto-undo-a-mistake",
     "ref-profile-circle"
    ]
+  },
+  {
+   "id": "the-brand-kit-guide",
+   "t": "The brand kit guide",
+   "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
+   "steps": [
+    {
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. No file name is required."
+    },
+    {
+     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
+    },
+    {
+     "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."
+    },
+    {
+     "d": "Press **Choose zip…** and pick the kit, or press **Review the brand in Downloads** to read the newest zip in your Downloads folder."
+    },
+    {
+     "d": "Read the review. It lists what the kit adds, replaces or removes. Nothing changes yet."
+    },
+    {
+     "d": "Press **Install** for a new brand, or **Replace** for one already added. Press **Cancel** to stop with nothing changed."
+    },
+    {
+     "d": "To go back, press **Undo** to put back what the last install, replace or remove changed, or press **Remove** on the brand to return to the default look."
+    }
+   ],
+   "result": "The brand's colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-profile-circle"
+   ]
   }
  ],
  "pictures": [
