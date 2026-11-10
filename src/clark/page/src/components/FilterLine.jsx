@@ -66,7 +66,7 @@ function SavedViews({ board }) {
   const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "saveas" | "rename" | "delete" | "note", name, error}
+  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "delete" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
   const mine = chosen.value[code];
   const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const active = shown.find((v) => v.id === mine) || matching;
@@ -93,7 +93,12 @@ function SavedViews({ board }) {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
-    else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
+    else if (id === "saveas") {          // row 1073: made at once, named View 1, View 2 ...; Rename… changes the name
+      const r = FL.addView(all, FL.nextViewName(all), line.trim());
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(code, r.views);
+      chosen.value = { ...chosen.value, [code]: r.id };
+    }
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
@@ -111,10 +116,9 @@ function SavedViews({ board }) {
       if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; closeForm(); } else setForm({ ...form, error: r.message });
       return;
     }
-    const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
+    const r = FL.renameView(all, active.id, form.name);
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
-    if (form.mode === "saveas") chosen.value = { ...chosen.value, [code]: r.id };
     closeForm();
   };
   // The name box takes focus once the menu has given focus back to its button (it does that in an effect of its own, so we go a moment later).
@@ -177,7 +181,7 @@ function SavedViews({ board }) {
             </>
           ) : form.mode === "note" ? null : (
             <>
-              <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
+              <label for="vname">New name for this view</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
               <button type="submit" class="btn sm" id="vsave">Save</button>
             </>
