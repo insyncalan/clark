@@ -469,8 +469,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucd-item .pill.g::before { background: var(--tone-green-text); }
 .ucd-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucd-item .pill.b::before { background: var(--tone-blue-text); }
 .ucd-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucd-item .pill.n::before { background: var(--tone-grey-text); }
-.ucd-t { min-width: 0; overflow-wrap: anywhere; }
-.ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; overflow-wrap: anywhere; }
+.ucd-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-foot { margin: 0; }
 .ucd-foot .link { font-size: var(--size-body); }
 .ucd-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 0; }

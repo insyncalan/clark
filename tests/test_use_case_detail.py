@@ -722,9 +722,59 @@ class Detail(unittest.TestCase):
                         self.assertTrue(r["one"], f"{r['id']}: the id, title, chip and owner and due sit on one line at {width}")
                         self.assertTrue(r["ordered"], f"{r['id']}: id, title, chip, then owner and due")
                         self.assertTrue(r["muted"], f"{r['id']}: owner and due are muted like the id")
-                        self.assertLess(r["h"], 60, r["id"])
+                        self.assertLess(r["h"], 48, r["id"])
                         if r["word"] in want:
                             self.assertEqual([r["fg"], r["bg"]], tones[want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone")
+
+    def _uc_items(self):
+        data = self.read("TUL")
+        return [(k, r) for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC]
+
+    def test_hostile_a_huge_unbroken_unicode_title_keeps_one_line_and_no_sideways_scroll_row_1081(self):
+        """Hostile row 1081: a 600-character title with no spaces, RTL and emoji must not wrap the row to many lines or push the page sideways."""
+        kind, row = next((k, r) for k, r in self._uc_items() if k == "actions")
+        with self.store.step("dashboard", USER) as st:
+            st.update(kind, row["id"], {"description": ("\u202e\u05e9\u05dc\u05d5\u05dd\U0001F525" + "W" * 600)})
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    m = cdp.js("(() => { const b = document.querySelector('[data-item=' + JSON.stringify(%s) + ']'); const r = b.getBoundingClientRect();"
+                               " return {h: r.height, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth}; })()" % json.dumps(row["id"]), sid)
+                    self.assertLessEqual(m["sw"], m["cw"], "no sideways scroll")
+                    self.assertLess(m["h"], 48, "ONE line per item: a long title is cut, it does not make the row many lines tall")
+
+    def test_hostile_markup_in_a_title_is_text_and_a_closed_item_takes_the_blue_tone_row_1081(self):
+        """Hostile row 1081: <img onerror> in a title shows as text, never an element; a Closed item has the blue chip, in both schemes."""
+        items = self._uc_items()
+        with self.store.step("dashboard", USER) as st:
+            for k, r in items:
+                if k == "actions":
+                    st.update(k, r["id"], {"description": "<img src=x onerror=window.__pwn=1><b>bold</b>", "status": "Closed"})
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                self.assertFalse(cdp.js("!!window.__pwn || !!document.querySelector('.ucd-item img, .ucd-item b')", sid), "markup in a title is text")
+                blue = cdp.js("(() => { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-blue-text);background:var(--tone-blue-tint)'; document.body.appendChild(e); const c = getComputedStyle(e); return [c.color, c.backgroundColor]; })()", sid)
+                for b in cdp.js("[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor}; })", sid):
+                    if b["word"] == "Closed":
+                        self.assertEqual([b["fg"], b["bg"]], blue, f"{b['id']} Closed is blue")
+
+    def test_hostile_an_archived_work_item_is_not_listed_and_enter_opens_the_peek_row_1081(self):
+        """Hostile row 1081: an archived work item is not on the card; only this use case's items are; Enter on a row opens the peek."""
+        items = self._uc_items()
+        kind, row = items[0]
+        with self.store.step("dashboard", USER) as st:
+            st.archive(kind, row["id"])
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, 1400, "light", edit=False)
+            ids = cdp.js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)", sid)
+            self.assertNotIn(row["id"], ids, "an archived item is not on the card")
+            self.assertTrue(set(ids) <= {r["id"] for _k, r in items}, "only this use case's items")
+            if ids:
+                cdp.js("document.querySelector('[data-item]').focus()", sid)
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, "!!document.querySelector('.peek, [data-peek], [data-sneak-open]')", "Enter opens the peek")
 
     def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
         data = self.read("TUL")
