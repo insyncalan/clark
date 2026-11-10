@@ -9,7 +9,8 @@ published file and the printed page always show the FULL name.
 """
 import unittest
 
-from test_item_one_line import Base, FITS, ROWS, width, wait, chrome, Pg
+from test_item_one_line import Base, FITS, ROWS, width, Pg
+from test_server import chrome, wait
 
 WIDTHS = (900, 1400)
 PRINT_WIDTH = 703        # an A4 page between its 12 mm side margins, as CSS px: what the print media rules see
