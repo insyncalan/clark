@@ -21,6 +21,7 @@ MAX_PATH = 1000                             # the rule settings.set_backup_copy_
 WORDS = {
     "cant_save": "That folder could not be saved. Try Choose folder again; if it keeps happening, close clark and start it again. "
                  "Nothing was changed.",
+    "not_a_folder": "That isn't a folder on this computer. Nothing was changed.",
 }
 
 
@@ -85,10 +86,14 @@ class Setup:
         return self.report(folder)
 
     def accept(self, answer):
-        """The folder `answer` names if it passes, else Refused. The answer is untrusted text; nothing is written here."""
+        """The folder `answer` names if it passes, else Refused. The answer is untrusted text; nothing is written here. A refusal
+        names the answer, never the folder now in use (that one was not refused); an answer that is not a path at all is refused
+        in words that name nothing (it may be anything, any length, any character)."""
         path = _plain_path(str(answer) if isinstance(answer, Path) else answer)
-        if path is None or path.is_symlink() or not path.is_dir():
-            raise Refused("folder_refused", doctor.cant_save_line(self.seen(path or self.folder)).words)
+        if path is None:
+            raise Refused("folder_refused", WORDS["not_a_folder"])
+        if path.is_symlink() or not path.is_dir():
+            raise Refused("folder_refused", doctor.cant_save_line(self.seen(path)).words)
         try:
             resolved = platform.check_data_dir(path, self.onedrive_roots() if self.onedrive_roots else platform.onedrive_roots(
                 self.home, on=self.on))
