@@ -334,7 +334,8 @@ class E2E(unittest.TestCase):
         br.snap("toast-with-undo")
         br.js("[].find.call(document.querySelectorAll('.toasts button'), function(b){return /Undo/.test(b.textContent)}).click()")
         self.assertTrue(wait(lambda: len(self.lines()) == count), "the toast's Undo removed it")
-        # a reload keeps everything
+        # a reload keeps everything (the page may still draw the removed line a beat after the server dropped it)
+        br.until("document.querySelectorAll('[data-g-row]').length === %d" % count, "the page dropped the undone line")
         shown = br.js("[].map.call(document.querySelectorAll('[data-g-row] .gt-nm'), function(e){return e.value||e.textContent}).join('|')")
         br.visit(self.base + f"#gantt&p={CODE}")
         br.until("document.querySelector('[data-g-row]')", "the Gantt page after a reload")

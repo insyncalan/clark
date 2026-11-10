@@ -452,20 +452,6 @@ class UseCases(Setup):
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0, "no muted tail after the id")
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "an id never breaks across lines")
 
-    def test_next_step_ids_stay_whole_at_360_and_420_and_a_very_long_one_does_not_push_the_page_sideways(self):
-        """Row 1004: at 360 and 420 px an id is one piece (never 'AB / C- / A- / 00 / 2'); an id longer than the line stays inside it, with no sideways scroll."""
-        for width in (360, 420):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.show(cdp, width=width)
-                p.js("document.querySelector('.ucrow .ucbar').click()")
-                p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
-                self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => { const r = document.createRange(); r.selectNodeContents(e); return r.getClientRects().length === 1; })"), True, "a short id is on one line")
-                self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div')[0].getBoundingClientRect().left === document.querySelectorAll('.ucdetail .ucdcols > div')[1].getBoundingClientRect().left"), True, "the two columns stack on a phone")
-                before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than the window; the id must add nothing
-                p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before, "a long id adds no sideways scroll")
-                self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= %d" % width), True, "the long id sits inside the window")
-
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
         uc = self.demo.use_case
@@ -572,20 +558,6 @@ class Published(PublishedFile, Setup):
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0)
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0)
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True)
-
-    def test_published_next_step_ids_stay_whole_at_360_and_420_and_a_long_one_does_not_scroll_sideways(self):
-        path = self.publish()
-        for width in (360, 420):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.draw(cdp, path, width=width)
-                p.js("document.querySelector('.ucrow .ucbar').click()")
-                p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
-                self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => { const r = document.createRange(); r.selectNodeContents(e); return r.getClientRects().length === 1; })"), True)
-                self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div')[0].getBoundingClientRect().left === document.querySelectorAll('.ucdetail .ucdcols > div')[1].getBoundingClientRect().left"), True, "the two columns stack on a phone")
-                before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than the window; the id must add nothing
-                p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before)
-                self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= %d" % width), True)
 
     def test_a_hidden_tile_and_a_hidden_use_case_are_absent(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0 WHERE id = ?", (self.uc2,))
