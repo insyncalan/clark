@@ -84,8 +84,8 @@ export function zoneName(zone, at) {
   } catch (e) { return ""; }
 }
 
-// Where a publication went, in the page's words: the server says "Local", "Local and to client", with " · Word" for a Word copy.
-const wentTo = (where) => (typeof where === "string" ? (where.startsWith("Local and to client") ? "Local folder, Client folder" : "Local folder") : "Local folder");
+// Where a publication went, in the page's words: the server says "Local", "Local and to client", with " · Word" for a Word copy; any other value is not a destination the page knows, so it says "Not recorded".
+const wentTo = (where) => (typeof where === "string" && where.startsWith("Local and to client") ? "Local folder, Client folder" : typeof where === "string" && /^Local( |$)/.test(where) ? "Local folder" : NOT_RECORDED);
 const filesOf = (p) => (p.word === true ? "Word" : p.pdf === true ? "Page, PDF" : "Page");
 
 // A list row as it is drawn.

@@ -380,6 +380,28 @@ class Card(InBrowser):
         self.click("[data-pubs-again]")
         self.assertTrue(self.present("#pubs-table"))
 
+    def test_row_1087_a_destination_the_server_does_not_say_is_not_called_a_local_folder(self):
+        # past_reports.py says "Local" or "Local and to client", with " · Word" after either; anything else is not a destination the page knows.
+        self.assertEqual(self.val("['Local', 'Local · Word', 'Local and to client', 'Local and to client · Word'].map(w => T.logic.rowView({number: 1, where: w}).went)"),
+                         ["Local folder", "Local folder", "Local folder, Client folder", "Local folder, Client folder"])
+        self.assertEqual(self.val("['Somewhere else', '', null, 7, undefined].map(w => T.logic.rowView({number: 1, where: w}).went)"), ["Not recorded"] * 5)
+
+    def test_row_1087_the_intro_is_readable_on_the_cover_band_at_1400_and_900_in_light_and_dark(self):
+        probe = """(() => { const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
+          const lum = (c) => { const [r, g, b] = rgb(c).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); }); return .2126 * r + .7152 * g + .0722 * b; };
+          const i = document.querySelector('#pubs-page .pubs-intro'), t = document.querySelector('#pubs-page .cover h1'), band = getComputedStyle(document.querySelector('#pubs-page .cover')).backgroundColor;
+          const a = lum(getComputedStyle(i).color), b = lum(band);
+          return {intro: getComputedStyle(i).color, title: getComputedStyle(t).color, ratio: (Math.max(a, b) + .05) / (Math.min(a, b) + .05)}; })()"""
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(list=OK(LIST), tab=True)
+                    self.mount()
+                    got = self.val(probe)
+                    self.assertEqual(got["intro"], got["title"], "the intro is the cover title's colour")
+                    self.assertGreaterEqual(got["ratio"], 4.5, "readable on the band")
+
     def test_hostile_text_in_a_row_is_drawn_as_text(self):
         evil = '<img src=x onerror="window.pwned = 1">'
         self.replies(list=OK({**LIST, "publications": [{**ROWS[0], "who": evil, "where": evil, "week": evil, "at": evil}, {**ROWS[1], "who": evil}]}))
