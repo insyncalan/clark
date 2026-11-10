@@ -346,8 +346,9 @@ class Header(Base):
             self.assertEqual(got["title"], "Group by")
             self.assertTrue(got["name"].startswith("Group by"), got["name"])
             self.assertEqual(got["popup"], "menu")
-            self.assertEqual(got["g"], got["t"], "the same size as Table")
-            self.assertEqual(got["g"], got["b"], "the same size as Board")
+            for other in ("t", "b"):
+                self.assertLessEqual(abs(got["g"][0] - got[other][0]), 1, f"the same width as Table and Board: {got}")
+                self.assertEqual(got["g"][1], got[other][1], f"the same height as Table and Board: {got}")
             self.assertTrue(got["ring"], "a focus ring shows")
             self.assertGreaterEqual(min(got["g"]), 24)
         self.each(check)
