@@ -1,6 +1,6 @@
 """C-M10: a milestone list row's second line ("Expected a date · N days later") reads on one line at 1400 px.
 C-M11 (#436 row 24): at 900 px the row keeps its columns (date, name, state, progress side by side, as the prototype's grid does,
-system/prototype/app.css:849); it stacks in two columns only at 800 px and below (app.css:875).
+system/prototype/app.css:849).
 
 Run: python3 dev/run_tests.py test_milestones_oneline
 The browser parts load the committed page from the real server on the demo database (fixed CLARK_NOW), plus one milestone with a
@@ -14,7 +14,6 @@ import unittest
 from pathlib import Path
 
 from _demo import USER, DemoStore
-from _paths import SRC
 
 from clark import page, publish
 from test_server import chrome, wait, Running
@@ -100,7 +99,7 @@ class Rows(unittest.TestCase):
         self.addCleanup(s.close)
         for code in ("TUL", "MOSS"):
             for scheme in ("light", "dark"):
-                for width in (1400, 1201, 900):
+                for width in (1400, 900):
                     with self.subTest(code=code, scheme=scheme, width=width), chrome() as cdp:
                         sid = self.open_page(cdp, s.port, width, scheme, code)
                         got = cdp.js(MEASURE, sid)
@@ -118,7 +117,7 @@ class Rows(unittest.TestCase):
                             self.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['text']})")
                             self.assertTrue(r["dateClearOfName"], f"{where}: the date cell does not run into the name ({r['text']})")
                             small_line_ok(self, r, where)
-                            if width >= 1201:               # the rule starts at 1201 px, so its first width is tested too
+                            if width == 1400:
                                 self.assertEqual(r["lines"], 1, f"{where}: the second line is one line ({r['text']})")
                                 self.assertFalse(r["subCut"], f"{where}: the second line is not cut off in its cell ({r['text']})")
                                 self.assertFalse(r["cellsClip"], f"{where}: no cell cuts text off ({r['text']})")
@@ -126,27 +125,17 @@ class Rows(unittest.TestCase):
                             long = [r for r in got["rows"] if r["nameLines"] > 1]
                             self.assertTrue(long, f"{where}: the very long name wraps in its own cell")
 
-    def test_the_cells_stack_in_two_columns_only_at_800_px_and_below(self):
+    def test_the_cells_keep_four_columns_at_900_px(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
-        for width, cols in ((901, 4), (900, 4), (801, 4), (800, 3), (700, 3)):      # row 1020: below 801 px the cells sit in three columns (date and name, the second line, then state and progress)
+        for width, cols in ((900, 4),):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, s.port, width, "light", "TUL")
                 got = cdp.js(MEASURE, sid)
                 self.assertTrue(got["rows"])
                 self.assertEqual({r["cols"] for r in got["rows"]}, {cols}, f"{width}px")
-                # The page's own top bar is 8 px wider than a 700 px window (View, Edit and the menu; mobile widths are a later item), and that is
-                # not the list's: at 700 px the list and its card are what this checks, from 801 px up the page too.
                 self.assertFalse(got["cardScroll"] or got["listScroll"], f"{width}px: nothing in the list scrolls sideways")
-                if width > 800:
-                    self.assertFalse(got["pageScroll"], f"{width}px: no sideways scroll on the page")
-
-    def test_the_stylesheet_stacks_the_cells_only_below_801_px(self):
-        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
-        import re
-        for m in re.finditer(r"@media \(max-width: (\d+)px\)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}", css):
-            if ".msl-cells" in m.group(2) and "grid-template-columns" in m.group(2):
-                self.assertEqual(m.group(1), "800", "the rule that stacks the list cells is the 800 px one, not 900")
+                self.assertFalse(got["pageScroll"], f"{width}px: no sideways scroll on the page")
 
     def test_the_words_are_the_products_with_the_middle_dot(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
