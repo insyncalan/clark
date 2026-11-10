@@ -58,6 +58,10 @@ class Stub:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
 
+    def open_source(self, body):
+        self.calls.append(("open_source", body))
+        return 200, {"ok": True}
+
     def stop(self, body=None):
         self.calls.append(("stop", body))
         self.stopped = True
@@ -239,6 +243,21 @@ class Panel(Base):
             p.js("document.querySelector('.ask-sources summary').click()")
             self.assertTrue(p.js("document.querySelector('.ask-sources').open"))
             self.assertTrue(p.js("document.querySelector('.ask-sources li').checkVisibility()"))
+
+    def test_a_pdf_source_opens_at_its_page(self):
+        self.stub.sources = [{"id": "P1", "label": "Docs/a.pdf (part 2)", "file": "Docs/a.pdf", "page": 4}, {"id": "P2", "label": "plan.xlsx", "file": None, "page": None}]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-sources li button').length"), 1, "only the PDF is a button")
+            self.assertEqual(p.js("document.querySelector('.ask-sources li button').textContent"), "Docs/a.pdf")
+            p.js("document.querySelector('.ask-sources summary').click()")
+            p.js("document.querySelector('.ask-sources li button').click()")
+            deadline = time.time() + 10
+            while not self.stub.count("open_source") and time.time() < deadline:
+                time.sleep(0.1)
+            got = [c[1] for c in self.stub.calls if c[0] == "open_source"]
+            self.assertEqual([(b["file"], b["page"]) for b in got], [("Docs/a.pdf", 4)])
 
     def test_sources_open_and_close_on_enter_and_space(self):
         self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]

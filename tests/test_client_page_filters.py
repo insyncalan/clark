@@ -40,7 +40,7 @@ def plant():
             ("104", "Cy Dunn", "Delivery", "Medium", "2026-10-01", "Closed", "Close the old contract")]
     for n, owner, ws, pri, due, status, text in more:
         row = dict(base, id=f"PUB-A-{n}", description=text, owner=owner, workstream=ws, priority=pri, due_date=due, status=status,
-                   latest_update=f"Note {n}", client_message="", milestone=None, use_case=None,
+                   latest_update=f"Note {n}", client_message=text, milestone=None, use_case=None,
                    closed="2026-10-02" if status == "Closed" else None)
         p["data"]["actions"].append(row)
     p["data"]["actions"].append(dict(base, id="PUB-A-199", description=INTERNAL, client_visible=0, client_message="",

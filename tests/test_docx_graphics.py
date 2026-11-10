@@ -478,5 +478,32 @@ class PicturesNeverStopTheWords(unittest.TestCase):
         self.assertNotIn(b"<w:drawing>", parts(data)["word/document.xml"])
 
 
+class OverflowIsHandledWhereItHappens(unittest.TestCase):
+    """The OverflowError catches in docx_graphics itself (not the builder's outer try) turn a number no float can hold into the
+    documented fallback. Called directly, so removing either catch fails here."""
+
+    def test_number_returns_none_for_an_int_too_large_for_a_float(self):
+        for bad in (10 ** 400, -10 ** 400):
+            self.assertIsNone(g._number(bad))
+            self.assertIsNone(g.percent(bad))
+
+    def test_number_clamps_an_infinity_without_raising(self):
+        self.assertEqual(g._number(float("inf")), 100.0)
+        self.assertEqual(g._number(float("-inf")), 0.0)
+
+    def test_the_graphics_functions_themselves_do_not_raise_on_a_huge_percent(self):
+        for bad in (10 ** 400, -10 ** 400, float("inf")):
+            g.progress_bar(bad, TOKENS)   # no wrapper: must not raise
+        self.assertIsNone(g.progress_bar(10 ** 400, TOKENS))
+
+    def test_the_slip_read_falls_back_to_no_slip_for_an_infinite_slip(self):
+        # int(float("inf")) raises OverflowError; the fallback is slip 0, so no ghost and the row is still drawn.
+        for bad in (float("inf"), float("-inf")):
+            rows = g._rows([ms(1, "Slipped", slip_days=bad)])
+            self.assertEqual(len(rows), 1)
+            self.assertIsNone(rows[0]["ghost"])
+            self.assertEqual(rows[0]["solid"], date(2026, 11, 20))
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -185,6 +185,20 @@ class Table(unittest.TestCase):
     def measure(self, cdp, sid):
         return json.loads(cdp.js(MEASURE, sid))
 
+    def test_the_group_bar_and_the_column_names_show_the_default_cursor_and_a_row_shows_a_pointer(self):
+        """Item 547: the group heading row and the column-name row sit in a thead, so their cursor rule must name thead, not tbody."""
+        with chrome() as cdp:
+            for mode in ("view", "edit"):
+                sid = self.load(cdp, 1400, mode, "light")
+                got = json.loads(cdp.js("""JSON.stringify({
+                  grp: [...document.querySelectorAll('#work table.items tr.grp')].map((e) => getComputedStyle(e).cursor),
+                  colh: [...document.querySelectorAll('#work table.items tr.colh')].map((e) => getComputedStyle(e).cursor),
+                  row: [...document.querySelectorAll('#work table.items tbody tr[data-id]')].slice(0, 3).map((e) => getComputedStyle(e).cursor) })""", sid))
+                self.assertTrue(got["grp"] and got["colh"] and got["row"], mode)
+                self.assertEqual(set(got["grp"]), {"default"}, mode + ": group bar")
+                self.assertEqual(set(got["colh"]), {"default"}, mode + ": column names")
+                self.assertEqual(set(got["row"]), {"pointer"}, mode + ": item row")
+
     def test_letter_badge_no_type_column_eye_column_and_a_card_per_group_in_both_modes_and_themes(self):
         with chrome() as cdp:
             for width in (1400, 900):

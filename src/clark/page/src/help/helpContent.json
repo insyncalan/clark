@@ -55,7 +55,7 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make."
    },
    {
     "t": "Pick a project",
@@ -170,7 +170,7 @@
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
    "where_title": "Where things are",
-   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
+   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
@@ -713,9 +713,9 @@
     "go": "dashboard+edit",
     "s": [
      "Select some words. The floating bar has an AI part: **Format notes** (when you select two or more lines of a report section), **Improve**, **Structure**, **Make into** and **Ask…**.",
-     "Or press **✦ AI** on the editor’s bar, or [[Alt+/]], for every option at once, on the selection or on the whole text. Where the field allows it, **Draft from the project** is first.",
+     "Or press **✦ AI** on the editor’s bar for every option at once, on the selection or on the whole text. Where the field allows it, **Draft from the project** is first.",
      "**Improve**: Rewrite clearly, Shorter, Longer, Make it executive and Polish. **Structure**: Add headings and bold, Pull out the tasks and Summarise at the top. **Make into**: a new action, risk or decision from the text. **Ask…**: say what you want in your own words.",
-     "The answer is a suggestion: your text is unchanged until you press **Accept** ([[Mod+Enter]]). **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
+     "The answer is a suggestion: your text is unchanged until you press **Accept**. **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
      "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
     ],
     "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well.",
@@ -766,7 +766,7 @@
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
-     "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
+     "Your full name goes on every change you make, in each item’s history."
     ],
     "page": [
      "settings#profile"
@@ -886,7 +886,7 @@
       [
        "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
-       "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
+       "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
      [
@@ -1360,6 +1360,14 @@
      [
       "p",
       "Assign to: click the owner. Under Recent are the names used lately in this project, then the people clark holds. Type to search them. If the name is new, the box offers to add it “as a new person”, which puts them on the list of people and assigns them in one step; “Keep the name only” assigns the name alone. “TBC (no one yet)” leaves the item with no one yet, and the owner stays as TBC. Recent names are kept in this browser only, not in Excel or a published file. If the browser will not keep them, there is no Recent list, and everything else works."
+     ],
+     [
+      "p",
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+     ],
+     [
+      "p",
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
      ]
     ]
    },
@@ -1430,7 +1438,8 @@
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**Activity** (in Edit): each change to the item, newest first: who, how and when."
+       "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],
      [
@@ -1611,7 +1620,8 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and **⋯** (Archive milestone).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
+       "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**The chips**: the state, the agreed date, the forecast and the progress.",
        "**State**: the six states as buttons, and why it has the one it has.",
        "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
@@ -1631,7 +1641,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**. A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line, and its label reads, for example, 3 days later, then Expected and the date.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
@@ -1669,7 +1679,7 @@
        ],
        [
         "The line under it",
-        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it, Alt+/ for AI on it”"
+        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it”"
        ]
       ]
      ]
@@ -1706,7 +1716,7 @@
      ],
      [
       "p",
-      "The suggestion card: the new text, **Show changes** (word by word), **Try again**, **Discard** ([[Esc]]) and **Accept** ([[Mod+Enter]]). Nothing changes until you accept. **Make into** adds a new item at once, with **Undo** in the message."
+      "The suggestion card: the new text, **Show changes** (word by word), **Try again**, **Discard** ([[Esc]]) and **Accept**. Nothing changes until you accept. **Make into** adds a new item at once, with **Undo** in the message."
      ]
     ]
    },
@@ -1726,7 +1736,7 @@
      ],
      [
       "p",
-      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables."
+      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables. It also has pictures: a Project health bar under the health line, the milestone plan above the milestones table with one lane for each milestone, a small progress bar under each milestone’s percentage, and a picture of the Gantt section when the project has one. Every word in a picture is also real text in the table beside it. A milestone that has slipped has its days in the Slip column, such as +3 days."
      ],
      [
       "p",
@@ -1810,7 +1820,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1844,8 +1854,12 @@
         "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
+        "Quit",
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
+       ],
+       [
         "Publishing",
-        "The local folder, and the client’s SharePoint folder."
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, the client’s SharePoint folder. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Data",
@@ -1854,6 +1868,10 @@
        [
         "Version and updates",
         "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
        ],
        [
         "Diagnostics",
@@ -2061,11 +2079,7 @@
    ],
    [
     "[[Mod+Enter]]",
-    "In an editor: keep the text and close it. On an AI suggestion: accept it. In the health reason: keep it"
-   ],
-   [
-    "[[Alt+/]]",
-    "In an editor: the AI menu, for the selected text or all of it"
+    "In an editor: keep the text and close it. In Sneak peek: confirm and apply a change that needs your OK"
    ],
    [
     "[[/]] in an editor",
@@ -2442,7 +2456,7 @@
    "title": "Settings",
    "s": [
     "Settings holds what belongs to the whole project and to you, one card for each job.",
-    "The list at the left of the cards takes you to a card (a row of chips under the title in a narrow window).",
+    "The list at the left of the cards takes you to a card (a row of chips under the title in a window narrower than 900 px).",
     "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",
@@ -2511,6 +2525,11 @@
      "card": "people",
      "title": "People",
      "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "quit",
+     "title": "Quit",
+     "line": "Quit clark when you have finished."
     }
    ]
   }
