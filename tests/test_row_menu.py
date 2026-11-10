@@ -137,6 +137,16 @@ class Rules(unittest.TestCase):
                          {"item": "ABC-A-001", "mode": "chase", "picked": ["ABC-A-001"], "include_update": False, "email": "ada@example.com", "name": "Ada Quillfeather"})
         self.assertEqual(self.js("RM.draftRequest('ABC-A-001', null, null)"), {"item": "ABC-A-001", "picked": ["ABC-A-001"]})
 
+    def test_the_name_sent_with_the_address_is_trimmed_and_left_out_when_the_server_would_refuse_it(self):
+        def name_for(name):
+            ppl = json.dumps([{"id": "P-001", "name": name, "email": "ada@example.com"}])
+            return self.js(f"RM.recipientOf({ppl}, 'P-001')")["name"]
+        self.assertEqual(name_for("  Ada Q  "), "Ada Q")
+        self.assertEqual(name_for("n" * 100), "n" * 100)
+        self.assertEqual(name_for("n" * 101), "")                 # over 100 characters: no name, the address still goes
+        self.assertEqual(name_for("Ada\nBcc: x@y.co"), "")        # a line break in a name never reaches the server
+        self.assertEqual(name_for("Ada\rQ"), "")
+
     def test_the_page_refuses_every_address_the_server_refuses(self):
         """The page rule (recipientOf) mirrors draft_email_feed: ADDRESS, then no Cf, Co or Cs character, and a control character or
         a space inside makes one_line leave a gap the ADDRESS rule refuses. The same table is run against the server's own rule below."""
