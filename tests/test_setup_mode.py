@@ -10,7 +10,7 @@ from pathlib import Path
 
 from _paths import ROOT
 
-from clark import cloud_folder, doctor, platform as pl, setup_mode
+from clark import ask_folders, cloud_folder, doctor, platform as pl, setup_mode
 
 
 class Case(unittest.TestCase):
@@ -155,6 +155,27 @@ class Choose(Case):
         self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(self.good) + "\n")
         self.assertEqual(service.folder, self.good)
 
+    def test_the_pointers_own_folder_is_made_when_it_is_missing(self):
+        self.default.parent.rmdir()                      # a fresh computer: nothing beside the default folder yet
+        service = self.setup(str(self.good))
+        report = service.choose("Choose")
+        self.assertEqual(report["folder"], "~/Elsewhere")
+        self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(self.good) + "\n")
+        self.assertEqual(service.folder, self.good)
+        self.assertFalse(self.default.exists())         # the data folder itself is still not made here
+
+    def test_a_pointer_that_cannot_be_written_is_a_plain_refusal_not_an_error(self):
+        self.default.parent.rmdir()
+        self.default.parent.write_text("in the way", encoding="utf-8")       # the pointer's folder can't be made or written
+        service = self.setup(str(self.good))
+        with self.assertRaises(setup_mode.Refused) as caught:
+            service.choose("Choose")
+        self.assertEqual(caught.exception.code, "cant_save")
+        self.assertEqual(caught.exception.words, ask_folders.MESSAGES["cant_save"])
+        self.assertEqual(service.folder, self.default)
+        self.assertEqual(list(self.good.iterdir()), [])
+        self.assertEqual(self.default.parent.read_text(encoding="utf-8"), "in the way")
+
     def test_cancel_changes_nothing(self):
         service = self.setup(None)
         self.assertIsNone(service.choose("Choose"))
@@ -166,15 +187,21 @@ class Choose(Case):
         link.symlink_to(self.good)
         a_file = self.home / "file.txt"
         a_file.write_text("x", encoding="utf-8")
-        bad = [str(self.home / "missing"), "relative/path", "", 5, str(a_file), str(link),
-               str(self.good) + "\n/etc", "/" + "a" * 1001, str(self.good) + "\x00"]
-        for answer in bad:
+        named = [str(self.home / "missing"), str(a_file), str(link)]           # a real path that isn't a usable folder: named
+        unnamed = ["relative/path", "", 5, str(self.good) + "\n/etc", "/" + "a" * 1001, str(self.good) + "\x00"]   # not a path
+        for answer in named + unnamed:
             with self.subTest(answer=answer):
                 service = self.setup(answer)
                 with self.assertRaises(setup_mode.Refused) as caught:
                     service.choose("Choose")
                 self.assertEqual(caught.exception.code, "folder_refused")
-                self.assertIn("can't be saved in", caught.exception.words)
+                words = caught.exception.words
+                if answer in named:
+                    self.assertIn("can't be saved in ~/" + Path(answer).name, words)
+                else:
+                    self.assertEqual(words, ask_folders.MESSAGES["not_a_folder"])
+                self.assertNotIn("Application Support", words)        # never the folder in use: it was not the one refused
+                self.assertNotIn("\n", words)
                 self.assertFalse(self.pointer().exists())
                 self.assertEqual(service.folder, self.default)
 
@@ -264,6 +291,9 @@ class Choose(Case):
         with self.assertRaises(setup_mode.Refused) as caught:
             service.choose("b")
         self.assertEqual(caught.exception.code, "busy")
+        self.assertEqual(caught.exception.words, setup_mode.WORDS["busy"])
+        self.assertIn("folder window", caught.exception.words)           # a page can show it as it is: it names the window
+        self.assertTrue(caught.exception.words.endswith("Nothing was changed."))
         release.set()
         first.join(5)
         self.assertEqual(count, ["a"])
@@ -600,6 +630,11 @@ class Relaunch(Case):
 
 
 class Source(unittest.TestCase):
+    def test_its_borrowed_sentences_are_the_folder_pickers_own_unchanged(self):
+        # setup_mode may not import ask_folders (which opens the store), so it carries the sentences; they must stay equal.
+        for key in ("cant_save", "not_a_folder"):
+            self.assertEqual(setup_mode.WORDS[key], ask_folders.MESSAGES[key], key)
+
     def test_it_reaches_no_store_and_names_no_system_text(self):
         text = (ROOT / "src" / "clark" / "setup_mode.py").read_text(encoding="utf-8")
         for word in ("import store", "from clark import store", "publish", "movement", "subprocess", "osascript", "~/Library"):
