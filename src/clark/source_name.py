@@ -17,7 +17,9 @@ from datetime import date
 
 CAP = 120
 _ISO_DAY = re.compile(r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])")
-_SLASHES = str.maketrans({"\uff0f": "/", "\uff3c": "\\", "\u2215": "/", "\u29f8": "/", "\u2044": "/"})
+_SLASHES = str.maketrans({"\uff0f": "/", "\uff3c": "\\", "\u2215": "/", "\u29f8": "/", "\u2044": "/", "\u2216": "\\", "\ufe68": "\\", "\u2571": "/", "\u29f5": "\\"})
+_PERCENT = re.compile(r"%25(?=2[Ff]|5[Cc]|3[Aa])")
+_ESCAPED = re.compile(r"%(2[Ff]|5[Cc]|3[Aa])")                                                           # %2F, %5C, %3A: a separator or a colon, escaped
 _SEP = re.compile(r"[\\/]")
 _ROOT = re.compile(r"(?:^|(?<=[,\s]))(?:[A-Za-z][A-Za-z0-9+.-]*://|[A-Za-z]:[\\/]|~[\\/]|[\\/])")      # a root, at the start or after a comma or a space
 _FILE = re.compile(r"\.[A-Za-z0-9]{1,8}(?=\s*(?:,|$))")                                                  # a file name: an extension at the end or before a comma
@@ -35,11 +37,16 @@ def _day_as_shown(m):
 
 def _plain(text):
     """Hidden characters out (control and format characters, Cc and Cf), the other slashes made plain ones."""
-    return "".join(ch for ch in text if unicodedata.category(ch) not in ("Cc", "Cf")).translate(_SLASHES)
+    text = "".join(ch for ch in text if unicodedata.category(ch) not in ("Cc", "Cf")).translate(_SLASHES)
+    for _ in range(3):                                   # an escape of an escape (%252F) too
+        text = _PERCENT.sub("%", text)
+        text = _ESCAPED.sub(lambda m: chr(int(m.group(1), 16)), text)
+    return text
 
 
-def _name(span):
-    """The file name a path span ends in, or "" (a folder, a bare host, nothing after the last separator)."""
+def _name(span, strict=False):
+    """The file name a path span ends in, or "" (a folder, a bare host, nothing after the last separator). Strict (a path with no root, where a
+    comma may belong to a folder): the extension must end the name's first comma part, so a folder before a comma names nothing."""
     web = re.match(r"[A-Za-z][A-Za-z0-9+.-]*://", span)
     if web:
         span = re.split(r"[?#]", span, 1)[0]
@@ -47,7 +54,19 @@ def _name(span):
         if not _SEP.search(rest):
             return ""                                   # a bare host
     name = _SEP.split(span)[-1].strip()
+    if strict:
+        first = name.split(",")[0].strip()
+        return name if first and _FILE.search(first) else ""
     return name if name and _FILE.search(name) else ""
+
+
+def _rootless(text):
+    """Words with no root: the parts before the first one holding a separator stay; from it on, only a file name (strict) or nothing."""
+    parts = text.split(",")
+    at = next((i for i, p in enumerate(parts) if _PATHISH.search(p) and not _DATE_ONLY.fullmatch(p)), None)
+    if at is None:
+        return text
+    return ", ".join(x for x in (",".join(parts[:at]).strip(" ,"), _name(",".join(parts[at:]), strict=True)) if x)
 
 
 def source_name(words):
@@ -57,14 +76,9 @@ def source_name(words):
     text = _plain(words).strip()
     root = _ROOT.search(text)
     if root:
-        prefix, kept = text[:root.start()], _name(text[root.start():])
+        prefix, kept = _rootless(text[:root.start()]), _name(text[root.start():])
     else:
-        parts = text.split(",")
-        at = next((i for i, p in enumerate(parts) if _PATHISH.search(p) and not _DATE_ONLY.fullmatch(p)), None)
-        if at is None:
-            prefix, kept = text, ""
-        else:
-            prefix, kept = ",".join(parts[:at]), _name(",".join(parts[at:]))
+        prefix, kept = _rootless(text), ""
     out = ", ".join(x for x in (prefix.strip(" ,"), kept) if x)
     out = _ISO_DAY.sub(_day_as_shown, out).strip()
     return out if len(out) <= CAP else out[:CAP - 1].rstrip() + "\u2026"
