@@ -134,7 +134,8 @@ class SettingsChips(unittest.TestCase):
     # item 1024, WEAKENS-free: the chips (CARDS) became the menu (GROUPS): the regex reads the same way and pins the same things, the names and their order.
     def test_the_menu_names_and_order_are_the_pages(self):
         views = code("components", "Views.jsx")
-        groups = re.search(r"const GROUPS = \[(.*?)\n\];", views, re.S).group(1)
+        pages = code("edit", "settingsPages.js")      # the pages and their groups are Edit's own (item 1024), so a published file holds none of them
+        groups = re.search(r"const GROUPS = \[(.*?)\n\];", pages, re.S).group(1)
         names = re.findall(r'\["([a-z-]+)", "([^"]+)", \[[^\]]*\], "[\w-]+"\]', groups)
         self.assertEqual(names, [("projects", "Projects"), ("people", "People"), ("published", "Published reports"), ("profile", "Profile"), ("folder", "Folder"), ("brand", "Brand"),
                                  ("appearance", "Appearance"), ("reports", "Reports"), ("backups", "Backups"), ("export", "Export and import"), ("claude-ai", "Claude and AI"),
@@ -142,21 +143,21 @@ class SettingsChips(unittest.TestCase):
         self.assertEqual(re.findall(r'^  \["([^"]+)", \[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertNotIn('""', "".join(n for _, n in names), "no page without a name")
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Update", re.search(r'"version", "Version and updates", \["(\w+)", "Quit"\]', views).group(1))
+        self.assertIn("Update", re.search(r'"version", "Version and updates", \["(\w+)", "Quit"\]', pages).group(1))
         self.assertIn("Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced.", self.TEXT)
         self.assertIn('<nav class="set-menu"', views)
         self.assertNotIn("set-chip", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertNotIn("set-bar", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('aria-current={here === slug ? "page" : undefined}', views)
-        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', views)
+        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', pages)
         self.assertIn("Folder, Published reports and Reports need an open project.", self.TEXT)
         self.assertIn("A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title)", self.TEXT)
         self.assertIn("The page you are on is marked in the menu. Settings opens on Projects.", self.TEXT)
 
     def test_published_reports_is_a_menu_page(self):      # was: has no chip. Every page is in the menu now, so the pin is positive
-        views = code("components", "Views.jsx")
-        self.assertIn('["published", "Published reports", ["PublishedReports"], "pubs-h"]', views)
-        self.assertIn("NEEDS_PROJECT", views)
+        pages = code("edit", "settingsPages.js")
+        self.assertIn('["published", "Published reports", ["PublishedReports"], "pubs-h"]', pages)
+        self.assertIn("NEEDS_PROJECT", pages)
         self.assertIn('id="pubs-h"', code("edit", "PublishedReports.jsx"))
 
     def test_ai_is_drawn_straight_after_asking_on_the_same_page(self):      # item 1024c: Asking and AI are one card now, the AI part last inside it
