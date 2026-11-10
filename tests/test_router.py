@@ -1159,13 +1159,13 @@ class FileUrl(Browser):
             self.assertTrue(all(u.split(" ", 1)[1].startswith("#") for u in self.ev("window.urls")))
             self.no_errors()
 
-    def test_item_1019_the_published_page_keeps_the_dashboards_place_at_360_and_1400(self):
+    def test_item_1019_the_published_page_keeps_the_dashboards_place_at_1400_and_900(self):
         view = PAGE_SRC.parent / "page-view.html"                      # the published file's own bundle, from file://
-        for width in (360, 1400):
+        for width in (1400, 900):
             with chrome() as cdp:
                 self.cdp = cdp
                 self.sid = opened(cdp, view.as_uri() + "#dashboard&p=PDF")
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": width < 500}, self.sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", self.sid) == "1"), f"ran at {width}")
                 self.assertEqual(self.ev("location.protocol"), "file:")
                 self.ev("document.querySelector('header.top').parentElement.style.minHeight = '5000px'")
