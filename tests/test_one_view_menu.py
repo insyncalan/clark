@@ -60,7 +60,7 @@ class OneMenu(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout]').length", sid), 0)
-            self.assertEqual(cdp.js("document.querySelectorAll('.fvrow [role=group][aria-label=Layout] [data-lay]').length", sid), 2, "row 812: the two-icon switch is beside the View menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('.fline .vicons [data-lay]').length", sid), 2, "row 812: the two-icon switch is on the filter box line")
             self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)
@@ -72,13 +72,13 @@ class OneMenu(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.view_pick(cdp, sid, "group:status")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status' && !!document.querySelector('tbody[data-group]')", "grouped by status")
+            self.until(cdp, sid, "document.querySelector('.vicons').dataset.state === 'View: table, grouped by Status' && !!document.querySelector('tbody[data-group]')", "grouped by status")
             self.assertEqual(cdp.js("document.querySelector('#work-live').textContent", sid), "Grouped by Status.")
             self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
             self.view_pick(cdp, sid, "lane:type")
             self.until(cdp, sid, "document.querySelectorAll('#work-board .lane-h').length > 0", "type lanes")
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: board, grouped by Status, type lanes")
+            self.assertEqual(cdp.js("document.querySelector('.vicons').dataset.state", sid), "View: board, grouped by Status, type lanes")
             self.view_pick(cdp, sid, "lane:none")
             self.until(cdp, sid, "!document.querySelector('#work-board .lane-h')", "no lanes")
             self.view_pick(cdp, sid, "layout:table")
@@ -114,7 +114,7 @@ class OneMenu(Base):
             self.assertEqual(cdp.js("document.activeElement.dataset.kind", sid), "group:status")
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "Enter picks and closes")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status' && !!document.querySelector('tbody[data-group]')", "grouped by status")
+            self.until(cdp, sid, "document.querySelector('.vicons').dataset.state === 'View: table, grouped by Status' && !!document.querySelector('tbody[data-group]')", "grouped by status")
             self.until(cdp, sid, "document.activeElement.id === 'viewMenu'", "the focus back on the button after a pick")
             # and the board from the keyboard: the Board icon is a button, Enter or Space presses it
             cdp.js("document.querySelector('[data-lay=board]').focus()", sid)

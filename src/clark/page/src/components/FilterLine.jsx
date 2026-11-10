@@ -41,16 +41,29 @@ export function layoutItems(w, board) {
   return { items: out, label: `View: ${onBoard ? "board" : board ? "table" : ""}${board ? ", " : ""}grouped by ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
 }
 
-// Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
+// Row 812: the list and the board as a two-icon switch (row 1084 names the buttons "List" and "Board"; "Layout" names the pair).
 function LayoutSwitch() {
   const onBoard = work.value.view === "board";
   return (
     <div class="seg lsw" role="group" aria-label="Layout">
       {["table", "board"].map((k) => {
-        const word = k === "table" ? "Table" : "Board";
+        const word = k === "table" ? "List" : "Board";
         return <button type="button" key={k} data-lay={k} aria-label={word} title={word} aria-pressed={onBoard === (k === "board") ? "true" : "false"} onClick={() => pickLayout(`layout:${k}`)}><Icon name={k} /></button>;
       })}
     </div>
+  );
+}
+
+// Row 1084: List, Board and Group by are three icon buttons at the right end of the filter box line (they were at the right of the tab row).
+// Group by is the one View menu (grouping, and on the board the swimlanes) as an icon-only button named "Group by".
+function ViewIcons({ board }) {
+  if (fromFile.value) return null;
+  const lay = layoutItems(work.value, !!board);
+  return (
+    <span class="vicons" data-state={lay.label}>
+      {board ? <LayoutSwitch /> : null}
+      <Menu label="" ariaLabel="Group by" tip="Group by" icon="group" chevron={false} id="viewMenu" btnCls="btn sm vgb" menuId="viewMenuList" menuLabel={lay.label} items={lay.items} onPick={pickLayout} />
+    </span>
   );
 }
 
@@ -123,7 +136,6 @@ function SavedViews({ board }) {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
-  const lay = layoutItems(work.value, !!board);
   // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
@@ -165,8 +177,6 @@ function SavedViews({ board }) {
           <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
         </span>
       )}
-      {fromFile.value || !board ? null : <LayoutSwitch />}
-      {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
@@ -367,6 +377,7 @@ export function FilterLine({ board }) {
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        <ViewIcons board={board} />
       </div>
       {notes.length ? null : suggestions}
       {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}

@@ -2072,7 +2072,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .fvacts { display: flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }   /* row 844: Save view and Discard changes beside the tabs while the dot shows */
 .vnew:hover { color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
-.lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
+.lsw { flex: none; }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
 .lsw button { display: inline-grid; place-items: center; min-width: 40px; padding: var(--space-1) var(--space-3); }
 .lsw .i { width: 18px; height: 18px; }
 .fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
@@ -2301,3 +2301,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   .toc-card, .toc.open .toc-card { transform: translate(0, -50%); }      /* the rail's card stays centred on the rail (only the slide is dropped) */
 }
+
+/* Row 1084: List, Board and Group by are icon buttons at the right end of the filter box line, each 28 px or more across. */
+.vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: var(--space-2); }
+.vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
+.vgb { display: inline-grid; place-items: center; min-width: 32px; min-height: 28px; padding: 2px var(--space-2); }
+.vgb .i { width: 18px; height: 18px; }
