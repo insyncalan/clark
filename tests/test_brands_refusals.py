@@ -3,7 +3,7 @@ listing tells the truth about Undo. Real library, real server, temp folders only
 
   - a zip cut short at its end record is the damaged-file refusal, not a raw struct.error
   - GET /api/brands says undo true after an install or a remove, false when there is nothing (or nothing valid) to put back
-  - "from downloads" takes the newest file NAMED as a brand zip, not the newest zip
+  - "from downloads" takes the newest of the last few zips that holds a brand manifest, whatever its name
   - an OSError in a write path (or in recover, or the file choice) is the "failed" refusal, with a stated state left behind
   - a member after a 12-byte data descriptor (no signature) is not an overlap
 
@@ -101,20 +101,50 @@ class Undo(Base):
                 self.assertFalse(brands.can_undo(self.root, self.data))
 
 
+def _plain_zip(path):
+    import zipfile
+    with zipfile.ZipFile(path, "w") as zf:
+        zf.writestr("holiday/photo.txt", "not a brand")
+    return path
+
+
 class FromDownloads(Base):
-    def test_the_newest_file_named_as_a_brand_zip_is_taken_not_the_newest_zip(self):
-        good = write_zip(self.downloads, bz.valid())
+    def test_the_newest_zip_holding_a_brand_manifest_is_taken_whatever_it_is_called(self):
+        good = write_zip(self.downloads, bz.valid(), name="my kit.zip")
         os.utime(good, (100, 100))
         for name in ("holiday-photos.zip", "clark-brand-x.zip"):
-            other = self.downloads / name
-            other.write_bytes(b"PK\x03\x04 not a brand")
+            other = _plain_zip(self.downloads / name)
             os.utime(other, (500, 500))
         status, got = self.post("review", {"from": "downloads"})
         self.assertEqual((status, got["ok"], got["review"]["id"]), (200, True, bz.BRAND_ID), got)
 
-    def test_no_file_named_as_a_brand_zip_is_no_file(self):
-        (self.downloads / "holiday-photos.zip").write_bytes(b"PK\x03\x04")
+    def test_a_newer_brand_zip_wins_over_an_older_one(self):
+        old = write_zip(self.downloads, bz.valid(), name="old.zip")
+        os.utime(old, (100, 100))
+        new = write_zip(self.downloads, bz.valid(), name="new.zip")
+        os.utime(new, (300, 300))
+        with mock.patch.object(brands, "review", wraps=brands.review) as spy:
+            self.assertEqual(self.post("review", {"from": "downloads"})[0], 200)
+        self.assertEqual(Path(spy.call_args[0][0]).name, "new.zip")
+
+    def test_only_the_newest_few_zips_are_looked_at(self):
+        good = write_zip(self.downloads, bz.valid(), name="kit.zip")
+        os.utime(good, (100, 100))
+        for i in range(8):
+            os.utime(_plain_zip(self.downloads / ("other%d.zip" % i)), (500 + i, 500 + i))
         self.assertEqual(self.post("review", {"from": "downloads"}), (200, {"ok": True, "review": None}))
+
+    def test_no_zip_with_a_brand_manifest_is_no_file(self):
+        _plain_zip(self.downloads / "holiday-photos.zip")
+        (self.downloads / "broken.zip").write_bytes(b"PK\x03\x04")
+        self.assertEqual(self.post("review", {"from": "downloads"}), (200, {"ok": True, "review": None}))
+
+    def test_the_listing_says_whether_there_is_a_brand_file_to_review(self):
+        self.assertIs(self.listing()["review_ready"], False)
+        _plain_zip(self.downloads / "holiday-photos.zip")
+        self.assertIs(self.listing()["review_ready"], False)
+        write_zip(self.downloads, bz.valid(), name="whatever.zip")
+        self.assertIs(self.listing()["review_ready"], True)
 
 
 class DiskTrouble(Base):

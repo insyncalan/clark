@@ -96,9 +96,33 @@ class Page(InBrowser):
                 self.replies(review=OK(real))
                 self.mount()
                 self.click("[data-choose]" if source == "file" else "[data-review]")
-                self.assertEqual(self.text(".pub-msg"), "No file was chosen, so nothing was changed.")
+                want = "No file was chosen, so nothing was changed." if source == "file" else "No brand file was found."
+                self.assertEqual(self.text(".pub-msg"), want)
                 self.assertEqual(self.val("document.querySelector('.pub-msg p').className"), "info")
                 self.assertFalse(self.present("#brands-panel"))
+
+    def test_the_red_error_can_be_dismissed(self):
+        self.replies(review=OK(REFUSAL, 409))
+        self.mount()
+        self.click("[data-review]")
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').className"), "error")
+        self.assertTrue(self.present(".pub-msg [data-dismiss]"))
+        self.click(".pub-msg [data-dismiss]")
+        self.assertEqual(self.text(".pub-msg"), "")
+        self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+
+    def test_a_calm_line_has_no_dismiss_button(self):
+        self.replies(review=OK({"ok": True, "review": None}))
+        self.mount()
+        self.click("[data-review]")
+        self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+
+    def test_review_is_the_primary_button_only_when_there_is_something_to_review(self):
+        for ready in (False, True):
+            with self.subTest(ready=ready):
+                self.replies(list=OK({**LIST, "review_ready": ready}))
+                self.mount()
+                self.assertEqual(self.val("document.querySelector('[data-review]').classList.contains('pri')"), ready)
 
     def test_choose_asks_for_a_file(self):
         self.mount()
