@@ -321,6 +321,13 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .vtab { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; min-height: calc(var(--space-6) + var(--space-1)); margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .vtab:hover { color: var(--text); }
 .vtab[aria-pressed="true"] { color: var(--heading); font-weight: var(--weight-medium); border-bottom-color: var(--brand-blue); }
+.vtab { user-select: none; -webkit-user-select: none; touch-action: manipulation; }   /* row 1071: a drag across the tabs picks up no text */
+.vtab[data-moving] { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }   /* Move view: the tab has a focus ring, no bar */
+.vt[data-lifted] .vtab { background: var(--surface); box-shadow: var(--shadow); border-radius: var(--radius-sm); cursor: grabbing; position: relative; z-index: 2; }
+.vt[data-lifted] .vtabmenu { visibility: hidden; }
+html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: none !important; -webkit-user-select: none !important; }
+.ddmenu .mi { width: 16px; height: 16px; margin-right: 10px; vertical-align: -3px; }
+.ddmenu [role="menuitem"].danger, .ddmenu [role="menuitem"].danger:hover, .ddmenu [role="menuitem"].danger:focus-visible { color: var(--status-red-text); }
 .vtab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
 .vtab em { font-style: normal; font-weight: var(--weight-regular); font-size: var(--size-caption); min-width: 20px; padding: 1px 6px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); text-align: center; }
 .vtab[aria-pressed="true"] em { color: var(--text); }
