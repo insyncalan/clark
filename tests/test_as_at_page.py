@@ -1,4 +1,4 @@
-"""#349 page side: Published reports page › Dashboard as at a day, and the rebuilt Dashboard behind its banner, in a real browser.
+"""#349 page side: Published reports page › Dashboard as at a day, and the rebuilt Dashboard behind its band, in a real browser.
 
 Run: python3 dev/run_tests.py test_as_at_page
 The page is the test build of the served page, over a real server whose routes are the real handlers over a real store in a

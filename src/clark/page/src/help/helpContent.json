@@ -299,7 +299,7 @@
     "w": "Profile circle › Published reports",
     "go": "settings#pubs",
     "s": [
-     "Press your profile circle and choose **Published reports**. It opens a page of its own for the open project, under the project's brand banner.",
+     "Press your profile circle and choose **Published reports**. It opens a page of its own for the open project, under the project's brand band.",
      "The newest is shown first, under **Latest**. Each earlier row has the publication's number, the week ending, the date and time, where it went, its files and who published it. The page lists the latest ten.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
      "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
