@@ -1,8 +1,8 @@
-"""Row 875: migration step 21, use_cases.owner and use_cases.owner_id (src/clark/store.py migrate_use_case_owner, guarded).
+"""Row 875: migration step 22, use_cases.owner and use_cases.owner_id (src/clark/store.py migrate_use_case_owner, guarded).
 
 The step adds two columns at the end of use_cases (ALTER TABLE ... ADD COLUMN), so no table is made again, no existing value changes and
 every existing use case has no owner (NULL). A safety copy is taken first by the runner. A second run changes nothing. An older clark
-(layout 20) refuses a layout-21 file and changes nothing. Fictional data only.
+(layout 21) refuses a layout-22 file and changes nothing. Fictional data only.
 
 Run: python3 dev/run_tests.py test_store_use_case_owner_migration
 """
@@ -20,7 +20,7 @@ from clark.store import Invalid, connect, open_store
 from test_store_migration import make_v1, version
 from test_store_use_case_done_migration import make_at, schema_of
 
-STEP = 21
+STEP = 22
 BEFORE = str(STEP - 1)
 NOW = str(store_module.SCHEMA_VERSION)
 NEW_COLUMNS = ("owner", "owner_id")

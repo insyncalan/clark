@@ -236,7 +236,7 @@ CREATE INDEX IF NOT EXISTS change_log_item ON change_log(item_id);
 
 -- ===== clark's own tables (creaite has none of these) =====
 
--- #709: use_cases.commitment is NULL (no flag) or one of store.COMMITMENTS; no CHECK, so a fourth word is no layout step. The last columns, as steps 16 and 21 add them (row 875: owner is free text as milestones.owner; owner_id links the people list)
+-- #709: use_cases.commitment is NULL (no flag) or one of store.COMMITMENTS; no CHECK, so a fourth word is no layout step. The last columns, as steps 16 and 22 add them (row 875: owner is free text as milestones.owner; owner_id links the people list)
 CREATE TABLE IF NOT EXISTS use_cases (
   id            TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-U-[0-9][0-9][0-9]' AND length(id) BETWEEN 9 AND 13 AND substr(id, 1, length(id) - 6) NOT GLOB '*[^A-Z0-9]*'),
   project       TEXT NOT NULL REFERENCES projects(code),
