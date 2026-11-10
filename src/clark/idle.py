@@ -34,19 +34,25 @@ def number(environ, name, default):
     return value
 
 
-def launched(environ, container=platform.container_mode):
-    """Whether this server was started by the launcher: only then does it stop by itself. Never in Docker (row 1080)."""
-    return environ.get("CLARK_LAUNCHED") == "1" and not container()
+def launched(environ, container=None):
+    """Whether this server was started by the launcher: only then does it stop by itself. Never in Docker (row 1080).
+    The launcher mark is read from `environ`; the container check (`container`, by default platform.container_mode, looked up
+    when called so a test's patch of it is seen) reads the real process environment and the disk, not `environ`."""
+    return environ.get("CLARK_LAUNCHED") == "1" and not (container or platform.container_mode)()
 
 
 class Idle:
     """When a page last said it was open, and whether that was too long ago."""
 
-    def __init__(self, stop_after=STOP_AFTER, check=STOP_CHECK, clock=time.monotonic, sleep=time.sleep,
-                 container=platform.container_mode):
+    def __init__(self, stop_after=STOP_AFTER, check=STOP_CHECK, clock=time.monotonic, sleep=time.sleep, container=None):
         self.stop_after, self.check, self.clock, self.sleep = stop_after, check, clock, sleep
-        self.container = container               # row 1080: in Docker the stop is always refused, even if this was built anyway
+        self._container = container          # row 1080: in Docker the stop is always refused, even if this was built anyway
         self.last = clock()                  # the start counts as "here": the window is about to open
+
+    @property
+    def container(self):
+        """The container check: the one given, else platform.container_mode as it is now (not as it was when idle loaded)."""
+        return self._container or platform.container_mode
 
     @classmethod
     def from_environ(cls, environ, **kw):

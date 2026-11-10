@@ -7,6 +7,7 @@ shortened the way CLARK_STOP_AFTER and CLARK_STOP_CHECK shorten them.
 import threading
 import time
 import unittest
+from unittest import mock
 
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 
@@ -143,6 +144,17 @@ class InDocker(unittest.TestCase):
     def test_the_real_container_check_is_the_default(self):
         from clark import platform
         self.assertIs(idle.Idle().container, platform.container_mode)
+
+    def test_the_real_container_check_is_read_when_asked_not_when_the_module_loads(self):
+        """A patch of clark.platform.container_mode put in place after idle was imported still reaches both defaults."""
+        with mock.patch("clark.platform.container_mode", return_value=True):
+            self.assertFalse(idle.launched({"CLARK_LAUNCHED": "1"}))
+            watcher = idle.Idle(clock=self.clock, sleep=self.clock.sleep)
+            self.clock.now += 3600
+            self.assertFalse(watcher.due())
+        with mock.patch("clark.platform.container_mode", return_value=False):
+            self.assertTrue(idle.launched({"CLARK_LAUNCHED": "1"}))
+            self.assertTrue(watcher.due())
 
 
 class Environment(unittest.TestCase):
