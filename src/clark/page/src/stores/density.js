@@ -3,7 +3,7 @@
 // file carries the choice it was published with (useFileDensity) and has no way to change it.
 //
 // Bridge, until the guarded publish files change (publish.py, publish_flow.py, to_client.py; see the plan on item 1025): they still
-// speak the four old section words, so the choice is sent and read as the old word: Compact is "card", Comfortable is "slim". No other old word is ever sent.
+// speak the four old section words, so the choice is sent and read as the old word: Compact is "card", Comfortable is "roomy" (the publish code fills a missing word with "slim", which must read as Compact). No other old word is ever sent.
 import { signal } from "@preact/signals";
 
 export const IDS = ["compact", "comfortable"];
@@ -13,9 +13,9 @@ export const valid = (v) => IDS.includes(v);
 const normal = (v) => (valid(v) ? v : DEFAULT_DENSITY);
 
 /** The old section word that carries a density to the guarded publish code (the bridge above). */
-export const sectionWord = (d) => (d === "comfortable" ? "slim" : "card");
-/** The density a published file's section word stands for; anything not "slim" is Compact. */
-export const densityOfWord = (w) => (w === "slim" ? "comfortable" : DEFAULT_DENSITY);
+export const sectionWord = (d) => (d === "comfortable" ? "roomy" : "card");
+/** The density a published file's section word stands for; anything not "roomy" is Compact. */
+export const densityOfWord = (w) => (w === "roomy" ? "comfortable" : DEFAULT_DENSITY);
 
 function remembered() {
   try { return normal(localStorage.getItem(KEY)); } catch (e) { return DEFAULT_DENSITY; }
