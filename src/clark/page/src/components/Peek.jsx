@@ -77,7 +77,7 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
-      </> : null}
+      </> : row.raised ? <Row name="Raised">{showDate(row.raised)}</Row> : null}      {/* row 1077: a published file carries no history (no freshness, no Last reviewed) but it carries the date raised, so a client's peek keeps that row */}
     </dl>
   );
 }

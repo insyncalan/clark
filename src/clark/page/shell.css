@@ -666,7 +666,8 @@ input.sec-title { width: 100%; }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
 .pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
 .pk-source-l { font-weight: var(--weight-medium); }
-.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of the peek, not a panel below the list (row 776) */
+.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of its page (the use case page), not a panel below the list (row 776) */
+.peek .wordsbox { bottom: calc(-1 * var(--space-5)); margin: 20px calc(-1 * (var(--space-5) + 20px)) calc(-1 * var(--space-5)); padding: var(--space-3) calc(var(--space-5) + 20px); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
 .sn-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
@@ -2026,11 +2027,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
 /* The peek's card (row 766): Status, Priority, Owner and Due are four cells above the other fields, as the prototype's property row.
-   Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes. */
+   Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes.
+   Row 1077 (the owner's ruling of 10-11-2026): the cells are FLAT, no tile edge, rounding or fill; the hairline under the row is the first
+   ordinary row's top edge (.pk-row). This is the published page's rule too: a client's peek is the editor's, read only. */
 .peek .pk-body { container-type: inline-size; }
 .pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
 .pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
-.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--space-3); margin-bottom: var(--space-2); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--space-2) 0; margin: 0; border: 0; }
 .pk-fields > .pk-row[data-row=status] { order: 1; }
 .pk-fields > .pk-row[data-row=priority] { order: 2; }
 .pk-fields > .pk-row[data-row=owner] { order: 3; }

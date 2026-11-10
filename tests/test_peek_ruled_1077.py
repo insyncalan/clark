@@ -20,6 +20,7 @@ import _publish_fixture as fx
 import _testpage as testpage
 
 from clark import page  # noqa: E402
+from clark.store import open_store  # noqa: E402
 from _real_server import real_server  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
@@ -29,6 +30,7 @@ SRC = ROOT / "src" / "clark" / "page" / "src"
 LABEL = "Ask clark to update for you"
 OLD_LABEL = "Change an item with words"
 EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows that are controls, not fields: the editor's alone
+HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
 CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor]; } return out; })()"
@@ -90,7 +92,8 @@ class Source(unittest.TestCase):
         self.assertNotIn(".pk-source {", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
 
 
-class Browser(unittest.TestCase):
+class Peeks(unittest.TestCase):
+    """The demo store, a live server and the ways in; the tests are in Browser and Flat below."""
     def setUp(self):
         self.store, folder, self.ids = load_demo()
         self.code = next(iter(self.ids))
@@ -132,13 +135,16 @@ class Browser(unittest.TestCase):
         return cdp.js("[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())", sid)
 
     def no_controls(self, cdp, sid, where):
-        found = cdp.js(f"[...document.querySelectorAll('#peek .pk-fields').at(-1).querySelectorAll({json.dumps(CONTROLS)})].map(e => e.outerHTML.slice(0, 80))", sid)
+        found = cdp.js(f"(() => {{ const all = document.querySelectorAll('#peek .pk-fields'), f = all[all.length - 1]; return [...f.querySelectorAll({json.dumps(CONTROLS)})].map(e => e.outerHTML.slice(0, 80)); }})()", sid)
         self.assertEqual(found, [], f"a client's fields are read only ({where})")
 
     def no_draft(self, cdp, sid, where):
         self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-draft], #peek .pk-draft')", sid), where)
         self.assertEqual(cdp.js("[...document.querySelectorAll('#peek button, #peek .pk-chip, #peek .tag')].map(e => e.textContent.trim()).filter(t => t === 'Draft')", sid), [], where)
 
+
+
+class Browser(Peeks):
     def test_the_client_work_item_peek_is_the_editors_read_only_with_source(self):
         """Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its two control rows."""
         for width in (1400, 900):
@@ -200,7 +206,7 @@ class Browser(unittest.TestCase):
         self.assertIn("actions.xlsx", text)
         folder = Path(tempfile.mkdtemp(prefix="clark-1077-"))
         self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
-        store = fx.build_db(folder / "clark.db")
+        store = open_store(fx.build_db(folder / "clark.db"), onedrive_roots=[])
         self.addCleanup(store.close)
         for width in (1400, 900):
             with self.subTest(width=width, where="editor"), chrome() as cdp:
@@ -222,8 +228,9 @@ class Browser(unittest.TestCase):
                 self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
                 self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, "the published cells are flat too (ruling of 10-11): " + str(cells))
                 published = self.labels(cdp, sid)
-                self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS], "the published rows are the editor's, read only")
-                self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS))
+                self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
+                self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS + HISTORY_ROWS))
+                self.assertIn("Raised", published, "the date raised is published, so its row stays")
                 # the milestone peek in the same file: fields only, nothing to press
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-001')(document.querySelector('#peek'))", sid)), "the milestone peek drew")
@@ -232,7 +239,7 @@ class Browser(unittest.TestCase):
                 self.no_draft(cdp, sid, "published file, milestone")
 
 
-class Flat(Browser):
+class Flat(Peeks):
     """Ruling 5 (10-11-2026), in Edit on the Work items page: no tile, no boxed tab focus, no box round the Latest update, a pinned foot band."""
     def work(self, cdp, width, height=900):
         sid = self.live(cdp, width, self.store, f"#work&p={self.code}")
@@ -284,13 +291,13 @@ class Flat(Browser):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .wordsbox')", sid)), "two slashes open the box")
-                geo = "(() => { const p = document.querySelector('#peek'), w = p.querySelector('.wordsbox'), a = p.getBoundingClientRect(), b = w.getBoundingClientRect(), c = getComputedStyle(w); return { peekB: a.bottom, peekL: a.left, peekR: a.right, boxB: b.bottom, boxL: b.left, boxR: b.right, scroll: p.scrollHeight - p.clientHeight, top: p.scrollTop, line: c.borderTopWidth, radius: c.borderTopLeftRadius, shadow: c.boxShadow }; })()"
+                geo = "(() => { const p = document.querySelector('#peek'), w = p.querySelector('.wordsbox'), a = p.getBoundingClientRect(), b = w.getBoundingClientRect(), c = getComputedStyle(w); return { peekB: a.bottom, peekL: a.left, peekR: a.left + p.clientLeft + p.clientWidth, boxB: b.bottom, boxL: b.left, boxR: b.right, scroll: p.scrollHeight - p.clientHeight, top: p.scrollTop, line: c.borderTopWidth, radius: c.borderTopLeftRadius, shadow: c.boxShadow }; })()"
                 cdp.js("document.querySelector('#peek').scrollTop = 0", sid)
                 g = cdp.js(geo, sid)
                 self.assertGreater(g["scroll"], 40, "the body is taller than the peek, so there is something to scroll: " + str(g))
                 self.assertAlmostEqual(g["boxB"], g["peekB"], delta=1.5, msg="pinned to the bottom at the top of the scroll: " + str(g))
                 self.assertAlmostEqual(g["boxL"], g["peekL"] + 1, delta=1.5, msg="the band spans the peek (its left edge is the peek's border): " + str(g))
-                self.assertAlmostEqual(g["boxR"], g["peekR"], delta=1.5, msg="and reaches its right edge: " + str(g))
+                self.assertAlmostEqual(g["boxR"], g["peekR"], delta=1.5, msg="and reaches its right edge (the scrollbar's inner side): " + str(g))
                 self.assertEqual((g["line"], g["radius"], g["shadow"]), ("1px", "0px", "none"), "a hairline above, no rounding, no floating shadow: " + str(g))
                 cdp.js("document.querySelector('#peek').scrollTop = 10000", sid)
                 h = cdp.js(geo, sid)
