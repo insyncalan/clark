@@ -62,7 +62,6 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
 SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
-GANTT_SECTION_TYPES = ("gantt", "gantttable")       # rows 926 and 1068: the sections that draw the Gantt tab's data, in the file only when data.gantt is
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -455,16 +454,18 @@ def _gantt_line(row, code):
     return c
 
 
-def gantt_for_client(d, code, project_name):
+def gantt_for_client(d, code, project_name, for_section=False):
     """The Gantt tab's data for the published file, or None when there is no tab: the project's show_gantt_client is not 1, or no
     line is left (the tab needs at least one line with its eye on). The ONE place a client's Gantt is decided, and it runs before
     anything is copied: only a line whose `show` is exactly 1 and which belongs to this project is read at all; a dependency on a
     line that is not in the copy is dropped; a parent that is not in the copy (or is not a phase) reads as no parent; a dependency that
     would close a circle is dropped. The columns in the project's gantt_hidden_columns are not in the copy at all (not hidden by a
     style): the copy holds the line's id and name and every column not on that list. Returns {"tab_name", "title", "columns",
-    "lines"}; `columns` names the columns a line carries."""
+    "lines"}; `columns` names the columns a line carries.
+    `for_section` (row 1068): the copy a Gantt table section draws, the same lines by the same eye and the same columns, asked without
+    the client switch: a template section is in the file by its own place (it still needs an eye-on line), the tab by the switch."""
     project = d.get("project") or {}
-    if type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1:      # exactly the whole number 1: True, 1.0 and "1" are not
+    if not for_section and (type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1):      # exactly the whole number 1: True, 1.0 and "1" are not
         return None
     eyed = [r for r in d.get("gantt_lines") or () if type(r.get("show")) is int and r["show"] == 1 and r.get("project", code) == code]
     eyed.sort(key=lambda r: (r["sort_order"] if type(r.get("sort_order")) is int else 0, str(r.get("id"))))
@@ -574,6 +575,7 @@ def select(inputs):
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     gantt = gantt_for_client(d, code, proj["name"])               # row 926: decided here, from the rows as read, before anything of it is copied
+    table = gantt or gantt_for_client(d, code, proj["name"], for_section=True)      # row 1068: a Gantt table section needs an eye-on line, not the tab's switch
     if gantt:
         out["gantt"] = gantt
         proj["gantt_tab_name"], proj["gantt_title"] = gantt["tab_name"], gantt["title"]       # row 926: the project block carries the tab's name and the page's title, only when the tab is in the file
@@ -602,7 +604,8 @@ def select(inputs):
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
-                             or (x.get("type") in GANTT_SECTION_TYPES and not gantt))    # rows 926, 1068: no Gantt tab in the file, no Gantt or table section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -619,6 +622,8 @@ def select(inputs):
         elif s["type"] in section_bodies.CHECKERS:
             c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
         shown.append(c)
+    if table and not gantt and any(s["type"] == "gantttable" for s in shown):
+        out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
     if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
