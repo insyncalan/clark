@@ -619,6 +619,66 @@ class Menu(board.Base):
                 cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)
                 self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "an empty, unfocused search still closes on leaving")
 
+    def hover_owner_list(self, cdp, sid):
+        a = self.id_of("Order the laptops")
+        self.open_menu(cdp, sid, self.TABLE % a)
+        self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+        self.search_box(cdp, sid)
+        self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+        self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+
+    def test_item_1070_search_guard_edges_focus_alone_blank_text_swap_timing_and_a_list_opened_by_key(self):
+        away = {"type": "mouseMoved", "x": 3, "y": 3}
+        has_fly = "!!document.querySelector('.rowmenu .rm-fly')"
+        for width in (1400, 900):
+            with self.subTest(width=width, case="focused, empty"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js(has_fly, sid), "a focused search box keeps the list though it holds no text")
+            with self.subTest(width=width, case="blank text, unfocused"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    self.type_in(cdp, sid, "   ")
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertFalse(cdp.js(has_fly, sid), "spaces only are no text: the list closes about 250 ms after the pointer leaves")
+            with self.subTest(width=width, case="swap held"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    self.type_in(cdp, sid, "Wilh")
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                    self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=status]")
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", sid), "typed text is not swapped away by resting on another entry")
+            with self.subTest(width=width, case="list opened by a click survives the pointer leaving"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    a = self.id_of("Order the laptops")
+                    self.open_menu(cdp, sid, self.TABLE % a)
+                    click(cdp, sid, "[data-rm=status]")
+                    self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list")
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js(has_fly, sid), "a list taken by click or key stays when the pointer leaves")
+            with self.subTest(width=width, case="Escape from an entry"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    a = self.id_of("Order the laptops")
+                    self.open_menu(cdp, sid, self.TABLE % a)
+                    cdp.js("document.querySelector('.rowmenu > [role=menu] [data-rm=status]').focus()", sid)
+                    key(cdp, sid, "ArrowRight")
+                    self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list")
+                    self.until(cdp, sid, "!!document.activeElement.closest('.rm-fly')", "focus in the list")
+                    key(cdp, sid, "Escape")
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape on a name closes the list")
+
     def test_archive_hides_the_item_and_undo_brings_it_back_nothing_is_deleted(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
