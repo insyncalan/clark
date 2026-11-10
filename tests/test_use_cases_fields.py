@@ -45,6 +45,24 @@ class UseCaseFields(unittest.TestCase):
         helper = text(SRCS / "workItems.js")
         self.assertIn('n === 1 ? one : (many || one + "s")', helper)
 
+    def test_row_1085_the_plus_says_add_use_case_in_code_not_only_in_a_comment(self):
+        page = text(SRCS / "edit" / "UseCasesPage.jsx")
+        self.assertRegex(page, r'<NewTile word="Add use case" kind="use_case" id="ucAddPage"')     # a comment also holds the words; the tag is the pin
+
+    def test_row_1085_the_committed_tab_asks_for_the_servers_word(self):
+        from clark.store import COMMITMENTS
+        js = text(SRCS / "logic" / "useCasesList.js")
+        self.assertRegex(js, r'export const COMMITTED = "([^"]+)"')
+        word = re.search(r'export const COMMITTED = "([^"]+)"', js).group(1)
+        self.assertIn(word, COMMITMENTS)
+
+    def test_row_1085_the_help_says_the_tabs_the_line_and_group_by(self):
+        content = json.loads(text(SRCS / "help" / "helpContent.json"))
+        flat = json.dumps(content, ensure_ascii=False)
+        for want in ("**All use cases**, **On the dashboard**, **Committed** and **At risk**", "**Filter by keyword or by field**", "status:Flag", "commitment:Committed",
+                     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**"):
+            self.assertIn(want, flat)
+
     def test_detail_offers_next_step_and_link_without_edit_mode(self):
         detail = text(SRCS / "components" / "UseCaseDetail.jsx")
         self.assertRegex(detail, r"!ro && ed \?[^\n]*NextStep[^\n]*LinkButton")
