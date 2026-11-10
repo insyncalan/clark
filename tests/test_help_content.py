@@ -279,11 +279,12 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help; Esc takes you where you were")
 
-    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
-        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
-        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
-        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
-        self.assertNotIn("until you press Add;", self.ALL)
+    def test_the_help_does_not_offer_import_from_word_in_the_profile_menu(self):            # row 1063 (replaces the #432 wording test: the menu entry is gone)
+        self.assertNotIn("Import from Word", self.ALL)
+        self.assertNotIn("bring items in from a Word file", self.ALL)
+        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
+        self.assertNotIn("Import from Word", raw, "no help line, in any section, names the removed menu entry")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
