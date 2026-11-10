@@ -62,4 +62,5 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    restart: "no"
+    # Comes back with Docker after a Docker Desktop quit, an update or a restart of the computer; docker compose down (or stop) still stops it.
+    restart: unless-stopped
