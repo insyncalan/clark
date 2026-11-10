@@ -13,14 +13,14 @@ WIDTHS = (1400, 900)
 
 # (name, heading id, controls that must be drawn and visible: CSS selectors inside the card)
 CARDS = [
-    ("People", "people-h", ["#ppPasteBtn"]),
+    ("People", "people-h", ["#ppPasteBtn", "#ppAgain"]),
     ("Personal", "personal-h", ["[data-theme-pick]", ".switch"]),
-    ("Profile", "profile-h", ["#about-name"]),
-    ("Projects", "projects-h", ["#show-archived"]),
-    ("Published reports", "pubs", []),
-    ("Publishing", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]"]),
+    ("Profile", "profile-h", ["#about-name", "#about-alias", "#about-email"]),
+    ("Projects", "projects-h", ["#show-archived", "#npBtn"]),
+    ("Published reports", "pubs", ["#as-at-day", "#as-at-show"]),
+    ("Publishing", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]", "#client-folder-paste"]),
     ("Quit", "quit-h", ["button.btn"]),
-    ("Update", "update-h", []),
+    ("Update", "update-h", ["button.btn"]),
 ]
 
 PROBE = """((headId, sels) => {
