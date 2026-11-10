@@ -218,7 +218,7 @@ class InSettings(unittest.TestCase):
     def test_help_names_the_card(self):
         help_ = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
         self.assertIn("Settings › Feedback", help_)
-        self.assertIn("Asking and Feedback", help_)
+        self.assertIn("Asking, Feedback and Quit", help_)
 
 
 if __name__ == "__main__":
