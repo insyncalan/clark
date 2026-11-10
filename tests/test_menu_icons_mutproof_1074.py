@@ -14,7 +14,8 @@ import unittest
 from _paths import ROOT
 
 import test_inline_edits as ie  # noqa: E402
-from test_inline_edits import chrome, click, key  # noqa: E402
+from test_inline_edits import click, key  # noqa: E402
+from test_server import chrome  # noqa: E402  (the browser tier: this file drives Chrome through chrome())
 import test_bulk_bar as bb  # noqa: E402
 import test_milestone_peek_828 as mp  # noqa: E402
 from test_movement_page import GO_LIVE, Base as MoveBase  # noqa: E402

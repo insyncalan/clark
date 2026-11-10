@@ -14,7 +14,8 @@ import unittest
 from _paths import ROOT
 
 import test_inline_edits as ie  # noqa: E402
-from test_inline_edits import chrome, click, key  # noqa: E402
+from test_inline_edits import click, key  # noqa: E402
+from test_server import chrome  # noqa: E402  (the browser tier: this file drives Chrome through chrome())
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
 
