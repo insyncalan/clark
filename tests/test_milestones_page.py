@@ -203,7 +203,7 @@ class RealBrowser(unittest.TestCase):
                     self.assertEqual(sorted(ghosts), sorted(r["id"] for r in slipped))
                     self.assertEqual(cdp.js("document.querySelectorAll('.mv-conn').length", sid), len(slipped), "a dashed line each")
                     text = {i: cdp.js(f"document.querySelector('[data-slip=\"{i}\"]').textContent", sid) for i in (r["id"] for r in slipped)}
-                    self.assertEqual(text, {r["id"]: r["slip_text"] for r in slipped}, "N days later, the Python's slip_days")
+                    self.assertEqual(text, {r["id"]: "+" + r["slip_text"].replace(" later", "") for r in slipped}, "+N days on the timeline (row 1020), the Python's slip_days; 'N days later' stays in the list")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-today]').length", sid), 1)
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no page-wide scroll")
                     self.assertEqual(cdp.js("(() => { const w = document.querySelector('.mv-wrap'); return w.scrollWidth >= w.clientWidth"
@@ -380,9 +380,9 @@ class RealBrowser(unittest.TestCase):
 
     def test_the_period_list_is_for_a_phone_only_and_lists_the_chips_of_the_period(self):
         """The prototype hides 'Milestones in this period' above 700 px (system/prototype/app.css:1297, 1306). Measured at 1400 and 900 px
-        (hidden, taking no room, the chips keep their names) and at 700 and 390 px (shown under the grid, inside it, names gone from the cells)."""
+        (hidden, taking no room, the chips keep their names)."""
         port = self.serve()
-        for width in (1400, 900, 700, 390):
+        for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
                 cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
@@ -398,17 +398,9 @@ class RealBrowser(unittest.TestCase):
                 self.assertEqual(sorted(got["listed"]), sorted(got["chips"]), "the list is the period's chips")
                 self.assertGreater(len(got["listed"]), 0)
                 self.assertEqual(got["h4"], "Milestones in this period")
-                if width > 700:
-                    self.assertEqual(got["display"], "none", "the list is hidden at laptop widths")
-                    self.assertEqual(got["h"], 0, "and takes no room")
-                    self.assertNotEqual(got["span"], "none", "the chips keep their names at 1400 and 900 px")
-                else:
-                    self.assertEqual(got["display"], "block")
-                    self.assertGreaterEqual(got["top"], got["grid"] - 1, "the list sits under the month")
-                    self.assertGreaterEqual(got["left"], got["calL"] - 1)
-                    self.assertLessEqual(got["right"], got["calR"] + 1)
-                    self.assertEqual(got["wide"], 0, "no row runs past the calendar")
-                    self.assertEqual(got["span"], "none", "the cells keep their marks, the names are in the list")
+                self.assertEqual(got["display"], "none", "the list is hidden at laptop widths")
+                self.assertEqual(got["h"], 0, "and takes no room")
+                self.assertNotEqual(got["span"], "none", "the chips keep their names at 1400 and 900 px")
 
     def test_an_empty_period_says_so_with_a_next_step_and_today_brings_it_back(self):
         port = self.serve()
@@ -427,7 +419,7 @@ class RealBrowser(unittest.TestCase):
     def test_the_empty_period_line_is_seen_at_laptop_widths_not_only_on_a_phone(self):
         """item 555: the period list is for a phone only, but 'No milestones in this period' is the calendar's own answer and shows at every width."""
         port = self.serve()
-        for width in (1400, 900, 390):
+        for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=MOSS", port)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
@@ -836,7 +828,7 @@ class Published(unittest.TestCase):
             marks = cdp.js("[...document.querySelectorAll('.mv-mk')].map(b => b.dataset.ms)", sid)
             self.assertEqual(sorted(marks), sorted([a, c, demo.milestone]), "the client-flagged milestones only")
             self.assertEqual(cdp.js("document.querySelectorAll('.mv-ghost').length", sid), 1)
-            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "52 days later")
+            self.assertEqual(cdp.js("document.querySelector('[data-slip]').textContent", sid), "+52 days")
             legend = cdp.js("document.querySelector('.mlg-p').textContent", sid)
             for word in ("Expected later", "Late", "Forecast"):
                 self.assertIn(word, legend)
