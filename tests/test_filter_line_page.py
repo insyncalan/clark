@@ -827,21 +827,19 @@ class Line(unittest.TestCase):
                     # Save the line as a new view, then delete it: it asks first and cannot be brought back
                     self.put(cdp, sid, "type:decision")
                     click(cdp, sid, "#viewNew")
-                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
-                    self.type(cdp, sid, "Settled")
-                    key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: "Settled" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "the Settled tab is there")
-                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Settled")
+                    self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once, named View 1")
+                    self.assertFalse(cdp.js("!!document.querySelector('#vname')", sid), "row 1073: no name is asked first")
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "View 1")
                     click(cdp, sid, "#viewTabMenu")
                     click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
                     self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#vask') || {}).textContent", sid) == "Delete this view?"))
-                    self.assertIn("Settled", cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid), "nothing is deleted until it is confirmed")
+                    self.assertIn("View 1", cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid), "nothing is deleted until it is confirmed")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vdelete')", sid)))
                     click(cdp, sid, "#vdelete")
-                    self.assertTrue(wait(lambda: "Settled" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
+                    self.assertTrue(wait(lambda: "View 1" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     self.assertFalse(cdp.js("!!document.querySelector('#viewTabMenu')", sid), "no tab is open now (the line matches none)")
                     click(cdp, sid, "#viewNew")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vname')", sid)))
+                    self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "the number is free again after the delete")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-restore]').length", sid), 0, "there is no Bring back")
                     self.assertEqual(self.shown(cdp, sid), self.shown(cdp, sid))
                     self.assertTrue(rows)
@@ -966,22 +964,13 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 1), "Space opens the fields")
 
     def test_the_view_name_form_gives_the_focus_back_when_it_closes(self):
-        """The form's input is removed when it closes; focus goes back to the button that opened it, not to the top of the page."""
+        """The rename form's input is removed when it closes; focus goes back to the button that opened it, not to the top of the page. + New view has no form now (row 1073)."""
         s = self.serve()
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
-            for how in ("Escape", "#vcancel", "Enter"):
-                click(cdp, sid, "#viewNew")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
-                if how == "Enter":
-                    self.type(cdp, sid, "Back focus")
-                    key(cdp, sid, "Enter")
-                elif how == "Escape":
-                    key(cdp, sid, "Escape")
-                else:
-                    cdp.js("document.querySelector('.vform .btn.sm[type=button]').click()", sid)
-                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#vname')", sid)), "the form closed")
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), f"{how}: the focus is on + New view")
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "row 1073: the focus stays on + New view after it makes a view")
             click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
             click(cdp, sid, "#viewTabMenu")
             click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
@@ -1140,6 +1129,73 @@ class Line(unittest.TestCase):
                     own = cdp.js("(() => { const l = document.querySelector('#fline-list').getBoundingClientRect(); const e = document.elementFromPoint(l.left + 40, l.top + 20); return !!e && !!e.closest('#fline-list'); })()", sid)
                     self.assertTrue(own, "the list is the top layer where it lies")
 
+    def test_row_1073_a_new_view_takes_the_next_free_view_number_and_the_menu_entry_makes_one_at_once_too(self):
+        s = self.serve()
+        views = [{"id": "a", "name": "View 1", "line": "is:open"}, {"id": "b", "name": "view 3", "line": "is:open"}]
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: "View 1" in (cdp.js(tabs, sid) or [])), "the seeded views are there")
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 2" in cdp.js(tabs, sid)), "the lowest free number, not the count plus one")
+            click(cdp, sid, "#viewTabMenu")
+            click(cdp, sid, "#viewTabMenuList [data-kind=saveas]")
+            self.assertTrue(wait(lambda: "View 4" in cdp.js(tabs, sid)), "Save as a new view makes one at once too")
+            self.assertFalse(cdp.js("!!document.querySelector('#vname')", sid), "no name box")
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "View 4")
+            # it can be renamed
+            click(cdp, sid, "#viewTabMenu")
+            click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
+            cdp.js("document.querySelector('#vname').select()", sid)
+            self.type(cdp, sid, "Mine")
+            key(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: "Mine" in cdp.js(tabs, sid)))
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_row_1073_the_twentieth_view_is_still_made_and_a_hidden_view_keeps_its_number(self):
+        s = self.serve()
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 20)]
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: "Mine 19" in (cdp.js(tabs, sid) or [])), "the nineteen seeded views are there")
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js(tabs, sid)), "row 1073: the twentieth view is made, the limit is twenty")
+            self.assertEqual(len(json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]), 20)
+            # a hidden (archived) view still has its name, so its number is not given again
+            hidden = [{"id": "h", "name": "View 1", "line": "is:open", "archived": True}]
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(hidden), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewNew')", sid)))
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 2" in cdp.js(tabs, sid)), "row 1073: View 1 is taken by the hidden view")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast.problem')", sid), "no refusal")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_row_1073_a_new_view_past_the_limit_says_why_and_changes_nothing(self):
+        s = self.serve()
+        views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 21)]
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: "Mine 20" in (cdp.js(tabs, sid) or [])), "the twenty seeded views are there")
+            before = cdp.js(tabs, sid)
+            picked = cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid)
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "Delete one to make room" in (cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid) or "")), "the limit is said")
+            self.assertEqual(cdp.js("(document.querySelector('.toast') || {}).dataset.kind", sid), "problem", "row 1073: the limit is a problem message, not a done one")
+            self.assertEqual(cdp.js(tabs, sid), before, "no twenty-first view")
+            self.assertEqual(len(json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]), 20)
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), picked, "the open view is unchanged")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     def test_the_five_core_tabs_come_first_with_counts_that_match_the_rows_and_have_rename_and_delete_but_no_save_changes(self):
         s = self.serve()
         lines = {"core-open": ["is:open"], "core-actions": ["is:open", "type:action"], "core-risks": ["is:open", "type:risk,issue"],
@@ -1211,10 +1267,7 @@ class Line(unittest.TestCase):
                         wait(lambda: not cdp.js("!!document.querySelector('#vask')", sid))
                     self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 0)
                     click(cdp, sid, "#viewNew")
-                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
-                    self.type(cdp, sid, "First again")
-                    key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["First again"]))
+                    self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["View 1"]), "row 1073: made at once")
                     cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
     def test_the_arrow_on_the_open_tab_and_new_view_work_by_pointer_and_keyboard(self):
@@ -1252,21 +1305,17 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab[data-view-id=core-decisions] [data-dot]').length", sid) == 1), "one tab shows the unsaved dot")
                     cdp.js("document.querySelector('#viewNew').focus()", sid)
                     key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has the focus")
-                    self.type(cdp, sid, "Big decisions")
-                    key(cdp, sid, "Enter")
-                    self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)[-1] == "Big decisions"), "added after the others")
-                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Big decisions", "and chosen")
+                    self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)[-1] == "View 1"), "added after the others, named at once")
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "View 1", "and chosen")
+                    self.assertFalse(cdp.js("!!document.querySelector('#vname')", sid), "no name is asked first")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-dot]').length", sid), 0)
                     n = cdp.js("+document.querySelector('.vtab[aria-pressed=true] em').textContent", sid)
                     self.assertEqual(n, len(self.shown(cdp, sid)), "with its count")
                     names = cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)
                     self.assertEqual(names[:5], ["Open items", "Actions", "Risks and issues", "Decisions", "All work items"], "the core five are still first")
-                    # Esc in the name box closes it
+                    # a second press takes the next free number
                     click(cdp, sid, "#viewNew")
-                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"), "the name box has focus")
-                    key(cdp, sid, "Escape")
-                    self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#vname')", sid)), "the name box closed")
+                    self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)[-1] == "View 2"), "row 1073: the next free number")
                     # the separate old entries are gone from the View menu
                     click(cdp, sid, "#viewMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewMenuList')", sid)), "the View menu opened")
