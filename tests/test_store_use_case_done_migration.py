@@ -88,7 +88,7 @@ def add_use_cases(path):
 def use_cases_of(path):
     con = sqlite3.connect(str(path))
     try:
-        kept = ", ".join(c[1] for c in con.execute("PRAGMA table_info(use_cases)") if c[1] not in ("commitment", "owner", "owner_id"))   # #709 (step 16) and row 875 (step 21) add columns to use_cases: these steps keep every other
+        kept = ", ".join(c[1] for c in con.execute("PRAGMA table_info(use_cases)") if c[1] not in ("commitment", "owner", "owner_id"))   # #709 (step 16) and row 875 (step 22) add columns to use_cases: these steps keep every other
         return con.execute(f"SELECT rowid, {kept} FROM use_cases ORDER BY rowid").fetchall()
     finally:
         con.close()
@@ -103,7 +103,7 @@ def every_row(path):
         later = {"brand", "review_after_days", "commitment", "client_action", "show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows"}   # columns a later step adds (#171, step 14; #709, step 16; row 811, step 17; row 926, step 18: the Gantt columns of projects): what these older steps keep is every other one
         out = {}
         for n in names:
-            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later and not (n == "use_cases" and c[1] in ("owner", "owner_id")))     # row 875 (step 21): use_cases.owner and owner_id are later; every other table's owner is not
+            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in later and not (n == "use_cases" and c[1] in ("owner", "owner_id")))     # row 875 (step 22): use_cases.owner and owner_id are later; every other table's owner is not
             out[n] = con.execute(f'SELECT rowid, {kept} FROM "{n}" ORDER BY rowid').fetchall()
         return out
     finally:
@@ -403,7 +403,7 @@ class FrozenText(Base):
             found = [st for st in store_module._statements(text) if "TABLE IF NOT EXISTS use_cases (" in st]
             self.assertEqual(len(found), 1)
             text = "\n".join(l for l in found[0].splitlines() if not l.startswith("--")).strip()
-            text = re.sub(r",\n\s*owner_id\s+TEXT REFERENCES people\(id\)\n", "\n", re.sub(r",\n\s*owner\s+TEXT", "", text))      # row 875: the columns step 21 adds
+            text = re.sub(r",\n\s*owner_id\s+TEXT REFERENCES people\(id\)\n", "\n", re.sub(r",\n\s*owner\s+TEXT", "", text))      # row 875: the columns step 22 adds
             return re.sub(r",\n\s*commitment\s+TEXT\n", "\n", text)      # #709: the column step 16 adds is not in this step's frozen text
         self.assertEqual(the_table(store_module.SCHEMA_USE_CASES_DONE.read_text(encoding="utf-8")),
                          the_table(store_module.SCHEMA.read_text(encoding="utf-8")))
