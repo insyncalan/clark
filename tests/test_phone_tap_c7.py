@@ -55,7 +55,7 @@ class PhoneWidth(unittest.TestCase):
         self.assertIn("overflow-wrap: anywhere", late)
 
     def test_settings_chips_are_44_px(self):
-        self.assertIn("min-height: 44px", rule(self.shell, ".set-chip"))
+        self.assertIn("min-height: 44px", rule(self.shell, ".set-item"))
 
     def test_use_case_link_and_eye_are_44_px(self):
         self.assertIn("min-height: 44px", rule(self.edit, ".ucl-go"))
@@ -106,7 +106,7 @@ class PhoneLayout(unittest.TestCase):
                 self.assertGreaterEqual(sizes[0][1], 44, f"link height at {width}")
                 self.assertGreaterEqual(sizes[1][0], 44, f"eye width at {width}")
                 self.assertGreaterEqual(sizes[1][1], 44, f"eye height at {width}")
-                self.go(cdp, sid, f"#settings&p={self.code}", "!!document.querySelector('#people')")
+                self.go(cdp, sid, f"#settings&p={self.code}&s=people", "!!document.querySelector('#people')")
                 self.assertLessEqual(cdp.js(WIDE, sid), 0, f"Settings (People table) scroll sideways at {width}")
 
 

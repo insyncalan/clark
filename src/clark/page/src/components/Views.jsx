@@ -2,8 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, restoreY, openSettings, settingsFallback, takeArrival } from "../stores/report.js";
-import { wantName } from "../stores/profile.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, restoreY, openSettings, settingsFallback, takeArrival, wantName } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -113,18 +112,7 @@ export function Milestones({ tools }) {
 // step through the pages, and each page keeps its own place on the screen (stores/report.js). The cards are the ones they always were,
 // only drawn on the page that holds them. The menu lists a page only if its tool is here and, for the pages that need an open project,
 // only with one open. At 900 px and narrower the menu keeps the row of buttons it had (item 1024, PR 4 turns it into one dropdown line).
-// [group, [[address key, name, tools drawn (in order), heading that takes the focus]]]
-const GROUPS = [
-  ["Everyday", [["projects", "Projects", ["Projects"], "projects-h"], ["people", "People", ["People"], "people-h"], ["published", "Published reports", ["PublishedReports"], "pubs-h"], ["profile", "Profile", ["Profile"], "profile-h"]]],
-  ["Publishing", [["folder", "Folder", ["ClientFolder"], "client-folder-h"], ["brand", "Brand", ["Brands"], "brands-h"]]],
-  ["Look and feel", [["appearance", "Appearance", ["Personal"], "personal-h"], ["reports", "Reports", ["ReviewDays", "GanttSetting"], "review-days-h"]]],
-  ["Data and safety", [["backups", "Backups", ["Safety"], "safety-h"], ["export", "Export and import", ["Data"], "data-card-h"]]],
-  ["Advanced", [["claude-ai", "Claude and AI", ["AskSettings"], "ask-settings-h"], ["logs", "Logs and diagnostics", ["Diagnostics"], "diagnostics-h"], ["version", "Version and updates", ["Update", "Quit"], "update-h"]]],
-];
-const ADVANCED_NOTE = "These are for setting up Claude, and for when something goes wrong. Most people never need them.";      // item 1024: said once, under the Advanced heading
-const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"];      // cards that need an open project; a page is left out when any of its cards is
-
-function SettingsMenu({ groups, here, onChoose }) {
+function SettingsMenu({ groups, here, onChoose, note }) {
   const nav = useRef(null);
   // Up, Down, Home and End move between entries, in a column or a wrapped row (none is chosen by moving); Left and Right are left to the browser; Enter or Space on one chooses it (it is a button)
   const key = (e) => {
@@ -141,7 +129,7 @@ function SettingsMenu({ groups, here, onChoose }) {
       {groups.map(([group, pages], i) => (
         <div class={group === "Advanced" ? "set-group set-advanced" : "set-group"} key={group}>
           <p class="set-group-h" id={`set-group-${i}`}>{group}</p>
-          {group === "Advanced" ? <p class="set-group-note">{ADVANCED_NOTE}</p> : null}
+          {group === "Advanced" ? <p class="set-group-note">{note}</p> : null}
           <ul class="set-list" aria-labelledby={`set-group-${i}`}>{pages.map(([slug, name]) => (
             <li key={slug}><button type="button" class="set-item" aria-current={here === slug ? "page" : undefined} onClick={() => onChoose(slug)}>{name}</button></li>
           ))}</ul>
@@ -152,6 +140,8 @@ function SettingsMenu({ groups, here, onChoose }) {
 }
 
 export function Settings({ tools }) {
+  const cfg = tools && tools.SettingsPages;      // the pages, their groups and words are Edit's (edit/settingsPages.js): a published file has no Settings and none of them
+  const { GROUPS, ADVANCED_NOTE, NEEDS_PROJECT } = cfg || { GROUPS: [], ADVANCED_NOTE: "", NEEDS_PROJECT: [] };
   const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
   const have = (tool) => !!(tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool)));      // Edit's tools only: a published file has no Settings
   const groups = GROUPS.map(([group, pages]) => [group, pages.filter(([, , drawn]) => drawn.every(have))]).filter(([, pages]) => pages.length);
@@ -186,7 +176,7 @@ export function Settings({ tools }) {
         <h1>Settings</h1>
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
       </section>
-      {page ? <SettingsMenu groups={groups} here={slug} onChoose={(s) => openSettings(s === all[0][0] ? "" : s)} /> : null}
+      {page ? <SettingsMenu groups={groups} here={slug} onChoose={(s) => openSettings(s === all[0][0] ? "" : s)} note={ADVANCED_NOTE} /> : null}
       <div class="set-cards" data-settings-page={slug}>
         {drawn.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}
       </div>

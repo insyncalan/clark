@@ -82,7 +82,7 @@ COVERED = [
     ("#664", "The ask clark button is not there while asking is off.",
      "test_top_bar_actions::TopBarActions::test_the_ask_button_is_not_there_while_asking_is_off"),
     ("#677", "Settings has a chip for each card that is shown.",
-     "test_settings_head::Head::test_C_the_title_the_help_line_and_a_chip_for_each_card_that_exists"),
+     "test_settings_head::Head::test_C_the_title_the_help_line_and_an_entry_for_each_page_that_exists"),
     ("#677", "Appearance is a segmented control (System, Light, Dark), not radio buttons.",
      "test_appearance::Appearance::test_C_appearance_is_a_segmented_control_not_radio_buttons"),
     ("#677", "Single-key shortcuts is a switch with its words and works by keyboard.",

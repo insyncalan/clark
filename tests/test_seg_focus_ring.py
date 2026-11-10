@@ -22,7 +22,7 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL", "usecases": "#usecases&p=TUL"}
+VIEWS = {"settings": "#settings&s=appearance", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL", "usecases": "#usecases&p=TUL"}
 # every chosen half of a group of words (not the icon pair, not the View | Edit pill), focused, and what its ring and its fill are
 MEASURE = r"""(() => {
   const out = [];

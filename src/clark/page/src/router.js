@@ -96,7 +96,7 @@ shown = screenKey(parse(here()));
 try {
   // A parameter this page does not know (a later version's, a link's own "&foo=1") is kept as typed when it is plain text: the page drops
   // only what it cannot use. (format() itself never writes one; navigate() still sets the known keys only.)
-  const typed = here(), known = ["p", "item", "ms", "f", "uc", "s"];
+  const typed = here(), known = ["p", "item", "ms", "f", "s", ...(parse(typed).view === "usecases" ? ["uc"] : [])];      // a use case key on another page is the page's to ignore, so it stays as typed
   const extra = typed ? typed.replace(/^#/, "").split("&").slice(1).filter((part) => /^[A-Za-z0-9_.-]{1,40}(=[A-Za-z0-9_.~%-]{0,200})?$/.test(part) && !known.includes(part.split("=")[0])) : [];
   const plain = typed ? format(parse(typed)) + extra.map((part) => "&" + part).join("") : "";
   if (typed && plain !== typed) history.replaceState(history.state, "", plain);

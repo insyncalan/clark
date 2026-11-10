@@ -52,6 +52,7 @@ export const view = signal(start.view === "clientreport" && !published() ? "dash
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const settingsPage = signal(start.view === "settings" ? start.s || "" : "");   // item 1024: the Settings page shown, an address key from router.SETTINGS_PAGES, or "" for Projects
+export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn (here, not in the profile store, so the published page does not pull in the api)
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()

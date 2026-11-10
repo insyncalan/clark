@@ -45,7 +45,7 @@ class NotReviewed(Setup):
 
     def set_days(self, p, text):
         """Open Settings, put `text` in the box and press Enter."""
-        p.js("location.hash = '#settings&p=ABC'")
+        p.js("location.hash = '#settings&p=ABC&s=reports'")
         p.until("!!document.querySelector('#review-days')", "the Freshness card drew")
         p.js("(() => { const el = document.querySelector('#review-days'); el.focus(); el.select(); })()")
         if text:

@@ -94,6 +94,7 @@ class PageKeys(Base):
 
     def settings_box(self, p):
         p.js("clarkPage.show('settings')")
+        p.js("location.hash = location.hash.split('&s=')[0] + '&s=appearance'")      # item 1024: the switch is on the Appearance page
         p.until("!!document.querySelector('fieldset.keys [role=switch]')", "Settings has the switch")
 
     def flip(self, p, on):
