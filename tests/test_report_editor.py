@@ -983,7 +983,7 @@ class Gutter(Base):
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
-            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "faint at rest")
+            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.001" % (self.CTL % "ABC-S-004"), "faint at rest")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-004"), 0.3, places=2)
             x, y, _ = p.box('[data-id="ABC-S-004"] .sec-head')
             p.mouse("mouseMoved", x, y)
