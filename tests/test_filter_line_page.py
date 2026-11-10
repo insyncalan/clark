@@ -1155,6 +1155,28 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: "Mine" in cdp.js(tabs, sid)))
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_row_1073_the_twentieth_view_is_still_made_and_a_hidden_view_keeps_its_number(self):
+        s = self.serve()
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 20)]
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: "Mine 19" in (cdp.js(tabs, sid) or [])), "the nineteen seeded views are there")
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js(tabs, sid)), "row 1073: the twentieth view is made, the limit is twenty")
+            self.assertEqual(len(json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]), 20)
+            # a hidden (archived) view still has its name, so its number is not given again
+            hidden = [{"id": "h", "name": "View 1", "line": "is:open", "archived": True}]
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(hidden), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewNew')", sid)))
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 2" in cdp.js(tabs, sid)), "row 1073: View 1 is taken by the hidden view")
+            self.assertFalse(cdp.js("!!document.querySelector('.toast.problem')", sid), "no refusal")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     def test_row_1073_a_new_view_past_the_limit_says_why_and_changes_nothing(self):
         s = self.serve()
         views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 21)]
@@ -1168,6 +1190,7 @@ class Line(unittest.TestCase):
             picked = cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid)
             click(cdp, sid, "#viewNew")
             self.assertTrue(wait(lambda: "Delete one to make room" in (cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid) or "")), "the limit is said")
+            self.assertEqual(cdp.js("(document.querySelector('.toast') || {}).dataset.kind", sid), "problem", "row 1073: the limit is a problem message, not a done one")
             self.assertEqual(cdp.js(tabs, sid), before, "no twenty-first view")
             self.assertEqual(len(json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]), 20)
             self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), picked, "the open view is unchanged")
