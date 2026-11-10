@@ -98,6 +98,7 @@ class ToastFiveSeconds(Base):
     def test_the_timer_waits_while_focus_is_inside_the_message(self):
         with chrome() as cdp:
             p = self.visit(cdp)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless tab is not the focused one: without this no focus event comes
             self.make_toast(p)
             p.js("document.querySelector('.toast [data-undo]').focus()")
             self.at(7.5)

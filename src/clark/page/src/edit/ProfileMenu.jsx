@@ -11,14 +11,15 @@ import { openHelp, openContext } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
-import { note, say, closeNote } from "./menuNote.js";
+import { note, say, closeNote, noteTimer } from "./menuNote.js";
+import { holdOn } from "../stores/toastClock.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
 import { showPublished } from "./PublishedReports.jsx";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport, openImport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
-import { ToastCard } from "./ToastCard.jsx";
+import { ToastCard, ToastBar, startHeld } from "./ToastCard.jsx";
 import { Welcome } from "./Welcome.jsx";
 
 export const MENU_NAME = "Your menu";
@@ -33,9 +34,10 @@ export { note };
 export function MenuNote() {
   const n = note.value;
   return n ? (
-    <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined}>
+    <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined} ref={startHeld(noteTimer)} {...holdOn(noteTimer)}>
       <span class="toast-text">{n.text}</span>
       <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={closeNote}>Close</button>
+      <ToastBar kind={n.kind} />
     </div>
   ) : null;
 }
