@@ -183,10 +183,10 @@ class Launch(unittest.TestCase):
         self.assertEqual((env["CLARK_LAUNCHED"], env["CLARK_PORT"], env["PYTHONPATH"]), ("1", "8800", str(SRC)))
         self.assertEqual(env["HOME"], "/nowhere", "the rest of the environment is passed on")
         self.assertEqual((log, cwd), (self.folder / "server.log", str(self.folder)))
-        self.assertEqual(f.windows, [("http://127.0.0.1:8800/", "/stub/browser")])
+        self.assertEqual(f.windows, [("http://clark.localhost:8800/", "/stub/browser")])
         self.assertEqual(f.browser, [])
         self.assertEqual(f.said, ["Starting clark...", "A minute after the last window closes, clark stops by itself.",
-                                  "Opened clark in its own window."])
+                                  "Opened clark in Chrome."])
 
     def test_it_asks_with_this_data_folders_mark(self):
         f = Fakes([launch.OURS])
@@ -253,19 +253,18 @@ class Launch(unittest.TestCase):
     def test_no_chrome_opens_the_default_browser_and_says_so(self):
         f = Fakes([launch.OURS], chrome=None)
         self.assertEqual(self.run_launch(f), 0)
-        self.assertEqual((f.windows, f.browser), ([], ["http://127.0.0.1:8800/"]))
-        self.assertEqual(f.said[-1], "Chrome wasn't found, so clark opened in your default browser. "
-                                     "Install Chrome to give clark its own window.")
+        self.assertEqual((f.windows, f.browser), ([], ["http://clark.localhost:8800/"]))
+        self.assertEqual(f.said[-1], "Chrome wasn't found, so clark opened in your default browser.")
 
     def test_a_window_the_system_cannot_open_says_the_address(self):
         f = Fakes([launch.OURS])
         kw = f.kw()
         kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("Chrome could not be started, so clark's window did not open."))
         self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
-        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
+        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://clark.localhost:8800/")
 
-    def test_the_address_is_always_127_0_0_1(self):
-        self.assertEqual(launch.address(8766), "http://127.0.0.1:8766/")
+    def test_the_address_is_clark_localhost_with_the_port(self):
+        self.assertEqual(launch.address(8766), "http://clark.localhost:8766/")
 
 
 class Wait(unittest.TestCase):
@@ -326,7 +325,7 @@ class AgainstAFakeServer(unittest.TestCase):
             kw = dict(say=said.append, environ={}, start=start, find_chrome=lambda env: "/stub", free=lambda p: False,
                       open_window=lambda u, c: windows.append(u), open_browser=lambda u: windows.append("browser"))
             self.assertEqual(launch.launch(port, folder, **kw), 0)
-            self.assertEqual(windows, [f"http://127.0.0.1:{port}/"])
+            self.assertEqual(windows, [f"http://clark.localhost:{port}/"])
             kw["start"] = lambda *a, **k: started.append(a)
             self.assertEqual(launch.launch(port, folder, **kw), 0, "the second launch finds our clark")
             self.assertEqual((started, len(windows)), ([], 2))
@@ -784,28 +783,28 @@ class PlatformCalls(unittest.TestCase):
             with self.assertRaisesRegex(pl.PlatformError, r"^Nothing was started, because this Mac would not run clark\. Close this window and try again\. If it keeps happening, send the file .*server\.log to the clark team\.$"):
                 pl.start_detached(["a"], {}, Path(tmp) / "server.log", popen=popen, on=pl.MAC)
 
-    def test_the_app_window_is_chrome_with_app_equals_the_address(self):
+    def test_the_dashboard_opens_in_a_normal_chrome_window_not_an_app_window(self):
         calls = []
-        pl.open_app_window("http://127.0.0.1:8766/", "/stub/browser", popen=lambda a, **kw: calls.append((a, kw)), on=pl.MAC)
+        pl.open_in_chrome("http://clark.localhost:8766/", "/stub/browser", popen=lambda a, **kw: calls.append((a, kw)), on=pl.MAC)
         (argv, kw), = calls
-        self.assertEqual(argv, ["/stub/browser", "--app=http://127.0.0.1:8766/"])
+        self.assertEqual(argv, ["/stub/browser", "http://clark.localhost:8766/"])
         self.assertTrue(kw["start_new_session"])
         self.assertIsNot(kw.get("shell"), True)
 
     def test_only_a_web_address_is_opened_and_a_failure_is_plain(self):
         for bad in ("file:///etc/passwd", "--user-data-dir=/x", "javascript:1", "http://a b"):
             with self.assertRaisesRegex(pl.PlatformError, "Only web addresses"):
-                pl.open_app_window(bad, "/stub", popen=lambda *a, **k: None, on=pl.MAC)
+                pl.open_in_chrome(bad, "/stub", popen=lambda *a, **k: None, on=pl.MAC)
 
         def popen(argv, **kw):
             raise PermissionError(13, "Permission denied")
         with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
-            pl.open_app_window("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
+            pl.open_in_chrome("http://127.0.0.1:1/", "/stub", popen=popen, on=pl.MAC)
 
     def test_every_windows_branch_is_not_built_yet(self):
         calls = (lambda: pl.launcher_name(on=pl.WINDOWS), lambda: pl.find_chrome({}, on=pl.WINDOWS),
                  lambda: pl.start_detached(["a"], {}, "x.log", popen=lambda *a, **k: None, on=pl.WINDOWS),
-                 lambda: pl.open_app_window("http://127.0.0.1:1/", "c", popen=lambda *a, **k: None, on=pl.WINDOWS))
+                 lambda: pl.open_in_chrome("http://127.0.0.1:1/", "c", popen=lambda *a, **k: None, on=pl.WINDOWS))
         for call in calls:
             with self.assertRaisesRegex(pl.NotBuiltYet, "on Windows is not built yet"):
                 call()

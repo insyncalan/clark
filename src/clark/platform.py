@@ -677,14 +677,15 @@ def run_python_check(python, code, args=(), timeout=120, run=None):
     return done.returncode, (done.stderr or b"").decode("utf-8", "replace")
 
 
-def open_app_window(url, chrome, popen=None, on=None):
-    """Open `url` in a Chrome app window (no address bar or tabs). It is left running."""
-    _only_mac("Opening an app window", on)
+def open_in_chrome(url, chrome, popen=None, on=None):
+    """Open `url` in Chrome, as a page in an ordinary Chrome window (row 1076; not an app window: the person can install it as a
+    web app from Chrome if they want to). Chrome already running opens it there. It is left running."""
+    _only_mac("Opening Chrome", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
         raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
     try:
-        (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        (popen or subprocess.Popen)([str(chrome), url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
         raise PlatformError("Chrome could not be started, so clark's window did not open.") from e

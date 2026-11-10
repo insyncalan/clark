@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in a Chrome app window (#71).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome (#71, row 1076).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
@@ -10,7 +10,7 @@ It asks what is on the port first, and never takes over what isn't its own:
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
-The window is Chrome's app window (--app=<address>); if Chrome isn't found, the default browser, and it says so. The logic is
+Clark opens as a page in Chrome (at clark.localhost, not a standalone app window); if Chrome isn't found, the default browser, and it says so. The logic is
 here and every system call is in platform.py, so a test runs it with fakes and a fake server. Copied from creaite v2.6.9
 system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login agent, restart or starting-file. Standard library
 only, Python 3.9.
@@ -102,8 +102,9 @@ BROKEN_PAGE = ("clark is already running, but its page answers with an error. No
 
 
 def address(port):
-    """Where clark's window opens. Always 127.0.0.1: Chrome offers to install an app only from a loopback address."""
-    return f"http://127.0.0.1:{port}/"
+    """Where clark opens (row 1076): clark.localhost, which Chrome resolves to this computer and still counts as a loopback address,
+    so Chrome offers to install it as a web app. The health checks above still ask 127.0.0.1 directly."""
+    return f"http://clark.localhost:{port}/"
 
 
 def launcher_file():
@@ -196,7 +197,7 @@ def lock_refusal(folder):
 
 
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
-           open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
+           open_window=platform.open_in_chrome, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
            free=port_free, finish=finish_update, identity=ask_identity, page=ask_page):
     """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
     (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said)."""
@@ -246,15 +247,15 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
 
 
 def open_clark(url, say, environ, find_chrome, open_window, open_browser):
-    """Open `url` in a Chrome app window; the default browser, with a line saying so, if Chrome isn't found."""
+    """Open `url` in Chrome; the default browser, with a line saying so, if Chrome isn't found."""
     chrome = find_chrome(environ)
     try:
         if chrome:
             open_window(url, chrome)
-            say("Opened clark in its own window.")
+            say("Opened clark in Chrome.")
         else:
             open_browser(url)
-            say("Chrome wasn't found, so clark opened in your default browser. Install Chrome to give clark its own window.")
+            say("Chrome wasn't found, so clark opened in your default browser.")
     except platform.PlatformError as e:
         say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
         return 1
