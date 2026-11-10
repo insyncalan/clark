@@ -464,8 +464,8 @@ class AboutYou(Base):
     # ── the toast in View goes as it does in Edit (#429) ────────────────────
 
     def quick_toasts(self, p):
-        """Make the toast's 20 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
-        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 20000 ? 400 : ms, ...a); })()")
+        """Make the toast's 5 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
+        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 5000 ? 400 : ms, ...a); })()")
 
     def test_C_in_view_the_toast_goes_after_its_time_like_in_edit(self):
         with chrome() as cdp:

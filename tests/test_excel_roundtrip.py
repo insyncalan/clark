@@ -4,6 +4,7 @@ it in Excel, read by the import (src/clark/excel_import.py), applied as one step
 
 Run: python3 dev/run_tests.py test_excel_roundtrip
 """
+import atexit
 import json
 import shutil
 import zipfile
@@ -69,33 +70,80 @@ def delete_row(path, sheet, item_id):
     wb.save(str(path))
 
 
+def _build(demo, path, state):
+    """The demo store's rows and the export of them, the same in every test of this file."""
+    ids = {}
+    with demo.store.step("dashboard", USER) as st:
+        ids["a1"] = st.create("actions", {
+            "project": "ABC", "description": "Draft the cut-over plan", "workstream": "Build", "owner": "Demo Owner",
+            "priority": "High", "due_date": "2030-04-15", "raised": "2030-01-10", "latest_update": "First draft shared",
+            "client_message": "The plan is being drafted", "milestone": demo.milestone,
+            "use_case": demo.use_case, "labels": "Sensitive", "source": "demo"})
+        ids["a2"] = st.create("actions", {"project": "ABC", "description": "Book the demo room", "raised": "2026-10-01",
+                                          "client_visible": 0, "source": "demo"})
+        ids["r1"] = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Test data arrives late",
+                                       "impact": "High", "likelihood": "Medium", "due_date": "2030-05-01",
+                                       "response_action": "Ask for a sample early", "raised": "2030-01-12", "source": "demo"})
+        ids["d1"] = st.create("decisions", {"project": "ABC", "decision": "Choose the second team", "status": "Pending",
+                                            "needed_by": "2030-07-01", "source": "demo"})
+        ids["m2"] = st.create("milestones", {"project": "ABC", "name": "Slipped milestone", "baseline_date": "2030-08-01",
+                                             "forecast_date": "2030-08-20", "percent_complete": 40, "owner": "Demo Owner",
+                                             "internal_note": "Keep an eye", "source": "demo"})
+    # the demo milestone is rebaselined, so its Original column differs from its Baseline (and a decision is recorded)
+    demo.update("milestones", demo.milestone, {"baseline_date": "2030-04-01"},
+                rebaseline={"agreed_with": "Demo Sponsor", "reason": "Scope grew", "source": "Steering, 01-02-2030"})
+    excel.export_project(demo.store, "ABC", path, state, on=ON)
+    return ids
+
+
+_TEMPLATE = {}
+
+
+def _template():
+    """The store, its workbook and the state file of _build, made once (the export is the slow part, about 1.5 s) and kept as
+    files; every test starts from a copy of them, so each still has a store, a workbook and a state file of its own."""
+    if not _TEMPLATE:
+        folder = Path(tempfile.mkdtemp(prefix="clark-roundtrip-template-"))
+        demo = DemoStore()
+        try:
+            ids = _build(demo, folder / "ABC work items.xlsx", folder / "state.json")
+            demo.store.close()
+            shutil.copy(demo.dir / "clark.db", folder / "clark.db")
+            _TEMPLATE.update(folder=folder, ids=ids, milestone=demo.milestone, use_case=demo.use_case)
+        finally:
+            shutil.rmtree(demo.dir, ignore_errors=True)
+    return _TEMPLATE
+
+
+@atexit.register
+def _drop_template():       # at exit, not in tearDownModule: test_excel_refs also builds on RoundTrip
+    if _TEMPLATE:
+        shutil.rmtree(_TEMPLATE["folder"], ignore_errors=True)
+        _TEMPLATE.clear()
+
+
 class RoundTrip(unittest.TestCase):
     def setUp(self):
-        self.demo = DemoStore()
+        t = _template()
+        self.demo = DemoStore.__new__(DemoStore)      # DemoStore, opened on a copy of the template's database
+        self.demo.dir = Path(tempfile.mkdtemp(prefix="clark-test-"))
+        shutil.copy(t["folder"] / "clark.db", self.demo.dir / "clark.db")
+        self.demo.store = open_store(self.demo.dir / "clark.db", onedrive_roots=[])
+        self.demo.milestone, self.demo.use_case = t["milestone"], t["use_case"]
         self.s = self.demo.store
         self.dir = Path(tempfile.mkdtemp(prefix="clark-roundtrip-"))
         self.path = self.dir / "ABC work items.xlsx"
         self.state = self.dir / "state.json"
-        with self.s.step("dashboard", USER) as st:
-            self.a1 = st.create("actions", {
-                "project": "ABC", "description": "Draft the cut-over plan", "workstream": "Build", "owner": "Demo Owner",
-                "priority": "High", "due_date": "2030-04-15", "raised": "2030-01-10", "latest_update": "First draft shared",
-                "client_message": "The plan is being drafted", "milestone": self.demo.milestone,
-                "use_case": self.demo.use_case, "labels": "Sensitive", "source": "demo"})
-            self.a2 = st.create("actions", {"project": "ABC", "description": "Book the demo room", "raised": "2026-10-01",
-                                            "client_visible": 0, "source": "demo"})
-            self.r1 = st.create("raid", {"project": "ABC", "type": "Risk", "description": "Test data arrives late",
-                                         "impact": "High", "likelihood": "Medium", "due_date": "2030-05-01",
-                                         "response_action": "Ask for a sample early", "raised": "2030-01-12", "source": "demo"})
-            self.d1 = st.create("decisions", {"project": "ABC", "decision": "Choose the second team", "status": "Pending",
-                                              "needed_by": "2030-07-01", "source": "demo"})
-            self.m2 = st.create("milestones", {"project": "ABC", "name": "Slipped milestone", "baseline_date": "2030-08-01",
-                                               "forecast_date": "2030-08-20", "percent_complete": 40, "owner": "Demo Owner",
-                                               "internal_note": "Keep an eye", "source": "demo"})
-        # the demo milestone is rebaselined, so its Original column differs from its Baseline (and a decision is recorded)
-        self.demo.update("milestones", self.demo.milestone, {"baseline_date": "2030-04-01"},
-                         rebaseline={"agreed_with": "Demo Sponsor", "reason": "Scope grew", "source": "Steering, 01-02-2030"})
-        excel.export_project(self.s, "ABC", self.path, self.state, on=ON)
+        shutil.copy(t["folder"] / "ABC work items.xlsx", self.path)
+        # the state file is keyed by the workbook's path: the copy's, not the template's
+        old = json.loads((t["folder"] / "state.json").read_text(encoding="utf-8"))
+        template_path = excel._key(t["folder"] / "ABC work items.xlsx")      # the state file keys a path resolved (/private/var on a Mac), as excel._key does
+        record = old["workbooks"][template_path]
+        keyed = {k: v for k, v in old["workbooks"].items() if k.startswith(excel.KEYED)}     # keep the export's id: and sha256: keys: excel._find looks a workbook up by its id first
+        self.state.write_text(json.dumps({**old, "workbooks": {**keyed, excel._key(self.path): record}}, indent=1, ensure_ascii=False),
+                              encoding="utf-8")
+        for name, value in t["ids"].items():
+            setattr(self, name, value)
 
     def tearDown(self):
         self.demo.close()

@@ -7,6 +7,7 @@ for a card that is not; a click scrolls the card into view and moves focus to it
 Enter); the list stands at the left of the cards at 900 px and wider and the chips wrap in a row under the title below 900 px, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
 """
+import os
 import re
 import unittest
 
@@ -18,7 +19,7 @@ WIDTHS = (1400, 901, 900, 899, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
 def ratio(a, b):
@@ -40,6 +41,12 @@ class Head(Base):
     def open_settings(self, p, w, mode="light"):
         p.width(w)
         scheme(p, mode)
+        rate = int(os.environ.get("CLARK_TEST_CPU_THROTTLE", "0") or 0)      # tests only: a slow runner (macOS headless) on any machine
+        if rate > 1:
+            p.cdp.call("Emulation.setCPUThrottlingRate", {"rate": rate}, p.sid)
+        slow = int(os.environ.get("CLARK_TEST_SLOW_RAF", "0") or 0)      # tests only: a frame callback every N ms, like macOS headless
+        if slow:
+            p.js("(function(){ var r = window.requestAnimationFrame.bind(window); window.requestAnimationFrame = function(f){ return setTimeout(function(){ r(f); }, %d); }; })()" % slow)
         p.js("location.hash = '#settings&p=PUB'")
         p.until("!!document.querySelector('.set-nav .set-chip') && !!document.querySelector('#personal-h') && !!document.querySelector('#safety-h')",
                 "Settings and its chips drew")
@@ -67,13 +74,35 @@ class Head(Base):
             ' reduced-motion=' + matchMedia('(prefers-reduced-motion: reduce)').matches;
         }})()""")
 
+    def click_chip(self, p, name):
+        """A person's click: the mouse moves to the chip's centre, goes down and comes up (Input.dispatchMouseEvent). A JS .click() has no
+        mousedown, and the router's scroll restore after the hash change (router.js restore()) ends only on wheel, touchstart, keydown or
+        mousedown, so on a slow runner (macOS headless: slow requestAnimationFrame) it was still alive and put the jump back to 0. Also
+        starts a record of window.scrollY at +0/+100/+500/+2000 ms, which a failure prints."""
+        at = p.js(f"""(function(){{
+          var b = [...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === '{name}'), r = b.getBoundingClientRect();
+          return [r.left + r.width / 2, r.top + r.height / 2, innerWidth, innerHeight];
+        }})()""")
+        self.assertTrue(0 <= at[0] <= at[2] and 0 <= at[1] <= at[3], f"the {name} chip is inside the window to be clicked: {at}")
+        for kind in ("mouseMoved", "mousePressed", "mouseReleased"):
+            params = {"type": kind, "x": at[0], "y": at[1], "button": "none" if kind == "mouseMoved" else "left",
+                      "buttons": 1 if kind == "mousePressed" else 0, "clickCount": 0 if kind == "mouseMoved" else 1}
+            p.cdp.call("Input.dispatchMouseEvent", params, p.sid)
+        p.js("""(function(){ window.__trail = [];
+          [0, 100, 500, 2000].forEach(function(ms){ setTimeout(function(){ window.__trail.push('+' + ms + 'ms scrollY=' + Math.round(window.scrollY)); }, ms); });
+        })()""")
+
+    def trail(self, p):
+        return p.js("(window.__trail || []).join(', ') + ' hasFocus=' + document.hasFocus() + ' visibilityState=' + document.visibilityState")
+
     def at_top(self, p, head_id):
         """The card is in view and its heading has the focus."""
         p.settled("the chip's scroll finished")      # before anything is measured: the smooth scroll may still be running (macOS)
-        p.until(f"document.activeElement && document.activeElement.id === '{head_id}'", f"focus is on {head_id}")
+        if not wait(lambda: p.js(f"document.activeElement && document.activeElement.id === '{head_id}'"), 15):
+            p.t.fail(f"focus is on {head_id}; after the click: " + self.trail(p))
         in_view = f"(function(){{var r = document.getElementById('{head_id}').getBoundingClientRect(); return r.top >= 56 && r.bottom <= window.innerHeight;}})()"
         if not wait(lambda: p.js(in_view), 15):
-            p.t.fail("the heading is in view, clear of the top bar; " + self.numbers(p, head_id))
+            p.t.fail("the heading is in view, clear of the top bar; " + self.numbers(p, head_id) + "; after the click: " + self.trail(p))
         # A window.scrollTo while the smooth scroll is still running cancels it and leaves the next chip's scroll stuck near the top, so
         # the position and the animations are checked again once the heading is found: still no animation, the same scrollY 100 ms apart.
         p.settled("the chip's scroll finished")
@@ -102,7 +131,7 @@ class Head(Base):
                 for name, head_id in reversed(CARDS):
                     p.js("window.scrollTo(0, 0)")
                     p.settled("the scroll to the top finished")      # the click comes only when nothing is moving
-                    p.js(f"[...document.querySelectorAll('.set-nav .set-chip')].find(b => b.textContent === '{name}').click()")
+                    self.click_chip(p, name)
                     self.at_top(p, head_id)
                 self.assertTrue(p.js("location.hash.indexOf('#settings') === 0"), "the page's own address is kept")
 

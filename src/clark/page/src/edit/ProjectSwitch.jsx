@@ -1,5 +1,5 @@
-// The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): the open project's name, always a button,
-// with a chevron and a menu. The menu lists the projects (the open one marked, each with "N open items"), then "Project settings".
+// The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): a button with a chevron and a menu. Row 1064: the name is not drawn in the bar
+// (the Dashboard cover has it); it stays in the button for a screen reader, and in the label. The menu lists the projects (the open one marked, each with "N open items"), then "Project settings".
 // Choosing a project is setProject(): one new address entry and a page load for that project (#944), so Back returns to the project before;
 // the name in the bar says which is open, so there is no message. Only the editor has it (a published file shows the name as plain words and never asks a server). The list is
 // GET /api/projects, read when the bar draws and again each time the menu opens (so the counts follow the work done since); until it is read, or if it cannot be, the menu has the open project and Project settings.
@@ -46,5 +46,5 @@ export function ProjectSwitch({ name }) {
     if (id === SETTINGS) { show("settings"); return; }
     setProject(id);
   };
-  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left items={items} onPick={pick} onOpen={read} focusChecked />;
+  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
 }

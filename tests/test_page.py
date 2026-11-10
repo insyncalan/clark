@@ -32,7 +32,7 @@ CONTRACT = frozenset("""--brand-blue --brand-navy --brand-ink --brand-cyan --gre
 --data-1 --data-2 --data-3 --data-4 --data-5 --data-6 --size-body --size-caption --size-small --size-h3 --size-h2 --size-h1
 --size-display --leading --weight-light --weight-regular --weight-medium --weight-semibold --tracking-caps --space-1 --space-2
 --space-3 --space-4 --space-5 --space-6 --space-7 --space-8 --max-width --radius-pill --stagger --ease-out --ease-enter
---ease-exit --ease-toggle --dur-instant --dur-view --dur-state --dur-layout --dur-enter --image-cover --image-logo --image-fade --profile-bg --profile-fg --profile-ring --profile-size
+--ease-exit --ease-toggle --ease-linear --dur-toast --dur-instant --dur-view --dur-state --dur-layout --dur-enter --image-cover --image-logo --image-fade --profile-bg --profile-fg --profile-ring --profile-size
 --pill-bg --pill-color --pill-fg --pill-glow --pill-glow-hover --bar-end --accent-line --font-head --font-label --font-office --font-email --art-home --art-home-height""".split())
 TOKEN_NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 
@@ -237,9 +237,12 @@ class RealBrowser(unittest.TestCase):
                 s = self.serve(branding)
                 with chrome() as cdp:
                     sid = navigate(cdp, s.port, "#dashboard&p=ABC")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.top')", sid)), "the page drew")
-                    seen[name] = cdp.js("[getComputedStyle(document.documentElement).getPropertyValue('--brand-navy').trim(), "
-                                        "getComputedStyle(document.querySelector('.top')).backgroundColor]", sid)
+                    # One read does both the waiting and the reading: a separate look for .top and then a second evaluate can fall on
+                    # either side of the page's start-up navigation, and that second one then answered nothing (null, not an error).
+                    read = ("(() => { const top = document.querySelector('.top'); return top ? "
+                            "[getComputedStyle(document.documentElement).getPropertyValue('--brand-navy').trim(), "
+                            "getComputedStyle(top).backgroundColor] : null; })()")
+                    self.assertTrue(wait(lambda: seen.__setitem__(name, cdp.js(read, sid)) or seen[name]), "the page drew")
         self.assertEqual(seen["demo"][0], demo_navy)
         self.assertEqual(seen["override"], ["#123456", "rgb(18, 52, 86)"])
         self.assertNotEqual(seen["demo"][1], seen["override"][1])
