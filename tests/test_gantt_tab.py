@@ -219,7 +219,7 @@ class Tab(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width):
                 self.load(edit=True, width=width)
-                self.go("location.hash = '#settings&p=DEMO'")
+                self.go("location.hash = '#settings&p=DEMO&s=reports'")
                 text = self.js("document.querySelector('#gantt-setting').innerText")
                 for words in ("Gantt", "Show the Gantt to me", "Show the Gantt to the client", "Tab name"):
                     self.assertIn(words, text)
