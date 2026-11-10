@@ -97,6 +97,11 @@ class Listing(Base):
                 got = brands.installed(self.root)
                 self.assertEqual([(x["id"], x["name"]) for x in got], [("local-brand", "ENERGYai")])
 
+    def test_a_bare_top_tokens_file_is_local_brand_with_no_folder_of_its_own(self):
+        (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
+        got = brands.installed(self.root)
+        self.assertEqual([(x["id"], x["own_folder"], x["alias"]) for x in got], [("local-brand", False, "local-brand")])
+
     def test_a_top_pack_with_a_non_text_id_is_local_brand(self):
         top_pack(self.root, brand_id=5)
         self.assertEqual([x["id"] for x in brands.installed(self.root)], ["local-brand"])
