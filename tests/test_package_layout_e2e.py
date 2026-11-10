@@ -196,5 +196,155 @@ class DownloadLayout(unittest.TestCase):
                          sorted(n for n in os.listdir(app) if not n.startswith(".clark-")))
 
 
+def make_newer_source(tmp, newer):
+    """A real second source tree (git needs it for package.build) whose version is `newer` and which has one more program file."""
+    src = tmp / "newer source"
+    src.mkdir()
+    archive = subprocess.run(["git", "-C", str(ROOT), "archive", "HEAD"], capture_output=True, check=True, timeout=120).stdout
+    subprocess.run(["tar", "-x", "-C", str(src)], input=archive, check=True, timeout=120)
+    init = src / "src" / "clark" / "__init__.py"
+    init.write_text(init.read_text(encoding="utf-8").replace(package.version(ROOT), newer, 1), encoding="utf-8")
+    (src / "src" / "clark" / "new_in_newer.py").write_text("NEWER = True\n", encoding="utf-8")
+    git = ["git", "-C", str(src), "-c", "user.name=t", "-c", "user.email=t@example.com"]
+    for args in (["init", "-q"], ["add", "-A"], ["commit", "-q", "-m", "newer"]):
+        subprocess.run(git + args, check=True, capture_output=True, timeout=120)
+    return src
+
+
+def tree(base, skip=()):
+    """Every file (bytes, mode) and folder under base, minus clark's own working folders, as a dict that compares."""
+    out = {}
+    for folder, dirs, names in os.walk(base):
+        dirs[:] = [d for d in dirs if not d.startswith((h.STAGING_PREFIX, h.OLD_PREFIX, h.HELPER_PREFIX)) and d not in skip]
+        for n in names + dirs:
+            p = Path(folder, n)
+            rel = p.relative_to(base).as_posix()
+            out[rel + "/" if p.is_dir() else rel] = None if p.is_dir() else (p.read_bytes(), stat.S_IMODE(p.stat().st_mode))
+    return out
+
+
+@unittest.skipUnless(UNZIP, "needs unzip")
+class UpdateFromTheOldDownloadToTheNewZip(unittest.TestCase):
+    """SWEEP S4: a 1.0.5 download (real packager), a newer test zip (real packager, a real second source), the update helper
+    with its platform seams faked. The person's branding, system/branding and data folders come through byte for byte, and a
+    failed update puts the old download back (#280)."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = Path(tempfile.mkdtemp(prefix="clark update ")).resolve()
+        cls.old_zip = package.build("mac", cls.tmp / "old dist", dirty=True)
+        cls.newer = "1.0.6" if package.version(ROOT) != "1.0.6" else "1.0.7"
+        cls.new_zip = package.build("mac", cls.tmp / "new dist", root=make_newer_source(cls.tmp, cls.newer), dirty=True)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    def setUp(self):
+        self.work = Path(tempfile.mkdtemp(prefix="work ", dir=self.tmp))
+        subprocess.run([UNZIP, "-q", str(self.old_zip), "-d", str(self.work / "old")], check=True, timeout=120)
+        self.app = self.work / "old" / "clark"
+        subprocess.run([UNZIP, "-q", str(self.new_zip), "-d", str(self.work / "new")], check=True, timeout=120)
+        self.staging = self.app / (h.STAGING_PREFIX + STAMP)
+        shutil.copytree(self.work / "new" / "clark", self.staging)
+        self.data_dir = self.work / "scratch data"
+        (self.data_dir).mkdir()
+        (self.data_dir / "clark.db").write_bytes(b"not a real database")
+        self.mine = {}
+        for rel, body in {"branding/tokens.css": TOKENS, "branding/assets/cover.png": b"\x89PNG my own cover",
+                          "system/branding/tokens.css": TOKENS + b"/* old place */\n", "system/notes.txt": b"mine\n",
+                          "data/book.xlsx": b"PK my own file\n", "data/deep/er/still.bin": bytes(range(256))}.items():
+            path = self.app / rel
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(body)
+            self.mine[rel] = body
+        (self.app / "data" / "empty folder").mkdir()
+        self.before = tree(self.app, skip=(self.staging.name,))
+
+    def mine_now(self):
+        return {p.relative_to(self.app).as_posix(): p.read_bytes() for top in ("branding", "system", "data")
+                for p in (self.app / top).rglob("*") if p.is_file()}
+
+    def begin(self):
+        old = json.loads((self.app / package.MANIFEST).read_text(encoding="utf-8"))
+        new = json.loads((self.staging / package.MANIFEST).read_text(encoding="utf-8"))
+        self.assertEqual(self.newer, new["version"])
+        self.assertNotEqual(old["version"], new["version"])
+        return h.begin(self.data_dir, self.app, self.staging, STAMP, old["version"], new["version"], old["schema_version"],
+                       4321, 8765, "X-Clark-Mark", "mark-1", backup_dir=str(self.data_dir / "backup"), check=False)
+
+    def test_the_new_zip_goes_in_and_the_persons_folders_are_byte_identical(self):
+        code, result = h.run_update(self.begin(), FakeSeams(), None)
+        self.assertEqual(h.OK, code, result)
+        self.assertEqual(self.mine, self.mine_now())
+        self.assertTrue((self.app / "data" / "empty folder").is_dir())
+        self.assertTrue((self.app / ".app" / "src" / "clark" / "new_in_newer.py").is_file())
+        self.assertEqual(self.newer, json.loads((self.app / package.MANIFEST).read_text(encoding="utf-8"))["version"])
+        for rel, row in json.loads((self.app / package.MANIFEST).read_text(encoding="utf-8"))["files"].items():
+            if rel != package.MANIFEST:
+                self.assertEqual(row["sha256"], hashlib.sha256((self.app / rel).read_bytes()).hexdigest(), rel)
+        self.assertEqual(b"not a real database", (self.data_dir / "clark.db").read_bytes())
+
+    def test_a_failed_update_at_any_step_puts_the_old_download_back_with_the_persons_folders(self):
+        trace = []
+        code, _ = h.run_update(self.begin(), FakeSeams(), None, trace)       # a dry run names the step points
+        self.assertEqual(h.OK, code)
+        self.assertGreater(len(trace), 5)
+        self.tearDown_and_reset()
+        for point in trace:
+            with self.subTest(point=point):
+                code, result = h.run_update(self.begin(), FakeSeams(), Fail(point))
+                self.assertEqual(h.ROLLED_BACK, code, (point, result))
+                self.assertEqual(self.before, tree(self.app, skip=(self.staging.name,)), point)
+                self.assertEqual(self.mine, self.mine_now(), point)
+                self.assertFalse((self.app / ".app" / "src" / "clark" / "new_in_newer.py").exists(), point)
+                self.restage()
+
+    def test_the_new_version_not_answering_puts_the_old_download_back(self):
+        seams = FakeSeams()
+        seams.server_answers = lambda *a, **k: False
+        code, result = h.run_update(self.begin(), seams, None)
+        self.assertEqual(h.ROLLED_BACK, code, result)
+        self.assertEqual(self.before, tree(self.app, skip=(self.staging.name,)))
+        self.assertEqual(self.mine, self.mine_now())
+        self.assertEqual(b"not a real database", (self.data_dir / "clark.db").read_bytes())
+
+    def test_a_newer_zip_that_ships_into_a_persons_folder_is_refused_and_nothing_is_touched(self):
+        from clark import updates
+        for top in ("branding", "system", "data", "Branding", "DATA"):
+            with self.subTest(top=top):
+                path = self.staging / package.MANIFEST
+                record = json.loads(path.read_text(encoding="utf-8"))
+                record["files"][top + "/tokens.css"] = {"sha256": "0" * 64, "size": 0, "mode": "644"}
+                path.write_text(json.dumps(record), encoding="utf-8")
+                with self.assertRaises(updates.UpdateError) as cm:
+                    self.begin()
+                self.assertEqual("unsafe", cm.exception.key)
+                self.assertFalse(h.marker_path(self.data_dir).exists())
+                self.assertEqual(self.mine, self.mine_now())
+                self.tearDown_and_reset()
+
+    def restage(self):
+        if not self.staging.exists():
+            shutil.copytree(self.work / "new" / "clark", self.staging)
+        for stale in (h.updates_dir(self.data_dir) / h.MARKER_NAME,):
+            if stale.exists():
+                stale.unlink()
+
+    def tearDown_and_reset(self):
+        """Put the work folder back as setUp left it, after the dry run that updated it."""
+        shutil.rmtree(self.work)
+        self.setUp()
+
+
+class Fail:
+    def __init__(self, name):
+        self.name = name
+
+    def __call__(self, name):
+        if name == self.name:
+            raise RuntimeError("injected fault at " + name)
+
+
 if __name__ == "__main__":
     unittest.main()
