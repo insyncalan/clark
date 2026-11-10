@@ -1,6 +1,6 @@
-"""Row 1066: the client's published page lists the same sections as the editor dashboard (read only). A section the editor does not
-have is not in the file: not even 'Needs from you' when a work item is flagged as needed from the client. Over a real store and the
-real build. Fictional data.
+"""Row 1066: every section in the client's published page is one the editor dashboard lists, in the editor's order (a subset: a
+section with nothing to show may be left out, but none is added). A section the editor does not have is not in the file: not even
+'Needs from you' when a work item is flagged as needed from the client. Over a real store and the real build. Fictional data.
 
 Run: python3 dev/run_tests.py test_published_matches_editor
 """
