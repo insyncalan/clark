@@ -32,8 +32,8 @@ for _name in dir(_pub.ClientPageFilters):
 class HelpWords(unittest.TestCase):
     def test_help_names_the_line_words_and_not_the_pills(self):
         text = HELP.read_text(encoding="utf-8")
-        for need in ("type:action, type:risk or type:decision, and is:closed or is:open.",
-                     "Type is:closed in the filter line to list the closed ones.",
+        for need in ("Type type: on the filter line to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
+                     "Type is:open or is:closed on the filter line to say which items to list.",
                      "From the top: the saved views with the **Table** and **Board** icons"):
             self.assertIn(need, text)
         for gone in ("The first switch picks the type", "The second picks **Open**", "Choose **Open**, **Closed** or **All**",
