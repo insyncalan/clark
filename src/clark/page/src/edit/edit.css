@@ -1085,4 +1085,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .pp-latest p { margin: 0 0 var(--space-2); }
 .pp-latest .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 .pp-earlier .pubs { margin-top: 0; }
-.pp-earlier .pubs th:first-child, .pp-earlier .pubs td:first-child { width: 64px; }
+.pp-earlier .pubs th:first-child, .pp-earlier .pubs td:first-child { width: 1%; white-space: nowrap; }      /* room for the Archived tag beside the number */
+.pp-earlier .pubs td.num, .pp-earlier .pubs td.files { white-space: nowrap; }      /* a date or 'Page, PDF' never breaks inside */
+.pubs-intro { margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--white); max-width: 70ch; }
+.pp-earlier .pubs td .muted.small { white-space: normal; }

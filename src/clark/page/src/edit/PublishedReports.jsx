@@ -84,7 +84,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       {latest ? (
         <div class="pp-block pp-latest" id="pubs-latest" data-latest={latest.number}>
           <p class="pp-kicker">{L.PAGE.latest}</p>
-          <h2>Publication {latest.number} · Week ending {latest.week}</h2>
+          <h2>Publication {latest.number}{latest.week !== L.NOT_RECORDED ? ` · Week ending ${latest.week}` : ""}</h2>
           <p class="muted">Published {latest.when} · {latest.went} · {latest.files} · by {latest.who}</p>
           <div class="acts">{act(latest)}</div>
         </div>
@@ -107,7 +107,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
                   <td class="num">{r.week}</td>
                   <td class="num">{r.when}<div class="muted small">by {r.who}</div></td>
                   <td>{r.went}</td>
-                  <td>{r.files}</td>
+                  <td class="files">{r.files}</td>
                   <td class="acts">{act(r)}</td>
                 </tr>
               ))}

@@ -46,7 +46,8 @@ def test_page_html():
                                cwd=tmp, capture_output=True, text=True)
             assert done.returncode == 0, done.stderr
             script = out.read_text(encoding="utf-8").replace("</script", "<\\/script")
-        css = (build_page.TOKENS.read_text(encoding="utf-8") + (build_page.PAGE / "shell.css").read_text(encoding="utf-8"))
+        css = (build_page.TOKENS.read_text(encoding="utf-8") + (build_page.PAGE / "shell.css").read_text(encoding="utf-8")
+               + build_page.EDIT_CSS.read_text(encoding="utf-8"))      # row 1087: the page's own styles are in edit.css, as in the served page
         css = css.replace("</style", "<\\/style")
         _PAGE["html"] = (f'<!doctype html>\n<html lang="en-GB"><head><meta charset="utf-8">'
                          f'<meta name="viewport" content="width=device-width, initial-scale=1"><title>t</title>'
@@ -105,6 +106,13 @@ class Static(unittest.TestCase):
             if path.name == "pastReportsApi.js" or "node_modules" in path.parts:
                 continue
             self.assertNotIn("/api/past-report", path.read_text(encoding="utf-8"), f"{path.name}: only pastReportsApi.js names the route")
+
+    def test_row_1087_the_pages_words_are_not_in_the_published_file(self):
+        view = (PAGE / "page-view.html").read_text(encoding="utf-8")
+        for word in ("Where it is saved", "Earlier reports", "Went to", "Change in Settings", "Not chosen yet", "so other files in the folder are never shown",
+                     "Times are shown in your time zone", "Open an older one here", "pubs-where", "pubs-latest", "pubs-intro"):
+            self.assertNotIn(word, view, word)
+        self.assertNotIn('published: "Published reports"', (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8"))
 
     def test_the_profile_menu_has_the_entry_after_export_and_before_settings(self):
         text = (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8")
@@ -221,6 +229,10 @@ class Card(InBrowser):
         self.assertFalse(self.val("[...document.querySelectorAll('h2')].some(h => h.textContent.includes('Published reports'))"), "a page, not a Settings card with its own heading")
         self.assertEqual(self.val("[...document.querySelectorAll('#pubs-where dd')].map(d => d.textContent)"), ["/Users/example/clark reports/PDF", "Example Drive/Client reports"])
         self.assertEqual(self.val("[...document.querySelectorAll('#pubs-where dt')].map(d => d.textContent)"), ["Local folder", "Client folder"])
+        self.assertEqual(self.text("#pubs-latest h2"), "Publication 3 · Week ending 23-10-2026")
+        self.assertEqual(self.text("#pubs-latest p.muted"), "Published 28-10-2026 at 13:30 · Local folder, Client folder · Page, PDF · by Sam Example")
+        self.assertEqual(self.text("#pubs-page .cover-line"), "Example Programme", "the cover line holds the project only: the intro is its own line, so no stray dot starts a wrapped line")
+        self.assertEqual(self.text("#pubs-page .pubs-intro"), self.val("T.logic.INTRO"))
         latest = self.text("#pubs-latest")
         for part in ("Latest", "Publication 3", "Week ending 23-10-2026", "28-10-2026 at 13:30", "Local folder, Client folder", "Page, PDF", "Sam Example"):
             self.assertIn(part, latest)
@@ -228,6 +240,12 @@ class Card(InBrowser):
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
         self.assertEqual(rows, ["2|16-10-2026|21-10-2026 at 12:15by Sam Example|Local folder|Word|Not keptArchive", "1|Not recorded|14-10-2026 at 20:40by Not recorded|Local folder|Page|Not keptArchive"])
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
+
+    def test_row_1087_a_latest_with_no_week_says_no_week_instead_of_week_ending_not_recorded(self):
+        self.replies(list=OK({**LIST, "total": 1, "shown": 1, "publications": [ROWS[2]]}))
+        self.mount()
+        self.assertEqual(self.text("#pubs-latest h2"), "Publication 1")
+        self.assertNotIn("Not recorded Week", self.text("#pubs-latest"))
 
     def test_row_1087_times_are_in_the_persons_own_zone_and_the_zone_is_named(self):
         self.mount()
@@ -378,6 +396,8 @@ class Card(InBrowser):
                     self.mount()
                     self.assertTrue(self.val("!!document.querySelector('[data-pubrestore]') && !!document.querySelector('[data-pubarchive]')"))
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs .tag')].every(t => t.getClientRects().length === 1 && t.getBoundingClientRect().height < 30)"), "the Archived tag is on one line")
+                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs td.num, #pubs td.files')].every(td => getComputedStyle(td).whiteSpace === 'nowrap')"))
                     self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs td')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs-page .pp-frame')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"))

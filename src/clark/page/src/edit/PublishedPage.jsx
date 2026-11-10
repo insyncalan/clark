@@ -17,7 +17,8 @@ export function PublishedPage({ name, goSettings = () => show("settings"), ...re
       <section class="frame pp-frame">
         <header class="cover" id="cover">
           <h1>{L.TITLE}</h1>
-          <p class="cover-line"><b class="cover-kind">{title}</b><span>{L.INTRO}</span></p>
+          <p class="cover-line"><b class="cover-kind">{title}</b></p>
+          <p class="pubs-intro">{L.INTRO}</p>
         </header>
         <div class="pp-where" id="pubs-where">
           <p class="pp-kicker">{L.PAGE.saved}</p>
