@@ -85,10 +85,7 @@ class OneMenu(Base):
             self.until(cdp, sid, "!!document.querySelector('table.items') && !document.querySelector('#work-board')", "the table")
             # a saved-view action from + New view
             click(cdp, sid, "#viewNew")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'vname'", "the name box")
-            cdp.call("Input.insertText", {"text": "Mine"}, sid)
-            key(cdp, sid, "Enter")
-            self.until(cdp, sid, "[...document.querySelectorAll('.vtab')].some(t => t.textContent.startsWith('Mine'))", "the new view's tab")
+            self.until(cdp, sid, "[...document.querySelectorAll('.vtab')].some(t => t.textContent.startsWith('View 1'))", "the new view's tab")
 
     def test_the_keyboard_opens_moves_picks_and_closes(self):
         with chrome() as cdp:

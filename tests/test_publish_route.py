@@ -893,6 +893,8 @@ class OnlyOneRouteWritesIntoTheClientFolder(Base):
         self.assertIn(("POST", "/api/publish"), routes)
         writers = []
         for method, path in routes:
+            if path == "/api/quit":      # #836: a valid-token call stops the rig's server; tests/test_quit.py covers it and it has no folder to write
+                continue
             for extra in ({}, {"to_client": True, "client_folder": str(self.rig.client), "path": str(self.rig.client / "x.html"),
                                "folder": str(self.rig.client)}, {"to_client": "true"}):
                 body = {"project": "PUB", "action": "clear", **extra} if method == "POST" else None
