@@ -42,7 +42,7 @@ class Pick(Bar):
             p = self.show(cdp)
             self.opened(p)
             self.assertEqual(p.js(PANEL + ".getAttribute('aria-label')"), "Week ending date")
-            self.assertEqual(p.js("[...document.querySelectorAll('.cpop .cp-q button span')].map((e) => e.textContent)"), ["Friday"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.cpop .cp-q button span:not(.mi-i)')].map((e) => e.textContent)"), ["Friday"])
 
     def test_a_friday_is_saved_like_typing_it(self):
         self.set_week("2031-05-02")
