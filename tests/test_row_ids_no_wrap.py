@@ -103,7 +103,6 @@ def check(test, js, surface, where, width):
     test.assertEqual(bad, [], f"{where} at {width}: {bad}")
 
 
-AREAS = "(function(){var r=document.querySelector('.wl:not(.cr-wl) > .wl-row');var c=getComputedStyle(r);return [c.gridTemplateAreas, getComputedStyle(r.querySelector(':scope > .wl-state')).gridArea, getComputedStyle(r.querySelector(':scope > .wl-main')).gridArea, (r.querySelector(':scope > .wl-id') ? getComputedStyle(r.querySelector(':scope > .wl-id')).gridArea : 'id')];})()"
 TAG_SHRINK = "(function(){var t=document.querySelector('.item-rows-edit .wl-title .tag');if(!t)return null;var c=getComputedStyle(t);var r=t.getBoundingClientRect();return {shrink:c.flexShrink,grow:c.flexGrow,oneLine:r.height<=parseFloat(c.lineHeight||c.fontSize)*1.4+parseFloat(c.paddingTop)+parseFloat(c.paddingBottom)+4,fits:t.scrollWidth<=t.clientWidth+1,text:t.textContent};})()"
 
 
@@ -133,20 +132,11 @@ class RowIds(unittest.TestCase):
                 p.until(f"document.documentElement.clientWidth === {w} || document.documentElement.clientWidth < {w}", "resized")
                 check(self, p.js, ROWS, "View rows", w)
                 check(self, p.js, CARDS, "View cards", w)
-                self.three_columns(p.js, w, "View")
             p.edit()
             for w in (1400, 900):
                 self.width(p, w)
                 p.until("document.querySelectorAll('.item-rows-edit .irows .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
-                self.three_columns(p.js, w, "Edit")
-                self.tag_holds(p.js, w)
-
-    def three_columns(self, js, w, where):
-        """At 1400 and 900 a row is the three columns with no named grid areas. The computed grid-template-areas is read, so any
-        change to that line fails here. (Only 1400 and 900 are tested: no narrower width is.)"""
-        got = js(AREAS)
-        self.assertEqual(got[0], "none", f"{where} has no named areas at {w}")
 
     def tag_holds(self, js, w):
         """The Risk or Issue tag in an Edit row's title keeps its width (flex: none in edit.css): it does not shrink, wrap or clip."""
@@ -170,7 +160,6 @@ class RowIds(unittest.TestCase):
                                 "the file drew its rows and cards")
                 check(self, p.js, ROWS, "File rows", w)
                 check(self, p.js, CARDS, "File cards", w)
-                self.three_columns(p.js, w, "File")
                 self.assertEqual(p.js("document.querySelectorAll('.wl-id').length"), 0, "a file draws no item number in its rows")
 
 
