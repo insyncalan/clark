@@ -14,7 +14,7 @@ import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383)
 export const SHORT_TITLES = {};   // a tab's name for a narrow window, where it has a shorter one; the page keeps the full name (none has one now)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
