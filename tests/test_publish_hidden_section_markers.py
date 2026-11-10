@@ -103,7 +103,8 @@ class HiddenSections(Base):
         t0 = time.monotonic()
         built, got = self.got()
         self.assertLessEqual(len([m for m in got if m.startswith("Hostile run number")]), publish_flow.MAX_RUN_MARKERS)
-        self.assertLessEqual(sum(len(m) for m in got), publish_flow.MAX_RUN_CHARS + 20000)
+        # the whole-body marker (markers_for, #619) is one long text, counted apart from the run markers the cap is about
+        self.assertLessEqual(sum(len(m) for m in got if len(m) < 1000), publish_flow.MAX_RUN_CHARS + 20000)
         self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
         self.assertLess(time.monotonic() - t0, 5.0)
         self.assertTrue(self.refused(built, got, " ".join("Hostile run number %05d of filler" % i for i in range(8000))))
