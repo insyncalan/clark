@@ -38,6 +38,7 @@ import { boot } from "./boot.jsx";
 import { EDIT } from "./edit/index.js";
 import { startApp } from "./app.js";
 import { UseCaseDetail } from "./components/UseCaseDetail.jsx";
+import { UCEDIT } from "./edit/UseCasesEdit.jsx";
 
 boot(EDIT);
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startApp); else startApp();
@@ -49,7 +50,7 @@ window.clarkMountUc = (id) => {
     document.getElementById("main").style.display = "none";
     document.getElementById("main").after(host);
   }
-  render(<UseCaseDetail id={id} />, host);
+  render(<UseCaseDetail id={id} ed={UCEDIT} />, host);
 };
 """
 
@@ -725,6 +726,69 @@ class Detail(unittest.TestCase):
                         self.assertRegex(cdp.js(f"document.querySelector('{row}').textContent", sid), r"\d", "and the date")
                         self.assertEqual(cdp.js(f"document.querySelector('{row} [data-ms-open]').tagName", sid), "BUTTON", "the name is a control")
                         self.peek_round(cdp, sid, f"{row} [data-ms-open]", ms)
+
+    # ---- row 1079: add and remove milestones ----
+    def ms_ids(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms).sort()", sid)
+
+    def test_milestone_controls_show_for_the_editor_at_1400_and_900_px_light_and_dark_row_1079(self):
+        for width in (1400, 915):          # 915 px of window is 900 px of page on this box (15 px scrollbar)
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-add]').length", sid), 1, "one Add a milestone control")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms] [data-ms-remove]').length", sid), 1, "one Remove for the one milestone")
+                    size = cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms-add] button, [data-ucd] [data-ms-remove]')].map(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; })", sid)
+                    for w, h in size:
+                        self.assertGreaterEqual(min(w, h), 24, "a control is at least 24 px")
+                    self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid), 0, "no sideways scroll")
+
+    def test_add_a_milestone_is_one_change_with_one_undo_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before, ids = self.steps(), self.ms_ids(cdp, sid)
+            self.assertEqual(ids, ["TUL-M-005"])
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu of milestones opened")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] [role^=menuitem]').length", sid), 5, "the five milestones it does not have")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the milestone is listed")
+            self.assertEqual(self.steps(), before + 1, "one step")
+            st = open_store(self.path, onedrive_roots=[])
+            try:
+                made = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-002"]
+            finally:
+                st.close()
+            self.assertEqual(len(made), 1)
+            self.assertIn("Pilot office live", self.toast(cdp, sid))
+            self.undo(cdp, sid)
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the undo took it away")
+
+    def test_remove_a_milestone_clears_the_link_and_undo_puts_it_back_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before = self.steps()
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the milestone left the list")
+            self.assertEqual(self.steps(), before + 2, "its action and its risk, a step for each kind")
+            d = self.read("TUL")
+            self.assertEqual([r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone")], [])
+            self.assertEqual(len(d["milestones"]), 6, "the milestone itself is not deleted")
+            self.assertEqual(self.toast(cdp, sid), "Changed 1 item.", "clark's own bulk words")
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the undo of the last step put its risk back")
+            self.until(cdp, sid, "/Cut-over rehearsal is back on use case/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast says it is back")
+            self.assertEqual(self.steps(), before + 3, "an undo is one step")
+
+    def test_no_milestone_controls_when_archived_or_in_the_file_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-add], [data-ucd] [data-ms-remove]').length", sid), 0)
+        view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for word in ("data-ms-add", "data-ms-remove"):
+            self.assertNotIn(word, view, word)
 
     # ---- the published file ----
     def test_the_published_file_has_none_of_the_component(self):

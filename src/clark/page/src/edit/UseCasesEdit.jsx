@@ -20,7 +20,7 @@ import { signal } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
-import { change, say } from "../stores/changes.js";
+import { change, changeBulk, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
@@ -28,7 +28,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords, addableMilestones, milestoneStepValues, milestoneLinks } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 
@@ -229,6 +229,38 @@ export function NextStep({ u }) {
   );
 }
 
+/** Row 1079: "Add a milestone": a menu of the project's milestones this use case does not have. A pick is ONE change, a next step ("Reach <name>")
+ * that names the use case and the milestone, so the use case has the milestone the way its work items give it one; one Undo takes it back. */
+export function MilestoneAdd({ u }) {
+  const items = addableMilestones(data.value, u.id);
+  const pick = (id) => {
+    const m = items.find((x) => x.id === id);
+    if (m) change({ kind: "actions", op: "new", values: milestoneStepValues(m, u.id), place: "report" }, `${m.name} added to use case ${name(u)}. A next step points at it.`);
+  };
+  return (
+    <span class="ucx-msadd" data-ms-add={u.id} data-edit-only>
+      <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones" id={`ucd-msadd-${u.id}`} btnCls="btn sm" left
+        items={items.map((m) => ({ id: m.id, name: m.name }))} onPick={pick} />
+    </span>
+  );
+}
+
+/** Row 1079: "Remove" on a milestone of the use case: the use case's work items stop naming it (the milestone itself is kept, on the Milestones page).
+ * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), each with its Undo (clark's own words say what changed; after an Undo the toast says the milestone is back). */
+export function MilestoneRemove({ u, m }) {
+  const busy = useRef(false);
+  const go = async () => {
+    if (busy.current) return;
+    busy.current = true;
+    const links = milestoneLinks(data.value, u.id, m.id), back = `${m.name} is back on use case ${name(u)}.`;
+    for (const table of ["actions", "raid"]) {
+      if (links[table].length) await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell" }, back);
+    }
+    busy.current = false;
+  };
+  return <button type="button" class="link ucx-msrm" data-ms-remove={m.id} data-edit-only aria-label={`Remove ${m.name} from use case ${name(u)}`} onClick={go}>Remove</button>;
+}
+
 /** "+ Link an existing work item": opens the box of the open work items that are not yet linked to this use case. */
 export function LinkButton({ u }) {
   return <button type="button" class="link add-from" data-uc-link={u.id} data-edit-only onClick={() => openBox("link", u.id, true)}>+ Link an existing work item</button>;
@@ -302,4 +334,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, Boxes, added };
+export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneAdd, MilestoneRemove, Boxes, added };

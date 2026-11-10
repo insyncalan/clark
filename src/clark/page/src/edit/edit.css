@@ -474,6 +474,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
 .ucd-ms .ucd-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
 .ucd-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+.ucd-ms .ucx-msrm { min-height: var(--space-5); min-width: var(--space-5); }       /* row 1079: Remove is a 24 px control */
+.ucd-side .ucx-addrow .btn.sm { min-height: var(--space-5); }
 .ucd-hist li { display: flex; flex-direction: column; gap: 2px; padding: 8px 0; }
 .ucd-hw { overflow-wrap: anywhere; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }

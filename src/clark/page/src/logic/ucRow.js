@@ -74,3 +74,29 @@ export function narrow(items, kind, query) {
 
 /** "3 work items linked to use case 1.1." */
 export const linkedWords = (n, name) => `${n} work item${n === 1 ? "" : "s"} linked to use case ${name}.`;
+
+// Row 1079: a use case's milestones are the ones its work items name (actions, risks and issues; a decision has no milestone).
+
+/** The ids of the milestones the use case `ucId` has now. */
+export function milestoneIdsOf(d, ucId) {
+  return new Set([...((d && d.actions) || []), ...((d && d.raid) || [])].filter((r) => r.use_case === ucId && r.milestone).map((r) => r.milestone));
+}
+
+/** The milestones the use case can still be given: the project's live ones it does not have, in the project's order: [{id, name, date}]. */
+export function addableMilestones(d, ucId) {
+  const have = milestoneIdsOf(d, ucId);
+  return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name, date: m.baseline_date || m.forecast_date || "" }));
+}
+
+/** The values of the next step that gives a use case a milestone: it names both, and is due on the milestone's date when it has one. */
+export function milestoneStepValues(m, ucId) {
+  const v = { description: `Reach ${m.name}`, use_case: ucId, milestone: m.id };
+  if (m.date) v.due_date = m.date;
+  return v;
+}
+
+/** The work items of the use case that name the milestone, by table: {actions: [ids], raid: [ids]}. Removing the milestone clears these. */
+export function milestoneLinks(d, ucId, msId) {
+  const ids = (rows) => ((rows) || []).filter((r) => r.use_case === ucId && r.milestone === msId).map((r) => r.id);
+  return { actions: ids(d && d.actions), raid: ids(d && d.raid) };
+}
