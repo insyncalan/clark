@@ -126,7 +126,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
-RICH_WORDS = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "internal_note"))     # row 1005: rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list for the first two)
+RICH_WORDS = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "internal_note"), ("milestones", "client_message"))     # row 1005 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list for the first two)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}

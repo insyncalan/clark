@@ -18,6 +18,11 @@ import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
+import { stateOf, LOOK } from "../logic/milestones.js";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { MsMark } from "./MsMark.jsx";
+import { MsProgress } from "./MsList.jsx";
+import { CleanProse } from "./CleanProse.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
 // Previous and Next use. What it says after a step (a polite line only a screen reader hears) is kept here; `n` makes a repeat say it again.
@@ -46,10 +51,10 @@ function Toned({ icon, tone, children }) { return <span class="pk-val"><span cla
 
 const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "due", date: "due", priority: "priority", status: "status" };
 
-function Row({ name, children, ref_, key_ }) {          // key_: which field this row shows, so it can flash when that field changes
+function Row({ name, children, ref_, key_, ms }) {      // key_: which field this row shows, so it can flash when that field changes; ms: a milestone's row (row 1078), a plain row, never one of the four cells
   const f = flashed.value;
   const hit = !!(f && key_ && f.list.some((e) => e.ref === ref_ && ROW_OF[e.field] === key_));
-  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
+  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
 // ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
@@ -89,15 +94,41 @@ export function SourceLine({ text }) {
   return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
 }
 
+// Row 1078 (the owner's rulings): the milestone peek in the work item peek's format. Under the title, one flat line says the state, the
+// owner and the progress; then the rows, label left and value right. The same line and rows on every peek: the editor's (MilestonePeek.jsx
+// puts its controls in the same places) and a client's (the Dashboard in View, a published file), read only.
+// The state: a published file carries the state it worked out and the client's word for it (publish.select); the live page works it out
+// here (logic/milestones.js, as the Milestones list does). Achieved, with its date, only once the milestone is achieved.
+export function MsState({ m }) {
+  const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
+  const look = LOOK[state] || LOOK.Forecast;
+  const word = m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
+  return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
+}
+export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
+export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head>{children}</p>; }
+
+// Rich words (the description, the client wording: #1005, row 1078) as the editor shows them: cleanHtml of what is stored, through the one audited seam.
+const richOf = (value) => { try { return richOrPlain(value || ""); } catch (e) { return ""; } };
+const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
+
 function MilestoneFields({ m }) {
+  const who = ownerOf(m.owner), description = richOf(m.description);
   return (
-    <dl class="pk-fields">
-      <Row name="Owner">{ownerOf(m.owner).text}</Row>
-      <Row name="Agreed date">{showDate(m.baseline_date)}</Row>
-      <Row name="Forecast date">{showDate(m.forecast_date)}</Row>
-      <Row name="Status">{text(m.state || m.status)}</Row>
-      <Row name="Workstream">{text(m.workstream)}</Row>
-    </dl>
+    <>
+      <MsHead>
+        <MsState m={m} /><MsSep />
+        <span class="pk-ms-owner" data-ms-head="owner">{who.initials ? <span class="av" aria-hidden="true">{who.initials}</span> : null}{who.text}</span><MsSep />
+        <span class="msl-prog" data-ms-head="progress"><MsProgress value={m.status === "Done" && m.percent_complete == null ? 100 : m.percent_complete} /></span>
+      </MsHead>
+      <dl class="pk-fields" data-ms-fields>
+        {description || !fromFile.value ? <Row name="Description" ms="description"><Rich html={description} /></Row> : null}      {/* row 560: a file carries no description for a milestone with no client wording, so a client's peek has no such row */}
+        <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
+        <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
+        <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
+        <Row name="Client wording" ms="client_message"><Rich html={richOf(m.client_message)} /></Row>
+      </dl>
+    </>
   );
 }
 
@@ -127,6 +158,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const MsTitle = msEditing && tools.MilestoneTitle;         // row 1078: the milestone's name is its title, changed in place
   const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
@@ -261,7 +293,7 @@ export function Peek({ tools }) {
       </div>
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <TitleBox key={row.id} row={row} /> : title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <TitleBox key={row.id} row={row} /> : MsTitle && m ? <MsTitle key={m.id} m={m} /> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}

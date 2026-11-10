@@ -16,7 +16,8 @@ import unittest
 from pathlib import Path
 
 from _demo import USER
-from _paths import ROOT, SRC
+from _paths import SRC
+import _publish_fixture as fx
 
 from clark import changes, excel, page, publish  # noqa: E402
 from test_movement_page import GO_LIVE, PILOT, Base  # noqa: E402
@@ -26,9 +27,10 @@ import test_publish as tp  # noqa: E402
 PAGE_SRC = SRC / "clark" / "page" / "src"
 EDITOR_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Visible to client", "Client wording"]
 CLIENT_ROWS = [r for r in EDITOR_ROWS if r != "Visible to client"]
-EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", "data-ms-field", "data-ms-in")     # words and hooks of the editor's module alone
+EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", '"data-ms-field"', "data-ms-in")     # words and hooks of the editor's module alone
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox], [role=button]"
 LABELS = "[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())"
+WORDS = "((e) => { const c = e.cloneNode(true); c.querySelectorAll('.av, .sr').forEach(x => x.remove()); return c.textContent.trim(); })"     # what is read: not the owner's initials picture, not the screen reader's prefix
 HEAD = "(() => { const h = document.querySelector('#peek [data-ms-head]'); return h ? [...h.children].filter(e => !e.classList.contains('pk-ms-sep')).map(e => e.dataset.msHead || e.className) : null; })()"
 TILES = """(() => { const out = []; for (const r of document.querySelectorAll('#peek .pk-fields .pk-row')) { const c = getComputedStyle(r);
   const dt = r.querySelector('dt').getBoundingClientRect(), dd = r.querySelector('dd').getBoundingClientRect();
@@ -77,10 +79,12 @@ class Sources(unittest.TestCase):
         self.assertIn("client_message", publish.RICH["milestones"])
         self.assertIn(("milestones", "client_message"), publish.LEGACY_RICH)
         self.assertIn(("milestones", "client_message"), excel.RICH_WORDS)
-        got = changes._checked_milestone_changes({"client_message": "Plain <words>\nTwo"})
-        self.assertEqual(got, {"client_message": "<p>Plain &lt;words&gt;</p><p>Two</p>"}, "plain text from an older caller is paragraphs")
-        got = changes._checked_milestone_changes({"client_message": "<p>Rich <b>words</b></p><script>x()</script>"})
-        self.assertEqual(got, {"client_message": "<p>Rich <strong>words</strong></p>"})
+        got = changes._checked_milestone_changes({"client_message": " Plain <words> "})
+        self.assertEqual(got, {"client_message": "Plain <words>"}, "plain text from any other caller is stored as typed (an older row reads as paragraphs)")
+        with self.assertRaises(changes.Refused):
+            changes._checked_milestone_changes({"client_message": "Plain\nwords"})           # as it always was (test_movement_hostile)
+        got = changes._checked_milestone_changes({"client_message": "<p>Rich <strong>words</strong></p><script>x()</script>"})
+        self.assertEqual(got, {"client_message": "<p>Rich <strong>words</strong></p>"}, "the editor's HTML is cleaned")
         self.assertEqual(changes._checked_milestone_changes({"client_message": "<p> </p>"}), {"client_message": None})
         with self.assertRaises(changes.Refused):
             changes._checked_milestone_changes({"client_message": "<p>" + "w" * 501 + "</p>"})
@@ -139,7 +143,7 @@ class Fields(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.msRow)"),
                              ["description", "baseline", "forecast", "workstream", "visible", "client_message"])
             self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()"), "On track")
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=owner]').textContent.trim()"), "Sam Example")
+            self.assertEqual(p.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=owner]'))"), "Sam Example")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-field=actual_date]').length"), 0, "no Achieved on row until it is achieved")
             self.assertNotIn("Achieved", p.js("document.querySelector('#peek [data-ms-head]').textContent"))
             self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=progress] [data-ms-num]').value"), "", "no progress set yet")
@@ -181,8 +185,9 @@ class Fields(Base):
                         self.assertEqual((r["left"], r["right"], r["bottom"], r["radius"], r["bg"]), ("0px", "0px", "0px", "0px", "rgba(0, 0, 0, 0)"), f"no tile: {r}")
                         self.assertEqual(r["top"], "1px", f"one hairline between rows: {r}")
                         self.assertTrue(r["beside"], f"label left, value right: {r}")
-                    head = p.js("(() => { const h = document.querySelector('#peek [data-ms-head]'), c = getComputedStyle(h); const tops = [...h.querySelectorAll('[data-ms-head]')].map(e => Math.round(e.getBoundingClientRect().top)); return { border: c.borderLeftWidth + c.borderRightWidth, bg: c.backgroundColor, lines: new Set(tops).size, inside: h.getBoundingClientRect().right <= document.querySelector('#peek').getBoundingClientRect().right + 1 }; })()")
-                    self.assertEqual((head["border"], head["bg"], head["lines"]), ("0px0px", "rgba(0, 0, 0, 0)", 1), "the header is one flat line: " + str(head))
+                    head = p.js("(() => { const h = document.querySelector('#peek [data-ms-head]'), c = getComputedStyle(h); const mids = [...h.querySelectorAll('[data-ms-head]')].map(e => { const r = e.getBoundingClientRect(); return r.top + r.height / 2; }); return { border: c.borderLeftWidth + c.borderRightWidth, bg: c.backgroundColor, spread: Math.max(...mids) - Math.min(...mids), inside: h.getBoundingClientRect().right <= document.querySelector('#peek').getBoundingClientRect().right + 1 }; })()")
+                    self.assertEqual((head["border"], head["bg"]), ("0px0px", "rgba(0, 0, 0, 0)"), "the header is flat: " + str(head))
+                    self.assertLess(head["spread"], 8, "the state, the owner and the progress are on one line: " + str(head))
                     self.assertTrue(head["inside"])
                     self.assertTrue(p.js("(p => p.scrollWidth <= p.clientWidth + 1)(document.querySelector('#peek'))"), "no sideways scroll")
 
@@ -192,14 +197,14 @@ class Fields(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
-                editor_head = p.js("[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head]')].map(e => e.dataset.msHead === 'progress' ? e.querySelector('[data-ms-num]').value + '%' : e.textContent.trim())")
+                editor_head = p.js(f"[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head]')].map(e => e.dataset.msHead === 'progress' ? e.querySelector('[data-ms-num]').value + '%' : {WORDS}(e))")
                 self.assertEqual(editor_head[2], "40%")
             with self.subTest(width=width, view="dashboard"), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width, view="dashboard")
                 self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit], #peek [data-ms-states]').length"), 0, "View: the fields, not the editor")
                 self.assertEqual(p.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].map(e => e.outerHTML.slice(0, 60))"), [], "read only")
                 self.assertEqual(p.js(HEAD), ["state", "owner", "progress"])
-                self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head]')].map(e => e.textContent.replace('Progress ', '').trim())"), editor_head, "the same header line as the editor's")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('#peek [data-ms-head] [data-ms-head]')].map({WORDS})"), editor_head, "the same header line as the editor's")
                 self.assertEqual(p.js(LABELS), CLIENT_ROWS)
                 self.assertEqual(p.js("document.querySelector('#peek [data-ms-fields] [data-ms-row=client_message] strong').textContent"), "well", "rich words, as the editor shows them")
                 self.assertEqual(p.js("document.querySelector('#peek [data-ms-fields] [data-ms-row=description]').textContent.replace('Description', '').trim()"), "Scope")
@@ -217,7 +222,10 @@ class Published(unittest.TestCase):
                     m["client_message"] = "<p>Keep <em>this</em> ZQ-KEEP-MS-MESSAGE</p>"
                     m["description"] = "<p>ZQ-KEEP-MS-DESCRIPTION</p>"
                     m["percent_complete"] = 60
-        _plant, _pub, text = tp.made(rich)
+        plant = fx.load()
+        rich(plant)
+        pub = publish.select(fx.inputs(plant))
+        text = publish.render(pub, page.page_html(tp.EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])     # the view-only page, as publish.main writes a file (#65)
         for word in EDIT_ONLY:
             self.assertNotIn(word, text, word)
         folder = Path(tempfile.mkdtemp(prefix="clark-1078-"))
@@ -231,8 +239,8 @@ class Published(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head]')", sid)), "the published milestone peek drew")
                 self.assertEqual(cdp.js(HEAD, sid), ["state", "owner", "progress"])
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()", sid), "At risk")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=owner]').textContent.trim()", sid), "Delivery lead")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.replace('Progress ', '').trim()", sid), "60%")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=owner]'))", sid), "Delivery lead")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=progress]'))", sid), "60%")
                 self.assertEqual(cdp.js(LABELS, sid), CLIENT_ROWS, "the editor's rows, less Visible to client")
                 self.assertEqual(cdp.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].length", sid), 0, "read only")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-row=client_message] em').textContent", sid), "this")

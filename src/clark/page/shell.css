@@ -664,6 +664,15 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
+/* Row 1078: the milestone peek's header line (Peek.jsx MsHead), the published page's too: the state, the owner and the progress on one flat line
+   under the title; the hairline under it is the first row's top edge. The editor puts its controls in the same places (edit.css sizes them). */
+.pk-ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); font-size: var(--size-small); color: var(--text); }
+.pk-ms-head .mst { font-size: var(--size-small); }
+.pk-ms-sep { color: var(--text-muted); }
+.pk-ms-owner { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.pk-ms-owner .av { width: 22px; height: 22px; font-size: 10px; }
+.pk-ms-head .msl-prog { flex: 1 1 120px; min-width: 120px; }
+.pk-row dd .pk-rich p:last-child { margin-bottom: 0; }
 .pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
 .pk-source-l { font-weight: var(--weight-medium); }
 .wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of its page (the use case page), not a panel below the list (row 776) */
@@ -2040,6 +2049,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-fields > .pk-row[data-row=due] { order: 4; }
 .pk-fields > .pk-row[data-row] dd { min-width: 0; }
 @container (min-width: 560px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+@container (max-width: 420px) { .pk-fields > .pk-row[data-ms-row] { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }   /* row 1078 (the design's narrow case): in a narrow peek a milestone's label sits above its value, so the rich editor keeps its width */
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
    (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */

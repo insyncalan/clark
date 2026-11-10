@@ -1622,12 +1622,13 @@
       [
        "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
        "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
-       "**The chips**: the state, the agreed date, the forecast and the progress.",
-       "**State**: the six states as buttons, and why it has the one it has.",
+       "**The title** is the milestone's name: in Edit, click it to change it.",
+       "**The header line**: the state, the owner and the progress. Achieved, with its date, appears only once the milestone is achieved; picking Achieved sets the progress to 100%.",
+       "**State**: the six states as buttons under the header line, and why it has the one it has.",
        "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
-       "**Progress**: a slider and a number, set by hand.",
-       "**Description**: scope and needs, then Owner and Workstream.",
-       "**Client view**: Visible to client, and Client wording.",
+       "**Progress**: a slider and a number in the header line, set by hand.",
+       "**The rows**: Description, Agreed date, Forecast date, Workstream, Visible to client and Client wording, label left and value right. Description and Client wording use the rich text editor.",
+       "**Client view**: Visible to client, and Client wording. A client sees the same peek, read only, without the Visible to client row.",
        "**Linked work items**, then the history."
       ]
      ]
