@@ -25,7 +25,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 OLD_TIMELINE, OLD_ROW = 289, 62
 TIMELINE_BUDGET = 175          # about half of 289 (a few px over for the sideways scrollbar some systems draw inside the box)
-ROW_BUDGET = 37                # about half of 62: one 17 px line and a small 13 px second line, a little padding
+ROW_BUDGET = 61                # row 1083: the two text lines with 14 px above and below (59.5 px measured, the same 1.5 px of room 37 gave 35.5), under the old 62
 
 LOOK = r"""(() => {
   const q = (s) => document.querySelector(s), box = (e) => { const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, w: r.width}; };
