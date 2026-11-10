@@ -83,7 +83,9 @@ class TheLine(unittest.TestCase):
 
     def test_the_text_is_data_not_markup_and_nothing_else_is_added(self):
         a = self.demo.action(source="<b>x</b>")
-        self.assertEqual(self.source(a), "<b>x</b> by " + USER)
+        self.assertEqual(self.source(a), "", "row 1077 (W27): a source is a name, not markup; markup is not plain words, so nothing is shown")
+        b = self.demo.action(source="<i>notes</i>.xlsx")
+        self.assertEqual(self.source(b), "")
 
     def test_the_read_still_has_its_other_keys(self):
         a = self.demo.action()

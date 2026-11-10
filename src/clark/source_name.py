@@ -1,30 +1,32 @@
 """The Source NAME (row 1077, the owner's ruling of 10-11-2026): a work item's or milestone's `source` words as a person may see them,
 anywhere the Source line is drawn (the live peek through activity_read, a published file through publish.select).
 
-The stored words are kept as they are in the database. Shown: hidden characters are dropped, every kind of slash (/, \\, the fullwidth,
-division and lookalike slashes, %2F and %5C escapes decoded) is one separator, and a run of white space is one space.
-
-STRICT RULE (privacy first): a value holding any separator outside a date (01/10/2026) or a closing tag (</b>) is a path, whatever its
-style, spaces or commas: the file publishes ONLY the final file name (the text after the last separator, up to its extension; a URL's
-?query and #fragment are cut first) and nothing else from the value, no words before it. A separator with no file name after it publishes
-nothing. A value with no separator keeps its words, commas and dates: a stored YYYY-MM-DD reads DD-MM-YYYY when it is a real day. The whole
-is cut at 120 characters with an ellipsis. Imports nothing from clark.
+The stored words are kept as they are in the database. Shown, by a CHARACTER ALLOW-LIST (a list of what is allowed, never a list of the
+slashes that are not; fourth pass, privacy first):
+  A. Normalise: NFKC; decode %XX, %uXXXX and HTML entities (numeric and named) until nothing changes (5 rounds; an escape split by a control or
+     zero-width character is joined first); any white space is one space; control, format and zero-width characters go.
+  B. PLAIN WORDS: every character is a letter or digit (str.isalnum) or one of PLAIN_EXTRA = space , . - _ ( ) : ' & + #  , and the value does
+     not start with a drive letter ("C:"). Plain words keep today's behaviour: their words, commas, and a stored YYYY-MM-DD read DD-MM-YYYY.
+  C. Any other character (a slash of any kind, < > @ % ~ and so on) makes the value NOT plain. It then publishes ONLY a final file name: the
+     text after the last character that is not a letter, digit or one of NAME_EXTRA = space . - _ ( ) ' & + # , and only when it ends in an
+     extension (a dot and 1 to 8 letters or digits) after a non-empty stem; otherwise NOTHING. A bare web address publishes nothing.
+  E. At most 120 characters, cut with an ellipsis.
+Imports nothing from clark.
 """
+import html
 import re
 import unicodedata
 from datetime import date
 
 CAP = 120
+PLAIN_EXTRA = " ,.-_():'&+#"
+NAME_EXTRA = " .-_()'&+#"
 _ISO_DAY = re.compile(r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])")
-_SLASHES = str.maketrans({"\uff0f": "/", "\uff3c": "\\", "\u2215": "/", "\u29f8": "/", "\u2044": "/", "\u2216": "\\", "\ufe68": "\\", "\u2571": "/", "\u29f5": "\\"})
-_PERCENT = re.compile(r"%25(?=2[Ff]|5[Cc]|3[Aa])")
-_ESCAPED = re.compile(r"%(2[Ff]|5[Cc]|3[Aa])")                                                           # %2F, %5C, %3A: a separator or a colon, escaped
-_SPLIT_ESCAPE = re.compile(r"%(?:\s*2\s*5)*\s*(?:2\s*[Ff]|5\s*[Cc]|3\s*[Aa])")                                   # an escape with white space inside it ("%\n5C")
-_SEP = re.compile(r"[\\/]")
-_DATE = re.compile(r"\d{1,4}[/\\]\d{1,2}[/\\]\d{1,4}")                                                    # 01/10/2026: a date, not a path
-_TAG = re.compile(r"</|/>")                                                                              # markup is data
-_QUERY = re.compile(r"^[A-Za-z][A-Za-z0-9+.-]*://[^?#]*")                                               # a web address: its ?query and #fragment are cut
-_EXT = re.compile(r"\.[A-Za-z0-9]{1,8}(?=[\s,?#]|$)")                                                  # a file name's extension
+_HIDDEN = lambda ch: unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Co", "Cn") and not ch.isspace()          # control, format, zero-width, unassigned
+_ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
+_DRIVE = re.compile(r"[A-Za-z]:")
+_EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
+_BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\?#]*[/\\]?$")                                       # a web address with a host and nothing after it
 
 
 def _day_as_shown(m):
@@ -35,38 +37,61 @@ def _day_as_shown(m):
     return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
 
 
-def _plain(text):
-    """Hidden characters out, the other slashes plain ones, separator escapes decoded, white space runs one space."""
-    text = "".join(" " if ch.isspace() else ch for ch in text if unicodedata.category(ch) not in ("Cc", "Cf") or ch.isspace()).translate(_SLASHES)
-    text = _SPLIT_ESCAPE.sub(lambda m: re.sub(r"\s+", "", m.group(0)), text)
-    for _ in range(3):                                   # an escape of an escape (%252F) too
-        text = _ESCAPED.sub(lambda m: chr(int(m.group(1), 16)), _PERCENT.sub("%", text))
+def _join_escapes(text):
+    """"%\\n5C" or "%5\\u200bC": control and zero-width characters inside an escape are taken out, so the escape is still read."""
+    out, i = [], 0
+    while i < len(text):
+        if text[i] != "%":
+            out.append(text[i])
+            i += 1
+            continue
+        j, got = i + 1, []
+        while j < len(text) and len(got) < 5 and (_HIDDEN(text[j]) or text[j] in "\t\n\r" or text[j] in "uU0123456789abcdefABCDEF"):
+            if not (_HIDDEN(text[j]) or text[j] in "\t\n\r"):
+                got.append(text[j])
+            j += 1
+        out.append("%" + "".join(got) if _ESCAPE.match("%" + "".join(got)) else text[i:j])
+        i = j
+    return "".join(out)
+
+
+def _decode(text):
+    text = _join_escapes(text)
+    text = re.sub(r"%u([0-9A-Fa-f]{4})", lambda m: chr(int(m.group(1), 16)), text)
+    text = re.sub(r"%([0-9A-Fa-f]{2})", lambda m: chr(int(m.group(1), 16)), text)
+    return unicodedata.normalize("NFKC", html.unescape(text))
+
+
+def _normal(words):
+    text = unicodedata.normalize("NFKC", words)
+    for _ in range(5):
+        again = _decode(text)
+        if again == text:
+            break
+        text = again
+    text = "".join(" " if ch.isspace() else ch for ch in text if ch.isspace() or not _HIDDEN(ch))
     return re.sub(r" {2,}", " ", text).strip()
 
 
-def _is_path(text):
-    return bool(_SEP.search(_DATE.sub("", _TAG.sub("", text))))
+def _is_plain(text):
+    return all(ch.isalnum() or ch in PLAIN_EXTRA for ch in text) and not _DRIVE.match(text)
 
 
 def _file_name(text):
-    """The final file name of a path, or "" (a folder, a bare host, nothing after the last separator, no extension)."""
-    web = _QUERY.match(text)
-    if web:
-        text = web.group(0)
-        if not _SEP.search(text[text.index("://") + 3:]):
-            return ""                                    # a bare host
-    name = _SEP.split(text)[-1].strip()
-    last = None
-    for last in _EXT.finditer(name):
-        pass
-    return name[:last.end()].strip() if last and last.start() > 0 or (last and name[:last.start()].strip()) else ""
+    """The final file name, or "": after the last character outside letters, digits and NAME_EXTRA, with an extension after a stem."""
+    if _BARE.match(text):
+        return ""
+    cut = max((i for i, ch in enumerate(text) if not (ch.isalnum() or ch in NAME_EXTRA)), default=-1)
+    name = text[cut + 1:].strip()
+    ext = _EXT.search(name)
+    return name if ext and name[:ext.start()].strip() else ""
 
 
 def source_name(words):
     """The words to show for a stored `source`, or "" when there is nothing to show."""
     if not isinstance(words, str):
         return ""
-    text = _plain(words)
-    out = _file_name(text) if _is_path(text) else text
+    text = _normal(words)
+    out = text if _is_plain(text) else _file_name(text)
     out = _ISO_DAY.sub(_day_as_shown, out).strip()
     return out if len(out) <= CAP else out[:CAP - 1].rstrip() + "\u2026"

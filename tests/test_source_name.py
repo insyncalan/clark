@@ -1,174 +1,144 @@
 """Row 1077 (the owner's ruling of 10-11-2026): a Source is shown by its NAME, never by a path, everywhere the line is drawn (the live
-peek through activity_read, a published file through publish). clark.source_name.source_name is the one rule: each part of the stored
-words keeps only what follows its last / or \\, a stored YYYY-MM-DD reads DD-MM-YYYY, and the words are otherwise as they were.
-Third pass (the coordinator's STRICT RULE, privacy first): a value holding any path separator (any style, lookalikes and decoded escapes
-included) outside a date or markup publishes ONLY its final file name and nothing else from the value (no prefix words); a separator with
-no file name after it publishes nothing. A value with no separator keeps its words, commas and dates.
+peek through activity_read, a published file through publish). clark.source_name.source_name is the one rule, a CHARACTER ALLOW-LIST
+(fourth pass, the coordinator's design):
+  A. Normalise: NFKC; decode %XX, %uXXXX, HTML numeric and named entities until nothing changes (5 rounds); one space for any white space;
+     control, format and zero-width characters out.
+  B. PLAIN WORDS: every character is a letter or digit (str.isalnum) or one of  space , . - _ ( ) : ' & + #  and the value does not start
+     with a drive letter (C:). Plain words keep their words, commas and a stored YYYY-MM-DD read day first.
+  C. Anything else makes the value NOT plain: it publishes ONLY a final file name, the text after the last character that is not a letter,
+     digit, space or one of . - _ ( ) ' & + # , and only when it ends in an extension (a dot and 1 to 8 letters or digits) after a non-empty
+     stem; otherwise NOTHING.
+  E. At most 120 characters, cut with an ellipsis.
 Run: python3 dev/run_tests.py test_source_name
 """
+import random
+import re
 import unittest
 
 from _paths import SRC  # noqa: F401
 
+from clark import source_name as sn
 from clark.source_name import source_name
 
+SEPARATORS = ["/", "\\", "\uff0f", "\uff3c", "\u2215", "\u2216", "\ufe68", "\u2571", "\u2572", "\u29f5", "\u29f8", "\u29f9", "\u27cb", "\u2afd", "\u2044",
+              "%2F", "%5C", "%252F", "%2f", "%5c", "\uff05\uff12\uff26", "&#47;", "&#x2F;", "&sol;", "&bsol;", "%u002F", "%u005C", "%c0%af", "<", ">"]
+OUTSIDE = re.compile(r"[^\w .\-()':,&+#]")                       # a character that plain words never hold (and a name never holds: no comma or colon either)
 
-class Name(unittest.TestCase):
+
+class Plain(unittest.TestCase):
     def test_plain_words_are_as_they_were(self):
-        for words in ("Added by hand in clark", "Added by ask clark", "Duplicated from ABC-A-001", "Demo data (fictional)", "People list"):
+        for words in ("Added by hand in clark", "Added by ask clark", "Duplicated from ABC-A-001", "Demo data (fictional)", "People list",
+                      "Jan 5, 2026", "v1.2 notes", "Q&A + R&D (final) #3", "Duplicated from: ABC-A-001", "Réunion du comité", "会议记录", "Steering notes"):
             self.assertEqual(source_name(words), words)
 
-    def test_words_with_no_path_in_them_are_as_they_were(self):
-        for words in ("Steering, 01/10/2026", "<b>x</b>"):
-            self.assertEqual(source_name(words), words, words)
-
-    def test_any_other_slash_is_a_path_and_names_a_file_or_nothing(self):
-        # reader A, MEDIUM: stricter than before ("Either/or" and "A/B test notes" were kept whole); these are paths with no file in them
-        for words in ("Either/or", "A/B test notes", "Added by hand in clark / checked", "Reviewed 3/4 of the list"):
-            self.assertNotIn("/", source_name(words), words)
-        self.assertEqual(source_name("Word import, 2026-11-07, team/notes.docx, under Risks"), "notes.docx")
-
-    def test_a_path_keeps_its_last_part_only(self):
-        self.assertEqual(source_name("projects/HRB secret/minutes/2026-10-20 Pilot readiness review.html"), "20-10-2026 Pilot readiness review.html")
-        self.assertEqual(source_name("ZQ-SOURCE-PATH/actions.xlsx"), "actions.xlsx")
-        self.assertEqual(source_name("C:\\Users\\someone\\Documents\\plan.xlsx"), "plan.xlsx")
-        self.assertEqual(source_name("https://example.test/share/notes.docx"), "notes.docx")
-
-    def test_a_folder_names_nothing(self):
-        # reader A, MEDIUM: a trailing separator, or a last part with no file extension, names a folder: the file carries nothing for it
-        for v in ("/Users/someone/Private Clients/", "Private Clients/Q3 plan", "C:\\Users\\x\\Private Clients\\", "/Users/someone/folder/", "\\\\fileserver\\share\\Clients"):
-            self.assertEqual(source_name(v), "", v)
-        self.assertEqual(source_name("Excel import, 2026-10-01, /Volumes/Secret Drive/"), "")
-
-    def test_a_comma_inside_a_path_leaks_no_folder(self):
-        # reader A, HIGH: the path rule runs on the whole string, then the words are split
-        self.assertEqual(source_name("Excel import, 2026-10-01, C:\\Users\\xuser\\OneDrive - Acme, Inc\\actions.xlsx"), "actions.xlsx")
-        self.assertEqual(source_name("/Users/Doe, Pat/Private Clients, Inc/Q3, final.xlsx"), "Q3, final.xlsx", "a comma in the file's own name stays")
-        self.assertEqual(source_name("\\\\fileserver\\share, a\\Clients, b\\risks.xlsx"), "risks.xlsx")
-        self.assertEqual(source_name("~/Library/Mobile Documents/com~apple~CloudDocs/minutes.docx"), "minutes.docx")
-        self.assertEqual(source_name("Réunion, 2026-10-01, /Volumes/Dossiers, privés/plan été.xlsx"), "plan été.xlsx")
-
-    def test_other_slashes_are_separators_and_a_url_gives_its_file_or_nothing(self):
-        self.assertEqual(source_name("C:\uff0fUsers\uff0fxuser\uff0fplan.xlsx".replace("\\uff0f", "\uff0f")), "plan.xlsx")
-        self.assertEqual(source_name("Q3\u2215Q4/plan.xlsx"), "plan.xlsx")
-        self.assertEqual(source_name("\uff3cUsers\uff3cxuser\uff3cplan.xlsx"), "plan.xlsx")
-        self.assertEqual(source_name("https://firm.example/sites/Private/plan.xlsx?web=1&user=xuser#top"), "plan.xlsx")
-        for bare in ("https://intranet.example/", "https://intranet.example", "https://intranet.example/?a=1"):
-            self.assertEqual(source_name(bare), "", bare)
-
-    def test_a_prefix_before_a_root_is_cleaned_by_the_same_rule(self):
-        # delta reader, MEDIUM: words before the root were kept raw
-        self.assertEqual(source_name("Priv Clients/Acme, C:\\foo\\a.xlsx"), "a.xlsx")
-        self.assertEqual(source_name("see Priv/x, then /Users/me/a.xlsx"), "a.xlsx")
-        self.assertEqual(source_name("Excel import, 2026-10-01, /Users/me/a.xlsx"), "a.xlsx")
-
-    def test_lookalike_slashes_and_percent_escapes_are_separators(self):
-        # delta reader, LOW
-        for ch in ("\u2216", "\ufe68", "\u2571", "\u29f5", "\uff0f", "\uff3c", "\u2215"):
-            self.assertEqual(source_name(f"C:{ch}Users{ch}xuser{ch}plan.xlsx"), "plan.xlsx", hex(ord(ch)))
-            self.assertEqual(source_name(f"Priv{ch}Folder{ch}plan.xlsx"), "plan.xlsx", hex(ord(ch)))
-        for esc in ("%2F", "%2f", "%5C", "%5c"):
-            self.assertEqual(source_name(f"https://h.example/Private{esc}Clients{esc}plan.xlsx"), "plan.xlsx", esc)
-        self.assertEqual(source_name("C%3A%5CUsers%5Cxuser%5Cplan.xlsx"), "plan.xlsx")
-        self.assertEqual(source_name("https://h.example/Private%252FClients%252Fplan.xlsx"), "plan.xlsx", "an escape of an escape")
-
-    def test_a_rootless_path_with_a_comma_names_a_file_or_nothing(self):
-        # delta reader, LOW: the last part of a rootless relative path with no extension names a folder
-        self.assertEqual(source_name("Notes, 2026-10-01 Priv/Folder, a.xlsx"), "Folder, a.xlsx", "what follows the last separator is the file name, commas and all")
-        self.assertEqual(source_name("Notes, Priv/Folder"), "")
-        self.assertEqual(source_name("Word import, 2026-11-07, team/notes.docx, under Risks"), "notes.docx")
-
-    def test_property_no_published_value_holds_a_separator_or_a_folder_of_the_stored_path(self):
-        """2000 seeded stored values: a prefix, a root (or none), 1 to 4 folders (commas, spaces, unicode), a separator kind, a file name, a tail.
-        Every folder carries a unique tag QZ<i>k<j>; no output has a separator of any kind or any tag, and, when rooted, no piece of any folder."""
-        import random
-        rnd = random.Random(11)
-        seps = ["/", "\\", "\uff0f", "\uff3c", "\u2215", "\u2216", "\ufe68", "\u2571", "\u29f5", "%2F", "%5C"]
-        names = ["Priv Clients", "Acme, Inc", "OneDrive - Acme, Inc", "M\u00fcller (Q3)", "\u4f1a\u8bae, \u8bb0\u5f55", "a b", "x,y", "Zed"]
-        roots = ["C:\\", "D:/", "/", "~/", "\\\\srv\\", "file:///", "https://h.example/", "//h/", "./", "../", ""]
-        pre = ["", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Priv Clients/Acme, ", "see Priv/x, then ", "a\\b, "]
-        post = ["", ", then", "  ", "?q=1", "#f/g"]
-        for i in range(2000):
-            root, sep = rnd.choice(roots), rnd.choice(seps)
-            folders = [rnd.choice(names) + f" QZ{i}k{j}" for j in range(rnd.randint(1, 4))]
-            stored = rnd.choice(pre) + root + sep.join(folders) + sep + rnd.choice(["a.xlsx", "plan.docx", "my plan (v2).xlsx"]) + rnd.choice(post)
-            out = source_name(stored)
-            self.assertFalse(set(out) & set("/\\\uff0f\uff3c\u2215\u2216\ufe68\u2571\u29f5"), (stored, out))
-            self.assertNotIn("%2F", out.upper().replace("%2f", "%2F"), (stored, out))
-            for j, folder in enumerate(folders):
-                self.assertNotIn(f"QZ{i}k{j}", out, (stored, out))
-                if root:
-                    for piece in [folder] + [x.strip() for x in folder.split(",")]:
-                        if piece and not piece.startswith("Zed"):
-                            self.assertNotIn(piece, [x.strip() for x in out.split(",")], (stored, out))      # as a whole word of the output (a short piece such as "x" is also inside "a.xlsx")
-
-    def test_strict_rule_the_third_pass_strings(self):
-        """The reader's leak shapes: a space before a separator, rootless comma folders, drive without separator, prose with a slash."""
-        for stored, shown in (("Priv Clients / Acme / a.xlsx", "a.xlsx"), ("Acme, Inc/a.xlsx", "a.xlsx"), ("Excel import, Acme, Inc/Q3/a.xlsx", "a.xlsx"),
-                              ("c:Zq0, Inc/x", ""), ("Phone call, Maria Hill / Q3 review", ""), ("T&C / review, final", ""),
-                              ("Excel import, 2026-10-01, C:\\Users\\x\\OneDrive - Acme, Inc\\a.xlsx, then", "a.xlsx"),
-                              ("https://usr" + ":" + "pw@host.example:8080/Priv/a.xlsx?q=Zqquery&b=2#Zqfrag/f", "a.xlsx"), ("smb://h/Priv/", ""),
-                              ("Priv/Acme, see C:\\foo\\a.xlsx, more words", "a.xlsx"), ("Excel import, 2026-10-01, plan.xlsx", "Excel import, 01-10-2026, plan.xlsx"),
-                              ("Steering, 01/10/2026", "Steering, 01/10/2026"), ("Added by hand in clark", "Added by hand in clark")):
-            self.assertEqual(source_name(stored), shown, stored)
-
-    def test_an_escape_with_white_space_inside_it_is_still_a_separator(self):
-        for stored in ("Priv%\n5CAcme%\t5Ca.xlsx", "https://h/Priv%25\n2FAcme%2\nFa.xlsx", "Priv%5\n CAcme%5 Ca.xlsx"):
-            self.assertEqual(source_name(stored), "a.xlsx", stored)
-
-    def test_whitespace_runs_are_one_space(self):
-        # a newline or tab joined words with no space ("line1\nline2" was "line1line2")
-        self.assertEqual(source_name("line1\nline2"), "line1 line2")
-        self.assertEqual(source_name("a \t\r\n  b"), "a b")
-        self.assertEqual(source_name("Priv\n/ Acme\t/ a.xlsx"), "a.xlsx")
-
-    def test_seeded_generator_finds_no_leak(self):
-        """The third-pass reader's generator, in small: paths with spaces around separators, rootless commas, query strings, newlines; four seeds."""
-        import random
-        import re
-        seps = ["/", "\\", " / ", " \\ ", "\uff0f", "\u2216", "%2F", "%5c", "%252F", " %2F "]
-        extra = ["", ", Inc", " (Q3)", "\u4f1a\u8bae", "\U0001f642", "..", "~"]
-        roots = ["C:\\", "c:", "D:/", "\\\\srv\\share\\", "/Users/x/", "~/", "file:///", "smb://h/", "https://usr" + ":" + "pw@host.example:8080/", "//h/", "./", ""]
-        pre = ["", "Excel import, ", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Phone call, ", "Added by hand in clark, "]
-        post = ["", ", then", "?q=Zqquery1&b=2", "#Zqfrag/f", "\n", "\t", ", more words"]
-        for seed in (777123, 1, 2, 3):
-            rnd = random.Random(seed)
-            for i in range(1500):
-                tags = [f"Zq{i}x{j}" for j in range(rnd.randint(1, 5))]
-                body = "".join(g + rnd.choice(extra) + rnd.choice(seps) for g in tags)
-                stored = rnd.choice(pre) + rnd.choice(roots) + body + rnd.choice(["a.xlsx", "my plan, v2.xlsx", "noext", "a,b.xlsx"]) + rnd.choice(post)
-                out = source_name(stored)
-                self.assertFalse(re.search("[/\\\\\uff0f\uff3c\u2215\u2216\ufe68\u2571\u29f5]", out), (stored, out))
-                self.assertNotRegex(out, r"%(25)*(2[Ff]|5[Cc]|3[Aa])")
-                for tag in tags:
-                    self.assertNotIn(tag.lower(), out.lower(), (stored, out))
-                for bit in ("usr" + ":" + "pw", "host.example", "Zqquery", "Zqfrag", "Excel import", "Phone call", "Notes", "Added by hand", "see "):
-                    self.assertNotIn(bit, out, (stored, out))
-
-    def test_a_long_name_is_cut_with_an_ellipsis(self):
-        long = "Q" * 300 + " plan.xlsx"
-        got = source_name(long)
-        self.assertEqual(len(got), 120)
-        self.assertTrue(got.endswith("\u2026"))
-        self.assertEqual(source_name("x" * 120), "x" * 120)
-
-    def test_each_comma_part_is_named_on_its_own(self):
-        self.assertEqual(source_name("Excel import, 2026-10-01, /Volumes/share/HRB/plan.xlsx"), "plan.xlsx", "the prefix words go with the path")
-        self.assertEqual(source_name("Word import, 2026-11-07, team/notes.docx, under Risks"), "notes.docx")
-
-    def test_a_date_reads_day_first_and_digits_that_are_not_a_date_stay(self):
+    def test_dates_read_day_first_in_plain_words_and_digits_that_are_not_a_date_stay(self):
         self.assertEqual(source_name("Excel import, 2026-10-01, plan.xlsx"), "Excel import, 01-10-2026, plan.xlsx")
+        self.assertEqual(source_name("Word import, 2026-11-07, notes.docx, under Risks"), "Word import, 07-11-2026, notes.docx, under Risks")
         for text in ("Ref 12345-67-89 from the PMO", "Ticket 2026-13-45 filed", "Batch 20261001 and 2026-10-1"):
             self.assertEqual(source_name(text), text, text)
 
     def test_nothing_or_not_text_is_nothing(self):
-        for v in (None, "", "   ", 7, "/", "\\", " / , / ", "C:\\"):
+        for v in (None, "", "   ", 7, [], "/", "\\", " / , / ", "C:\\", "C:", "https://intranet.example/", "https://intranet.example", "smb://h/Priv/"):
             self.assertEqual(source_name(v), "", repr(v))
 
-    def test_the_words_are_trimmed_and_hidden_characters_dropped(self):
+    def test_the_words_are_trimmed_hidden_characters_dropped_and_white_space_is_one_space(self):
         self.assertEqual(source_name("  Added by hand in clark \n"), "Added by hand in clark")
         self.assertEqual(source_name("plan\u0007.xlsx"), "plan.xlsx")
         self.assertEqual(source_name("a/b\u200b.xlsx"), "b.xlsx")
+        self.assertEqual(source_name("line1\nline2"), "line1 line2")
+        self.assertEqual(source_name("a \t\r\n  b\u00a0\u2003\u3000c"), "a b c")
+
+    def test_a_long_name_is_cut_with_an_ellipsis(self):
+        got = source_name("Q" * 300 + " plan.xlsx")
+        self.assertEqual(len(got), 120)
+        self.assertTrue(got.endswith("\u2026"))
+        self.assertEqual(source_name("x" * 120), "x" * 120)
+
+
+class NotPlain(unittest.TestCase):
+    def test_a_path_publishes_only_its_file_name(self):
+        for stored, shown in (
+                ("/Users/someone/Desktop/Private Clients/Q3 plan.xlsx", "Q3 plan.xlsx"), ("C:\\Users\\xuser\\OneDrive - Firm\\actions.xlsx", "actions.xlsx"),
+                ("\\\\fileserver\\share\\Clients\\risks.xlsx", "risks.xlsx"), ("~/Library/Mobile Documents/com~apple~CloudDocs/minutes.docx", "minutes.docx"),
+                ("https://example.test/share/notes.docx", "notes.docx"), ("项目/会议/计划.xlsx", "计划.xlsx"),
+                ("Excel import, 2026-10-01, /Volumes/share/HRB/plan.xlsx", "plan.xlsx"),                 ("Priv Clients / Acme / a.xlsx", "a.xlsx"), ("Acme, Inc/a.xlsx", "a.xlsx"), ("Excel import, Acme, Inc/Q3/a.xlsx", "a.xlsx"),
+                ("Notes, 2026-10-01 Priv/Folder, a.xlsx", "a.xlsx"), ("/Users/Doe, Pat/Private Clients, Inc/Q3, final.xlsx", "final.xlsx"),
+                ("Excel import, 2026-10-01, C:\\Users\\xuser\\OneDrive - Acme, Inc\\actions.xlsx", "actions.xlsx"),
+                ("Priv Clients/Acme, C:\\foo\\a.xlsx", "a.xlsx"), ("see Priv/x, then /Users/me/a.xlsx", "a.xlsx"), ("C:foo.xlsx", "foo.xlsx")):
+            self.assertEqual(source_name(stored), shown, stored)
+
+    def test_a_folder_or_a_value_with_no_file_name_publishes_nothing(self):
+        for stored in ("/Users/someone/Private Clients/", "Private Clients/Q3 plan", "C:\\Users\\x\\Private Clients\\", "Notes, Priv/Folder",
+                       "Phone call, Maria Hill / Q3 review", "Word import, 2026-11-07, team/notes.docx, under Risks", "T&C / review, final", "Either/or", "A/B test notes", "Reviewed 3/4 of the list",
+                       "Steering, 01/10/2026", "c:Zq0, Inc/x", "Zq9/1/2", "Priv Clients 1/2/3", "https://h.example/a.xlsx?q=Zq",
+                       "<b>x</b>", "a/.xlsx", "Priv/.env"):
+            self.assertEqual(source_name(stored), "", stored)
+
+    def test_the_fourth_pass_strings(self):
+        # HIGH: a lone "<" or ">" and digits before a separator were kept
+        for stored, shown in (("Priv Clients</a.xlsx", "a.xlsx"), ("Priv/>a.xlsx", "a.xlsx"), ("Acme2026/10/01.xlsx", "01.xlsx"),
+                              ("Acme2026/10/01 plan.xlsx", "01 plan.xlsx"), ("Acme Corp 5/6/7 a.xlsx", "7 a.xlsx"), ("Zq9/1/2", ""), ("Priv Clients 1/2/3", "")):
+            self.assertEqual(source_name(stored), shown, stored)
+        # LOW: other lookalikes, fullwidth and encoded separators
+        for sep in SEPARATORS:
+            self.assertEqual(source_name(f"Priv Clients{sep}Acme{sep}a.xlsx"), "a.xlsx", repr(sep))
+            self.assertEqual(source_name(f"C:{sep}Users{sep}xuser{sep}plan.xlsx"), "plan.xlsx", repr(sep))
+            self.assertEqual(source_name(f"Priv Clients{sep}Acme{sep}"), "", repr(sep))
+        self.assertEqual(source_name("https://h.example/Private%252FClients%252Fplan.xlsx"), "plan.xlsx")
+        self.assertEqual(source_name("Priv%\n5CAcme%\t5Ca.xlsx"), "a.xlsx", "an escape with a newline or tab inside it")
+        self.assertEqual(source_name("Priv%\u200b5CAcme%u00\u200b5Ca.xlsx"), "a.xlsx", "or a zero-width character")
+
+    def test_markup_is_not_a_name(self):
+        # W27: Source is a name, not markup
+        self.assertEqual(source_name("<b>x</b>"), "")
+        self.assertEqual(source_name("<script>alert(1)</script>"), "")
+        self.assertEqual(source_name("a<b>c.xlsx"), "c.xlsx")
+
+    def test_a_drive_letter_start_is_never_plain(self):
+        self.assertEqual(source_name("C:\\a\\b.xlsx"), "b.xlsx")
+        self.assertEqual(source_name("c:b.xlsx"), "b.xlsx")
+        self.assertEqual(source_name("c: some words"), "")
+        self.assertEqual(source_name("Cx: some words"), "Cx: some words", "only a single letter and a colon is a drive")
+
+    def test_the_allow_list_is_exactly_these_characters(self):
+        """Mutation guard: one character more (a slash lookalike) in the allow-list breaks the pins above; this pins the list itself."""
+        self.assertEqual(sn.PLAIN_EXTRA, " ,.-_():'&+#")
+        self.assertEqual(sn.NAME_EXTRA, " .-_()'&+#")
+
+
+class Property(unittest.TestCase):
+    ROOTS = ["C:\\", "c:", "D:/", "\\\\srv\\share\\", "/Users/x/", "~/", "file:///", "smb://h/", "https://usr" + ":" + "pw@host.example:8080/", "//h/", "./", ""]
+    PRE = ["", "Excel import, ", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Phone call, ", "Added by hand in clark, ", "Priv Clients/Acme, ", "<b>x</b> "]
+    POST = ["", ", then", "?q=Zqquery1&b=2", "#Zqfrag/f", "\n", "\t", ", more words", "\u200b"]
+    EXTRA = ["", ", Inc", " (Q3)", "\u4f1a\u8bae", "\U0001f642", "..", "~", "2026", " 5", "1", " 12/3 "]
+
+    def check(self, stored, tags):
+        out = source_name(stored)
+        self.assertFalse(OUTSIDE.search(out), (stored, out))
+        self.assertNotRegex(out, r"%[0-9A-Fa-f]{2}|&#|&[a-z]+;", (stored, out))
+        for tag in tags:
+            self.assertNotIn(tag.lower(), out.lower(), (stored, out))
+        for bit in ("usr" + ":" + "pw", "host.example", "Zqquery", "Zqfrag", "Excel import", "Phone call", "Notes", "Added by hand", "see ", "Priv Clients"):
+            self.assertNotIn(bit, out, (stored, out))
+
+    def test_seeded_generator_finds_no_leak(self):
+        """Folders with digits, tildes, tags, emoji, lookalike and encoded separators in every combination; four seeds of 1500 values."""
+        for seed in (777123, 4242, 90210, 31337):
+            rnd = random.Random(seed)
+            for i in range(1500):
+                tags = [f"Zq{i}x{j}" for j in range(rnd.randint(1, 5))]
+                body = "".join(g + rnd.choice(self.EXTRA) + rnd.choice(SEPARATORS + [" / ", " \\ "]) for g in tags)
+                self.check(rnd.choice(self.PRE) + rnd.choice(self.ROOTS) + body + rnd.choice(["a.xlsx", "my plan, v2.xlsx", "noext", "a,b.xlsx", "01.xlsx"]) + rnd.choice(self.POST), tags)
+
+    def test_a_value_made_only_of_allowed_characters_is_left_alone(self):
+        rnd = random.Random(5)
+        alphabet = "abcXYZ 019,.-_():'&+#\u00e9\u4f1a"
+        for _ in range(1000):
+            words = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(1, 60))).strip()
+            words = re.sub(r" {2,}", " ", words)
+            if re.search(r"&#?\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
+                continue
+            self.assertEqual(source_name(words), words if len(words) <= 120 else source_name(words), words)
 
 
 if __name__ == "__main__":
