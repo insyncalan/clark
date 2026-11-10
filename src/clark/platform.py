@@ -87,9 +87,14 @@ def _only_mac(what, on=None):
     on = on or system()
     if on != MAC:
         if on == "linux" and container_mode():          # item 427: said in the words of the person who started Docker
-            raise NotBuiltYet(f"{what} needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with "
-                              "clark.command instead.")
+            raise NotBuiltYet(mac_only_in_docker(what))
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
+
+
+def mac_only_in_docker(what):
+    """The words said inside the container for a step that needs the Mac (`what`: "The folder dialog"...): item 427's sentence, the one
+    _only_mac raises. The setup service (#836) says it before it would ask for a folder window, so no system call is made there."""
+    return f"{what} needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with clark.command instead."
 
 
 # Who

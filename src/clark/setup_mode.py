@@ -84,8 +84,10 @@ class Setup:
     def choose(self, prompt):
         """Open the system's folder window and check the answer. None on Cancel (nothing changes). On a good answer the folder
         is kept (pointer file written) and the new report is returned. Raises Refused (the folder's own words; code "busy" if a
-        window is already open; "cant_save" if the pointer file could not be written) or lets a PlatformError out (the window
-        could not be opened)."""
+        window is already open; "cant_save" if the pointer file could not be written; "dialog_failed" inside Docker, where the window
+        needs the Mac: platform's own sentence, no system call) or lets a PlatformError out (the window could not be opened)."""
+        if platform.container_mode():                       # #836: the page hides the button there; a direct POST meets the same answer here
+            raise Refused("dialog_failed", platform.mac_only_in_docker("The folder dialog"))
         if not self._dialog.acquire(blocking=False):
             raise Refused("busy", WORDS["busy"])
         try:                                                # the answer is checked and kept under the same lock as the window
