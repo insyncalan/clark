@@ -2866,6 +2866,38 @@
     "howto-undo-a-mistake",
     "ref-profile-circle"
    ]
+  },
+  {
+   "id": "bring-in-a-brand-kit",
+   "t": "Bring in a brand kit",
+   "job": "See what a brand kit holds and the limits it must keep, then add one in Settings.",
+   "steps": [
+    {
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and lists its files, and the colours and fonts file. It can also hold a logo and cover pictures. It holds no other files. The zip needs no particular file name."
+    },
+    {
+     "d": "A kit keeps to these limits: 50 files, 16 MB for the zip, 24 MB unpacked and 5 MB for any one file. It has no links and no paths that point outside the kit."
+    },
+    {
+     "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."
+    },
+    {
+     "d": "To use the newest zip in your Downloads folder, press “Review the brand in Downloads”. To pick a zip yourself, press **Choose zip…**."
+    },
+    {
+     "d": "Read the review. It lists what the kit adds, replaces or removes. Nothing changes yet."
+    },
+    {
+     "d": "Press **Install** for a new brand or **Replace** for one already added. Press **Cancel** to stop with nothing changed."
+    },
+    {
+     "d": "To take back the last install, replace or remove, press **Undo**. To take a brand away, press **Remove** on its row and confirm."
+    }
+   ],
+   "result": "The brand is added, and clark uses its colours, fonts and pictures.",
+   "next": [
+    "ref-profile-circle"
+   ]
   }
  ],
  "pictures": [

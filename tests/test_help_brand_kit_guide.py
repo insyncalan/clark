@@ -33,7 +33,7 @@ class TheBrandKitGuide(unittest.TestCase):
 
     def test_it_says_what_a_kit_holds(self):
         t = text(guide())
-        for w in ("clark-brand.json", "name, id and version", "file list", "colours and fonts", "logo", "cover pictures", "no other files"):
+        for w in ("clark-brand.json", "name, id and version", "lists its files", "colours and fonts", "logo", "cover pictures", "no other files"):
             self.assertIn(w, t.lower() if w.islower() else t, w)
 
     def test_the_limits_are_the_ones_the_code_enforces(self):
