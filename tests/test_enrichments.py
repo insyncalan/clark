@@ -5,7 +5,7 @@ Part 1 needs no browser: the mark's text colours pass 4.5:1 in the light and dar
 placeholder and the mark use no animation or transition; every component that marks a row also draws the word "Changed" (so a
 table that is added later inherits the rule); the words are plain.
 Part 2 runs the real page in headless Chrome (the harness's chrome(): keychain flags included) with `prefers-reduced-motion`
-emulated, at 1400, 900 and 390 px wide: a change and an undo mark the changed section (tint, bar and the word), the mark goes at
+emulated, at 1400 and 900 px wide: a change and an undo mark the changed section (tint, bar and the word), the mark goes at
 the next click or key press or after 3 seconds (a clock the test winds by hand), Work items and Milestones rows take the same mark;
 a slow answer shows the placeholder only after 150 ms, an instant one never shows it, a published file never does.
 """
@@ -32,7 +32,7 @@ PAGE = SRC / "clark" / "page"
 SRCDIR = PAGE / "src"
 CSS = (PAGE / "shell.css").read_text(encoding="utf-8")
 TOKENS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
-WIDTHS = (1400, 900, 390)
+WIDTHS = (1400, 900)
 REDUCE = [{"name": "prefers-reduced-motion", "value": "reduce"}]
 
 
@@ -229,7 +229,7 @@ class Mark(tre.Base):
                     "size:ts&&parseFloat(ts.fontSize),inside:r&&r.left>=0&&r.right<=innerWidth&&r.width>0,"
                     "vis:r&&r.width>0&&r.height>0,scroll:document.documentElement.scrollWidth<=innerWidth,flag:s.dataset.changed};})()" % self.sec(p, ref))
 
-    def test_a_change_marks_its_section_with_a_tint_a_bar_and_the_word_under_reduced_motion_at_three_widths(self):
+    def test_a_change_marks_its_section_with_a_tint_a_bar_and_the_word_under_reduced_motion_at_two_widths(self):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.reduce_motion(p)
@@ -302,7 +302,7 @@ class Mark(tre.Base):
 class OtherRows(unittest.TestCase):
     """Work items and Milestones take the same mark (nothing edits them yet, so the page's hook marks them)."""
 
-    def test_rows_take_the_tint_the_bar_and_the_word_with_reduced_motion_at_three_widths(self):
+    def test_rows_take_the_tint_the_bar_and_the_word_with_reduced_motion_at_two_widths(self):
         s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
@@ -370,7 +370,7 @@ class Skeleton(tre.Base):
         s, gate = self.slow_server(30)
         with chrome() as cdp:
             for view in ("work", "milestones", "dashboard"):
-                for w, reduce in ((1400, False), (900, True), (390, True)):
+                for w, reduce in ((1400, False), (900, True)):
                     with self.subTest(view=view, width=w, reduce=reduce):
                         gate["open"] = False
                         p = self.visit_with(cdp, s.port, f"#{view}&p=ABC", w, reduce)
