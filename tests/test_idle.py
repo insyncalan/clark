@@ -103,6 +103,48 @@ class Watch(unittest.TestCase):
         self.assertTrue(idle.launched({"CLARK_LAUNCHED": "1"}))
 
 
+class InDocker(unittest.TestCase):
+    """Row 1080: the Docker web server never stops by itself, whatever else is set (no window is ever left open in a container)."""
+
+    def setUp(self):
+        self.clock = Clock()
+        self.said, self.stopped = [], []
+
+    def make(self, in_container):
+        return idle.Idle(clock=self.clock, sleep=self.clock.sleep, container=lambda: in_container)
+
+    def watch(self, watcher, rounds=1000):
+        left = [rounds]
+
+        def keep_going():
+            left[0] -= 1
+            return left[0] >= 0
+        watcher.watch(lambda: self.stopped.append(self.clock.now), lambda: False, self.said.append, keep_going)
+
+    def test_the_stop_is_refused_in_docker_however_long_it_is_quiet(self):
+        watcher = self.make(True)
+        self.watch(watcher)                                     # 1000 rounds of 5 seconds, far past the minute
+        self.assertGreater(self.clock.now - 1000.0, 3600)
+        self.assertFalse(watcher.due())
+        self.assertEqual((self.stopped, self.said), ([], []))
+
+    def test_outside_docker_the_stop_is_unchanged(self):
+        watcher = self.make(False)
+        self.watch(watcher)
+        self.assertEqual(len(self.stopped), 1)
+        self.assertEqual(self.stopped[0] - 1000.0, 65.0)
+        self.assertEqual(self.said, ["No clark window has been open for 60 seconds, so clark is stopping."])
+
+    def test_launched_is_false_in_docker_even_with_the_launcher_mark(self):
+        self.assertFalse(idle.launched({"CLARK_LAUNCHED": "1"}, container=lambda: True))
+        self.assertTrue(idle.launched({"CLARK_LAUNCHED": "1"}, container=lambda: False))
+        self.assertFalse(idle.launched({}, container=lambda: False))
+
+    def test_the_real_container_check_is_the_default(self):
+        from clark import platform
+        self.assertIs(idle.Idle().container, platform.container_mode)
+
+
 class Environment(unittest.TestCase):
     def test_the_times_can_be_shortened_for_a_test(self):
         i = idle.Idle.from_environ({"CLARK_STOP_AFTER": "0.5", "CLARK_STOP_CHECK": "0.05"})

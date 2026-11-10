@@ -2,7 +2,8 @@
 
 An open clark page says "still here" every 10 seconds (POST /api/here, which needs the token; opening the page counts too).
 A server the launcher started (CLARK_LAUNCHED=1) stops once nothing has said so for STOP_AFTER seconds (a minute), and never
-while a job is running. A server started by hand, or any server with CLARK_LAUNCHED unset, never stops by itself.
+while a job is running. A server started by hand, or any server with CLARK_LAUNCHED unset, never stops by itself. The Docker
+server (row 1080) never stops by itself either: no window is ever left open in a container, so nothing there is "too quiet".
 
 The time is read from a monotonic clock, so a change of the computer's clock never stops the server. (A Mac's monotonic clock
 should not run while the computer sleeps, so waking up should not stop it either: a hand check in
@@ -11,6 +12,8 @@ Standard library only, Python 3.9.
 """
 import math
 import time
+
+from clark import platform
 
 STOP_AFTER = 60.0           # seconds without a "still here" before a launcher-started server stops
 STOP_CHECK = 5.0            # how often it looks
@@ -31,16 +34,18 @@ def number(environ, name, default):
     return value
 
 
-def launched(environ):
-    """Whether this server was started by the launcher: only then does it stop by itself."""
-    return environ.get("CLARK_LAUNCHED") == "1"
+def launched(environ, container=platform.container_mode):
+    """Whether this server was started by the launcher: only then does it stop by itself. Never in Docker (row 1080)."""
+    return environ.get("CLARK_LAUNCHED") == "1" and not container()
 
 
 class Idle:
     """When a page last said it was open, and whether that was too long ago."""
 
-    def __init__(self, stop_after=STOP_AFTER, check=STOP_CHECK, clock=time.monotonic, sleep=time.sleep):
+    def __init__(self, stop_after=STOP_AFTER, check=STOP_CHECK, clock=time.monotonic, sleep=time.sleep,
+                 container=platform.container_mode):
         self.stop_after, self.check, self.clock, self.sleep = stop_after, check, clock, sleep
+        self.container = container               # row 1080: in Docker the stop is always refused, even if this was built anyway
         self.last = clock()                  # the start counts as "here": the window is about to open
 
     @classmethod
@@ -56,7 +61,7 @@ class Idle:
 
     def due(self, busy=False):
         """True when the server should stop now: quiet for longer than `stop_after`, and no job running."""
-        return not busy and self.quiet_for() > self.stop_after
+        return not busy and not self.container() and self.quiet_for() > self.stop_after
 
     def watch(self, stop, busy=lambda: False, say=print, keep_going=lambda: True):
         """Look every `check` seconds; when due, say so once and call `stop()`, then return. Run it in a daemon thread.
