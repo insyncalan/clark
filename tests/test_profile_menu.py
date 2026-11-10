@@ -17,7 +17,7 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export"                                                                 # no name typed: the top line is the link to Settings, so there is no Settings entry (issue 787)
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
 ORDER = [WHO] + ITEMS[:5] + LOOK + ITEMS[5:]

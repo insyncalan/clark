@@ -283,8 +283,7 @@
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
-     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
-     "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
+     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
     "page": [
@@ -350,7 +349,7 @@
     "w": "Work items",
     "go": "work",
     "s": [
-     "Type type: on the filter line to pick the type, and is:open, is:closed or status: to pick open or closed items.",
+     "Use **type:** on the filter line to pick the type, and **is:open**, **is:closed** or **status:** to pick open or closed items.",
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
@@ -366,12 +365,12 @@
     "id": "use-the-board",
     "g": "Work items",
     "t": "Group work and use the board",
-    "w": "Work items › View",
+    "w": "Work items › Group by",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the View menu, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
+     "The **Group by** button beside the saved views opens a menu. Its **Group by** list chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "On the board, **Swimlanes** in the **Group by** menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
@@ -1269,7 +1268,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
+      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (its menu holds Group by and Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -2430,9 +2429,9 @@
    "title": "Work items",
    "s": [
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
-    "Type is:open or is:closed on the filter line to say which items to list.",
+    "Use **is:open** or **is:closed** on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
+    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; its menu holds **Group by**."
    ],
    "full": "ref-work-items"
   },
@@ -2870,7 +2869,7 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. No file name is required."
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other kinds of file. Your own file names are fine."
     },
     {
      "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
