@@ -21,6 +21,10 @@
   --status-green: #008675; --status-amber: #E8A013; --status-red: #C0392B; --status-grey: #8A9BA0;
   --status-green-tint: #D9F1EC; --status-amber-tint: #FCEFCF; --status-red-tint: #F6E0DD;
   --status-green-text: #006B5E; --status-amber-text: #8A5200; --status-red-text: #A3301F;
+  /* row 1021, final status tones: text on tint for Red, Amber, Green, Blue and Grey; Urgent is a solid maroon tile with a white letter (--tone-on-urgent) */
+  --tone-red-text: #B3392F; --tone-red-tint: #F4DEDB; --tone-amber-text: #8A5A12; --tone-amber-tint: #FBF0D2;
+  --tone-green-text: #2F6E57; --tone-green-tint: #DFF1EA; --tone-blue-text: #2456A8; --tone-blue-tint: #E1EBFA;
+  --tone-grey-text: #4F5865; --tone-grey-tint: #E8EBEF; --tone-urgent: #6B1D2A; --tone-on-urgent: #FFFFFF;
   /* the peek's coloured icons: each is one of the tokens above, so a person's own look reaches them by itself, and each is at least 3:1 on the peek's
      background and on its Changed highlight in light and in dark (tests/test_peek_icons.py). Amber takes the text shade, since the plain amber is 2.2:1 on white. */
   --icon-red: var(--status-red); --icon-amber: var(--status-amber-text); --icon-green: var(--status-green); --icon-blue: var(--brand-blue); --icon-grey: var(--grey-700);
@@ -42,6 +46,9 @@
   --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
   --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
   --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
+  --tone-red-text: #F08A7C; --tone-red-tint: #3D1F1B; --tone-amber-text: #F0B84A; --tone-amber-tint: #3A2C16;
+  --tone-green-text: #5CCBA9; --tone-green-tint: #0F3A36; --tone-blue-text: #9DBDF5; --tone-blue-tint: #16284A;
+  --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
   --flash: #4A3F1A;
   --sh-rest: .75; --sh-rest-narrow: .75;
   --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);
@@ -59,6 +66,9 @@
     --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
     --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
     --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
+    --tone-red-text: #F08A7C; --tone-red-tint: #3D1F1B; --tone-amber-text: #F0B84A; --tone-amber-tint: #3A2C16;
+    --tone-green-text: #5CCBA9; --tone-green-tint: #0F3A36; --tone-blue-text: #9DBDF5; --tone-blue-tint: #16284A;
+    --tone-grey-text: #C3CBD6; --tone-grey-tint: #2A323D; --tone-urgent: #A8384D; --tone-on-urgent: #FFFFFF;
     --flash: #4A3F1A;
     --sh-rest: .75; --sh-rest-narrow: .75;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 2px 8px rgba(0, 0, 0, .3);

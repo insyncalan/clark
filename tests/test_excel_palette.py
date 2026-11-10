@@ -16,7 +16,7 @@ from clark import excel_palette as ep
 BRAND_ONE = """/* an invented teal look */
 :root {
   --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820;
-  --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
+  --tone-green-tint: #DDF5F0; --tone-green-text: #046B5F;
   --teal: #13A89E; --status-blue-text: var(--teal-dark); --teal-dark: #0A6F68;
   --font-office: 'Segoe UI', sans-serif;
 }
@@ -40,7 +40,7 @@ class Committed(unittest.TestCase):
         self.assertEqual(p.warnings, [])
         for name in base.COLOURS:
             self.assertEqual(p.hexes(name), base.hexes(name))
-        self.assertEqual(len(p.tokens), 17)
+        self.assertEqual(len(p.tokens), len(base.TOKEN_NAMES))
 
     def test_no_brand_is_the_module_constants(self):
         self.check_default(ep.palette(branding=NOWHERE))
@@ -106,11 +106,11 @@ class Brands(unittest.TestCase):
 
     def test_a_failing_status_pair_reverts_as_a_pair(self):
         w = []
-        p = ep.palette(css=":root { --status-amber-tint: #FFFF00; --status-amber-text: #FFFF99; --status-red-tint: #FFEEEE; }", warnings=w)
+        p = ep.palette(css=":root { --tone-amber-tint: #FFFF00; --tone-amber-text: #FFFF99; --tone-red-tint: #FFEEEE; }", warnings=w)
         self.assertEqual(p.hexes("amber"), base.hexes("amber"))      # both reverted, not only the text
-        self.assertEqual(p.tokens["status-red-tint"], "FFEEEE")      # a passing pair elsewhere is kept
+        self.assertEqual(p.tokens["tone-red-tint"], "FFEEEE")      # a passing pair elsewhere is kept
         self.assertEqual(len(w), 1)
-        self.assertIn("status-amber-tint", w[0])
+        self.assertIn("tone-amber-tint", w[0])
 
     def test_a_failing_header_pair_reverts_both(self):
         p = ep.palette(css=":root { --brand-navy: #DDDDDD; --white: #FFFFFF; }")
