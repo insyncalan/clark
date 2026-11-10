@@ -185,6 +185,12 @@ export function navigate(state, { replace = false } = {}) {
   return true;
 }
 
+/** Give this page's address, in place: no navigation and no new entry (the hash is unchanged by the caller's url). Used when a Generic project's
+ *  page keeps the document it was served as but its address names the project, as a reload would have left it. */
+export function replaceAddress(url) {
+  try { history.replaceState(history.state, "", url); } catch (e) { /* no history: the page still works */ }
+}
+
 /** Step Back one entry (the browser's Back); the handler given to onPop then redraws. If `stuck` is given and nothing has moved a
  *  moment later (there was no earlier entry to go to: back() then does nothing and fires nothing), it is called once. "Nothing has
  *  moved" is no Back, Forward or navigate at all, not only the same address: closing a peek and opening the same item again within

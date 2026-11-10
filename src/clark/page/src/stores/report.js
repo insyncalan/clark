@@ -46,7 +46,10 @@ function reloadFor(s, wait = true) {
     return true;
   } catch (e) { return false; }
 }
-reloadFor(start, false);
+// The address names its project in the hash, which the server never sees: a page served with a brand block of its own cannot stay for another
+// project, so it is replaced at once. A page served on Generic reads the project first (load() below): only a project with a brand of its own
+// goes to GET /?project=<code>, and a Generic one is one load, not two (row 107: the first load was the one a slow computer's tests polled).
+if (typeof document !== "undefined" && document.getElementById && document.getElementById("brand-local")) reloadFor(start, false);
 export const project = signal(start.project);
 export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
@@ -489,7 +492,16 @@ export async function loadProjects() {
   }
 }
 
+// The address of a Generic project's page, as the reload would have left it (/?project=<code> and the same hash), set in place: no navigation.
+function nameProject(s) {
+  try {
+    if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return;
+    route.replaceAddress("/?project=" + s.project + route.format(s));
+  } catch (e) {}
+}
+let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
+  const first = firstLoad; firstLoad = false;
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
@@ -502,6 +514,10 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
+    if (first) {
+      if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
+      nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)
+    }
     data.value = body.data;
     status.value = "ready";
     settle();
