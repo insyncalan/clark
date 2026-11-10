@@ -393,6 +393,44 @@ class Browser(unittest.TestCase):
                     self.assertEqual(pill["ws"], "nowrap", "the pill keeps its words together")
                     self.assertLess(pill["h"], 2 * pill["line"] if pill["line"] else 40, "the Open now pill is one line high: %s" % pill)
 
+    def squeezed(self, name, width_check):
+        """Item 1024d: every project gets this name and a very long client, so the Name column is squeezed; checks per width."""
+        s = self.serve()
+        words = """(() => { const out = [];
+          for (const b of document.querySelectorAll('#projects-table tbody td:first-child b')) {
+            const node = b.firstChild, text = node.textContent;
+            for (const m of text.matchAll(/\\S+/g)) {
+              const r = document.createRange(); r.setStart(node, m.index); r.setEnd(node, m.index + m[0].length);
+              out.push({word: m[0], lines: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size});
+            }
+          }
+          return out; })()"""
+        client = "Consolidated Infrastructure Maintenance Partnership Incorporated " * 3 + "Supercalifragilisticexpialidocious" * 3
+        for code in list(self.names):
+            self.names[code] = name
+            self.data[code] = {**self.data[code], "project": {**self.data[code]["project"], "client_name": client}}
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width)
+                ws = cdp.js(words, sid)
+                self.assertTrue(ws, "there are names")
+                col = cdp.js("(() => { const em = parseFloat(getComputedStyle(document.querySelector('#projects-table')).fontSize);"
+                             " return document.querySelector('#projects-table tbody td:first-child').getBoundingClientRect().width / em; })()", sid)
+                width_check(self, ws, col, width)
+
+    def test_a_name_with_a_word_wider_than_nine_letters_keeps_that_word_whole_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills overflow-wrap anywhere
+        def check(t, ws, col, width):
+            for w in ws:
+                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
+        self.squeezed("Telecommunications Programme Alpha Bravo", check)
+
+    def test_a_name_of_short_words_keeps_its_column_nine_letters_wide_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills min-width 0
+        def check(t, ws, col, width):
+            t.assertGreaterEqual(col, 9 - 0.01, "the Name column is at least 9em wide at %d" % width)
+            for w in ws:
+                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
+        self.squeezed("Transformation Programme Alpha Bravo Charlie Delta Echo Foxtrot", check)
+
     def test_the_help_says_archive_is_in_the_row_menu_not_a_button_of_its_own(self):       # item 1024b
         def strings(node):
             if isinstance(node, str):
