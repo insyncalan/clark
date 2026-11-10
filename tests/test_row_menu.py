@@ -146,6 +146,15 @@ class Rules(unittest.TestCase):
                             ("Bryony Castellan", False), ("bry c", False), ("Zelda Quince", False), ("Ada Quillfeather", False)):
             self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, {json.dumps(typed)})"), want, typed)
 
+    def test_item_1070_an_archived_persons_name_is_known_so_it_is_not_offered_as_new_and_the_current_owner_is_never_offered_even_when_the_project_lacks_them(self):
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Old Hand", "aliases": "Oldie", "archived": 1}, {"name": "Bryony Castellan"}])
+        names = json.dumps(["Zelda Quince"])
+        for typed in ("Old Hand", "old   hand", "Oldie"):
+            self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, {json.dumps(typed)})"), False, typed + ": the picker counts an archived name as known")
+        self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, 'Old Hander')"), True, "a different name is still offered")
+        self.assertEqual(self.js(f"RM.canAddPerson([], {names}, {row}, 'Ada Quillfeather')"), False, "the owner, though the project's names and the register lack them")
+
     def test_a_pick_is_the_cells_own_change_and_an_unchanged_value_is_nothing(self):
         row = json.dumps(self.ACTION)
         got = self.js(f"RM.pickChange({row}, 'status', 'Closed', {json.dumps(TODAY)})")
@@ -578,6 +587,37 @@ class Menu(board.Base):
             self.assertEqual(self.row(a)["owner"], "Wilhelmina Frost")
             self.assertEqual(self.steps() - before, 1, "one step")
             self.assertEqual([r[0] for r in self.query("SELECT email FROM people WHERE name = ?", "Wilhelmina Frost")], ["wilhelmina@example.com"])
+
+    def test_item_1070_a_list_opened_by_hover_keeps_a_focused_or_typed_search_when_the_pointer_leaves_and_still_closes_on_escape(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                click(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                cdp.call("Input.insertText", {"text": "Wilh"}, sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)      # off the menu and its list
+                time.sleep(0.7)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays: the box has focus and text")
+                self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value", sid), "Wilh")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=link]")
+                time.sleep(0.7)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "text typed and not yet used is kept even unfocused")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape closes the list")
+                self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops")) if cdp.js("!document.querySelector('.rowmenu')", sid) else None
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "an empty, unfocused search still closes on leaving")
 
     def test_archive_hides_the_item_and_undo_brings_it_back_nothing_is_deleted(self):
         with chrome() as cdp:

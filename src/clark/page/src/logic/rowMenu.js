@@ -89,11 +89,11 @@ export function ownerChoices(register, names, row, typed) {
 }
 
 /** Item 1070: whether the typed text can be offered as "Add ... as a new person": some text that is not TBC and is no one the
- *  register or the project already names (nor the current owner). The picker's own rule (OwnerPick.known). */
+ *  register (an archived person too) or the project already names (nor the current owner). The picker's own rule (OwnerPick.known). */
 export function canAddPerson(register, names, row, typed) {
   const t = String(typed == null ? "" : typed).trim();
   if (!t || sameName(t, "TBC") || sameName(t, ownerOf(row.owner).text)) return false;
-  const known = [...names, ...(Array.isArray(register) ? register : []).filter((p) => p && !p.archived).flatMap((p) => [p.name, ...String(p.aliases || "").split(";")])];
+  const known = [...names, ...(Array.isArray(register) ? register : []).filter((p) => p).flatMap((p) => [p.name, ...String(p.aliases || "").split(";")])];
   return !known.some((n) => n && sameName(n, t));
 }
 

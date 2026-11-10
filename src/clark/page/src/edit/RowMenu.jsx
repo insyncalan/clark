@@ -117,7 +117,7 @@ function entries(row, level, edit, d, today) {
 // A short list (status, due date, owner) open beside its entry: its own box on the window, placed once beside the entry (on the left
 // when the right has no room), so the menu itself never moves or changes size (row 848). Up and Down move in it, Left or Esc
 // go back to the entry.
-function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
+function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onPick, onLeave, onClose }) {
   const box = useRef(null), search = useRef(null);
   const [typed, setTyped] = useState("");
   const [register, setRegister] = useState([]);
@@ -127,6 +127,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, onPick, o
     readPeople().then((r) => { if (on) setRegister(r.ok ? r.people : []); });
     return () => { on = false; };
   }, []);
+  if (hold) hold.current = () => !!search.current && (document.activeElement === search.current || search.current.value.trim() !== "");   // item 1070: a search box in use keeps its list open
   let list = shown;
   if (owner && typed.trim()) {
     const found = ownerChoices(register, owner.names, owner.row, typed);
@@ -190,15 +191,16 @@ function Panel({ s }) {
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
   }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
-  const timer = useRef(0);
+  const timer = useRef(0), hold = useRef(null);
+  const held = () => !!(hold.current && hold.current());
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
     clearTimeout(timer.current);
     if (id) {      // row 979: a list opens (or swaps for another) only after the pointer has rested on its entry, so a pointer passing over entries does not mount a list at each
-      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); }, REST);
+      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id && !held()) set({ fly: id, focusFly: false }); }, REST);
       return;
     }
-    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
+    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly && !held()) set({ fly: "" }); }, 250);
   };
   useLayoutEffect(() => {      // row 979: opened by the mouse, the first entry takes the focus without a ring until a key is used (MenuPanel cannot know: its anchor is null on the first draw)
     const box = s.pointer && wrap.current && wrap.current.querySelector(":scope > .ddmenu");
@@ -271,7 +273,7 @@ function Panel({ s }) {
           </button>
         ))}
       </MenuPanel>}
-      {s.fly && !s.pick && !s.adding ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} owner={s.fly === "owner" ? { row, names: people(d) } : null} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+      {s.fly && !s.pick && !s.adding ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} owner={s.fly === "owner" ? { row, names: people(d) } : null} focus={s.focusFly} wrap={wrap} hover={hover} hold={hold} keep={() => clearTimeout(timer.current)}
         onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
       {s.adding ? (
         <OwnerPick row={row} anchor={{ current: s.from }} names={people(d)} addName={s.adding}
