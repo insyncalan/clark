@@ -101,7 +101,7 @@ class Shape(unittest.TestCase):
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
         self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 30))
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 30))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -481,6 +481,15 @@ class PublicationNumberWords(unittest.TestCase):
         """item 515: the store never reuses a number and Undo never meets a publication; the publish task in Help says both."""
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("A number is never used again, and **Undo** does not take it back.", text)
+
+
+class ProfileCircleWords(unittest.TestCase):
+    def test_help_says_the_profile_circle_is_a_person_icon_that_opens_the_menu_not_initials(self):
+        """1.0.6: the editor's profile circle is a person icon that opens the menu; only the published report's own button shows initials."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        for claim in ("your initials go in the circle", "initials fill the circle", "your initials (a person icon"):
+            self.assertNotIn(claim, text.lower(), f"Help must not say the editor's profile circle shows initials: {claim}")
+        self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
 if __name__ == "__main__":

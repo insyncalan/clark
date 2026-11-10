@@ -14,8 +14,17 @@ import { ChangeCards, fixedLine } from "./AskChange.jsx";
 // the suffix is dropped and each file is listed once, in the order first seen.
 function sourceLabels(list) {
   if (!Array.isArray(list)) return [];
-  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
-  return names.filter((n, i) => names.indexOf(n) === i);
+  const out = [];
+  for (const s of list) {
+    if (!s || typeof s.label !== "string" || !s.label) continue;
+    const name = s.label.replace(/ \(part \d+\)$/, "");
+    const file = typeof s.file === "string" && s.file ? s.file : "";
+    const page = Number.isInteger(s.page) && s.page >= 1 ? s.page : null;
+    const seen = out.find((o) => o.name === name);
+    if (!seen) out.push({ name, file, page });
+    else if (!seen.file && file) { seen.file = file; seen.page = page; }
+  }
+  return out;
 }
 
 async function post(path, body) {
@@ -66,6 +75,14 @@ export function AskPanel() {
   }, [busy]);
 
   if (!open && !leaving) return null;
+
+  // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
+  async function openSource(n) {
+    const r = await post("/api/ask/open-source", { project: project.value, file: n.file, page: n.page });
+    if (r.status === 200) return;
+    const m = r.status === 0 ? W.NOT_REACHED_LINE : words(r, "answer");
+    turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
+  }
 
   // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
   async function send(e, preset) {
@@ -167,7 +184,7 @@ export function AskPanel() {
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
-                <ul>{t.sources.map((n, k) => <li key={k}>{n}</li>)}</ul>
+                <ul>{t.sources.map((n, k) => <li key={k}>{n.file ? <button type="button" class="ask-source-open" data-file={n.file} onClick={() => openSource(n)}>{n.name}</button> : n.name}</li>)}</ul>
               </details>
             ) : null}
           </div>

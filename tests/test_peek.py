@@ -301,6 +301,9 @@ class Browser(unittest.TestCase):
         cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         cdp.js("document.querySelector('[data-view=work]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+        # item 1019: a page change restores the screen's place for about half a second (scroll anchoring is off while it does), and only a
+        # person's wheel, touch, key or click ends it. A test that scrolls a row into view next would be undone, so wait for the restore to finish.
+        self.assertTrue(wait(lambda: cdp.js("document.documentElement.style.overflowAnchor === ''", sid)), "the page's place restore has finished")
 
     def ids_on_page(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)", sid)
