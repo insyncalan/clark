@@ -166,9 +166,17 @@ class Pure(Browser):
             R.parse('#CLIENTREPORT').view])""")
         e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": ""}  # noqa: E731
         views, plain, peek, f1, f2, near, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"])
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings", "published"])
         self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
         self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
+
+    def test_the_published_reports_page_has_its_own_address_and_no_peek(self):
+        """Row 1087: "#published&p=PDF"; like Settings it has no peek."""
+        got = self.run_in_page("""JSON.stringify([R.parse('#published&p=PDF'), R.parse('#published&p=PDF&item=A-12'), R.format({view:'published',project:'PDF'})])""")
+        plain, peek, f1 = json.loads(got)
+        self.assertEqual(plain, {"view": "published", "project": "PDF", "item": "", "ms": "", "f": "", "uc": ""})
+        self.assertEqual(peek, plain, "no peek on this page")
+        self.assertEqual(f1, "#published&p=PDF")
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])

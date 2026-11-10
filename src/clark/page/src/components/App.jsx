@@ -6,7 +6,7 @@ import { printing } from "../stores/print.js";
 import { printTabs, publishedLine } from "../logic/printView.js";
 import { plainDate } from "../logic/picker.js";
 import { TopBar } from "./TopBar.jsx";
-import { Milestones, Settings, Gate, Leaving } from "./Views.jsx";
+import { Milestones, Settings, PublishedPage, Gate, Leaving } from "./Views.jsx";
 import { Dashboard } from "./Dashboard.jsx";
 import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
@@ -14,7 +14,7 @@ import { WorkItems } from "./WorkItems.jsx";
 import { ClientReport } from "./ClientReport.jsx";
 import { GanttView } from "../gantt/components/GanttView.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttView, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttView, settings: Settings, published: PublishedPage };
 
 // The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).

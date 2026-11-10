@@ -27,12 +27,13 @@ PAGE_SRC = PAGE / "src"
 DEMO = ROOT / "tests" / "fixtures" / "published_reports_demo.jsx"
 
 ROWS = [
-    {"number": 3, "when": "28-10-2026 09:30", "where": "Local and to client", "who": "Sam Example", "word": False, "kept": True},
-    {"number": 2, "when": "21-10-2026 08:15", "where": "Local · Word", "who": "Sam Example", "word": True, "kept": False},
-    {"number": 1, "when": "14-10-2026 16:40", "where": "Local", "who": "Not recorded", "word": False, "kept": False},
+    {"number": 3, "when": "28-10-2026 09:30", "where": "Local and to client · Word", "who": "Sam Example", "word": True, "kept": False, "week": "2026-10-30"},
+    {"number": 3, "when": "28-10-2026 09:30", "where": "Local and to client", "who": "Sam Example", "word": False, "kept": True, "week": "2026-10-30"},
+    {"number": 2, "when": "21-10-2026 08:15", "where": "Local · Word", "who": "Sam Example", "word": True, "kept": False, "week": "2026-10-23"},
+    {"number": 1, "when": "14-10-2026 16:40", "where": "Local", "who": "Not recorded", "word": False, "kept": False, "week": None},
 ]
-LIST = {"ok": True, "project": "PDF", "total": 3, "shown": 3, "limit": 10, "archived": 1, "publications": ROWS}
-SHOWING = {**LIST, "publications": [ROWS[0], {**ROWS[1], "archived": True}, ROWS[2]]}      # Show archived: Publication 2 is archived
+LIST = {"ok": True, "project": "PDF", "total": 4, "shown": 4, "limit": 10, "archived": 1, "publications": ROWS}
+SHOWING = {**LIST, "publications": [ROWS[0], ROWS[1], {**ROWS[2], "archived": True}, ROWS[3]]}      # Show archived: Publication 2 is archived
 OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731
 _PAGE = {}
 
@@ -68,11 +69,10 @@ class Static(unittest.TestCase):
     def test_the_words_are_the_prototypes_with_the_owners_ruling(self):
         text = self.logic()
         self.assertIn('export const TITLE = "Published reports";', text)
-        self.assertIn('export const COLUMNS = ["#", "Date and time", "Where", "Who", ""];', text)
+        self.assertIn('export const COLUMNS = ["No.", "Week ending", "Date", "Where it went", "Files", "Who", ""];', text)
         self.assertIn('export const NOT_KEPT = "Not kept";', text)
         self.assertIn('export const NONE = "Nothing published yet. Each publish is listed here with its number.";', text)
-        self.assertIn("Every time you publish, the report gets the next number for this project and a copy of the page is kept. "
-                      "Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.", text)
+        self.assertIn("Every copy of this project's report that clark has published, newest first. Open an older one here, so you never need to look through folders.", text)
         self.assertNotIn("last 10 copies are kept", text, "the prototype's last-10 rule is the one the ruling (#348) drops")
 
     def test_the_servers_own_sentences_the_page_shows_are_ones_the_server_sends(self):
@@ -106,6 +106,23 @@ class Static(unittest.TestCase):
             if path.name == "pastReportsApi.js" or "node_modules" in path.parts:
                 continue
             self.assertNotIn("/api/past-report", path.read_text(encoding="utf-8"), f"{path.name}: only pastReportsApi.js names the route")
+
+    def test_published_reports_is_its_own_page_reached_from_the_profile_circle_only(self):
+        """Row 1087: the page replaces the Settings card. It is a view of its own, never a tab, and Settings no longer holds the card."""
+        router = (PAGE_SRC / "router.js").read_text(encoding="utf-8")
+        self.assertRegex(router, r'export const VIEWS = \[[^\]]*"published"')
+        top = (PAGE_SRC / "components" / "TopBar.jsx").read_text(encoding="utf-8")
+        self.assertIn('"published"', top, "the tab row leaves it out")
+        views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("<PublishedReports />", views.split("export function PublishedPage")[0], "Settings no longer draws the card")
+        self.assertNotIn('"PublishedReports", "', views.split("const NEEDS_PROJECT")[0].split("const CARDS")[1], "no Settings chip for it")
+        self.assertIn("published: PublishedPage", (PAGE_SRC / "components" / "App.jsx").read_text(encoding="utf-8"))
+        self.assertIn('show("published")', (PAGE_SRC / "edit" / "PublishedReports.jsx").read_text(encoding="utf-8"))
+        self.assertNotIn("scrollIntoView", (PAGE_SRC / "edit" / "PublishedReports.jsx").read_text(encoding="utf-8").split("export function PublishedReports")[0])
+
+    def test_open_folder_is_not_on_the_page_and_no_server_file_is_touched_by_the_page(self):
+        text = (PAGE_SRC / "edit" / "PublishedReports.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("Open folder", text)
 
     def test_the_profile_menu_has_the_entry_after_export_and_before_settings(self):
         text = (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8")
@@ -172,7 +189,7 @@ class InBrowser(unittest.TestCase):
 
 class Words(InBrowser):
     def test_every_word_is_plain_and_none_starts_with_the_product_name(self):
-        every = self.val("[T.logic.TITLE, T.logic.INTRO, ...T.logic.COLUMNS, T.logic.NONE, T.logic.LOADING, T.logic.NOT_KEPT, T.logic.TIMES, "
+        every = self.val("[T.logic.TITLE, T.logic.INTRO, ...T.logic.COLUMNS, T.logic.NONE, T.logic.LOADING, T.logic.NOT_KEPT, T.logic.timesLine('Gulf Standard Time'), T.logic.EARLIER_NONE, T.logic.SAVED_NOTE, T.logic.CHANGE_IN_SETTINGS, "
                          "T.logic.ARCHIVED_TAG, T.logic.ALL_ARCHIVED, T.logic.archivedToast(3), T.logic.restoredToast(3), "
                          "T.logic.LIST_FAILED, T.logic.OPEN_FAILED, T.logic.BLOCKED, T.logic.NOT_ANSWERING, T.logic.STALE, ...Object.values(T.logic.LABELS)]")
         for text in every:
@@ -202,14 +219,54 @@ class Card(InBrowser):
         super().setUp()
         self.replies(list=OK(LIST), ready=OK({"ok": True, "code": "past_ready", "message": "Opening Publication 3 as it was published.", "number": 3, "url": "/past?id=abcdefghijklmnop"}), tab=True)
 
-    def test_the_card_has_the_title_the_columns_and_the_rows_newest_first(self):
+    def test_the_page_has_the_brand_band_the_latest_one_and_the_earlier_ones_newest_first(self):
         self.mount()
-        self.assertEqual(self.text("#pubs h2"), "Published reports · Example Programme")
-        self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Open', '').trim())"), ["#", "Date and time", "Where", "Who", ""])
+        self.assertEqual(self.text("#pubs h1"), "Published reports")
+        self.assertTrue(self.present("#pubs header.cover"), "the project's brand band, as on the Dashboard")
+        self.assertEqual(self.text("#pubs .cover-kind"), "Example Programme")
+        self.assertIn("Every copy of this project's report that clark has published, newest first.", self.text("#pubs header.cover"))
+        latest = self.text("#pubs-latest")
+        for want in ("Latest", "Published 28-10-2026 at 09:30", "Publication 3", "Week ending 30-10-2026",
+                     "Went to the Local folder and the Client folder", "by Sam Example"):
+            self.assertIn(want, latest)
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Open', '').trim())"),
+                         ["No.", "Week ending", "Date", "Where it went", "Files", "Who", ""])
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
-        self.assertEqual(rows, ["3|28-10-2026 09:30|Local and to client|Sam Example|OpenArchive", "2|21-10-2026 08:15|Local · Word|Sam Example|Not keptArchive", "1|14-10-2026 16:40|Local|Not recorded|Not keptArchive"])
-        self.assertIn("Every copy is kept; this list shows the latest 10.", self.text("#pubs"))
+        self.assertEqual(rows, ["2|23-10-2026|21-10-2026 08:15|Local folder|Word|Sam Example|Not keptArchive", "1|Not recorded|14-10-2026 16:40|Local folder|Page|Not recorded|Not keptArchive"])
+        self.assertEqual(self.text("#pubs-latest [data-files]"), "Page, Word", "a number published as a page and a Word copy is one line")
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
+
+    def test_the_times_are_in_the_persons_own_zone_with_its_name(self):
+        self.js("T.zone = 'Asia/Dubai'")
+        self.mount()
+        self.assertIn("Published 28-10-2026 at 13:30", self.text("#pubs-latest"))
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.cells[2].textContent)"), ["21-10-2026 12:15", "14-10-2026 20:40"])
+        self.assertIn("Times are shown in your own time zone: Gulf Standard Time.", self.text("#pubs-note"))
+        self.assertNotIn("UTC", self.text("#pubs"))
+
+    def test_a_time_across_midnight_moves_the_day_and_a_bad_time_is_left_as_it_is(self):
+        self.assertEqual(self.val("T.logic.localWhen('31-12-2026 22:30', 'Asia/Dubai')"), "01-01-2027 02:30")
+        self.assertEqual(self.val("T.logic.localWhen('31-12-2026 22:30', 'UTC')"), "31-12-2026 22:30")
+        self.assertEqual(self.val("T.logic.localWhen('not a time', 'UTC')"), "not a time")
+        self.assertEqual(self.val("T.logic.zoneName('Asia/Dubai')"), "Gulf Standard Time")
+
+    def test_where_it_is_saved_shows_both_folders_and_a_way_to_settings(self):
+        self.js("T.folders = {local: '/Users/sam/Reports/PDF', client: 'OneDrive/Example/Weekly'}")
+        self.mount()
+        box = self.text("#pubs-folders")
+        for want in ("Where it is saved", "Local folder", "/Users/sam/Reports/PDF", "Client folder", "OneDrive/Example/Weekly",
+                     "The list comes from clark's own record of what it published, not from the folder, so other files in the folder are never shown."):
+            self.assertIn(want, box)
+        self.click("#pubs-folders [data-pubs-settings]")
+        self.assertEqual(self.val("T.toSettings"), 1)
+        self.js("T.folders = {local: null, client: null}")
+        self.mount()
+        self.assertIn("No local folder yet.", self.text("#pubs-folders"))
+        self.assertIn("No client folder yet.", self.text("#pubs-folders"))
+
+    def test_nothing_in_the_page_reads_the_folder_so_no_other_file_can_be_listed(self):
+        self.mount()
+        self.assertEqual(self.val("T.calls.map(c => c[0])"), ["list"], "the list is clark's own record, the only thing asked for")
 
     def test_only_a_kept_page_has_open(self):
         self.mount()
@@ -240,7 +297,7 @@ class Card(InBrowser):
 
     def test_each_row_has_archive_and_the_default_list_hides_the_archived(self):
         self.mount()
-        self.assertEqual(self.val("[...document.querySelectorAll('[data-pubarchive]')].map(b => b.dataset.pubarchive)"), ["3", "2", "1"])
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-pubarchive]')].map(b => b.dataset.pubarchive)"), ["3", "2", "1"], "the latest one too")
         self.assertEqual(self.val("document.querySelector('[data-pubarchive]').getAttribute('aria-label')"), "Archive Publication 3")
         self.assertFalse(self.present("[data-pubrestore]"))
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"], "the default list does not ask for the archived ones")
@@ -250,12 +307,13 @@ class Card(InBrowser):
     def test_archive_asks_once_says_the_exact_words_with_no_undo_and_reads_the_list_again(self):
         self.replies(archive=OK({"ok": True, "code": "archived", "project": "PDF", "number": 3}))
         self.mount()
-        self.replies(list=OK({**LIST, "total": 2, "shown": 2, "archived": 2, "publications": ROWS[1:]}))
+        self.replies(list=OK({**LIST, "total": 2, "shown": 2, "archived": 2, "publications": ROWS[2:]}))
         self.click("[data-pubarchive='3']")
         self.assertEqual(self.val("T.calls[1]"), ["archive", {"code": "PDF", "n": 3}])
         self.assertEqual(self.val("T.toasts"), [["done", "Publication 3 archived. Restore it from Show archived.", None]])
         self.assertEqual(self.val("T.calls[2]"), ["list", "PDF"])
-        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["2", "1"])
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["1"], "2 is now the latest")
+        self.assertIn("Publication 2", self.text("#pubs-latest"))
         self.assertEqual(self.text("#pubs-archived"), "Show archived 2")
         self.assertEqual(self.text(".pub-msg"), "")
 
@@ -266,7 +324,7 @@ class Card(InBrowser):
         self.click("#pubs-archived")
         self.assertEqual(self.val("T.calls[1]"), ["list", {"code": "PDF", "archived": True}])
         self.assertEqual(self.val("document.querySelector('#pubs-archived').getAttribute('aria-pressed')"), "true")
-        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["3", "2", "1"])
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => tr.dataset.pub)"), ["2", "1"], "3 is the latest")
         self.assertEqual(self.text("tr[data-pub='2'] .tag"), "Archived")
         self.assertEqual(self.val("[...document.querySelectorAll('[data-pubrestore]')].map(b => b.dataset.pubrestore)"), ["2"])
         self.assertEqual(self.val("document.querySelector('[data-pubrestore]').getAttribute('aria-label')"), "Restore Publication 2")
@@ -305,10 +363,10 @@ class Card(InBrowser):
         self.assertFalse(self.present("#pubs-table"))
 
     def test_a_list_cut_to_ten_says_how_many_there_are(self):
-        many = [{**ROWS[0], "number": n} for n in range(12, 2, -1)]
+        many = [{**ROWS[1], "number": n} for n in range(12, 2, -1)]
         self.replies(list=OK({**LIST, "total": 12, "shown": 10, "publications": many}))
         self.mount()
-        self.assertEqual(self.val("document.querySelectorAll('#pubs tbody tr').length"), 10)
+        self.assertEqual(self.val("document.querySelectorAll('#pubs tbody tr').length"), 9, "ten, one of them the latest")
         self.assertIn("Showing the latest 10 of 12. The older ones are kept.", self.text("#pubs-note"))
 
     def test_a_server_that_does_not_answer_says_so_and_offers_try_again(self):
@@ -321,7 +379,7 @@ class Card(InBrowser):
 
     def test_hostile_text_in_a_row_is_drawn_as_text(self):
         evil = '<img src=x onerror="window.pwned = 1">'
-        self.replies(list=OK({**LIST, "publications": [{**ROWS[0], "who": evil, "where": evil}]}))
+        self.replies(list=OK({**LIST, "publications": [{**ROWS[1], "who": evil, "where": evil}, {**ROWS[3], "who": evil}]}))
         self.mount()
         self.assertFalse(self.val("!!window.pwned"))
         self.assertFalse(self.present("#pubs img"))
@@ -335,9 +393,10 @@ class Card(InBrowser):
                     self.mount()
                     self.assertTrue(self.val("!!document.querySelector('[data-pubrestore]') && !!document.querySelector('[data-pubarchive]')"))
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
-                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
+                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs button, #pubs td, #pubs-latest, #pubs-folders, #pubs header.cover')].every(b => b.getBoundingClientRect().right <= innerWidth)"))
+                    self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs header.cover')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"), "the band is brand coloured")
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs td')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
-                    self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"))
+                    self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs-latest')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"))
 
 
 if __name__ == "__main__":

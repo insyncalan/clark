@@ -1,4 +1,4 @@
-"""#349 page side: Settings › Published reports › Dashboard as at a day, and the rebuilt Dashboard behind its banner, in a real browser.
+"""#349 page side: Published reports page › Dashboard as at a day, and the rebuilt Dashboard behind its banner, in a real browser.
 
 Run: python3 dev/run_tests.py test_as_at_page
 The page is the test build of the served page, over a real server whose routes are the real handlers over a real store in a
@@ -39,11 +39,11 @@ class AsAtPage(Base):
             con.execute(f"UPDATE {table} SET at = ? {where[0]}", (when, *where[1]))
 
     def show(self, cdp, width=1400, dark=False):
-        p = Pg.at(self, cdp, self.s.port, "#settings&p=ABC")
+        p = Pg.at(self, cdp, self.s.port, "#published&p=ABC")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")
-        p.until("!!document.querySelector('#as-at-pick')", "the picker drew in Settings › Published reports")
+        p.until("!!document.querySelector('#as-at-pick')", "the picker drew on the Published reports page")
         return p
 
     def ask(self, p, typed):

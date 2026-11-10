@@ -8,12 +8,18 @@
 // the prototype said the last 10 copies were kept.
 
 export const TITLE = "Published reports";
-export const INTRO = "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.";
-export const COLUMNS = ["#", "Date and time", "Where", "Who", ""];
+export const INTRO = "Every copy of this project's report that clark has published, newest first. Open an older one here, so you never need to look through folders.";
+export const COLUMNS = ["No.", "Week ending", "Date", "Where it went", "Files", "Who", ""];
+export const LATEST = "Latest", EARLIER = "Earlier reports", SAVED = "Where it is saved", LOCAL_FOLDER = "Local folder", CLIENT_FOLDER = "Client folder";
+export const NO_LOCAL = "No local folder yet.", NO_CLIENT = "No client folder yet.";
+export const CHANGE_IN_SETTINGS = "Change in Settings";
+export const SAVED_NOTE = "The list comes from clark's own record of what it published, not from the folder, so other files in the folder are never shown.";
+export const EARLIER_NONE = "No earlier reports.";
+export const NOT_RECORDED = "Not recorded";
 export const NONE = "Nothing published yet. Each publish is listed here with its number.";
 export const LOADING = "Looking for the published reports.";
 export const NOT_KEPT = "Not kept";
-export const TIMES = "Times are shown as UTC.";
+export const timesLine = (zone) => `Times are shown in your own time zone: ${zone}.`;
 export const LABELS = { open: "Open", tryAgain: "Try again", archive: "Archive", restore: "Restore", showArchived: "Show archived" };
 export const ARCHIVED_TAG = "Archived";
 export const ALL_ARCHIVED = "Every publication is archived. Show archived brings them back.";
@@ -57,8 +63,58 @@ export function markWords(status, body) {
 // Under the table: how many are shown of how many, when the list is cut.
 export const cutLine = (total, shown) => (total > shown ? `Showing the latest ${shown} of ${total}. The older ones are kept.` : "");
 
-// A list row as it is drawn.
-export const rowView = (p) => ({ number: p.number, when: p.when, where: p.where, who: p.who, kept: p.kept === true, archived: p.archived === true });
+const dmy = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : "");
+
+// The server's times are UTC ("DD-MM-YYYY HH:MM"). `localWhen` gives the same shape in the person's own zone (`zone` is a seam for the tests;
+// the browser's own zone when it is left out); a text that is not a time is returned as it came.
+export function localWhen(when, zone) {
+  const m = /^(\d\d)-(\d\d)-(\d{4}) (\d\d):(\d\d)$/.exec(String(when));
+  if (!m) return String(when);
+  const at = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]));
+  if (Number.isNaN(at.getTime())) return String(when);
+  try {
+    const f = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+    const g = {};
+    for (const p of f.formatToParts(at)) g[p.type] = p.value;
+    return `${g.day}-${g.month}-${g.year} ${g.hour}:${g.minute}`;
+  } catch (e) { return String(when); }
+}
+
+// The name of the person's zone, in words ("Gulf Standard Time"); the zone's own id when the browser has no name for it.
+export function zoneName(zone) {
+  try {
+    const part = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, timeZoneName: "long" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName");
+    if (part && part.value) return part.value;
+  } catch (e) { /* falls through */ }
+  return zone || "your computer's time zone";
+}
+
+// A number's rows as one line: a page and its Word copy share the number, the time and the folders (the server lists each file as a row).
+export function groups(pubs, zone) {
+  const by = new Map();
+  for (const p of pubs) {
+    const g = by.get(p.number) || { number: p.number, page: false, word: false, kept: false, archived: false, client: false, whenUtc: "", week: "", who: "" };
+    const first = !by.has(p.number);
+    if (p.word === true) g.word = true; else g.page = true;
+    g.kept = g.kept || p.kept === true;
+    g.archived = g.archived || p.archived === true;
+    g.client = g.client || /to client/.test(String(p.where));
+    if (first || (p.word !== true && !g.pageSeen)) { g.whenUtc = p.when; g.who = p.who; }
+    if (p.word !== true) g.pageSeen = true;
+    if (!g.week && /^\d{4}-\d\d-\d\d$/.test(String(p.week))) g.week = p.week;
+    by.set(p.number, g);
+  }
+  return [...by.values()].map((g) => ({
+    number: g.number, kept: g.kept, archived: g.archived, who: g.who || NOT_RECORDED,
+    when: localWhen(g.whenUtc, zone), week: dmy(g.week), files: [g.page ? "Page" : "", g.word ? "Word" : ""].filter(Boolean).join(", "),
+    folders: g.client ? [LOCAL_FOLDER, CLIENT_FOLDER] : [LOCAL_FOLDER],
+  }));
+}
+
+export const wentRow = (g) => g.folders.join(", ");
+export const wentLatest = (g) => "Went to the " + g.folders.join(" and the ");
+export const publishedBadge = (g) => { const [d, t] = g.when.split(" "); return t ? `Published ${d} at ${t}` : `Published ${g.when}`; };
+export const latestHead = (g) => `Publication ${g.number}` + (g.week ? ` \u00b7 Week ending ${g.week}` : "");
 
 // Whether a reply is a list the card can draw.
 export const isList = (b) => !!b && b.ok === true && Array.isArray(b.publications) && Number.isInteger(b.total);

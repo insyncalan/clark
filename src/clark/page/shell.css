@@ -1320,6 +1320,22 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubs td.acts { text-align: right; white-space: nowrap; }
 .pubs td.acts > * + * { margin-left: var(--space-2); }
 .pubs tr.arch-row td { color: var(--text-muted); }
+/* row 1087: the Published reports page: the brand band (the Dashboard's cover), then the latest one and the earlier ones beside where it is saved (stacked below 1100 px). */
+.pub-page .cover { margin: 0 0 var(--space-4); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+.pub-page .cover h1 { margin: 0 0 6px; color: var(--white); }
+.pub-page .cover-intro { margin: var(--space-2) 0 0; max-width: 62ch; font-size: var(--size-body); color: var(--white); }
+.pub-cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-4); align-items: start; }
+@media (min-width: 1100px) { .pub-cols { grid-template-columns: minmax(0, 1fr) minmax(280px, 22rem); } }
+.pub-main, .pub-side { min-width: 0; display: flex; flex-direction: column; gap: var(--space-4); }
+.pub-page .setting { margin-top: 0; }
+.pub-page .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
+.pub-label { margin: 0 0 var(--space-2); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.pub-page h2.pub-label { font-size: var(--size-caption); }
+.pub-head { margin: 0 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.pub-latest p { margin: 4px 0 0; }
+.pub-acts { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-top: var(--space-3) !important; }
+.pub-when { text-transform: none; letter-spacing: 0; }
+.pub-folder { margin: 2px 0 var(--space-3); overflow-wrap: anywhere; }
 #pubs .pp-tools { margin: var(--space-2) 0 0; }
 #pubs-note { margin: 8px 0 0; font-size: var(--size-small); }
 /* item 349: Settings > Published reports > Dashboard as at a day, and the banner and dashed tinted frame of the rebuilt Dashboard
