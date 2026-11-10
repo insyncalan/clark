@@ -102,9 +102,15 @@ BROKEN_PAGE = ("clark is already running, but its page answers with an error. No
 
 
 def address(port):
-    """Where clark opens (row 1076): clark.localhost, which Chrome resolves to this computer and still counts as a loopback address,
-    so Chrome offers to install it as a web app. The health checks above still ask 127.0.0.1 directly."""
+    """Where Chrome opens clark (row 1076): clark.localhost, which Chrome resolves to this computer and still counts as a loopback
+    address, so Chrome offers to install it as a web app. Only Chromium and Firefox resolve *.localhost names themselves, so any
+    other browser, and the address a person is told to type, get plain_address. The health checks above ask 127.0.0.1 directly."""
     return f"http://clark.localhost:{port}/"
+
+
+def plain_address(port):
+    """The address every browser can open: for the default browser when Chrome isn't found, and for the line a person reads."""
+    return f"http://127.0.0.1:{port}/"
 
 
 def launcher_file():
@@ -243,21 +249,22 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
                     f"{platform.with_tilde(log)} to the clark team. It records what went wrong.")
             return 1
         say("A minute after the last window closes, clark stops by itself.")
-    return open_clark(address(port), say, environ, find_chrome, open_window, open_browser)
+    return open_clark(port, say, environ, find_chrome, open_window, open_browser)
 
 
-def open_clark(url, say, environ, find_chrome, open_window, open_browser):
-    """Open `url` in Chrome; the default browser, with a line saying so, if Chrome isn't found."""
+def open_clark(port, say, environ, find_chrome, open_window, open_browser):
+    """Open clark on `port` in Chrome, at clark.localhost; the default browser, at 127.0.0.1 and with a line saying so, if Chrome
+    isn't found. The address a person is told to open when neither works is the plain one too: their browser may be Safari."""
     chrome = find_chrome(environ)
     try:
         if chrome:
-            open_window(url, chrome)
+            open_window(address(port), chrome)
             say("Opened clark in Chrome.")
         else:
-            open_browser(url)
+            open_browser(plain_address(port))
             say("Chrome wasn't found, so clark opened in your default browser.")
     except platform.PlatformError as e:
-        say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
+        say(f"{e} The clark server is still running. To use it, open this address in your browser: {plain_address(port)}")
         return 1
     return 0
 

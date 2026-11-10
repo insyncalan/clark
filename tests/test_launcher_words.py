@@ -169,7 +169,7 @@ class TheOtherLaunchMessages(unittest.TestCase):
 
         def open_window(url, chrome):
             platform.open_in_chrome(url, chrome, popen=popen, on=platform.MAC)
-        code = launch.open_clark("http://127.0.0.1:8800/", said.append, {}, lambda e: "/stub", open_window, lambda u: None)
+        code = launch.open_clark(8800, said.append, {}, lambda e: "/stub", open_window, lambda u: None)
         self.assertEqual(code, 1)
         self.assertEqual(said, ["Chrome could not be started, so clark's window did not open. The clark server is still running. "
                                 "To use it, open this address in your browser: http://127.0.0.1:8800/"])

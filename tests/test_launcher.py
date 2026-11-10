@@ -250,21 +250,31 @@ class Launch(unittest.TestCase):
         self.assertEqual(self.run_launch(f), 1)
         self.assertEqual(f.said[-1], "Nothing was started, because this Mac would not run clark. Close this window and try again. If it keeps happening, send the file ~/x to the clark team.")
 
-    def test_no_chrome_opens_the_default_browser_and_says_so(self):
+    def test_no_chrome_opens_the_default_browser_at_the_plain_address_and_says_so(self):
+        # only Chromium and Firefox resolve *.localhost names themselves: Safari, or another default browser, gets 127.0.0.1
         f = Fakes([launch.OURS], chrome=None)
         self.assertEqual(self.run_launch(f), 0)
-        self.assertEqual((f.windows, f.browser), ([], ["http://clark.localhost:8800/"]))
+        self.assertEqual((f.windows, f.browser), ([], ["http://127.0.0.1:8800/"]))
+        self.assertNotIn("clark.localhost", f.browser[0])
         self.assertEqual(f.said[-1], "Chrome wasn't found, so clark opened in your default browser.")
 
-    def test_a_window_the_system_cannot_open_says_the_address(self):
+    def test_a_window_the_system_cannot_open_says_the_plain_address(self):
         f = Fakes([launch.OURS])
         kw = f.kw()
         kw["open_window"] = lambda u, c: (_ for _ in ()).throw(pl.PlatformError("Chrome could not be started, so clark's window did not open."))
         self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
-        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://clark.localhost:8800/")
+        self.assertEqual(f.said[-1], "Chrome could not be started, so clark's window did not open. The clark server is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
 
-    def test_the_address_is_clark_localhost_with_the_port(self):
+    def test_a_default_browser_the_system_cannot_open_says_the_plain_address(self):
+        f = Fakes([launch.OURS], chrome=None)
+        kw = f.kw()
+        kw["open_browser"] = lambda u: (_ for _ in ()).throw(pl.PlatformError("The browser could not be started, so clark's page did not open."))
+        self.assertEqual(launch.launch(8800, self.folder, **kw), 1)
+        self.assertEqual(f.said[-1], "The browser could not be started, so clark's page did not open. The clark server is still running. To use it, open this address in your browser: http://127.0.0.1:8800/")
+
+    def test_the_address_is_clark_localhost_with_the_port_for_chrome_and_127_0_0_1_for_the_rest(self):
         self.assertEqual(launch.address(8766), "http://clark.localhost:8766/")
+        self.assertEqual(launch.plain_address(8766), "http://127.0.0.1:8766/")
 
 
 class Wait(unittest.TestCase):
