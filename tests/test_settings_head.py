@@ -19,7 +19,7 @@ WIDTHS = (1400, 901, 900, 899, 800)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Quit", "quit-h")]
 
 
 def ratio(a, b):

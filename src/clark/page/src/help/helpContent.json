@@ -1818,7 +1818,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1850,6 +1850,10 @@
        [
         "AI (under Asking)",
         "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+       ],
+       [
+        "Quit",
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
        ],
        [
         "Publishing",
@@ -2519,6 +2523,11 @@
      "card": "people",
      "title": "People",
      "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "quit",
+     "title": "Quit",
+     "line": "Quit clark when you have finished."
     }
    ]
   }
