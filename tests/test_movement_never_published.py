@@ -146,6 +146,17 @@ class Unchanged(unittest.TestCase):
     def test_the_published_field_lists_are_as_they_were(self):
         self.assertTrue({"internal_note", "movement", "reasoning", "by_user"} <= clark_store.NEVER_PUBLISH)
         self.assertNotIn("source", clark_store.NEVER_PUBLISH, "row 1077: the source is published by name (publish.select, source_name)")
+        # structural (reader A): whatever is stored, a published Source value holds no path separator and no segment of the stored path but the file name
+        from clark.source_name import source_name
+        for stored in ("Excel import, 2026-10-01, C:\\Users\\xuser\\OneDrive - Acme, Inc\\actions.xlsx", "/Users/Doe, Pat/Private Clients, Inc/Q3, final.xlsx",
+                       "Private Clients/Q3 plan", "/Users/x/Private Clients/", "~/Folder, A/b.docx", "\\\\srv\\share, x\\Clients\\r.xlsx", "https://h.example/Private/p.xlsx?u=1#f",
+                       "C:\uff0fUsers\uff0fxuser\uff0fplan.xlsx"):
+            shown = source_name(stored)
+            self.assertFalse(set(shown) & set("/\\\uff0f\uff3c\u2215"), (stored, shown))
+            segments = [s.strip() for s in __import__("re").split(r"[\\/\uff0f\uff3c\u2215]", stored)[:-1] if s.strip() and s.strip() not in ("C:", "~", "https:")]
+            for s in segments:
+                if s.split(",")[-1].strip() and not s.startswith("Excel import"):
+                    self.assertNotIn(s.split(",")[0].strip(), shown, (stored, shown))
         for table, fields in publish.PUBLISH_FIELDS.items():
             self.assertFalse(set(fields) & {"internal_note", "movement"}, table)
             self.assertFalse(set(fields) & clark_store.NEVER_PUBLISH - {"state_reason"}, table)
