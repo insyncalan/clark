@@ -135,7 +135,7 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking"])
+        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", "Feedback"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
         self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Feedback, in the order the cards are drawn.", self.TEXT)
