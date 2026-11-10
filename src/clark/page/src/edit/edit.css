@@ -257,7 +257,6 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-dots i:nth-child(2) { animation-delay: 150ms; } .ask-dots i:nth-child(3) { animation-delay: 300ms; }
 @keyframes ask-dot { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
-.ask-sent { flex: none; margin: 0; padding: 0 20px var(--space-2); font-size: var(--size-caption); line-height: 1.45; color: var(--text-muted); }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
 .ask-form { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }

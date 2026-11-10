@@ -63,6 +63,7 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp)
             self.assertIn("Claude, which Anthropic runs", js("document.querySelector('#ask-settings').innerText"))
+            self.assertIn("are billed to the Claude account signed in on this computer", js("document.querySelector('#ask-notice').innerText"), "#1062")
             js("document.querySelector('[data-ai-connect=chatgpt]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10))
             self.pick(js, "gpt-6.1-sol")
@@ -70,6 +71,7 @@ class Card(unittest.TestCase):
             self.assertEqual(settings.ai_read(self.d)["model"], "gpt-6.1-sol")
             self.assertTrue(wait(lambda: "ChatGPT, which OpenAI runs" in js("document.querySelector('#ask-settings').innerText"), 10))
             self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))
+            self.assertIn("billed to the ChatGPT account", js("document.querySelector('#ask-notice').innerText"))
 
     def test_not_signed_in_says_what_to_do(self):
         self.claude.signed_in = False
