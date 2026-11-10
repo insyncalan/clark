@@ -22,6 +22,9 @@ WORDS = {
     "cant_save": "That folder could not be saved. Try Choose folder again; if it keeps happening, close clark and start it again. "
                  "Nothing was changed.",
     "not_a_folder": "That isn't a folder on this computer. Nothing was changed.",
+    # NEW sentence (no existing one says a window is already open): "The folder window" as platform._dialog and ask_folders'
+    # dialog_failed say it, "Wait a moment and try again." as ask_folders and safety say it, the usual "Nothing was changed."
+    "busy": "The folder window is already open. Wait a moment and try again. Nothing was changed.",
 }
 
 
@@ -73,7 +76,7 @@ class Setup:
         window is already open; "cant_save" if the pointer file could not be written) or lets a PlatformError out (the window
         could not be opened)."""
         if not self._dialog.acquire(blocking=False):
-            raise Refused("busy", "")
+            raise Refused("busy", WORDS["busy"])
         try:
             answer = self.choose_folder(prompt)
         finally:

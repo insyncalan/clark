@@ -182,6 +182,9 @@ class Choose(Case):
         with self.assertRaises(setup_mode.Refused) as caught:
             service.choose("b")
         self.assertEqual(caught.exception.code, "busy")
+        self.assertEqual(caught.exception.words, setup_mode.WORDS["busy"])
+        self.assertIn("folder window", caught.exception.words)           # a page can show it as it is: it names the window
+        self.assertTrue(caught.exception.words.endswith("Nothing was changed."))
         release.set()
         first.join(5)
         self.assertEqual(count, ["a"])
