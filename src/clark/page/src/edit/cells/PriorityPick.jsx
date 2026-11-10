@@ -3,9 +3,10 @@
 import { MenuPick } from "./MenuPick.jsx";
 import { RatingPick } from "./RatingPick.jsx";
 import { PRIORITIES } from "../itemEdit.js";
+import { priorityIcon } from "../../menuIcons.js";
 
 export function PriorityPick({ row, anchor, onPick, onClose }) {
   if (row.kind !== "action") return <RatingPick row={row} anchor={anchor} onPick={onPick} onClose={onClose} />;
   return <MenuPick anchor={anchor} label={`Priority of ${row.id}`} current={row.priority} onPick={onPick} onClose={onClose}
-    choices={PRIORITIES.map((p) => ({ value: p, text: p }))} />;
+    choices={PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p) }))} />;
 }

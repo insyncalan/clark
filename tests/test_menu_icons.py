@@ -13,7 +13,8 @@ import unittest
 
 from _paths import ROOT
 
-from test_inline_edits import Live, chrome, click, key  # noqa: E402
+import test_inline_edits as ie  # noqa: E402
+from test_inline_edits import chrome, click, key  # noqa: E402
 
 SRC = ROOT / "src" / "clark" / "page" / "src"
 
@@ -88,10 +89,15 @@ class Source(unittest.TestCase):
         self.assertNotRegex(re.sub(r"//.*", "", text), r"#[0-9a-fA-F]{3,8}\b|rgb\(")
 
 
-class Browser(Live):
+class Browser(unittest.TestCase):
+    setUp = ie.Live.setUp
+    read = ie.Live.read
+    open_page = ie.Live.open_page
+    until = ie.Live.until
+
     def pop_icons(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => { const s = b.querySelector('svg.i');"
-                      " return {t: b.textContent.trim(), icn: s ? s.dataset.icn : '', tone: s ? s.parentElement.className : '', hidden: s ? s.getAttribute('aria-hidden') : ''}; })", sid)
+                      " return {t: b.textContent.trim(), icn: s ? s.dataset.icn : '', tone: s ? s.parentElement.className.replace('mi-i ', '') : '', hidden: s ? s.getAttribute('aria-hidden') : ''}; })", sid)
 
     def test_status_and_priority_menus_show_the_icon_and_the_same_words(self):
         with chrome() as cdp:

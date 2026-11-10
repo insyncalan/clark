@@ -941,7 +941,7 @@ class Live(unittest.TestCase):
                 sel = cdp.js("(() => { const c = getComputedStyle(document.querySelector('[data-pop] [data-day=\"2026-11-02\"]')); return [c.fontWeight, c.textDecorationLine]; })()", sid)
                 other = cdp.js("(() => { const c = getComputedStyle(document.querySelector('[data-pop] [data-day=\"2026-11-03\"]')); return [c.fontWeight, c.textDecorationLine]; })()", sid)
                 self.assertEqual((sel, other), (["600", "underline"], ["400", "none"]), "the day it has is marked by more than its fill: heavier and underlined")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [data-quick]')].map(b => b.firstChild.textContent)", sid), ["Today", "Tomorrow", "Friday", "Next week", "No date"])
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [data-quick]')].map(b => b.querySelector('span:not(.mi-i)').textContent)", sid), ["Today", "Tomorrow", "Friday", "Next week", "No date"])
                 click(cdp, sid, "[data-pop] [data-quick='2026-10-29']")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
                 self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-10-29")
