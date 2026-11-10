@@ -5,7 +5,8 @@ Type and status are reached through the filter line (type:, status:, is:open, is
 """
 import unittest
 
-from test_filter_line_page import INPUT, Line, chrome, wait  # noqa: E402
+from test_filter_line_page import INPUT, Line, wait  # noqa: E402
+from test_server import chrome  # noqa: E402  (a browser file: the runner tells the tiers by this import)
 from test_work_filters import expect, set_line  # noqa: E402
 
 PILLS = "[data-type=all], [data-type=action], [data-type=risk], [data-type=decision], [data-show], .wbar [aria-label=Type], .wbar [aria-label='Open or closed']"
