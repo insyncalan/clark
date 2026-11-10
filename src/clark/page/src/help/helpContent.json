@@ -2873,7 +2873,7 @@
    "job": "See what a brand kit holds and the limits it must keep, then add one in Settings.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and lists its files, and the colours and fonts file. It can also hold a logo and cover pictures. It holds no other files. The zip needs no particular file name."
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and lists its files, and the colours and fonts file. It can also hold a logo and cover pictures. It holds no other files. Everything sits in one folder named by the brand id. clark-brand.json lists each file with its size, sha256 and mode, and every file must match its entry. The zip needs no particular file name."
     },
     {
      "d": "A kit keeps to these limits: 50 files, 16 MB for the zip, 24 MB unpacked and 5 MB for any one file. It has no links and no paths that point outside the kit."

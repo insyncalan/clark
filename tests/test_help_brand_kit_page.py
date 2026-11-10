@@ -24,9 +24,9 @@ class BrandKitGuideInHelp(Base):
                 p.js("window.clarkPage.help.open('guide-%s')" % ID)
                 p.until("!!document.querySelector('#hp-guide-%s.hp-found')" % ID, f"{w}: the guide opens")
                 body = p.js("document.querySelector('#hp-guide-%s').textContent" % ID)
-                for word in ("clark-brand.json", "50 files", "16 MB", "24 MB", "5 MB", "sha256", "one folder named by the brand’s id"):
+                for word in ("clark-brand.json", "50 files", "16 MB", "24 MB", "5 MB", "sha256", "one folder named by the brand id"):
                     self.assertIn(word, body, f"{w}: {word}")
-                self.assertEqual(p.js("document.querySelectorAll('#hp-guide-%s li').length" % ID), len(g["steps"]), w)
+                self.assertEqual(p.js("document.querySelectorAll('#hp-guide-%s ol > li').length" % ID), len(g["steps"]), w)
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"{w}: no sideways scroll")
 
 
