@@ -22,7 +22,7 @@ class DemoLine(unittest.TestCase):
         self.addCleanup(shutil.rmtree, str(self.folder), True)
         store = demo_seed.load_if_fresh(clark_store.open_store(self.folder / "clark.db", onedrive_roots=[]), [])
         store.close()
-        self.s = Running(data_for=lambda code: None, page_html=lambda: page.page_html(tempfile.mkdtemp()),
+        self.s = Running(data_for=lambda code, archived=None: None, page_html=lambda: page.page_html(tempfile.mkdtemp()),
                          projects=launcher.projects_of(self.folder / "clark.db", []))
         self.s.httpd.demo = demo_seed.Demo(self.folder / "clark.db", [])
         self.addCleanup(self.s.close)

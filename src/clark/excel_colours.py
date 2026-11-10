@@ -73,6 +73,8 @@ LATE = {
 
 def colour_for(table, field, value):
     """The colour name for a cell's value (red, amber, green, blue or grey), or None."""
+    if not isinstance(value, str):      # a stored list or dict has no colour, and is never an unhashable lookup
+        return None
     return BY_FIELD.get((table, field), {}).get(value)
 
 
@@ -88,7 +90,8 @@ def is_late(table, field, row, today):
     if not rule:
         return False
     status_field, open_states = rule
-    if row.get(status_field) not in open_states:
+    status = row.get(status_field)
+    if not isinstance(status, str) or status not in open_states:      # a stored list or dict is no open state, and never an unhashable lookup
         return False
     try:
         return date.fromisoformat(row.get(field)) < today      # text that is not a date is never late

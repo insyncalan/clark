@@ -130,21 +130,40 @@ class ServiceWorker(unittest.TestCase):
             self.assertNotIn(text, self.code)
 
 
-TOKEN_BODY = re.search(r"--size-body:\s*(\d+px)\s*;", (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")).group(1)
+TOKENS_CSS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
+TOKEN_BODY = af.token_size(TOKENS_CSS, "--size-body")      # the very reader the offline page uses, so there is one way to read the token
 
 
 class ServerOwnPagesFollowTheBaseTextSize(unittest.TestCase):
-    """#960: the placeholder page and the gone-preview page use --size-body, kept equal to tokens.css by this test (the server
-    imports nothing from clark)."""
+    """#960, #1017: the placeholder page and the gone-preview page use --size-body. The server imports nothing from clark, so it holds
+    one copy of the value (BODY_SIZE); this class is what keeps that one copy equal to tokens.css, and keeps it the only copy."""
+
+    SERVER = (SRC / "clark" / "server.py").read_text(encoding="utf-8")
 
     def test_the_servers_size_is_the_token(self):
         self.assertEqual(sv.BODY_SIZE, TOKEN_BODY)
 
-    def test_both_pages_carry_it_and_no_literal_16px(self):
+    def test_the_token_is_set_once_so_there_is_one_value_to_follow(self):
+        self.assertEqual(len(re.findall(r"--size-body:", TOKENS_CSS)), 1)
+
+    def test_the_value_is_written_once_in_the_server_and_both_pages_take_it_from_there(self):
+        self.assertEqual(len(re.findall(r'BODY_SIZE\s*=\s*"', self.SERVER)), 1)
+        self.assertEqual(re.findall(r"font:\s*\d+px", self.SERVER), [])       # no page sets its own px text size
+        self.assertEqual(self.SERVER.count("@SIZE_BODY@"), 4)       # the two holders in the pages, the two replaces
+
+    def test_each_page_carries_the_token_size_as_its_text_size(self):
+        self.assertIn(f"body{{font:{TOKEN_BODY} system-ui", sv.PLACEHOLDER)
+        self.assertIn(f"font: {TOKEN_BODY}/1.5 system-ui", sv.PREVIEW_GONE)
+
+    def test_no_page_keeps_a_holder_or_the_old_16px(self):
         for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE):
-            self.assertIn(f"font:{TOKEN_BODY}" if page is sv.PLACEHOLDER else f"font: {TOKEN_BODY}/1.5", page)
-            self.assertNotIn("font:16px", page.replace("font: ", "font:"))
             self.assertNotIn("@SIZE_BODY@", page)
+            self.assertNotRegex(page, r"font:\s*16px")
+
+    def test_the_servers_pages_and_the_offline_page_have_the_same_text_size(self):
+        offline = af.offline_page().decode("utf-8")
+        for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE, offline):
+            self.assertRegex(page, r"font:\s*" + re.escape(TOKEN_BODY) + r"[\s/]")
 
 
 class OfflinePage(unittest.TestCase):

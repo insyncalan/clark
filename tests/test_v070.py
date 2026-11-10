@@ -97,7 +97,7 @@ COVERED = [
     ("#388", "A publish that loses the race for a number puts back a link it had replaced",
      "test_publication_numbers::ThroughThePublisher::test_overwrite_with_a_lost_race_puts_back_a_link_it_replaced"),
     ("#493", "A null character in the logo rule is turned away",
-     "test_publish_scan_gaps::BrandPictures::test_a_null_byte_in_the_logo_rule_is_refused"),
+     "test_publish_scan_brand::BrandPictures::test_a_null_byte_in_the_logo_rule_is_refused"),
     ("#400", "A release zip is not built from a tree that is not the tagged commit",
      "test_package::ReleaseFromTagTest::test_untagged_tree_is_refused_and_nothing_is_written"),
     ("#400", "A release zip is not built from a dirty tree",
