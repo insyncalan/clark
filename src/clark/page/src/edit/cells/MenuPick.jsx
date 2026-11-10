@@ -1,8 +1,10 @@
 // #80: a short list of values to choose one from (the Status and Priority pickers). A menu of radio items: focus goes to the
 // value the item has now; Down and Up wrap, Home and End jump, Enter or Space picks, Esc leaves it as it was. A choice may carry
-// a `note`, shown in small print under its word, and the list may be cut into labelled groups (see groups below).
+// an `icon` (one of the page's own set) with its `tone` (r a g b n), drawn before the word (row 1074), a `note`, shown in small print under its word, and the list may be cut into labelled groups (see groups below).
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { Pop, roam } from "./Pop.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { iconClass } from "../../iconColours.js";
 
 export function MenuPick({ anchor, label, choices, current, onPick, onClose }) {
   const list = useRef(null);
@@ -16,7 +18,7 @@ export function MenuPick({ anchor, label, choices, current, onPick, onClose }) {
   const item = (c) => (
     <button type="button" role="menuitemradio" class="menu-item" key={c.value} data-value={c.value}
       aria-checked={(Array.isArray(current) ? current.includes(c.value) : c.value === current) ? "true" : "false"} onClick={() => onPick(c.value)}>
-      <span class="mi-t">{c.text}</span>{c.note ? <small class="mi-note">{c.note}</small> : null}</button>
+      {c.icon ? <span class={`mi-i ${iconClass(c.tone)}`}><Icon name={c.icon} /></span> : null}<span class="mi-t">{c.text}</span>{c.note ? <small class="mi-note">{c.note}</small> : null}</button>
   );
   return (
     <Pop anchor={anchor} label={label} role="menu" cls="cmenu" onClose={onClose}>
