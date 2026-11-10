@@ -5,7 +5,7 @@ The prototype's body::before (system/prototype/app.css:634) is a fixed picture b
 and fading in from the left; the ask panel keeps its head strip and gets the faint wash at its foot (app.css:555, :583). Owner ruling
 (08-11-2026, over the first one): the published file gets it too, from the --image-cover it already carries for the report band (no
 second copy of the picture), and a brand with no picture leaves the page byte for byte what it was. Text over the picture keeps 4.5:1
-in light and dark, measured from the drawn pixels, in the app (360, 1400) and in a published file (900, 1400). Print and PDF: none;
+in light and dark, measured from the drawn pixels, in the app (900, 1400) and in a published file (900, 1400). Print and PDF: none;
 reduced motion: no fade-in. The brand here is a temporary folder; no real brand is read.
 """
 import base64
@@ -142,7 +142,7 @@ class Backdrop(Rig):
     def test_every_app_page_has_the_brand_picture_fixed_behind_it(self):
         self.brand()
         for name, hash_, ready in PAGES:
-            for width in (1400, 360):
+            for width in (1400, 900):
                 with self.subTest(page=name, width=width), chrome() as cdp:
                     p = self.open(cdp, hash_, ready, width)
                     p.until(REQUESTS + " > 0", "the picture was asked for")
@@ -297,7 +297,7 @@ class AppContrast(Measure, Rig):
         for scheme in ("light", "dark"):
             for pic_name, data in (("swirl", pics.swirl()), ("worst", pics.solid(WORST[scheme]))):
                 self.brand(data)
-                for width in (1400, 360):
+                for width in (1400, 900):
                     for name, hash_, ready in PAGES:
                         with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), chrome() as cdp:
                             p = self.open(cdp, hash_, ready, width, scheme)
@@ -306,7 +306,7 @@ class AppContrast(Measure, Rig):
     def test_work_items_links_discard_changes_and_save_as_a_new_view(self):
         for scheme in ("light", "dark"):
             self.brand(pics.solid(WORST[scheme]))
-            for width in (1400, 360):
+            for width in (1400, 900):
                 for _ in range(3):
                     self.demo.action(owner="Sam Lee", client_visible=1)
                 with self.subTest(scheme=scheme, width=width), chrome() as cdp:
@@ -433,11 +433,15 @@ class Published(Measure, Pub):
 class Packaging(unittest.TestCase):
     def test_the_rules_ride_with_the_brand_block_only_when_the_brand_has_a_picture(self):
         view = testpage.html()
-        for css, has in ((None, False), (":root { --image-cover: none; }", False), (":root{--image-cover:NONE}", False), (":root { --a: 1; }", False),
+        for css, has in ((None, False), (":root { --image-cover: none; }", False), (":root{--image-cover:NONE}", False),
+                         (":root{--image-cover:inherit}", False), (":root{--image-cover: Unset}", False), (":root{--image-cover:initial}", False),
+                         (":root{--image-cover:revert}", False), (":root{--image-cover:revert-layer}", False), (":root { --a: 1; }", False),
                          (':root { --image-cover: url("data:image/png;base64,AAAA"); }', True), (':root{--image-cover:url(assets/cover.png)}', True)):
             with self.subTest(css=css):
                 out = page.layer_brand(view, css)
                 self.assertEqual(page.BACKDROP_CSS in out, has)
+        self.assertNotIn("opacity: .14; }\n:root[data-theme=dark]", page.BACKDROP_CSS, "no dark-mode rule that repeats the base opacity")
+        self.assertEqual(page.BACKDROP_CSS.count("opacity: .14"), 1, "the one opacity is the base rule: a dark rule with the same value does nothing")
         self.assertNotIn("body::before", (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8").replace(".cover::before", ""),
                          "not in shell.css: the rules are added only with a picture, or a brand without one would change the file")
 

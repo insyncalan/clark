@@ -342,13 +342,11 @@ def page_html(branding=None, view=False):
 # is byte for byte what it was. The picture is washed to a faint tint (opacity) so text over it keeps 4.5:1 in light and dark
 # (tests/test_brand_backdrop.py measures it from the drawn pixels). Paper (print, PDF) gets none; reduced motion no fade-in.
 BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topbar) 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .14; transform: scale(1.03); }
-:root[data-theme=dark] body::before { opacity: .14; }
-@media (prefers-color-scheme: dark) { :root[data-theme=auto] body::before { opacity: .14; } }
 @keyframes bg-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) body::before { animation: bg-in var(--dur-state) var(--ease-enter) both; } }
 @media print { body::before { display: none; } }
 """
-HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!none\b)[^;}\s]", re.I)
+HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!(?:none|inherit|initial|unset|revert)\b)[^;}\s]", re.I)
 
 
 def layer_brand(html, css):
