@@ -591,14 +591,9 @@ def select(inputs):
     ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
-    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
+    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)
     if listed:
         needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
-        if not needs_sections:           # no such section at all: one is made for the file (an owner who has hidden theirs is respected: it is not made again)
-            sections = sections + [{"id": "s-needs-flagged", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
-                                    "beside": 0, "hidden": 0, "sort_order": 1 << 30}]
-            extra["s-needs-flagged"] = {}
-            needs_sections = sections[-1:]
         mine = next((x for x in needs_sections if not x.get("hidden")), None)
         if mine is not None:
             typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
@@ -632,8 +627,6 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
-    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
-        tabs.append("clientreport")
     if gantt:
         tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does

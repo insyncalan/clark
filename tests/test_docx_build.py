@@ -321,7 +321,7 @@ class WhatIsInIt(unittest.TestCase):
         self.assertIn("Project health: ", doc)
         self.assertIn("At risk", doc)
         self.assertIn("ZQ-HEALTH-REASON", doc)
-        self.assertIn(docx_build.TOKENS["status-amber-tint"], doc)
+        self.assertIn(docx_build.TOKENS["tone-amber-tint"], doc)
 
     def test_status_words_travel_with_their_colour(self):
         for b in self.blocks:

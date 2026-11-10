@@ -273,7 +273,7 @@ COVERED = [
     ("#436", "A published file has no eye, no mark and not the left-out milestone",
      "test_milestones_eye::Editor::test_the_published_file_has_no_eye_no_mark_and_not_the_left_out_milestone"),
     ("#436", "A milestone row's second line is one line at 1400 px and keeps four columns at 900 px",
-     "test_milestones_oneline::Rows::test_the_cells_keep_four_columns_at_900_px"),
+     "test_milestones_oneline::Rows::test_the_cells_sit_in_four_columns_at_1400_and_900_px"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;

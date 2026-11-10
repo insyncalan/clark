@@ -101,9 +101,6 @@ test_client_folder_paste.py 9.7
 test_client_menu.py 64.9
 test_client_menu_contract.py 8.2
 test_client_page_filters.py 49.3
-test_client_report.py 58.1
-test_client_report_file.py 22.1
-test_client_report_part3.py 4.0
 test_client_workbook.py 11.0
 test_commitment_page.py 47.3
 test_cover_band.py 33.2
@@ -447,7 +444,6 @@ test_single_keys.py 23.5
 test_size_scale.py 0.4
 test_sizes.py 72.0
 test_skeleton_static.py 12.0
-test_snapshot_avatar_chip.py 15.9
 test_sneak_milestone_usecase.py 1.1
 test_source_folders_store.py 0.9
 test_store_archive.py 8.7
