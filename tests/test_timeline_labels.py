@@ -33,7 +33,9 @@ PROBE = r"""(() => {
     const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
     lab.scrollIntoView({ block: 'nearest', inline: 'center' });
     const r2 = lab.getBoundingClientRect(), at = document.elementFromPoint(r2.left + r2.width / 2, r2.top + r2.height / 2);
-    out.push({ lab: lab.dataset.lab, on: at ? (at.closest('.mv-lab') === lab ? 'label' : (at.className || at.tagName)) : 'nothing' });
+    const wrap = lab.closest('.mv-wrap'), tops = new Set([...document.querySelectorAll('.mv-strip .mv-lab')].map(l => Math.round(l.getBoundingClientRect().top - s.top)));
+    out.push({ lab: lab.dataset.lab, on: at ? (at.closest('.mv-lab') === lab ? 'label' : (at.className || at.tagName)) : 'nothing',
+      why: { scrollTop: wrap.scrollTop, offsetHeight: wrap.offsetHeight, clientHeight: wrap.clientHeight, stripHeight: Math.round(s.height), labTop: lab.offsetTop, labHeight: lab.offsetHeight, distinctTops: tops.size, rect: [Math.round(r2.left), Math.round(r2.top), Math.round(r2.width), Math.round(r2.height)] } });
   }
   return JSON.stringify({ labels: out });
 })()"""
@@ -41,6 +43,13 @@ PROBE = r"""(() => {
 
 def tearDownModule():
     shutil.rmtree(EMPTY_BRANDING, ignore_errors=True)
+
+
+CLEAR = r"""(() => {
+  const wrap = document.querySelector('.mv-wrap'), w = wrap.getBoundingClientRect();
+  let low = 0; for (const l of document.querySelectorAll('.mv-strip .mv-lab')) low = Math.max(low, l.getBoundingClientRect().bottom);
+  return JSON.stringify({ scrolls: wrap.scrollWidth > wrap.clientWidth, clear: Math.round((w.bottom - low) * 10) / 10, wrapH: wrap.offsetHeight, clientH: wrap.clientHeight });
+})()"""
 
 
 class Labels(unittest.TestCase):
@@ -56,7 +65,7 @@ class Labels(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def read(self, code):
+    def read(self, code, archived=None):
         st = open_store(self.path, onedrive_roots=[])
         try:
             return st.data_for(code)
@@ -79,7 +88,35 @@ class Labels(unittest.TestCase):
                     self.assertNotIn("error", got, where)
                     self.assertGreater(len(got["labels"]), 1, where)
                     for item in got["labels"]:
-                        self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']})")
+                        self.assertEqual(item["on"], "label", f"{where}: the Today line is drawn over the label {item['lab']} ({item['on']}); geometry {item['why']}")
+
+
+    def test_the_last_lane_keeps_clear_of_an_overlay_scrollbar(self):
+        """macOS draws its scrollbar over the bottom of a box that scrolls sideways while it scrolls: no label may sit under it
+        (the Today-line probe then reads the box, not the label). Scrollbars are hidden here as on the Mac (no room taken)."""
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setScrollbarsHidden", {"hidden": True}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#milestones&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-strip .mv-lab').length", sid) > 1), "the timeline drew")
+            got = json.loads(cdp.js(CLEAR, sid))
+            self.assertTrue(got["scrolls"], "the fixture's line scrolls sideways")
+            self.assertGreaterEqual(got["clear"], 16, f"the last label ends {got['clear']} px above the box's bottom edge, inside where an overlay scrollbar is drawn: {got}")
+
+    def test_every_label_has_a_24_px_hit_box(self):
+        """The labels are one line (about 18 px of text box); the padded box that takes the click is at least 24 px high."""
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{self.s.port}/#milestones&p=TUL"}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-strip .mv-lab').length", sid) > 1), "the timeline drew")
+            got = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.mv-strip .mv-lab')].map(l => l.getBoundingClientRect().height))", sid))
+            self.assertTrue(got and min(got) >= 24, f"a label's hit box is {min(got)} px high, under 24: {got}")
 
 
 if __name__ == "__main__":

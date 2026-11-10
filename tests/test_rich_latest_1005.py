@@ -26,7 +26,9 @@ class Base(unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.s = self.demo.store
         self.change = changes.make_change(self.s.path, [], USER)
-        self.ref = {"actions": self.demo.action(description="An action"), "milestones": self.demo.milestone}
+        self.ref = {"actions": self.demo.action(description="An action", client_message="A note for the client"), "milestones": self.demo.milestone}
+        with self.s.step("dashboard", USER) as st:              # row 560: the text under test is published only for a row with client wording
+            st.update("milestones", self.ref["milestones"], {"client_message": "A note for the client"})
 
     def send(self, table, field, value):
         return self.change({"project": "ABC", "kind": table, "op": "update", "id": self.ref[table], "changes": {field: value}, "place": "peek"})

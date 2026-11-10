@@ -1,6 +1,6 @@
 // The profile circle and its menu (#77, #147), Edit parts only: what the page can do. Publish opens the dialog (#43). Preview opens
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
-// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import has no mode (row 826). Settings is a tab, Help is the Help page. The tooltip lists the entries that carry a short
+// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import has no mode (row 826). Settings is a page opened from this menu (row 976: no top-bar tab), Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
