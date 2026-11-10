@@ -138,7 +138,7 @@ class SettingsChips(unittest.TestCase):
         self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking"])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Feedback, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', views)

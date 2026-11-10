@@ -1820,7 +1820,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Feedback, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
      ],
      [
       "tbl",
@@ -1872,6 +1872,10 @@
        [
         "Diagnostics",
         "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
+       ],
+       [
+        "Feedback",
+        "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
        ]
       ]
      ]
@@ -1930,6 +1934,26 @@
        "The log holds only counts, times, item IDs and which part of clark was used. It never holds report text, names, email addresses or notes, and nothing is sent anywhere. Each day has its own file, 5 MB at most; today and the six days before it are kept. **Open folder** shows them.",
        "**Copy diagnostics** puts a plain-text report on the clipboard: the version, the system, the log level, a few safe settings, counts, the errors of the last 7 days and the last 200 log lines. It never holds a name, email address, project name or report text, so it can go in a message.",
        "**Errors in the last 7 days** lists what went wrong, how many times and when last, or says None."
+      ]
+     ]
+    ],
+    "page": [
+     "settings"
+    ]
+   },
+   {
+    "id": "feedback",
+    "g": "Settings and data",
+    "t": "Feedback",
+    "w": "Settings › Feedback",
+    "b": [
+     [
+      "ul",
+      [
+       "Write what is wrong or what you would suggest. Add a way to reach you if you like; it is optional.",
+       "The card lists the lines it adds to the email: the version of clark and your system. Nothing from your reports is added.",
+       "**Open in your mail app** opens a new email to the clark team in the mail app your computer uses, with your words and those lines in it. You press send. clark never sends it, and it cannot choose Outlook for you.",
+       "When the text is too long for a mail link, the link is not shown. Use **Copy as text**, which copies the address, the subject and the message, and paste it into an email."
       ]
      ]
     ],
