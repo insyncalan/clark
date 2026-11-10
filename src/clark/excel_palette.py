@@ -26,7 +26,7 @@ EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
-    ("white", "status-red-text", "a late date"),
+    ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
     ("brand-navy", "grey-100", "the cover's subtitle"),
     ("grey-50", "brand-ink", "the cover's tiles"),
@@ -69,7 +69,7 @@ class Palette:
 
     @property
     def late_text(self):
-        return self.tokens["status-red-text"]
+        return self.tokens["tone-red-text"]
 
     def hexes(self, name):
         """(fill hex, text hex) for a colour name, as excel_colours.hexes."""

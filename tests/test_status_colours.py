@@ -130,5 +130,29 @@ class Copies(Base):
             self.assertNotIn(old, text, "the old red is gone from the Word copy")
 
 
+class ExcelStatus(unittest.TestCase):
+    def test_open_is_green_closed_is_blue_cancelled_is_grey(self):
+        self.assertEqual(excel_colours.ACTION_STATUS, {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
+        self.assertEqual(excel_colours.RAID_STATUS, {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
+
+
+class WordUrgent(Base):
+    def test_an_urgent_item_has_a_maroon_status_cell_with_white_bold_words_and_overdue_stays_in_the_due_column(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("actions", {"project": "ABC", "description": "Urgent late", "owner": "Sara Khan", "due_date": "2026-10-01", "priority": "Urgent",
+                                  "raised": "2026-09-01", "client_message": "Urgent late", "source": "demo"})
+        import test_docx_build as t
+        data = docx_build.build(publish.select(publish.read_inputs(self.store, "ABC", AS_AT)))
+        doc = t.parts(data)["word/document.xml"].decode("utf-8")
+        cells = re.findall(r"<w:tc>(?:(?!</w:tc>).)*</w:tc>", doc, re.S)
+        maroon = [c for c in cells if MAROON in c]
+        self.assertTrue(maroon)
+        status = next(c for c in maroon if "Overdue" in c)      # the Urgent late action keeps its status word on the maroon cell
+        self.assertIn('w:fill="6B1D2A"', status)
+        self.assertIn("FFFFFF", status, "white words on the maroon")
+        self.assertIn("<w:b/>", status)
+        self.assertIn("(overdue)", doc, "overdue is also in the due column")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -240,6 +240,9 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
     """A cell of words. `colour` (red, amber, green, blue, grey) gives a fill and text of the same hue, the words always shown;
     `late` draws the text red; `extra` are quieter lines under it."""
     fill = color = None
+    if colour == "urgent":      # row 1021: Urgent is a solid maroon cell with bold white words (the page's maroon tile)
+        fill, color = ctx.tok["tone-urgent"], ctx.tok["white"]
+        return text_paras(text, ctx, color=color, bold=True), fill
     if colour in colours_table.COLOURS:
         fill, color = ctx.hexes(colour)
     elif late:
@@ -555,6 +558,8 @@ def _status_cell(row, kind, ctx):
         return word_cell(row.get("status"), ctx)
     pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
                               ctx.as_at)
+    if row.get("priority") == "Urgent":
+        return word_cell(pill["text"], ctx, colour="urgent")      # an Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
     return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green"}.get(pill["class"]))
 
 

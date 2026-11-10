@@ -47,9 +47,9 @@ MILESTONE_STATE = {"Achieved": "green", "On track": "green", "At risk": "amber",
 DECISION_STATUS = {"Pending": "amber", "Made": "green", "Withdrawn": "grey"}
 USE_CASE_STATUS = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}     # Done: finished, grey as on the page
 
-# Action and RAID status, in the page's tones: Open blue, Delayed amber, Closed and Cancelled grey.
-ACTION_STATUS = {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"}
-RAID_STATUS = {"Open": "blue", "Closed": "grey", "Cancelled": "grey"}
+# Action and RAID status, in the final 1021 tones: Open green, Delayed amber, Closed blue, Cancelled grey.
+ACTION_STATUS = {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"}
+RAID_STATUS = {"Open": "green", "Closed": "blue", "Cancelled": "grey"}
 
 # (table, field) -> the value table. A value not in the table (or an empty cell) gets no colour.
 BY_FIELD = {
