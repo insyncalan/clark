@@ -487,7 +487,7 @@ table.items td.c-pick { vertical-align: middle; }
   .ucd-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .ucd-item { grid-template-columns: 84px minmax(0, 1fr) auto; }
+  .ucd-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
   .ucd-x { grid-column: 2 / -1; text-align: left; }
 }
 /* G5 typed notes (#96): the Edit parts of Callout, Quote, Contacts and Table. Edit only. Tokens only. */
