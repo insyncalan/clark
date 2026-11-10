@@ -696,6 +696,17 @@ class SavedViews(Line):
         self.assertFalse(got["ok"])
         self.assertIn("already exists", got["message"])
 
+    def test_insert_refuses_a_twenty_first_view(self):
+        """Row 1071: Undo must not take a person past 20 saved views (addView and duplicateView stop there too); a core view is not counted."""
+        full = [{"id": f"v{n}", "name": f"View {n}", "line": ""} for n in range(20)]
+        gone = {"id": "old", "name": "Old one", "line": ""}
+        got = self.v(f"insertView({lit(full)}, {lit(gone)}, 3)")
+        self.assertFalse(got["ok"])
+        self.assertEqual(got["message"], "You can keep 20 saved views. Delete one to make room.")
+        core = {"id": "core-all", "name": "All", "line": "", "core": True}
+        self.assertTrue(self.v(f"insertView({lit(full)}, {lit(core)}, 0)")["ok"], "a core view does not count toward the 20")
+        self.assertTrue(self.v(f"insertView({lit(full[:19])}, {lit(gone)}, 3)")["ok"], "19 plus one is 20 and fits")
+
     def test_a_view_added_or_missing_from_the_stored_order_still_shows(self):
         fake = "{store: {'clark.forder': JSON.stringify({ABC: ['mine', 'gone', 'core-all']}) }, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
         got = self.val(f"T.fl.viewsGet({fake}, 'ABC').map(function (x) {{ return x.id; }})")

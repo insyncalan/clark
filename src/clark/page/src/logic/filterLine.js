@@ -608,6 +608,7 @@ export function insertView(views, view, index) {
   if (!view || findView(vs, view.id)) return { ok: false, message: "That view is already there." };
   const bad = nameProblem(vs, view.name, view.id);          // another view may have taken the name since the delete: no two views with one name
   if (bad) return { ok: false, message: bad };
+  if (!isCoreView(view) && mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
   const i = Math.max(0, Math.min(vs.length, Math.trunc(Number(index)) || 0));
   return { ok: true, views: [...vs.slice(0, i), { ...view }, ...vs.slice(i)] };
 }
