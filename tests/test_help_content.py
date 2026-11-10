@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words'])
+CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -279,11 +279,12 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help; Esc takes you where you were")
 
-    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
-        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
-        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
-        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
-        self.assertNotIn("until you press Add;", self.ALL)
+    def test_the_help_does_not_offer_import_from_word_in_the_profile_menu(self):            # row 1063 (replaces the #432 wording test: the menu entry is gone)
+        self.assertNotIn("Import from Word", self.ALL)
+        self.assertNotIn("bring items in from a Word file", self.ALL)
+        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
+        self.assertNotIn("Import from Word", raw, "no help line, in any section, names the removed menu entry")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
@@ -481,6 +482,16 @@ class PublicationNumberWords(unittest.TestCase):
         """item 515: the store never reuses a number and Undo never meets a publication; the publish task in Help says both."""
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("A number is never used again, and **Undo** does not take it back.", text)
+
+
+class NeededFromTheClientWords(unittest.TestCase):
+    def test_help_says_the_flag_lists_the_item_only_when_the_report_has_a_needs_from_you_section(self):
+        """Row 1066: publish adds no 'Needs from you' section the editor lacks, so Help must not promise the item is listed without one."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.", text)
+        self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
+        peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
 
 
 class ProfileCircleWords(unittest.TestCase):
