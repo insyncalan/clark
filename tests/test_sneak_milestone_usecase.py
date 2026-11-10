@@ -106,11 +106,11 @@ class Milestone(unittest.TestCase):
 
 class UseCase(unittest.TestCase):
     def test_row_776_every_change_has_a_phrase_that_is_part_of_the_typed_words(self):
-        words = "high risk, candidate, headline: Vendor is late"
+        words = "high risk, planned 2026, headline: Vendor is late"
         r = read("U-1", words)
         self.assertTrue(r["ok"])
         got = {c["field"]: c["phrase"] for c in r["changes"]}
-        self.assertEqual(got, {"status": "high risk", "commitment": "candidate", "headline": "headline: Vendor is late"})
+        self.assertEqual(got, {"status": "high risk", "commitment": "planned 2026", "headline": "headline: Vendor is late"})
         for phrase in got.values():
             self.assertIn(phrase, words)
 
@@ -126,11 +126,11 @@ class UseCase(unittest.TestCase):
         self.assertFalse(read("U-1", "flag")["confirm"])
 
     def test_the_commitment_words_are_exact(self):
-        for said, word in (("candidate", "Candidate"), ("COMMITTED", "Committed"), ("planned for 2027", "Planned 2027"), ("Planned 2027", "Planned 2027")):
+        for said, word in (("planned 2026", "Planned 2026"), ("COMMITTED", "Committed"), ("planned for 2027", "Planned 2027"), ("Planned 2027", "Planned 2027")):
             r = read("U-1", said)
             self.assertEqual(next(c for c in r["changes"] if c["field"] == "commitment")["to"], word)
             self.assertIn(word, changes.UC_COMMITMENTS)
-        self.assertEqual(read("U-1", "candidate and committed")["message"], changes.UC_COMMITMENT_WORDS)
+        self.assertEqual(read("U-1", "planned 2026 and committed")["message"], changes.UC_COMMITMENT_WORDS)
         self.assertEqual(read("U-1", "planned 2028")["message"], sneak.WORDS["nothing_use_case"])
 
     def test_no_flag_clears_the_commitment(self):
@@ -142,7 +142,7 @@ class UseCase(unittest.TestCase):
 
     def test_status_words_do_not_mix_up_with_the_commitment_flag(self):
         self.assertEqual(list(lines(read("U-3", "no flag, on track"))), ["status", "commitment"])
-        self.assertEqual(read("U-1", "no flag, candidate")["message"], changes.UC_COMMITMENT_WORDS)
+        self.assertEqual(read("U-1", "no flag, planned 2026")["message"], changes.UC_COMMITMENT_WORDS)
 
     def test_a_headline_that_is_too_long_is_refused_in_the_existing_words(self):
         self.assertEqual(read("U-1", "headline: " + "a" * 390)["message"], changes.UC_HEADLINE_WORDS)
@@ -191,7 +191,7 @@ class Forms(unittest.TestCase):
 
     def test_every_field_offered_is_one_the_change_route_takes(self):
         for item, table in (("M-1", "milestones"), ("M-2", "milestones"), ("U-1", "use_cases"), ("U-3", "use_cases")):
-            for words in ("done", "reopen", "forecast Friday", "achieved on 20-10-2026", "flag, candidate, headline: x", "no flag"):
+            for words in ("done", "reopen", "forecast Friday", "achieved on 20-10-2026", "flag, planned 2026, headline: x", "no flag"):
                 for c in (read(item, words).get("changes") or []):
                     self.assertIn(c["field"], changes.CHANGE_KINDS[table]["update"])
 
@@ -269,7 +269,7 @@ class RoundTrip(unittest.TestCase):
     def test_a_refused_reading_writes_nothing(self):
         before = self.counts()
         data = self.s.data_for("ABC")
-        for item, words in ((self.demo.milestone, "forecast 31-02-2026"), (self.demo.milestone, "agreed 01-12-2030"), (self.demo.use_case, "candidate and committed")):
+        for item, words in ((self.demo.milestone, "forecast 31-02-2026"), (self.demo.milestone, "agreed 01-12-2030"), (self.demo.use_case, "planned 2026 and committed")):
             self.assertFalse(sneak.read(data, item, words, date.today())["ok"])
         self.assertEqual(self.counts(), before)
 

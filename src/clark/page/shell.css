@@ -1359,10 +1359,10 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucword { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
 .ucstc { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }   /* issue 709: the commitment chip sits under the status word, in the status column */
 /* issue 709: the commitment chip. Neutral on purpose, so it is never read as a status (red, amber, green, grey are the status words' colours):
-   Candidate is a dashed outline, Committed a solid ink fill (the text colour as the fill, the page colour as the word), Planned 2027 a plain
+   Planned 2026 is a dashed outline, Committed a solid ink fill (the text colour as the fill, the page colour as the word), Planned 2027 a plain
    outline on a faint tint. Text is --text on --surface, --grey-50 or --text itself: 14:1 or more in light and dark. */
 .cchip { display: inline-flex; align-items: center; box-sizing: border-box; padding: 1px var(--space-2); border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: transparent; color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1.3; white-space: nowrap; }
-.cchip.cc-candidate { border-style: dashed; }
+.cchip.cc-planned-2026 { border-style: dashed; }
 .cchip.cc-committed { border-color: var(--text); background: var(--text); color: var(--surface); }
 .cchip.cc-planned-2027 { background: var(--grey-50); }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
