@@ -77,3 +77,12 @@ class TheBrandKitGuide(unittest.TestCase):
         t = text(guide())
         self.assertIsNone(re.search(BANNED, t), re.search(BANNED, t))
         self.assertNotRegex(t, r"(?<!\d)\d{1,2}/\d{1,2}/\d{2,4}")
+
+
+class AfterTheBrandsFixes(unittest.TestCase):
+    def test_remove_is_for_a_brand_that_was_added_and_downloads_means_a_kit(self):
+        t = " ".join(s["d"] for s in guide()["steps"])
+        code = (SRC / "brands.py").read_text(encoding="utf-8")
+        self.assertIn("def _own_folder", code)
+        self.assertIn("To take away a brand you added, press **Remove** on its row and confirm.", t)
+        self.assertIn("To use the newest brand kit in your Downloads folder", t)
