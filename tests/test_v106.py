@@ -50,7 +50,7 @@ COVERED = [
      'test_milestones_archived::Archived::test_the_name_opens_the_milestone_read_only_in_the_peek_with_restore_there'),
     ('523', 'Resetting a column width from the keyboard announces Column width reset, as the mouse does.',
      'test_work_board_page::Moves::test_the_move_to_menu_works_as_the_page_opens_with_a_toast_and_undo'),
-    ('532', 'A closed risk or issue never rated reads Closed with Not rated beside it on one line, also at 420 px.',
+    ('532', 'A closed risk or issue never rated reads Closed with Not rated beside it on one line.',
      'test_peek::ClosedUnratedRiskPeek::test_a_closed_unrated_risk_says_not_rated_in_the_published_peek'),
     ('535', 'Clearing the Week ending box shows a line saying the old week ending date was kept.',
      'test_report_bar::Bar::test_a_cleared_field_keeps_the_old_date'),
