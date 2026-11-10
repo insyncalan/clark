@@ -710,6 +710,48 @@ class Menu(board.Base):
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape on a name closes the list")
 
+    def test_item_1070_search_enter_and_add_form_edges_blank_enter_does_nothing_enter_adds_the_new_name_the_menu_gives_way_and_focus_returns(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.until(cdp, sid, "document.activeElement.matches('input[data-rm-search]')", "focus on the box")
+            key(cdp, sid, "Enter")
+            time.sleep(0.5)
+            self.assertEqual(self.steps(), before, "Enter on an empty box takes no name")
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays")
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "Enter on the add entry opens the form")
+            self.assertEqual(cdp.js("document.querySelector('[data-pop] [data-new-name]').value", sid), "Wilhelmina Frost")
+            self.assertEqual(cdp.js("!!document.querySelector('.rowmenu > [role=menu]')", sid), False, "the menu gives way to the form")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.value = 'Wilhelmina Frost'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Wilhelmina Frost, added as a new person.")
+            self.until(cdp, sid, f"document.activeElement && document.activeElement.matches('tr[data-id=\"{a}\"]')", "focus back on the row",
+                       why=lambda: cdp.js("document.activeElement ? document.activeElement.outerHTML.slice(0, 80) : 'none'", sid))
+
+    def test_item_1070_the_add_form_naming_the_current_owner_saves_nothing_and_closes(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            owner = self.row(a)["owner"]
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            click(cdp, sid, ".rm-fly [data-rm=addp]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "the form")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(owner), sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.until(cdp, sid, "!document.querySelector('[data-pop]') && !document.querySelector('.rowmenu > [role=menu]')", "the form and the menu closed",
+                       why=lambda: cdp.js("document.body.innerHTML.length", sid))
+            self.assertEqual(self.steps(), before)
+
     def test_archive_hides_the_item_and_undo_brings_it_back_nothing_is_deleted(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
