@@ -434,12 +434,13 @@ class FrozenText(Base):
 
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]))      # row 926: step 19 is now the newest; this step's own text is that one without 'gantt'
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt'", "", 1))
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(statements[0]))      # row 1068: step 21 is now the newest
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt','gantttable'", "", 1))      # steps 19 and 21 added their types after this step's text was frozen
 
     def test_the_frozen_text_and_the_store_name_the_same_types(self):
         named = re.findall(r"'([a-z0-9]+)'", store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES.split("CHECK (type IN (")[1].split("))")[0])
-        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t != "gantt"))      # row 926: gantt comes with step 19
+        self.assertEqual(tuple(named), tuple(t for t in store_module.SECTION_TYPES if t not in ("gantt", "gantttable")))      # row 926: gantt comes with step 19; row 1068: gantttable with step 21
         self.assertEqual(tuple(w.strip("'") for w in store_module.TEMPLATE_TYPE_WORDS), section_kinds.TYPES)
 
     def test_the_step_does_not_read_the_live_schema(self):

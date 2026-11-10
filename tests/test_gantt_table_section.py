@@ -1,12 +1,14 @@
 """Row 1068: the table-only section type 'gantttable' (schema layout 21; store.py, schema.sql, changes.py, publish.py: guarded). Fictional data only.
 
-It is the Gantt section without the Gantt view: the same lines, the same eye (only eye-on lines), the same hidden columns, the same
-gate in the published file, drawn as the Gantt table alone. Pinned here (the page part is pinned by the page tests once the words are
-approved, see the design note): migration step 21 makes report_sections again with 'gantttable' in its type CHECK (backup first, rows
-kept in order, a second run changes nothing, an older clark refuses layout 21, a new database equals a migrated one); the section is
-added, retitled, hidden, moved and deleted through the change route with one Undo each, and takes no body; the published file carries
-the section (id, type, title, beside and nothing else) with the Gantt data and no eye-off line reaches the file through it; a Gantt
-section and a table section live side by side; the Word and Excel paths leave it out.
+It is the Gantt section without the Gantt view: the same lines, the same eye (only eye-on lines), the same hidden columns, drawn as the
+Gantt table alone. It is a template section like the others (the owner's ruling, CMD 11-10-005): it does not ask the project's client
+switch show_gantt_client, so it is in the file with the eye-on lines whether or not the Gantt tab is; with no eye-on line there is
+nothing to draw and it is left out. Pinned here (the page part is pinned in tests/test_gantt_section.py): migration step 21 makes
+report_sections again with 'gantttable' in its type CHECK (backup first, rows kept in order, a second run changes nothing, an older clark
+refuses layout 21, a new database equals a migrated one); the section is added, retitled, hidden, moved and deleted through the change
+route with one Undo each, and takes no body; the published file carries the section (id, type, title, beside and nothing else) with the
+Gantt lines (data.gantt, without the tab when the switch is off) and no eye-off line reaches the file through it; a Gantt section and a
+table section live side by side; the Word and Excel paths leave it out.
 
 Run: python3 dev/run_tests.py test_gantt_table_section
 """
@@ -268,16 +270,35 @@ class Published(Base):
         self.assertEqual(got, [{"id": ref, "type": KIND, "title": "Table", "beside": 0}])
         self.assertEqual([l["name"] for l in built["published"]["data"]["gantt"]["lines"]], ["Dig"])
 
-    def test_no_gantt_data_in_the_file_means_no_table_section(self):
+    def test_the_table_section_does_not_ask_the_client_switch_only_an_eye_on_line(self):
+        """The owner's ruling (CMD 11-10-005): a template section, not the Gantt tab's. With the switch off the section is in the file with
+        the eye-on lines and nothing of the tab (no tab, no Gantt section, no tab name); with every eye off there is nothing to draw: no
+        section and no Gantt data."""
+        self.add("gantt", "Gantt")
         self.add()
         self.lines()
-        self.tab(False)                      # the client switch is off: same gate as the Gantt section
+        self.tab(False)
         off = self.built()
-        self.assertNotIn(KIND, self.types(off))
-        self.assertNotIn("gantt", off["published"]["data"])
-        self.tab(True)
+        self.assertIn(KIND, self.types(off))
+        self.assertNotIn("gantt", self.types(off), "the Gantt section is the tab's and stays out")
+        self.assertNotIn("gantt", off["published"]["tabs"], "the tab stays off")
+        self.assertEqual(off["published"]["data"]["gantt"], {"columns": off["published"]["data"]["gantt"]["columns"], "lines": off["published"]["data"]["gantt"]["lines"]}, "lines and columns only")
+        self.assertEqual([l["name"] for l in off["published"]["data"]["gantt"]["lines"]], ["Dig"])
+        self.assertNotIn("gantt_tab_name", off["published"]["data"]["project"])
+        self.assertNotIn(SECRET, off["body"].decode("utf-8"))
         self.ok(kind="gantt_lines", op="update", id=self.s.read("gantt_lines", "ABC")[0]["id"], changes={"show": 0})
-        self.assertNotIn(KIND, self.types(self.built()))
+        none = self.built()
+        self.assertNotIn(KIND, self.types(none))
+        self.assertNotIn("gantt", none["published"]["data"])
+        self.tab(True)
+        self.assertNotIn(KIND, self.types(self.built()), "the switch does not bring an empty table section in either")
+
+    def test_without_a_table_section_the_switch_off_still_keeps_the_gantt_data_out(self):
+        self.lines()
+        self.tab(False)
+        off = self.built()
+        self.assertNotIn("gantt", off["published"]["data"])
+        self.assertNotIn("gantt", off["published"]["tabs"])
 
     def test_a_hidden_table_section_is_left_out_and_so_is_nothing_eye_off_in_the_file(self):
         ref = self.add()["ref"]
