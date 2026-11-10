@@ -943,6 +943,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[0] == "core-actions"), f"dropped before Open items: {self.tab_ids(cdp, sid)}")
                     # kept in this browser, for this project
                     kept = self.tab_ids(cdp, sid)
+                    self.assertIn("core-actions", json.loads(cdp.js("localStorage.getItem('clark.forder')", sid))["TUL"], "the order is kept in the browser under clark.forder, per project")
                     reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == kept), "the order is there after a reload")
                     cdp.js("localStorage.clear()", sid)
