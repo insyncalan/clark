@@ -125,10 +125,10 @@ class Rows(unittest.TestCase):
                             long = [r for r in got["rows"] if r["nameLines"] > 1]
                             self.assertTrue(long, f"{where}: the very long name wraps in its own cell")
 
-    def test_the_cells_keep_four_columns_at_900_px(self):
+    def test_the_cells_sit_in_four_columns_at_1400_and_900_px(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
-        for width, cols in ((900, 4),):
+        for width, cols in ((1400, 4), (900, 4)):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, s.port, width, "light", "TUL")
                 got = cdp.js(MEASURE, sid)
