@@ -16,7 +16,7 @@ export function install(tools) {
   closeAfter.ms = null;
   // The Help peek (#645): the tests' stand-in for contextText (useText) lives here, in the test build, never in the served page.
   const peekHelp = Object.freeze({ open: openContext, toggle: toggleContext, close: closeContext, isOpen: () => contextOpen.value, useText: useContextText });
-  const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
+  const help = tools && tools.help ? { help: Object.freeze({ open: tools.help.open, close: tools.help.close, goTo: tools.help.goTo, isOpen: tools.help.isOpen, peek: peekHelp }) } : {};
   window.clarkPage = Object.freeze({ show, openPeek, closePeek, setProject, setFilters, filters: () => f.value, peek: () => peek.value, project: () => project.value, selected: () => workSelection.ids.value.slice(),
     markChanged, changed: () => changed.value.slice(), useClock,
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },

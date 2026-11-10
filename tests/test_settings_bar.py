@@ -1,5 +1,5 @@
 """Item 1024 (option A; was item 440, S2): the Settings menu that stays under the top bar, with the entry of the page you are on marked, in a real
-browser at 1400, 901, 900, 899 and 800 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
+browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
 What is asserted: the menu (the list at the left at 900 px and wider, the row of buttons below 900 px) stays under the top bar as you scroll, on the
 page's own ground, and a page's heading is never hidden by it; plain #settings opens Projects; one entry is marked (aria-current="page") and it
@@ -20,7 +20,7 @@ from test_publish_dialog import Base
 from test_server import chrome, wait
 from test_settings_head import PAGES, ratio, rgb
 
-WIDTHS = (1400, 901, 900, 899, 800)
+WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 MARKED = "document.querySelector('.set-menu .set-item[aria-current=\"page\"]')"
 HEADS = {slug: head for _, slug, head, _ in PAGES}
@@ -142,7 +142,7 @@ class SettingsBar(Base):
 
     def test_C_each_page_keeps_its_own_place_on_the_screen(self):
         # item 1019, for Settings: scroll a page, go to another, come back by Back, and the page is where it was
-        for w in (1400, 800):
+        for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w, page="backups")

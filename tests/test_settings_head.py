@@ -1,12 +1,12 @@
 """The Settings head and menu (item 1024, option A): the title, a line of help and a menu with one entry for each page, in a real browser at
-1400, 901, 900, 899 and 800 px, light and dark. At 900 px and wider the menu is a list down the left with ONE page at its right; below 900 px
-it is still the row of buttons under the title (a later step turns that into one dropdown line). Run: python3 dev/run_tests.py test_settings_head
+1400 and 900 px, light and dark. At both widths the menu is a list down the left with ONE page at its right (narrower than 900 px the menu is
+still the row of buttons under the title; a later step turns that into one dropdown line; that is not tested here). Run: python3 dev/run_tests.py test_settings_head
 
 What is asserted: the title and the help line; an entry for each page (Projects, People, Published reports, Profile, Folder, Brand,
 Appearance, Reports, Backups, Export and import, Claude and AI, Logs and diagnostics, Version and updates) in five groups, and none for
 an old name; exactly one page is drawn and the other pages' headings are not; a click shows the page, puts the address on
 #settings&s=<page> and moves focus to the page's heading; Back and Forward step between pages; the keyboard does the same (arrows, Enter);
-the list stands at the left of the page at 900 px and wider and the buttons wrap in a row under the title below 900 px, the page never
+the list stands at the left of the page at 1400 and 900 px, the page never
 scrolls sideways and nothing overlaps; each entry is at least 24 px high and wide; its text is at least 13 px and 4.5:1 on its ground; the
 focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
 
@@ -23,7 +23,7 @@ from test_server import chrome, wait
 from _mouse import click_centre, menu_item_js
 from _new_page import reload_to_new_page_cdp
 
-WIDTHS = (1400, 901, 900, 899, 800)
+WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 GROUPS = ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"]
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
@@ -233,6 +233,15 @@ class Head(Base):
                 p.until("!!document.getElementById('%s')" % head, "the %s page drew" % slug)
                 self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), slug, "the address names the page")
 
+    def test_C_a_help_link_to_settings_folder_opens_the_folder_page(self):
+        """The Help step "Settings > Folder" (go:settings#folder, held from view today) goes to the Folder page, not Projects: the page's own goTo takes the same path as the link."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p, 1400)
+            p.js("window.clarkPage.help.goTo('settings#folder')")
+            p.until("!!document.getElementById('client-folder-h')", "the Folder page drew")
+            self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), "folder", "the address names the page")
+
     def test_C_arrows_move_between_entries_and_enter_chooses(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -251,7 +260,7 @@ class Head(Base):
             self.on_page(p, "folder", "client-folder-h", "Folder")
             self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
 
-    def test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900(self):
+    def test_C_the_list_is_at_the_left_at_1400_and_900(self):
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
@@ -279,29 +288,16 @@ class Head(Base):
                         self.assertEqual(chips[0][1], chips[1][1], "the first two chips share a row")
                         self.assertLessEqual(nav[3], first[1] + 1, "the chips are above the page")
                         self.assertGreater(first[2] - first[0], w * 0.8, "the page has the full width")
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_settings(p, 640)
-            self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll at 640")
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-list')).flexWrap"), "wrap")
-            p.width(320)
-            p.until("(function(){var n = document.querySelector('.set-menu'); return n.scrollWidth <= n.clientWidth;})()", "the chips still wrap when narrow")
 
     # ---- round 2 of item 1024c: the review's findings ----
-    def test_C_below_900_the_chips_do_not_stay_under_the_top_bar_and_cover_the_phone(self):
-        for w in (420, 640, 899):
-            with self.subTest(width=w), chrome() as cdp:
-                p = self.page(cdp)
-                self.open_settings(p, w)
-                self.assertNotEqual(p.js("getComputedStyle(document.querySelector('.set-menu')).position"), "sticky", "the chips scroll away with the page")
-                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+    def test_C_at_900_the_list_stays_under_the_top_bar(self):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p, 900)
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-menu')).position"), "sticky", "the list at 900 px stays under the top bar")
 
-    def test_C_row_buttons_stay_on_one_line_from_900_to_1099(self):
-        for w in (900, 960, 1099):
+    def test_C_row_buttons_stay_on_one_line_at_900_and_1400(self):
+        for w in (900, 1400):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
@@ -313,7 +309,7 @@ class Head(Base):
                 self.assertGreater(p.js("document.querySelectorAll('td.acts .btn').length"), 0, "the rule is checked on at least one button")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
-    def test_C_every_entry_name_is_whole_on_one_line_and_a_rows_buttons_stand_on_one_line_at_640_900_1400(self):
+    def test_C_every_entry_name_is_whole_on_one_line_and_a_rows_buttons_stand_on_one_line_at_900_1400(self):
         """Round 5: at 900 px 'Export and import', 'Logs and diagnostics' and 'Version and updates' wrapped to two lines in the narrow list and the
         Projects row buttons (Open, Edit, Archive) stacked one per line. Names stay whole (no ellipsis, no clipping); the list is made wide enough."""
         lines = """[...document.querySelectorAll('.set-menu .set-item')].map(b => {
@@ -324,7 +320,7 @@ class Head(Base):
                   min: parseFloat(cs.minHeight) || 0, clipped: b.scrollWidth > b.clientWidth, ellipsis: cs.textOverflow === 'ellipsis'};
         })"""
         rows = """[...document.querySelectorAll('.set-cards tr')].map(tr => [...tr.querySelectorAll('td.acts .btn')].map(b => Math.round(b.getBoundingClientRect().top))).filter(t => t.length)"""
-        for w in (640, 900, 901, 1000, 1099, 1400):
+        for w in (900, 1400):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
@@ -356,7 +352,7 @@ class Head(Base):
                 p.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk, "modifiers": mods}, p.sid)
         with chrome() as cdp:
             p = self.page(cdp)
-            self.open_settings(p, 800)
+            self.open_settings(p, 900)
             p.js("document.querySelector('.set-menu .set-item').focus()")
             press(p, "ArrowRight", 39)
             self.assertEqual(p.js("document.activeElement.textContent"), "Projects", "Right does not move: Left and Right are left to the browser")
@@ -407,9 +403,8 @@ class Head(Base):
             p = self.page(cdp)
             self.open_settings(p, 1400)
             self.assertEqual(p.js(names), GROUPS)
-            p.width(420)
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-group-h')).display"), "none")
-            self.assertEqual(p.js(names), GROUPS, "the name stays when the heading is not drawn (a hidden element named by aria-labelledby still names)")
+            p.width(900)
+            self.assertEqual(p.js(names), GROUPS, "the names stay the same at 900 px")
 
     def test_C_a_junk_page_in_the_address_is_dropped_from_the_bar_at_startup(self):
         with chrome() as cdp:

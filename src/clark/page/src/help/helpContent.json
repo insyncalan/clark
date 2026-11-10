@@ -67,7 +67,7 @@
    },
    {
     "t": "Say where reports go",
-    "d": "In [Settings › Folder](go:settings), set a local folder and, if the client has one, their SharePoint folder."
+    "d": "In [Settings › Folder](go:settings#folder), set a local folder and, if the client has one, their SharePoint folder."
    },
    {
     "t": "Look before you publish",
