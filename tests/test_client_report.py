@@ -422,14 +422,14 @@ class HiddenOnTheServedPage(unittest.TestCase):
                 except RuntimeError:
                     return False
             self.assertTrue(wait(drew), "the page drew")
-            wait(lambda: drew() and cdp.js("document.querySelectorAll('.tabs .tab').length", sid) >= 5)   # the fallback may reload once after the first ready: settle before the Edit click; the assertions below still judge the tabs
+            wait(lambda: drew() and cdp.js("document.querySelectorAll('.tabs .tab').length", sid) >= 4)   # the fallback may reload once after the first ready: settle before the Edit click; the assertions below still judge the tabs
             for dashboard_mode in ("view", "edit"):  # Dashboard mode
                 if dashboard_mode == "edit":
                     # a click before the page's handler is bound is lost on a loaded box: press again until the mode shows (Edit is a mode, not a toggle)
                     self.assertTrue(wait(lambda: cdp.js("(document.querySelector('[data-mode=edit]').click(), !!document.querySelector('[data-mode=edit][aria-pressed=true]'))", sid)))
                 tabs = "[...document.querySelectorAll('.tabs .tab')].map(t => t.dataset.view)"
-                wait(lambda: len(cdp.js(tabs, sid)) >= 5)   # ready is set before the tab bar is drawn on a slow runner (CI flake); the assertion below still judges the list
-                self.assertEqual(cdp.js(tabs, sid), ["dashboard", "work", "milestones", "usecases", "settings"], dashboard_mode)
+                wait(lambda: len(cdp.js(tabs, sid)) >= 4)   # ready is set before the tab bar is drawn on a slow runner (CI flake); the assertion below still judges the list
+                self.assertEqual(cdp.js(tabs, sid), ["dashboard", "work", "milestones", "usecases"], dashboard_mode)      # row 976: no Settings tab
                 self.assertEqual(cdp.js("document.querySelectorAll('#clientreport').length", sid), 0, dashboard_mode)
                 self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", dashboard_mode)
             self.assertNotIn("Client Requested Report View", cdp.js("document.body.innerText", sid))

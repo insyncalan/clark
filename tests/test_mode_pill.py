@@ -18,6 +18,13 @@ PLACE = (f"(function(){{var g={GROUP}; return [{COUNT}, !!g.closest('#report-bar
 
 
 class ModePill(Base):
+    def settings(self, p):      # row 976: Settings is no tab; the profile circle's menu opens it
+        p.js("document.querySelector('#profile-btn').click()")
+        p.until("!!document.querySelector('#profile-menu')", "the profile menu")
+        p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("document.querySelector('h1') && document.querySelector('h1').textContent === 'Settings'", "settings open")
+        p.until(f"{COUNT} === 0", "settings: 0 switch(es)")
+
     def tab(self, p, name, count=1):
         p.js(f"document.querySelector('.tab[data-view=\"{name}\"]').click()")
         p.until(f"document.querySelector('.tab[data-view=\"{name}\"]').getAttribute('aria-selected') === 'true'", f"{name} open")
@@ -36,9 +43,12 @@ class ModePill(Base):
     def test_on_the_other_tabs_there_is_no_switch_at_all(self):      # row 804: View | Edit is the Dashboard's alone
         with chrome() as cdp:
             p = self.visit(cdp)
-            for name in ("work", "milestones", "usecases", "settings"):
+            for name in ("work", "milestones", "usecases"):
                 self.tab(p, name, 0)
                 self.assertEqual(p.js(COUNT), 0, name)
+            self.settings(p)
+            self.assertEqual(p.js(COUNT), 0, "settings")
+            self.assertEqual(p.js("document.querySelectorAll('.tab[data-view=settings]').length"), 0, "Settings is not a tab")
             self.tab(p, "dashboard")
             self.assertEqual(p.js(PLACE), [1, True, False])
 
