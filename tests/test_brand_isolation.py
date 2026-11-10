@@ -73,20 +73,25 @@ class Publisher(Rig):
         self.set_brand("zebra")
         self.assertEqual(pub.project_brand(self.s, "ABC"), self.quokka)
 
-    def test_the_pdf_marker_check_reads_the_same_folder_as_the_build(self):
-        import inspect
-        from clark import publish_pdf
-        src = inspect.getsource(publish_pdf.Step.prepare)
-        self.assertNotIn("page_html(pub.branding", src)
-        self.assertIn("project_brand", src)
+    def test_the_pdf_marker_check_reads_the_projects_own_folder(self):
+        from clark import publish_pdf, pdf
+        pub = self.publisher()
+        real, seen = page.page_html, []
+
+        def spy(branding, *a, **k):
+            seen.append(branding)
+            return real(branding, *a, **k)
+        for brand, folder in (("zebra", self.zebra), ("quokka", self.quokka), ("generic", page.NO_BRAND)):
+            self.set_brand(brand)
+            built = publish.build(self.s, "ABC")
+            seen.clear()
+            with mock.patch.object(page, "page_html", spy), mock.patch.object(pdf, "find_chrome", lambda: None):
+                got = publish_pdf.Step({}, pub).prepare(pub, self.root / "x.html", built, "2026-10-29", self.s, "ABC", None, None)
+            self.assertEqual(got[0], 409, got)          # stops at the Chrome check, after the marker check ran
+            self.assertEqual(seen, [folder], brand)
 
 
 class Word(Rig):
-    def test_the_signature_takes_a_branding_folder(self):
-        import inspect
-        self.assertIn("branding", inspect.signature(word_route._do_export).parameters)
-        self.assertIn("brand_root", inspect.signature(word_route.make_word_export).parameters)
-
     def test_each_brand_colours_its_own_word_file_and_not_the_others(self):
         for name in ("zebra", "quokka"):
             self.set_brand(name)

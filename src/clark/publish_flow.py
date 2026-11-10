@@ -276,6 +276,7 @@ class Publisher:
     def project_brand(self, store, code):
         """Row 999: the branding folder for this project's own brand, looked up at each call (page.NO_BRAND for Generic, an unknown code or
         a removed brand), so no output of one project wears another's brand. A `branding` given when the Publisher was made wins."""
+        # NOTE: a Publisher-wide `branding` defeats per-project isolation (every project gets this one folder); production does not pass it.
         return self.branding if self.branding is not None else brand_of(store, code, self.brand_root)
 
     # ----- publish -----

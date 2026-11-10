@@ -170,10 +170,10 @@ def write_sheet(wb, published, table, palette=None):
 
 
 def write_gantt_sheet(wb, published, palette=None):
-    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
     """The Gantt sheet (row 926), from publish.gantt_for_client's output alone (published["data"]["gantt"]): its lines are the eye-on
     lines only, with the hidden columns already not in them, dependencies and parents already cleaned. Days and Status are worked out
     from the start, end and Done %, which are never hidden. The sheet is the tab's name, and every cell is locked."""
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
     g = published["data"]["gantt"]
     fields = set(g["columns"]) | {"_days", "_status"}
     cols = [(label, f, excel.GANTT_WIDTHS.get(f, 12)) for label, f in excel.GANTT_SHEET_COLUMNS if f in fields]
