@@ -16,7 +16,8 @@ const allRows = { get value() { return searchRows(everyRow.value, found.value, q
 export function Switches({ children, L }) {
   // Row 1059: in the app the type and Open / Closed / All pills are gone; type: and status: (and is:open, is:closed) are on the filter
   // line. The published file has no line, so its reader keeps the pills.
-  if (L) return <div class="wbar">{children ? <div class="vctl">{children}</div> : null}</div>;
+  // The row keeps its height while its one pill is still being read, so the list does not jump down when the pill arrives.
+  if (L) return <div class="wbar" style={children ? { minHeight: "32px" } : null}>{children ? <div class="vctl">{children}</div> : null}</div>;
   const today = fromFile.value && asAt.value ? asAt.value : todayIso(), rows = allRows.value;
   const st = filterState.value;
   const n = counts(rows, st, today), t = typeCounts(rows, st, today);

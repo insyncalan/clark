@@ -65,7 +65,7 @@ COVERED = [
     ("#63", "The published file's tabs step with Back and Forward too",
      "test_router::FileUrl::test_the_built_page_pushes_hash_only_entries_from_a_file_url"),
     ("#64", "Open, Closed and All show counts that match the list at 1400 and 900",
-     "test_filter_line_page::Line::test_the_switch_counts_equal_the_list_after_each_filter_at_1400_and_900_px"),
+     "test_filter_line_page::Line::test_the_list_follows_the_mode_and_type_words_on_the_line_after_each_filter_at_1400_and_900_px"),
     ("#64", "A second filter opens with one click, and a second click on it closes it",
      "test_filter_line_page::Line::test_typing_offers_fields_then_values_with_arrows_and_enter_choose"),
     ("#64", "Active filters show as chips, and Clear all brings the rows back",
