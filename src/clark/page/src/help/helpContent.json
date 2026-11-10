@@ -296,11 +296,15 @@
     "g": "Every week",
     "t": "Find or open a past publication",
     "w": "Profile circle › Published reports",
+    "go": "dashboard+edit",
     "s": [
      "Press your profile circle and choose **Published reports**.",
      "The page says where the report is saved, shows the latest publication and lists the earlier ones. Each has its number, the week ending, when it was published, where it went, its files and who published it. The newest is first, and the list shows the latest ten; the older ones are kept.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
      "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
+    ],
+    "page": [
+     "dashboard+edit"
     ]
    },
    {
