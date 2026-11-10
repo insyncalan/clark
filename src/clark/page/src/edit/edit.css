@@ -1071,3 +1071,4 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
+.sn-in::placeholder { color: var(--text-muted); }   /* row 1077: the browser's grey was 3.14:1 on the dark surface */
