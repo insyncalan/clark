@@ -72,12 +72,11 @@ class BuildAppFailures(unittest.TestCase):
         self.assertEqual(self.leftovers(), [])
         self.assertEqual(self.scratch_requests(), [])
 
-    # KNOWN GAP (row 836 v5): build_app.sh does not remove a partial clark.app when osacompile fails. Fix the script, then drop this mark.
-    @unittest.expectedFailure
     def test_a_failing_osacompile_leaves_no_half_built_app(self):
         # osacompile that dies after starting to write the app
         fake(self.bin, "osacompile", 'mkdir -p "$2" && echo half > "$2/partial" && exit 3')
-        self.run_script(str(self.out))
+        r = self.run_script(str(self.out))
+        self.assertEqual(r.returncode, 1)
         self.assertFalse((self.out / "clark.app").exists(), "a half-built clark.app was left behind")
 
     def test_a_failing_osacompile_is_reported_and_exits_1(self):
