@@ -114,7 +114,7 @@ class Rig(Base):
     def unbrand(self):
         (self.root / "tokens.css").unlink()
 
-    def open(self, cdp, hash_="#dashboard&p=ABC", ready=".glance", width=1400, scheme="light"):
+    def load_app(self, cdp, hash_="#dashboard&p=ABC", ready=".glance", width=1400, scheme="light"):
         p = Pg.at(self, cdp, self.s.port, hash_)
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
@@ -144,7 +144,7 @@ class Backdrop(Rig):
         for name, hash_, ready in PAGES:
             for width in (1400, 900):
                 with self.subTest(page=name, width=width), chrome() as cdp:
-                    p = self.open(cdp, hash_, ready, width)
+                    p = self.load_app(cdp, hash_, ready, width)
                     p.until(REQUESTS + " > 0", "the picture was asked for")
                     got = p.js(BACKDROP)
                     self.assertIn("assets/cover.png", got["image"])
@@ -158,7 +158,7 @@ class Backdrop(Rig):
         self.brand()
         from test_help_panel import full_help_from_menu
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             full_help_from_menu(p)
             self.assertIn("assets/cover.png", p.js(BACKDROP)["image"])
 
@@ -166,7 +166,7 @@ class Backdrop(Rig):
         self.brand()
         for name, hash_, ready in PAGES:
             with self.subTest(page=name), chrome() as cdp:
-                p = self.open(cdp, hash_, ready)
+                p = self.load_app(cdp, hash_, ready)
                 p.until(REQUESTS + " > 0", "the picture was asked for")
                 steady(p)
                 with_it = p.js(BACKDROP)
@@ -177,7 +177,7 @@ class Backdrop(Rig):
     def test_the_ask_panel_gets_the_wash_at_its_foot_and_keeps_the_head_strip(self):
         self.brand()
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             p.js("document.querySelector('#ask-btn').click()")
             p.until("!!document.querySelector('#ask-panel')", "the panel opened")
             got = p.js("""(() => { const h = getComputedStyle(document.querySelector('.ask-head'), '::before'),
@@ -197,7 +197,7 @@ class Generic(Rig):
     def test_without_a_picture_nothing_is_drawn_and_nothing_is_asked_for(self):
         for name, hash_, ready in PAGES:
             with self.subTest(page=name), chrome() as cdp:
-                p = self.open(cdp, hash_, ready)
+                p = self.load_app(cdp, hash_, ready)
                 got = p.js(BACKDROP)
                 self.assertEqual(got["image"], "none", "no background image on the pseudo-element")
                 self.assertEqual(p.js("performance.getEntriesByType('resource').filter(e => /\\.(png|jpe?g|webp|svg)|assets\\//.test(e.name) || e.initiatorType === 'img').length"), 0,
@@ -209,7 +209,7 @@ class Generic(Rig):
 
     def test_no_brand_is_a_pixel_identical_page(self):
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             p.until("document.getAnimations().every(a => a.playState === 'finished')", "settled")
             shot = lambda: cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]       # noqa: E731
             before = shot()
@@ -219,12 +219,12 @@ class Generic(Rig):
     def test_removing_the_brand_returns_the_plain_page(self):
         self.brand()
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             self.assertIn("assets/cover.png", p.js(BACKDROP)["image"])
         self.unbrand()
         self.hits.clear()
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             self.assertEqual(p.js(BACKDROP)["image"], "none")
         self.assertEqual(self.hits, [])
 
@@ -233,7 +233,7 @@ class Guards(Rig):
     def test_reduced_motion_has_no_fade_in_animation(self):
         self.brand()
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             self.assertEqual(p.js(BACKDROP)["anim"], "none")
@@ -244,7 +244,7 @@ class Guards(Rig):
     def test_print_and_pdf_have_no_backdrop(self):
         self.brand()
         with chrome() as cdp:
-            p = self.open(cdp)
+            p = self.load_app(cdp)
             self.assertNotEqual(p.js(BACKDROP)["display"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
             self.assertEqual(p.js(BACKDROP)["display"], "none")
@@ -300,7 +300,7 @@ class AppContrast(Measure, Rig):
                 for width in (1400, 900):
                     for name, hash_, ready in PAGES:
                         with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), chrome() as cdp:
-                            p = self.open(cdp, hash_, ready, width, scheme)
+                            p = self.load_app(cdp, hash_, ready, width, scheme)
                             self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}")
 
     def test_work_items_links_discard_changes_and_save_as_a_new_view(self):
@@ -310,7 +310,7 @@ class AppContrast(Measure, Rig):
                 for _ in range(3):
                     self.demo.action(owner="Sam Lee", client_visible=1)
                 with self.subTest(scheme=scheme, width=width), chrome() as cdp:
-                    p = self.open(cdp, "#work&p=ABC", "#fline-input", width, scheme)
+                    p = self.load_app(cdp, "#work&p=ABC", "#fline-input", width, scheme)
                     p.js("document.querySelector('#fline-input').focus()")
                     cdp.call("Input.insertText", {"text": "status is Open"}, p.sid)
                     p.until("[...document.querySelectorAll('main button, main a')].some(e => /Discard changes/.test(e.textContent))", "Discard changes shows")

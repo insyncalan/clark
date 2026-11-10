@@ -8,7 +8,7 @@ CSS = Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/edit.css
 
 
 def rule(sel):
-    text = CSS.read_text()
+    text = CSS.read_text(encoding="utf-8")
     m = re.search(r"(?m)^" + re.escape(sel) + r"\s*\{([^}]*)\}", text)
     return m.group(1) if m else ""
 
