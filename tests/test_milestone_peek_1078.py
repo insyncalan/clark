@@ -247,10 +247,10 @@ class Published(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-ms-row=client_message] script').length", sid), 0)
                 for r in cdp.js(TILES, sid):
                     self.assertEqual((r["left"], r["radius"], r["bg"], r["beside"]), ("0px", "0px", "rgba(0, 0, 0, 0)", True), str(r))
-                # a milestone with no client wording publishes no description (row 560): its row is not drawn, the others are
+                # a milestone with no client wording publishes no description (row 560) and has no wording to show: neither row is drawn (reader B), the others are
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-002'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-002')(document.querySelector('#peek'))", sid)))
-                self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r != "Description"])
+                self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Not set")
 
 

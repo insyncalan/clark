@@ -672,7 +672,7 @@ input.sec-title { width: 100%; }
 .pk-ms-owner { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
 .pk-ms-owner .av { width: 22px; height: 22px; font-size: 10px; }
 .pk-ms-head .msl-prog { flex: 1 1 120px; min-width: 120px; }
-.pk-row dd .pk-rich p:last-child { margin-bottom: 0; }
+.pk-row dd .pk-rich p:last-child { margin-bottom: 0; }   /* the read-only Description and Client wording (Peek.jsx Rich, class pk-rich, drawn in the published peek too): no space under the last paragraph, so a row is as tall as its words */
 .pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
 .pk-source-l { font-weight: var(--weight-medium); }
 .wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of its page (the use case page), not a panel below the list (row 776) */

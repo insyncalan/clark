@@ -113,7 +113,7 @@ const richOf = (value) => { try { return richOrPlain(value || ""); } catch (e) {
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
 function MilestoneFields({ m }) {
-  const who = ownerOf(m.owner), description = richOf(m.description);
+  const who = ownerOf(m.owner), description = richOf(m.description), wording = richOf(m.client_message);
   return (
     <>
       <MsHead>
@@ -126,7 +126,7 @@ function MilestoneFields({ m }) {
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
         <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
-        <Row name="Client wording" ms="client_message"><Rich html={richOf(m.client_message)} /></Row>
+        {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
       </dl>
     </>
   );
