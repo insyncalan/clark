@@ -361,6 +361,23 @@ class Labels(unittest.TestCase):
         png = self.draw([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")])
         self.assertGreater(self.ink(png, g.X0, g.WIDTH, 0, g.TOP), 0)
 
+    def test_month_words_never_touch_and_never_run_past_the_right_edge(self):
+        c = Canvas(g.WIDTH, 30, "#ffffff")
+        spans = []
+        real = g.draw_text
+        with mock.patch.object(g, "draw_text", lambda cv, x, y, text, col: (spans.append((x, x + g.text_width(text))), real(cv, x, y, text, col))):
+            months = [date(2026, m, 1) for m in range(1, 13)]
+            g.month_labels(c, months, lambda d: g.X0 + (d.month - 1) * 20, "#000000")
+            self.assertGreater(len(spans), 1)
+            self.assertLess(len(spans), 12)
+            for (a0, a1), (b0, _) in zip(spans, spans[1:]):
+                self.assertLess(a1, b0)
+            spans.clear()
+            g.month_labels(c, [date(2026, 1, 1)], lambda d: g.WIDTH - 20, "#000000")
+            self.assertEqual(spans, [])
+            g.month_labels(c, [date(2026, 1, 1)], lambda d: g.X0, "#000000")
+            self.assertEqual(len(spans), 1)
+
     def test_the_picture_is_as_wide_as_before_and_the_word_file_holds_it_with_the_names_escaped(self):
         nasty = '"/><w:p>INJECTED</w:p>'
         _, data = build_with(milestones=[ms(1, name=nasty), ms(2, name="\u05e9\u05dc\u05d5\u05dd")])
