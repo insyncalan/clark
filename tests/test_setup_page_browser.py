@@ -127,8 +127,9 @@ class Case(unittest.TestCase):
         checks = checks if checks is not None else (doctor.CHECKS[1], doctor.CHECKS[2],
                                                     check("browser", doctor.ADVICE, "Chrome wasn't found, so clark will open in your usual browser. "
                                                           "Install Chrome to give clark its own window."))
+        kw.setdefault("environ", {})
         service = setup_mode.Setup(folder, home=self.home, on=pl.MAC, choose_folder=self.choose, onedrive_roots=lambda: [self.onedrive],
-                                   environ={}, prompt=setup_mode.FOLDER_PROMPT, checks=checks, **kw)
+                                   prompt=setup_mode.FOLDER_PROMPT, checks=checks, **kw)
         s = SetupRunning(service)
         self.addCleanup(s.close)
         return s, service
@@ -316,6 +317,39 @@ class Choosing(Case):
             service.folder = self.good
             p.enter()
             p.until("document.body.dataset.state === 'done'", "Enter on Check again ran the checks and finished")
+
+
+class InDocker(Case):
+    """Data folder inside OneDrive, clark in a container: the Choose a folder control is not drawn, and a POST to the folder route
+    from the page's own origin is refused by the service (no window). The container is a patched platform.container_mode, never real."""
+
+    def test_choose_a_folder_is_not_drawn_and_the_route_refuses_on_its_own(self):
+        self.answer = str(self.good)
+        s, service = self.serve(self.onedrive / "clark", environ={"CLARK_DATA_SOURCE": "/Users/pat/Documents/clark-data"})
+        with mock.patch.object(pl, "container_mode", return_value=True), chrome() as cdp:
+            p = self.visit(cdp, s)
+            self.assertEqual(p.state(), "fix")
+            self.assertEqual([r[0] for r in p.rows()], ["data_folder", "data_not_in_onedrive", "browser", "docker"])
+            self.assertEqual(p.rows()[1][1], "fix", "a fix that a folder could mend: outside Docker the button would show")
+            self.assertEqual(p.js("document.querySelector('#choose').hidden"), True)
+            self.assertFalse(p.shown("#choose"))
+            self.assertEqual(p.js("[...document.querySelectorAll('button')].filter(b => b.offsetParent).map(b => b.textContent)"), ["Check again"],
+                             "the one control drawn is Check again (the OneDrive sentence itself still says to choose a folder)")
+            self.assertTrue(p.shown("#again"))
+            self.assertIsNone(p.js("document.querySelector('#gatekeeper')"))
+            posted = ("(async () => { const token = JSON.parse(document.getElementById('clark-boot').textContent).token;"
+                      " const r = await fetch('/api/setup/folder', { method: 'POST', cache: 'no-store', body: '{}',"
+                      " headers: { 'X-Clark-Token': token, 'Content-Type': 'application/json' } });"
+                      " return [r.status, await r.json()]; })()")
+            answer = p.call("Runtime.evaluate", {"expression": posted, "returnByValue": True, "awaitPromise": True})["result"]["value"]
+            self.assertEqual((answer[0], answer[1]["ok"], answer[1]["code"]), (409, False, "dialog_failed"))
+            self.assertEqual(answer[1]["message"], "The folder dialog needs the Mac, so it is not available when clark runs in Docker. "
+                                                   "To use it, start clark with clark.command instead.")
+            self.assertEqual(self.asked, [], "no folder window was asked for")
+            self.assertFalse((self.default.parent / setup_mode.POINTER_NAME).exists())
+            self.assertEqual(service.folder, self.onedrive / "clark")
+            self.assertEqual(p.state(), "fix")
+            self.clean(p)
 
 
 class AfterRestart(Case):

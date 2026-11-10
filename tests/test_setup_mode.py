@@ -7,6 +7,7 @@ import tempfile
 import threading
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT
 
@@ -360,6 +361,29 @@ class Choose(Case):
         with self.assertRaises(pl.NotBuiltYet):
             service.choose("Choose")
 
+    def test_inside_docker_the_window_is_refused_before_it_is_asked_for(self):
+        # the page hides the button in a container; a direct POST must meet the same answer in the service, not a folder window
+        service = self.setup(str(self.good))
+        with mock.patch.object(pl, "container_mode", return_value=True):
+            with self.assertRaises(setup_mode.Refused) as caught:
+                service.choose("Choose")
+        self.assertEqual(caught.exception.code, "dialog_failed")
+        self.assertEqual(caught.exception.words, "The folder dialog needs the Mac, so it is not available when clark runs in Docker. "
+                                                 "To use it, start clark with clark.command instead.")
+        self.assertEqual(caught.exception.page, caught.exception.words)
+        self.assertEqual(service.calls, [], "the folder window was never asked for")
+        self.assertFalse(self.pointer().exists())
+        self.assertEqual(service.folder, self.default)
+        self.assertTrue(service._dialog.acquire(blocking=False), "the lock is free again")
+        service._dialog.release()
+
+    def test_outside_docker_choose_is_unchanged(self):
+        service = self.setup(str(self.good))
+        with mock.patch.object(pl, "container_mode", return_value=False):
+            report = service.choose("Choose")
+        self.assertEqual(service.calls, ["Choose"])
+        self.assertEqual((report["folder"], service.folder), ("~/Elsewhere", self.good))
+
 
 class Remembered(Case):
     def test_a_kept_folder_comes_back(self):
@@ -442,6 +466,16 @@ class Api(Case):
         status, body = service.api_folder()
         self.assertEqual((status, body["code"]), (409, "dialog_failed"))
         self.assertEqual(body["message"], "The folder window could not be opened. " + pl.TRY_AGAIN)
+
+    def test_folder_inside_docker_is_dialog_failed_in_platforms_own_words_and_asks_for_no_window(self):
+        service = self.setup(str(self.good), prompt="Pick")
+        with mock.patch.object(pl, "container_mode", return_value=True):
+            status, body = service.api_folder()
+        self.assertEqual((status, body["ok"], body["code"]), (409, False, "dialog_failed"))
+        self.assertEqual(body["message"], "The folder dialog needs the Mac, so it is not available when clark runs in Docker. "
+                                          "To use it, start clark with clark.command instead.")
+        self.assertEqual(service.calls, [])
+        self.assertFalse(self.pointer().exists())
 
     def test_folder_while_a_window_is_open_is_busy_in_existing_words(self):
         inside, release = threading.Event(), threading.Event()

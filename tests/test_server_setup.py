@@ -278,6 +278,18 @@ class Folder(Case):
         self.assertEqual((status, json.loads(data)["code"]), (409, "dialog_failed"))
         self.assertEqual(opened, ["Pick"])
 
+    def test_inside_docker_a_direct_post_is_refused_and_no_window_opens(self):
+        # the page only hides the button there; the route must refuse on its own, in platform's existing Docker words
+        self.answer = str(self.good)
+        with mock.patch.object(pl, "container_mode", return_value=True):
+            status, body = self.post("/api/setup/folder")
+        self.assertEqual((status, body["ok"], body["code"]), (409, False, "dialog_failed"))
+        self.assertEqual(body["message"], "The folder dialog needs the Mac, so it is not available when clark runs in Docker. "
+                                          "To use it, start clark with clark.command instead.")
+        self.assertEqual(self.asked, [])
+        self.assertFalse((self.default.parent / setup_mode.POINTER_NAME).exists())
+        self.assertEqual(self.service.folder, self.default)
+
     def test_a_second_while_one_is_open_is_busy(self):
         inside, release = threading.Event(), threading.Event()
 

@@ -108,6 +108,25 @@ class Report(unittest.TestCase):
         self.assertEqual([r["status"] for r in self.report("/Users/pat/ok")["checks"] if r["id"] == "docker"], [doctor.READY])
 
 
+class Choose(Report):
+    """Inside a container the service refuses the folder window itself: the hidden button is not the only guard."""
+
+    def test_inside_docker_choose_is_refused_as_a_window_that_cannot_open_and_no_fake_is_asked(self):
+        asked = []
+        service = setup_mode.Setup(self.data, home=self.home, on=pl.MAC, onedrive_roots=lambda: [], environ={"CLARK_DATA_SOURCE": "/Users/pat/ok"},
+                                   choose_folder=lambda prompt: asked.append(prompt), prompt="Pick")
+        with mock.patch.object(pl, "container_mode", return_value=True):
+            with self.assertRaises(setup_mode.Refused) as caught:
+                service.choose("Pick")
+            status, body = service.api_folder()
+        self.assertEqual(caught.exception.code, "dialog_failed")
+        self.assertEqual((status, body["code"], body["message"]), (409, "dialog_failed", caught.exception.words))
+        self.assertEqual(body["message"], pl.mac_only_in_docker("The folder dialog"))
+        self.assertIn("when clark runs in Docker", body["message"])
+        self.assertEqual(asked, [])
+        self.assertFalse((self.home / setup_mode.POINTER_NAME).exists())
+
+
 class Page(unittest.TestCase):
     def test_the_page_hides_choose_a_folder_in_docker(self):
         self.assertIn("report.container", setup_page.SCRIPT)
