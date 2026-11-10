@@ -450,6 +450,25 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
+    def test_1065_a_file_with_a_stale_snapshot_tab_draws_only_the_tabs_the_page_has_and_a_tab_it_lacks_opens_the_first(self):
+        text = self.path.read_text(encoding="utf-8")
+        tabs = re.search(r'"tabs":\[[^\]]*\]', text)
+        self.assertTrue(tabs, "the file lists its tabs")
+        path = Path(self.folder) / "stale-tab.html"
+        path.write_text(text.replace(tabs.group(0), '"tabs":["dashboard","work","milestones","clientreport","usecases"]', 1), encoding="utf-8")
+        for width in (1400, 900):
+            for hash_ in ("", "#clientreport", "#settings"):
+                with self.subTest(width=width, hash=hash_), chrome() as cdp:
+                    sid = open_page(cdp, path.as_uri() + hash_, width, "light")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                    views = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid)
+                    self.assertEqual(views, "dashboard,work,milestones,usecases", "the retired tab is not drawn")
+                    self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", "an address the file lacks opens its first tab")
+                    cdp.js("location.hash = '#work'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "work"))
+                    cdp.js("location.hash = '#settings'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "dashboard"), "a move to a tab the file lacks opens its first tab")
+
     def test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not(self):
         for flag, times in (("?print=1", 1), ("", 0)):
             with self.subTest(flag=flag), chrome() as cdp:
