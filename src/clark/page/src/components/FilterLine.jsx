@@ -134,12 +134,13 @@ function SavedViews({ board }) {
       setLift(null);
       if (m.type === "pointercancel") return;
       const tabs = [...(tabsBox.current ? tabsBox.current.querySelectorAll(".vt .vtab") : [])];
-      let target = null;
+      let target = null, overSelf = false;
       for (const t of tabs) {
-        if (t.dataset.viewId === d.id) continue;      // the lifted tab is under the pointer itself: the tab it is over is another one
         const r = t.getBoundingClientRect();
+        if (t.dataset.viewId === d.id) { const dx = m.clientX - d.x0; overSelf = m.clientX >= r.left - dx && m.clientX <= r.right - dx; continue; }      // the lifted tab is under the pointer itself: the tab it is over is another one
         if (m.clientX >= r.left && m.clientX <= r.right) target = t.dataset.viewId;
       }
+      if (!target && overSelf) return;      // dropped over its own place: it stays where it is
       if (!target && tabs.length) target = m.clientX < tabs[0].getBoundingClientRect().left ? tabs[0].dataset.viewId : tabs[tabs.length - 1].dataset.viewId;
       if (target && moveTo(d.id, target)) announce.value = `${v.name} moved.`;
     };

@@ -105,7 +105,6 @@ class Tabs(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), before, "a drag is not a click")
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
-    @unittest.expectedFailure
     def test_a_drag_that_ends_over_its_own_tab_leaves_it_in_place(self):
         """Found by the mutation proof: the drop skips the dragged tab itself, so a drop over its own place finds no tab and sends it to the end of the row."""
         with chrome() as cdp:
