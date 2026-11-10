@@ -3,11 +3,8 @@
 // store, so the page and the tests share it. The eye (use_cases.client_visible) is the dashboard's own switch: a use case is
 // "on the dashboard" when it is set, and a published file only ever holds the ones that were.
 import { isOpen, plural } from "../workItems.js";
-import { NONE } from "../filters.js";
 import { recall, remember } from "./remember.js";
 import { commitWord } from "./commitment.js";
-import * as Q from "./filterQueryUi.js";
-import { compileQuery } from "./filterQueryEval.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
 export const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "b" };  // the tint of each status word's chip (row 1085: Done is blue, the approved colours)
@@ -62,29 +59,7 @@ export function listOf(d, all) {
   });
 }
 
-// ---- the filter line (row 1085) ----
-// The page's own line, read by the Work items box (components/FilterLine.jsx LineBox) with this schema and no other: status:, commitment: and
-// milestone: as the issue names them, on: for the eye (yes or no), and plain words that search the row's text (the reference, the name, the
-// headline, where it stands, the commitment and the milestone names: `row.text`). Nothing of the Work items line is known here, and the line is
-// kept with this page's state, never in the Work items line's memory.
-const uniq = (xs) => [...new Set(xs.filter(Boolean))];
-export const LINE = {
-  fields: [
-    { key: "status", name: "Status", of: (r) => [r.status], offers: () => STATUS_WORDS.map((w) => [w, w]), tone: (v) => RAG[STATUS_WORDS.find((w) => w.toLowerCase() === String(v).toLowerCase())] || "", icon: "half" },
-    { key: "commitment", name: "Commitment", none: true, of: (r) => [r.commitment || NONE], offers: (rows) => uniq(rows.map((r) => r.commitment)).map((w) => [w, w]), icon: "flag" },
-    { key: "milestone", name: "Milestone", none: true, of: (r) => (r.ms.length ? r.ms.map((m) => m.name) : [NONE]), offers: (rows) => uniq(rows.flatMap((r) => r.ms.map((m) => m.name))).map((w) => [w, w]), icon: "flag" },
-    { key: "on", name: ON_WORDS, of: (r) => [r.on ? "yes" : "no"], offers: () => [["yes", "yes"], ["no", "no"]], icon: "eye" },
-  ],
-  states: [],
-  text: (r) => r.text,
-};
-const CTX = {};
-const parsedOf = (line, rows) => Q.parseFor(line, rows, CTX, LINE);
-/** One test for the line: row -> true when the line keeps it. A word the line cannot use filters nothing. */
-export const lineTest = (line, rows) => compileQuery(parsedOf(line, rows), CTX, LINE);
 const quoteVal = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : String(v));
-/** The line in two: its complete filters and the plain words (what the empty state says back). */
-export const lineParts = (line, rows) => { const s = Q.splitLine(line, rows, CTX, LINE); return { chips: s.chips, words: parsedOf(s.rest, rows).text.join(" ") }; };
 
 // ---- the tabs (row 1085) ----
 // Four fixed views over the line, as the Work items saved views are drawn: [id, name, keeps(row)]. At risk is a status of Flag or High risk.
@@ -95,15 +70,11 @@ export const TABS = [
   ["committed", COMMITTED, (r) => r.commitment === COMMITTED],
   ["risk", "At risk", (r) => r.status === "Flag" || r.status === "High risk"],
 ];
-const tabKeeps = (id) => (TABS.find(([k]) => k === id) || TABS[0])[2];
-/** Each tab's count: the rows the line keeps that the tab keeps too (the counts follow the box, as the switch's did). */
-export function tabCounts(rows, f) {
-  const base = rows.filter(lineTest(f.line, rows));
-  return Object.fromEntries(TABS.map(([id, , keeps]) => [id, base.filter(keeps).length]));
-}
+export const tabKeeps = (id) => (TABS.find(([k]) => k === id) || TABS[0])[2];
 
 // ---- Group by (row 1085) ----
 // Status, Commitment, On the dashboard or Nothing (the start): each group a bordered card as the Work items groups are, a group with no row left out.
+const uniq = (xs) => [...new Set(xs.filter(Boolean))];
 export const GROUPS = [["status", "Status"], ["commitment", "Commitment"], ["on", ON_WORDS], ["nothing", "Nothing"]];
 export const groupLabel = (id) => (GROUPS.find(([k]) => k === id) || GROUPS[GROUPS.length - 1])[1];
 export const NONE_LABEL = "None";                                                // the group of the rows with no commitment (the Milestones cell's word)
@@ -154,17 +125,12 @@ function byRef(a, b) {
   }
   return String(a.u.ref || "").localeCompare(String(b.u.ref || ""));
 }
-const ORDER = {
+export const ORDER = {
   ref: byRef,
   status: (a, b) => WORST_FIRST.indexOf(a.status) - WORST_FIRST.indexOf(b.status) || byRef(a, b),
   open: (a, b) => b.open - a.open || byRef(a, b),
 };
 
-/** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
-export function shownOf(rows, f) {
-  const test = lineTest(f.line, rows), keeps = tabKeeps(f.tab);
-  return rows.map((r, i) => [r, i]).filter(([r]) => test(r) && keeps(r)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
-}
 
 /** "Showing 3 of 7 · 4 on the dashboard": how many show, of how many, and how many of all are on the dashboard. */
 export const countWords = (shown, rows) => `Showing ${shown} of ${rows.length} · ${rows.filter((r) => r.on).length} on the dashboard`;
