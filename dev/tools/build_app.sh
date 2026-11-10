@@ -79,6 +79,7 @@ end run
 APPLESCRIPT
 
 if ! osacompile -o "$out/clark.app" "$src"; then
+  rm -rf "$out/clark.app"
   echo "build_app.sh: osacompile stopped." >&2
   exit 1
 fi
