@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802, 827, 872, 874, 889, 895, 905, 907, 917, 918 and 920 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 799 (its Weekly snapshot is gone, row 1065), 802, 827, 872, 874, 889, 895, 905, 907, 917, 918 and 920 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -101,10 +101,6 @@ COVERED = [
      "test_buttons_771_772::Buttons::test_the_main_button_keeps_its_focus_ring"),
     ("#772", "The search button has an outline and the ask clark text is smaller.",
      "test_buttons_771_772::Buttons::test_the_search_button_has_an_outline_and_the_ask_text_is_smaller"),
-    ("#799", "Snapshot initials fit inside their pill.",
-     "test_snapshot_avatar_chip::SnapshotAvatarChip::test_the_initials_fit_inside_their_pill"),
-    ("#799", "A snapshot line with no Achieved figure shows no behind-plan chip.",
-     "test_snapshot_avatar_chip::SnapshotAvatarChip::test_the_chip_is_hidden_when_achieved_is_empty_and_shown_when_it_has_a_figure"),
     ("#785", "The published footer gives the date once and no View only.",
      "test_publication_footer::TheFooter::test_row_785_the_client_sees_the_date_once_and_no_view_only_at_1400_and_900_light_and_dark"),
     ("#765", "Each project form label is left of its field on one row.",
@@ -338,7 +334,7 @@ COVERED = [
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
+NO_VISIBLE_CHANGE = {"273", "799", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776", "807"}

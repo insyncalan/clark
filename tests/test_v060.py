@@ -381,17 +381,13 @@ class ServedTabs559(unittest.TestCase):
     REPORT = PAGE / "src" / "stores" / "report.js"
 
     def test_559_1_the_served_page_offers_no_clientreport_tab(self):
-        pending(self, 378, self.REPORT, "SERVED_TABS")
         js = read(self.REPORT)
-        self.assertRegex(js, r'SERVED_TABS\s*=\s*VIEWS\.filter\(\(v\) => v !== "clientreport"\)')
         self.assertRegex(js, r"export const tabs = signal\(SERVED_TABS\)")
-        self.assertIn('start.view === "clientreport" && !published() ? "dashboard"', js, "its address opens the first tab")
+        self.assertNotIn("clientreport", js, "row 1065: the view is gone from the page's store")
 
-    def test_559_2_a_published_file_lists_it_as_weekly_snapshot(self):
-        js = read(self.REPORT)
-        self.assertIn('fromFile.value ? "Weekly snapshot"', js, "the file's own name for the tab")
-        self.assertIn("tabs.value = VIEWS.filter((v) => p.tabs.includes(v))", js, "a file lists the tabs it was given")
-        self.assertIn('tabs.append("clientreport")', read(SRC / "clark" / "publish.py"), "a published file is given the tab")
+    def test_559_2_a_published_file_has_no_weekly_snapshot(self):
+        self.assertNotIn('tabs.append("clientreport")', read(SRC / "clark" / "publish.py"), "row 1065: a published file is given no such tab")
+        self.assertNotIn("Weekly snapshot", read(self.REPORT))
 
 
 # --------------------------------------------------------------------------------------------------------------------
@@ -561,8 +557,6 @@ EXTRA_WALK_THROUGH = [
      "Reload and press Edit: the first handle pulses once beside the words Drag to move, + to add a template; press any key and the words go; reload, press Edit and they come back once."),
     ("87.4", "judgement", "whether the sizes look like one scale at both widths",
      "Open Dashboard, Work items and the Publish dialog at 1400 px, then at 900 px, in light and dark: body 16, small labels 14 or 13, headings clearly stepped, nothing under 13."),
-    ("559.3", "judgement", "only a person can judge the published Weekly snapshot reads as a report for a client",
-     "Publish a demo project, open the file and press the Weekly snapshot tab: a band with the project's name, then Progress, Plans, Highlights, Next week (and Risks and issues if flagged), nothing editable; then open the running page and see it has no such tab."),
     ("120.4", "live only", "the footer must be seen in a real file opened from disk",
      "Publish twice, open each file from its folder and read the foot: Publication 1 and Publication 2, each with its date once."),
     ("495.4", "live only", "a fresh checkout and a downloaded zip are the only places the build can truly be proved",

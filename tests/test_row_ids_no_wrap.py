@@ -55,8 +55,9 @@ def seed(store):
             st.update("report_sections", ref, {"body": json.dumps({"v": 1, "cards": [{"id": i, "source": "client"} for i in (a, b, r, d)[:n]]})})
 
 
-# (selector of the row or card, the parts that never wrap, the title)
-ROWS = (".wl-row", ".wl-id, .wl-id .idl, .wl-meta > span", ".wl-title")
+# (selector of the row or card, the parts that never wrap, the title). The item rows are the one-line rows (row 1021): their id, owner, date and
+# priority columns are pinned by test_item_one_line and test_item_row_fit, so here only the title is checked (one line, an ellipsis when cut).
+ROWS = (".irows .wl-row", "", ".wl-title")
 CARDS = (".raid-card", ".raid-id, .raid-meta .raid-bit", ".raid-title")
 
 
@@ -64,12 +65,13 @@ def check(test, js, surface, where, width):
     box, parts, title = surface
     n = js(f"document.querySelectorAll({box!r}).length")
     test.assertGreater(n, 0, f"{where}: {box} drawn")
-    test.assertGreater(js(f"document.querySelectorAll({box!r} + ' ' + {parts.split(',')[-1].strip()!r}).length"), 0, f"{where}: {parts} drawn")
+    if parts:
+        test.assertGreater(js(f"document.querySelectorAll({box!r} + ' ' + {parts.split(',')[-1].strip()!r}).length"), 0, f"{where}: {parts} drawn")
     bad = js("(function(){" + ONE_LINE + f"""
       var out = [];
       document.querySelectorAll({box!r}).forEach(function (row) {{
         var edge = row.getBoundingClientRect().right + 1;
-        row.querySelectorAll({parts!r}).forEach(function (e) {{
+        row.querySelectorAll({parts or 'none'!r}).forEach(function (e) {{
           var what = e.className + ' ' + e.textContent.slice(0, 30);
           var slack = e.classList.contains('idl') || e.classList.contains('wl-id') ? 4 : 0;      // the ID link's hit area reaches 4 px past its text (margin -4px); its text is what is measured
           var cs = getComputedStyle(e);
@@ -135,7 +137,7 @@ class RowIds(unittest.TestCase):
             p.edit()
             for w in (1400, 900):
                 self.width(p, w)
-                p.until("document.querySelectorAll('.item-rows-edit .wl-row').length > 0", "Edit rows")
+                p.until("document.querySelectorAll('.item-rows-edit .irows .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
                 self.three_columns(p.js, w, "Edit")
                 self.tag_holds(p.js, w)
@@ -164,7 +166,7 @@ class RowIds(unittest.TestCase):
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0 && document.querySelectorAll('.raid-card').length > 0", sid)),
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.irows .wl-row').length > 0 && document.querySelectorAll('.raid-card').length > 0", sid)),
                                 "the file drew its rows and cards")
                 check(self, p.js, ROWS, "File rows", w)
                 check(self, p.js, CARDS, "File cards", w)
