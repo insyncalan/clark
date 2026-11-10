@@ -36,9 +36,33 @@ class RefusalWords(unittest.TestCase):
                 self.assertEqual(
                     self.refuse(place),
                     f"Your data can't be kept in ~/{place}/clark because it is inside {service}. {service} copies "
-                    "files while they are being written, which damages the database. Choose a folder on this "
-                    f"computer that {service} doesn't sync.")
+                    "files while they are being written, which damages the database. Nothing has been changed. Move your "
+                    f"clark data folder to a folder on this computer that {service} doesn't sync, then start clark again.")
                 shutil.rmtree(self.home / place.split("/")[0])
+
+    def test_a_docker_host_folder_in_each_service_is_refused_in_the_same_words(self):
+        for service, path in (("Dropbox", "/Users/sam/Dropbox/clark"), ("Dropbox", "/Users/sam/Library/CloudStorage/Dropbox-Work/clark"),
+                              ("Google Drive", "/Users/sam/Google Drive/clark"), ("Google Drive", "/Users/sam/My Drive/clark"),
+                              ("Google Drive", "/Users/sam/Library/CloudStorage/GoogleDrive-a@b.c/My Drive/clark"),
+                              ("iCloud Drive", "/Users/sam/Library/Mobile Documents/com~apple~CloudDocs/clark"),
+                              ("Dropbox", "/Users/sam/dropbox (Personal)/clark")):
+            with self.subTest(path=path):
+                with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": path}), \
+                        mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
+                    with self.assertRaises(pl.PlatformError) as caught:
+                        pl.check_data_dir("/data")
+                self.assertEqual(
+                    str(caught.exception),
+                    f"Your data can't be kept in {path} because it is inside {service}. {service} copies "
+                    "files while they are being written, which damages the database. Nothing has been changed. Move your "
+                    f"clark data folder to a folder on this computer that {service} doesn't sync, then start clark again.")
+
+    def test_a_docker_host_folder_with_only_a_similar_name_is_let_through(self):
+        for path in ("/Users/sam/Dropbox-old/clark", "/Users/sam/Documents/my-dropbox-notes/clark", "/Users/sam/clark"):
+            with self.subTest(path=path):
+                with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": path}), \
+                        mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
+                    self.assertEqual(pl.check_data_dir("/data"), Path("/data").resolve())
 
     def test_the_home_folder_is_not_spelled_out_in_it(self):
         self.assertNotIn(str(self.home), self.refuse("Dropbox"))

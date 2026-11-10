@@ -232,7 +232,7 @@ class ContainerOneDrive(unittest.TestCase):
 
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
         for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
-                     "/Users/sam/Library/CloudStorage/Dropbox/clark", "/data"):
+                     "/Users/sam/Library/CloudStorage/Box/clark", "/data"):
             with self.subTest(path):
                 a, b = self.host(path)
                 with a, b:

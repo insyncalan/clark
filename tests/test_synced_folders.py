@@ -162,7 +162,7 @@ class OneDriveCase(Case):
                     pl.check_data_dir(Path(spelled) / "clark", roots=[root], synced=[])
         self.assertIsNone(pl.inside_onedrive(Path(str(root).lower() + "-not") / "clark", [root]))
 
-    def test_the_refusal_and_the_doctor_line_are_word_for_word_as_before(self):
+    def test_the_onedrive_refusals_and_doctor_line_keep_their_exact_words(self):
         root = self.home / "OneDrive"
         root.mkdir()
         inside = root / "clark"
@@ -203,9 +203,10 @@ class Doctor(Case):
                 inside.mkdir(parents=True)
                 line = doctor.check_data_not_in_synced_folder(self.seen(inside))
                 self.assertEqual(line.kind, doctor.FIX)
-                self.assertEqual(line.words, f"Your clark data is set to go in {pl.with_tilde(inside, self.home)}, which is "
-                                             f"inside {service}. It copies files while they are being written, which damages "
-                                             "the database. Choose a folder on this computer that it doesn't sync.")
+                self.assertEqual(line.words, f"Your clark data is in {pl.with_tilde(inside, self.home)}, which is inside "
+                                             f"{service}. {service} copies files while they are being written, which damages the "
+                                             "database. Move your clark data folder to a folder on this computer that "
+                                             f"{service} doesn't sync, then start clark again.")
                 shutil.rmtree(self.home / place.split("/")[0])
 
     def test_it_is_a_required_check_and_the_onedrive_one_is_unchanged(self):

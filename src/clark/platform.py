@@ -164,7 +164,33 @@ SYNCED_SERVICES = ("Dropbox", "iCloud Drive", "Google Drive")      # NEW (step 6
 
 def _dropbox_name(name):
     """Whether a name in the home folder is Dropbox's own: "Dropbox", "Dropbox (Personal)" or "Dropbox - Company"."""
-    return name == "Dropbox" or name.startswith("Dropbox (") or name.startswith("Dropbox -")
+    name = name.casefold()
+    return name == "dropbox" or name.startswith("dropbox (") or name.startswith("dropbox -")
+
+
+def container_host_in_synced(environ=None):
+    """The Mac folder shared in as the data folder (CLARK_DATA_SOURCE), as (service, Path to the synced folder) when a part of it is
+    Dropbox's, iCloud Drive's or Google Drive's own folder name (the same names synced_roots looks for, letter case ignored), else
+    None. Never outside a container, and nothing is known without the variable. Like container_host_in_onedrive it reads names, not the disk."""
+    if not container_mode():
+        return None
+    host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
+    if not host:
+        return None
+    path = Path(host)
+    for i, part in enumerate(path.parts):
+        low = part.casefold()
+        under_storage = i > 0 and path.parts[i - 1].casefold() == "cloudstorage"
+        if _dropbox_name(part) or (under_storage and low.startswith("dropbox")):
+            service = "Dropbox"
+        elif low.startswith("googledrive-") or low in ("google drive", "my drive"):
+            service = "Google Drive"
+        elif low == "mobile documents":
+            service = "iCloud Drive"
+        else:
+            continue
+        return service, Path(*path.parts[:i + 1])
+    return None
 
 
 def synced_roots(home=None, on=None):
@@ -260,6 +286,12 @@ def shown(path, home=None):
         return str(path)
 
 
+def _synced_refusal(where, service):
+    return (f"Your data can't be kept in {where} because it is inside {service}. {service} copies files while they are being "
+            "written, which damages the database. Nothing has been changed. Move your clark data folder to a folder on this "
+            f"computer that {service} doesn't sync, then start clark again.")
+
+
 def check_data_dir(path, roots=None, what="data", synced=None):
     """`path`, resolved, if clark may keep its database there. A folder inside OneDrive is refused with the reason:
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
@@ -280,16 +312,16 @@ def check_data_dir(path, roots=None, what="data", synced=None):
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
                             "Backups › Copy my backups to): backups can still go to OneDrive.")
+    if what == "data" and synced is None and container_host_in_synced() is not None:
+        service, _ = container_host_in_synced()              # the Mac's folder is named, as for OneDrive above
+        raise PlatformError(_synced_refusal(os.environ["CLARK_DATA_SOURCE"], service))
     if what == "data":                                       # NEW (step 6): Dropbox, iCloud Drive and Google Drive, after OneDrive's check
         try:
             hit = inside_synced(path, synced)
         except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse
             hit = None
         if hit is not None:
-            # NEW: the refusal's words, from the owner's proposed doctor line (NEW-WORDS 9), in the OneDrive refusal's shape.
-            raise PlatformError(f"Your data can't be kept in {shown(path)} because it is inside {hit[0]}. {hit[0]} copies "
-                                "files while they are being written, which damages the database. Choose a folder on this "
-                                f"computer that {hit[0]} doesn't sync.")
+            raise PlatformError(_synced_refusal(shown(path), hit[0]))
     return Path(path).expanduser().resolve()
 
 
