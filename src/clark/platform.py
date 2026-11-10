@@ -159,9 +159,6 @@ def onedrive_roots(home=None, on=None):
     return sorted(p for p in found if p.is_dir())
 
 
-SYNCED_SERVICES = ("Dropbox", "iCloud Drive", "Google Drive")      # NEW (step 6): the names the synced-folder lines say
-
-
 def _dropbox_name(name):
     """Whether a name in the home folder is Dropbox's own: "Dropbox", "Dropbox (Personal)" or "Dropbox - Company"."""
     name = name.casefold()
@@ -260,7 +257,10 @@ def synced_roots(home=None, on=None, environ=None):
 def inside_synced(path, roots=None):
     """NEW (step 6). The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
     OneDrive is not here: inside_onedrive is its own check."""
-    path = Path(path).expanduser().resolve()
+    try:
+        path = Path(path).expanduser().resolve()
+    except (ValueError, RuntimeError):                     # a NUL byte, a loop of links, an unknown ~user: not a place that can be synced
+        return None
     below = [part.casefold() for part in path.parts]       # the Mac disk ignores letter case, and resolve() does not fix it
     for service, root in synced_roots() if roots is None else roots:
         root = Path(root).resolve()
@@ -362,6 +362,8 @@ def check_data_dir(path, roots=None, what="data", synced=None):
         try:
             hit = inside_synced(path, synced)
         except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse
+            hit = None
+        except (ValueError, RuntimeError):                   # an unresolvable path is not a synced one
             hit = None
         if hit is not None:
             raise PlatformError(_synced_refusal(shown(path), hit[0]))

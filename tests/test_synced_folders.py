@@ -18,6 +18,8 @@ PLACES = (
     ("Dropbox", "Dropbox"),
     ("Dropbox", "Dropbox (Fictional Ltd)"),
     ("Dropbox", "Library/CloudStorage/Dropbox"),
+    ("Dropbox", "Library/CloudStorage/Dropbox (Personal)"),
+    ("Dropbox", "Library/CloudStorage/Dropbox-Fictional"),
     ("iCloud Drive", "Library/Mobile Documents"),
     ("iCloud Drive", "Library/Mobile Documents/com~apple~CloudDocs"),
     ("Google Drive", "Library/CloudStorage/GoogleDrive-fictional@example.org"),
@@ -100,6 +102,36 @@ class Lookalikes(Case):
 
 
 class Guards(Case):
+    def test_only_google_drive_dash_folders_in_cloud_storage_are_google_drive(self):
+        for name in ("GoogleDriveOld", "GoogleDrive"):
+            with self.subTest(name=name):
+                inside = self.home / "Library" / "CloudStorage" / name / "clark"
+                inside.mkdir(parents=True)
+                roots = pl.synced_roots(self.home, on=pl.MAC)
+                self.assertIsNone(pl.inside_synced(inside, roots))
+                self.assertEqual(pl.check_data_dir(inside, roots=[], synced=roots), inside)
+                shutil.rmtree(self.home / "Library")
+
+    def test_a_path_that_cannot_be_resolved_is_not_synced(self):
+        (self.home / "Dropbox").mkdir()
+        roots = pl.synced_roots(self.home, on=pl.MAC)
+        for bad in ("clark\0data", "~nosuchuser-fictional/clark"):
+            with self.subTest(bad=bad):
+                self.assertIsNone(pl.inside_synced(bad, roots))
+
+    def test_a_loop_of_links_is_not_synced(self):
+        (self.home / "Dropbox").mkdir()
+        roots = pl.synced_roots(self.home, on=pl.MAC)
+        with mock.patch.object(Path, "resolve", side_effect=RuntimeError("Symlink loop")):
+            self.assertIsNone(pl.inside_synced(self.home / "loop", roots))
+
+    def test_check_data_dir_does_not_raise_from_the_synced_check_for_unresolvable_paths(self):
+        folder = self.home / "Documents" / "clark"
+        folder.mkdir(parents=True)
+        for error in (ValueError("embedded null byte"), RuntimeError("Symlink loop")):
+            with self.subTest(error=type(error).__name__), mock.patch.object(pl, "inside_synced", side_effect=error):
+                self.assertEqual(pl.check_data_dir(folder, roots=[]), folder)
+
     def test_a_container_finds_nothing_even_with_dropbox_there(self):
         (self.home / "Dropbox").mkdir()
         with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1"}), \
