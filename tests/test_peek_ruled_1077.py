@@ -101,6 +101,13 @@ class Source(unittest.TestCase):
                     yield from walk(x)
         self.assertEqual(list(walk(json.loads(raw))), [], "the icon legend has no Draft entry")
 
+    def test_the_placeholder_rule_is_the_editors_alone(self):
+        """Rule 6: the words box is Edit only, so its placeholder colour is in edit.css and not in the published page."""
+        self.assertIn(".sn-in::placeholder", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
+        self.assertNotIn(".sn-in::placeholder", (SRC.parent / "shell.css").read_text(encoding="utf-8"))
+        self.assertNotIn(".sn-in::placeholder", page.VIEW_PAGE.read_text(encoding="utf-8"))
+        self.assertIn(".sn-in::placeholder", page.PAGE.read_text(encoding="utf-8"))
+
     def test_source_is_read_live_on_the_page_and_carried_by_name_in_a_file(self):
         """Ruling 2 (10-11): on the live page the line comes from the server (Edit and View alike, items and milestones); a published file
         draws the name its data carries (publish.select, source_name) and never asks a server."""

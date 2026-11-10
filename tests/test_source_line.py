@@ -77,7 +77,7 @@ class TheLine(unittest.TestCase):
     def test_a_path_in_the_stored_words_shows_its_last_part_only(self):
         # row 1077: the name, never the path (the column keeps the path)
         a = self.demo.action(source="Excel import, 2026-10-01, /Volumes/share/ZQ-FOLDER/plan.xlsx")
-        self.assertEqual(self.source(a), "Excel import, 01-10-2026, plan.xlsx by " + USER)
+        self.assertEqual(self.source(a), "plan.xlsx by " + USER, "row 1077, strict: a path publishes only its file name, no prefix words")
         row = self.demo.store.con.execute("SELECT source FROM actions WHERE id = ?", (a,)).fetchone()
         self.assertIn("ZQ-FOLDER", row[0])
 
@@ -102,8 +102,8 @@ class PublishedByName(unittest.TestCase):
         self.assertEqual((status, got["ok"]), (200, True), got)
         for folder in (rig.local / "chosen.html", rig.client / WANTED):
             text = Path(folder).read_bytes().decode("utf-8")
-            self.assertIn("Excel import, 01-10-2026, " + MARK, text, folder)
-            for bit in ("ZQ-SECRET-FOLDER", "ZQ-SECRET-FOLDER, Inc", "Inc/", "sub/" + MARK, "/Volumes", MARK + " by ", "Excel import, 2026-10-01"):
+            self.assertIn(MARK, text, folder)
+            for bit in ("ZQ-SECRET-FOLDER", "ZQ-SECRET-FOLDER, Inc", "Inc/", "sub/" + MARK, "/Volumes", MARK + " by ", "Excel import, 2026-10-01", "Excel import, 01-10-2026"):
                 self.assertNotIn(bit, text, folder)
 
     def test_the_line_is_one_shared_piece_drawn_by_the_edit_part_too(self):
