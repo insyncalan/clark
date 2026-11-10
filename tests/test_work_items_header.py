@@ -365,6 +365,50 @@ class Header(Base):
             self.assertGreaterEqual(bars[1][0] - (bars[0][0] + bars[0][1]), 4, f"a gap between the bars: {bars}")
         self.each(check)
 
+    # ---- row 1072, hostile ----
+    def test_row_1072_hostile_help_text_never_names_the_old_view_menu(self):
+        import pathlib
+        txt = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
+        for stale in ("in the View menu", "the **View** menu", "View menu"):
+            self.assertNotIn(stale, txt, f"help still names the removed View menu: {stale!r}")
+
+    def test_row_1072_hostile_keyboard_opens_and_returns_focus_to_the_group_by_button(self):
+        def check(cdp, sid, width):
+            cdp.js("document.querySelector('#viewMenu').focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "menu opens from the keyboard")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-expanded')", sid), "true")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
+            self.assertEqual(cdp.js("document.activeElement && document.activeElement.id", sid), "viewMenu", "focus returns to the icon button")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-expanded')", sid), "false")
+        self.each(check)
+
+    def test_row_1072_hostile_board_label_has_no_view_word(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#work [data-lay=board]")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList') === null && document.querySelector('#viewMenu').getAttribute('aria-label').startsWith('Group by')", "label")
+            name = cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid)
+            self.assertNotIn("View", name)
+            self.assertNotIn("board", name.lower(), name)
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').title", sid), "Group by")
+        self.each(check)
+
+    def test_row_1072_hostile_icon_is_inside_the_viewport_with_contrast_light_and_dark(self):
+        def check(cdp, sid, width):
+            got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), q = g.getBoundingClientRect(), s = g.querySelector('svg'), sc = getComputedStyle(s);
+              const rgb = (c) => c.match(/[\\d.]+/g).map(Number);
+              const L = (m) => { m = m.slice(0,3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]; };
+              let bg = null; for (let e = g; e && !bg; e = e.parentElement) { const m = rgb(getComputedStyle(e).backgroundColor); if ((m.length < 4 || m[3] === 1)) bg = m; }
+              bg = bg || [255,255,255];
+              const a = L(rgb(sc.color)), b = L(bg);
+              return JSON.stringify({l: q.left, r: q.right, w: innerWidth, vis: sc.visibility, ratio: (Math.max(a,b)+.05)/(Math.min(a,b)+.05)}); })()""", sid))
+            self.assertGreaterEqual(got["l"], 0, got)
+            self.assertLessEqual(got["r"], got["w"], got)
+            self.assertEqual(got["vis"], "visible")
+            self.assertGreaterEqual(got["ratio"], 3.0, f"icon contrast (non-text 3:1): {got}")
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
