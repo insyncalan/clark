@@ -710,12 +710,12 @@ def why_off(state, provider=DEFAULT_PROVIDER):
     if state == "ready":
         return ""
     if state == "off":
-        return "AI suggestions are switched off. Turn them on in Settings, under AI."
+        return "AI suggestions are switched off. Turn them on in Settings, under Claude and AI."
     if state == "not_signed_in":
-        return f"Connect to {provider} in Settings, under AI, to use AI suggestions."
+        return f"Connect to {provider} in Settings, under Claude and AI, to use AI suggestions."
     if state == "busy":
         return "Another AI request is running. Try again when it has finished."
-    return "AI suggestions aren't available right now. Check Settings, under AI."
+    return "AI suggestions aren't available right now. Check Settings, under Claude and AI."
 
 
 FAULT_MESSAGES = {"default": "No suggestion came back. Try again.", "stopped": "Stopped. Nothing was changed.",

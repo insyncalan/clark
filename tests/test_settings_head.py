@@ -221,6 +221,18 @@ class Head(Base):
             p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
             p.until("document.activeElement && document.activeElement.id === 'pubs-h'", "Published reports focuses its heading")
 
+    def test_C_a_help_link_to_a_settings_page_opens_that_page(self):
+        """A Help link go:settings#pubs opens the Published reports page, not the first page (go:settings#update, #profile and #people are mapped the same way in helpStore.js)."""
+        for anchor, slug, head, place in (("pubs", "published", "pubs-h", "howto-update-clark"),):      # the How do I list holds the Open Settings link of the find-a-past-publication job
+            with self.subTest(anchor=anchor), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, 1400)
+                p.js("window.clarkPage.help.open(%s)" % json.dumps(place))
+                p.until("!!document.querySelector('[data-hgo=\"settings#%s\"]')" % anchor, "Help shows a link to settings#" + anchor)
+                p.js("document.querySelector('[data-hgo=\"settings#%s\"]').click()" % anchor)
+                p.until("!!document.getElementById('%s')" % head, "the %s page drew" % slug)
+                self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), slug, "the address names the page")
+
     def test_C_arrows_move_between_entries_and_enter_chooses(self):
         with chrome() as cdp:
             p = self.page(cdp)

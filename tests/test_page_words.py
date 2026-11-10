@@ -247,7 +247,7 @@ class Words(unittest.TestCase):
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                                  "AI",                 # #72: the AI status line in the Asking part (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version."
                 ],

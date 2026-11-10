@@ -146,7 +146,7 @@ export function AskPanel() {
     const d = e.key === "ArrowLeft" ? 24 : e.key === "ArrowRight" ? -24 : 0;
     if (d) { e.preventDefault(); setWidth(panelWidth.value + d, true); }
   }
-  // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
+  // To Settings, the Claude and AI page and its Asking part: scrolled into view and focused, so the link lands on the switch, not at the top.
   function toSettings(e) {
     e.preventDefault(); closePanel(); openSettings("claude-ai");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading

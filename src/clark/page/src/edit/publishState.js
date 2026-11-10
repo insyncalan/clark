@@ -12,7 +12,7 @@ import { printUrl } from "../logic/printView.js";
 import { say } from "./menuNote.js";
 import { placeholderItems, placeholderWarning } from "../logic/placeholders.js";
 
-// With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
+// With no client folder, To client says where to set one; the second part is a link to the Folder page (the prototype's
 // "Set it in Settings, Publishing", io.js).
 export const NO_FOLDER_LEAD = "No client folder yet. Set it in ", NO_FOLDER_LINK = "Settings, Publishing";
 export const NO_FOLDER = NO_FOLDER_LEAD + NO_FOLDER_LINK + ".";
@@ -71,7 +71,7 @@ export function close() {
   if (back) back.focus();
 }
 
-// The link in To client: the box closes, Settings opens and the Publishing card is scrolled into view and takes the focus.
+// The link in To client: the box closes, Settings opens on the Folder page and its heading is scrolled into view and takes the focus.
 export function toPublishingCard() {
   const el = document.getElementById("publish-dialog");
   if (el && el.open) el.close();

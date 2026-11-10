@@ -1,7 +1,7 @@
 """A file for a section template (#96, R2): the logic of POST /api/section-file {project, section}.
 
 Files are links to the project's shared folder (the owner's decision 3 on #96): clark copies the chosen file into the client
-folder (Settings › Publishing › Client folder, projects.publish_client), in its "Report files" folder, and the section keeps only
+folder (Settings › Folder › Client folder, projects.publish_client), in its "Report files" folder, and the section keeps only
 {name, rel, bytes}, where rel is "Report files/<name>": an address relative to the report, so the link opens from the client's copy
 of the report, which sits in that folder. The steps, each refused in plain words with the next step, and nothing written until
 all are clear:
@@ -49,7 +49,7 @@ MESSAGES = {
     "no_file_here": changes.NO_FILE_HERE,
     "busy": "A publish or another file is being worked on. Wait for it to finish, then add the file again.",
     "no_client_folder": "This project has no client folder yet, so the file has nowhere to go. Choose one in Settings, under "
-                        "Publishing, then add the file again.",
+                        "Folder, then add the file again.",
     "client_folder_refused": "{reason} Then add the file again.",
     "dialog_failed": "{reason}",
     "full": "{reason}",

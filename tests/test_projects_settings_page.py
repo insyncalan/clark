@@ -325,7 +325,16 @@ class Browser(unittest.TestCase):
         text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
         self.assertIn('{ "data-row-menu": "", disabled: !!busy }', text, "a second pick while busy cannot be made")
         self.assertIn("menuLabel={L.moreFor(r.name)}", text, "the menu box is named for its project")
-        self.assertRegex(text, r"requestAnimationFrame[\s\S]{0,160}\[data-row-menu\]", "Restore puts focus on the row's menu button")
+        s = self.serve()      # Restore is clicked and the focus is read, not the source text
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port, 900)
+            self.pick(cdp, sid, "MOSS", "archive")
+            self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "archived")
+            cdp.js("document.querySelector('#show-archived').click()", sid)
+            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS].arch')", "the archived row")
+            self.pick(cdp, sid, "MOSS", "restore")
+            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "restored")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.hasAttribute('data-row-menu') && document.activeElement.closest('tr').dataset.project === 'MOSS'", "Restore puts focus on the row's menu button")
 
     def test_the_row_menu_stays_inside_the_row_without_sideways_scroll_at_360_420_and_900_px(self):       # item 1024b
         s = self.serve()
