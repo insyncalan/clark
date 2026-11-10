@@ -234,6 +234,11 @@ class ClarkLocalhostOrigin(unittest.TestCase):
     def test_the_csp_treats_clark_localhost_as_this_machine(self):
         self.assertIn("clark.localhost", sv.CSP_LOOPBACK)
 
+    def test_a_report_naming_clark_localhost_is_classed_self_and_a_lookalike_external(self):
+        self.assertEqual(sv.csp_kind("http://clark.localhost:8766/x.js"), "self")
+        self.assertEqual(sv.csp_kind("http://evil.clark.localhost.example/x.js"), "external")
+        self.assertEqual(sv.csp_kind("http://127.0.0.1:8766/x.js"), "self")
+
 
 class Token(ServerTest):
     """Test 3: every /api/ route, from the route tables themselves."""

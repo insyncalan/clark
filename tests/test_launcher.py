@@ -801,6 +801,13 @@ class PlatformCalls(unittest.TestCase):
         self.assertTrue(kw["start_new_session"])
         self.assertIsNot(kw.get("shell"), True)
 
+    def test_launch_opens_the_window_by_default_with_open_in_chrome_and_the_browser_with_open_url(self):
+        """Row 1076: every other test passes its own open_window; the default is what a real launch uses."""
+        import inspect
+        d = inspect.signature(launch.launch).parameters
+        self.assertIs(d["open_window"].default, pl.open_in_chrome)
+        self.assertIs(d["open_browser"].default, pl.open_url)
+
     def test_only_a_web_address_is_opened_and_a_failure_is_plain(self):
         for bad in ("file:///etc/passwd", "--user-data-dir=/x", "javascript:1", "http://a b"):
             with self.assertRaisesRegex(pl.PlatformError, "Only web addresses"):
