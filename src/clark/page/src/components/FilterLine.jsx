@@ -38,7 +38,7 @@ export function layoutItems(w, board) {
   out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === g })));
   if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", checked: lane === "none" },
     ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, checked: lane === x })));
-  return { items: out, label: `View: ${onBoard ? "board" : board ? "table" : ""}${board ? ", " : ""}grouped by ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
+  return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
 }
 
 // Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
@@ -166,7 +166,7 @@ function SavedViews({ board }) {
         </span>
       )}
       {fromFile.value || !board ? null : <LayoutSwitch />}
-      {fromFile.value ? null : <Menu label="View" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm" menuId="viewMenuList" menuLabel="View" items={lay.items} onPick={act} />}
+      {fromFile.value ? null : <Menu label="" icon="group" chevron={false} tip="Group by" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm gbtn" menuId="viewMenuList" menuLabel="Group by" items={lay.items} onPick={act} />}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>

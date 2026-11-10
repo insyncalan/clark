@@ -332,6 +332,26 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('#fline-gloss').hidden", "the meaning goes when the pointer and focus leave")
         self.each(check)
 
+    # ---- row 1072 ----
+    def test_row_1072_group_by_is_one_icon_button_the_size_of_table_and_board(self):
+        def check(cdp, sid, width):
+            got = cdp.js("""(() => { const g = document.querySelector('#viewMenu'), t = document.querySelector('#work [data-lay=table]'), b = document.querySelector('#work [data-lay=board]');
+              const r = (e) => { const q = e.getBoundingClientRect(); return [Math.round(q.width), Math.round(q.height)]; };
+              g.focus(); const cs = getComputedStyle(g);
+              return JSON.stringify({text: g.textContent.trim(), svg: g.querySelectorAll('svg').length, title: g.title, name: g.getAttribute('aria-label'), g: r(g), t: r(t), b: r(b),
+                ring: cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2, popup: g.getAttribute('aria-haspopup')}); })()""", sid)
+            got = json.loads(got)
+            self.assertEqual(got["text"], "", "no words on the button")
+            self.assertEqual(got["svg"], 1, "one icon, no chevron")
+            self.assertEqual(got["title"], "Group by")
+            self.assertTrue(got["name"].startswith("Group by"), got["name"])
+            self.assertEqual(got["popup"], "menu")
+            self.assertEqual(got["g"], got["t"], "the same size as Table")
+            self.assertEqual(got["g"], got["b"], "the same size as Board")
+            self.assertTrue(got["ring"], "a focus ring shows")
+            self.assertGreaterEqual(min(got["g"]), 24)
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
@@ -346,7 +366,7 @@ class Header(Base):
             click(cdp, sid, "#viewMenu")
             self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList .lab')].map(l => l.textContent)", sid), ["Group by"])
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by: Workstream")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
             # pressing Board: the board draws, the switch follows, and the menu gains the swimlanes; Table brings the table back

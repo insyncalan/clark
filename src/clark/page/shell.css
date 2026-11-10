@@ -2075,6 +2075,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
 .lsw button { display: inline-grid; place-items: center; min-width: 40px; padding: var(--space-1) var(--space-3); }
 .lsw .i { width: 18px; height: 18px; }
+.btn.gbtn { box-sizing: border-box; display: inline-grid; place-items: center; width: 42px; min-height: 32px; height: 32px; padding: 0; margin-bottom: var(--space-1); }   /* row 1072: Group by, one icon button the size of Table and Board */
+.btn.gbtn .i { width: 18px; height: 18px; }
+.btn.gbtn:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .fx { all: unset; box-sizing: border-box; flex: none; display: grid; place-items: center; width: 24px; height: 24px; border-radius: 6px; cursor: pointer; color: var(--text-muted); font-size: var(--size-body); line-height: 1; }
 .fx:hover { background: var(--grey-100); color: var(--text); }
 .fx:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
