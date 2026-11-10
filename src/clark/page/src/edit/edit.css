@@ -1073,11 +1073,24 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
-.item-rows-edit .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
-.item-rows-edit .wl-title .tag { flex: none; }
-.item-rows-edit .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-rows-edit .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
+.item-rows-edit .wl:not(.irows) .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
+.item-rows-edit .wl:not(.irows) .wl-title .tag { flex: none; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* Row 1021: the status icon in Edit is the status control (a button around the tinted square): the caret and the tooltip share its ::after. */
+.irows .cell-pick[data-cell$=":status"]:not(:hover):not(:focus-visible)::after { content: none; }
+.irows .cell-pick[data-tip] { position: relative; }
+.irows .cell-pick[data-tip]:hover::after, .irows .cell-pick[data-tip]:focus-visible::after { opacity: 1; }
+.irows .c-owner .cell-pick, .irows .c-date .cell-pick { max-width: 100%; }
+.irows .c-owner .cell-val { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.irows .wl-title .cell-ce { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irows .wl-title .cell-ce:focus { text-overflow: clip; }
+.irows .c-id .ib { flex: none; }
+@media (max-width: 560px) {      /* a decision's 'Needed by 03-11-2026' in Edit goes on two lines in its 112 px column rather than run into the id */
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] { white-space: normal; line-height: 1.25; }
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] .cell-val { flex: 0 1 auto; min-width: 0; }
+}
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
