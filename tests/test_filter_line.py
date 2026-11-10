@@ -291,9 +291,6 @@ class Messages(Line):
     def test_the_two_glossed_values_say_what_they_mean(self):
         self.assertEqual(self.parse("is:quiet")["chips"][0]["say"], "Not reviewed in 14 days")
         self.assertEqual(self.parse("is:incomplete")["chips"][0]["say"], "No owner or no date")
-        hints = {h["text"]: h["gloss"] for h in self.val(f"T.fl.hints({lit(CTX)})")}
-        self.assertEqual(hints["is:quiet"], "Not reviewed in 14 days")
-        self.assertEqual(hints["is:incomplete"], "No owner or no date")
         sug = {s["label"]: s["gloss"] for s in self.val(f"T.fl.suggest('is:', {lit(ROWS)}, {lit(CTX)})")}
         self.assertEqual(sug["quiet"], "Not reviewed in 14 days")
 
@@ -315,10 +312,7 @@ class Messages(Line):
         self.assertEqual(off, ["open", "closed", "overdue", "incomplete"])
         on = [s["label"] for s in self.val(f"T.fl.suggest('is:', {lit(ROWS)}, {lit(OFF)})")]
         self.assertEqual(on, ["open", "closed", "overdue", "quiet", "incomplete"])
-        self.assertNotIn("is:quiet", [h["text"] for h in self.val(f"T.fl.hints({lit(OFF)})")])
-        self.assertNotIn("is:quiet", [h["text"] for h in self.val("T.fl.HINTS")])
-        self.assertIn("is:quiet", [h["text"] for h in self.val(f"T.fl.hints({lit(CTX)})")])
-        self.assertIn("is:quiet", [h["text"] for h in self.val("T.fl.hints({quietReady: true})")])
+        self.assertEqual(self.val("typeof T.fl.hints + typeof T.fl.HINTS"), "undefinedundefined", "the Try chip data is gone with the chip line")
 
     def test_quiet_incomplete_needed(self):
         self.assertEqual(self.ids("is:quiet"), ["T-R-001"])
@@ -328,7 +322,7 @@ class Messages(Line):
 
     def test_no_message_starts_with_the_product_name_or_holds_a_date_or_a_name(self):
         msgs = [self.one_error(x) for x in ("status:Opne", "is:old", "stauts:x", "no:", "status:", "owner:Nobody")]
-        msgs += [self.val("T.fl.NO_ME")] + [h["gloss"] for h in self.val(f"T.fl.hints({lit(CTX)})")]
+        msgs += [self.val("T.fl.NO_ME")]
         for m in msgs:
             self.assertFalse(m.lower().startswith("clark"), m)
             self.assertNotRegex(m, r"\d{2}-\d{2}-\d{4}|\d{4}-\d{2}-\d{2}", m)

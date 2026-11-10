@@ -3,6 +3,7 @@
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
 // tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
+import { ImportExport } from "./ImportExport.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -205,7 +206,7 @@ function SavedViews({ board }) {
   );
 }
 
-export function FilterLine({ board }) {
+export function FilterLine({ board, tools }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx);
@@ -379,6 +380,7 @@ export function FilterLine({ board }) {
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        {tools && !fromFile.value ? <ImportExport tools={tools} line /> : null}
         <ViewIcons board={board} />
       </div>
       {notes.length ? null : suggestions}

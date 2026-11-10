@@ -50,7 +50,21 @@ class IconsOnTheLine(Base):
             self.assertEqual(cdp.js("document.querySelectorAll('.fhint, .fhl').length", sid), 0, "no Try chips")
             self.assertNotIn("Try", cdp.js("document.querySelector('.fline-wrap').textContent", sid))
             self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts .newb').length", sid), 1, "the + button stays")
-            self.assertEqual(cdp.js("document.querySelector('#work .hacts').children.length >= 2", sid), True, "Import and Export stay")
+
+    def test_import_and_export_are_icons_on_the_filter_line_and_not_in_the_top_bar(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts #impBtn, #work .hacts #expBtn').length", sid), 0, "not in the top bar")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .fline #impBtn, #work .fline #expBtn').length", sid), 2, "both inside the filter line")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn, #expBtn').length", sid), 2, "one of each")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('#impBtn, #expBtn')].map(b => [b.getAttribute('aria-label'), b.textContent.trim()])", sid),
+                                 [["Import from Excel", ""], ["Export to Excel", ""]], "icons, named")
+                got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(), v = document.querySelector('#work .fline .vicons').getBoundingClientRect();"
+                             " return ['#impBtn', '#expBtn'].map(q => { const r = document.querySelector(q).getBoundingClientRect();"
+                             " return [r.left >= f.left && r.right <= f.right && r.top >= f.top && r.bottom <= f.bottom, r.right <= v.left + 1, r.width >= 24 && r.height >= 28]; }); })()", sid)
+                self.assertEqual(got, [[True, True, True]] * 2, "inside the box, before the List, Board and Group by icons, 24 x 28 or more")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
 
     def test_the_icons_still_work_and_the_tabs_keep_their_counts(self):
         with chrome() as cdp:
