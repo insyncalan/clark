@@ -14,22 +14,22 @@ const allRows = { get value() { return searchRows(everyRow.value, found.value, q
 // `L` is the app's filter line (#153, handed over at start-up): then the switches read and change the line, and their counts are what the
 // line would show. Without it (the published file) they read and change the older state in the address.
 export function Switches({ children, L }) {
-  // Row 1059: in the app the type and Open / Closed / All pills are gone; type: and status: (and is:open, is:closed) are on the filter
-  // line. The published file has no line, so its reader keeps the pills.
-  // The row keeps its height while its one pill is still being read, so the list does not jump down when the pill arrives.
-  if (L) return <div class="wbar" style={children ? { minHeight: "32px" } : null}>{children ? <div class="vctl">{children}</div> : null}</div>;
   const today = fromFile.value && asAt.value ? asAt.value : todayIso(), rows = allRows.value;
-  const st = filterState.value;
-  const n = counts(rows, st, today), t = typeCounts(rows, st, today);
-  const setT = (v) => setFilterState(setType(filterState.value, v)), setM = (v) => setFilterState(setMode(filterState.value, v));
+  const sw = L ? L.switches(rows, filterCtx()) : null;
+  const st = sw ? sw.state : filterState.value;
+  const n = sw ? sw.n : counts(rows, st, today), t = sw ? sw.t : typeCounts(rows, st, today);
+  const setT = (v) => (L ? L.pickType(v) : setFilterState(setType(filterState.value, v))), setM = (v) => (L ? L.pickMode(v) : setFilterState(setMode(filterState.value, v)));
+  if (L && !children) return null;                       // row 1059: with the pills gone the app's bar holds nothing of its own
   return (
-    <div class="wbar">
+    <div class={L ? "wbar keep" : "wbar"}>      {/* the Show archived pill arrives after the page draws; the row keeps its height so the list does not drop when it does */}
+      {L ? null : <>
       <div class="seg" role="group" aria-label="Type">
         {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setT(v)}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}
       </div>
       <div class="seg" role="group" aria-label="Open or closed">
         {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setM(v)}>{w} <em class="num" key={n[v]}>{n[v]}</em></button>)}
       </div>
+      </>}
       {children ? <div class="vctl">{children}</div> : null}
     </div>
   );

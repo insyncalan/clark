@@ -166,7 +166,7 @@ class Live(rm.Menu):
                 sid = self.visit(cdp)
                 motion_of(cdp, sid, motion)
                 d = self.drive(cdp, sid)
-                set_line(cdp, sid, "is:open type:risk")
+                set_line(cdp, sid, "type:risk,issue,assumption,dependency")      # row 1059: the type pill is gone
                 d.until("!!document.querySelector(\"#work-list tr[data-kind='risk'] [data-cell$=':priority']\")", "a risk row's priority cell")
                 click(cdp, sid, "#work-list tr[data-kind='risk'] [data-cell$=':priority']")
                 d.until("!!document.querySelector('.cpop.rpick')", "the rating picker opened")

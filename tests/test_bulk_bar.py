@@ -134,8 +134,9 @@ class Page(Base):
 
     def load(self, cdp, width=1400, edit=True, kind="action", mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
-        # Row 1059: the type and Open / Closed / All pills are gone; the same choices are words on the filter line.
-        set_line(cdp, sid, " ".join(w for w in ({"open": "is:open", "closed": "is:closed", "all": ""}[mode], ("type:risk,issue" if kind == "risk" else f"type:{kind}") if kind else "") if w))
+        # row 1059: the Open / Closed / All and type pills are gone; the same two words are typed on the filter line
+        words = ([f"type:{'risk,issue,assumption,dependency' if kind == 'risk' else kind}"] if kind else []) + ([] if mode == "all" else [f"is:{mode}"])
+        set_line(cdp, sid, " ".join(words))
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the rows")
         return sid
 

@@ -20,7 +20,7 @@ from test_excel_picture import make_png
 BRAND_ONE = """/* an invented teal look */
 :root {
   --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820; --grey-300: #B8C4D0;
-  --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
+  --status-green-tint: #DDF5F0; --status-green-text: #046B5F; --tone-green-tint: #DDF5F0; --tone-green-text: #046B5F;
   --font-office: 'Segoe UI', sans-serif;
 }
 :root[data-theme=dark] { --brand-navy: #FFEEDD; --brand-blue: #AB1234; --font-office: Verdana; --status-green-tint: #123456; }

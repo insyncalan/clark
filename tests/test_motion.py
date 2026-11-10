@@ -17,10 +17,10 @@ from _editor_checks import for_url
 from _paths import SRC, TOOLS
 import _testpage as testpage
 import test_enrichments as te
+import test_work_filters as tf
 import test_publish_dialog as tpd
 import test_report_editor as tre
 from test_server import Running, chrome
-from test_work_filters import set_line
 
 sys.path.insert(0, str(TOOLS))
 
@@ -194,12 +194,13 @@ class Looks(tre.Base):
                 p = self.go(cdp, "#work&p=ABC", mode)
                 p.until("!!document.querySelector('#work-count')", "the list drew")
                 before = p.js("document.querySelector('#work-count').textContent")
-                set_line(p.cdp, p.sid, "is:closed")      # row 1059: the Open / Closed / All pills are gone; the line says it
+                tf.set_line(p.cdp, p.sid, "is:closed")      # row 1059: the Open / Closed / All pills are gone; the line says it
                 p.until(f"document.querySelector('#work-count').textContent !== {before!r}", "the count changed")
                 name, running = self.anim(p, "#work-count")
                 if mode[0] == "allowed":
                     self.assertEqual(name, "m-in")
                     self.assertGreater(running, 0)
+                    self.assertEqual(p.js("document.querySelector('#fline-input').disabled"), False, "the filter line stays live")
                 else:
                     self.assertEqual((name, running), ("none", 0))
 

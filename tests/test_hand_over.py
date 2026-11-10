@@ -346,7 +346,7 @@ class Page(Base):
             sid = self.load(cdp)
             self.start(cdp, sid)
             click(cdp, sid, "#hand-all")
-            set_line(cdp, sid, 'owner:"Sara Khan" type:action')      # the page was opened on this owner, all modes
+            set_line(cdp, sid, cdp.js("document.querySelector('[data-fline]').dataset.line", sid) + " type:action")      # row 1059: the type pill is gone; the word is added to the line as it stands
             self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length < 4", "the filter")
             now = cdp.js(self.ROWS, sid)
             self.assertEqual((cdp.js(self.TICKS, sid), self.count(cdp, sid)), (now, f"{len(now)} of {len(now)} selected"))

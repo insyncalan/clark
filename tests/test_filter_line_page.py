@@ -148,8 +148,8 @@ class Line(unittest.TestCase):
                     self.assertEqual(self.chips(cdp, sid), ["is:open"])
                     self.assertEqual(self.shown(cdp, sid), expect(self.rows(cdp, sid)))
                     self.assertEqual(cdp.js("document.querySelectorAll('.fbar, .fbtn').length", sid), 0)
-                    # row 1059: the type and Open / Closed / All switches are gone (type: and is: on the line do their work)
-                    self.assertEqual(cdp.js("document.querySelectorAll('[data-show], [data-type][aria-pressed]').length", sid), 0)
+                    # row 1059: the type and Open / Closed / All pills are gone (is:open, is:closed and type: on the line do their work)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-show], [data-type=all], [data-type=action], [data-type=risk], [data-type=decision]').length", sid), 0)
                     self.assertEqual(cdp.js("document.querySelectorAll('#fline-input[role=combobox][aria-label]').length", sid), 1)
                     self.assertEqual(cdp.js("document.querySelector('#fline-msg').getAttribute('role')", sid), "status")
                     n = len(expect(self.rows(cdp, sid)))
@@ -157,31 +157,35 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
                     self.assertEqual(cdp.js("history.length", sid), self.steps)
 
-    def test_the_list_follows_the_mode_and_type_words_on_the_line_after_each_filter_at_1400_and_900_px(self):
-        # Row 1059: the pills are gone; is:open, is:closed and type: on the line are the only way, and the list is what the rules give.
+    def test_the_list_equals_the_rows_for_each_mode_and_type_typed_on_the_line_at_1400_and_900_px(self):
+        # row 1059: the Open / Closed / All and type pills are gone; the same words typed on the line (is:open, is:closed, type:) show the same rows
         s = self.serve()
         for code in self.data:
             for width in SIZES:
                 with self.subTest(project=code, width=width), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, hash_=f"#work&p={code}")
                     rows = self.rows(cdp, sid)
-                    self.assertEqual(self.shown(cdp, sid), expect(rows))
-                    for line, filters in (("priority:High", {"priority": ["High"]}), ("due:overdue", {"due": ["overdue"]})):
-                        for words, mode, kind in (("is:open", "open", "all"), ("is:closed", "closed", "all"), ("", "all", "all"), ("type:action", "all", "action"), ("is:open type:decision", "open", "decision")):
-                            set_line(cdp, sid, f"{words} {line}".strip())
-                            want = expect(rows, mode, kind, filters)
-                            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{words} {line}: {self.shown(cdp, sid)} != {want}")
+                    self.assertEqual(self.shown(cdp, sid), expect(rows, "open"))
+                    for line, filters in (("priority:High", {"priority": ["High"]}), ("priority:High,Medium client:internal", {"priority": ["High", "Medium"], "client": ["no"]}),
+                                          ("due:overdue", {"due": ["overdue"]})):
+                        for mode in ("open", "closed", "all"):
+                            set_line(cdp, sid, ("" if mode == "all" else f"is:{mode} ") + line)
+                            want = expect(rows, mode, filters=filters)
+                            self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line} {mode}")
+                        set_line(cdp, sid, "type:action " + line)
+                        want = expect(rows, "all", "action", filters)
+                        self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line} actions")
 
     def test_a_filter_change_redraws_only_the_list(self):
         s = self.serve()
-        sels = ["h1", ".crumbs", ".head", ".wbar", ".fline-wrap", INPUT, "#newBtn", "#work-list"]
+        sels = ["h1", ".crumbs", ".head", ".fline-wrap", INPUT, "#newBtn", "#work-list"]
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             cdp.js(f"window.__sels = {json.dumps(sels)}; window.__keep = window.__sels.map(q => document.querySelector(q)); window.__tbody = document.querySelector('#work tbody')", sid)
             self.put(cdp, sid, "type:action is:closed")
-            self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["type:action", "is:closed"]), "the words are on the line")
+            self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["type:action", "is:closed"]), "the line holds both words")
             self.assertEqual(cdp.js("window.__keep.map((e, i) => e === document.querySelector(window.__sels[i]))", sid), [True] * len(sels),
-                             "the heading, the bar, the line, Add and the list's own box are the same elements")
+                             "the heading, the line, Add and the list's own box are the same elements")
             self.assertEqual(cdp.js("window.__tbody === document.querySelector('#work tbody')", sid), True)
             self.assertEqual(sorted({k for k in cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.kind)", sid)}), ["action"])
 
@@ -1084,11 +1088,8 @@ class Line(unittest.TestCase):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     top = "document.querySelector('#work-list').getBoundingClientRect().top"
-                    self.put(cdp, sid, "")
-                    # row 1059: with the pills gone the bar holds only the right-hand controls, which are drawn a moment after the list; measure once settled
-                    steady = []
-                    wait(lambda: (steady.append(cdp.js(top, sid)), len(steady) > 4 and len(set(steady[-4:])) == 1)[1])
                     before = cdp.js(top, sid)
+                    self.put(cdp, sid, "")
                     self.arm(cdp, sid)
                     self.assertTrue(wait(lambda: self.listed(cdp, sid) == self.FIELDS_ALL), "the list of fields is open")
                     self.assertEqual(cdp.js("getComputedStyle(document.querySelector('#fline-list')).position", sid), "absolute")

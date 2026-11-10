@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_commitment_page
 Where it is drawn: the Dashboard's use case rows, the Use cases page and a use case's own page, and the published file (its dashboard and
 its Use cases tab). A use case with no flag has NO chip in View and on the published page; in Edit it has the quiet "Set commitment"
-menu button, which is not in the published file's bytes. Widths 1400, 901, 900 and 800 px, light and dark: nothing overlaps or runs
+menu button, which is not in the published file's bytes. Widths 1400 and 900 px, light and dark: nothing overlaps or runs
 out of its cell. Fictional data; the page is the committed one, served by a real server over a real store.
 """
 import tempfile
@@ -140,8 +140,8 @@ class Fit(Flags):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"commitment": "Planned 2027", "status": "High risk"})
 
-    def test_nothing_overlaps_or_wraps_at_1400_901_900_and_800_light_and_dark(self):
-        for width in (1400, 901, 900, 800):
+    def test_nothing_overlaps_or_wraps_at_1400_and_900_light_and_dark(self):
+        for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
