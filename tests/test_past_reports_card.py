@@ -398,6 +398,58 @@ class Card(InBrowser):
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs td')).color; return c !== getComputedStyle(document.body).backgroundColor; })()"))
                     self.assertTrue(self.val("(() => { const c = getComputedStyle(document.querySelector('#pubs-latest')).backgroundColor; return c !== 'rgba(0, 0, 0, 0)'; })()"))
 
+    def test_hostile_impossible_times_are_left_as_they_came_not_rolled_to_another_day(self):
+        for bad in ("31-02-2026 10:00", "32-01-2026 10:00", "10-13-2026 10:00", "10-10-2026 25:00", "10-10-2026 10:61"):
+            self.assertEqual(self.val(f"T.logic.localWhen({lit(bad)}, 'UTC')"), bad, bad)
+        self.assertEqual(self.val("T.logic.localWhen('10-10-2026 10:00', 'No/Such_Zone')"), "10-10-2026 10:00")
+        self.assertEqual(self.val("T.logic.localWhen(null, 'UTC')"), "null")
+
+    def test_a_number_with_only_a_word_copy_has_no_open_and_a_hostile_week_is_not_a_date(self):
+        word_only = {"number": 7, "when": "01-11-2026 10:00", "where": "Local \u00b7 Word", "who": "\u5f20\u4f1f \U0001f600", "word": True, "kept": False, "week": "2026-11-06\n"}
+        self.replies(list=OK({**LIST, "total": 3, "shown": 3, "publications": [ROWS[1], word_only, ROWS[3]]}))
+        self.mount()
+        self.assertFalse(self.present("[data-pubopen='7']"), "a Word-only number has nothing to open")
+        row = self.text("tr[data-pub='7']")
+        self.assertIn("Word", row)
+        self.assertIn("Not recorded", row, "a week with a trailing newline is not a week")
+        self.assertIn("\u5f20\u4f1f", row)
+
+    def test_when_the_newest_is_archived_the_latest_is_the_newest_that_is_not_and_the_archived_one_is_a_row(self):
+        rows = [{**ROWS[1], "archived": True}, {**ROWS[0], "archived": True}, ROWS[2], ROWS[3]]
+        self.replies(list=OK({**LIST, "archived": 1, "publications": rows}))
+        self.js("T.showArch = true")
+        self.mount()
+        self.click("#pubs-archived")
+        self.assertIn("Publication 2", self.text("#pubs-latest"), "an archived number is never the Latest")
+        self.assertNotIn("Archived", self.text("#pubs-latest"))
+        self.assertTrue(self.present("tr[data-pub='3'] [data-pubrestore]"))
+
+    def test_one_publication_alone_is_the_latest_with_no_earlier_and_hostile_folders_are_text(self):
+        evil = '<img src=x onerror="window.pwned2 = 1">'
+        self.replies(list=OK({**LIST, "total": 1, "shown": 1, "publications": [ROWS[3]]}))
+        self.js(f"T.folders = {{local: {lit(evil)}, client: {lit('x' * 3000)}}}")
+        self.mount()
+        self.assertIn("Publication 1", self.text("#pubs-latest"))
+        self.assertEqual(self.text("#pubs-earlier-none"), "No earlier reports.")
+        self.assertFalse(self.present("#pubs-table"))
+        self.assertFalse(self.val("!!window.pwned2"))
+        self.assertFalse(self.present("#pubs img"))
+        self.assertEqual(self.text("#pubs-local"), evil)
+
+    def test_a_huge_who_and_folder_never_push_the_page_sideways_at_1400_and_900_in_light_and_dark(self):
+        huge = "W" * 4000
+        long_path = "/Users/" + "very-long-folder-name/" * 60
+        rows = [{**ROWS[1], "who": huge}, {**ROWS[2], "who": huge}, {**ROWS[3], "who": huge + " " + huge}]
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme):
+                    self.load(width=width, theme=theme)
+                    self.replies(list=OK({**LIST, "total": 3, "shown": 3, "publications": rows}), tab=True)
+                    self.js(f"T.folders = {{local: {lit(long_path)}, client: {lit(huge)}}}")
+                    self.mount()
+                    self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
+                    self.assertTrue(self.val("[...document.querySelectorAll('#pubs-latest, #pubs-folders, #pubs-table, #pubs-latest p, #pubs-folders p')].every(b => b.getBoundingClientRect().right <= innerWidth + 1)"))
+
 
 if __name__ == "__main__":
     unittest.main()

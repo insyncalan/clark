@@ -72,6 +72,8 @@ export function localWhen(when, zone) {
   if (!m) return String(when);
   const at = new Date(Date.UTC(+m[3], +m[2] - 1, +m[1], +m[4], +m[5]));
   if (Number.isNaN(at.getTime())) return String(when);
+  // Date.UTC rolls an impossible date over (31-02 becomes 03-03): a time that does not read back as written is returned as it came.
+  if (at.getUTCDate() !== +m[1] || at.getUTCMonth() !== +m[2] - 1 || at.getUTCFullYear() !== +m[3] || at.getUTCHours() !== +m[4] || at.getUTCMinutes() !== +m[5]) return String(when);
   try {
     const f = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
     const g = {};
