@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named, ASK_NOTICE_LINE } from "./askWords.js";
+import { named } from "./askWords.js";
 import { AiSettings } from "./AiSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
