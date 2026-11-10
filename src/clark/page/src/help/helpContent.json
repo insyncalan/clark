@@ -2882,7 +2882,7 @@
      "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."
     },
     {
-     "d": "To use the newest zip in your Downloads folder, press “Review the brand in Downloads”. To pick a zip yourself, press **Choose zip…**."
+     "d": "To use the newest brand kit in your Downloads folder, press “Review the brand in Downloads”. To pick a zip yourself, press **Choose zip…**."
     },
     {
      "d": "Read the review. It lists what the kit adds, replaces or removes. Nothing changes yet."
@@ -2891,7 +2891,7 @@
      "d": "Press **Install** for a new brand or **Replace** for one already added. Press **Cancel** to stop with nothing changed."
     },
     {
-     "d": "To take back the last install, replace or remove, press **Undo**. To take a brand away, press **Remove** on its row and confirm."
+     "d": "To take back the last install, replace or remove, press **Undo**. To take away a brand you added, press **Remove** on its row and confirm."
     }
    ],
    "result": "The brand is added, and clark uses its colours, fonts and pictures.",
