@@ -113,8 +113,22 @@ export function tabCounts(rows, f) {
   return Object.fromEntries(TABS.map(([id, , keeps]) => [id, base.filter(keeps).length]));
 }
 
+// ---- Group by (row 1085) ----
+// Status, Commitment, On the dashboard or Nothing (the start): each group a bordered card as the Work items groups are, a group with no row left out.
+export const GROUPS = [["status", "Status"], ["commitment", "Commitment"], ["on", ON_WORDS], ["nothing", "Nothing"]];
+export const groupLabel = (id) => (GROUPS.find(([k]) => k === id) || GROUPS[GROUPS.length - 1])[1];
+export const NONE_LABEL = "None";                                                // the group of the rows with no commitment (the Milestones cell's word)
+/** The groups of `shown` (already narrowed and ordered): [{key, label, rows}] in the group's own order. `words` is the server's commitment list, in its order. */
+export function groupsOf(shown, group, words) {
+  const by = (keys, keyOf, label) => keys.map((k) => ({ key: k, label: label(k), rows: shown.filter((r) => keyOf(r) === k) })).filter((g) => g.rows.length);
+  if (group === "status") return by(uniq([...STATUS_WORDS, ...shown.map((r) => r.status)]), (r) => r.status, (k) => k);
+  if (group === "on") return by(["on", "off"], (r) => (r.on ? "on" : "off"), (k) => (k === "on" ? ON_WORDS : OFF_WORDS));
+  if (group === "commitment") return by([...uniq([...(words || []), ...shown.map((r) => r.commitment)]), ""], (r) => r.commitment || "", (k) => k || NONE_LABEL);
+  return [{ key: "", label: "", rows: shown }];
+}
+
 // ---- narrowing, ordering and counts ----
-export const FIRST = { line: "", tab: "all", sort: "ref" };                      // what a project starts with
+export const FIRST = { line: "", tab: "all", group: "nothing", sort: "ref" };    // what a project starts with
 
 // A browser's saved state from before the line held {st, on, sort, q}: the Status choice and the search become one line (row 1085), the
 // status chip first, then the search's words as plain words (one that would read as a field is quoted, so it stays the plain word it was).
@@ -133,6 +147,7 @@ export function tidy(s) {
   return {
     line: typeof x.line === "string" ? x.line.slice(0, 600) : old ? lineFromOld(x) : "",
     tab: TABS.some(([k]) => k === x.tab) ? x.tab : old && x.on === "on" ? "on" : "all",
+    group: GROUPS.some(([k]) => k === x.group) ? x.group : "nothing",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
   };
 }

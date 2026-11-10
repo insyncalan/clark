@@ -14,7 +14,8 @@ import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, shownOf, tabCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, TABS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, shownOf, tabCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, groupsOf, groupLabel, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
+import { commitWords } from "../logic/commitment.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
@@ -31,6 +32,7 @@ const all = computed(() => (data.value ? listOf(data.value, allRows.value) : [])
 const current = signal("");                                   // the id of the row that is the list's one tab stop
 const statusOpen = signal(false);
 const archShown = signal(false);                            // row 830: Show archived is on (kept for the visit)
+const shutGroups = signal(new Set());                       // row 1085: the groups shut for the visit ("group|key"), never remembered
 let returning = "";                                           // the use case just left by Back: its row takes the focus when the list comes back
 
 function set(patch) {
@@ -158,8 +160,15 @@ function ArchivedUseCases() {
   );
 }
 
+// The column names over the rows (hidden on a phone: each row names its own parts).
+const Hd = () => <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>;
+
 function UseCasesList() {
-  const f = state.value, rows = all.value, shown = shownOf(rows, f), n = tabCounts(rows, f);
+  const f = state.value, rows = all.value, kept_ = shownOf(rows, f), n = tabCounts(rows, f);
+  // Row 1085: the rows in their groups (one plain group for Nothing); a shut group keeps its heading and its count, its rows are away for the visit.
+  const groups = groupsOf(kept_, f.group, commitWords(data.value)).map((g) => ({ ...g, shut: f.group !== "nothing" && shutGroups.value.has(`${f.group}|${g.key}`) }));
+  const shown = groups.flatMap((g) => (g.shut ? [] : g.rows));
+  const toggleGroup = (g) => { const next = new Set(shutGroups.value), k = `${f.group}|${g.key}`; if (next.has(k)) next.delete(k); else next.add(k); shutGroups.value = next; };
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
   useEffect(() => {      // coming back from a use case: its row takes the focus
@@ -175,7 +184,12 @@ function UseCasesList() {
   const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
   // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Add use case (the growing +) at its
   // right end (the ruling keeps the + and leaves the Import and Export icons off this page); the filter line under it. The tabs' counts follow the line.
-  const tools = <span class="ucl-tools"><NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} /></span>;
+  const tools = (
+    <span class="ucl-tools">
+      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" left items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
+      <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
+    </span>
+  );
   return (
     <section class="frame ucl" id="usecases">
       <div class="head">
@@ -202,21 +216,41 @@ function UseCasesList() {
         <div class="wbar ucl-bar" role="group" aria-label="Narrow the list">
           <StatusFilter f={f} rows={rows} />
           <Menu label={`Sort: ${sortWord}`} id="ucl-sort" menuLabel="Sort by" left items={SORTS.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
-          <span class="ucl-count num" id="ucl-count" role="status">{countWords(shown.length, rows)}</span>
+          <span class="ucl-count num" id="ucl-count" role="status">{countWords(kept_.length, rows)}</span>
         </div>
       ) : null}
       {!rows.length ? <p class="muted ucl-none" data-empty>No use cases yet.</p>
-        : !shown.length ? (
+        : !kept_.length ? (
           <div class="ucl-none" data-empty>
             <p class="muted">No use cases match {parts.words ? `“${parts.words}”` : "these filters"}{parts.words && filtered ? " with these filters" : ""}.</p>
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
-        ) : (
+        ) : f.group === "nothing" ? (
           <div class="ucl-box" ref={list} onKeyDown={keys}>
-            <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>
+            <Hd />
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
+          </div>
+        ) : (
+          <div class="ucl-box" ref={list} onKeyDown={keys}>
+            {groups.map((g) => (
+              <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
+                <div class="ucl-grp">
+                  <button type="button" class="grp-b" aria-expanded={g.shut ? "false" : "true"} onClick={() => toggleGroup(g)}>
+                    <Icon name="chevdown" cls={g.shut ? "turn" : ""} /><span class="gl">{g.label}</span><span class="gc num">{plural(g.rows.length, "use case")}</span>
+                  </button>
+                </div>
+                {g.shut ? null : (
+                  <>
+                    <Hd />
+                    <ul class="ucl-list" aria-label={g.label}>
+                      {g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
+                    </ul>
+                  </>
+                )}
+              </div>
+            ))}
           </div>
         )}
       <ArchivedUseCases />

@@ -722,6 +722,79 @@ class Line(Setup):
             self.assertEqual((self.line(p), self.refs(p)), ("status:Flag", ["UC 1.2"]), "the Use cases line is as it was left")
 
 
+class GroupBy(Setup):
+    """Row 1085: Group by (Status, Commitment, On the dashboard, Nothing; Nothing to start) on the tabs row: each group a bordered card with a heading
+    bar (the name, the count, open and shut) and its own column names, as the Work items groups are drawn. Remembered with the rest."""
+
+    def groups(self, p):
+        return p.js("[...document.querySelectorAll('#usecases .ucl-group')].map(g => [g.querySelector('.gl').textContent, g.querySelector('.gc').textContent, [...g.querySelectorAll('.ucl-row[data-uc] .ucl-ref')].map(e => e.textContent)])")
+
+    def pick(self, p, word):
+        self.click(p, "#ucl-group")
+        p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu")
+        p.js(f"[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.replace('✓', '').trim() === {json.dumps(word)}).click()")
+        p.until(f"document.querySelector('#ucl-group').getAttribute('aria-label') === {json.dumps('Group by: ' + word)}", f"grouped by {word}")
+
+    def test_group_by_status_commitment_and_the_dashboard_draws_bordered_groups_with_a_heading_and_a_count(self):
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc2, {"commitment": "Committed"})
+            st.update("use_cases", self.uc4, {"commitment": "Candidate"})
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group').length"), 0, "Nothing to start: one plain list")
+            self.assertEqual(p.js("document.querySelector('#ucl-group').textContent.trim()"), "Group by")
+            self.assertEqual(p.js("document.querySelector('#ucl-group').getAttribute('aria-label')"), "Group by: Nothing")
+            self.assertTrue(p.js("document.querySelector('#ucl-group').getBoundingClientRect().right <= document.querySelector('#ucAddPage').getBoundingClientRect().left"), "on the tabs row, before the +")
+            self.click(p, "#ucl-group")
+            p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the menu")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].map(b => [b.textContent.replace('✓', '').trim(), b.getAttribute('aria-checked')])"),
+                             [["Status", "false"], ["Commitment", "false"], [ON, "false"], ["Nothing", "true"]])
+            self.press(p, "Escape")
+            self.pick(p, "Status")
+            self.assertEqual(self.groups(p), [["On track", "2 use cases", ["UC 1.1", "UC 2.1"]], ["Flag", "1 use case", ["UC 1.2"]], ["High risk", "1 use case", ["UC 1.10"]]], "the status words in their order; a group with no row is not drawn")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group .ucl-hd').length"), 3, "each group has its own column names")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "solid", "a bordered card")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .grp-b')].map(b => b.getAttribute('aria-expanded'))"), ["true", "true", "true"])
+            self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
+            self.pick(p, "Commitment")
+            self.assertEqual(self.groups(p), [["Candidate", "1 use case", ["UC 2.1"]], ["Committed", "1 use case", ["UC 1.2"]], ["None", "2 use cases", ["UC 1.1", "UC 1.10"]]], "the server's words in its order, then None")
+            self.pick(p, ON)
+            self.assertEqual(self.groups(p), [[ON, "2 use cases", ["UC 1.1", "UC 1.2"]], [OFF, "2 use cases", ["UC 1.10", "UC 2.1"]]])
+            self.type_in(p, "#ucl-q", "status:Flag ")
+            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length === 1", "the line narrows the groups")
+            self.assertEqual(self.groups(p), [[ON, "1 use case", ["UC 1.2"]]], "an emptied group is not drawn")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"]["group"], "on", "remembered")
+            self.reload(p)
+            self.assertEqual(self.groups(p), [[ON, "1 use case", ["UC 1.2"]]])
+            self.pick(p, "Nothing")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group, #usecases .grp-b').length"), 0)
+            self.assertEqual(self.refs(p), ["UC 1.2"])
+
+    def test_a_group_shuts_and_opens_for_the_visit_and_the_keys_cross_the_groups(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.pick(p, "Status")
+            ids = p.js("[...document.querySelectorAll('#usecases .ucl-row[data-uc]')].map(r => r.dataset.uc)")
+            self.assertEqual(len(ids), 4)
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-list *')].filter(e => e.tabIndex >= 0).map(e => e.closest('.ucl-row').dataset.uc)"), [ids[0]], "one tab stop across the groups")
+            p.js("document.querySelector('#usecases .ucl-go').focus()")
+            self.press(p, "ArrowDown")
+            self.press(p, "ArrowDown")
+            self.assertEqual(p.js("document.activeElement.closest('.ucl-row').dataset.uc"), ids[2], "Down crosses into the next group")
+            self.press(p, "End")
+            self.assertEqual(p.js("document.activeElement.closest('.ucl-row').dataset.uc"), ids[3])
+            self.press(p, "Home")
+            self.assertEqual(p.js("document.activeElement.closest('.ucl-row').dataset.uc"), ids[0])
+            self.click(p, "#usecases .ucl-group .grp-b")
+            p.until("document.querySelector('#usecases .grp-b').getAttribute('aria-expanded') === 'false'", "shut")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length"), 2, "its rows are away; the heading stays")
+            self.assertEqual(p.js("document.querySelector('#usecases .ucl-group .gc').textContent"), "2 use cases", "the count still says how many it holds")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-list *')].filter(e => e.tabIndex >= 0).map(e => e.closest('.ucl-row').dataset.uc)"), [ids[2]], "the tab stop moves to a row that shows")
+            self.click(p, "#usecases .ucl-group .grp-b")
+            p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length === 4", "open again")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"].get("shut"), None, "open or shut is for the visit, not remembered")
+
+
 class Keys(Setup):
     def stops(self, p):
         return p.js("[...document.querySelectorAll('#usecases .ucl-list *')].filter(e => e.tabIndex >= 0 && !e.disabled).map(e => e.closest('.ucl-row').dataset.uc + ':' + e.className)")
