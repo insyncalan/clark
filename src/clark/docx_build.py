@@ -558,10 +558,10 @@ def _status_cell(row, kind, ctx):
         return word_cell(row.get("status"), ctx)
     pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
                               ctx.as_at)
+    if pill["text"] in ("Closed", "Made", "Completed") or pill["class"] == "b":
+        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
     if row.get("priority") == "Urgent":
-        return word_cell(pill["text"], ctx, colour="urgent")      # an Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
-    if pill["text"] in ("Closed", "Made") or pill["class"] == "b":
-        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page
+        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
     return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
 
 

@@ -54,6 +54,31 @@ class WordCompletedIsBlue(unittest.TestCase):
         self.assertIn(f'<w:color w:val="{BLUE_TEXT}"/>', cell)
 
 
+    def test_a_completed_urgent_action_is_blue_not_maroon(self):
+        plant = t.fx.load()
+        for r in plant["data"]["actions"]:
+            if r["id"] == "PUB-A-001":
+                r.update(status="Completed", priority="Urgent")
+        xml = t.parts(docx_build.build(t.published(plant)))["word/document.xml"].decode("utf-8")
+        cells = [m.group(0) for m in re.finditer(r"<w:tc>(?:(?!</w:tc>).)*</w:tc>", xml, re.S) if ">Completed<" in m.group(0)]
+        self.assertEqual(len(cells), 1)
+        self.assertIn(f'w:fill="{BLUE_FILL}"', cells[0])
+        self.assertNotIn(docx_build.TOKENS["tone-urgent"], cells[0])
+
+    def test_the_status_cell_of_a_closed_or_made_row_is_blue(self):
+        """Closed rows are filtered from the lists, so the cell is probed directly: it kills dropping the Closed branch."""
+        ctx = docx_build._Ctx(docx_build.palette(None), "2026-10-28")
+        for status, kind in (("Closed", "action"), ("Closed", "risk")):
+            with self.subTest(status=status, kind=kind):
+                _, fill = docx_build._status_cell({"status": status, "priority": "Medium", "due_date": None}, kind, ctx)
+                self.assertEqual(fill, BLUE_FILL)
+
+    def test_a_closed_urgent_row_is_blue_too(self):
+        ctx = docx_build._Ctx(docx_build.palette(None), "2026-10-28")
+        _, fill = docx_build._status_cell({"status": "Closed", "priority": "Urgent", "due_date": None}, "action", ctx)
+        self.assertEqual(fill, BLUE_FILL)
+
+
 class PageCompletedIsBlue(unittest.TestCase):
     @staticmethod
     def bundle():
@@ -77,6 +102,28 @@ class PageCompletedIsBlue(unittest.TestCase):
                 ({"kind": "risk", "status": "Closed"}, {"text": "Closed", "class": "n"})]
         got = node(self.bundle() + ";console.log(JSON.stringify(%s.map(([r, p]) => IR.toneOf(r, p))))" % json.dumps(rows))
         self.assertEqual(got, ["b"] * len(rows))
+
+    def test_a_completed_urgent_item_is_not_urgent_and_not_late(self):
+        code = self.bundle()
+        row = {"kind": "action", "status": "Completed", "priority": "Urgent", "due_date": "2026-10-01"}
+        pill = {"text": "Completed", "class": "b"}
+        got = node(code + ";console.log(JSON.stringify({u: IR.isUrgent(%s), tone: IR.toneOf(%s, %s), tip: IR.iconWords(%s, %s, %s).tip}))"
+                   % tuple(json.dumps(x) for x in (row, row, pill, row, pill, TODAY)))
+        self.assertFalse(got["u"])
+        self.assertEqual(got["tone"], "b")
+        self.assertNotIn("Overdue", got["tip"])
+        self.assertNotIn("Urgent", got["tip"])
+
+    def test_an_open_urgent_item_stays_urgent(self):
+        row = {"kind": "action", "status": "Open", "priority": "Urgent", "due_date": "2026-10-01"}
+        got = node(self.bundle() + ";console.log(JSON.stringify(IR.isUrgent(%s)))" % json.dumps(row))
+        self.assertTrue(got)
+
+    def test_a_completed_action_past_its_date_has_no_late_word(self):
+        row = {"kind": "action", "status": "Completed", "priority": "Medium", "due_date": "2026-10-01"}
+        got = node(bundled(SECTION_ROWS, "SR") + ";console.log(JSON.stringify([SR.lateWord(%s, %s), SR.lateWord(%s, %s)]))"
+                   % (json.dumps(row), json.dumps(TODAY), json.dumps(dict(row, status="Open")), json.dumps(TODAY)))
+        self.assertEqual(got, ["", "27 d late"])
 
 
 CASES = [{"kind": "action", "status": "Completed", "priority": "Medium", "due_date": "2026-12-31"},

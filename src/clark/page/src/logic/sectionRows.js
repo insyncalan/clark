@@ -50,7 +50,7 @@ export function clientPill(row, today) {
 
 // "3 d late" for an open action whose date has passed; nothing otherwise (a decision, a risk, an action not late).
 export function lateWord(row, today) {
-  if (row.kind !== "action" || !isOpen(row)) return "";
+  if (row.kind !== "action" || !isOpen(row) || row.status === "Completed") return "";
   const a = dayNumber(dueField(row)), b = dayNumber(today);
   return a !== null && b !== null && a < b ? `${b - a} d late` : "";
 }
