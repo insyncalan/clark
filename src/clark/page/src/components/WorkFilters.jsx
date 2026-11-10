@@ -14,11 +14,13 @@ const allRows = { get value() { return searchRows(everyRow.value, found.value, q
 // `L` is the app's filter line (#153, handed over at start-up): then the switches read and change the line, and their counts are what the
 // line would show. Without it (the published file) they read and change the older state in the address.
 export function Switches({ children, L }) {
+  // Row 1059: in the app the type and Open / Closed / All pills are gone; type: and status: (and is:open, is:closed) are on the filter
+  // line. The published file has no line, so its reader keeps the pills.
+  if (L) return <div class="wbar">{children ? <div class="vctl">{children}</div> : null}</div>;
   const today = fromFile.value && asAt.value ? asAt.value : todayIso(), rows = allRows.value;
-  const sw = L ? L.switches(rows, filterCtx()) : null;
-  const st = sw ? sw.state : filterState.value;
-  const n = sw ? sw.n : counts(rows, st, today), t = sw ? sw.t : typeCounts(rows, st, today);
-  const setT = (v) => (L ? L.pickType(v) : setFilterState(setType(filterState.value, v))), setM = (v) => (L ? L.pickMode(v) : setFilterState(setMode(filterState.value, v)));
+  const st = filterState.value;
+  const n = counts(rows, st, today), t = typeCounts(rows, st, today);
+  const setT = (v) => setFilterState(setType(filterState.value, v)), setM = (v) => setFilterState(setMode(filterState.value, v));
   return (
     <div class="wbar">
       <div class="seg" role="group" aria-label="Type">

@@ -25,7 +25,7 @@ import test_bulk_bar as bb  # noqa: E402
 import test_use_cases_list as ucl  # noqa: E402
 from test_row_menu import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import arm, click  # noqa: E402
+from test_work_filters import arm, click, set_line  # noqa: E402
 
 SRC = ROOT / "src/clark/page/src"
 read = lambda p: (SRC / p).read_text(encoding="utf-8")   # noqa: E731
@@ -166,7 +166,7 @@ class Live(rm.Menu):
                 sid = self.visit(cdp)
                 motion_of(cdp, sid, motion)
                 d = self.drive(cdp, sid)
-                click(cdp, sid, "[data-type=risk]")
+                set_line(cdp, sid, "is:open type:risk")
                 d.until("!!document.querySelector(\"#work-list tr[data-kind='risk'] [data-cell$=':priority']\")", "a risk row's priority cell")
                 click(cdp, sid, "#work-list tr[data-kind='risk'] [data-cell$=':priority']")
                 d.until("!!document.querySelector('.cpop.rpick')", "the rating picker opened")

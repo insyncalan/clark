@@ -17,7 +17,7 @@ from test_bulk_bar import letter, special  # noqa: E402
 from test_multi_select import CTRL, SHIFT, press, tap  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, set_line  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
 LOGIC = SRC / "clark" / "page" / "src" / "logic" / "handOver.js"
@@ -346,7 +346,7 @@ class Page(Base):
             sid = self.load(cdp)
             self.start(cdp, sid)
             click(cdp, sid, "#hand-all")
-            click(cdp, sid, "[data-type=action]")
+            set_line(cdp, sid, 'owner:"Sara Khan" type:action')      # the page was opened on this owner, all modes
             self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length < 4", "the filter")
             now = cdp.js(self.ROWS, sid)
             self.assertEqual((cdp.js(self.TICKS, sid), self.count(cdp, sid)), (now, f"{len(now)} of {len(now)} selected"))

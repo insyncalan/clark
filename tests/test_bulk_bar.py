@@ -16,7 +16,7 @@ from test_multi_select import CTRL, META, MOD, SHIFT, peek_away, press, tap  # n
 from test_server import Running, chrome, wait  # noqa: E402
 import _testpage as testpage  # noqa: E402
 from test_work_board_page import Base as PageBase  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, set_line  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
 LOGIC = SRC / "clark" / "page" / "src" / "edit" / "bulkLogic.js"
@@ -134,10 +134,8 @@ class Page(Base):
 
     def load(self, cdp, width=1400, edit=True, kind="action", mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
-        click(cdp, sid, f"[data-show={mode}]")
-        if kind:
-            click(cdp, sid, f"[data-type={kind}]")
-            self.until(cdp, sid, f"document.querySelector('[data-type={kind}]').getAttribute('aria-pressed') === 'true'", "the type")
+        # Row 1059: the type and Open / Closed / All pills are gone; the same choices are words on the filter line.
+        set_line(cdp, sid, " ".join(w for w in ({"open": "is:open", "closed": "is:closed", "all": ""}[mode], ("type:risk,issue" if kind == "risk" else f"type:{kind}") if kind else "") if w))
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the rows")
         return sid
 

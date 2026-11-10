@@ -351,8 +351,7 @@
     "w": "Work items",
     "go": "work",
     "s": [
-     "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
-     "The second picks **Open**, **Closed** or **All**, each with its count.",
+     "The page starts on the open items. To list one type, or the closed items, type it on the filter line: type:action, type:risk or type:decision, and is:closed or is:open.",
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
@@ -1272,7 +1271,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
+      "From the top: the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -2433,7 +2432,7 @@
    "title": "Work items",
    "s": [
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
-    "Choose **Open**, **Closed** or **All** to say which items to list.",
+    "The page lists the open items. Type is:closed in the filter line to list the closed ones.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
     "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
    ],
