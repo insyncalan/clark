@@ -299,7 +299,7 @@ def installed(root):
     if top and not any(b["id"] == top["id"] for b in out):
         out.append(top)
     elif _has_top_tokens(base) and not top:
-        out.append({"id": LOCAL, "name": LOCAL, "version": ""})
+        out.append({"id": LOCAL, "name": LOCAL, "version": "", "own_folder": False, "alias": LOCAL})
     return sorted(out, key=lambda b: b["id"])
 
 
