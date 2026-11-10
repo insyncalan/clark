@@ -1,9 +1,10 @@
 """clark.app, the applet dev/tools/package.py builds with osacompile (row 836: a start with no Terminal window).
 
-osacompile is a Mac program. It is never run here: every test puts a fake `osacompile` first on the PATH (RULES rule 14), a
-small script that writes the bundle layout the real one writes (Contents/Info.plist, Contents/MacOS/applet,
-Contents/Resources/Scripts/main.scpt), and records what it was asked. /tmp/nodialog's stubs (osascript, open) stay ahead of
-the real PATH too, so nothing can show a window. Builds into temporary folders only and downloads nothing.
+osacompile and codesign are Mac programs. They are never run here: every test puts a fake `osacompile` and a fake `codesign`
+first on the PATH (RULES rule 14), small scripts that write the bundle layout the real compiler writes (Contents/Info.plist,
+Contents/MacOS/applet, Contents/Resources/Scripts/main.scpt) and record what they were asked, raw and in order. /tmp/nodialog's
+stubs (osascript, open) stay ahead of the real PATH too, so nothing can show a window. Builds into temporary folders only and
+downloads nothing.
 Run: python3 dev/run_tests.py test_package_app
 """
 import contextlib
@@ -28,20 +29,26 @@ import package
 NODIALOG = "/tmp/nodialog"
 
 # What osacompile writes for `osacompile -o X.app source`, as the fake writes it. The Info.plist keys are the ones the real tool
-# gives an applet (identifier, name and version are the ones package.py must then set).
+# gives an applet (identifier, name and version are the ones package.py must then set). Like the real tool (BSD getopt) the
+# fake reads options only up to the first operand: `osacompile source -o X.app` would take all three as source files and fail.
 FAKE_OSACOMPILE = r'''#!/bin/sh
 # a stand-in for macOS's osacompile: writes an applet bundle without compiling anything
-out=""; src=""
+{ printf '%s' "$0"; for a in "$@"; do printf '\t%s' "$a"; done; printf '\n'; } >> "$FAKE_OSACOMPILE_LOG"
+printf 'osacompile\n' >> "$FAKE_TOOL_ORDER"
+out=""
 while [ $# -gt 0 ]; do
   case "$1" in
     -o) out="$2"; shift 2 ;;
-    *) src="$1"; shift ;;
+    -*) echo "fake osacompile: unknown option $1" >&2; exit 1 ;;
+    *) break ;;
   esac
 done
-printf '%s\t%s\t%s\t%s\n' "$0" -o "$out" "$src" >> "$FAKE_OSACOMPILE_LOG"
+[ $# -eq 1 ] || { echo "fake osacompile: expected one source file, got $#" >&2; exit 1; }
+src="$1"
 [ -n "$FAKE_OSACOMPILE_FAIL" ] && { echo "fake osacompile: syntax error" >&2; exit 1; }
-[ -f "$src" ] || { echo "fake osacompile: no source" >&2; exit 1; }
+[ -n "$out" ] && [ -f "$src" ] || { echo "fake osacompile: no source" >&2; exit 1; }
 mkdir -p "$out/Contents/MacOS" "$out/Contents/Resources/Scripts" "$out/Contents/Resources/description.rtfd"
+[ -n "$FAKE_OSACOMPILE_EXTRA" ] && printf 'x\n' > "$out/Contents/Resources/$FAKE_OSACOMPILE_EXTRA"
 printf 'applet stand-in\n' > "$out/Contents/MacOS/applet"
 chmod 755 "$out/Contents/MacOS/applet"
 cp "$src" "$out/Contents/Resources/Scripts/main.scpt"
@@ -86,26 +93,59 @@ PLIST
 exit 0
 '''
 
+# A stand-in for macOS's codesign: records its arguments and, so a test can see what it was handed, a copy of the bundle as it
+# was at that moment (its last argument, like the real tool's).
+FAKE_CODESIGN = r'''#!/bin/sh
+{ printf '%s' "$0"; for a in "$@"; do printf '\t%s' "$a"; done; printf '\n'; } >> "$FAKE_CODESIGN_LOG"
+printf 'codesign\n' >> "$FAKE_TOOL_ORDER"
+[ -n "$FAKE_CODESIGN_FAIL" ] && { echo "fake codesign: no identity found" >&2; exit 1; }
+for last in "$@"; do :; done
+[ -d "$last" ] || { echo "fake codesign: $last: No such file or directory" >&2; exit 1; }
+rm -rf "$FAKE_CODESIGN_SNAPSHOT"
+cp -Rp "$last" "$FAKE_CODESIGN_SNAPSHOT"
+exit 0
+'''
+
 
 class FakeTool:
-    """A folder holding the fake osacompile, put first on the PATH for the test; its log of calls. `cleanup` is the test's
-    addCleanup (or addClassCleanup), so the folder and the PATH go when the test does."""
+    """A folder holding the fake osacompile and codesign, put first on the PATH for the test; their logs of calls. `cleanup`
+    is the test's addCleanup (or addClassCleanup), so the folder and the PATH go when the test does. `extra` makes the fake
+    osacompile put a file of that name in Contents/Resources (what a tool that clashes with ours would do); `codesign=False`
+    leaves codesign out of the folder."""
 
-    def __init__(self, cleanup, fail=False):
+    def __init__(self, cleanup, fail=False, codesign=True, codesign_fail=False, extra=""):
         self.folder = Path(tempfile.mkdtemp(prefix="clark fake osacompile "))
         cleanup(shutil.rmtree, self.folder, True)
-        tool = self.folder / "osacompile"
-        tool.write_text(FAKE_OSACOMPILE, encoding="utf-8")
-        tool.chmod(0o755)
+        for name, text in (("osacompile", FAKE_OSACOMPILE), ("codesign", FAKE_CODESIGN)):
+            if name == "codesign" and not codesign:
+                continue
+            tool = self.folder / name
+            tool.write_text(text, encoding="utf-8")
+            tool.chmod(0o755)
         self.log = self.folder / "calls.log"
+        self.codesign_log = self.folder / "codesign.log"
+        self.order_log = self.folder / "order.log"
+        self.snapshot = self.folder / "signed.app"
         env = {"PATH": f"{self.folder}{os.pathsep}{NODIALOG}{os.pathsep}{os.environ.get('PATH', '')}",
-               "FAKE_OSACOMPILE_LOG": str(self.log), "FAKE_OSACOMPILE_FAIL": "1" if fail else ""}
+               "FAKE_OSACOMPILE_LOG": str(self.log), "FAKE_OSACOMPILE_FAIL": "1" if fail else "", "FAKE_OSACOMPILE_EXTRA": extra,
+               "FAKE_CODESIGN_LOG": str(self.codesign_log), "FAKE_CODESIGN_FAIL": "1" if codesign_fail else "",
+               "FAKE_CODESIGN_SNAPSHOT": str(self.snapshot), "FAKE_TOOL_ORDER": str(self.order_log)}
         patch = mock.patch.dict(os.environ, env)
         patch.start()
         cleanup(patch.stop)
 
+    @staticmethod
+    def _lines(path):
+        return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+
     def calls(self):
-        return self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
+        return self._lines(self.log)
+
+    def codesign_calls(self):
+        return self._lines(self.codesign_log)
+
+    def order(self):
+        return self._lines(self.order_log)
 
 
 def tree(folder):
@@ -175,16 +215,47 @@ class BuildAppTest(unittest.TestCase):
         cls.zip = package.build("mac", Path(cls.tmp) / "zip", dirty=True)
 
     def test_osacompile_is_called_with_the_repo_source_and_the_bundle_path(self):
-        """Every build in this class is one osacompile call: `osacompile -o <part>/clark.app <repo>/dev/tools/clark_applet.applescript`."""
+        """Every build in this class is one osacompile call, its arguments in exactly this order (the real tool reads options
+        only up to the first operand): `osacompile -o <part>/clark.app <repo>/dev/tools/clark_applet.applescript`."""
         calls = self.fake.calls()
         self.assertGreaterEqual(len(calls), 1, calls)
         for call in calls:
             with self.subTest(call=call):
-                tool, _o, out, src = call.split("\t")
-                self.assertEqual(str(self.fake.folder / "osacompile"), tool)
-                self.assertEqual("-o", _o)
-                self.assertEqual("clark.app", Path(out).name)
-                self.assertEqual(str(ROOT / package.APPLET_SOURCE), src)
+                argv = call.split("\t")
+                self.assertEqual(4, len(argv), argv)
+                self.assertEqual([str(self.fake.folder / "osacompile"), "-o"], argv[:2])
+                self.assertEqual("clark.app", Path(argv[2]).name)
+                self.assertEqual(str(ROOT / package.APPLET_SOURCE), argv[3])
+
+    def test_the_fake_osacompile_refuses_a_swapped_order_like_the_real_one(self):
+        """The fake is only worth something if `osacompile source -o X.app` fails on it as it does on a Mac."""
+        with tempfile.TemporaryDirectory() as tmp:
+            done = subprocess.run([str(self.fake.folder / "osacompile"), str(ROOT / package.APPLET_SOURCE), "-o", f"{tmp}/x.app"],
+                                  capture_output=True, text=True)
+        self.assertNotEqual(0, done.returncode)
+        self.assertIn("expected one source file", done.stderr)
+
+    def test_the_bundle_is_ad_hoc_signed_last_with_codesign(self):
+        """After Info.plist is rewritten and Contents/Resources filled, `codesign --force --deep -s - <bundle>` seals the bundle
+        (ad hoc, no account): an applet stub signed by Apple would otherwise carry a broken signature, and Gatekeeper calls such
+        a download damaged with no Open Anyway. The fake codesign keeps a copy of what it was handed: the finished bundle."""
+        fake = FakeTool(self.addCleanup)
+        out = Path(self.tmp) / "signed"
+        app = package.build_app(out, dirty=True)
+        self.assertEqual(["osacompile", "codesign"], fake.order())
+        calls = fake.codesign_calls()
+        self.assertEqual(1, len(calls), calls)
+        argv = calls[0].split("\t")
+        self.assertEqual([str(fake.folder / "codesign"), "--force", "--deep", "-s", "-"], argv[:5])
+        self.assertEqual(6, len(argv), argv)
+        signed = Path(argv[5])
+        self.assertEqual(package.APP_NAME, signed.name)
+        self.assertEqual(out, signed.parent.parent, "signed where it was built, then moved into place")
+        self.assertTrue(signed.parent.name.startswith(".clark.app."), signed)
+        self.assertEqual(tree(app), tree(fake.snapshot), "codesign saw the finished bundle, nothing changed after it")
+        info = plistlib.loads((fake.snapshot / "Contents" / "Info.plist").read_bytes())
+        self.assertEqual(package.BUNDLE_ID, info["CFBundleIdentifier"])
+        self.assertTrue((fake.snapshot / "Contents" / "Resources" / "clark.command").is_file())
 
     def test_the_bundle_is_called_clark_app_and_has_the_applet_layout(self):
         self.assertEqual("clark.app", self.app.name)
@@ -270,7 +341,69 @@ class RefusalsTest(unittest.TestCase):
                 with self.assertRaises(package.Refused) as said:
                     package.build_app(out, dirty=True)
         self.assertEqual("A file the download needs is missing: osacompile. Restore it, then build again.", str(said.exception))
+        self.assertEqual(package.MISSING_FILE.format(what=package.OSACOMPILE), str(said.exception), "one constant, not a second copy")
         self.assertFalse(out.exists())
+
+    def test_a_missing_codesign_is_refused_in_the_same_words_and_nothing_is_run(self):
+        """codesign is checked with osacompile, before anything is read or written, in the same sentence with its own name."""
+        fake = FakeTool(self.addCleanup, codesign=False)
+        out = self.out_folder()
+        with mock.patch.dict(os.environ, {"PATH": str(fake.folder)}):           # osacompile alone on the PATH
+            self.assertIsNotNone(shutil.which("osacompile"))
+            self.assertIsNone(shutil.which("codesign"))
+            with mock.patch.object(package.subprocess, "run", side_effect=AssertionError("nothing may be run")):
+                with self.assertRaises(package.Refused) as said:
+                    package.build_app(out, dirty=True)
+        self.assertEqual("A file the download needs is missing: codesign. Restore it, then build again.", str(said.exception))
+        self.assertEqual([], fake.calls())
+        self.assertFalse(out.exists())
+
+    def test_a_failing_codesign_is_refused_and_leaves_no_bundle(self):
+        fake = FakeTool(self.addCleanup, codesign_fail=True)
+        out = self.out_folder()
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertEqual("clark.app could not be built, so nothing was written: fake codesign: no identity found", str(said.exception))
+        self.assertEqual(1, len(fake.codesign_calls()))
+        self.assertEqual([], os.listdir(out) if out.exists() else [], "no bundle, no part folder")
+
+    def test_a_tool_that_does_not_finish_is_refused_like_one_that_fails(self):
+        """A hung osacompile ends in the could-not-build sentence, not a traceback, and leaves nothing."""
+        FakeTool(self.addCleanup)
+        out = self.out_folder()
+
+        def hangs(argv, **kw):
+            raise subprocess.TimeoutExpired(argv, kw.get("timeout"))
+
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True, run=hangs)
+        self.assertEqual(f"clark.app could not be built, so nothing was written: osacompile did not finish in {package.TOOL_TIMEOUT} s",
+                         str(said.exception))
+        self.assertEqual([], os.listdir(out) if out.exists() else [])
+
+    def test_a_tool_whose_own_files_clash_with_ours_is_refused(self):
+        """osacompile's files and the clark folder never mix: a Resources entry that matches one of ours (by name, case aside)
+        is refused before anything of ours is written there."""
+        FakeTool(self.addCleanup, extra="CLARK.COMMAND")
+        out = self.out_folder()
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertEqual("clark.app could not be built, so nothing was written: osacompile already put clark.command in Contents/Resources",
+                         str(said.exception))
+        self.assertEqual([], os.listdir(out) if out.exists() else [])
+
+    def test_a_plain_file_where_the_bundle_goes_is_refused_in_the_could_not_build_words(self):
+        """An OSError on the way (here: dist/clark.app is a file, so the bundle can't take its place) is the bundle's own
+        refusal, not a traceback and not the release-notes sentence; the file is left as it was."""
+        FakeTool(self.addCleanup)
+        out = self.out_folder()
+        out.mkdir(parents=True)
+        (out / package.APP_NAME).write_text("not a bundle\n", encoding="utf-8")
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertTrue(str(said.exception).startswith("clark.app could not be built, so nothing was written: "), str(said.exception))
+        self.assertEqual("not a bundle\n", (out / package.APP_NAME).read_text(encoding="utf-8"))
+        self.assertEqual([package.APP_NAME], os.listdir(out), "no part folder is left behind")
 
     def test_a_failing_osacompile_is_refused_and_leaves_no_bundle(self):
         fake = FakeTool(self.addCleanup, fail=True)
@@ -334,6 +467,26 @@ class CommandTest(unittest.TestCase):
             code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
             self.assertEqual(1, code)
             self.assertEqual("A file the download needs is missing: osacompile. Restore it, then build again.", err.strip())
+            self.assertEqual("", out)
+            self.assertEqual([], os.listdir(tmp))
+
+    def test_app_without_codesign_refuses_before_the_zip_is_written(self):
+        fake = FakeTool(self.addCleanup, codesign=False)
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.dict(os.environ, {"PATH": str(fake.folder)}):
+            code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
+            self.assertEqual(1, code)
+            self.assertEqual("A file the download needs is missing: codesign. Restore it, then build again.", err.strip())
+            self.assertEqual("", out)
+            self.assertEqual([], os.listdir(tmp))
+
+    def test_a_bundle_that_fails_leaves_no_zip_behind(self):
+        """--app is all or nothing: when the bundle can't be built the sentence says nothing was written, and that is true of
+        the zip too."""
+        FakeTool(self.addCleanup, fail=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
+            self.assertEqual(1, code)
+            self.assertEqual("clark.app could not be built, so nothing was written: fake osacompile: syntax error", err.strip())
             self.assertEqual("", out)
             self.assertEqual([], os.listdir(tmp))
 
