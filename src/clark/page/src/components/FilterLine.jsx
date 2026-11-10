@@ -113,11 +113,11 @@ function SavedViews({ board }) {
       announce.value = `Duplicated as ${r.views.find((v) => v.id === r.id).name}.`;
     } else if (id === "delete" && active) {
       // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
-      const was = all, gone = active, r = FL.deleteView(all, gone.id);
+      const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
       say("done", `View deleted: ${gone.name}`);
-      toast.value = { ...toast.value, local: () => { saveViews(code, was); chosen.value = { ...chosen.value, [code]: gone.id }; } };
+      toast.value = { ...toast.value, local: () => { const b = FL.insertView(viewsOf(code), gone, at); if (b.ok) saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id }; } };
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }
   };

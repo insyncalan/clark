@@ -1010,6 +1010,90 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: (cdp.js(tabs, sid) or [])[:3] == ["Open items", "Actions", "Actions copy"]), "kept")
                     cdp.js("localStorage.clear()", sid)
 
+    def test_delete_view_gives_an_undo_that_puts_it_back_in_place(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: "core-risks" not in self.tab_ids(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "an Undo message")
+                click(cdp, sid, "[data-undo]")
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == start), self.tab_ids(cdp, sid))
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-risks", "and it is the chosen tab again")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_tab_dropped_past_either_end_goes_to_that_end(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                self.drag_tab(cdp, sid, ".vtab[data-view-id=core-actions]", ".vtab[data-view-id=%s]" % start[0], past=-0.3)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[0] == "core-actions"), f"past the left end: {self.tab_ids(cdp, sid)}")
+                ids = self.tab_ids(cdp, sid)
+                self.drag_tab(cdp, sid, ".vtab[data-view-id=%s]" % ids[-2], ".vtab[data-view-id=%s]" % ids[-1], past=1.3)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[-1] == ids[-2]), f"past the right end: {self.tab_ids(cdp, sid)}")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_cancelled_drag_moves_nothing(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                x0, y0 = self.centre(cdp, sid, ".vtab[data-view-id=core-actions]")
+                x1, y1 = self.centre(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                cdp.js("""(() => {
+                  const ev = (t, x, tgt) => tgt.dispatchEvent(new PointerEvent(t, {bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', clientX: x, clientY: %s}));
+                  ev('pointerdown', %s, document.querySelector('.vtab[data-view-id=core-actions]'));
+                  ev('pointermove', %s, document); ev('pointermove', %s, document);
+                  ev('pointercancel', %s, document);
+                })()""" % (y0, x0, (x0 + x1) / 2, x1, x1), sid)
+                time.sleep(0.3)
+                self.assertFalse(cdp.js("!!document.querySelector('.vt[data-lifted]')", sid), "put down")
+                self.assertEqual(self.tab_ids(cdp, sid), start, "a cancelled drag keeps the order")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
+                cdp.js("localStorage.clear()", sid)
+
+    def over_own_tab(self, cdp, sid):
+        """Press on a tab, shake it a little (past the 5 px), and let go over its own place."""
+        x, y = self.centre(cdp, sid, ".vtab[data-view-id=overdue]")
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+        self.mouse(cdp, sid, "mousePressed", x, y)
+        for dx in (6, 12, 6, 0):
+            self.mouse(cdp, sid, "mouseMoved", x + dx, y)
+        self.mouse(cdp, sid, "mouseReleased", x, y)
+        time.sleep(0.4)      # a wrongly chosen tab shows after the next draw
+
+    def test_a_drag_that_ends_over_its_own_tab_does_not_choose_it(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                before = cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid)
+                self.over_own_tab(cdp, sid)
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), before, "a drag is not a click")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_drag_that_ends_over_its_own_tab_leaves_it_in_place(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                self.over_own_tab(cdp, sid)
+                self.assertEqual(self.tab_ids(cdp, sid), start)
+                cdp.js("localStorage.clear()", sid)
+
     # ---- #640: the field list on click, the x, the core tabs, the tab's arrow and + New view ----
     FIELDS_ALL = ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "has:", "no:"]
 

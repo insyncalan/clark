@@ -600,6 +600,13 @@ export function reorderViews(views, ids) {
   want.forEach((id, n) => { out[slots[n]] = findView(vs, id); });
   return { ok: true, views: out };
 }
+/** Row 1071: put a deleted view back at the place it had (the Undo after Delete view). `index` is the place it is to end at; the length is the end. */
+export function insertView(views, view, index) {
+  const vs = views || [];
+  if (!view || findView(vs, view.id)) return { ok: false, message: "That view is already there." };
+  const i = Math.max(0, Math.min(vs.length, Math.trunc(Number(index)) || 0));
+  return { ok: true, views: [...vs.slice(0, i), { ...view }, ...vs.slice(i)] };
+}
 /** Row 1071: a copy of a view, called "<name> copy" ("<name> copy 2" and so on when that is taken), right after it. The copy is the person's own, even from a core view. */
 export function duplicateView(views, id) {
   const vs = views || [], from = findView(vs, id);
