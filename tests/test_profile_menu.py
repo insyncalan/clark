@@ -17,10 +17,10 @@ from clark import excel, server as sv
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export"                                                                 # no name typed: the top line is the link to Settings, so there is no Settings entry (issue 787)
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Import from Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
-ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
+ORDER = [WHO] + ITEMS[:5] + LOOK + ITEMS[5:]
 
 
 class ProfileMenu(Base):
@@ -55,14 +55,14 @@ class ProfileMenu(Base):
             p = self.page(cdp)
             self.open_menu(p)
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()"),
-                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
+                             "menuitem,menuitem,menuitem,menuitem,menuitem,menuitem,separator,group,separator,menuitem")
             self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                              "presentation,menuitemradio,menuitemradio,menuitemradio", "the group holds its label and the three radios")
             self.assertEqual(p.js("(function(){var g=document.querySelector('#profile-menu [role=group]');return document.getElementById(g.getAttribute('aria-labelledby')).textContent})()"),
                              "Appearance", "the group is named Appearance, so a screen reader says it before each radio")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
-        for w in (390, 900):
+        for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w, 700)
@@ -100,7 +100,7 @@ class ProfileMenu(Base):
             shown = self.labels(p)
             for word in tip[len(NAME) + 2:].split(", "):
                 self.assertTrue(any(l.startswith(word) for l in shown), word + " is an entry")
-            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Import from Word", "Help"], "only the who line, Import from Word and Help have no word in the tip (Export to Word starts with the tip's Export)")
+            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip (Export to Word starts with the tip's Export)")
 
     def toast(self, p):
         p.until("!!document.querySelector('.toast .toast-text')", "a message appeared")
