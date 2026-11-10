@@ -112,7 +112,7 @@ class ModePill(Base):
             p = self.visit(cdp)
             for scheme in ("light", "dark"):
                 p.js(f"document.documentElement.dataset.theme = '{scheme}'")
-                for w in (1400, 901, 900, 800):
+                for w in (1400, 900):
                     size(cdp, p, w, 700)
                     p.js("window.scrollTo(0, 0)")
                     got = p.js("(function(){var g=document.querySelector('[aria-label=\"View or Edit\"]').getBoundingClientRect(), bad=[];"

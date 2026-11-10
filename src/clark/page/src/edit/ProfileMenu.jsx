@@ -1,6 +1,6 @@
 // The profile circle and its menu (#77, #147), Edit parts only: what the page can do. Publish opens the dialog (#43). Preview opens
 // the page as it would be published in a new tab, and Export downloads the project's workbook; both ask the server (publishApi.js)
-// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import has no mode (row 826). Settings is a page opened from this menu (row 976: no top-bar tab), Help is the Help page. The tooltip lists the entries that carry a short
+// and neither publishes or saves a file. Export to Word and Import from Word (#48) open their own boxes (Word.jsx); Import from Word is not in this menu (row 1063). Settings is a page opened from this menu (row 976: no top-bar tab), Help is the Help page. The tooltip lists the entries that carry a short
 // word (`tip`), so it follows the entries; Help has none, as its "?" key is its own way in. The accessible name is just "Your menu".
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
@@ -11,14 +11,15 @@ import { openHelp, openContext } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
 import { BarToast } from "./BarToast.jsx";
 import { latest } from "./publishState.js";
-import { note, say, closeNote } from "./menuNote.js";
+import { note, say, closeNote, noteTimer } from "./menuNote.js";
+import { holdOn } from "../stores/toastClock.js";
 import { previewRequest, exportRequest, words } from "./publishApi.js";
 import { showPublished } from "./PublishedReports.jsx";
 import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
-import { openExport, openImport } from "./wordState.js";
+import { openExport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
-import { ToastCard } from "./ToastCard.jsx";
+import { ToastCard, ToastBar, startHeld } from "./ToastCard.jsx";
 import { Welcome } from "./Welcome.jsx";
 
 export const MENU_NAME = "Your menu";
@@ -33,9 +34,10 @@ export { note };
 export function MenuNote() {
   const n = note.value;
   return n ? (
-    <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined}>
+    <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined} ref={startHeld(noteTimer)} {...holdOn(noteTimer)}>
       <span class="toast-text">{n.text}</span>
       <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={closeNote}>Close</button>
+      <ToastBar kind={n.kind} />
     </div>
   ) : null;
 }
@@ -80,7 +82,6 @@ export function ProfileMenu() {
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
   const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
     { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
-  if (open) items.push({ id: "word-import", name: "Import from Word" });       // row 826: in View too, no Edit mode needed (the box shows what it read before it adds anything)
   if (open && tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" });
   if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
@@ -96,7 +97,7 @@ export function ProfileMenu() {
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
   const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
-  const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "word-import", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
+  const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true };
   const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
@@ -106,7 +107,6 @@ export function ProfileMenu() {
     else if (id === "export") exportExcel();
     else if (id === "published") showPublished();
     else if (id === "word-export") openExport();
-    else if (id === "word-import") openImport();
     else if (id === "who") { wantName.value = true; show("settings"); }
     else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");

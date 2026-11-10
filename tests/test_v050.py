@@ -53,7 +53,7 @@ COVERED = [
     ("#69", "The published page remembers a reader's filter choices in its own key", "test_client_page_filters::ClientPageFilters::test_choices_are_remembered_in_the_pages_own_key"),
     ("#69", "The published page's rows and counts are the same as the model gives for every case", "test_client_page_filters::ModelMatchesPage::test_every_case_gives_the_same_answer"),
     ("#138", "A count is what a click on it would show", "test_client_filters::Counts::test_a_count_is_what_a_click_would_show"),
-    ("#138", "In the editor, the counts equal the list after each filter at both widths", "test_filter_line_page::Line::test_the_switch_counts_equal_the_list_after_each_filter_at_1400_and_900_px"),
+    ("#138", "In the editor, the counts equal the list after each filter at both widths", "test_filter_line_page::Line::test_the_list_equals_the_rows_for_each_mode_and_type_typed_on_the_line_at_1400_and_900_px"),
     ("#138", "Nothing matching says so and Clear all brings the rows back", "test_filter_line_page::Line::test_clear_filter_in_the_empty_state_clears_the_whole_line"),
     ("#168", "A published Use cases row opens in place with its headline, steps and milestones", "test_publish_usecases::Present::test_the_kept_use_case_with_its_step_and_milestone"),
     ("#168", "The published tabs run Dashboard, Work items, Milestones, Use cases", "test_publish_usecases::Present::test_tab_order"),

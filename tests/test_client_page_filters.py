@@ -121,6 +121,15 @@ class ClientPageFilters(unittest.TestCase):
                 self.assertNotIn("Hidden", cdp.js(f"document.querySelector('#fbox-{field}').textContent", sid))
                 self.click(cdp, sid, f'[data-fb="{field}"]')
 
+    def test_the_published_files_switches_keep_a_pressed_look_that_differs_from_the_others(self):
+        # row 1059 took the app's pills away; the file still has them, and the pressed half must stay told apart (moved here from the app's page test)
+        for theme in ("light", "dark"):
+            with self.subTest(theme=theme), chrome() as cdp:
+                sid = self.go(cdp, 1400, theme)
+                bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({sel!r})).backgroundColor", sid)
+                for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"), ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]")):
+                    self.assertNotEqual(bg(on), bg(off), on)
+
     def test_the_due_buckets_follow_the_files_day_not_the_viewers_clock(self):
         # The file was published at TODAY (2026-10-28). A client opens it much later: Overdue and Due in 7 days still read as at TODAY.
         late = ("(() => { const R = Date, at = new R('2027-06-01T12:00:00'), off = at - R.now();"
