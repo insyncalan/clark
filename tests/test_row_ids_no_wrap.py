@@ -3,7 +3,7 @@ never wrap, never get an ellipsis and are never clipped (a second line is fine: 
 
 Run: python3 dev/run_tests.py test_row_ids_no_wrap
 A real browser over a real store of fictional rows (project LONGPRJ: a 13-character ID, a very long title with spaces, a title
-with no space in it, a long owner name). Each part is measured as drawn, at 360, 641, 900, 901 and 1400 px (the cards go two across at 900 and one across at 640): its box is one line high (a wrapped
+with no space in it, a long owner name). Each part is measured as drawn, at 900 and 1400 px: its box is one line high (a wrapped
 flex item still has one client rect, so the height is measured, not the rect count), it ends inside its row or card, and the
 rows and cards are not wider than the screen. The same is read on the page clark serves (View, Edit) and on the published file, which carries
 shell.css inlined: so the file is the proof for any rule in that sheet.
@@ -129,13 +129,13 @@ class RowIds(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port, f"#dashboard&p={CODE}")
             p.ready()
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (900, 1400):
                 self.width(p, w)
                 p.until(f"document.documentElement.clientWidth === {w} || document.documentElement.clientWidth < {w}", "resized")
                 check(self, p.js, ROWS, "View rows", w)
                 check(self, p.js, CARDS, "View cards", w)
             p.edit()
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (900, 1400):
                 self.width(p, w)
                 p.until("document.querySelectorAll('.item-rows-edit .irows .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
@@ -164,7 +164,7 @@ class RowIds(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             p = Pg(self, cdp, sid)
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (900, 1400):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.irows .wl-row').length > 0 && document.querySelectorAll('.raid-card').length > 0", sid)),

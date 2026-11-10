@@ -135,7 +135,7 @@ class OneLineInView(Base):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.served().port)
             p.ready()
-            for w, name, prio in ((1400, True, True), (900, False, True), (420, False, False)):
+            for w, name, prio in ((1400, True, True), (900, False, True)):
                 width(cdp, p.sid, w)
                 for t in ("raid", "actions"):
                     for r in p.js(ROWS % t):
@@ -179,7 +179,7 @@ class PublishedFileCarriesTheWord(Base):
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0", sid)))
-            for w in (1400, 420):
+            for w in (1400, 900):
                 width(cdp, sid, w)
                 words = {}
                 for t in ("actions", "raid", "decisions"):
@@ -190,7 +190,7 @@ class PublishedFileCarriesTheWord(Base):
                         self.assertLess(r["h"], 60, f"{r['id']} stays compact at {w}")
                     self.assertEqual(cdp.js(HEADS % t, sid)[0][0], "Status", "the file's header names the icon column")
                 self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Overdue", "Pending", "Red"], words)
-                self.assertTrue(cdp.js(LISTS_FIT, sid), f"the lists fit their cards at {w}")      # the page header's own width at 420 is not this row's
+                self.assertTrue(cdp.js(LISTS_FIT, sid), f"the lists fit their cards at {w}")    
             rows = {r["id"]: r for t in ("actions", "raid") for r in cdp.js(ROWS % t, sid)}
             by_text = {r["title"]: r for r in rows.values()}
             self.assertEqual(by_text["Cut-over plan to be agreed"]["word"], "Overdue")

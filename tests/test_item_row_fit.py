@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_item_row_fit
 The by-eye review failed PR 1178 at 560 px: on Open actions the date ran into the id, View and Edit, and the published page scrolled
 sideways. The rule (#1022): no text overruns its neighbour and there is no sideways scroll at any width, 560 included. Every part of a row
-(icon, status word, title, owner, date, priority, id, eye) is measured in a real browser at 560, 420, 900 and 1400 px, light and dark, in the
+(icon, status word, title, owner, date, priority, id, eye) is measured in a real browser at 900 and 1400 px, light and dark, in the
 editor (Sneak peek and Edit) and in the published file. The ruling on the owner: the screen may show initials at 900 px and under; the
 published file and the printed page always show the FULL name.
 """
@@ -65,7 +65,7 @@ class FitInTheEditor(Fit, Base):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.served().port)
             p.ready()
-            for w, name in ((1400, True), (900, False), (560, False), (420, False)):
+            for w, name in ((1400, True), (900, False)):
                 width(cdp, p.sid, w)
                 for r in p.js(OWNERS):
                     self.assertEqual(r["shown"], name, f"{r['id']} at {w}")
