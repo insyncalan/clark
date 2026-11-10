@@ -229,8 +229,11 @@ class Fields(Base):
     def test_workstream_and_client_wording_and_visible_to_client(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-field=workstream] option')].map((o) => o.textContent)")[0], "—")
-            p.js("(() => { const s = document.querySelector('#peek [data-ms-field=workstream]'); s.value = 'Build'; s.dispatchEvent(new Event('change', {bubbles: true})); })()")
+            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=workstream]').textContent"), "—")
+            self.click(p, "#peek [data-ms-field=workstream]")
+            p.until("!!document.querySelector('[data-pop][role=menu]')", "the workstream menu opened")
+            self.assertEqual(p.js("document.querySelectorAll('[data-pop] [role=menuitemradio] svg.i').length"), p.js("document.querySelectorAll('[data-pop] [role=menuitemradio]').length"), "every choice has its icon (row 1074)")
+            self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
             self.saved(p, "workstream", "Build")
             self.click(p, "#peek [data-ms-row=client_message] [data-rich=client_message]")           # row 1078: the one rich editor, as the description
             p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened with the focus")

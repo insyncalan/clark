@@ -45,7 +45,12 @@ class Listed(unittest.TestCase):
     def built(self):
         return publish.build(self.s, "ABC", now=NOW)
 
+    def has_needs(self):
+        return self.s.con.execute("SELECT count(*) FROM report_sections WHERE type = 'needs'").fetchone()[0] > 0
+
     def rows(self):
+        if not self.has_needs():
+            self.section()        # row 1066: the editor has a 'Needs from you' section (none is made for the file any more)
         return [r for sec in self.built()["published"]["sections"] if sec["type"] == "needs" for r in sec["rows"]]
 
     def whats(self):
@@ -236,14 +241,11 @@ class Listed(unittest.TestCase):
         self.assertEqual([s["id"] for s in got], [ref])
         self.assertEqual([r["what"] for r in got[0]["rows"]], ["Generated one"])
 
-    def test_without_any_needs_section_one_is_made_for_the_file_and_comes_last(self):
+    def test_without_any_needs_section_none_is_made_for_the_file(self):
         self.action("Generated one")
         shown = self.built()["published"]["sections"]
-        got = [s for s in shown if s["type"] == "needs"]
-        self.assertEqual(len(got), 1)
-        self.assertEqual(got[0]["title"], "Needs from you")
-        self.assertGreater(len(shown), 1, "the default sections are there too")
-        self.assertIs(shown[-1], got[0], "the made section is the last one")
+        self.assertEqual([s for s in shown if s["type"] == "needs"], [], "row 1066: the file has no section the editor does not have")
+        self.assertGreater(len(shown), 1, "the default sections are there")
         self.assertEqual(self.s.con.execute("SELECT count(*) FROM report_sections WHERE type = 'needs'").fetchone()[0], 0, "nothing is stored")
 
     def test_newlines_tabs_and_runs_of_spaces_in_the_text_become_single_spaces(self):
