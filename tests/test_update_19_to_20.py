@@ -9,7 +9,7 @@ SKIPS ITSELF while store.SCHEMA_VERSION is below 20 (layout 20 is not on this tr
 
 Covered: the backup set is made first (layout 19, every row); the new build migrates to layout 20 keeping every row, takes its own safety
 copy first, and projects.brand is 'generic' for every existing project; a second open changes nothing; Undo puts layout 19 back; the old
-build refuses layout 20 with its plain "newer" sentence; a layout-21 copy is refused by the new build, untouched.
+build refuses layout 20 with its plain "newer" sentence; a layout-22 copy is refused by the new build, untouched.
 No network, no browser, no window. Run: python3 dev/run_tests.py test_update_19_to_20
 """
 import hashlib
@@ -35,7 +35,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 20      # the data layout of this build (schema step 20, projects.brand); the test pins the number on purpose
+NEW_LAYOUT = 21      # the data layout of this build (schema steps 20 and 21: projects.brand, then the gantttable section type); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
@@ -319,7 +319,7 @@ class Update19To20(Rig):
         finally:
             con.close()
 
-    def test_a_layout_21_copy_is_refused_by_the_new_build_and_left_untouched(self):
+    def test_a_layout_22_copy_is_refused_by_the_new_build_and_left_untouched(self):
         self.update_to_20()
         con = sqlite3.connect(str(self.db), isolation_level=None)
         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(NEW_LAYOUT + 1),))
