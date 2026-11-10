@@ -2,6 +2,7 @@
 // menu, the keys and a cell of a selected row (edit/Bulk.jsx) all ask these what is offered, why something is off, and what to
 // send. What is sent is one request to clark (op "bulk", clark/changes.py): one step, one Undo, every item checked there first.
 import { PRIORITIES } from "./itemEdit.js";
+import { statusIcon, priorityIcon, fieldIcon } from "../menuIcons.js";
 
 export const CONFIRM_ABOVE = 25;                   // clark asks again above this many (changes.BULK_CONFIRM_ABOVE)
 export const MAX = 500;                             // clark takes at most this many in one change (changes.MAX_BULK)
@@ -81,11 +82,11 @@ export const confirmWords = (n) => `Change ${n} items?`;
 
 /** What a picker chooses from, for a control: [{value, text}]. `ctx` has the active workstreams and the milestones. */
 export function choicesFor(table, id, ctx = {}) {
-  if (id === "status") return (STATUSES[table] || []).map((s) => ({ value: s, text: s }));
-  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p }));
-  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p }));
-  if (id === "workstream") return (ctx.workstreams || []).map((w) => ({ value: w, text: w })).concat([{ value: "", text: "No workstream" }]);
-  if (id === "milestone") return (ctx.milestones || []).map((m) => ({ value: m.id, text: m.name })).concat([{ value: "", text: "No milestone" }]);
+  if (id === "status") return (STATUSES[table] || []).map((s) => ({ value: s, text: s, ...statusIcon({ kind: table === "raid" ? "risk" : "action" }, s, ctx.today || "") }));
+  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
+  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
+  if (id === "workstream") return (ctx.workstreams || []).map((w) => ({ value: w, text: w, ...fieldIcon("workstream") })).concat([{ value: "", text: "No workstream", ...fieldIcon("workstream", true) }]);
+  if (id === "milestone") return (ctx.milestones || []).map((m) => ({ value: m.id, text: m.name, ...fieldIcon("milestone") })).concat([{ value: "", text: "No milestone", ...fieldIcon("milestone", true) }]);
   return [];
 }
 

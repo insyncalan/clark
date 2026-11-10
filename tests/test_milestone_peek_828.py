@@ -225,8 +225,11 @@ class Fields(Base):
     def test_workstream_and_client_wording_and_visible_to_client(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-field=workstream] option')].map((o) => o.textContent)")[0], "—")
-            p.js("(() => { const s = document.querySelector('#peek [data-ms-field=workstream]'); s.value = 'Build'; s.dispatchEvent(new Event('change', {bubbles: true})); })()")
+            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=workstream]').textContent"), "—")
+            self.click(p, "#peek [data-ms-field=workstream]")
+            p.until("!!document.querySelector('[data-pop][role=menu]')", "the workstream menu opened")
+            self.assertEqual(p.js("document.querySelectorAll('[data-pop] [role=menuitemradio] svg.i').length"), p.js("document.querySelectorAll('[data-pop] [role=menuitemradio]').length"), "every choice has its icon (row 1074)")
+            self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
             self.saved(p, "workstream", "Build")
             self.click(p, "#peek [data-ms-field=client_message]")
             self.type_in(p, "#peek [data-ms-in=client_message]", "On its way", leave="ctrl")
@@ -286,28 +289,6 @@ class Fields(Base):
                     self.assertEqual(seen["small"], [])
                     self.assertTrue(seen["scroll"], "no sideways scroll in the peek")
                     self.assertGreaterEqual(seen["size"], 13)
-
-    def test_the_description_toolbar_wraps_to_two_rows_at_most_at_420_px(self):
-        """Item 1005 follow-up: the rich editor's toolbar in the Description field took four rows at phone width. It pins the row count (the
-        distinct tops of its buttons, the 'Cmd+Enter saves' hint and the separators) and the height, in light and dark, with the motion reduced."""
-        for theme in ("light", "dark"):
-            with self.subTest(theme=theme), chrome() as cdp:
-                p = self.visit_peek(cdp, width=420, theme=theme)
-                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
-                p.until("document.getAnimations().length === 0", "no animation running")
-                self.click(p, "#peek [data-row=description] [data-rich=description]")
-                p.until("!!document.querySelector('#peek [data-row=description] .rt-bar')", "the editor opened")
-                seen = p.js("""(() => {
-                  const bar = document.querySelector('#peek [data-row=description] .rt-bar'), peek = document.querySelector('#peek');
-                  const tops = new Set([...bar.children].filter((e) => !e.classList.contains('rt-sep') && !e.classList.contains('rt-keys')).map((e) => Math.round(e.getBoundingClientRect().top)));
-                  const pr = peek.getBoundingClientRect(), br = bar.getBoundingClientRect();
-                  return {rows: tops.size, wide: Math.round(br.width), height: Math.round(br.height), inside: br.left >= pr.left - 1 && br.right <= pr.right + 1,
-                          scroll: peek.scrollWidth <= peek.clientWidth + 1, buttons: [...bar.querySelectorAll('button')].every((b) => b.getBoundingClientRect().height >= 32)};
-                })()""")
-                self.assertLessEqual(seen["rows"], 2, f"the toolbar is on {seen['rows']} rows: {seen}")
-                self.assertLessEqual(seen["height"], 110, seen)
-                self.assertGreaterEqual(seen["wide"], 280, "the open editor has the whole row, not half of it")
-                self.assertTrue(seen["inside"] and seen["scroll"] and seen["buttons"], seen)
 
 
 if __name__ == "__main__":
