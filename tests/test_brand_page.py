@@ -147,7 +147,7 @@ class Page(InBrowser):
         self.replies(review=OK(REFUSAL, 409))
         self.mount()
         self.click("[data-review]")
-        self.assertEqual(self.text(".pub-msg"), REFUSAL["message"])
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').firstChild.textContent.trim()"), REFUSAL["message"])
         self.assertFalse(self.present("#brands-panel"))
         self.assertEqual(self.calls(), ["list", "review"])
 
@@ -155,7 +155,7 @@ class Page(InBrowser):
         self.replies(review=OK({"ok": False, "code": "damaged"}, 409))
         self.mount()
         self.click("[data-review]")
-        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.GENERIC"))
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').firstChild.textContent.trim()"), self.val("T.logic.GENERIC"))
 
     def test_the_card_holds_no_deny_list_word(self):
         from clark import brands

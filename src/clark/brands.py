@@ -49,8 +49,7 @@ GENERIC = object()                  # what folder() answers for the committed lo
 RESERVED = ("assets", "design-system", "generic", LOCAL)
 ID_RE = re.compile(r"[a-z0-9-]{1,40}")
 VERSION_RE = re.compile(r"[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}")
-ZIP_NAME_RE = re.compile(r"clark-brand-(.+)-([0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6})\.zip")
-BROWSER_COPY = re.compile(r" \([0-9]+\)(?=\.zip$)")      # a browser's " (1)" after a second download
+LOOK_AT = 5                         # the newest this many zips in Downloads are looked at for a brand manifest
 MANIFEST = "clark-brand.json"
 TOKENS = "tokens.css"
 HIDDEN_NEW = ".clark-brand-new-"
@@ -84,7 +83,6 @@ LISTED_WORD_CHECK = None            # a test sets a function (line -> bool); Non
 MESSAGES = {
     "damaged": updates.MESSAGES["damaged"],
     "failed": "That didn't work, and nothing was changed. Try again, or restart clark.",
-    "name": "That isn't a clark brand file. Its name should look like clark-brand-yourbrand-1.2.3.zip.",
     "too_big": "This brand file holds a file that is too big. The most for one file is 5 MB. Nothing was installed.",
     "too_many": "This brand file holds too many files. The most is 50. Nothing was installed.",
     "unsafe_name": "This brand file has a file name clark can't use safely. Nothing was installed.",
@@ -220,6 +218,47 @@ def _has_top_tokens(base):
         return False
 
 
+def _top_pack(base):
+    """{"id", "name", "version"} for a pack unzipped straight into system/branding (tokens.css and a valid clark-brand.json at the
+    top), else None. Its id is the manifest's when that is a plain unreserved id, else local-brand; its name is the manifest's."""
+    if not _has_top_tokens(base):
+        return None
+    data = _read_small(base / MANIFEST, MANIFEST_CAP)
+    doc = _parse_manifest(data) if data is not None else None
+    if not doc or not _clean_text(doc.get("name"), MAX_NAME) or not isinstance(doc.get("version"), str) \
+            or not VERSION_RE.fullmatch(doc["version"]):
+        return None
+    given = doc.get("id")
+    plain = isinstance(given, str) and ID_RE.fullmatch(given) and given not in RESERVED
+    return {"id": given if plain else LOCAL, "name": doc["name"], "version": doc["version"]}
+
+
+def has_manifest(path):
+    """True when `path` is a readable zip with a clark-brand.json one folder down. Reads only the member names."""
+    try:
+        if os.path.getsize(path) > ZIP_CAP:
+            return False
+        with zipfile.ZipFile(path) as zf:
+            return any(n.count("/") == 1 and n.endswith("/" + MANIFEST) for n in zf.namelist())
+    except (OSError, zipfile.BadZipFile, ValueError, NotImplementedError, RuntimeError, EOFError, zlib.error):
+        return False
+
+
+def newest_brand_zip(folder):
+    """The newest of the newest LOOK_AT zips in `folder` that holds a brand manifest, or None. Links are not followed."""
+    found = []
+    for p in (sorted(Path(folder).glob("*.zip")) if folder else []):
+        try:
+            if p.is_file() and not p.is_symlink():
+                found.append((p.stat().st_mtime, p))
+        except OSError:
+            continue
+    for _mtime, p in sorted(found, key=lambda t: t[0], reverse=True)[:LOOK_AT]:
+        if has_manifest(p):
+            return p
+    return None
+
+
 def installed(root):
     """[{"id", "name", "version"}]: the folders of system/branding with a valid manifest naming themselves, plus local-brand
     when a tokens.css sits at the top. Hidden folders and the legacy sub-folders are ignored. Read per Settings call."""
@@ -241,7 +280,10 @@ def installed(root):
         found = _listed(base / name, name)
         if found:
             out.append(found)
-    if _has_top_tokens(base):
+    top = _top_pack(base)
+    if top and not any(b["id"] == top["id"] for b in out):
+        out.append(top)
+    elif _has_top_tokens(base) and not top:
         out.append({"id": LOCAL, "name": LOCAL, "version": ""})
     return sorted(out, key=lambda b: b["id"])
 
@@ -261,7 +303,8 @@ def folder(root, brand_id):
             return path
     except OSError:
         pass
-    return GENERIC
+    top = _top_pack(base)
+    return base if top and top["id"] == brand_id else GENERIC
 
 
 # --- crash recovery -----------------------------------------------------------------------------------------------------
@@ -617,9 +660,6 @@ def review(path, root):
     """Check a brand zip and hold it for 15 minutes. Returns {"review_id", "id", "name", "version", "zip_sha256", "added",
     "replaced", "removed"}. Writes nothing (it only puts right what a crash left, first)."""
     recover(root)
-    given = ZIP_NAME_RE.fullmatch(BROWSER_COPY.sub("", Path(path).name))
-    if not given:
-        raise BrandError("name", "the file name")
     members, modes, zip_sha = _open_zip(path)
     names = list(members)
     tops = {n.split("/")[0] for n in names if "/" in n}
@@ -642,8 +682,6 @@ def review(path, root):
     check_id(brand_id)
     if brand_id != top:
         raise BrandError("folder", "the manifest's id is not the folder's")
-    if given.group(1) != brand_id:
-        raise BrandError("name", "the file name's id is not the brand's")
     if set(rows) != set(files):
         raise BrandError("manifest", "the rows and the files differ")
     for rel, body in files.items():
