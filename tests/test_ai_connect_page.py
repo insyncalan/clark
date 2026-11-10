@@ -64,6 +64,7 @@ class Card(unittest.TestCase):
             js = self.show(cdp)
             self.assertIn("Claude, which Anthropic runs", js("document.querySelector('#ask-settings').innerText"))
             self.assertIn("are billed to the Claude account signed in on this computer", js("document.querySelector('#ask-notice').innerText"), "#1062")
+            self.assertGreater(js("document.querySelector('#ask-notice').offsetHeight"), 0, "the notice is on show, not hidden (#1062)")
             js("document.querySelector('[data-ai-connect=chatgpt]').click()")
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-model option[value=\"gpt-6.1-sol\"]')"), 10))
             self.pick(js, "gpt-6.1-sol")

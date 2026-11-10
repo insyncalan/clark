@@ -591,6 +591,11 @@ class Words(unittest.TestCase):
         for name in ("SIGNED_OUT_LINE", "NO_ANSWER_LINE", "NOT_REACHED_LINE", "EMPTY_LINE"):
             self.assertRegex(said[name], r"(Sign in|Wait|Check|Type|then)", f"{name} has a next step")
 
+    def test_help_points_to_the_asking_card_for_where_a_question_goes(self):
+        """#1062: Help says the Asking card in Settings tells where a question goes and who pays."""
+        text = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("That card also says where a question goes and which account pays for it.", text)
+
     def test_the_published_page_has_no_panel(self):
         from clark import page
         html = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
