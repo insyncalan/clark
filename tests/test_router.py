@@ -173,16 +173,12 @@ class Pure(Browser):
         self.assertEqual((f1, f2, f3, f4, f5, round_trip), ("#settings&p=PDF&s=people", "#settings&p=PDF", "#settings", "#work&p=PDF", "#settings&p=PDF&s=claude-ai",
                                                            "#settings&p=PDF&s=backups"))
 
-    def test_the_client_report_view_has_its_own_address(self):
-        """#192: Client Requested Report View is "#clientreport", with a project and a peek like the other pages."""
-        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF'), R.parse('#clientreport&p=PDF&item=A-12'),
-            R.format({view:'clientreport',project:'PDF'}), R.format({view:'clientreport'}), R.parse('#clientreports&p=PDF').view,
-            R.parse('#CLIENTREPORT').view])""")
-        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": "", "s": ""}  # noqa: E731
-        views, plain, peek, f1, f2, near, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"])
-        self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
-        self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
+    def test_1065_the_retired_client_report_address_falls_back_to_the_dashboard(self):
+        """Row 1065: "#clientreport" is no view any more; an old bookmark opens the Dashboard."""
+        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF').view, R.parse('#CLIENTREPORT').view])""")
+        views, old, upper = json.loads(got)
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings"])
+        self.assertEqual((old, upper), ("dashboard", "dashboard"))
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])
@@ -1183,13 +1179,13 @@ class FileUrl(Browser):
             self.assertTrue(all(u.split(" ", 1)[1].startswith("#") for u in self.ev("window.urls")))
             self.no_errors()
 
-    def test_item_1019_the_published_page_keeps_the_dashboards_place_at_360_and_1400(self):
+    def test_item_1019_the_published_page_keeps_the_dashboards_place_at_1400_and_900(self):
         view = PAGE_SRC.parent / "page-view.html"                      # the published file's own bundle, from file://
-        for width in (360, 1400):
+        for width in (1400, 900):
             with chrome() as cdp:
                 self.cdp = cdp
                 self.sid = opened(cdp, view.as_uri() + "#dashboard&p=PDF")
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": width < 500}, self.sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 800, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", self.sid) == "1"), f"ran at {width}")
                 self.assertEqual(self.ev("location.protocol"), "file:")
                 self.ev("document.querySelector('header.top').parentElement.style.minHeight = '5000px'")

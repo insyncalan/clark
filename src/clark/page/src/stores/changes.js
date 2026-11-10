@@ -12,12 +12,17 @@ import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
+import { toastClock } from "./toastClock.js";
 import { FIELDS as GANTT_FIELDS } from "../gantt/ganttTab.js";
 export const toast = signal(null);
+// Row 1075: a message goes after 5 seconds (stores/toastClock.js), unless the pointer is over it or focus is in it; Cmd or Ctrl+Z still undoes the step after that (below).
+let shown = 0;
+export const toastTimer = toastClock(() => { if (toast.value && toast.value.id === shown) toast.value = null; });
+const clock = toastTimer;
 // Counts the undos that worked, so the Movement block (edit/Movement.jsx) reads its milestones again after one.
 export const undone = signal(0);
 
-let counter = 0, tail = Promise.resolve(), timer = 0;
+let counter = 0, tail = Promise.resolve();
 const wordSteps = new Set();             // the steps a Word import made (#48): their Undo goes by the Word route, which undoes only those
 const focusSteps = new Map();            // row 865: step -> a selector; after its Undo the focus goes there if the page dropped it
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
@@ -37,10 +42,9 @@ export function say(kind, text, undo = null, code = project.value) {
     if (undoable.length > MAX_KEPT) { undoable.shift(); }
   }
   if (kind === "problem") trouble.n++;
-  clearTimeout(timer);
   const id = ++counter;
   toast.value = { id, kind, text, undo, code };
-  if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
+  if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
 // A different project is a page load (report.js), which would take the message with its Undo away: the one message on show goes with the
@@ -70,7 +74,7 @@ stayed.push((late) => { if (late) say("problem", plainChange(0)); });      // a 
 takeCarried();
 
 export function dismiss() {
-  clearTimeout(timer);
+  clock.stop();
   toast.value = null;
 }
 
