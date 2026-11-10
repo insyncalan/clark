@@ -204,6 +204,21 @@ class Seam(Base):
         self.assertEqual(row["at"], at.replace(" ", "T").split(".")[0] + "Z")
         self.assertNotIn("Report.pdf", json.dumps(self.past.listing("PUB")[1]), "no file name leaves")
 
+    def test_row_1087_utc_stamp_converts_an_offset_stamp_to_utc_and_says_none_for_a_non_time(self):
+        self.assertEqual(past_reports.utc_stamp("2026-11-02 12:00:00+04:00"), "2026-11-02T08:00:00Z", "an offset is converted, not just relabelled")
+        self.assertEqual(past_reports.utc_stamp("2026-11-02T08:00:00Z"), "2026-11-02T08:00:00Z")
+        for odd in ("nonsense", "", None, 7, "2026-13-45 00:00:00"):
+            self.assertIsNone(past_reports.utc_stamp(odd), repr(odd))
+
+    def test_row_1087_a_word_row_never_reports_a_pdf(self):
+        done, body = self.publish()
+        page = self.store.web_publication_seq("PUB", done["number"])
+        self.store.log_publication("PUB", Path("/tmp/clark-fictional/old.docx"), "2026-10-23", "b" * 64, USER, word=1, same_as=page)
+        word_seq = self.store.con.execute("SELECT seq FROM publications WHERE word = 1").fetchone()[0]
+        self.store.record_pdf_name(word_seq, "Odd.pdf")
+        rows = self.past.listing("PUB")[1]["publications"]
+        self.assertEqual([(r["word"], r["pdf"]) for r in rows], [(False, False), (True, False)])
+
     def test_show_archived_lists_the_archived_ones_too_marked_and_the_default_hides_them(self):
         for i in range(3):
             self.publish(now=f"2026-11-{i + 1:02d}")

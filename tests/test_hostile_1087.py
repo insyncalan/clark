@@ -176,7 +176,6 @@ class Hostile(Base):
         self.assertFalse(published_copies.unarchive(self.data_dir, "PUB", 2))
         self.assertTrue((self.copies / "PUB-2.archived").is_dir())
 
-    @unittest.expectedFailure
     def test_week_ending_odd_values_are_cut_to_none_or_a_plain_day(self):
         for i, w in enumerate(["2026-11-06", "2026-11-06\n", "<b>x</b>", "", "0000-00-00", "2026-1-6", "\u0662\u0660\u0662\u0666-11-06", "2026-11-06'; DROP TABLE x;--"], 1):
             self.row(i, week=w)

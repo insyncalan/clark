@@ -27,7 +27,7 @@ from clark import history, past_banner, published_copies, timefmt
 from clark.store import connect
 
 SHOWN = 10                       # the list shows the newest ten; every publication is kept
-DAY = re.compile(r"\d{4}-\d{2}-\d{2}")
+DAY = re.compile(r"[0-9]{4}-[0-9]{2}-[0-9]{2}")      # ASCII digits only (\d matches other scripts' digits in Python 3)
 VISIT_KEEP = 4                   # past reports waiting to be opened; the oldest goes first
 VISIT_SECONDS = 120              # an address not visited in this time is dropped
 NONCE = re.compile(r"[A-Za-z0-9_-]{16,64}")
