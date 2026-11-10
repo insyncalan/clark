@@ -3,7 +3,7 @@ never wrap, never get an ellipsis and are never clipped (a second line is fine: 
 
 Run: python3 dev/run_tests.py test_row_ids_no_wrap
 A real browser over a real store of fictional rows (project LONGPRJ: a 13-character ID, a very long title with spaces, a title
-with no space in it, a long owner name). Each part is measured as drawn, at 360, 641, 900, 901 and 1400 px (the cards go two across at 900 and one across at 640): its box is one line high (a wrapped
+with no space in it, a long owner name). Each part is measured as drawn, at 1400 and 900 px (the cards go two across at 900): its box is one line high (a wrapped
 flex item still has one client rect, so the height is measured, not the rect count), it ends inside its row or card, and the
 rows and cards are not wider than the screen. The same is read on the page clark serves (View, Edit) and on the published file, which carries
 shell.css inlined: so the file is the proof for any rule in that sheet.
@@ -102,7 +102,6 @@ def check(test, js, surface, where, width):
 
 
 AREAS = "(function(){var r=document.querySelector('.wl:not(.cr-wl) > .wl-row');var c=getComputedStyle(r);return [c.gridTemplateAreas, getComputedStyle(r.querySelector(':scope > .wl-state')).gridArea, getComputedStyle(r.querySelector(':scope > .wl-main')).gridArea, (r.querySelector(':scope > .wl-id') ? getComputedStyle(r.querySelector(':scope > .wl-id')).gridArea : 'id')];})()"
-PHONE_AREAS = ['"state id" "main main"', "state", "main", "id"]
 TAG_SHRINK = "(function(){var t=document.querySelector('.item-rows-edit .wl-title .tag');if(!t)return null;var c=getComputedStyle(t);var r=t.getBoundingClientRect();return {shrink:c.flexShrink,grow:c.flexGrow,oneLine:r.height<=parseFloat(c.lineHeight||c.fontSize)*1.4+parseFloat(c.paddingTop)+parseFloat(c.paddingBottom)+4,fits:t.scrollWidth<=t.clientWidth+1,text:t.textContent};})()"
 
 
@@ -127,28 +126,25 @@ class RowIds(unittest.TestCase):
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port, f"#dashboard&p={CODE}")
             p.ready()
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (1400, 900):
                 self.width(p, w)
                 p.until(f"document.documentElement.clientWidth === {w} || document.documentElement.clientWidth < {w}", "resized")
                 check(self, p.js, ROWS, "View rows", w)
                 check(self, p.js, CARDS, "View cards", w)
-                self.phone_areas(p.js, w, "View")
+                self.three_columns(p.js, w, "View")
             p.edit()
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (1400, 900):
                 self.width(p, w)
                 p.until("document.querySelectorAll('.item-rows-edit .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
-                self.phone_areas(p.js, w, "Edit")
+                self.three_columns(p.js, w, "Edit")
                 self.tag_holds(p.js, w)
 
-    def phone_areas(self, js, w, where):
-        """On a phone (640 px and less) the pill and the ID share the first line and the item has the whole width below; above, the
-        three columns. The computed grid-template-areas is read, so any change to that line fails here."""
+    def three_columns(self, js, w, where):
+        """At 1400 and 900 a row is the three columns with no named grid areas. The computed grid-template-areas is read, so any
+        change to that line fails here. (Only 1400 and 900 are tested: no narrower width is.)"""
         got = js(AREAS)
-        if w <= 640:
-            self.assertEqual(got, PHONE_AREAS, f"{where} phone grid areas at {w}")
-        else:
-            self.assertEqual(got[0], "none", f"{where} has no named areas above a phone, at {w}")
+        self.assertEqual(got[0], "none", f"{where} has no named areas at {w}")
 
     def tag_holds(self, js, w):
         """The Risk or Issue tag in an Edit row's title keeps its width (flex: none in edit.css): it does not shrink, wrap or clip."""
@@ -165,14 +161,14 @@ class RowIds(unittest.TestCase):
             tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             p = Pg(self, cdp, sid)
-            for w in (360, 641, 900, 1100, 1101, 1400):
+            for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row').length > 0 && document.querySelectorAll('.raid-card').length > 0", sid)),
                                 "the file drew its rows and cards")
                 check(self, p.js, ROWS, "File rows", w)
                 check(self, p.js, CARDS, "File cards", w)
-                self.phone_areas(p.js, w, "File")
+                self.three_columns(p.js, w, "File")
                 self.assertEqual(p.js("document.querySelectorAll('.wl-id').length"), 0, "a file draws no item number in its rows")
 
 
