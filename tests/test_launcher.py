@@ -801,6 +801,12 @@ class PlatformCalls(unittest.TestCase):
         self.assertTrue(kw["start_new_session"])
         self.assertIsNot(kw.get("shell"), True)
 
+    def test_an_https_address_is_opened_too_as_the_refusal_line_promises(self):
+        """Mutation sweep of row 1076: the refusal says http:// or https:// can be opened; nothing pinned the https half."""
+        calls = []
+        pl.open_in_chrome("https://example.test/x", "/stub/browser", popen=lambda a, **kw: calls.append(a), on=pl.MAC)
+        self.assertEqual(calls, [["/stub/browser", "https://example.test/x"]])
+
     def test_launch_opens_the_window_by_default_with_open_in_chrome_and_the_browser_with_open_url(self):
         """Row 1076: every other test passes its own open_window; the default is what a real launch uses."""
         import inspect
