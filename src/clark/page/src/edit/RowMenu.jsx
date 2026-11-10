@@ -121,10 +121,11 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
   const box = useRef(null), search = useRef(null);
   const [typed, setTyped] = useState("");
   const [register, setRegister] = useState([]);
+  const [loaded, setLoaded] = useState(!owner);          // item 1070: no Add is offered until the people have been read
   useEffect(() => {                                 // item 1070: the Change owner list searches the people clark holds as well as the project's names
     if (!owner) return undefined;
     let on = true;
-    readPeople().then((r) => { if (on) setRegister(r.ok ? r.people : []); });
+    readPeople().then((r) => { if (on) { setRegister(r.ok ? r.people : []); setLoaded(true); } });
     return () => { on = false; };
   }, []);
   if (hold) hold.current = () => !!search.current && (document.activeElement === search.current || search.current.value.trim() !== "");   // item 1070: a search box in use keeps its list open
@@ -132,7 +133,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
   if (owner && typed.trim()) {
     const found = ownerChoices(register, owner.names, owner.row, typed);
     list = [...found.map((n) => ({ id: "o:" + n, name: n })),
-      ...(canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
   }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
@@ -160,7 +161,7 @@ function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onP
     else if (e.key === "Tab") onClose("tab");
   };
   return (
-    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
+    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} data-rm-loading={loaded ? undefined : ""} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
       onKeyDown={keys} onPointerEnter={keep} onPointerLeave={() => hover("")}>
       {owner ? <input ref={search} type="text" class="cp-in rm-search" data-rm-search value={typed} autocomplete="off" spellcheck={false} maxLength={200}
         placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
