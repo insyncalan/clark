@@ -174,7 +174,7 @@ class Present(unittest.TestCase):
         self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases", "clientreport"])
         self.assertEqual(block(text)["tabs"], pub["tabs"])
         router = (ROOT / "src/clark/page/src/router.js").read_text(encoding="utf-8")
-        self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"]', router)
+        self.assertIn('VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings", "published"]', router)
         self.assertIn('usecases: "Use cases"', (ROOT / "src/clark/page/src/stores/report.js").read_text(encoding="utf-8"))
 
     def test_no_user_facing_use_cases_in_title_case(self):

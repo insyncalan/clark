@@ -83,7 +83,7 @@ export function localWhen(when, zone) {
 // The name of the person's zone, in words ("Gulf Standard Time"); the zone's own id when the browser has no name for it.
 export function zoneName(zone) {
   try {
-    const part = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, timeZoneName: "long" }).formatToParts(new Date()).find((p) => p.type === "timeZoneName");
+    const part = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, timeZoneName: "long" }).formatToParts().find((p) => p.type === "timeZoneName");
     if (part && part.value) return part.value;
   } catch (e) { /* falls through */ }
   return zone || "your computer's time zone";
