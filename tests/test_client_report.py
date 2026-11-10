@@ -31,7 +31,7 @@ def text(*parts):
 
 class Source(unittest.TestCase):
     def test_the_view_has_an_id_a_name_and_a_page(self):
-        self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"\]')
+        self.assertRegex(text("router.js"), r'export const VIEWS = \["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings", "published"\]')
         self.assertIn('"Client Requested Report View"', text("stores", "report.js"))   # the name stays in the store; the served page does not offer the tab (#559)
         self.assertIn('fromFile.value ? "Weekly snapshot"', text("stores", "report.js"), "a client has not asked for anything: the file's tab has its own name")
         app = text("components", "App.jsx")

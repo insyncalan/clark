@@ -1084,7 +1084,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .pp-where p { margin: var(--space-2) 0 0; }
 .pp-kicker { margin: 0 0 var(--space-2); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
 .pp-block { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
-.pp-latest h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2, 1.25rem); color: var(--heading); }
+.pp-latest h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); color: var(--heading); }
 .pp-latest p { margin: 0 0 var(--space-2); }
 .pp-latest .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
 .pp-earlier .pubs { margin-top: 0; }

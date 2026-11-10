@@ -77,7 +77,7 @@ export function whenIn(at, zone) {
 }
 
 /** The person's zone by its name ("Gulf Standard Time"), or "" when the browser cannot say. */
-export function zoneName(zone, at = new Date()) {
+export function zoneName(zone, at) {
   try {
     const p = new Intl.DateTimeFormat("en-GB", { timeZone: zone || undefined, timeZoneName: "long" }).formatToParts(at).find((x) => x.type === "timeZoneName");
     return p ? p.value : "";
