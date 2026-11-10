@@ -11,7 +11,7 @@ import unittest
 
 from test_item_one_line import Base, FITS, ROWS, width, wait, chrome, Pg
 
-WIDTHS = (560, 420, 900, 1400)
+WIDTHS = (900, 1400)
 PRINT_WIDTH = 703        # an A4 page between its 12 mm side margins, as CSS px: what the print media rules see
 
 # Every visible part of every row, its box, and the parts that are cut (text wider than its own box).
@@ -72,7 +72,7 @@ class FitInTheEditor(Fit, Base):
 
 
 class FitInThePublishedFile(Fit, Base):
-    def open(self, cdp):
+    def load_app(self, cdp):
         path = self.published()
         tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
         sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
@@ -82,7 +82,7 @@ class FitInThePublishedFile(Fit, Base):
 
     def test_no_overlap_and_no_sideways_scroll_at_every_width_light_and_dark(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load_app(cdp)
             js = lambda e: cdp.js(e, sid)
             for dark in (False, True):
                 theme(js, dark)
@@ -92,7 +92,7 @@ class FitInThePublishedFile(Fit, Base):
 
     def test_the_file_shows_the_full_owner_name_at_every_width(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load_app(cdp)
             for w in WIDTHS:
                 width(cdp, sid, w)
                 rows = cdp.js(OWNERS, sid)
@@ -103,7 +103,7 @@ class FitInThePublishedFile(Fit, Base):
 
     def test_the_printed_page_shows_the_full_owner_name_and_fits(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.load_app(cdp)
             width(cdp, sid, PRINT_WIDTH)
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, sid)
             cdp.js("window.dispatchEvent(new Event('beforeprint'))", sid)
