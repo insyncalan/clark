@@ -7,7 +7,6 @@ plain reason (`undo_refused`, else "") so the tab withholds the tick. Writes not
 It is thin in what it does, not in what it loads: it imports `changes` (a large module) for the one function undo_refusals, which
 shares its checks with Undo several, so importing it keeps the tab and Undo in step.
 Standard library only, Python 3.9."""
-import re
 
 from clark import changes, history
 from clark.source_name import source_name

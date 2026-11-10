@@ -9,7 +9,6 @@ weekend bar's two moves, each one request and one Undo; View has none of it. In 
 are drawn with the dark tokens and each line of text reads at 4.5:1 or more on what it is drawn over.
 """
 import json
-import time
 import unittest
 from _editor_checks import for_url
 from datetime import datetime, timezone
