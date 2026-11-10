@@ -178,7 +178,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Quit",      # the chips: one for each card below, in the order they are on the page
                                   "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -233,7 +233,8 @@ class Words(unittest.TestCase):
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
-                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
+                                  "Claude is started on this computer for you.",
+                                  "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
@@ -241,7 +242,8 @@ class Words(unittest.TestCase):
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
                                   "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions come in a later version."])
+                                  "AI suggestions come in a later version.",
+                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
