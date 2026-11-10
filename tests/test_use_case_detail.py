@@ -700,6 +700,32 @@ class Detail(unittest.TestCase):
             self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "the page is still there")
             self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(opener)})", f"{how}: the focus is back on the opener")
 
+    def test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081(self):
+        """Row 1081: ID, title, one tinted status chip, then Owner and Due in muted text, on ONE line at 1400 and 900, light and dark.
+        The chip takes the colours of row 1021 (Open green, Made and Closed blue, grey when withdrawn or cancelled), not the old pill's."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
+        rows = ("[...document.querySelectorAll('[data-item]')].map(b => { const q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), chip = q('.pill'), c = getComputedStyle(chip), x = q('.ucd-x');"
+                " return {id: b.dataset.item, h: r(b).height, chips: b.querySelectorAll('.pill').length, word: chip.textContent.trim(), cls: chip.className, fg: c.color, bg: c.backgroundColor,"
+                " one: r(q('.ucd-id')).top < r(chip).bottom && r(x).top < r(chip).bottom && r(chip).top < r(q('.ucd-id')).bottom + 8 && Math.abs(r(x).top - r(q('.ucd-id')).top) < 12,"
+                " muted: getComputedStyle(x).color === getComputedStyle(q('.ucd-id')).color, ordered: r(q('.ucd-id')).left < r(q('.ucd-t')).left && r(q('.ucd-t')).left < r(chip).left && r(chip).left < r(x).left}; })")
+        want = {"Open": "green", "Pending": "green", "Made": "blue", "Closed": "blue", "Overdue": "red", "Due soon": "amber"}
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    tones = cdp.js(probe, sid)
+                    found = cdp.js(rows, sid)
+                    self.assertTrue(found, "the card lists its items")
+                    for r in found:
+                        self.assertEqual(r["chips"], 1, r["id"])
+                        self.assertTrue(r["one"], f"{r['id']}: the id, title, chip and owner and due sit on one line at {width}")
+                        self.assertTrue(r["ordered"], f"{r['id']}: id, title, chip, then owner and due")
+                        self.assertTrue(r["muted"], f"{r['id']}: owner and due are muted like the id")
+                        self.assertLess(r["h"], 60, r["id"])
+                        if r["word"] in want:
+                            self.assertEqual([r["fg"], r["bg"]], tones[want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone")
+
     def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
         data = self.read("TUL")
         item = sorted(r["id"] for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC)[0]
