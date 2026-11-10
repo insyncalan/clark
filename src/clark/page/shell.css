@@ -2301,3 +2301,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   .toc-card, .toc.open .toc-card { transform: translate(0, -50%); }      /* the rail's card stays centred on the rail (only the slide is dropped) */
 }
+
+/* Item 1078: the milestone peek is one flat list, not tiles: the label beside the value, a hairline between rows, the rows in the order the markup gives. */
+.pk-fields.pk-flat { display: block; }
+.pk-fields.pk-flat > .pk-row[data-row] { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: var(--space-3); order: 0; padding: var(--space-2) 0; margin-bottom: 0; border: 0; border-top: 1px solid var(--grey-100); border-radius: 0; background: none; }
+.pk-fields.pk-flat > .pk-row[data-row]:first-child { border-top: 0; }
+.pk-fields.pk-flat > .pk-row[data-row=description]:has(.rt) { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); }   /* the open rich editor takes the whole row */

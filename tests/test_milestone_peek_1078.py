@@ -15,8 +15,8 @@ from test_server import chrome  # noqa: E402
 
 EDIT_ROWS = ["description", "baseline", "forecast", "name", "owner", "state", "progress", "workstream", "visible", "client_message"]
 EDIT_ROWS_DONE = ["description", "baseline", "forecast", "actual", "name", "owner", "state", "progress", "workstream", "visible", "client_message"]
-VIEW_ROWS = ["description", "baseline", "forecast", "state", "progress", "workstream", "client_message"]
-VIEW_ROWS_DONE = ["description", "baseline", "forecast", "actual", "state", "progress", "workstream", "client_message"]
+VIEW_ROWS = ["description", "baseline", "forecast", "owner", "state", "progress", "workstream", "client_message"]
+VIEW_ROWS_DONE = ["description", "baseline", "forecast", "actual", "owner", "state", "progress", "workstream", "client_message"]
 
 FLAT = """(() => {
   const rows = [...document.querySelectorAll('#peek .pk-fields > .pk-row')];
@@ -27,7 +27,7 @@ FLAT = """(() => {
           rights: [...new Set(rows.map((r) => Math.round(box(r).right)))],
           stacked: rows.every((r, i) => i === 0 || box(r).top >= box(rows[i - 1]).bottom - 1),
           tile: rows.filter((r) => ['Left', 'Right', 'Bottom'].some((s) => parseFloat(cs(r)['border' + s + 'Width']) > 0) || parseFloat(cs(r).borderTopLeftRadius) > 0).length,
-          grid: getComputedStyle(document.querySelector('#peek .pk-fields')).gridTemplateColumns.split(' ').length};
+          grid: getComputedStyle(document.querySelector('#peek .pk-fields')).display};
 })()"""
 
 
@@ -37,7 +37,7 @@ class Flat(Base):
 
     def done(self):
         with self.store.step("dashboard", USER) as st:
-            st.update("milestones", PILOT, {"status": "Done", "state": "Achieved", "state_set": 1, "actual_date": "2020-01-05"})
+            st.update("milestones", PILOT, {"status": "Done", "state": "Achieved", "state_set": 1, "actual_date": "2020-01-05", "client_message": "Done"})
 
     def seen(self, ms, width, view="milestones"):
         with chrome() as cdp:
@@ -50,7 +50,7 @@ class Flat(Base):
         self.assertEqual(len(s["lefts"]), 1, "every row starts at the same left edge")
         self.assertEqual(len(s["rights"]), 1, "every row ends at the same right edge")
         self.assertTrue(s["stacked"], "one row under another, not side by side")
-        self.assertEqual(s["grid"], 1, "one column")
+        self.assertEqual(s["grid"], "block", "one column, not a grid of tiles")
 
     def test_the_editable_peek_is_one_flat_list_in_the_ruled_order(self):
         for width in (1400, 900):

@@ -16,6 +16,8 @@ import { slideOut } from "../peek/exit.js";
 import { closesPeek } from "../peek/outside.js";
 import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
+import { CleanProse } from "./CleanProse.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
 
@@ -39,6 +41,7 @@ function peekOwnsArrow(e) {
 const listItemOf = (el) => { const r = el && el.closest ? el.closest("#work tr[data-id], #work article[data-id]") : null; return r ? r.dataset.id : ""; };
 
 const DASH = "—";
+const safeHtml = (v) => { try { return richOrPlain(v); } catch (e) { return ""; } };
 const text = (v) => (v === null || v === undefined || v === "" ? DASH : String(v));
 
 // An icon in its tone's colour (#78), with the words after it: the colour is never the only way to tell what it means.
@@ -82,14 +85,20 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   );
 }
 
+// Item 1078: the same flat list the editable peek draws (edit/MilestonePeek.jsx), read only. Achieved on only when the milestone is achieved.
 function MilestoneFields({ m }) {
+  const done = m.status === "Done";
   return (
-    <dl class="pk-fields">
-      <Row name="Owner">{ownerOf(m.owner).text}</Row>
-      <Row name="Agreed date">{showDate(m.baseline_date)}</Row>
-      <Row name="Forecast date">{showDate(m.forecast_date)}</Row>
-      <Row name="Status">{text(m.state || m.status)}</Row>
-      <Row name="Workstream">{text(m.workstream)}</Row>
+    <dl class="pk-fields pk-flat">
+      <Row key_="description" name="Description">{m.description ? <CleanProse html={safeHtml(m.description)} cls="prose pk-prose" /> : DASH}</Row>
+      <Row key_="baseline" name="Agreed date">{showDate(m.baseline_date)}</Row>
+      <Row key_="forecast" name="Forecast date">{showDate(m.forecast_date)}</Row>
+      {done ? <Row key_="actual" name="Achieved on">{showDate(m.actual_date)}</Row> : null}
+      <Row key_="owner" name="Owner">{ownerOf(m.owner).text}</Row>
+      <Row key_="state" name="State">{text(m.state || m.status)}</Row>
+      <Row key_="progress" name="Progress">{m.percent_complete == null ? DASH : `${m.percent_complete}%`}</Row>
+      <Row key_="workstream" name="Workstream">{text(m.workstream)}</Row>
+      {m.client_message ? <Row key_="client_message" name="Client wording">{m.client_message}</Row> : null}
     </dl>
   );
 }

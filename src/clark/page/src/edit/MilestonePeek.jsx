@@ -156,15 +156,15 @@ function Visible({ m }) {
 
 export function MilestoneEdit({ m }) {
   return (
-    <dl class="pk-fields" data-ms-edit>
-      <Row name="Name" k="name"><Text m={m} field="name" label="Name" value={m.name} required /></Row>
-      <Row name="Owner" k="owner"><Text m={m} field="owner" label="Owner" value={ownerOf(m.owner).text === DASH ? "" : ownerOf(m.owner).text} /></Row>
+    <dl class="pk-fields pk-flat" data-ms-edit>
+      <Row name="Description" k="description"><Description m={m} /></Row>
       <Row name="Agreed date" k="baseline">{showDate(m.baseline_date)}</Row>
       <Row name="Forecast date" k="forecast"><DateField m={m} field="forecast_date" label="Forecast date" /></Row>
       {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
+      <Row name="Name" k="name"><Text m={m} field="name" label="Name" value={m.name} required /></Row>
+      <Row name="Owner" k="owner"><Text m={m} field="owner" label="Owner" value={ownerOf(m.owner).text === DASH ? "" : ownerOf(m.owner).text} /></Row>
       <Row name="State" k="state"><States m={m} /></Row>
       <Row name="Progress" k="progress"><Progress m={m} /></Row>
-      <Row name="Description" k="description"><Description m={m} /></Row>
       <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
       <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
       <Row name="Client wording" k="client_message"><Text m={m} field="client_message" label="Client wording" value={m.client_message || ""} lines max={500} /></Row>
