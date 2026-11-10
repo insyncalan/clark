@@ -4,6 +4,9 @@
 // Enter or Space picks. The same props as StatusPick, plus `today`, so the peek (#42) can use it as it is.
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Pop } from "./Pop.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { iconClass } from "../../iconColours.js";
+import { dueIcon } from "../../menuIcons.js";
 import { addDays, addMonths, monthCells, monthTitle, quickDates, canClearDue, fieldName } from "../itemEdit.js";
 import { dueField, showDate, dayNumber } from "../../workItems.js";
 
@@ -56,7 +59,7 @@ export function DuePick({ row, anchor, today, onPick, onClose, label, quick: cho
       <div class="cp-q">
         {quick.map(([text, day]) => (
           <button type="button" key={text} data-quick={day} onClick={() => onPick(day)}>
-            <span>{text}</span>{day ? <small class="num">{showDate(day)}</small> : null}
+            <span class={`mi-i ${iconClass(dueIcon().tone)}`}><Icon name={dueIcon().icon} /></span><span>{text}</span>{day ? <small class="num">{showDate(day)}</small> : null}
           </button>
         ))}
       </div>
