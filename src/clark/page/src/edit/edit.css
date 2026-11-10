@@ -112,7 +112,8 @@
 .pk-latest-err { color: var(--status-red-text); }
 .pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
 /* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
-.peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (shell.css .wordsbox, sticky) pins to the peek's bottom edge */
+.peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (.wordsbox, sticky) pins to the peek's bottom edge */
+.peek .wordsbox { bottom: calc(-1 * var(--space-5)); margin: 20px calc(-1 * (var(--space-5) + 20px)) calc(-1 * var(--space-5)); padding: var(--space-3) calc(var(--space-5) + 20px); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
 /* The peek's title, edited in place (Edit only): plain text that looks like the title until hovered or focused. */
 .pk-title-in { display: block; box-sizing: border-box; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; overflow-wrap: anywhere; }
 .pk-title-in:hover { background: var(--grey-50); }   /* row 1077 (flat): a tint, not a border */

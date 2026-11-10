@@ -106,6 +106,33 @@ class NotPlain(unittest.TestCase):
         self.assertEqual(sn.NAME_EXTRA, " .-_()'&+#")
 
 
+class Entities(unittest.TestCase):
+    """Fifth pass: an entity that survives the decode, or one made after a hidden character is taken out, is never shown."""
+    Z = "\u200b"
+    LEFT = ["&" + "amp;" * 5 + "#47", "&" + "amp;" * 5 + "#x2f", "&" + "amp;" * 5 + "#92", "&" + "amp;" * 5 + "lt", "&#" + Z + "47", "&l" + Z + "t",
+            "&" + "amp;" * 40 + "#47", "&#" + Z + "x2" + Z + "f", "&a" + Z + "mp;#47", "&#4" + Z + "7;", "Notes &lt;b&gt; x", "a &#47; b"]
+
+    def test_the_five_inputs_and_the_zero_width_ones_show_nothing_of_an_entity(self):
+        for stored in self.LEFT:
+            out = source_name(stored)
+            self.assertNotRegex(out, r"&#|&[A-Za-z0-9]+;", (stored, out))
+            self.assertNotRegex(out, r"&#?[A-Za-z0-9]*$", (stored, out))
+            self.assertEqual(out, "", stored)
+
+    def test_ampersand_and_hash_in_plain_words_stay_plain(self):
+        for words in ("R&D", "C#", "R&D review, C# notes", "Q&A (Q3)", "AT&T"):
+            self.assertEqual(source_name(words), words)
+
+    def test_a_seeded_mix_of_nested_and_split_entities_leaks_none(self):
+        pieces = ["amp;", "#47", "#x2f", "#92", "lt", "gt", ";", "&", self.Z, " ", "\n", "%2F", "x", "R", "5", "&amp;"]
+        for seed in (51, 5150, 20261110):
+            rnd = random.Random(seed)
+            for _ in range(3000):
+                stored = "".join(rnd.choice(pieces) for _ in range(rnd.randint(1, 14)))
+                out = source_name(stored)
+                self.assertNotRegex(out, r"&#|&[A-Za-z0-9]+;|[<>/\\%]", (stored, out))
+
+
 class Property(unittest.TestCase):
     ROOTS = ["C:\\", "c:", "D:/", "\\\\srv\\share\\", "/Users/x/", "~/", "file:///", "smb://h/", "https://usr" + ":" + "pw@host.example:8080/", "//h/", "./", ""]
     PRE = ["", "Excel import, ", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Phone call, ", "Added by hand in clark, ", "Priv Clients/Acme, ", "<b>x</b> "]
@@ -136,7 +163,7 @@ class Property(unittest.TestCase):
         for _ in range(1000):
             words = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(1, 60))).strip()
             words = re.sub(r" {2,}", " ", words)
-            if re.search(r"&#?\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
+            if re.search(r"&#|&\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
                 continue
             self.assertEqual(source_name(words), words if len(words) <= 120 else source_name(words), words)
 

@@ -3,10 +3,10 @@ anywhere the Source line is drawn (the live peek through activity_read, a publis
 
 The stored words are kept as they are in the database. Shown, by a CHARACTER ALLOW-LIST (a list of what is allowed, never a list of the
 slashes that are not; fourth pass, privacy first):
-  A. Normalise: NFKC; decode %XX, %uXXXX and HTML entities (numeric and named) until nothing changes (5 rounds; an escape split by a control or
+  A. Normalise: NFKC; decode %XX, %uXXXX and HTML entities (numeric and named) until nothing changes (decode and clean together, to a fixed point; an escape split by a control or
      zero-width character is joined first); any white space is one space; control, format and zero-width characters go.
   B. PLAIN WORDS: every character is a letter or digit (str.isalnum) or one of PLAIN_EXTRA = space , . - _ ( ) : ' & + #  , and the value does
-     not start with a drive letter ("C:"). Plain words keep today's behaviour: their words, commas, and a stored YYYY-MM-DD read DD-MM-YYYY.
+     not start with a drive letter ("C:"), and holds no "&#" or "&name;" (a left-over entity; "R&D" and "C#" stay). Plain words keep today's behaviour: their words, commas, and a stored YYYY-MM-DD read DD-MM-YYYY.
   C. Any other character (a slash of any kind, < > @ % ~ and so on) makes the value NOT plain. It then publishes ONLY a final file name: the
      text after the last character that is not a letter, digit or one of NAME_EXTRA = space . - _ ( ) ' & + # , and only when it ends in an
      extension (a dot and 1 to 8 letters or digits) after a non-empty stem; otherwise NOTHING. A bare web address publishes nothing.
@@ -24,6 +24,7 @@ NAME_EXTRA = " .-_()'&+#"
 _ISO_DAY = re.compile(r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])")
 _HIDDEN = lambda ch: unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Co", "Cn") and not ch.isspace()          # control, format, zero-width, unassigned
 _ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
+_ENTITY = re.compile(r"&#|&[A-Za-z0-9]+;")
 _DRIVE = re.compile(r"[A-Za-z]:")
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
 _BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\?#]*[/\\]?$")                                       # a web address with a host and nothing after it
@@ -62,19 +63,25 @@ def _decode(text):
     return unicodedata.normalize("NFKC", html.unescape(text))
 
 
-def _normal(words):
-    text = unicodedata.normalize("NFKC", words)
-    for _ in range(5):
-        again = _decode(text)
-        if again == text:
-            break
-        text = again
+def _clean(text):
     text = "".join(" " if ch.isspace() else ch for ch in text if ch.isspace() or not _HIDDEN(ch))
     return re.sub(r" {2,}", " ", text).strip()
 
 
+def _normal(words):
+    """The whole of A, decode and clean together, again and again until the text stops changing (a clean can make a new escape)."""
+    text = unicodedata.normalize("NFKC", words)
+    for _ in range(60):
+        again = _clean(_decode(text))
+        if again == text:
+            break
+        text = again
+    return text
+
+
 def _is_plain(text):
-    return all(ch.isalnum() or ch in PLAIN_EXTRA for ch in text) and not _DRIVE.match(text)
+    return (all(ch.isalnum() or ch in PLAIN_EXTRA for ch in text) and not _DRIVE.match(text)
+            and not _ENTITY.search(text))                                  # "&#47" or "&amp;" left over is an entity, never words ("R&D", "C#" stay)
 
 
 def _file_name(text):
