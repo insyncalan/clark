@@ -19,7 +19,6 @@ import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
 import { stateOf, LOOK } from "../logic/milestones.js";
-import { richOrPlain } from "../logic/richOrPlain.js";
 import { MsMark } from "./MsMark.jsx";
 import { MsProgress } from "./MsList.jsx";
 import { CleanProse } from "./CleanProse.jsx";
@@ -82,7 +81,7 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
-      </> : row.raised ? <Row name="Raised">{showDate(row.raised)}</Row> : null}      {/* row 1077: a published file carries no history (no freshness, no Last reviewed) but it carries the date raised, so a client's peek keeps that row */}
+      </> : row.raised_on ? <Row name="Raised">{showDate(row.raised_on)}</Row> : null}      {/* row 1077: a published file carries no history (no freshness, no Last reviewed) but it carries the date raised, so a client's peek keeps that row */}
     </dl>
   );
 }
@@ -109,11 +108,13 @@ export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
 export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head>{children}</p>; }
 
 // Rich words (the description, the client wording: #1005, row 1078) as the editor shows them: cleanHtml of what is stored, through the one audited seam.
-const richOf = (value) => { try { return richOrPlain(value || ""); } catch (e) { return ""; } };
+// A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (edit/index.js: richOrPlain,
+// the cleaner), so the cleaner is never in the published bundle (tests: "the cleaner is not in a published file").
+const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools && tools.richOf ? tools.richOf(value) : "");
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
-function MilestoneFields({ m }) {
-  const who = ownerOf(m.owner), description = richOf(m.description), wording = richOf(m.client_message);
+function MilestoneFields({ m, tools }) {
+  const who = ownerOf(m.owner), description = richOf(tools, m.description), wording = richOf(tools, m.client_message);
   return (
     <>
       <MsHead>
@@ -299,7 +300,7 @@ export function Peek({ tools }) {
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
-          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
+          {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
           {Needed && row && row.kind !== "decision" ? <Needed key={`n-${row.id}`} row={row} /> : null}
           {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}

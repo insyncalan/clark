@@ -11,6 +11,7 @@ Run: python3 dev/run_tests.py test_keep_published
 import hashlib
 import json
 import os
+import re
 import stat
 import tempfile
 import unittest
@@ -79,7 +80,10 @@ class KeepsTheDataToo(Base):
             for spelled in fx.spellings(marker):
                 with self.subTest(where=where):
                     self.assertNotIn(spelled, text)
-        for key in ("internal_note", "source", "publish_local", "publish_client", "file_sha256", "local_path", "clark-boot"):
+        # Row 1077: a published file carries each item's Source by NAME (source_name.py), so the key is in the copy; what it holds is never a path.
+        for value in re.findall(r'"source":"([^"]*)"', text):
+            self.assertNotRegex(value, r"[/\\\\]", "a source is a file name, never a path")
+        for key in ("internal_note", "publish_local", "publish_client", "file_sha256", "local_path", "clark-boot"):
             self.assertNotIn(f'"{key}"', text)
         self.assertNotIn(str(self.root), text)
 

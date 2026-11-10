@@ -36,6 +36,7 @@ export const RICH_FIELDS = {
   standing: "usecase.standing",
   latest_update: "peek.latest_update",
   description: "milestone.description",
+  client_message: "milestone.client_wording",   // row 1078: a milestone's Client wording is the one rich editor too; its place is the client check
   textimage: "textimage.text",
   internal_note: "movement.internal_note",
   health_reason: "glance.health_reason",

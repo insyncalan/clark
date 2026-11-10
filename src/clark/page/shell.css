@@ -670,7 +670,7 @@ input.sec-title { width: 100%; }
 .pk-ms-head .mst { font-size: var(--size-small); }
 .pk-ms-sep { color: var(--text-muted); }
 .pk-ms-owner { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
-.pk-ms-owner .av { width: 22px; height: 22px; font-size: 10px; }
+.pk-ms-owner .av { width: auto; min-width: 24px; height: 24px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 12px; font-size: var(--size-caption); line-height: 1; }   /* the owner's initials at the 13 px floor: two letters widen the circle to a pill (as .cr-wl .wl-meta .av) */
 .pk-ms-head .msl-prog { flex: 1 1 120px; min-width: 120px; }
 .pk-row dd .pk-rich p:last-child { margin-bottom: 0; }   /* the read-only Description and Client wording (Peek.jsx Rich, class pk-rich, drawn in the published peek too): no space under the last paragraph, so a row is as tall as its words */
 .pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
