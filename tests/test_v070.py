@@ -160,8 +160,6 @@ COVERED = [
      "test_inline_edits::Live::test_the_peek_has_the_same_status_picker_as_the_table"),
     ("#457", "Open an overdue action in Edit: the bar says how many days overdue and Move to Friday moves the date, with Undo.",
      "test_peek_latest::Browser::test_the_overdue_bar_says_how_late_and_moves_to_friday_with_one_undo"),
-    ("#457", "Row 1077 took Draft out (the owner's ruling): no peek has a Draft chip, the Latest update is the box alone.",
-     "test_peek_ruled_1077::Source::test_the_draft_chip_and_its_helper_are_gone"),
     ("#457", "The peek shows Last updated with the date and time.",
      "test_peek_latest::Browser::test_the_last_updated_stamp_is_shown_in_local_time_and_follows_a_change"),
     ("#453", "Open Publish: the PDF tick reads 'Also a PDF'.",
@@ -274,8 +272,8 @@ COVERED = [
      "test_milestones_eye::Editor::test_a_press_takes_it_off_the_dashboard_with_one_change_and_one_undo_puts_it_back"),
     ("#436", "A published file has no eye, no mark and not the left-out milestone",
      "test_milestones_eye::Editor::test_the_published_file_has_no_eye_no_mark_and_not_the_left_out_milestone"),
-    ("#436", "A milestone row's second line is one line at 1400 px and stacks in two columns only at 800 px and below",
-     "test_milestones_oneline::Rows::test_the_cells_stack_in_two_columns_only_at_800_px_and_below"),
+    ("#436", "A milestone row's second line is one line at 1400 px and keeps four columns at 900 px",
+     "test_milestones_oneline::Rows::test_the_cells_keep_four_columns_at_900_px"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;

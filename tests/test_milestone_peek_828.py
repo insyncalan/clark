@@ -293,3 +293,7 @@ class Fields(Base):
                     self.assertEqual(seen["small"], [])
                     self.assertTrue(seen["scroll"], "no sideways scroll in the peek")
                     self.assertGreaterEqual(seen["size"], 13)
+
+
+if __name__ == "__main__":
+    unittest.main()
