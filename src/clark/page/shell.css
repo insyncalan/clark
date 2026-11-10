@@ -2068,6 +2068,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vtabmenu:hover { background: var(--grey-100); color: var(--text); }
 .vtabmenu:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .vtabmenu .nch { width: 14px; height: 14px; }
+/* Row 1071: a tab is picked up where it is (no handle) and moved; Move view keeps a focus ring on the tab while the arrow keys move it. Icons in a menu's entries. */
+.vt[data-lifted] { position: relative; z-index: 2; opacity: .92; box-shadow: var(--shadow-2, 0 2px 8px rgba(0, 0, 0, .18)); background: var(--surface); border-radius: var(--radius-sm); cursor: grabbing; }
+.vt[data-lifted] .vtab { cursor: grabbing; }
+.vtabs[data-dragging] { user-select: none; cursor: grabbing; }
+.vtab[data-moving="true"] { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
+.ddmenu [role="menuitem"] .mico { width: 16px; height: 16px; margin-right: var(--space-2); vertical-align: -3px; color: var(--text-muted); }
+.ddmenu [role="menuitem"].mdanger, .ddmenu [role="menuitem"].mdanger .mico { color: var(--status-red-text); }
 .vnew { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: calc(var(--space-6) + var(--space-1)); padding: 6px 10px; margin-bottom: -1px; border-bottom: 2px solid transparent; cursor: pointer; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
 .fvacts { display: flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }   /* row 844: Save view and Discard changes beside the tabs while the dot shows */
 .vnew:hover { color: var(--text); }

@@ -589,6 +589,34 @@ export function deleteView(views, id) {
   if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
   return { ok: true, views: views.filter((v) => v.id !== id) };
 }
+/** Put a view at another place in the list (dragging a tab, or the Move view keys). `to` is the index it is to end at; past either end is the end. */
+export function moveView(views, id, to) {
+  const at = (views || []).findIndex((v) => v.id === id);
+  if (at < 0) return { ok: false, message: "That view is not there any more." };
+  const rest = views.filter((v) => v.id !== id), i = Math.max(0, Math.min(rest.length, Math.trunc(Number(to)) || 0));
+  return { ok: true, views: [...rest.slice(0, i), views[at], ...rest.slice(i)] };
+}
+/** Copy a view (any view, a core one too): the copy is the person's own, is called "<name> copy" (then "copy 2", "copy 3" while that is taken) and sits right after the original. */
+export function duplicateView(views, id) {
+  const from = findView(views, id);
+  if (!from) return { ok: false, message: "That view is not there any more." };
+  if (mineVisible(views).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
+  let name = "";
+  for (let n = 1; n < 100; n++) {
+    const tail = n === 1 ? " copy" : ` copy ${n}`;
+    name = cleanName(from.name).slice(0, MAX_NAME - tail.length).trim() + tail;
+    if (!nameProblem(views, name, null)) break;
+  }
+  const copy = { id: nextId(views), name, line: from.line };
+  const at = views.indexOf(from);
+  return { ok: true, id: copy.id, views: [...views.slice(0, at + 1), copy, ...views.slice(at + 1)] };
+}
+/** Put a deleted view back at the place it had (the Undo after Delete view). */
+export function insertView(views, view, index) {
+  if (!view || findView(views, view.id)) return { ok: false, message: "That view is already there." };
+  const i = Math.max(0, Math.min((views || []).length, Math.trunc(Number(index)) || 0));
+  return { ok: true, views: [...views.slice(0, i), { ...view }, ...views.slice(i)] };
+}
 /** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it
  *  does not know, or one this page cannot answer yet) is still listed, with this said beside it, so it can be renamed or deleted. */
 export function viewTrouble(view, rows, ctx) {
@@ -614,6 +642,7 @@ export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length
 
 export const LINE_KEY = "clark.fline";
 export const VIEWS_KEY = "clark.fviews";
+export const ORDER_KEY = "clark.forder";          // per project: the ids of the tabs in the order the person put them (kept only while it is not the natural order)
 export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted]}
 
 function readAll(storage, key) {
@@ -645,7 +674,12 @@ export function viewsGet(storage, project) {
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
   const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
   const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name }));
-  const got = [...core, ...own];
+  let got = [...core, ...own];
+  const order = storage ? readAll(storage, ORDER_KEY)[project] : null;
+  if (Array.isArray(order)) {      // a view not in the stored order keeps its natural place, after the ones that are
+    const rank = (v) => { const i = order.indexOf(v.id); return i < 0 ? Infinity : i; };
+    got = got.map((v, i) => ({ v, i })).sort((a, b) => (rank(a.v) === rank(b.v) ? a.i - b.i : rank(a.v) - rank(b.v))).map((x) => x.v);
+  }
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
 export function viewsPut(storage, project, views) {
@@ -657,5 +691,8 @@ export function viewsPut(storage, project, views) {
   for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; }
   const core = readAll(storage, CORE_KEY);
   if (gone.length || Object.keys(names).length) core[project] = { names, gone }; else delete core[project];
-  return writeAll(storage, VIEWS_KEY, all) && writeAll(storage, CORE_KEY, core);
+  const ids = (views || []).map((v) => v.id), kept = readAll(storage, ORDER_KEY);
+  const natural = [...CORE_VIEWS.map((c) => c.id).filter((id) => ids.includes(id)), ...ids.filter((id) => !CORE_IDS.includes(id))];
+  if (ids.some((id, i) => id !== natural[i])) kept[project] = ids; else delete kept[project];
+  return writeAll(storage, VIEWS_KEY, all) && writeAll(storage, CORE_KEY, core) && writeAll(storage, ORDER_KEY, kept);
 }

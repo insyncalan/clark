@@ -2781,10 +2781,10 @@
      "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
-     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename view**. Type the new name in the box labelled **New name for this view** and press **Save**."
     },
     {
-     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. The view goes at once and a message offers **Undo**. This works for the five starting tabs too. To change the order of the tabs, press a tab and drag it left or right. Or open its small arrow, choose **Move view**, press Left or Right to move it, and press Enter or Esc to finish. **Duplicate view** makes a copy called the same name followed by copy."
     }
    ],
    "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",

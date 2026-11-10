@@ -12,7 +12,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
-import { say } from "../stores/changes.js";
+import { say, toast } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -89,8 +89,80 @@ function SavedViews({ board }) {
     window.addEventListener("resize", show);      // a narrower window can push the open tab out of the box
     return () => window.removeEventListener("resize", show);
   }, [active && active.id, shown.length, dirty]);      // dirty: Save view and Discard changes take room beside the tabs, so the open tab is brought into view again
+  // Row 1071: moving a tab. Move view puts a focus ring on the tab, and Left and Right move it; Enter or Esc finishes. A tab is also picked up and
+  // dragged with the pointer (no handle). `moveTo` puts view `id` where `target` is in the whole list (the shown tabs are only some of it).
+  const [moving, setMoving] = useState(null);
+  const moveTo = (id, target) => {
+    const to = all.findIndex((v) => v.id === target);
+    if (to < 0 || id === target) return false;
+    const r = FL.moveView(all, id, to);
+    if (!r.ok) return false;
+    saveViews(code, r.views);
+    return true;
+  };
+  const step = (id, dir) => {
+    const at = shown.findIndex((v) => v.id === id), next = shown[at + dir];
+    if (at < 0 || !next) return;
+    if (moveTo(id, next.id)) announce.value = `${shown[at].name} moved ${dir < 0 ? "left" : "right"}, place ${at + dir + 1} of ${shown.length}.`;
+  };
+  // A tab moved in the list is moved in the page too, which drops its focus: while Move view is on, the focus is put back on it after each draw.
+  useLayoutEffect(() => { if (moving) { const el = document.querySelector(`.vtab[data-view-id="${moving}"]`); if (el && document.activeElement !== el) el.focus(); } }, [moving, shown.map((v) => v.id).join("|")]);
+  const focusTab = (id) => setTimeout(() => { const el = document.querySelector(`.vtab[data-view-id="${id}"]`); if (el) el.focus(); }, 0);
+  const tabKey = (e, v) => {
+    if (moving !== v.id) return;
+    if (e.key === "ArrowLeft" || e.key === "ArrowRight") { e.preventDefault(); e.stopPropagation(); step(v.id, e.key === "ArrowLeft" ? -1 : 1); focusTab(v.id); }
+    else if (e.key === "Enter" || e.key === "Escape" || e.key === " ") { e.preventDefault(); e.stopPropagation(); setMoving(null); announce.value = `${v.name} stays in place ${shown.findIndex((x) => x.id === v.id) + 1} of ${shown.length}.`; }
+  };
+  const drag = useRef(null);
+  const [lift, setLift] = useState(null);                  // {id, dx}: the tab being dragged and how far it is from where it was picked up
+  const justDragged = useRef(false);
+  const down = (e, v) => {
+    if (e.button !== 0 || e.pointerType === "touch" || moving) return;       // a finger moves the row sideways; Move view is the other way
+    drag.current = { id: v.id, x0: e.clientX, on: false };
+    const move = (m) => {
+      const d = drag.current;
+      if (!d) return;
+      if (!d.on && Math.abs(m.clientX - d.x0) < 5) return;
+      d.on = true;
+      setLift({ id: d.id, dx: m.clientX - d.x0 });
+    };
+    const up = (m) => {
+      document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
+      const d = drag.current; drag.current = null;
+      if (!d || !d.on) return;
+      justDragged.current = true; setTimeout(() => { justDragged.current = false; }, 80);
+      setLift(null);
+      if (m.type === "pointercancel") return;
+      const tabs = [...(tabsBox.current ? tabsBox.current.querySelectorAll(".vt .vtab") : [])];
+      let target = null;
+      for (const t of tabs) {
+        if (t.dataset.viewId === d.id) continue;      // the lifted tab is under the pointer itself: the tab it is over is another one
+        const r = t.getBoundingClientRect();
+        if (m.clientX >= r.left && m.clientX <= r.right) target = t.dataset.viewId;
+      }
+      if (!target && tabs.length) target = m.clientX < tabs[0].getBoundingClientRect().left ? tabs[0].dataset.viewId : tabs[tabs.length - 1].dataset.viewId;
+      if (target && moveTo(d.id, target)) announce.value = `${v.name} moved.`;
+    };
+    document.addEventListener("pointermove", move); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
+  };
   const act = (id) => {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
+    else if (id === "move" && active) { setMoving(active.id); focusTab(active.id); announce.value = `Moving ${active.name}. Left and Right move it; Enter or Esc finishes.`; }
+    else if (id === "duplicate" && active) {
+      const r = FL.duplicateView(all, active.id);
+      if (!r.ok) say("problem", r.message);
+      else { saveViews(code, r.views); say("done", `View duplicated: ${r.views.find((v) => v.id === r.id).name}`); }
+    }
+    else if (id === "delete" && active) {
+      const was = active, at = all.findIndex((v) => v.id === was.id), r = FL.deleteView(all, was.id);
+      if (r.ok) {
+        saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
+        say("done", `View deleted: ${was.name}`);
+        const back = () => { const b = FL.insertView(viewsOf(code), was, at); if (b.ok) { saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: was.id }; } };
+        toast.value = { ...toast.value, local: back };
+        const el = document.getElementById("viewNew"); if (el) el.focus();
+      }
+    }
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
     else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
@@ -129,11 +201,14 @@ function SavedViews({ board }) {
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
   tabItems.push({ id: "saveas", name: "Save as a new view…" });
-  if (active) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "delete", name: "Delete" }); }
+  if (active) {      // row 1071: the four entries of the tab menu, each with an icon; Delete view is in red
+    tabItems.push({ id: "rename", name: "Rename view", icon: "pencil" }, { id: "move", name: "Move view", icon: "moveh" },
+      { id: "duplicate", name: "Duplicate view", icon: "copy" }, { id: "delete", name: "Delete view", icon: "trash", danger: true });
+  }
   return (
     <div class="fviews">
       <div class="fvrow">
-      <div class="vtabs" role="group" aria-label="Saved views" ref={tabsBox}>
+      <div class="vtabs" role="group" aria-label="Saved views" ref={tabsBox} data-dragging={lift ? "" : undefined}>
         {shown.map((v) => {
           const on = !!active && active.id === v.id, dot = on && dirty, bad = trouble(v), count = bad ? 0 : Q.rowsFor(rows, v.line, ctx).length;
           // the small arrow sits right beside the open tab's name
@@ -149,8 +224,9 @@ function SavedViews({ board }) {
             );
           }
           return (
-            <span class="vt" key={v.id}>
-              <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} onClick={() => pick(v)}
+            <span class="vt" key={v.id} data-lifted={lift && lift.id === v.id ? "" : undefined} style={lift && lift.id === v.id ? { transform: `translateX(${lift.dx}px)` } : undefined}>
+              <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} data-moving={moving === v.id ? "true" : undefined}
+                onClick={() => { if (!justDragged.current) pick(v); }} onPointerDown={(e) => down(e, v)} onKeyDown={(e) => tabKey(e, v)} onBlur={() => { if (moving === v.id) setTimeout(() => { const at = document.activeElement; if (!at || !at.matches || !at.matches(`.vtab[data-view-id="${v.id}"]`)) setMoving(null); }, 60); }}
                 aria-label={`${v.name}, ${count} items${dot ? ", the line has changes you have not saved" : ""}`}>
                 <span>{v.name}</span><em class="num">{count}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
               </button>{arrow}

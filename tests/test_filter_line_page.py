@@ -1151,7 +1151,7 @@ class Line(unittest.TestCase):
                         click(cdp, sid, "#viewTabMenu")
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
                         kinds = cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.dataset.kind)", sid)
-                        self.assertEqual(kinds, ["saveas", "rename", "delete"], vid)
+                        self.assertEqual(kinds, ["saveas", "rename", "move", "duplicate", "delete"], vid)
                         key(cdp, sid, "Escape")
                         self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu closed")
                     # the counts of the first four agree: every one is a part of Open items; All work items has the closed ones too
