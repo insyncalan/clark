@@ -78,6 +78,7 @@ class Browser(unittest.TestCase):
                     self.press(cdp, sid)
                     self.assertTrue(wait(lambda: cdp.js(f"document.querySelectorAll({json.dumps(ROWS)}).length", sid) == 7), "only the Latest update's seven changes, not the owner change")
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Hide history")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "true")
                     # five rows' height in view; more is behind the scroll
                     seen = cdp.js(f"(l => [l.clientHeight, l.scrollHeight, getComputedStyle(l).overflowY, [...l.querySelectorAll({json.dumps(ROWS)})].filter(r => r.getBoundingClientRect().bottom <= l.getBoundingClientRect().bottom + 1).length])(document.querySelector({json.dumps(LIST)}))", sid)
                     self.assertGreater(seen[1], seen[0])
@@ -91,6 +92,23 @@ class Browser(unittest.TestCase):
                     self.press(cdp, sid)
                     self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-lh-panel]')", sid)))
                     self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).textContent", sid), "Show history")
+                    self.assertEqual(cdp.js(f"document.querySelector({json.dumps(BTN)}).getAttribute('aria-expanded')", sid), "false")
+
+    def stub(self, cdp, sid, answer):
+        cdp.js("(a => { const f = window.fetch; window.fetch = (u, o) => String(u).includes('/api/activity') ? a() : f(u, o); })(" + answer + ")", sid)
+
+    def test_empty_failed_and_only_real_changes(self):
+        rows = '[{field:"Latest update",kind:"Created",to:"c",when_text:"x"},{field:"Latest update",kind:"Comment",to:"k",when_text:"x"},{field:"Owner",kind:"Changed",to:"o",when_text:"x"}]'
+        cases = (("[data-pk-lh-empty]", "Nothing has changed on this item yet.", "() => Promise.resolve(new Response(JSON.stringify({ok:true,activity:{rows:" + rows + "}})))"),
+                 ("[data-pk-lh-failed]", "The history could not be read just now.", "() => Promise.reject(new Error('down'))"))
+        for sel, words, answer in cases:
+            with self.subTest(sel=sel), chrome() as cdp:
+                sid = self.load(cdp, 1400)
+                self.stub(cdp, sid, answer)
+                self.press(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!!document.querySelector({json.dumps(sel)})", sid)))
+                self.assertEqual(cdp.js(f"document.querySelector({json.dumps(sel)}).textContent", sid), words)
+                self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(ROWS)}).length", sid), 0)
 
 
 if __name__ == "__main__":
