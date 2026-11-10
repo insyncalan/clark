@@ -777,7 +777,7 @@ class Detail(unittest.TestCase):
             self.assertEqual(self.toast(cdp, sid), "Changed 1 item.", "clark's own bulk words")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the undo of the last step put its risk back")
-            self.until(cdp, sid, "/Cut-over rehearsal is back on use case/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast says it is back")
+            self.until(cdp, sid, "/Undone/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast says it was undone")
             self.assertEqual(self.steps(), before + 3, "an undo is one step")
 
     def test_no_milestone_controls_when_archived_or_in_the_file_row_1079(self):

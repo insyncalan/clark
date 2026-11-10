@@ -49,7 +49,7 @@ function linkedTo(d, id, all) {
 // The milestones its linked work items point at, in the order the project keeps them.
 function milestonesOf(d, id) {
   const named = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
-  return (d.milestones || []).filter((m) => named.has(m.id));
+  return (d.milestones || []).filter((m) => !m.archived && named.has(m.id));
 }
 
 // A stored UTC time (YYYY-MM-DD HH:MM:SS.sss) as the person's own time: DD-MM-YYYY and HH:MM.

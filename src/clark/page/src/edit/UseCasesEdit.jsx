@@ -246,17 +246,21 @@ export function MilestoneAdd({ u }) {
 }
 
 /** Row 1079: "Remove" on a milestone of the use case: the use case's work items stop naming it (the milestone itself is kept, on the Milestones page).
- * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), each with its Undo (clark's own words say what changed; after an Undo the toast says the milestone is back). */
+ * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), each with its Undo (the toast keeps the last one; clark's own words say what changed). */
 export function MilestoneRemove({ u, m }) {
   const busy = useRef(false);
   const go = async () => {
     if (busy.current) return;
     busy.current = true;
-    const links = milestoneLinks(data.value, u.id, m.id), back = `${m.name} is back on use case ${name(u)}.`;
-    for (const table of ["actions", "raid"]) {
-      if (links[table].length) await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell" }, back);
+    try {
+      const links = milestoneLinks(data.value, u.id, m.id);
+      for (const table of ["actions", "raid"]) {
+        if (links[table].length) await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell", confirm: true }, "");   // confirm: the person pressed Remove, so a long list needs no second ask
+      }
+    } finally {
+      busy.current = false;
+      setTimeout(() => { const b = document.querySelector("[data-ms-add] button"); if (b) b.focus({ preventScroll: true }); }, 60);     // the pressed button is gone: the focus goes to Add a milestone
     }
-    busy.current = false;
   };
   return <button type="button" class="link ucx-msrm" data-ms-remove={m.id} data-edit-only aria-label={`Remove ${m.name} from use case ${name(u)}`} onClick={go}>Remove</button>;
 }
