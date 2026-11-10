@@ -2,8 +2,16 @@
 files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
 Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE] [--extra-folder PATH]...   # writes dist/clark-<version>-mac.zip
+     python3 dev/tools/package.py mac --app                       # also writes dist/clark.app (row 836; needs a Mac: osacompile)
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
+
+clark.app (row 836) is the same download as an app a person double-clicks: osacompile (part of every Mac) compiles the
+AppleScript source dev/tools/clark_applet.applescript into an applet bundle, and the clark folder the zip would unzip to
+(clark.command, .app/, clark-release.json, README.md, START-HERE.md, docker/) is put in its Contents/Resources, byte for byte
+the same bytes and modes as the zip holds. The applet runs that clark.command with no Terminal window; the bundle needs nothing
+beside it, so a quarantined download that macOS runs from a copy elsewhere still finds its files. The Info.plist gets the bundle
+id and the version. Nothing is signed or notarised. The bundle is never committed; it is built on the Head's Mac at release time.
 
 Who the zip is for is decided by the tree it is built from, not by a flag (#463). If git tracks any private-only file in
 it (any path publish_public.is_excluded names: the notes in EXCLUDED and docs/public/), it is the private copy, and the zip
@@ -35,7 +43,9 @@ import datetime
 import hashlib
 import json
 import os
+import plistlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -82,8 +92,7 @@ def make_pages(root=ROOT, twice=False):
         if script.is_file():
             done = subprocess.run([sys.executable, str(script)], cwd=str(root), capture_output=True, text=True)
             if done.returncode != 0:
-                raise Refused("The pages could not be built, so nothing was written: "
-                              + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+                raise Refused(COULD_NOT_BUILD.format(what="The pages", why=_last_line(done)))
         missing = [n for n in names if not (root / n).is_file()]
         if missing:
             raise Refused(f"A page the download needs has not been built: {', '.join(missing)}. Run python3 dev/tools/build_page.py, "
@@ -556,10 +565,10 @@ def entry(name, mode):
     return info
 
 
-def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-          released=None, min_from="0.0.0", extra_folders=()):
-    """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
-    and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
+def download_content(system, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
+                     released=None, min_from="0.0.0", extra_folders=()):
+    """Everything the download for `system` holds, after every refusal: {name in the zip (with the top folder): (bytes, mode)},
+    the manifest included. The zip (build) and the app bundle (build_app) are both written from this, so the two can't drift."""
     if system in NOT_BUILT_YET:
         raise Refused(f"The {system.capitalize()} download isn't built yet. Only the Mac one is: package.py mac")
     if system not in SYSTEMS:
@@ -610,6 +619,14 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused("A zip for a client must hold no one's name, and the name guard found one in: "
                           f"{', '.join(where)}. Nothing was written. Take the name out, then build again.")
     content[f"{top}/{place(MANIFEST)}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
+    return content
+
+
+def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
+          released=None, min_from="0.0.0", extra_folders=()):
+    """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
+    and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
+    content = download_content(system, root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)
@@ -625,6 +642,70 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     finally:
         if os.path.exists(part):
             os.remove(part)
+    return target
+
+
+# --- clark.app (row 836) ----------------------------------------------------------------------------------------------------
+APP_NAME = "clark.app"
+APPLET_SOURCE = Path("dev") / "tools" / "clark_applet.applescript"    # the applet's AppleScript, kept in the repo and read by its test
+OSACOMPILE = "osacompile"                                              # the Mac's own compiler; found on the PATH, never named by path
+BUNDLE_ID = "local.clark.app"                                          # Info.plist CFBundleIdentifier (a label, not a web address)
+APP_RESOURCES = Path("Contents") / "Resources"                         # where the clark folder sits inside the bundle
+OSACOMPILE_TIMEOUT = 300                                               # seconds
+COULD_NOT_BUILD = "{what} could not be built, so nothing was written: {why}"       # make_pages says it of the pages
+
+
+def applet_tool(which=shutil.which):
+    """The osacompile on the PATH, or None (a Linux box, or a PATH without it)."""
+    return which(OSACOMPILE)
+
+
+def _last_line(done):
+    return (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1]
+
+
+def build_app(out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="", released=None,
+              min_from="0.0.0", extra_folders=(), which=shutil.which, run=subprocess.run):
+    """Build clark.app into the folder `out` (replacing one already there); its path. The content is download_content("mac"),
+    so every refusal the zip makes, the bundle makes too; a missing osacompile is refused first, before anything is read."""
+    tool = applet_tool(which)
+    if tool is None:
+        raise Refused(f"A file the download needs is missing: {OSACOMPILE}. Restore it, then build again.")
+    root = Path(root)
+    content = download_content("mac", root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
+    top = top_folder(root)
+    out = Path(out)
+    out.mkdir(parents=True, exist_ok=True)
+    target = out / APP_NAME
+    part = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.app."))          # built whole beside the target, then moved into place
+    try:
+        bundle = part / APP_NAME
+        done = run([tool, "-o", str(bundle), str(root / APPLET_SOURCE)], capture_output=True, text=True, timeout=OSACOMPILE_TIMEOUT)
+        if done.returncode != 0:
+            raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=_last_line(done)))
+        info_path = bundle / "Contents" / "Info.plist"
+        if not info_path.is_file() or not (bundle / "Contents" / "MacOS").is_dir():
+            raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{OSACOMPILE} wrote no applet bundle"))
+        info = plistlib.loads(info_path.read_bytes())
+        info.update({"CFBundleIdentifier": BUNDLE_ID, "CFBundleName": TOP, "CFBundleShortVersionString": version(root),
+                     "CFBundleVersion": version(root)})
+        info_path.write_bytes(plistlib.dumps(info, sort_keys=True))
+        resources = bundle / APP_RESOURCES
+        taken = {p.name.casefold() for p in resources.iterdir()} if resources.is_dir() else set()
+        for first in sorted({name[len(top) + 1:].split("/")[0] for name in content}):
+            if first.casefold() in taken:                                   # the applet's own files (Scripts, applet.icns) and ours never mix
+                raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{OSACOMPILE} already put {first} in {APP_RESOURCES.as_posix()}"))
+        for name in sorted(content):
+            data, mode = content[name]
+            path = resources / name[len(top) + 1:]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            os.chmod(path, mode & 0o777)
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        os.rename(bundle, target)
+    finally:
+        shutil.rmtree(part, ignore_errors=True)
     return target
 
 
@@ -652,11 +733,17 @@ def main(argv=None):
                    help="put this folder's files at the top of the clark folder under the folder's own name "
                         f"({', '.join(EXTRA_TOP)}); repeat for more; at most 5 MB in all; never committed")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
+    p.add_argument("--app", action="store_true",
+                   help=f"also build {APP_NAME} (row 836), the same download as an app a person double-clicks: needs a Mac ({OSACOMPILE})")
     args = p.parse_args(argv)
     try:
+        if args.app and applet_tool() is None:                              # before the zip is written: all or nothing
+            raise Refused(f"A file the download needs is missing: {OSACOMPILE}. Restore it, then build again.")
         notes = Path(args.notes).read_text(encoding="utf-8") if args.notes else ""
         target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
                        notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+        app = build_app(args.out, dirty=args.dirty, for_client=args.for_client, release=args.release, notes=notes,
+                        min_from=args.min_from, extra_folders=args.extra_folder) if args.app else None
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
         return 1
@@ -666,6 +753,8 @@ def main(argv=None):
     who = ("It is for a client: it was built from the scrubbed public snapshot and the name guard found nothing."
            if args.for_client else audience(ROOT))
     print(f"Built the {args.system.capitalize()} download: {shown(target)}. {who}")
+    if app:
+        print(f"Built the {args.system.capitalize()} download: {shown(app)}. {who}")
     return 0
 
 
