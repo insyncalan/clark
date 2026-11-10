@@ -146,7 +146,7 @@ class Source(unittest.TestCase):
         self.assertNotIn("\\p{Cc}", helper, "item 1005: the server refuses hidden characters and says so in a toast; the page keeps no copy of the check")
         self.assertIn("<RichField", jsx, "the one editor (item 1005)")
         self.assertNotIn("<textarea", jsx)
-        save = jsx[jsx.index("const save ="):jsx.index("return (")]
+        save = jsx[jsx.index("const save ="):jsx.index("return (", jsx.index("const save ="))]
         self.assertIn("changeCell(", save)
         self.assertNotIn("refused:", save, "a refusal is the toast's; RichText keeps the editor open when the save answers null")
 

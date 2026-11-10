@@ -413,7 +413,7 @@
     "w": "A work item open in Edit › [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box).",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box). The **Ask clark to update for you** box opens.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
      "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",

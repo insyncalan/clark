@@ -83,13 +83,11 @@
 .pk-fix { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .pk-fix button { min-height: 28px; padding: 3px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--surface); color: var(--status-amber-text); font: inherit; font-size: var(--size-small); font-weight: var(--weight-medium); cursor: pointer; }
 .pk-fix button:hover { background: var(--status-amber-tint); }
-.pk-fix button:focus-visible, .pk-draft:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-fix button:focus-visible, .pk-latest-text:focus-visible, .pk-latest-in:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-act { margin: var(--space-2) 0 0; }
 .pk-latest { margin: var(--space-2) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
 .pk-lab { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-1); color: var(--text); font-size: var(--size-small); }
 .pk-latest-client { display: inline-flex; align-items: center; gap: 4px; margin-left: auto; color: var(--text-muted); font-size: var(--size-small); }
-.pk-draft { display: inline-flex; align-items: center; gap: 4px; min-height: 26px; padding: 2px 10px; border: 1px solid var(--grey-300); border-radius: 999px; background: var(--surface); color: var(--status-blue-text); font: inherit; font-size: var(--size-small); cursor: pointer; }
-.pk-draft:hover { background: var(--brand-blue-tint); }
 .pk-latest-text, .pk-latest-in { display: block; box-sizing: border-box; width: 100%; min-height: var(--space-7); margin: 0; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: var(--text); font: inherit; text-align: left; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pk-latest-text { cursor: text; }
 .pk-latest-text:hover { border-color: var(--grey-200); }

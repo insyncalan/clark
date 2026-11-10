@@ -1,5 +1,5 @@
 // The peek (#42a): one work item's or milestone's fields beside the list. Read only on a Dashboard in View and in a published file: fields and
-// nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.PeekTabs` and
+// nothing else (no history, no words box, no /api/ text), except the Source line on the live Dashboard in View (row 1077). `tools.Words`, `tools.PeekTabs` and
 // `tools.PeekActivity` (Details and Activity, #42) are the editing part (every page but a Dashboard in View).
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
@@ -122,7 +122,9 @@ export function Peek({ tools }) {
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
-  const Source = editing && forItem && tools.PeekSource;
+  // Row 1077 (the owner's ruling): a client's work item peek shows Source too, on the live Dashboard in View. It is read from the server, so a
+  // published file (no tools, fromFile) never has it; the line itself stays in the Edit part (tools.PeekSource), so no such text is in the published bundle.
+  const Source = !!tools && !fromFile.value && forItem && tools.PeekSource;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,

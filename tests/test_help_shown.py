@@ -348,25 +348,41 @@ class NeverDelete(unittest.TestCase):
         self.assertIn("Archive milestone", text)
 
 
+# Row 1077: the words box's heading is the owner's own words of 09-11-2026, "Ask clark to update for you", with its capital A. It is the one
+# spelling allowed beside "ask clark"; the heading is matched whole, so "Ask clark" anywhere else still fails.
+WORDS_BOX_HEADING = "Ask clark to update for you"
+ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you)?")
+
+
+def ask_clark_misspelt(text):
+    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", WORDS_BOX_HEADING)]
+
+
 class AskClark(unittest.TestCase):
-    """MEDIUM: ask clark is written in lower case, wherever it is, at the start of a sentence too."""
+    """MEDIUM: ask clark is written in lower case, wherever it is, at the start of a sentence too (the words box's heading excepted, row 1077)."""
     def test_every_spelling_in_the_help_source_is_lower_case(self):
         bad = []
         for f in sorted(HELP.iterdir()):
             if f.suffix in (".json", ".js", ".jsx"):
-                bad += [(f.name, m) for m in re.findall(r"(?i)\bask clark\b", f.read_text(encoding="utf-8")) if m != "ask clark"]
+                bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
     def test_the_whole_page_source_too(self):
         bad = []
         for f in PAGE_SRC.rglob("*"):
             if f.is_file() and f.suffix in (".js", ".jsx", ".json"):
-                bad += [(f.name, m) for m in re.findall(r"(?i)\bask clark\b", f.read_text(encoding="utf-8")) if m != "ask clark"]
+                bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
+    def test_the_heading_is_the_only_exception_and_the_rule_still_bites(self):
+        self.assertEqual(ask_clark_misspelt("Ask clark to update for you. Then ask clark again."), [])
+        self.assertEqual(ask_clark_misspelt("Ask clark to update. ASK CLARK now. Ask Clark to update for you"), ["Ask clark", "ASK CLARK", "Ask Clark to update for you"])
+        self.assertEqual(ask_clark_misspelt("Use ask clark to **Check this report**"), [])
+
     def test_the_first_step_no_longer_starts_with_it(self):
-        self.assertNotIn("Ask clark", json.dumps(RAW, ensure_ascii=False))
-        self.assertIn("Use ask clark to **Check this report**", json.dumps(RAW, ensure_ascii=False))
+        raw = json.dumps(RAW, ensure_ascii=False)
+        self.assertEqual(ask_clark_misspelt(raw), [])
+        self.assertIn("Use ask clark to **Check this report**", raw)
 
 
 class Wording(unittest.TestCase):

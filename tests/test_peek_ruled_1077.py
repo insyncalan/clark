@@ -112,7 +112,7 @@ class Browser(unittest.TestCase):
         cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#report').dataset.mode", sid) == "edit"))
 
-    def open(self, cdp, sid, ref, kind):
+    def open_peek(self, cdp, sid, ref, kind):
         cdp.js(f"clarkPage.openPeek({json.dumps(ref)}, {json.dumps(kind)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the peek drew its fields")
 
@@ -133,7 +133,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)
-                self.open(cdp, sid, ACTION, "item")
+                self.open_peek(cdp, sid, ACTION, "item")
                 self.assertTrue(wait(lambda: cdp.js("(s => !!s && s.textContent.startsWith('Source: ') && s.textContent.length > 8)(document.querySelector('#peek [data-pk-source]'))", sid)),
                                 "a client sees where the item came from on the live Dashboard in View: " + str(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid)))
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-source] .pk-source-l').textContent", sid), "Source")
@@ -157,7 +157,7 @@ class Browser(unittest.TestCase):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)
-                self.open(cdp, sid, MILESTONE, "milestone")
+                self.open_peek(cdp, sid, MILESTONE, "milestone")
                 self.assertFalse(cdp.js("!!document.querySelector('#peek [data-ms-edit]')", sid), "View: the milestone's fields, not its editor")
                 self.no_controls(cdp, sid, "View, milestone")
                 self.no_draft(cdp, sid, "View, milestone")
@@ -170,7 +170,7 @@ class Browser(unittest.TestCase):
         with chrome() as cdp:
             sid = self.live(cdp, 1400, self.store, f"#work&p={self.code}")
             self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
-            self.open(cdp, sid, ACTION, "item")
+            self.open_peek(cdp, sid, ACTION, "item")
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
             for _ in range(2):
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
@@ -191,7 +191,7 @@ class Browser(unittest.TestCase):
             with self.subTest(width=width, where="editor"), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, store, "PUB")
                 self.to_edit(cdp, sid)
-                self.open(cdp, sid, "PUB-A-001", "item")
+                self.open_peek(cdp, sid, "PUB-A-001", "item")
                 editor = self.labels(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "the editor has Source")
             with self.subTest(width=width, where="file"), chrome() as cdp:
