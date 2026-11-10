@@ -22,7 +22,7 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL", "usecases": "#usecases&p=TUL"}
+VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL"}      # Row 1085: the Use cases page has no group of words with a chosen half any more (the Status switch became four vtab tabs, as on the Work items page), so it is not listed
 # every chosen half of a group of words (not the icon pair, not the View | Edit pill), focused, and what its ring and its fill are
 MEASURE = r"""(() => {
   const out = [];

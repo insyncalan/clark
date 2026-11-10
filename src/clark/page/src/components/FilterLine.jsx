@@ -310,7 +310,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
       const t = e.target, tag = t && t.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (t && t.isContentEditable)) return;
       if (document.querySelector('[role="dialog"], [aria-modal="true"], [role="menu"]')) return;
-      if (!input.current || peek.value) return;          // an open peek keeps "/" for its own words box
+      if (!input.current || peek.value || !input.current.getClientRects().length) return;          // an open peek keeps "/" for its own words box; a line that is not on the screen (its page is hidden behind a use case's own page) takes nothing
       e.preventDefault();
       input.current.focus();
     };

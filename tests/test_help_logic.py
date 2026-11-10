@@ -334,7 +334,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
         self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "start-top", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-loop", "start-jobs", "start-where", "start-rules", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-status-words", "ref-milestone-states"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
-        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "howto-connect-claude-or-chatgpt", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates", "ref-ask-clark", "ref-using-help"])
+        self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "howto-find-a-use-case", "howto-connect-claude-or-chatgpt", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates", "ref-ask-clark", "ref-using-help"])
 
     def test_opening_help_at_a_held_place_is_an_unknown_place_and_a_shown_one_still_opens(self):
         w = self.shown["where"]
