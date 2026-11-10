@@ -123,6 +123,16 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         self.assertFalse(listed - names, "shard_times.txt names a test file that doesn't exist")
         self.assertTrue(listed, "shard_times.txt is empty")
 
+    def test_every_test_file_has_a_time_and_the_heavy_ones_are_weighted_as_heavy(self):
+        """An unlisted file counts as 30 s; test_publish_public.py really takes 6 to 10 minutes on a macOS shard (median 476 s in
+        five full macOS runs) and was listed at 80 s, so the shards were uneven. Every file is listed, and the known heavy ones
+        weigh what they measured."""
+        names = {f.name for f in everything()}
+        weights = run_tests.shard_weights()
+        self.assertEqual(sorted(names - set(weights)), [], "test files with no time in shard_times.txt")
+        for heavy in ("test_publish_public.py", "test_publish_scan_time.py", "test_filter_line_page.py"):
+            self.assertGreaterEqual(weights[heavy], 250, heavy)
+
 
 class ShardArgument(unittest.TestCase):
     def test_good_and_bad(self):
