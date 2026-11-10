@@ -3,6 +3,7 @@ and Delete view; Move view is Left and Right keys with Enter or Esc to finish; D
 
 Run (one browser file at a time): python3 dev/run_tests.py test_filter_tabs_drag
 """
+import time
 import unittest
 
 from _new_page import reload_to_new_page_cdp
@@ -100,6 +101,7 @@ class Tabs(unittest.TestCase):
             for dx in (6, 12, 6, 0):
                 self.mouse(cdp, sid, "mouseMoved", x + dx, y, buttons=1)
             self.mouse(cdp, sid, "mouseReleased", x, y, button="left", buttons=0, clickCount=1)
+            time.sleep(0.4)      # a wrongly chosen tab shows after the next draw
             self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), before, "a drag is not a click")
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
