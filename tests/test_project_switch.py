@@ -31,7 +31,7 @@ class ProjectSwitch(Base):
             self.assertEqual(len(p.js(ITEMS)), 1, "the one project")
             self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["New project...", "Project settings"])
 
-    def test_C_the_switcher_is_a_bordered_box_with_the_chevron_at_the_right(self):
+    def test_C_the_switcher_is_the_chevron_alone_without_a_box(self):
         with chrome() as cdp:
             p = self.page(cdp)
             p.until("document.querySelector('#project-name').tagName === 'BUTTON'", "the menu button")
@@ -39,12 +39,12 @@ class ProjectSwitch(Base):
                 p.width(w)
                 box = p.js("(function(){var b=document.querySelector('#project-name'),r=b.getBoundingClientRect(),c=b.querySelector('.nch').getBoundingClientRect(),"
                            "s=getComputedStyle(b);return {w:r.width,bw:parseFloat(s.borderTopWidth),right:r.right-c.right,bar:document.documentElement.scrollWidth-window.innerWidth}})()")
-                self.assertGreater(box["bw"], 0, "the box has a border")
-                self.assertLessEqual(box["w"], 220.5)
-                self.assertLess(box["right"], 16, "the chevron sits at the right edge of the box")
+                self.assertEqual(box["bw"], 0, "row 1064: no box; the name is not drawn")
+                self.assertLessEqual(box["w"], 48, "row 1064: the chevron alone")
+                self.assertLess(box["right"], 16, "the chevron sits at the right edge of the button")
                 self.assertLessEqual(box["bar"], 0, "no sideways overflow")
             p.width(1400)
-            self.assertAlmostEqual(p.js("document.querySelector('#project-name').getBoundingClientRect().width"), 220, delta=1)
+            self.assertLessEqual(p.js("document.querySelector('#project-name').getBoundingClientRect().width"), 48)
 
     def test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings(self):
         self.rig.httpd.projects = lambda archived=False: TWO
@@ -54,7 +54,7 @@ class ProjectSwitch(Base):
             for w in WIDTHS:
                 p.width(w)
                 self.assertTrue(p.js("!!document.querySelector('#project-name .nch')"), "a chevron")
-                self.assertTrue(p.js("document.querySelector('#project-name').getBoundingClientRect().width > 40"), "visible at this width")
+                self.assertTrue(p.js("document.querySelector('#project-name').getBoundingClientRect().width > 16"), "visible at this width")
                 self.open_menu(p)
                 self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] b').textContent"), "Harbour Bridge Programme")
