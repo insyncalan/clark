@@ -24,8 +24,18 @@ class BuildAppFailures(unittest.TestCase):
         self.mklog = self.tmp / "mktemp.log"
         fake(self.bin, "mktemp", f'echo "$@" >> "{self.mklog}"; exec /usr/bin/mktemp "$@"')
 
-    def run_script(self, *args):
-        env = dict(os.environ, PATH=f"{self.bin}:/usr/bin:/bin", TMPDIR=str(self.tmp))
+    def run_script(self, *args, extra_path=""):
+        path = f"{self.bin}:{extra_path}/usr/bin:/bin"
+        if not (self.bin / "osacompile").exists():
+            # a real /usr/bin/osacompile may exist (a Mac): hide it behind a tools dir holding only what the script needs
+            tools = self.tmp / "tools"
+            tools.mkdir(exist_ok=True)
+            for name in ("mkdir", "rm", "cat", "dirname"):
+                found = shutil.which(name, path="/usr/bin:/bin")
+                if found and not (tools / name).exists():
+                    (tools / name).symlink_to(found)
+            path = f"{self.bin}:{tools}"
+        env = dict(os.environ, PATH=path, TMPDIR=str(self.tmp))
         return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, env=env)
 
     def leftovers(self):
