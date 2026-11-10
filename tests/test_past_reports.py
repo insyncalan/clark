@@ -180,7 +180,9 @@ class Seam(Base):
         self.assertEqual((body["total"], body["shown"], body["limit"]), (12, 10, 10))
         self.assertEqual([p["number"] for p in body["publications"]], list(range(12, 2, -1)), "newest first")
         row = body["publications"][0]
-        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived"})   # week and day: #344's picker
+        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived", "at", "pdf"})   # week and day: #344's picker; at and pdf (row 1087): the time as UTC for the page to show in the person's own zone, and whether a PDF was saved with it
+        self.assertRegex(row["at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertIs(row["pdf"], False)
         self.assertRegex(row["day"], r"^\d{4}-\d\d-\d\d$")
         self.assertTrue(row["week"] is None or re.fullmatch(r"\d{4}-\d\d-\d\d", row["week"]), row["week"])
         self.assertEqual((row["where"], row["who"], row["kept"], row["word"]), ("Local", USER, True, False))
@@ -191,6 +193,16 @@ class Seam(Base):
         shas = [r[0] for r in self.store.con.execute("SELECT file_sha256 FROM publications")]
         for s in shas:
             self.assertNotIn(s, text)
+
+    def test_row_1087_a_row_says_whether_a_pdf_was_saved_with_it_and_its_time_is_utc_with_a_Z(self):
+        done, body = self.publish(now="2026-11-02")
+        seq = self.store.web_publication_seq("PUB", done["number"])
+        self.store.record_pdf_name(seq, "Report.pdf")
+        row = self.past.listing("PUB")[1]["publications"][0]
+        self.assertIs(row["pdf"], True)
+        at = self.store.con.execute("SELECT at FROM publications WHERE seq = ?", (seq,)).fetchone()[0]
+        self.assertEqual(row["at"], at.replace(" ", "T").split(".")[0] + "Z")
+        self.assertNotIn("Report.pdf", json.dumps(self.past.listing("PUB")[1]), "no file name leaves")
 
     def test_show_archived_lists_the_archived_ones_too_marked_and_the_default_hides_them(self):
         for i in range(3):

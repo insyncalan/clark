@@ -2,7 +2,7 @@
 
 `PastReports` answers three requests for the server (server.past_route, server.past_page_route), each as (status, body):
 - listing(code): GET /api/publications?project=. The newest 10 publications of the project, each as {number, when, where, who,
-  word, kept, week, day}, how many there are in all and how many are archived (#342: an archived one is left out of the list and the total,
+  word, kept, week, day, at, pdf}, how many there are in all and how many are archived (#342: an archived one is left out of the list and the total,
   and is still kept and still opens). `week` is the week ending it was published for (YYYY-MM-DD, or None) and `day` the computer's
   own day it was published on (YYYY-MM-DD): the Dashboard's week picker (#344) lists and opens them. Nothing is read but the number, the time, who, whether a copy went to the client
   and whether it was a Word copy: no path and no SHA-256 leaves. Every publication is kept (#348); only the list is cut to 10.
@@ -20,6 +20,7 @@ import re
 import threading
 import secrets
 import time
+from datetime import timezone
 from pathlib import Path
 
 from clark import history, past_banner, published_copies, timefmt
@@ -54,6 +55,15 @@ def local_day(at):
         return None
 
 
+def utc_stamp(at):
+    """A logged time as UTC with a Z (YYYY-MM-DDTHH:MM:SSZ), for the page to show in the person's own zone and name it (row 1087);
+    None when it is not a time. The seconds are cut, never rounded."""
+    try:
+        return timefmt.parse(at).astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    except (ValueError, OverflowError, OSError):
+        return None
+
+
 class PastReports:
     def __init__(self, db_path, clock=time.monotonic):
         self.db_path = Path(db_path)
@@ -77,7 +87,7 @@ class PastReports:
             try:
                 if con.execute("SELECT 1 FROM projects WHERE code = ?", (code,)).fetchone() is None:
                     return 404, self.fail("project_not_found")
-                rows = con.execute("SELECT at, number, word, week_ending, client_path IS NOT NULL AS to_client, by_user FROM publications "
+                rows = con.execute("SELECT at, number, word, week_ending, client_path IS NOT NULL AS to_client, pdf_name IS NOT NULL AS has_pdf, by_user FROM publications "
                                    "WHERE project = ? ORDER BY number DESC, word", (code,)).fetchall()
             finally:
                 con.close()
@@ -93,7 +103,8 @@ class PastReports:
                         "who": (r["by_user"] or "").strip() or NOT_RECORDED, "word": word,
                         "kept": not word and published_copies.is_kept(self.data_dir, code, r["number"]),
                         "week": r["week_ending"] if isinstance(r["week_ending"], str) and DAY.fullmatch(r["week_ending"]) else None,
-                        "day": local_day(r["at"]), "archived": r["number"] in gone})
+                        "day": local_day(r["at"]), "archived": r["number"] in gone,
+                        "at": utc_stamp(r["at"]), "pdf": bool(r["has_pdf"]) and not word})
         return 200, {"ok": True, "project": code, "total": total, "shown": len(out), "limit": SHOWN, "archived": sum(1 for r in rows if r["number"] in gone),
                      "publications": out}
 
