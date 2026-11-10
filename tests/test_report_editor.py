@@ -405,7 +405,7 @@ class Sections(Base):
             p.until(hidden, "dimmed in Edit")
             self.assertEqual(p.ids(), IDS, "still drawn in Edit")
             self.assertIn("Left out of the published page", p.js("document.querySelector('[data-id=\"ABC-S-002\"]').textContent"))
-            p.until("document.getAnimations().length === 0", "the dimming finished")
+            p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the dimming finished")
             self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-h')).opacity")), 1, "its words are dimmed")
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
@@ -569,13 +569,13 @@ class Sections(Base):
                     p.key("ArrowUp", ALT, code="ArrowUp", vk=38)
                     p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "the move")
                     said = p.toast()
-                    p.until("document.getAnimations().length === 0", "the toast finished arriving")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the toast finished arriving")
                     self.assertTrue(said and not said.startswith("Undone"), said)
                     p.js("document.activeElement.blur()")
                     p.key("z", 2, code="KeyZ", vk=90)
                     p.order_is(IDS, "Cmd+Z undid the move")
                     p.toast_is("Undone: " + said)
-                    p.until("document.getAnimations().length === 0", "the animations ended before focus is read")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the animations ended before focus is read")
                     self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-004'"), 5),
                                     "focus is back on the moved section's handle")
 
@@ -953,7 +953,7 @@ class Gutter(Base):
         p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
         p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu opened")
         p.until("document.activeElement.matches('[role=menuitem]')", "focus went into the menu")
-        p.until("document.getAnimations().length === 0", "the menu finished opening")
+        p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the menu finished opening")
 
     def test_one_control_in_the_margin_and_the_old_add_lines_are_gone(self):
         with chrome() as cdp:
@@ -983,7 +983,7 @@ class Gutter(Base):
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
-            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "faint at rest")
+            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.004" % (self.CTL % "ABC-S-004"), "faint at rest")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-004"), 0.3, places=2)
             x, y, _ = p.box('[data-id="ABC-S-004"] .sec-head')
             p.mouse("mouseMoved", x, y)
@@ -1140,7 +1140,7 @@ class Gutter(Base):
                 for w in (900, 1400):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.until(f"window.innerWidth === {w}", "resized")
-                    p.until("document.getAnimations().length === 0", f"the animations ended at {w} in {scheme}")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"the animations ended at {w} in {scheme}")
                     rows = p.js(self.MEASURE)
                     self.assertEqual(len(rows), 11)
                     for ref, ctl_right, head_left, content_left, ctl_left, sec_left in rows:
@@ -1306,7 +1306,7 @@ class Look(Base):
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 p.until("document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
-                p.until("document.getAnimations().length === 0", f"the animations ended at {w}")
+                p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"the animations ended at {w}")
                 small = p.js("""[...document.querySelectorAll('[data-drag], [data-options], [data-add], .mode, .menu-item, .toast-btn')]
                     .map(e => [e.className || e.tagName, e.getBoundingClientRect().width, e.getBoundingClientRect().height])
                     .filter(x => x[1] < 24 || x[2] < 24)""")

@@ -11,7 +11,7 @@ from test_peek_latest import Browser as _Harness, OVERDUE
 from test_server import chrome, wait
 from test_work_filters import click
 
-SUB = "Lists it under “Needs from you”"
+SUB = "Lists it under “Needs from you” when the report has that section"      # row 1066: the published page adds no section the editor lacks
 LABEL = "Needed from the client"
 
 
