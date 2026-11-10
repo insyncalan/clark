@@ -150,6 +150,7 @@
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 .rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
+.rowmenu .rm-fly .rm-search { display: block; box-sizing: border-box; width: calc(100% - 16px); margin: 4px 8px 6px; }   /* item 1070: the search box at the top of the Change owner list */
 .rowmenu .ddmenu[data-pointer] [role="menuitem"]:focus-visible:not(:hover) { outline: none; background: none; color: var(--text); }      /* row 979: opened by the mouse, no ring or tint on the first entry (the hovered one keeps its own) */
 /* row 979: the row menu and its list do not move as they open, they fade (opacity only; the page's own fade and tokens); the 4 px drop stays for every other menu. Still under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {

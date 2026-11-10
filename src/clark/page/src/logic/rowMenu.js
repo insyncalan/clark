@@ -4,6 +4,7 @@
 import { statusChoices, tableOf, changeFor, quickDates, addDays } from "../edit/itemEdit.js";
 import { ownerOf, showDate } from "../workItems.js";
 import { buildOptions } from "./draftEmail.js";
+import { searchPeople, sameName } from "./assignTo.js";
 
 export const TITLE_OF = { actions: "description", raid: "description", decisions: "decision" };
 const TITLE_LIMIT = 200;                         // clark/changes.py: a title is at most this many characters
@@ -76,6 +77,24 @@ export function dueList(today) {
 export function ownerList(names, row) {
   const now = ownerOf(row.owner).text;
   return names.filter((n) => n !== now);
+}
+
+/** Item 1070: the names the Change owner list shows for what is typed in its search box. Nothing typed: the list as it was. Typed:
+ *  the register's live people (name, alias, email, role) and the project's names that match, as the Assign-to picker finds them,
+ *  except the current owner. */
+export function ownerChoices(register, names, row, typed) {
+  if (!String(typed == null ? "" : typed).trim()) return ownerList(names, row);
+  const now = ownerOf(row.owner).text;
+  return searchPeople(register, names, typed).map((h) => h.name).filter((n) => !sameName(n, now));
+}
+
+/** Item 1070: whether the typed text can be offered as "Add ... as a new person": some text that is not TBC and is no one the
+ *  register or the project already names (nor the current owner). The picker's own rule (OwnerPick.known). */
+export function canAddPerson(register, names, row, typed) {
+  const t = String(typed == null ? "" : typed).trim();
+  if (!t || sameName(t, "TBC") || sameName(t, ownerOf(row.owner).text)) return false;
+  const known = [...names, ...(Array.isArray(register) ? register : []).filter((p) => p && !p.archived).flatMap((p) => [p.name, ...String(p.aliases || "").split(";")])];
+  return !known.some((n) => n && sameName(n, t));
 }
 
 /** What Duplicate asks for (#442): the item's id and a title that says it is a copy. The server copies everything else from the

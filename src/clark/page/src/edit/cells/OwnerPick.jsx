@@ -19,11 +19,11 @@ const Name = ({ n, start, choose }) => (
   </li>
 );
 
-export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose }) {
+export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName }) {
   const start = String(row.owner == null ? "" : row.owner);
   const [typed, setTyped] = useState(start);
   const [problem, setProblem] = useState("");
-  const [form, setForm] = useState(null);               // Row 986: {name, email} while the new-person form is open
+  const [form, setForm] = useState(addName ? { name: addName, email: "" } : null);               // Row 986: {name, email} while the new-person form is open; item 1070: the row menu opens it with the typed name
   const [already, setAlready] = useState(null);          // the person the server says is on the list already ({id, name}), offered as "Use this one"
   const [busy, setBusy] = useState(false);
   const box = useRef(null), list = useRef(null), nameBox = useRef(null);

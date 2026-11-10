@@ -9,23 +9,25 @@ import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
-import { changeCell, changeRecord, say } from "../stores/changes.js";
+import { changeCell, changeNewPerson, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { people, tableOf, canClearDue } from "./itemEdit.js";
+import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { OwnerPick } from "./cells/OwnerPick.jsx";
+import { readPeople } from "./peopleApi.js";
+import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, ownerChoices, canAddPerson, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
-const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, from: the element to give focus back to }
+const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
 const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
@@ -115,8 +117,22 @@ function entries(row, level, edit, d, today) {
 // A short list (status, due date, owner) open beside its entry: its own box on the window, placed once beside the entry (on the left
 // when the right has no room), so the menu itself never moves or changes size (row 848). Up and Down move in it, Left or Esc
 // go back to the entry.
-function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
-  const box = useRef(null);
+function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
+  const box = useRef(null), search = useRef(null);
+  const [typed, setTyped] = useState("");
+  const [register, setRegister] = useState([]);
+  useEffect(() => {                                 // item 1070: the Change owner list searches the people clark holds as well as the project's names
+    if (!owner) return undefined;
+    let on = true;
+    readPeople().then((r) => { if (on) setRegister(r.ok ? r.people : []); });
+    return () => { on = false; };
+  }, []);
+  let list = shown;
+  if (owner && typed.trim()) {
+    const found = ownerChoices(register, owner.names, owner.row, typed);
+    list = [...found.map((n) => ({ id: "o:" + n, name: n })),
+      ...(canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+  }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
     if (!el || !at) return;
@@ -124,19 +140,31 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     const right = m.right + w + 8 <= window.innerWidth;
     el.style.left = `${Math.round(right ? m.right - 2 : Math.max(8, m.left - w + 2))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
-    if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
+    if (focus) (search.current || menuItemsIn(el)[0] || el).focus({ preventScroll: true });
   }, []);
   useFadeOut(box, true, "rowmenu");
   const keys = (e) => {
-    if (menuMove(e, menuItemsIn(box.current))) return;
+    const items = menuItemsIn(box.current);
+    if (search.current && e.target === search.current) {          // the box is for typing: Down goes into the names, Esc goes back, Enter takes the first
+      if (e.key === "ArrowDown" && items.length) { e.preventDefault(); e.stopPropagation(); items[0].focus({ preventScroll: true }); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
+      else if (e.key === "Enter" && typed.trim() && list.length) { e.preventDefault(); e.stopPropagation(); onPick(list[0].id === "addp" ? "addp:" + typed.trim() : list[0].id); }
+      else if (e.key === "Tab") onClose("tab");
+      else e.stopPropagation();
+      return;
+    }
+    if (search.current && e.key === "ArrowUp" && items[0] === document.activeElement) { e.preventDefault(); e.stopPropagation(); search.current.focus({ preventScroll: true }); return; }
+    if (menuMove(e, items)) return;
     if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
     else if (e.key === "Tab") onClose("tab");
   };
   return (
     <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
       onKeyDown={keys} onPointerEnter={keep} onPointerLeave={() => hover("")}>
+      {owner ? <input ref={search} type="text" class="cp-in rm-search" data-rm-search value={typed} autocomplete="off" spellcheck={false} maxLength={200}
+        placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
-        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id)}>
+        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
           <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
@@ -191,6 +219,7 @@ function Panel({ s }) {
     if (id === "pick") return set({ pick: true });
     if (id.startsWith("s:")) return change("status", id.slice(2));
     if (id.startsWith("o:")) return change("owner", id.slice(2));
+    if (id.startsWith("addp:")) return set({ adding: id.slice(5), fly: "", focusFly: false });
     if (id.startsWith("d:")) return change("due", id.slice(2));
     if (id === "eye") {
       const c = eyeChange(row);
@@ -230,7 +259,7 @@ function Panel({ s }) {
   const list = entries(row, "", edit, d, today);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
+      {s.pick || s.adding ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
           <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
@@ -242,8 +271,21 @@ function Panel({ s }) {
           </button>
         ))}
       </MenuPanel>}
-      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+      {s.fly && !s.pick && !s.adding ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} owner={s.fly === "owner" ? { row, names: people(d) } : null} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
         onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
+      {s.adding ? (
+        <OwnerPick row={row} anchor={{ current: s.from }} names={people(d)} addName={s.adding}
+          onPick={(v) => { const c = pickChange(row, "owner", v, today); if (c && c.error) return c.error; change("owner", v); return ""; }}
+          onAdd={async (person) => {
+            const c = newPersonChange(row, person, today);
+            if (c && c.error) return { ok: false, message: c.error, code: "", person: null };
+            if (!c) { close("pick"); return { ok: true }; }
+            const r = await changeNewPerson(tableOf(row), row.id, c, "menu");
+            if (r.ok) { close("pick"); refocus(row.id); }
+            return r;
+          }}
+          onClose={(back) => { state.value = null; if (back && s.from.isConnected) s.from.focus({ preventScroll: true }); }} />
+      ) : null}
       {s.pick ? (
         <DuePick row={row} anchor={{ current: s.from }} today={today}
           onPick={(v) => { const c = pickChange(row, "due", v, today); if (c && c.error) return c.error; change("due", v); return ""; }}
