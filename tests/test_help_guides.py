@@ -348,7 +348,7 @@ class PageKey(unittest.TestCase):
         self.assertEqual(ids, sorted(ids, key=order.index))
 
 
-# The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
+# The Settings cards on the page, by the part that draws each (edit/settingsPages.js, drawn by Settings in components/Views.jsx): the visible title of the card.
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
@@ -359,7 +359,7 @@ WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vau
 
 
 def settings_parts():
-    code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
+    code = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")
     # item 1024: the cards a page draws are named in the menu's GROUPS (one list of tools for each page), no longer one line each in Settings()
     groups = code[code.index("const GROUPS = ["):]
     groups = groups[:groups.index("\n];")]
