@@ -226,7 +226,7 @@ function SavedViews({ board }) {
   const tabItems = [];
   if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes", icon: "check" });
   tabItems.push({ id: "saveas", name: "Save as a new view…", icon: "plus" });
-  if (active) {      // row 1071: the four words Alan approved, each with its icon; Delete view in red
+  if (active) {      // row 1071: the four words the issue approves, each with its icon; Delete view in red
     tabItems.push({ id: "rename", name: "Rename view", icon: "pencil" });
     if (shown.length > 1) tabItems.push({ id: "move", name: "Move view", icon: "move" });
     tabItems.push({ id: "duplicate", name: "Duplicate view", icon: "copy" });
