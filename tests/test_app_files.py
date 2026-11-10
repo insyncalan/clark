@@ -315,18 +315,40 @@ class OfflinePageColours(unittest.TestCase):
 
 
 class TheStartFilesNameNoOutsideAddress(unittest.TestCase):
-    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer."""
+    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer: only
+    http://127.0.0.1 and (row 1076) http://clark.localhost, the name Chrome resolves to this computer, each followed by its
+    port, a path or nothing. A name that merely starts with one of them (clark.localhost.evil.example) is outside."""
 
     FILES = ("clark.command", "src/clark/launch.py", "src/clark/appfiles.py", "src/clark/idle.py", "src/clark/app/sw.js",
              "src/clark/app/offline.html")
+    THIS_COMPUTER = re.compile(r"http://(?:127\.0\.0\.1|clark\.localhost)(?::|/|$)")
 
-    def test_only_127_0_0_1_is_ever_named(self):
+    @classmethod
+    def outside_addresses(cls, text):
+        """The addresses `text` names that are not this computer's."""
+        return [found for found in re.findall(r"(?:https?|wss?|ftp)://[^\s\"'<>)]*", text) if not cls.THIS_COMPUTER.match(found)]
+
+    def test_only_this_computer_is_ever_named(self):
         texts = {f: (ROOT / f).read_text(encoding="utf-8") for f in self.FILES}
         texts["manifest"] = af.manifest_json().decode("utf-8")
         for name, text in texts.items():
-            for found in re.findall(r"(?:https?|wss?|ftp)://[^\s\"'<>)]*", text):
-                self.assertTrue(found.startswith("http://127.0.0.1"), f"{name} names {found}")
+            self.assertEqual(self.outside_addresses(text), [], f"{name} names an address outside this computer")
             self.assertNotRegex(text, r"\b(curl|wget|pip|npm)\b", name)
+
+    def test_the_launcher_names_both_of_this_computer_s_addresses_and_the_check_knows_them(self):
+        text = (ROOT / "src/clark/launch.py").read_text(encoding="utf-8")
+        for wanted in ("http://clark.localhost:{port}/", "http://127.0.0.1:{port}/"):
+            self.assertTrue(wanted in text, f"launch.py no longer names {wanted}")
+        self.assertEqual(self.outside_addresses(text), [])
+
+    def test_the_check_rejects_a_name_that_only_looks_like_this_computer(self):
+        for found in ("http://clark.localhost.evil.example:1/", "http://evil.clark.localhost:1/", "https://clark.localhost:1/",
+                      "http://localhost:1/", "http://other.localhost:1/", "http://127.0.0.1.evil.example/", "http://127.0.0.10/",
+                      "ws://clark.localhost:1/", "http://clark.localhost{port}/"):
+            self.assertEqual(self.outside_addresses(f"open {found} now"), [found])
+        for found in ("http://127.0.0.1:{port}/", "http://clark.localhost:{port}/", "http://127.0.0.1:8766/health",
+                      "http://clark.localhost/", "http://127.0.0.1"):
+            self.assertEqual(self.outside_addresses(f"open {found} now"), [], found)
 
 
 class DataMark(unittest.TestCase):
