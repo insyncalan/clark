@@ -176,13 +176,13 @@ class Dropped(Plant):
                     s["hidden"] = 1 if s["type"] in types else s["hidden"]
             return go
         _, pub, text = made(hide("actions"))
-        self.assertEqual((pub["data"]["actions"], pub["tabs"]), ([], ["dashboard", "work", "milestones", "usecases", "clientreport"]),
+        self.assertEqual((pub["data"]["actions"], pub["tabs"]), ([], ["dashboard", "work", "milestones", "usecases"]),
                          "raid and decisions still need the Work items tab")
         self.assertNotIn("ZQ-KEEP-ACTION-1", text)
         self.assertNotIn("PUB-A-001", text, "nor its id, in a link or a label")
         self.assertEqual((pub["data"]["links"], pub["data"]["labels"]), ([], {}))
         _, pub, text = made(hide("actions", "raid", "decisions"))
-        self.assertEqual(pub["tabs"], ["dashboard", "milestones", "usecases", "clientreport"])
+        self.assertEqual(pub["tabs"], ["dashboard", "milestones", "usecases"])
         self.assertNotIn("ZQ-KEEP-RISK-1", text)
         self.assertNotIn("ZQ-KEEP-DECISION-1", text)
         _, pub, text = made(hide("milestones"))
@@ -554,7 +554,7 @@ class TheFile(Plant):
         self.assertEqual(text.count("<title>"), 1)
         self.assertLess(text.index('id="clark-data"'), text.rindex("</body>"))
         payload = block(text)
-        self.assertEqual((payload["v"], payload["as_at"], payload["tabs"]), (1, "2026-10-28", ["dashboard", "work", "milestones", "usecases", "clientreport"]))
+        self.assertEqual((payload["v"], payload["as_at"], payload["tabs"]), (1, "2026-10-28", ["dashboard", "work", "milestones", "usecases"]))
         with self.assertRaisesRegex(PublishError, "token"):
             publish.render(self.pub, page.page_html(EMPTY_BRANDING).replace("</body>", '<script type="application/json" '
                            'id="clark-boot">{}</script></body>'), "2026-10-28", "x")
@@ -959,7 +959,7 @@ class Making(unittest.TestCase):
         pub = publish.select(publish.read_inputs(store_of(self, db), "PUB", "2026-10-28"))
         self.assertEqual([s["type"] for s in pub["sections"]],
                          ["current", "glance", "usecases", "milestones", "raid", "actions", "decisions"])
-        self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases", "clientreport"])
+        self.assertEqual(pub["tabs"], ["dashboard", "work", "milestones", "usecases"])
 
     def test_the_module_never_reaches_the_servers_data_route_or_a_dialog(self):
         tree = ast.parse((SRC / "clark" / "publish.py").read_text(encoding="utf-8"))
@@ -1057,7 +1057,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('h1').textContent", sid), self.name)
             self.assertEqual(cdp.js("document.title", sid), self.name)
             self.assertEqual(cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid),
-                             "dashboard,work,milestones,usecases,clientreport", "five tabs and no Settings")
+                             "dashboard,work,milestones,usecases", "four tabs and no Settings")
             self.assertEqual(cdp.js("document.querySelector('.asat').textContent", sid), "As at 28-10-2026")
             for view, h1 in (("work", "Work items"), ("milestones", "Milestones"), ("dashboard", self.name)):
                 cdp.js(f"document.querySelector('[data-view={view}]').click()", sid)

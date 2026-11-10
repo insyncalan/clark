@@ -629,8 +629,6 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
-    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
-        tabs.append("clientreport")
     if gantt:
         tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
