@@ -1064,10 +1064,10 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
-.item-rows-edit .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
-.item-rows-edit .wl-title .tag { flex: none; }
-.item-rows-edit .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-rows-edit .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
+.item-rows-edit .wl:not(.irows) .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
+.item-rows-edit .wl:not(.irows) .wl-title .tag { flex: none; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
 
 /* Row 1021: the status icon in Edit is the status control (a button around the tinted square): the caret and the tooltip share its ::after. */
 .irows .cell-pick[data-cell$=":status"]:not(:hover):not(:focus-visible)::after { content: none; }

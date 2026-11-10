@@ -2061,13 +2061,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .wl-meta .late { color: var(--status-red-text); }
 .wl-meta .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
 .wl-id { font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
-.wl:not(.cr-wl) .wl-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: a long title is cut with an ellipsis; the ID, the owner and the date never wrap and are never cut (the peek has the whole text) */
-.wl:not(.cr-wl) .wl-meta > span { white-space: nowrap; flex: none; }   /* the owner and the date show whole; .wl-meta wraps, so one that does not fit goes to a second line (never an ellipsis) */
+.wl:not(.cr-wl):not(.irows) .wl-title { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: a long title is cut with an ellipsis; the ID, the owner and the date never wrap and are never cut (the peek has the whole text) */
+.wl:not(.cr-wl):not(.irows) .wl-meta > span { white-space: nowrap; flex: none; }   /* the owner and the date show whole; .wl-meta wraps, so one that does not fit goes to a second line (never an ellipsis) */
 @media (max-width: 640px) {
-  .wl:not(.cr-wl) > .wl-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "state id" "main main"; }   /* a phone: the pill and the ID share the first line, the item has the whole width below */
-  .wl:not(.cr-wl) > .wl-row > .wl-state { grid-area: state; }
-  .wl:not(.cr-wl) > .wl-row > .wl-main { grid-area: main; }
-  .wl:not(.cr-wl) > .wl-row > .wl-id { grid-area: id; }
+  .wl:not(.cr-wl):not(.irows) > .wl-row { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "state id" "main main"; }   /* a phone: the pill and the ID share the first line, the item has the whole width below */
+  .wl:not(.cr-wl):not(.irows) > .wl-row > .wl-state { grid-area: state; }
+  .wl:not(.cr-wl):not(.irows) > .wl-row > .wl-main { grid-area: main; }
+  .wl:not(.cr-wl):not(.irows) > .wl-row > .wl-id { grid-area: id; }
 }
 .vt { display: inline-flex; align-items: flex-end; gap: 2px; }
 .vtabmenu { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 24px; height: 24px; border-radius: 50%; align-self: center; cursor: pointer; color: var(--text-muted); }
