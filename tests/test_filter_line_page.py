@@ -1027,6 +1027,74 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-risks", "and it is the chosen tab again")
                 cdp.js("localStorage.clear()", sid)
 
+    def test_undo_of_a_delete_chooses_the_restored_tab_even_when_another_has_its_line(self):
+        """Row 1071: a copy has the same line as its original, which comes first; after Undo the copy itself must be the chosen tab (the line alone would pick the original)."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                n = len(self.tab_ids(cdp, sid))
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=duplicate]")
+                self.assertTrue(wait(lambda: len(self.tab_ids(cdp, sid)) == n + 1), self.tab_ids(cdp, sid))
+                copy = cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid)
+                self.assertNotEqual(copy, "core-risks")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: copy not in self.tab_ids(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)))
+                click(cdp, sid, "[data-undo]")
+                self.assertTrue(wait(lambda: copy in self.tab_ids(cdp, sid)))
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), copy, "the restored copy is the chosen tab")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_cmd_z_after_delete_view_puts_the_view_back(self):
+        """Row 1071: Cmd or Ctrl+Z after Delete view undoes the delete (the message may be gone), not some other change."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: "core-risks" not in self.tab_ids(cdp, sid)))
+                cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == start), self.tab_ids(cdp, sid))
+                cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
+                time.sleep(0.3)
+                self.assertEqual(self.tab_ids(cdp, sid), start, "a second press has nothing of the view to undo")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_undo_of_a_delete_says_so_when_the_name_is_taken(self):
+        """Row 1071: delete View 2, make a new view (it is named View 2 again), Undo: no second View 2, and the message says why."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                names = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+                click(cdp, sid, "#viewNew")
+                self.assertTrue(wait(lambda: "View 1" in cdp.js(names, sid)))
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: "View 1" not in cdp.js(names, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)))
+                click(cdp, sid, "#viewNew")
+                self.assertTrue(wait(lambda: "View 1" in cdp.js(names, sid)), "the number is free again")
+                cdp.js("window.__ids = [...document.querySelectorAll('.vtab')].map(e => e.dataset.viewId).join()", sid)
+                ctrl_z = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))"
+                cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                cdp.js(ctrl_z, sid)
+                self.assertTrue(wait(lambda: "already exists" in cdp.js("document.body.innerText", sid)), "it says why, not nothing")
+                self.assertEqual(cdp.js(names, sid).count("View 1"), 1, "one View 1 only")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.vtab')].map(e => e.dataset.viewId).join()", sid), cdp.js("window.__ids", sid))
+                cdp.js("localStorage.clear()", sid)
+
     def test_a_tab_dropped_past_either_end_goes_to_that_end(self):
         s = self.serve()
         for width in SIZES:

@@ -34,6 +34,17 @@ const undoable = [];
 export const NOTHING_TO_UNDO = "Nothing to undo since this page was opened. Older changes are in Activity.";
 const MAX_KEPT = 50;
 
+// A message whose Undo is a function on this page (a saved view put back, row 1071), not a step in the change log. It is in the same list as the steps, so
+// Cmd or Ctrl+Z undoes it in its turn and not an older change. The button and the key both end up in `fn`, once.
+export function sayLocalUndo(kind, text, fn, code = project.value) {
+  say(kind, text, null, code);
+  const entry = { step: null, code, local: null };
+  entry.local = () => { const at = undoable.indexOf(entry); if (at >= 0) undoable.splice(at, 1); fn(); };
+  undoable.push(entry);
+  if (undoable.length > MAX_KEPT) undoable.shift();
+  toast.value = { ...toast.value, local: entry.local };
+}
+
 export function say(kind, text, undo = null, code = project.value) {
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
@@ -371,7 +382,12 @@ export function changeBulk(req, back) {
 export function undoLast(code = project.value) {
   for (let i = undoable.length - 1; i >= 0; i--) {
     if (undoable[i].code === code) {
-      const { step } = undoable[i];
+      const { step, local } = undoable[i];
+      if (local) {
+        if (toast.value && toast.value.local === local) dismiss();
+        local();
+        return Promise.resolve(null);
+      }
       if (toast.value && toast.value.undo === step) dismiss();
       return undo(step, code);
     }

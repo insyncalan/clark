@@ -12,7 +12,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
-import { say, toast } from "../stores/changes.js";
+import { say, sayLocalUndo } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -116,8 +116,11 @@ function SavedViews({ board }) {
       const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
-      say("done", `View deleted: ${gone.name}`);
-      toast.value = { ...toast.value, local: () => { const b = FL.insertView(viewsOf(code), gone, at); if (b.ok) saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id }; } };
+      sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
+        const b = FL.insertView(viewsOf(code), gone, at);
+        if (!b.ok) { say("problem", b.message); return; }          // a name taken since, say, is told, never silent
+        saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id };
+      }, code);
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }
   };

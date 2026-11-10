@@ -564,7 +564,9 @@ function nameProblem(views, name, exceptId) {
   if ((views || []).some((v) => !v.archived && v.id !== exceptId && low(v.name) === low(n))) return `A view called ${n} already exists. Choose another name.`;
   return "";
 }
-const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`)) n++; return `v${n}`; };
+// The ids of views deleted in this visit: never given to a new view, so the Undo of a delete (row 1071) can always put the view back under its own id.
+const retired = new Set();
+const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`) || retired.has(`v${n}`)) n++; return `v${n}`; };
 
 /** Save the line as a new view. {ok, views, id} or {ok: false, message}; the list given is never changed. */
 export function addView(views, name, line) {
@@ -604,6 +606,8 @@ export function reorderViews(views, ids) {
 export function insertView(views, view, index) {
   const vs = views || [];
   if (!view || findView(vs, view.id)) return { ok: false, message: "That view is already there." };
+  const bad = nameProblem(vs, view.name, view.id);          // another view may have taken the name since the delete: no two views with one name
+  if (bad) return { ok: false, message: bad };
   const i = Math.max(0, Math.min(vs.length, Math.trunc(Number(index)) || 0));
   return { ok: true, views: [...vs.slice(0, i), { ...view }, ...vs.slice(i)] };
 }
@@ -624,6 +628,7 @@ export function duplicateView(views, id) {
 /** Delete a view (a core view too). It is gone: there is no way back. */
 export function deleteView(views, id) {
   if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  retired.add(id);
   return { ok: true, views: views.filter((v) => v.id !== id) };
 }
 /** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it

@@ -675,6 +675,27 @@ class SavedViews(Line):
         back = self.v(f"insertView({lit(gone)}, {lit(base[-1])}, {len(gone)})")
         self.assertEqual(back["views"], base)
 
+    def test_a_deleted_views_id_is_never_given_to_a_new_view(self):
+        """Row 1071: after Delete view, a new view must not take the id the deleted one had, or its Undo could not put it back."""
+        three = [{"id": "v1", "name": "One", "line": ""}, {"id": "v2", "name": "Two", "line": ""}, {"id": "v3", "name": "Three", "line": ""}]
+        gone = self.v(f"deleteView({lit(three)}, 'v3')")["views"]
+        new = self.v(f"addView({lit(gone)}, 'Four', '')")
+        self.assertNotEqual(new["id"], "v3")
+        dup = self.v(f"duplicateView({lit(gone)}, 'v1')")
+        self.assertNotEqual(dup["id"], "v3")
+        back = self.v(f"insertView({lit(new['views'])}, {lit(three[2])}, 2)")
+        self.assertTrue(back["ok"], "the deleted view can still come back after a new one was made")
+        self.assertEqual(sorted(x["id"] for x in back["views"]), sorted(["v1", "v2", "v3", new["id"]]))
+
+    def test_insert_refuses_a_name_a_view_already_has(self):
+        """Row 1071: Undo must not make two views with one name (addView and renameView forbid that too); it says why."""
+        base = [{"id": "a1", "name": "Alpha", "line": ""}, {"id": "b1", "name": "Beta", "line": ""}]
+        gone = self.v(f"deleteView({lit(base)}, 'b1')")["views"]
+        other = self.v(f"addView({lit(gone)}, 'beta', '')")["views"]
+        got = self.v(f"insertView({lit(other)}, {lit(base[1])}, 1)")
+        self.assertFalse(got["ok"])
+        self.assertIn("already exists", got["message"])
+
     def test_a_view_added_or_missing_from_the_stored_order_still_shows(self):
         fake = "{store: {'clark.forder': JSON.stringify({ABC: ['mine', 'gone', 'core-all']}) }, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
         got = self.val(f"T.fl.viewsGet({fake}, 'ABC').map(function (x) {{ return x.id; }})")
