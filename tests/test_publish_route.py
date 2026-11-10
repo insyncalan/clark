@@ -348,6 +348,22 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before, []))
 
 
+    def test_a_link_inside_the_client_folder_that_leads_out_is_still_inside_as_written(self):
+        """#1047: the as-written check stands apart from the links-followed one."""
+        elsewhere = self.rig.root / "elsewhere"
+        elsewhere.mkdir()
+        (self.rig.client / "out").symlink_to(elsewhere, target_is_directory=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(self.rig.client / "out"), str(self.rig.client)))
+        self.assertFalse(publish_flow.folder_inside(None, str(elsewhere), str(self.rig.client)))
+
+    def test_a_disk_that_cannot_resolve_a_link_is_not_inside(self):
+        class Broken:
+            def realpath(self, path):
+                raise OSError("no disk")
+        self.assertFalse(publish_flow.folder_inside(Broken(), "/a/b", "/c"))
+        self.assertTrue(publish_flow.folder_inside(Broken(), "/c/b", "/c"))
+
+
 class LocalNeverOverwritesClarksOwnFiles(Base):
     """#43 review, MEDIUM 2: the Save dialog can't choose the database, the data folder, the backups, or a non-.html name."""
 
