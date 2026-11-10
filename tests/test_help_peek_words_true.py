@@ -23,6 +23,7 @@ def lines(section, key, ident):
 ITEM = lines("reference", "sections", "peek")
 MS = lines("reference", "sections", "milestone-peek")
 HOWTO = lines("howto", "tasks", "change-an-item-in-the-peek")
+MSHOW = lines("howto", "tasks", "update-a-milestone")
 
 
 def find(rows, start):
@@ -51,16 +52,21 @@ class ItemPeek(unittest.TestCase):
         det = find(ITEM, "**Details**")
         self.assertNotIn("Description", det)
         self.assertIn("tab", det)
-        how = find(HOWTO, "**Details**")
+        how = find(HOWTO, "In Edit, **Details**")
         self.assertNotIn("description", how)
         self.assertNotIn("open or closed", how)
         self.assertIn("tab", how)
+        self.assertIn("In Edit", how)          # Peek.jsx: Tabs = editing && tools.PeekTabs; View shows the fields with no tab
+        self.assertIn("in Edit", det)
 
     def test_arrows_are_previous_and_next_buttons(self):
         step = find(HOWTO, "With the peek open")
         self.assertNotIn("up and down arrows at the top", step)
         self.assertIn("**Previous** and **Next**", step)
         self.assertIn("[[Up]] and [[Down]]", step)
+        self.assertIn("only when focus is on one of the peek’s own buttons", step)      # Peek.jsx peekOwnsArrow: BUTTON inside #peek only
+        code = (PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn('t.tagName !== "BUTTON" || !t.closest("#peek")', code)
 
 
 class MilestonePeek(unittest.TestCase):
@@ -76,6 +82,8 @@ class MilestonePeek(unittest.TestCase):
             self.assertNotIn(gone, d)
         self.assertIn("Agreed", d)
         self.assertIn("Forecast", d)
+        self.assertIn("in Edit", d)            # the Forecast picker and the Achieved on row are the editor's alone (MilestonePeek.jsx; View's MilestoneFields shows the date as text)
+        self.assertIn("Achieved on", d)
         code = (PAGE / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
         self.assertNotIn("Rebaseline", code)
 
@@ -87,6 +95,17 @@ class MilestonePeek(unittest.TestCase):
         st = find(MS, "**State**")
         self.assertNotIn("why", st)
         self.assertIn("Overdue", st)
+
+    def test_howto_says_nothing_false(self):
+        text = "\n".join(MSHOW)
+        for gone in ("says why", "Rebaseline", "keeps the original", "Linked work items", "lists the items tied"):
+            self.assertNotIn(gone, text)
+        st = find(MSHOW, "**State**")
+        self.assertIn("buttons", st)
+        dates = find(MSHOW, "**Dates**")
+        self.assertIn("does not change it", dates)
+        code = (PAGE / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
+        self.assertIn('<Row name="Agreed date" k="baseline">{showDate(', code)
 
 
 if __name__ == "__main__":

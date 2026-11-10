@@ -227,7 +227,8 @@ class AgainstThePage(unittest.TestCase):
         # 23 measured on the merge of main (26 there, the update card of item 445) into the Help overhaul branch: both sides' names on the page together (24 fails)
         # 16 measured with ask clark and Sneak peek released (#721): their corrected bold names are on the page (ask clark, Check this report, Apply, Confirm and apply, New chat, Close ...), 23 before
         # 15 measured with row 828 (the milestone peek's own fields: State, Progress, Visible to client and Client wording are on the page now, 16 before)
-        self.assertGreaterEqual(len(names), 15)
+        # 14 measured with the milestone howto's false lines removed (the peek has no Rebaseline button or Linked work items list, so those two bold names left Help; 15 before)
+        self.assertGreaterEqual(len(names), 14)
 
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
