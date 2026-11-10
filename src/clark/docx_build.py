@@ -243,7 +243,7 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
     if colour in colours_table.COLOURS:
         fill, color = ctx.hexes(colour)
     elif late:
-        color = ctx.tok["status-red-text"]
+        color = ctx.tok["tone-red-text"]
     body = text_paras(text, ctx, color=color)
     body += "".join(para(run(x, color=ctx.tok["grey-700"], size=16), "TableText") for x in extra if x)
     return body, fill

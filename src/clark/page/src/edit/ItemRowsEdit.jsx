@@ -76,7 +76,7 @@ function EditRow({ row, today, words, type }) {
   const eye = () => change({ kind: "report_hidden", op: "new", id: row.id, place: "eye" }, `${row.id} is off the page.`);
   return (
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
-      <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill).tip}><ItemIcon row={row} pill={pill} plain /></Cell></span>
+      <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, todayOf()).tip}><ItemIcon row={row} pill={pill} plain /></Cell></span>
       <span class="wl-title c-title" title={words[row.id]}><Words row={row} text={words[row.id]} /></span>
       <span class="c-owner">
         <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>

@@ -5,7 +5,7 @@
 // listed are the ones marked for the client (the eye). An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
-import { ownerOf, showDate, todayIso, dueField, KIND_WORDS, kindLetter } from "../workItems.js";
+import { ownerOf, showDate, todayIso, dueField, isOpen, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
 
 export const NOTHING = "Nothing to show.";
@@ -45,14 +45,28 @@ const ownClick = (e) => !e.target.closest("button, a, input") && !String(window.
 // The icon is a small tinted square: its letter is the kind (R, I, A, D), its colour the status (r red, a amber, g green; b blue and n
 // grey for a decision's or a closed item's). In the app its words are a tooltip (hover and keyboard focus) and its accessible name;
 // in a published file they are also drawn as a small word beside it, because paper, a PDF and a Word copy have no hover.
-export const iconWords = (row, pill) => ({ name: `${KIND_WORDS[row.kind] || "Item"}, ${pill.text}`, tip: `${KIND_WORDS[row.kind] || "Item"} · ${pill.text}` });
+// The tile's colour (final 1021 colours): Red Overdue/Red, Amber Due soon/Amber, Green On track/Open/Pending, Blue Completed/Made/Closed, grey
+// Cancelled/Withdrawn/Not rated, and and an extra "u" class (a solid maroon tile that wins over the colour) on an open Urgent item, overdue or not.
+export const isUrgent = (row) => row.priority === "Urgent" && isOpen(row);
+export const toneOf = (row, pill) => {
+  if (row.kind === "decision") return row.status === "Made" ? "b" : row.status === "Withdrawn" ? "n" : "g";
+  if (row.status === "Closed") return "b";
+  return pill.class === "b" ? "g" : pill.class;
+};
+const isLate = (row, today) => { const a = dayNumber(dueField(row)), b = dayNumber(today); return isOpen(row) && a !== null && b !== null && a < b; };
+export const iconWords = (row, pill, today) => {
+  const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
+  const parts = isUrgent(row) ? ["Urgent", pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
+  const words = parts.filter(Boolean);
+  return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
+};
 export const dateHead = (type) => (type === "raid" ? "Review by" : type === "actions" ? "Due" : "Date");
 
-export function ItemIcon({ row, pill, plain }) {
-  const w = iconWords(row, pill);
+export function ItemIcon({ row, pill, plain, today }) {
+  const w = iconWords(row, pill, today ?? todayOf()), tone = `${toneOf(row, pill)}${isUrgent(row) ? " u" : ""}`;
   return plain
-    ? <span class={`ico ${pill.class}`} aria-hidden="true">{kindLetter(row.kind)}</span>
-    : <span class={`ico ${pill.class}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}</span>;
+    ? <span class={`ico ${tone}`} aria-hidden="true">{kindLetter(row.kind)}</span>
+    : <span class={`ico ${tone}`} role="img" tabindex="0" aria-label={w.name} data-tip={w.tip}>{kindLetter(row.kind)}</span>;
 }
 
 // The header row, once per card. A file has no Id column (a client is not given the item number).
@@ -75,7 +89,7 @@ function Row({ row, today, words, inFile, type }) {
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      <span class="c-ico"><ItemIcon row={row} pill={pill} />{inFile ? <span class="ico-w">{pill.text}</span> : null}</span>
+      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${isUrgent(row) ? "u" : toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
       <span class="wl-title c-title" title={title}>{title}</span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
         {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}

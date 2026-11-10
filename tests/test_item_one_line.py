@@ -99,7 +99,7 @@ class OneLineInView(Base):
             self.assertEqual(first["aria"], "Action, Overdue")
             self.assertEqual(first["tip"], "Action · Overdue")
             self.assertEqual(first["tab"], 0, "the icon takes keyboard focus, so the tooltip shows on focus too")
-            self.assertEqual((raid[0]["aria"], raid[0]["tip"]), ("Risk, Red", "Risk · Red"))
+            self.assertEqual((raid[0]["aria"], raid[0]["tip"]), ("Risk, Urgent, Red, Overdue", "Risk · Urgent · Red · Overdue"))
             self.assertIn("r", raid[0]["cls"].split())
             self.assertEqual(raid[1]["aria"], "Issue, Green")
             self.assertIn("g", raid[1]["cls"].split())

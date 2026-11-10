@@ -2124,14 +2124,17 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows .c-id { display: flex; justify-content: flex-end; }
 .irows .c-id .idl { margin: 0; }      /* the shared -4 px margin pushed the last id letter 4 px out of the row's right edge */
 .ico { position: relative; display: inline-grid; place-items: center; flex: none; width: 24px; height: 24px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-semibold); line-height: 1; background: var(--grey-100); color: var(--grey-700); }
-.ico.r { background: var(--status-red-tint); color: var(--status-red-text); }
-.ico.a { background: var(--status-amber-tint); color: var(--status-amber-text); }
-.ico.g { background: var(--status-green-tint); color: var(--status-green-text); }
-.ico.b { background: var(--brand-blue-tint); color: var(--status-blue-text); }
-.ico.n { background: var(--grey-100); color: var(--grey-700); }
+.ico.r { background: var(--tone-red-tint); color: var(--tone-red-text); }
+.ico.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); }
+.ico.g { background: var(--tone-green-tint); color: var(--tone-green-text); }
+.ico.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); }
+.ico.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); }
+.ico.u { background: var(--tone-urgent); color: var(--tone-on-urgent); }      /* Urgent, also when overdue: a solid maroon tile with a white letter */
 .ico[data-tip]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after { left: 0; right: auto; }
 .ico-w { font-size: var(--size-caption); color: var(--text); white-space: nowrap; }
+.ico-w.r { color: var(--tone-red-text); } .ico-w.a { color: var(--tone-amber-text); } .ico-w.g { color: var(--tone-green-text); }
+.ico-w.b { color: var(--tone-blue-text); } .ico-w.n { color: var(--tone-grey-text); } .ico-w.u { color: var(--tone-red-text); }
 @media (max-width: 900px) {
   /* the screen shows initials from here down; the published file (.is-file) and the printed page keep the full name (paper has room, initials alone are ambiguous) */
   .irows:not(.is-file), .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 88px; }
