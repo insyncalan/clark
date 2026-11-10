@@ -747,6 +747,13 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
+def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
+    """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
+    green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
+    rule = Rule(type="expression", formula=[late_formula(date_col, col, open_states)], dxf=_dxf("red", pal), stopIfTrue=True)
+    ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
+
+
 def late_formula(date_col, status_col, open_states):
     """The overdue rule for row 2 (it applies down the column): a real date before today on a row whose status is open."""
     is_open = ",".join(f'${status_col}2="{s}"' for s in sorted(open_states))
@@ -1273,6 +1280,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             elif field in PEOPLE:
                 add_note(ws, col, n_rows, "Owner" if field == "owner" else "Made by",
                          "Type the person's name.")
+            if field == "status" and (table, "due_date") in colours.LATE:
+                add_late_status_rule(ws, col, n_rows, get_column_letter([f for _, f in cols].index("due_date") + 1),
+                                     colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
             if (table, field) in colours.LATE:

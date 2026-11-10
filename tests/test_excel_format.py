@@ -246,11 +246,11 @@ class Formatting(unittest.TestCase):
                          {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"})
         self.assertIs(colours.BY_FIELD[("raid", "priority")], colours.PRIORITY)
         self.assertIs(colours.BY_FIELD[("actions", "priority")], colours.ACTION_PRIORITY)
-        self.assertEqual(colours.hexes("red"), ("F6E0DD", "A3301F"))
-        self.assertEqual(colours.hexes("amber"), ("FCEFCF", "8A5200"))
-        self.assertEqual(colours.hexes("green"), ("D9F1EC", "006B5E"))
+        self.assertEqual(colours.hexes("red"), ("F4DEDB", "B3392F"))
+        self.assertEqual(colours.hexes("amber"), ("FBF0D2", "8A5A12"))
+        self.assertEqual(colours.hexes("green"), ("DFF1EA", "2F6E57"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
-        self.assertEqual(colours.DECISION_STATUS, {"Pending": "amber", "Made": "green", "Withdrawn": "grey"})
+        self.assertEqual(colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
 
     def test_use_case_status_is_green_amber_red_and_done_grey(self):
         """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
@@ -263,8 +263,8 @@ class Formatting(unittest.TestCase):
 
     def test_action_and_raid_status_follow_the_pages_tones(self):
         self.assertEqual(colours.BY_FIELD[("actions", "status")],
-                         {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
-        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "blue", "Closed": "grey", "Cancelled": "grey"})
+                         {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
+        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
         wb = load_workbook(self.build(self.everything()))
         for sheet, label, table in (("Actions", "Status", "actions"), ("Risks & Issues", "Status", "raid")):
             ws = wb[sheet]
@@ -319,7 +319,7 @@ class Formatting(unittest.TestCase):
         for name, (date_label, status_label, states) in want.items():
             ws = wb[name]
             head = {c.value: c.column_letter for c in ws[1]}
-            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression"]
+            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression" and col == head[date_label]]      # row 1021: the Status column has its own overdue rule (test_status_colours)
             with self.subTest(sheet=name):
                 self.assertEqual(len(late), 1)
                 col, rule = late[0]
