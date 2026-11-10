@@ -5,6 +5,9 @@
 import { useLayoutEffect, useRef } from "preact/hooks";
 import { Pop, roam } from "./Pop.jsx";
 import { ratingGroups } from "../itemEdit.js";
+import { Icon } from "../../components/Icon.jsx";
+import { iconClass } from "../../iconColours.js";
+import { priorityIcon } from "../../menuIcons.js";
 
 let made = 0;
 
@@ -26,7 +29,7 @@ export function RatingPick({ row, anchor, onPick, onClose }) {
             {g.choices.map((c) => (
               <button type="button" role="menuitemradio" class="menu-item" key={c.value} data-value={c.value}
                 aria-checked={c.text === g.current ? "true" : "false"} onClick={() => onPick(c.value)}>
-                <span class="mi-t">{c.text}</span></button>
+                <span class={`mi-i ${iconClass(priorityIcon(c.text).tone)}`}><Icon name={priorityIcon(c.text).icon} /></span><span class="mi-t">{c.text}</span></button>
             ))}
           </div>
         ))}

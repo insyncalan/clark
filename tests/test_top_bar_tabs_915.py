@@ -1,7 +1,7 @@
-"""Row 757: the project button in the top bar does not collapse at 900 px (the file's name keeps the 915 px window it once also checked; only 1400 and
-900 px are tested now), on any tab, in light and dark, in View and Edit, with a long project name written as an invented name. The button keeps a
-readable width with an ellipsis, stays clear of the first tab, the tab row does not scroll and the page does not scroll sideways. Chrome is required:
-these tests fail, never skip, without it.
+"""Row 757: the project switcher in the top bar (row 1064: the chevron alone, the name not drawn) does not collapse at 900 px (the file's name keeps the 915 px
+window it once also checked; only 1400 and 900 px are tested now), on any tab, in light and dark, in View and Edit, with a long project name written as an
+invented name. The button keeps a readable width with an ellipsis, stays clear of the first tab, the tab row does not scroll and the page does not scroll
+sideways. Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_top_bar_tabs_915
 """
@@ -51,9 +51,10 @@ class ProjectButtonFit(Base):
     def check(self, width, theme, edit, active):
         got = self.measure(width, theme, edit, active)
         where = f"at {width} px, {theme}, {'Edit' if edit else 'View'}, {active or 'Dashboard'}: {got}"
-        self.assertGreaterEqual(got["btn"], 70, "the project button collapsed; " + where)
-        self.assertGreaterEqual(got["text"], 30, "the project name has no room; " + where)
-        self.assertTrue(got["trunc"], "the long name is not cut with an ellipsis; " + where)
+        # row 1064: the name is not drawn (it is read out only), so the button is the chevron alone; a long name must not widen it
+        self.assertGreaterEqual(got["btn"], 20, "the project switcher collapsed; " + where)
+        self.assertLessEqual(got["btn"], 48, "a long project name widened the switcher; " + where)
+        self.assertLessEqual(got["text"], 2, "the project name is drawn in the bar; " + where)
         self.assertGreaterEqual(got["gap"], 8, "the project button touches the tab row; " + where)
         self.assertLessEqual(got["page"], 0, "the page scrolls sideways; " + where)
         self.assertFalse(got["rowScrolls"], "the tab row scrolls sideways; " + where)

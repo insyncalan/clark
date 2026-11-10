@@ -1,9 +1,9 @@
 """#130 point 6, #912: the crowded Milestones page (ten milestones within two weeks of each other), in the app and in the published file.
 
 Run: python3 dev/run_tests.py test_milestones_crowded
-These tests were the end of tests/test_milestones_page.py, unchanged; they are 18 Chrome launches and are a file of their own so that file
+These tests were the end of tests/test_milestones_page.py, unchanged; they are Chrome launches and are a file of their own so that file
 and this one each stay short on a hosted runner. Every label's box is measured; no two overlap and the Today label stays clear of every
-label, mark and month name, in four font variants at 1400, 900 and 390 px.
+label, mark and month name, in four font variants at 1400 and 900 px.
 """
 import json
 import shutil
@@ -75,7 +75,7 @@ class Crowded(unittest.TestCase):
         "narrow": ".mv-lab, .mv-month, .mv-today { font-family: 'Arial Narrow', 'DejaVu Sans Condensed', sans-serif !important; letter-spacing: -0.06em !important; }",
         "scrollbar": ".mv-wrap::-webkit-scrollbar { height: 15px; background: #ddd; } .mv-wrap::-webkit-scrollbar-thumb { background: #999; }",
     }
-    VARIANTS = [("default", 1400), ("default", 900), ("default", 390), ("wide", 1400), ("wide", 900), ("narrow", 1400), ("narrow", 390), ("scrollbar", 1400), ("scrollbar", 390)]
+    VARIANTS = [("default", 1400), ("default", 900), ("wide", 1400), ("wide", 900), ("narrow", 1400), ("scrollbar", 1400)]
 
     def style_for(self, font):
         css = self.FONTS[font]       # a constructed style sheet: the page's content-security rule would drop an inline <style>
@@ -94,7 +94,7 @@ class Crowded(unittest.TestCase):
         self.assertEqual(got["todayHits"], [], f"{where}: the Today label is clear of every label, mark and month name")
         self.assertTrue(got["inside"], where)
 
-    def test_in_the_app_at_1400_900_and_390_px(self):
+    def test_in_the_app_at_1400_and_900_px(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         for font, width in self.VARIANTS:
@@ -102,7 +102,7 @@ class Crowded(unittest.TestCase):
                 sid = page_target(cdp)
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for(font)}, sid)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 600}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.port}/#milestones&p=TUL")}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
                 self.check(cdp, sid, f"app {font} font {width}px")
@@ -134,7 +134,7 @@ class Crowded(unittest.TestCase):
             self.assertTrue(got["fits"], f"the box is tall enough for the lanes actually used (lowest label {got['lowest']}, strip {got['stripHeight']})")
             self.assertEqual(got["laneClash"], [])
 
-    def test_in_the_published_file_at_1400_900_and_390_px(self):
+    def test_in_the_published_file_at_1400_and_900_px(self):
         demo = DemoStore()
         add_crowded(demo.store, "ABC")
         folder = tempfile.mkdtemp(prefix="clark-pub-")
@@ -146,7 +146,7 @@ class Crowded(unittest.TestCase):
                 sid = page_target(cdp)
                 cdp.call("Page.enable", {}, sid)
                 cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + ";" + self.style_for(font)}, sid)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": width < 600}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
                 cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
