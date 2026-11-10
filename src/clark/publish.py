@@ -61,7 +61,8 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
+GANTT_SECTION_TYPES = ("gantt", "gantttable")       # rows 926 and 1068: the sections that draw the Gantt tab's data, in the file only when data.gantt is
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -601,7 +602,7 @@ def select(inputs):
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
-                             or (x.get("type") == "gantt" and not gantt))                # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") in GANTT_SECTION_TYPES and not gantt))    # rows 926, 1068: no Gantt tab in the file, no Gantt or table section; the lines are data.gantt's, gated in gantt_for_client
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
