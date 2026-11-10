@@ -293,9 +293,9 @@ class Head(Base):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
-                p.until("!!document.querySelector('.set-cards [data-archive]')", "the Projects table has its Archive buttons")
-                self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-cards [data-archive]')).whiteSpace"), "nowrap")
-                self.assertLessEqual(p.js("document.querySelector('.set-cards [data-archive]').getBoundingClientRect().height"), 34, "the button is one line high")
+                p.until("!!document.querySelector('.set-cards [data-row-menu]')", "the Projects table has its row menu buttons")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-cards [data-row-menu]')).whiteSpace"), "nowrap")
+                self.assertLessEqual(p.js("document.querySelector('.set-cards [data-row-menu]').getBoundingClientRect().height"), 34, "the row menu button is one line high")
                 self.assertEqual(p.js("[...document.querySelectorAll('td.acts .btn')].map(b => getComputedStyle(b).whiteSpace)").count("nowrap"),
                                  p.js("document.querySelectorAll('td.acts .btn').length"), "every row button (td.acts .btn) is nowrap")
                 self.assertGreater(p.js("document.querySelectorAll('td.acts .btn').length"), 0, "the rule is checked on at least one button")
@@ -320,7 +320,7 @@ class Head(Base):
                     self.assertEqual(e["lines"], 1, f"{e['name']} is on one line at {w} px: {e}")
                     self.assertLessEqual(e["height"], max(e["one_line"], e["min"]) + 1, f"{e['name']} is one line high at {w} px: {e}")
                     self.assertFalse(e["clipped"] or e["ellipsis"], f"{e['name']} is whole, not cut at {w} px: {e}")
-                p.until("!!document.querySelector('.set-cards [data-archive]')", "the Projects table has its Archive buttons")
+                p.until("!!document.querySelector('.set-cards [data-row-menu]')", "the Projects table has its row menu buttons")
                 tops = p.js(rows)
                 self.assertTrue(tops, "the table has rows with buttons")
                 for t in tops:

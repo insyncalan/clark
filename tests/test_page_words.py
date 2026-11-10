@@ -187,7 +187,7 @@ class Words(unittest.TestCase):
             PAGES = {
                 "projects": ["Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive"
+                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEdit", "ABC Open now\tABC\t—\t—\t1\tEdit"
                 ],
                 "people": ["People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",

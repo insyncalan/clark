@@ -732,7 +732,7 @@
     "s": [
      "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
-     "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
+     "Each project has **Open** and **Edit**, and a menu button (the three dots, **More for** the project’s name) that holds **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
      "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ],
@@ -1843,7 +1843,7 @@
        ],
        [
         "Projects",
-        "Every project with its code, client, workstreams and item count; Open, Edit and Archive; **+** adds one."
+        "Every project with its code, client, workstreams and item count; Open and Edit, with Archive in the row menu (**More for** the project’s name); **+** adds one."
        ],
        [
         "Asking",
@@ -2499,7 +2499,7 @@
     {
      "card": "projects",
      "title": "Projects",
-     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
+     "line": "Every project, with Open and Edit; Archive is in its row menu. Show archived lists them, with Restore."
     },
     {
      "card": "data",
