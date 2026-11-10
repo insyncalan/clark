@@ -219,8 +219,9 @@ def _has_top_tokens(base):
 
 
 def _top_pack(base):
-    """{"id", "name", "version"} for a pack unzipped straight into system/branding (tokens.css and a valid clark-brand.json at the
-    top), else None. Its id is the manifest's when that is a plain unreserved id, else local-brand; its name is the manifest's."""
+    """{"id", "name", "version", "own_folder": False, "alias": local-brand} for a pack unzipped straight into system/branding
+    (tokens.css and a valid clark-brand.json at the top), else None. Its id is the manifest's when that is a plain unreserved id,
+    else local-brand; its name is the manifest's. local-brand keeps resolving to the top folder too (the alias)."""
     if not _has_top_tokens(base):
         return None
     data = _read_small(base / MANIFEST, MANIFEST_CAP)
@@ -230,16 +231,30 @@ def _top_pack(base):
         return None
     given = doc.get("id")
     plain = isinstance(given, str) and ID_RE.fullmatch(given) and given not in RESERVED
-    return {"id": given if plain else LOCAL, "name": doc["name"], "version": doc["version"]}
+    return {"id": given if plain else LOCAL, "name": doc["name"], "version": doc["version"], "own_folder": False,
+            "alias": LOCAL}
 
 
 def has_manifest(path):
-    """True when `path` is a readable zip with a clark-brand.json one folder down. Reads only the member names."""
+    """True when `path` is a zip of at most ZIP_CAP bytes and FILE_CAP entries with a clark-brand.json one folder down that is
+    at most MANIFEST_CAP bytes, parses as a JSON object and names a plain id. Reads only that one member."""
     try:
         if os.path.getsize(path) > ZIP_CAP:
             return False
         with zipfile.ZipFile(path) as zf:
-            return any(n.count("/") == 1 and n.endswith("/" + MANIFEST) for n in zf.namelist())
+            infos = zf.infolist()
+            if len(infos) > FILE_CAP:
+                return False
+            for info in infos:
+                if info.filename.count("/") == 1 and info.filename.endswith("/" + MANIFEST):
+                    if info.file_size > MANIFEST_CAP:
+                        return False
+                    with zf.open(info) as f:
+                        body = f.read(MANIFEST_CAP + 1)
+                    doc = _parse_manifest(body) if len(body) <= MANIFEST_CAP else None
+                    given = doc.get("id") if doc else None
+                    return isinstance(given, str) and bool(ID_RE.fullmatch(given)) and given not in RESERVED
+            return False
     except (OSError, zipfile.BadZipFile, ValueError, NotImplementedError, RuntimeError, EOFError, zlib.error):
         return False
 
@@ -286,6 +301,15 @@ def installed(root):
     elif _has_top_tokens(base) and not top:
         out.append({"id": LOCAL, "name": LOCAL, "version": ""})
     return sorted(out, key=lambda b: b["id"])
+
+
+def _own_folder(root, brand_id):
+    """True when system/branding/<brand_id> is a real (not linked) folder whose manifest names that id. Never the top pack."""
+    path = _branding(root) / brand_id
+    try:
+        return stat.S_ISDIR(os.lstat(path).st_mode) and _listed(path, brand_id) is not None
+    except OSError:
+        return False
 
 
 def folder(root, brand_id):
@@ -880,7 +904,7 @@ def remove(brand_id, root, data):
             raise BrandError("failed", "not a removable brand")
         with _write(brand_id):
             recover(root)
-            if folder(root, brand_id) is GENERIC:
+            if not _own_folder(root, brand_id):
                 raise BrandError("failed", "not installed")
             backup = _backup(data, root, brand_id)
             base = _branding(root)
@@ -932,6 +956,8 @@ def undo(root, data):
             raise BrandError("failed", "nothing to undo")
         brand_id, base = doc["id"], _branding(root)
         with _write(brand_id):
+            if os.path.lexists(base / brand_id) and not _own_folder(root, brand_id):
+                raise BrandError("failed", "not an installed brand")
             if doc["kind"] == "install":
                 aside = base / (HIDDEN_OLD + brand_id)
                 _rmtree(aside)

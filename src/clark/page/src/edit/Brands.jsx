@@ -68,7 +68,7 @@ export function Brands({ api = REAL }) {
               {v.brands.map((b) => (
                 <li key={b.id} data-brand={b.id}>
                   <b>{b.name}</b> {b.version}{" "}
-                  <button type="button" class="btn sm" data-remove disabled={busy} onClick={() => setArmed(b.id)}>{L.LABELS.remove}</button>
+                  {b.own ? <button type="button" class="btn sm" data-remove disabled={busy} onClick={() => setArmed(b.id)}>{L.LABELS.remove}</button> : null}
                 </li>
               ))}
             </ul>

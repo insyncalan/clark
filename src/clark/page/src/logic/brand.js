@@ -27,7 +27,7 @@ export function answerWords(status, body) {
 }
 
 export const listView = (b) => ({
-  brands: Array.isArray(b.brands) ? b.brands.slice(0, 500).map((x) => ({ id: text(x.id, 40), name: text(x.name, 200), version: text(x.version, 40) })) : [],
+  brands: Array.isArray(b.brands) ? b.brands.slice(0, 500).map((x) => ({ id: text(x.id, 40), name: text(x.name, 200), version: text(x.version, 40), own: x.own_folder !== false })) : [],
   undo: b.undo === true,
   ready: b.review_ready === true,
 });
