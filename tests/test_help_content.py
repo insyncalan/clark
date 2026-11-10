@@ -179,7 +179,10 @@ class Places(unittest.TestCase):
         for g in gos:
             view, _, anchor = g.partition("#")
             self.assertIn(view, screens, g)
-            if anchor:
+            if anchor and view == "settings":      # item 1024: a Settings anchor names a Settings page, mapped in helpStore.js, not an id in the prototype
+                keys = re.search(r"const SETTINGS_ANCHOR = \{(.*?)\}", (HELP / "helpStore.js").read_text(encoding="utf-8")).group(1)
+                self.assertIn(anchor, re.findall(r"(\w+):", keys), g)
+            elif anchor:
                 self.assertIn(f'id="{anchor}"', protos, g)
 
     def test_every_place_the_prototype_opens_help_at_exists(self):

@@ -410,7 +410,7 @@ class ContextText(unittest.TestCase):
         names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Quit.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
-        code += " " + (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")      # item 1024: the menu names the pages (Folder, Appearance, Reports, Export and import, Brand, Claude and AI)
+        code += " " + (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")      # item 1024: the menu (edit/settingsPages.js) names the pages (Folder, Appearance, Reports, Export and import, Brand, Claude and AI)
         for title in SETTINGS_PARTS.values():
             self.assertIn(title, code, title)
 

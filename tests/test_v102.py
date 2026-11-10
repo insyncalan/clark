@@ -78,7 +78,7 @@ COVERED = [
     ("#754", "In Help the slash goes to the search box, and the ask key leaves Help alone.",
      "test_help_pr_a::SlashInHelp::test_help_says_what_slash_does_in_help_with_its_condition_and_without_the_switch_name"),
     ("#697", "The Settings links are a list down the left above 900 px and a row of chips at 900 px and narrower.",
-     "test_settings_head::Head::test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900"),
+     "test_settings_head::Head::test_C_the_list_is_at_the_left_at_1400_and_900"),
     ("#742", "The daily log follows --data: it is in the logs folder inside the data folder.",
      "test_log_follows_data::Started::test_data_given_writes_inside_it_and_nothing_under_the_home"),
     ("#760", "A folder of mixed versions is refused with a plain message.",
