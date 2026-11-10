@@ -1,6 +1,7 @@
 // What a use case's row on the Dashboard needs in Edit for its next steps and its links (#485). Plain functions, no DOM and no store,
 // so the row and the tests read them alone. Nothing here saves: the row sends each result through the one change path.
 import { isOpen, dueField, showDate, pillOf } from "../workItems.js";
+import { fitTitle } from "../edit/movementWords.js";
 
 /** Whether the words before a colon are a person: a name in `known` (any case), or a full name of 2 to 4 words that each start with a
  * capital ("Sam Rivers"). One word that nobody has ("Fix" in "Fix: the loader") is not an owner. */
@@ -90,7 +91,10 @@ export function addableMilestones(d, ucId) {
 
 /** The values of the next step that gives a use case a milestone: it names both, and is due on the milestone's date when it has one. */
 export function milestoneStepValues(m, ucId) {
-  const v = { description: `Reach ${m.name}`, use_case: ucId, milestone: m.id };
+  // the step's words are plain text of at most the title limit (changes.py: no control, hidden or line-break characters; ITEM_TITLE_MAX):
+  // the milestone's name is cleaned and cut here, for the step only; the milestone keeps its own name
+  const name = String(m.name || "").replace(/[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim();
+  const v = { description: fitTitle("Reach %s", name), use_case: ucId, milestone: m.id };
   if (m.date) v.due_date = m.date;
   return v;
 }
