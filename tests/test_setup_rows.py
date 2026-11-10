@@ -213,7 +213,7 @@ class Rows(unittest.TestCase):
     def test_row_25_the_page_model_carries_no_summary_sentence(self):
         data, over = self.two_fixes()
         _, report = self.page(data, **over)
-        self.assertEqual(sorted(report), ["checks", "folder", "ok", "ready"])
+        self.assertEqual(sorted(report), ["checks", "container", "folder", "ok", "ready"])
         for row in report["checks"]:
             self.assertEqual(sorted(row), ["id", "page", "required", "status", "words"])
             self.assertNotIn("to fix before clark", row["words"])

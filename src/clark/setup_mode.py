@@ -62,11 +62,12 @@ class Setup:
     def report(self, folder=None):
         """The checks for the folder now in use, as data for a page. `ready` follows the doctor's own rule."""
         seen = self.seen(folder)
-        results = doctor.run_checks(seen, self.checks)
+        container = platform.container_mode()           # #836: inside Docker the page also checks the Mac folder shared in, and cannot open a folder window
+        results = doctor.run_checks(seen, tuple(self.checks) + ((doctor.Check("The Docker check", True, doctor.check_docker),) if container else ()))
         rows = [dict(row, required=check.required, page=setup_page.page_words(row["id"], row["status"], row["words"], seen))
                 for row, (check, _) in zip(doctor.as_data(results), results)]
         ready = not any(check.required and line.kind in (doctor.FIX, doctor.NOT_CHECKED) for check, line in results)
-        return {"ok": True, "ready": ready, "folder": seen.tilde(seen.folder()), "checks": rows}
+        return {"ok": True, "ready": ready, "folder": seen.tilde(seen.folder()), "container": container, "checks": rows}
 
     def choose(self, prompt):
         """Open the system's folder window and check the answer. None on Cancel (nothing changes). On a good answer the folder

@@ -157,7 +157,7 @@ SCRIPT = """
       if (c.status === "fix" && CHOOSE.indexOf(c.id) >= 0) needs = true;
     });
     list.removeAttribute("aria-busy");
-    choose.hidden = !needs || report.ready;
+    choose.hidden = !needs || report.ready || report.container === true;
     say(line, summary(report));
     document.body.setAttribute("data-state", report.ready ? "ready" : "fix");
     if (report.ready) finish();

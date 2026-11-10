@@ -371,7 +371,7 @@ class Api(Case):
         status, body = service.api_folder()
         self.assertEqual(status, 200)
         self.assertEqual((body["ok"], body["chosen"], body["folder"]), (True, True, "~/Elsewhere"))
-        self.assertEqual(set(body), {"ok", "chosen", "ready", "folder", "checks"})
+        self.assertEqual(set(body), {"ok", "chosen", "ready", "folder", "checks", "container"})
         self.assertTrue(self.pointer().exists())
 
     def test_folder_refused_carries_the_checks_own_words(self):
