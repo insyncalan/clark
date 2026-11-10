@@ -119,6 +119,9 @@ SECRET_NAMES = re.compile(r"^(\.env(\..*)?|.*\.(pem|key|p12|pfx|keystore)|id_(rs
 # Test fixtures that may look like a secret, by exact path, each with its reason. Keep this empty unless a fixture
 # really needs it; a path here is skipped by the secrets scan only (never by the name guard).
 SECRET_SCAN_ALLOWED = {}
+# #891: one bundled file the secrets scan misreads (pypdf's `password = user_password` lines are code, not a value). It is passed only at
+# this exact path AND with exactly this SHA-256 (the same one vendor/manifest.json holds); a changed byte or another path is scanned.
+SECRET_SCAN_PINNED = {"vendor/pypdf/_encryption.py": "342c3ee9fd8cca74bf4be3fe3cb60cc9651aac6025b38f34820321bef85c29fa"}
 
 PASS, REFUSED, SKIPPED = "PASS", "REFUSED", "SKIPPED"
 FORBIDDEN_GIT_ARGS = {"--force", "-f", "--mirror", "--tags", "--delete", "-d", "--prune", "--all", "--follow-tags",
@@ -536,7 +539,7 @@ def secret_findings(entries, blobs):
     for e, data in zip(entries, blobs):
         if SECRET_NAMES.match(e.path.rsplit("/", 1)[-1]):
             found.append("file #%d: a file name that holds secrets (.env, key, credentials or certificate file)" % e.index)
-        if e.path in SECRET_SCAN_ALLOWED:
+        if e.path in SECRET_SCAN_ALLOWED or (e.path in SECRET_SCAN_PINNED and hashlib.sha256(data).hexdigest() == SECRET_SCAN_PINNED[e.path]):
             continue
         for kind in sorted(scan_secrets_in(data)):
             found.append("file #%d: %s" % (e.index, kind))
