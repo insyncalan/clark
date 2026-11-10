@@ -258,24 +258,15 @@ class Line(unittest.TestCase):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
                     self.assertNotEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the slash key goes to ask clark, not the line")
 
-    def test_hint_chips_show_only_while_focused_and_a_hint_goes_into_the_box(self):
+    def test_hint_chips_are_gone_and_the_examples_row_keeps_only_its_room_and_gloss(self):
+        # Row 1084: the "Try status: owner:me due:overdue ..." chip line is removed; the row stays (out of the flow) for the meaning of the listed word.
         s = self.serve()
         for width in SIZES:
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, s.port, width)
-                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "hidden")
                 self.focus(cdp, sid)
-                key(cdp, sid, "Escape")                                           # #640: the field list opens on focus and the examples wait until it is closed
-                self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid) == "visible"), "the filter hints are visible")
-                hints = cdp.js("[...document.querySelectorAll('.fhint')].map(h => h.textContent)", sid)
-                self.assertIn("due:overdue", hints)
-                self.assertIn("is:quiet", hints, "the demo carries review facts, so the word is offered")
-                self.assertGreaterEqual(cdp.js("Math.min(...[...document.querySelectorAll('.fhint')].map(h => h.getBoundingClientRect().height))", sid), 24)
-                click(cdp, sid, ".fhint[title*='Leave closed']")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "is:open -status:Closed"))
-                self.assertTrue(wait(lambda: "-status:Closed" in self.chips(cdp, sid)), "the -status:Closed chip is shown")
-                pause(cdp, sid)
-                self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(self.rows(cdp, sid), "open", filters={"status": ["Closed"]}, nots=("status",))), "the rows shown are the open items less the Closed status")
+                key(cdp, sid, "Escape")
+                self.assertEqual(cdp.js("document.querySelectorAll('.fhint, .fhl').length", sid), 0, "no hint chips and no Try word")
 
     def test_typing_offers_fields_then_values_with_arrows_and_enter_choose(self):
         s = self.serve()

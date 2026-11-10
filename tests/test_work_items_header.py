@@ -349,7 +349,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList .lab')].map(l => l.textContent)", sid), ["Group by"])
             self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by")
-            self.assertEqual(cdp.js("document.querySelector('.vicons').dataset.state", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-description')", sid), "View: table, grouped by Workstream")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
             # pressing Board: the board draws, the switch follows, and the menu gains the swimlanes; Table brings the table back

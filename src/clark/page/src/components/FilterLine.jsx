@@ -60,9 +60,9 @@ function ViewIcons({ board }) {
   if (fromFile.value) return null;
   const lay = layoutItems(work.value, !!board);
   return (
-    <span class="vicons" data-state={lay.label}>
+    <span class="vicons">
       {board ? <LayoutSwitch /> : null}
-      <Menu label="" ariaLabel="Group by" tip="Group by" icon="group" chevron={false} id="viewMenu" btnCls="btn sm vgb" menuId="viewMenuList" menuLabel={lay.label} items={lay.items} onPick={pickLayout} />
+      <Menu label="" ariaLabel="Group by" ariaDescription={lay.label} tip="Group by" icon="group" chevron={false} id="viewMenu" btnCls="btn sm vgb" menuId="viewMenuList" menuLabel={lay.label} items={lay.items} onPick={pickLayout} />
     </span>
   );
 }
@@ -320,9 +320,7 @@ export function FilterLine({ board }) {
     document.addEventListener("keydown", slash);
     return () => document.removeEventListener("keydown", slash);
   }, []);
-  const hints = FL.hints(ctx);
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
-  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
@@ -386,8 +384,6 @@ export function FilterLine({ board }) {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
         <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
-          <span class="fhl">Try</span>
-          {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
           <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }

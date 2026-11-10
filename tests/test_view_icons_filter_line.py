@@ -10,7 +10,7 @@ from test_server import chrome  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
 
 ICONS = ("[...document.querySelectorAll('#work .fline .vicons button')].map(b => [b.getAttribute('aria-label'), b.title, "
-         "b.getBoundingClientRect().width >= 24 && b.getBoundingClientRect().height >= 24, b.textContent.trim()])")
+         "b.getBoundingClientRect().width >= 24 && b.getBoundingClientRect().height >= 28, b.textContent.trim()])")
 
 
 class IconsOnTheLine(Base):
@@ -31,9 +31,26 @@ class IconsOnTheLine(Base):
                     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
                     got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(), i = document.querySelector('#work .fline #viewMenu').getBoundingClientRect(),"
                                  " x = document.querySelector('#fline-input').getBoundingClientRect();"
-                                 " return [i.right <= f.right && f.right - i.right < 24, i.top >= f.top && i.bottom <= f.bottom, i.left > x.left]; })()", sid)
-                    self.assertEqual(got, [True, True, True])
+                                 " const ic = (i.top + i.bottom) / 2;"
+                                 " return [i.right <= f.right && f.right - i.right < 24, i.top >= f.top && i.bottom <= f.bottom, i.left > x.left, ic >= x.top && ic <= x.bottom]; })()", sid)
+                    self.assertEqual(got, [True, True, True, True], "right end, inside the box, after the input, on the input's own line")
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
+
+    def test_group_by_keeps_its_name_and_the_current_state_is_still_announced(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by")
+            desc = cdp.js("document.querySelector('#viewMenu').getAttribute('aria-description')", sid)
+            self.assertTrue(desc and desc.startswith("View: "), f"the layout and grouping are described to a screen reader ({desc!r})")
+
+    def test_the_try_chip_line_is_gone_and_add_import_export_stay(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            cdp.js("document.querySelector('#fline-input').focus()", sid)
+            self.assertEqual(cdp.js("document.querySelectorAll('.fhint, .fhl').length", sid), 0, "no Try chips")
+            self.assertNotIn("Try", cdp.js("document.querySelector('.fline-wrap').textContent", sid))
+            self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts .newb').length", sid), 1, "the + button stays")
+            self.assertEqual(cdp.js("document.querySelector('#work .hacts').children.length >= 2", sid), True, "Import and Export stay")
 
     def test_the_icons_still_work_and_the_tabs_keep_their_counts(self):
         with chrome() as cdp:

@@ -2303,7 +2303,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 }
 
 /* Row 1084: List, Board and Group by are icon buttons at the right end of the filter box line, each 28 px or more across. */
-.vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: var(--space-2); }
+.vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; padding-left: var(--space-2); }
 .vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
-.vgb { display: inline-grid; place-items: center; min-width: 32px; min-height: 28px; padding: 2px var(--space-2); }
+.btn.sm.vgb { display: inline-grid; place-items: center; min-width: 32px; min-height: 28px; padding: 2px var(--space-2); }
 .vgb .i { width: 18px; height: 18px; }
