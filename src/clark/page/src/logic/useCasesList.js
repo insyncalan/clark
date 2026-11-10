@@ -3,10 +3,14 @@
 // store, so the page and the tests share it. The eye (use_cases.client_visible) is the dashboard's own switch: a use case is
 // "on the dashboard" when it is set, and a published file only ever holds the ones that were.
 import { isOpen, plural } from "../workItems.js";
+import { NONE } from "../filters.js";
 import { recall, remember } from "./remember.js";
 import { commitWord } from "./commitment.js";
+import * as Q from "./filterQueryUi.js";
+import { compileQuery } from "./filterQueryEval.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
+export const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };  // the tint of each status word's chip
 export const CALM_WORDS = ["On track", "Done"];                                // the two that are not flagged: on track, and finished
 const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
 export const ON_WORDS = "On the dashboard";
@@ -58,28 +62,71 @@ export function listOf(d, all) {
   });
 }
 
-// ---- narrowing, ordering and counts ----
-export const FIRST = { st: [], on: "all", sort: "ref", q: "" };                  // what a project starts with
+// ---- the filter line (row 1085) ----
+// The page's own line, read by the Work items box (components/FilterLine.jsx LineBox) with this schema and no other: status:, commitment: and
+// milestone: as the issue names them, on: for the eye (yes or no), and plain words that search the row's text (the reference, the name, the
+// headline, where it stands, the commitment and the milestone names: `row.text`). Nothing of the Work items line is known here, and the line is
+// kept with this page's state, never in the Work items line's memory.
+const uniq = (xs) => [...new Set(xs.filter(Boolean))];
+export const LINE = {
+  fields: [
+    { key: "status", name: "Status", of: (r) => [r.status], offers: () => STATUS_WORDS.map((w) => [w, w]), tone: (v) => RAG[STATUS_WORDS.find((w) => w.toLowerCase() === String(v).toLowerCase())] || "", icon: "half" },
+    { key: "commitment", name: "Commitment", none: true, of: (r) => [r.commitment || NONE], offers: (rows) => uniq(rows.map((r) => r.commitment)).map((w) => [w, w]), icon: "flag" },
+    { key: "milestone", name: "Milestone", none: true, of: (r) => (r.ms.length ? r.ms.map((m) => m.name) : [NONE]), offers: (rows) => uniq(rows.flatMap((r) => r.ms.map((m) => m.name))).map((w) => [w, w]), icon: "flag" },
+    { key: "on", name: ON_WORDS, of: (r) => [r.on ? "yes" : "no"], offers: () => [["yes", "yes"], ["no", "no"]], icon: "eye" },
+  ],
+  states: [],
+  text: (r) => r.text,
+};
+const CTX = {};
+const parsedOf = (line, rows) => Q.parseFor(line, rows, CTX, LINE);
+/** One test for the line: row -> true when the line keeps it. A word the line cannot use filters nothing. */
+export const lineTest = (line, rows) => compileQuery(parsedOf(line, rows), CTX, LINE);
+const quoteVal = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : String(v));
+const isStatusTok = (t) => t.kind === "field" && t.field === "status" && !t.negate;
+/** The status words the line asks for (its status: chips, in STATUS_WORDS order). */
+export function statusOf(line, rows) {
+  const vals = parsedOf(line, rows).tokens.filter(isStatusTok).flatMap((t) => t.values).map((v) => v.toLowerCase());
+  return STATUS_WORDS.filter((w) => vals.includes(w.toLowerCase()));
+}
+/** The line with its status set to `st` (none: no status chip); everything else in the line stays. The chip goes first, as the box draws chips before the words. */
+export function withStatus(line, st, rows) {
+  const rest = Q.withoutTokens(line, isStatusTok, rows, CTX, LINE);
+  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), rest].filter(Boolean).join(" ");
+}
+/** The line in two: its complete filters and the plain words (what the empty state says back). */
+export const lineParts = (line, rows) => { const s = Q.splitLine(line, rows, CTX, LINE); return { chips: s.chips, words: parsedOf(s.rest, rows).text.join(" ") }; };
 
-/** A saved or typed state made well-formed: anything unknown falls back to the start. */
+// ---- narrowing, ordering and counts ----
+export const FIRST = { line: "", on: "all", sort: "ref" };                       // what a project starts with
+
+// A browser's saved state from before the line held {st, on, sort, q}: the Status choice and the search become one line (row 1085), the
+// status chip first, then the search's words as plain words (one that would read as a field is quoted, so it stays the plain word it was).
+const quoteWord = (w) => (/^-?[A-Za-z][\w-]*:/.test(w) || w.includes('"') ? `"${w.replace(/"/g, "")}"` : w);
+export function lineFromOld(x) {
+  const st = Array.isArray(x.st) ? STATUS_WORDS.filter((w) => x.st.includes(w)) : [];
+  const q = typeof x.q === "string" ? x.q.slice(0, 200) : "";
+  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), ...q.split(/\s+/).filter(Boolean).map(quoteWord)].join(" ");
+}
+
+/** A saved or typed state made well-formed: anything unknown falls back to the start. A state with no `line` is an older one and is read as one. */
 export function tidy(s) {
   const x = s && typeof s === "object" ? s : {};
   return {
-    st: Array.isArray(x.st) ? STATUS_WORDS.filter((w) => x.st.includes(w)) : [],
+    line: typeof x.line === "string" ? x.line.slice(0, 600) : x.line === undefined ? lineFromOld(x) : "",
     on: ["all", "on", "off"].includes(x.on) ? x.on : "all",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
-    q: typeof x.q === "string" ? x.q.slice(0, 200) : "",
   };
 }
 
-export const narrowed = (f) => f.st.length > 0 || f.on !== "all" || f.q.trim() !== "";
+export const narrowed = (f) => f.on !== "all" || f.line.trim() !== "";
 
-/** The status filter and search without the On / Not on the dashboard switch: what the switch's counts are counted from. */
-const fits = (r, f, skipOn) => (!f.st.length || f.st.includes(r.status)) && (skipOn || f.on === "all" || (f.on === "on") === r.on) && (!f.q.trim() || r.text.includes(f.q.trim().toLowerCase()));
+/** The switch alone: what the line's test leaves to it. */
+const onFits = (r, f) => f.on === "all" || (f.on === "on") === r.on;
 
-/** Counts for the switch: how many are All, On and Not on the dashboard, with the Status filter and the search applied. */
+/** Counts for the switch: how many are All, On and Not on the dashboard, with the line applied. */
 export function onCounts(rows, f) {
-  const base = rows.filter((r) => fits(r, f, true));
+  const base = rows.filter(lineTest(f.line, rows));
   return { all: base.length, on: base.filter((r) => r.on).length, off: base.filter((r) => !r.on).length };
 }
 
@@ -102,7 +149,8 @@ const ORDER = {
 
 /** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
 export function shownOf(rows, f) {
-  return rows.map((r, i) => [r, i]).filter(([r]) => fits(r, f)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
+  const test = lineTest(f.line, rows);
+  return rows.map((r, i) => [r, i]).filter(([r]) => test(r) && onFits(r, f)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
 }
 
 /** "Showing 3 of 7 · 4 on the dashboard": how many show, of how many, and how many of all are on the dashboard. */

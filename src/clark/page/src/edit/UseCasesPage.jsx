@@ -4,8 +4,9 @@
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
 // changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
-// row's eye and Left back to its name. The search, the Status choice, the On the dashboard switch and the sort are remembered for each
-// project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
+// row's eye and Left back to its name. The filter line (row 1085: the Work items box over this page's own fields, edit/UseCasesFilter.jsx),
+// the Status choice (the line's status chip), the On the dashboard switch and the sort are remembered for each project in this browser
+// (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
@@ -13,17 +14,17 @@ import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, RAG } from "../logic/useCasesList.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
+import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { exportExcel } from "./ProfileMenu.jsx";
 import { plural } from "../workItems.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
 
-const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
-const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
+const kept = {};                                            // project -> state: a browser that refuses storage still narrows the list
 const tick = signal(0);
 const state = computed(() => { void tick.value; const code = project.value; return kept[code] || recalled(code); });
 const all = computed(() => (data.value ? listOf(data.value, allRows.value) : []));
@@ -91,7 +92,9 @@ function keys(e) {
   (eye ? r.querySelector(".ucl-eye") || r.querySelector(".ucl-go") : r.querySelector(".ucl-go")).focus();
 }
 
-function StatusFilter({ f }) {
+// The Status choice reads and writes the line's status chip (row 1085), so the two never disagree.
+function StatusFilter({ f, rows }) {
+  const st = statusOf(f.line, rows), setSt = (next) => set({ line: withStatus(f.line, next, rows) });
   const box = useRef(null), wrap = useRef(null), open = statusOpen.value;
   useEffect(() => {
     if (!open) return;
@@ -101,19 +104,19 @@ function StatusFilter({ f }) {
     document.addEventListener("pointerdown", away, true);
     return () => document.removeEventListener("pointerdown", away, true);
   }, [open]);
-  const toggle = (w) => set({ st: f.st.includes(w) ? f.st.filter((x) => x !== w) : [...f.st, w] });
+  const toggle = (w) => setSt(st.includes(w) ? st.filter((x) => x !== w) : [...st, w]);
   const close = () => { statusOpen.value = false; const b = wrap.current && wrap.current.querySelector("button"); if (b) b.focus(); };
   return (
     <span class="fwrap" ref={wrap} onFocusOut={(e) => { if (open && e.relatedTarget && !wrap.current.contains(e.relatedTarget)) statusOpen.value = false; }}>
-      <button type="button" class={`btn ucl-pill${f.st.length ? " on" : ""}`} id="ucl-status" aria-haspopup="true" aria-expanded={open ? "true" : "false"} onClick={() => { statusOpen.value = !open; }}>
-        {f.st.length ? `Status: ${f.st.join(", ")}` : "Status: All"} <Icon name="chevdown" />
+      <button type="button" class={`btn ucl-pill${st.length ? " on" : ""}`} id="ucl-status" aria-haspopup="true" aria-expanded={open ? "true" : "false"} onClick={() => { statusOpen.value = !open; }}>
+        {st.length ? `Status: ${st.join(", ")}` : "Status: All"} <Icon name="chevdown" />
       </button>
       {open ? (
         <Fade boxRef={box} class="fbox ucl-pop" role="group" aria-label="Status" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } }}>
           {STATUS_WORDS.map((w) => (
-            <label key={w}><input type="checkbox" value={w} checked={f.st.includes(w)} onChange={() => toggle(w)} /><span class={`pill ${RAG[w]}`}>{w}</span></label>
+            <label key={w}><input type="checkbox" value={w} checked={st.includes(w)} onChange={() => toggle(w)} /><span class={`pill ${RAG[w]}`}>{w}</span></label>
           ))}
-          <div class="fact ucl-pop-f"><button type="button" class="btn sm" data-clear onClick={() => set({ st: [] })}>Clear</button></div>
+          <div class="fact ucl-pop-f"><button type="button" class="btn sm" data-clear onClick={() => setSt([])}>Clear</button></div>
         </Fade>
       ) : null}
     </span>
@@ -168,7 +171,8 @@ function UseCasesList() {
     if (el) el.focus({ preventScroll: true });
   }, []);
   const sortWord = (SORTS.find(([k]) => k === f.sort) || SORTS[0])[1];
-  const clear = () => set({ st: [], on: "all", q: "" });
+  const clear = () => set({ line: "", on: "all" });
+  const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.on !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
   return (
     <section class="frame ucl" id="usecases">
       <div class="head">
@@ -181,10 +185,10 @@ function UseCasesList() {
           <button type="button" class="btn" id="ucAddPage" onClick={openAdd}>Add a use case</button>
         </div>
       </div>
+      {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} /> : null}
       {rows.length ? (
         <div class="wbar ucl-bar" role="group" aria-label="Narrow the list">
-          <label class="ucl-search"><span class="sr">Search use cases</span><Icon name="search" /><input type="search" id="ucl-q" placeholder="Search use cases" autocomplete="off" value={f.q} onInput={(e) => set({ q: e.currentTarget.value })} /></label>
-          <StatusFilter f={f} />
+          <StatusFilter f={f} rows={rows} />
           <div class="seg" role="group" aria-label="On the dashboard or not">
             {[["all", "All"], ["on", ON_WORDS], ["off", OFF_WORDS]].map(([v, w]) => <button type="button" key={v} data-on={v} aria-pressed={f.on === v ? "true" : "false"} onClick={() => set({ on: v })}>{w} <em class="num">{n[v]}</em></button>)}
           </div>
@@ -195,7 +199,7 @@ function UseCasesList() {
       {!rows.length ? <p class="muted ucl-none" data-empty>No use cases yet.</p>
         : !shown.length ? (
           <div class="ucl-none" data-empty>
-            <p class="muted">No use cases match {f.q.trim() ? `“${f.q.trim()}”` : "these filters"}{f.q.trim() && (f.st.length || f.on !== "all") ? " with these filters" : ""}.</p>
+            <p class="muted">No use cases match {parts.words ? `“${parts.words}”` : "these filters"}{parts.words && filtered ? " with these filters" : ""}.</p>
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
         ) : (

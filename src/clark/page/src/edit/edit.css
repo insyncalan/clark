@@ -338,12 +338,8 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
 .ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
-.ucl-bar { gap: 8px 12px; margin-top: 16px; }
-.ucl-search { position: relative; display: inline-flex; align-items: center; }
-.ucl-search .i { position: absolute; left: 11px; width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
-.ucl-search input { box-sizing: border-box; width: 200px; max-width: 100%; min-height: 34px; padding: 4px 12px 4px 34px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.ucl-search input::placeholder { color: var(--text-muted); opacity: 1; }
-.ucl-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucl-bar { gap: 8px 12px; margin-top: 12px; }
+.ucl .fline-wrap { margin-top: 16px; }   /* row 1085: the filter line (the Work items box) stands where the search box was */
 .ucl-pill, #ucl-sort { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; }
 .ucl-pill.on { border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .ucl-pop label { display: flex; align-items: center; gap: 10px; min-height: 28px; }

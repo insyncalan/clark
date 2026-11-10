@@ -191,10 +191,17 @@ function SavedViews({ board }) {
   );
 }
 
-export function FilterLine({ board }) {
-  const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
+// The ids of the Work items line's parts (its tests and the help name them); a page with a line of its own passes its own set.
+export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "fline-count", x: "fline-x", msg: "fline-msg", gloss: "fline-gloss", opt: "fo" };
+
+// Row 1085: the box alone, as one piece any page can draw over its own line: `line` is the line to show and `now()` reads it as it is this moment,
+// `apply(text)` makes it the page's line, `rows` and `ctx` are what the line reads, `extra` its schema (the Work items line passes none; a page's own
+// schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
+// (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
+// does, and `head` what stands over the box inside its focus (the Work items saved views). The Work items line (FilterLine, below) is this box with its stores.
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null }) {
   const first = useRef(null);
-  if (first.current === null) first.current = Q.splitLine(line, rows, ctx);
+  if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
   const [chips, setChipsRaw] = useState(first.current.chips);   // row 845: the complete filters, each a chip with its own remove button
   const [draft, setDraftRaw] = useState(first.current.rest);    // the text in the box (plain words and the word being typed); the line (lineText) is what the list shows, and follows chips and box after a pause
@@ -208,15 +215,15 @@ export function FilterLine({ board }) {
   const input = useRef(null), over = useRef(null), box = useRef(null), timer = useRef(0), applied = useRef(line), want = useRef(null);
   // A change that did not come from this box (a tab, a switch, Clear filter, another project) puts its line in the box and drops a pending apply.
   useLayoutEffect(() => {      // before paint: a late run would wipe what was typed just after a tab was chosen
-    const now = lineText.value;      // the line as it is now, not as the draw that scheduled this saw it: a key can apply a newer one before the effect runs
-    if (now !== applied.current) { clearTimeout(timer.current); applied.current = now; const s = Q.splitLine(now, rows, ctx); setChips(s.chips); setDraft(s.rest); }
+    const cur = now();      // the line as it is now, not as the draw that scheduled this saw it: a key can apply a newer one before the effect runs
+    if (cur !== applied.current) { clearTimeout(timer.current); applied.current = cur; const s = Q.splitLine(cur, rows, ctx, extra); setChips(s.chips); setDraft(s.rest); }
   }, [line]);
   useEffect(() => () => clearTimeout(timer.current), []);
-  const apply = (text) => { applied.current = text; setLine(text); };
-  const later = (text) => { clearTimeout(timer.current); timer.current = setTimeout(() => { if (text !== lineText.value) apply(text); }, PAUSE); };
+  const apply = (text) => { applied.current = text; applyLine(text); };
+  const later = (text) => { clearTimeout(timer.current); timer.current = setTimeout(() => { if (text !== now()) apply(text); }, PAUSE); };
   // A change of the text: filters the caret has moved past become chips, the rest stays in the box.
   const edit = (text, at) => {
-    const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
+    const c = Q.commitDraft(text, at === undefined ? text.length : at, rows, ctx, extra), next = c.chips.length ? [...live.current.chips, ...c.chips] : live.current.chips;
     if (c.chips.length) { setChips(next); want.current = c.caret; }
     setDraft(c.text); later(Q.joinLine(next, c.text));
   };
@@ -232,11 +239,11 @@ export function FilterLine({ board }) {
     if (want.current !== null && input.current) { const at = want.current; want.current = null; input.current.setSelectionRange(at, at); setCaret(at); }
     if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft;
   });
-  const parsed = Q.parseFor(draft, rows, ctx), shown = Q.pieces(draft, parsed, focused ? caret : undefined);
-  const matches = Q.rowsFor(rows, line, ctx).length;
+  const parsed = Q.parseFor(draft, rows, ctx, extra), shown = Q.pieces(draft, parsed, focused ? caret : undefined, extra);
+  const matches = Q.rowsFor(rows, line, ctx, extra).length;
   const words = shown.filter((p) => p.cls === "err" && p.message).map((p) => p.message);
-  const notes = [...words, ...(Q.wantsMe(Q.parseFor(Q.joinLine(chips, draft), rows, ctx), ctx) ? [Q.NO_ME] : [])];
-  const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx), chips, rows, ctx) : [];
+  const notes = [...words, ...(moreNotes ? moreNotes(Q.parseFor(Q.joinLine(chips, draft), rows, ctx, extra)) : [])];
+  const options = focused ? Q.withCounts(Q.suggestions(draft, caret, rows, ctx, extra), chips, rows, ctx, extra) : [];
   const wordNow = Q.wordAt(draft, caret).word;
   const listed = focused && armed && options.length > 0;
   const pick = (o) => {
@@ -246,7 +253,7 @@ export function FilterLine({ board }) {
   };
   const clear = () => {
     clearTimeout(timer.current);
-    chosen.value = { ...chosen.value, [code]: "" };
+    if (onClear) onClear();
     setChips([]); setDraft(""); apply("");
     if (input.current) input.current.focus();
   };
@@ -290,7 +297,7 @@ export function FilterLine({ board }) {
     ups.forEach((n) => document.addEventListener(n, lift, true));
     return () => { document.removeEventListener("pointerdown", press, true); ups.forEach((n) => document.removeEventListener(n, lift, true)); };
   }, []);
-  useEffect(() => { if (listed && active >= 0) { const el = document.getElementById(`fo-${active}`); if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" }); } }, [active, listed]);
+  useEffect(() => { if (listed && active >= 0) { const el = document.getElementById(`${ids.opt}-${active}`); if (el && el.scrollIntoView) el.scrollIntoView({ block: "nearest" }); } }, [active, listed]);
   const aim = (p) => (e) => {          // a press on an underlined token puts the caret at its end (the layer sits over the box)
     e.preventDefault();
     if (input.current) { input.current.focus(); input.current.setSelectionRange(p.end, p.end); readCaret(); }
@@ -310,16 +317,15 @@ export function FilterLine({ board }) {
     document.addEventListener("keydown", slash);
     return () => document.removeEventListener("keydown", slash);
   }, []);
-  const hints = FL.hints(ctx);
-  const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; want.current = t.length; edit(t); if (input.current) input.current.focus(); };
+  const glossOf = (c) => (meaning ? `${c}: ${meaning(c)}` : "");                 // a chip's gloss only where the page gives its chips plain words
   // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
   const suggestions = listed ? (
-    <Fade tag="ul" class="flist" id="fline-list" role="listbox" aria-label="Suggestions">
+    <Fade tag="ul" class="flist" id={ids.list} role="listbox" aria-label="Suggestions">
       {options.map((o, i) => (
-        <li key={`${o.ins}|${o.label}`} id={`fo-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
+        <li key={`${o.ins}|${o.label}`} id={`${ids.opt}-${i}`} role="option" aria-selected={i === active ? "true" : "false"} class={`fopt ${o.kind}`} data-ins={o.ins}
           onMouseDown={(e) => e.preventDefault()} onClick={() => pick(o)}>
           {o.icon ? <Icon name={o.icon} /> : null}
           {o.tone ? <i class={`fdv ${o.tone}`} data-tone={o.tone} aria-hidden="true"></i> : null}
@@ -334,15 +340,15 @@ export function FilterLine({ board }) {
     <div class="fline-wrap" ref={box}
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
-      <SavedViews board={board} />
+      {head}
       <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
         {chips.length ? (
           <span class="fchips" data-fchips>
             {chips.map((c, i) => {
-              const name = Q.chipName(c, rows, ctx);
+              const name = Q.chipName(c, rows, ctx, extra), g = glossOf(c);
               return (
-                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={`${c}: ${meaning(c)}`}
-                  onMouseEnter={() => setGloss(`${c}: ${meaning(c)}`)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(`${c}: ${meaning(c)}`)} onFocusOut={() => setGloss("")}>{c}
+                <span class="fchip" key={`${i}|${c}`} data-chip={c} data-gloss={g || undefined}
+                  onMouseEnter={() => setGloss(g)} onMouseLeave={() => setGloss("")} onFocusIn={() => setGloss(g)} onFocusOut={() => setGloss("")}>{c}
                   <button type="button" data-fx={c} aria-label={`Remove the ${name} filter`} onMouseDown={(e) => e.preventDefault()} onClick={() => dropChip(i)}>{"×"}</button>
                 </span>
               );
@@ -357,30 +363,43 @@ export function FilterLine({ board }) {
                 : <span key={i} class={`fk k-${p.cls}${p.tone ? ` ${p.tone}` : ""}`} data-tok={p.cls}>{p.text}</span>
             ))}</span>
           </div>
-          <input ref={input} id="fline-input" type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? "fline-list" : undefined}
-            aria-activedescendant={listed && active >= 0 ? `fo-${active}` : undefined}
-            aria-label="Filter work items" aria-autocomplete="list" aria-describedby="fline-msg"
+          <input ref={input} id={ids.input} type="text" role="combobox" autocomplete="off" spellcheck={false} aria-expanded={listed ? "true" : "false"} aria-controls={listed ? ids.list : undefined}
+            aria-activedescendant={listed && active >= 0 ? `${ids.opt}-${active}` : undefined}
+            aria-label={label} aria-autocomplete="list" aria-describedby={ids.msg}
             placeholder={chips.length ? undefined : FL.PLACEHOLDER} value={draft}
             onFocus={() => { setArmed(false); readCaret(); }}
             onInput={(e) => { edit(e.target.value, e.target.selectionStart || 0); setCaret(e.target.selectionStart || 0); setActive(-1); }} onKeyDown={onKeyDown} onKeyUp={readCaret} onClick={readCaret}
             onScroll={() => { if (over.current && input.current) over.current.scrollLeft = input.current.scrollLeft; }} />
         </div>
-        <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
-        {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        <span class="fcount num" id={ids.count} data-fcount>{`${matches} of ${rows.length}`}</span>
+        {draft || chips.length ? <button type="button" class="fx" id={ids.x} aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
       </div>
       {notes.length ? null : suggestions}
       {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
-      <p class={`fmsg${words.length ? " bad" : ""}`} id="fline-msg" role="status" aria-live="polite">{notes.join(" ")}</p>
+      <p class={`fmsg${words.length ? " bad" : ""}`} id={ids.msg} role="status" aria-live="polite">{notes.join(" ")}</p>
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
-        <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
-          <span class="fhl">Try</span>
-          {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
-          <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
-        </div>
+        // A page that gives no hints (the Use cases page, row 1085: no Try row by the approved design) has no examples row.
+        hints ? (
+          <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
+            <span class="fhl">Try</span>
+            {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
+            <span class="fgloss" id={ids.gloss} aria-hidden="true" hidden={!gloss}>{gloss}</span>
+          </div>
+        ) : null
       }
       {notes.length ? suggestions : null}
     </div>
+  );
+}
+
+// The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, the Try row, each chip's plain words and the owner:me note.
+export function FilterLine({ board }) {
+  const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
+  const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
+  return (
+    <LineBox head={<SavedViews board={board} />} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items" hints={FL.hints(ctx)}
+      meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }
