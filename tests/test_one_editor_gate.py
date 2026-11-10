@@ -433,7 +433,7 @@ class MovedLatestFields(unittest.TestCase):
         from clark import excel
         self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"),), "the workbook carries the words of the same fields, and of the Movement note (never published, so not in the published list)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 4, "the definition and the three fields' writes (latest update, Internal note, description)")
+        self.assertEqual(src.count("_rich_field("), 5, "the definition and the four fields' writes (latest update, Internal note, description, client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()

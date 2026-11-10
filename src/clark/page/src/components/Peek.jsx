@@ -108,7 +108,7 @@ export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
 export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head>{children}</p>; }
 
 // Rich words (the description, the client wording: #1005, row 1078) as the editor shows them: cleanHtml of what is stored, through the one audited seam.
-// A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (edit/index.js: richOrPlain,
+// A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (the editing index: richOrPlain,
 // the cleaner), so the cleaner is never in the published bundle (tests: "the cleaner is not in a published file").
 const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools && tools.richOf ? tools.richOf(value) : "");
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
