@@ -501,9 +501,13 @@ class InThePage(PageBase):
             p.edit()
             base = f"[data-id=\"{ref}\"] [data-field=kinds] input"
             p.until(f"!!document.querySelector({json.dumps(base + '[value=risk]')})", "the form drew")
+            steps = self.demo.last_step()
             p.js(f"(() => {{ for (const v of ['risk', 'action']) document.querySelector({json.dumps(base)}.replace('input', 'input[value=' + v + ']')).click(); }})()")
             p.until(f"document.querySelectorAll({json.dumps(base + ':checked')}).length === 2", "both ticks stay")
             p.saved()
+            # Two saves are in flight and saved() returns on the FIRST toast; under load the second reply lands after that, so wait
+            # for the second step in the store before reading the body (the store is the truth here, not the toast).
+            self.assertTrue(wait(lambda: self.demo.last_step() == steps + 2), "two ticks, two steps")
             body = json.loads(self.store.read("report_sections", ref=ref)["body"])
             self.assertEqual(sorted(body["kinds"]), ["action", "risk"])
 
