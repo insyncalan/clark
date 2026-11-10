@@ -1956,7 +1956,7 @@
       [
        "Write what is wrong or what you would suggest. Add a way to reach you if you like; it is optional.",
        "The card lists the lines it adds to the email: the version of clark and your system. Nothing from your reports is added.",
-       "**Open in your mail app** opens a new email to the clark team in the mail app your computer uses, with your words and those lines in it. You press send. clark never sends it, and it cannot choose Outlook for you.",
+       "**Open in your mail app** opens a new email to the clark team in the mail app your computer uses, with your words and those lines in it. You press send. Nothing is sent by clark itself, and it cannot choose Outlook for you.",
        "When the text is too long for a mail link, the link is not shown. Use **Copy as text**, which copies the address, the subject and the message, and paste it into an email."
       ]
      ]
@@ -2549,6 +2549,11 @@
      "card": "people",
      "title": "People",
      "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "feedback",
+     "title": "Feedback",
+     "line": "Write what is wrong or what you would suggest, then send it by email."
     },
     {
      "card": "quit",

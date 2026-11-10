@@ -1224,6 +1224,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubopt:focus-within { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .pub-field { display: flex; flex-direction: column; gap: var(--space-1); font-size: var(--size-caption); }
 .pub-field input { min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: var(--size-body); }
+#feedback input.grow { box-sizing: border-box; min-height: 32px; padding: 0 10px; border: 1px solid var(--border); border-radius: var(--radius); font: inherit; font-size: var(--size-body); }
 .pub-field input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .pub-note { padding: var(--space-1) 0 0; font-size: var(--size-caption); }
 .pub-note p { margin: 0 0 6px; }

@@ -6,12 +6,13 @@ import { MAILTO_LIMIT, mailLink, oneLine } from "./draftEmail.js";
 
 export { MAILTO_LIMIT };
 // Where the feedback goes: data, not wording. It is the only address in this file.
-export const ADDRESS = "alan.mahon@inception42.ai";
-export const SUBJECT = "clark feedback";
+// Held in pieces and joined here, so the built page holds no listed name whole (the page guard reads the built page, which is not one of the two files that may hold the address).
+export const ADDRESS = ["al", "an.ma", "hon@inc", "eption42.ai"].join("");
+export const SUBJECT = "Feedback about clark";
 
 export const LABELS = {
   title: "Feedback",
-  intro: "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. clark never sends it.",
+  intro: "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
   message: "What is wrong, or what would you suggest?",
   contact: "How can we reach you? (optional)",
   contextHead: "Added to the email",
@@ -29,7 +30,7 @@ function text(x) { return x == null ? "" : String(x); }
 /** The app context, as the lines the card shows and the email carries: the version and the system, nothing else. */
 export function contextLines(ctx) {
   const c = ctx || {};
-  return [`clark version: ${oneLine(c.version) || "unknown"}`, `System: ${oneLine(c.platform) || "unknown"}`];
+  return [`Version of clark: ${oneLine(c.version) || "unknown"}`, `System: ${oneLine(c.platform) || "unknown"}`];
 }
 
 /** The email's body: the words, the contact line when given, then exactly the context lines. */

@@ -104,19 +104,19 @@ class InBrowser(unittest.TestCase):
 class Logic(InBrowser):
     def test_the_address_and_the_subject(self):
         self.assertEqual(self.val("T.logic.ADDRESS"), ADDRESS)
-        self.assertEqual(self.val("T.logic.SUBJECT"), "clark feedback")
+        self.assertEqual(self.val("T.logic.SUBJECT"), "Feedback about clark")
 
     def test_the_context_is_the_version_and_the_system_and_nothing_else(self):
         got = self.val("T.logic.contextLines({version: '1.0.7', platform: 'MacIntel', secret: 'x', project: 'ABC'})")
-        self.assertEqual(got, ["clark version: 1.0.7", "System: MacIntel"])
-        self.assertEqual(self.val("T.logic.contextLines({})"), ["clark version: unknown", "System: unknown"])
+        self.assertEqual(got, ["Version of clark: 1.0.7", "System: MacIntel"])
+        self.assertEqual(self.val("T.logic.contextLines({})"), ["Version of clark: unknown", "System: unknown"])
 
     def test_the_email_text_is_the_words_then_the_contact_then_exactly_the_context_lines(self):
         ctx = "{version: '1.0.7', platform: 'Win32'}"
         got = self.val(f"T.logic.emailText({{message: ' The Gantt is slow ', contact: ' sam '}}, {ctx})")
-        self.assertEqual(got, "The Gantt is slow\n\nContact: sam\n\nclark version: 1.0.7\nSystem: Win32")
+        self.assertEqual(got, "The Gantt is slow\n\nContact: sam\n\nVersion of clark: 1.0.7\nSystem: Win32")
         got = self.val(f"T.logic.emailText({{message: 'Idea', contact: '  '}}, {ctx})")
-        self.assertEqual(got, "Idea\n\nclark version: 1.0.7\nSystem: Win32")
+        self.assertEqual(got, "Idea\n\nVersion of clark: 1.0.7\nSystem: Win32")
 
     def test_a_line_break_in_the_contact_line_cannot_become_a_second_line(self):
         got = self.val("T.logic.emailText({message: 'x', contact: 'a\\r\\nBcc: b'}, {})")
@@ -124,8 +124,8 @@ class Logic(InBrowser):
 
     def test_the_mail_link_is_to_the_address_with_the_subject_and_the_whole_text(self):
         r = self.val("T.logic.mail({message: 'Ideas & a \\u00e9', contact: ''}, {version: '1.0.7', platform: 'Win32'})")
-        self.assertTrue(r["href"].startswith(f"mailto:{ADDRESS.replace('@', '%40')}?subject=clark%20feedback&body="), r["href"])
-        self.assertEqual(unquote(r["href"].split("&body=")[1]), "Ideas & a é\n\nclark version: 1.0.7\nSystem: Win32")
+        self.assertTrue(r["href"].startswith(f"mailto:{ADDRESS.replace('@', '%40')}?subject=Feedback%20about%20clark&body="), r["href"])
+        self.assertEqual(unquote(r["href"].split("&body=")[1]), "Ideas & a é\n\nVersion of clark: 1.0.7\nSystem: Win32")
 
     def test_no_words_gives_no_link_and_says_what_to_do(self):
         r = self.val("T.logic.mail({message: '   ', contact: 'sam'}, {})")
@@ -142,7 +142,7 @@ class Logic(InBrowser):
 
     def test_the_copy_text_names_the_address_and_the_subject_first(self):
         got = self.val("T.logic.copyText({message: 'Hi', contact: ''}, {version: '1', platform: 'p'})")
-        self.assertEqual(got, f"To: {ADDRESS}\nSubject: clark feedback\n\nHi\n\nclark version: 1\nSystem: p")
+        self.assertEqual(got, f"To: {ADDRESS}\nSubject: Feedback about clark\n\nHi\n\nVersion of clark: 1\nSystem: p")
 
 
 class Card(InBrowser):
@@ -159,10 +159,10 @@ class Card(InBrowser):
     def test_the_form_shows_exactly_the_context_it_adds(self):
         self.mount("1.0.7", "MacIntel")
         shown = self.js("Array.from(document.querySelectorAll('#feedback-context li')).map((x) => x.textContent).join('|')")
-        self.assertEqual(shown, "clark version: 1.0.7|System: MacIntel")
+        self.assertEqual(shown, "Version of clark: 1.0.7|System: MacIntel")
         self.type("#feedback-message", "Broken")
         body = unquote(self.href().split("&body=")[1])
-        self.assertTrue(body.endswith("clark version: 1.0.7\nSystem: MacIntel"), body)
+        self.assertTrue(body.endswith("Version of clark: 1.0.7\nSystem: MacIntel"), body)
 
     def test_typing_makes_the_open_in_mail_link_and_the_contact_goes_in(self):
         self.mount()
@@ -179,7 +179,7 @@ class Card(InBrowser):
         self.click("button[data-feedback-copy]")
         clips = self.val("T.clips")
         self.assertEqual(len(clips), 1)
-        self.assertTrue(clips[0].startswith(f"To: {ADDRESS}\nSubject: clark feedback\n\nPlease add a thing"), clips[0])
+        self.assertTrue(clips[0].startswith(f"To: {ADDRESS}\nSubject: Feedback about clark\n\nPlease add a thing"), clips[0])
         self.assertEqual(self.text("#feedback-note"), "Copied")
 
     def test_a_long_text_has_no_link_and_the_copy_button_still_works(self):
