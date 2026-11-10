@@ -242,5 +242,87 @@ class Source(unittest.TestCase):
             self.assertNotIn(word, text.replace("publishes", ""), word)
 
 
+class MutationSweep(Case):
+    """Pins found by the mutation sweep of this file (each line names the change that used to pass unnoticed)."""
+
+    def test_the_pointer_file_name_is_the_one_the_design_names(self):
+        self.assertEqual(setup_mode.POINTER_NAME, "clark-data-folder")
+
+    def test_path_length_edge_is_1000(self):
+        plain = setup_mode._plain_path
+        self.assertIsNotNone(plain("/" + "a" * 999))
+        self.assertIsNone(plain("/" + "a" * 1000))
+
+    def test_control_characters_edges(self):
+        for code in (0, 31, 127):
+            with self.subTest(code=code):
+                self.assertIsNone(setup_mode._plain_path("/tmp/a" + chr(code) + "b"))
+        self.assertIsNotNone(setup_mode._plain_path("/tmp/a b"))            # 32 is a space and is allowed
+
+    def test_the_given_seams_reach_the_doctors_view(self):
+        env = {"HOME": "x"}
+        service = self.setup(environ=env)
+        self.assertIs(service.seen().environ, env)
+        self.assertEqual(service.seen().onedrive_roots(), [self.onedrive])
+        elsewhere = self.setup(onedrive_roots=lambda: [self.good])           # a root the platform would not find itself
+        self.assertEqual(elsewhere.seen().onedrive_roots(), [self.good])
+
+    def test_the_given_checks_are_the_ones_run(self):
+        one = (doctor.CHECKS[0],)
+        self.assertEqual(len(self.setup(checks=one).report()["checks"]), 1)
+
+    def test_ready_rule_required_unknown_stops_and_advice_fix_does_not(self):
+        def unknown(seen):
+            return doctor.Line(doctor.NOT_CHECKED, "x")
+
+        def fix(seen):
+            return doctor.Line(doctor.FIX, "x")
+        unknown.__name__, fix.__name__ = "check_unknown", "check_fix"
+        self.assertFalse(self.setup(checks=(doctor.Check("u", True, unknown),)).report()["ready"])
+        self.assertTrue(self.setup(checks=(doctor.Check("f", False, fix),)).report()["ready"])
+        self.assertFalse(self.setup(checks=(doctor.Check("f", True, fix),)).report()["ready"])
+
+    def test_an_answer_that_is_a_path_object_is_taken(self):
+        service = self.setup(self.good)
+        self.assertEqual(service.choose("Choose")["folder"], "~/Elsewhere")
+
+    def test_the_kept_folder_is_the_resolved_one(self):
+        real = self.home / "real"
+        real.mkdir()
+        (self.home / "ln").symlink_to(real)
+        service = self.setup(str(self.home / "ln" / ".." / "real"))
+        service.choose("Choose")
+        self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(real) + "\n")
+        self.assertEqual(service.folder, real)
+
+    def test_a_refusal_names_the_resolved_folder(self):
+        locked = self.home / "locked2"
+        locked.mkdir()
+        locked.chmod(0o500)
+        self.addCleanup(locked.chmod, 0o700)
+        if os.geteuid() == 0:
+            self.skipTest("root can save anywhere")
+        (self.home / "ln").symlink_to(self.home)
+        with self.assertRaises(setup_mode.Refused) as caught:
+            self.setup(str(self.home / "ln" / "locked2")).choose("Choose")
+        self.assertIn("~/locked2", caught.exception.words)
+        self.assertNotIn("/ln/", caught.exception.words)
+
+    def test_a_platform_error_on_the_pointer_is_a_plain_refusal(self):
+        from unittest import mock
+        service = self.setup(str(self.good))
+        with mock.patch.object(pl, "write_file", side_effect=pl.PlatformError("no")):
+            with self.assertRaises(setup_mode.Refused) as caught:
+                service.choose("Choose")
+        self.assertEqual(caught.exception.code, "cant_save")
+        self.assertEqual(service.folder, self.default)
+
+    def test_a_folder_with_a_non_ascii_name_comes_back(self):
+        odd = self.home / "Caf\u00e9 \u2603"
+        odd.mkdir()
+        self.setup(str(odd)).choose("Choose")
+        self.assertEqual(self.setup().remembered(), odd)
+
+
 if __name__ == "__main__":
     unittest.main()
