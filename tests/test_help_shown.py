@@ -31,7 +31,7 @@ SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
-    ("Sneak peek", r"Sneak peek", r"Sneak peek|Change an item with words"),      # the page names it by its button (edit/SneakPeek.jsx); "Sneak peek" itself is only in comments
+    ("Sneak peek", r"Sneak peek", r"Sneak peek|Ask clark to update for you"),      # the page names it by its heading (edit/SneakPeek.jsx, row 1077); "Sneak peek" itself is only in comments
     ("the board", r"\bboard\b", r'"Board"|>Board<'),
     ("ask clark", r"ask clark", r"ask clark"),
     ("Import and Export", r"\b(Import|Export|Excel)\b", r"\b(Import|Export)\b|Excel"),
