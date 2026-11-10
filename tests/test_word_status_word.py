@@ -136,7 +136,7 @@ class ParityWithThePage(unittest.TestCase):
         if shutil.which("node") is None:
             self.skipTest("node is not installed on this computer (CI has it)")
         script = bundled(SECTION_ROWS, "SR") + ";console.log(JSON.stringify(%s.map((r) => SR.clientPill(r, %s))))" % (json.dumps(CASES), json.dumps(TODAY))
-        done = subprocess.run(["node", "-e", script], capture_output=True, text=True)
+        done = subprocess.run(["node", "-"], input=script, capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr)
         want = json.loads(done.stdout)
         self.assertEqual(len(want), len(CASES))
