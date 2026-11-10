@@ -144,7 +144,8 @@ class Planted(unittest.TestCase):
 
 class Unchanged(unittest.TestCase):
     def test_the_published_field_lists_are_as_they_were(self):
-        self.assertTrue({"internal_note", "movement", "source", "reasoning", "by_user"} <= clark_store.NEVER_PUBLISH)
+        self.assertTrue({"internal_note", "movement", "reasoning", "by_user"} <= clark_store.NEVER_PUBLISH)
+        self.assertNotIn("source", clark_store.NEVER_PUBLISH, "row 1077: the source is published by name (publish.select, source_name)")
         for table, fields in publish.PUBLISH_FIELDS.items():
             self.assertFalse(set(fields) & {"internal_note", "movement"}, table)
             self.assertFalse(set(fields) & clark_store.NEVER_PUBLISH - {"state_reason"}, table)
@@ -152,9 +153,9 @@ class Unchanged(unittest.TestCase):
         self.assertNotIn("movement", publish.PUBLISH_FIELDS["milestones"])
         self.assertEqual(publish.PUBLISH_FIELDS["milestones"], (
             "id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-            "state_reason", "owner", "actual_date", "client_message", "workstream"))
+            "state_reason", "owner", "actual_date", "client_message", "workstream", "source"))
         self.assertEqual(clark_store.NEVER_PUBLISH, frozenset({
-            "internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
+            "internal_note", "movement", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
             "publish_local", "publish_client", "by_user", "device"}))
 
     def test_no_publishing_module_names_the_read_the_view_or_the_route(self):

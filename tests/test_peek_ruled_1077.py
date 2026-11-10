@@ -1,7 +1,8 @@
-"""Row 1077, the four rulings: (1) the Draft chip is gone from every peek and the draftFor helper with it; (2) the client's work item
-peek shows Source on the live Dashboard in View, and a published file never has it; (3) the words box is headed "Ask clark to update
-for you"; (4) a client's peek (the Dashboard in View, and a published file) is the editor's, read only: no button, box or editable text
-among its fields, and the same field rows as the editor's, less the two rows that are themselves controls (Shown to client, Client wording).
+"""Row 1077, the rulings: (1) the Draft chip is gone from every peek and the draftFor helper with it; (2, as ruled on 10-11-2026) every
+peek, work item or milestone, shows its Source by NAME (never a path): the live page in Edit and in View, and a published file too;
+(3) the words box is headed "Ask clark to update for you"; (4) a client's peek (the Dashboard in View, and a published file) is the editor's,
+read only: no button, box or editable text among its fields, and the same field rows as the editor's, less the two rows that are themselves
+controls (Shown to client, Client wording).
 Run: python3 dev/run_tests.py test_peek_ruled_1077
 
 The source and the built pages are read first (no browser); then the page in headless Chrome at 1400 and 900 px.
@@ -69,14 +70,19 @@ class Source(unittest.TestCase):
         self.assertIn(LABEL, t["s"][0])
         self.assertNotIn(OLD_LABEL, json.dumps(t["s"]), "the steps name the box as the page labels it")
 
-    def test_source_is_the_live_pages_and_never_a_files(self):
-        """Ruling 2: the Source line is handed to the peek on the live page (Edit, and the Dashboard in View), never from a file."""
+    def test_source_is_read_live_on_the_page_and_carried_by_name_in_a_file(self):
+        """Ruling 2 (10-11): on the live page the line comes from the server (Edit and View alike, items and milestones); a published file
+        draws the name its data carries (publish.select, source_name) and never asks a server."""
         peek = (SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("const Source = !!tools && !fromFile.value && forItem && tools.PeekSource", peek)
-        self.assertNotIn("data-pk-source", peek, "the line itself stays in the Edit part (edit/PeekActivity.jsx)")
+        self.assertIn("const Source = !!tools && !fromFile.value && tools.PeekSource", peek)
+        self.assertIn("export function SourceLine", peek)
+        self.assertIn("data-pk-source", peek)
+        self.assertIn("SourceLine", (SRC / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8"), "the Edit part draws the same line")
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
-        for marker in ("data-pk-source", "pk-source", "/api/activity"):
-            self.assertNotIn(marker, view, marker)
+        self.assertIn("data-pk-source", view)
+        self.assertIn(".pk-source {", view, "its rule is the published page's (shell.css)")
+        self.assertNotIn("/api/activity", view)
+        self.assertNotIn(".pk-source {", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
 
 
 class Browser(unittest.TestCase):
@@ -161,7 +167,8 @@ class Browser(unittest.TestCase):
                 self.assertFalse(cdp.js("!!document.querySelector('#peek [data-ms-edit]')", sid), "View: the milestone's fields, not its editor")
                 self.no_controls(cdp, sid, "View, milestone")
                 self.no_draft(cdp, sid, "View, milestone")
-                self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid), "Source is a work item's line (Peek.jsx forItem)")
+                self.assertTrue(wait(lambda: cdp.js("(s => !!s && s.textContent.startsWith('Source: ') && s.textContent.length > 8)(document.querySelector('#peek [data-pk-source]'))", sid)),
+                                "a milestone has its Source too (ruling of 10-11)")
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-edit]')", sid)), "Edit: the milestone editor")
                 self.no_draft(cdp, sid, "Edit, milestone")
@@ -180,9 +187,12 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('[data-sneak] .sn-head').textContent.trim()", sid), LABEL)
             self.assertNotIn(OLD_LABEL, cdp.js("document.querySelector('#peek').textContent", sid))
 
-    def test_the_published_peek_has_no_source_no_control_and_the_editors_rows(self):
-        """Rulings 2 and 4 in a published file: the same rows as the editor shows for the same item (the plant in a real store), read only, and no Source."""
+    def test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows(self):
+        """Rulings 2 and 4 in a published file: the same rows as the editor shows for the same item (the plant in a real store), read only, and the
+        Source by name: the plant's sources are paths (ZQ-SOURCE-PATH/actions.xlsx), so the file names the file and never the folder."""
         _plant, _pub, text = tp.made()
+        self.assertNotIn("ZQ-SOURCE-PATH", text, "no path reaches a file")
+        self.assertIn("actions.xlsx", text)
         folder = Path(tempfile.mkdtemp(prefix="clark-1077-"))
         self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
         store = fx.build_db(folder / "clark.db")
@@ -199,9 +209,8 @@ class Browser(unittest.TestCase):
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-A-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
-                self.assertFalse(cdp.js("!!document.querySelector('#peek [data-pk-source], #peek .pk-source')", sid), "a file has no Source line")
-                self.assertNotIn("Source", self.labels(cdp, sid))
-                self.assertNotIn("Source:", cdp.js("document.querySelector('#peek').textContent", sid))
+                self.assertEqual(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid), "Source: actions.xlsx", "the file's peek names the source file, not its path")
+                self.assertNotIn("Source", self.labels(cdp, sid), "a line under the fields, not a field row")
                 self.no_controls(cdp, sid, "published file")
                 self.no_draft(cdp, sid, "published file")
                 published = self.labels(cdp, sid)
@@ -210,6 +219,7 @@ class Browser(unittest.TestCase):
                 # the milestone peek in the same file: fields only, nothing to press
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-001')(document.querySelector('#peek'))", sid)), "the milestone peek drew")
+                self.assertEqual(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid), "Source: milestones.xlsx")
                 self.no_controls(cdp, sid, "published file, milestone")
                 self.no_draft(cdp, sid, "published file, milestone")
 
