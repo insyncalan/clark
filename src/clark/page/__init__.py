@@ -332,9 +332,28 @@ def page_html(branding=None, view=False):
         from clark import platform      # here, not at the top (see ensure_built)
         if platform.container_mode():   # item 427: the page learns it is in the container; the published page never says so
             html = html.replace("<html", '<html data-container="1"', 1)
-    css = local_tokens(branding)
+    return layer_brand(html, local_tokens(branding))
+
+
+# Row 1023: the brand's page background picture, on every page of the app and of the published file. It is drawn from the
+# --image-cover the brand already sets (the report band uses the same one: the file holds the picture once), fixed behind the
+# page below the top bar over the right 60%, faded in from the left (the prototype's body::before, system/prototype/app.css:634).
+# These rules go in the brand block ONLY when the brand sets a cover picture, so a page with no own look (or --image-cover: none)
+# is byte for byte what it was. The picture is washed to a faint tint (opacity) so text over it keeps 4.5:1 in light and dark
+# (tests/test_brand_backdrop.py measures it from the drawn pixels). Paper (print, PDF) gets none; reduced motion no fade-in.
+BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topbar) 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .14; transform: scale(1.03); }
+@keyframes bg-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) body::before { animation: bg-in var(--dur-state) var(--ease-enter) both; } }
+@media print { body::before { display: none; } }
+"""
+HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!(?:none|inherit|initial|unset|revert)\b)[^;}\s]", re.I)
+
+
+def layer_brand(html, css):
+    """`html` with the person's brand tokens `css` (comment-stripped text, or None) layered after the demo block."""
     if css is None:
         return html
     css = escape_style(css)
+    extra = BACKDROP_CSS if HAS_PICTURE.search(css) else ""
     i = after_demo_block(html)
-    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n</style>' + html[i:]
+    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n{extra}</style>' + html[i:]

@@ -22,12 +22,12 @@ a { color: var(--status-blue-text); }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: color-mix(in srgb, var(--white) 20%, transparent); }
-.proj { font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
 .projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
 .projbtn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; justify-content: space-between; width: 220px; max-width: 100%; min-width: 0; border: 1px solid var(--grey-500); }   /* a bordered box with the chevron at its right edge; it narrows (the name's ellipsis) rather than run the bar past 900 px */
+.top .projbtn { display: inline-flex; justify-content: center; width: auto; min-width: 24px; min-height: 24px; padding: var(--space-1); border: 0; }   /* row 1064: the name is not drawn in the bar (it stays for a screen reader), so the switcher is the chevron alone */
+@media (min-width: 481px) { .top .tabs { margin-left: var(--space-4); } }   /* row 1064: room between the logo (and the switcher) and the top menu items */
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
@@ -128,7 +128,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
 ul.plain { margin: 0; padding: 0; list-style: none; }
 ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
-@media (max-width: 900px) { main { padding: 20px var(--space-4) 72px; } .frame { padding: 18px var(--space-4); } .proj { display: none; } }
+@media (max-width: 900px) { main { padding: 20px var(--space-4) 72px; } .frame { padding: 18px var(--space-4); } }
 
 /* The contents minimap (FR-18, #67): short lines at the right edge; hover or focus opens the list. Tokens only. */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -285,6 +285,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-caption); }
 /* The published file keeps the older filter bar and its chips (#69); the line is the app's only. */
 .wbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+.wbar.keep { min-height: 32px; }                   /* row 1059: the app's bar holds the Show archived pill alone, which arrives after the first draw */
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
 .seg button { all: unset; box-sizing: border-box; padding: 6px var(--space-3); min-height: 32px; font-size: var(--size-small); cursor: pointer; color: var(--text); }
 .seg button + button { border-left: 1px solid var(--border); }
@@ -632,6 +633,8 @@ input.sec-title { width: 100%; }
 .toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
 .toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
 .toast.problem { border-color: var(--status-red); }
+.toast { position: relative; overflow: hidden; }   /* row 1075: the bar under a message is drawn in the Motion block (only where motion is allowed) */
+.toast-bar { display: none; }
 .toast-text { flex: 1 1 auto; text-align: center; min-width: 0; overflow-wrap: anywhere; }
 .toast-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; color: var(--white); }
 .toast-btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
@@ -718,6 +721,10 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cpop [role="menuitemradio"] { display: flex; align-items: center; }
 .cpop [role="menuitemradio"] { flex-wrap: wrap; }
 .cpop .menu-head { padding: 8px 12px 2px; font-size: var(--size-small); color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 4px; }
+/* Row 1074: an icon before the word of a drop-down choice; its colour is the tone class's (.ic-r ...), so none is written here. */
+.cpop .mi-i { display: inline-flex; align-items: center; flex: none; margin-right: 8px; }
+.cpop .mi-i .i { width: 16px; height: 16px; }
+.cpop .cp-q .mi-i + span { margin-right: auto; }
 .cpop .mi-note { flex-basis: 100%; order: 2; font-size: var(--size-caption); color: var(--text-muted); }
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
@@ -1123,7 +1130,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
 .msl { list-style: none; margin: 14px 0 0; padding: 0 0 0 var(--space-1); }
 .msl-row { position: relative; border-left: 2px solid var(--grey-200); border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
-.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: 2px var(--space-2) 2px 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }
+.msl-cells { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); row-gap: 0; align-items: center; padding: 14px var(--space-2) 14px 22px; cursor: pointer; border-radius: 0 var(--radius-sm) var(--radius-sm) 0; }   /* row 1083: 14 px above and below the text */
+.msl-row:not(:last-child)::after { content: ""; position: absolute; left: 22px; right: 0; bottom: 0; height: 1px; background: var(--grey-200); }   /* row 1083: a light line under every row but the last, from the text (right of the rail), so the rail and its dots stay unbroken */
 .msl-row:hover { background: var(--grey-50); } .msl-cells:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
 .msl-row.out { opacity: .6; }
 .msl-row .node { position: absolute; left: -7px; top: 50%; width: 12px; height: 12px; margin-top: -6px; border-radius: 50%; background: var(--surface); border: 2px solid var(--grey-500); }
@@ -1176,7 +1184,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 900px) { .cal-d { min-height: 64px; } .cal-q { grid-template-columns: 1fr; } }
 /* C-M11 (row 24): a list row keeps its columns (date, name, state, progress) down to 801 px, as the prototype's does (app.css:849);
    only at 800 px and below do the cells stack in two columns (app.css:875). */
-@media (max-width: 800px) { .msl-cells { grid-template-columns: auto 1fr auto; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 1px; } .msl-cells > .msl-name { grid-column: 2 / 4; } .msl-cells > .msl-sub { grid-column: 1 / 4; margin-top: 0; white-space: normal; } .msl-cells > .mst { grid-row: 3; grid-column: 1 / 3; } .msl-cells > .msl-prog { grid-row: 3; grid-column: 3; min-width: 110px; } }   /* narrow (row 1020): date and name, the second line, then the state and the progress; never two columns of half-empty cells */
+@media (max-width: 800px) { .msl-cells { grid-template-columns: auto 1fr auto; padding: 5px var(--space-2) 5px 18px; column-gap: var(--space-3); row-gap: 1px; } .msl-cells > .msl-name { grid-column: 2 / 4; } .msl-cells > .msl-sub { grid-column: 1 / 4; margin-top: 0; white-space: normal; } .msl-cells > .mst { grid-row: 3; grid-column: 1 / 3; } .msl-cells > .msl-prog { grid-row: 3; grid-column: 3; min-width: 110px; } .msl-row:not(:last-child)::after { left: 18px; } }   /* narrow (row 1020): date and name, the second line, then the state and the progress; never two columns of half-empty cells */
 @media (max-width: 700px) { .cal-list { display: block; } .cal-ms span { display: none; } .cal-ms { justify-content: center; } }   /* the cells keep their marks, the names go, the period is listed under the month */
 .mlg { position: relative; display: flex; justify-content: flex-end; margin: 6px 0 2px; }
 .mlg-b { all: unset; display: inline-flex; align-items: center; box-sizing: border-box; min-height: 28px; min-width: 28px; gap: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); cursor: help; padding: 2px var(--space-1); border-radius: var(--radius-sm); }
@@ -1559,7 +1567,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 #work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
-.tab, .proj { font-family: var(--font-label); font-weight: 500; }
+.tab { font-family: var(--font-label); font-weight: 500; }
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }
@@ -1673,6 +1681,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
        and an eye blinks once when it is pressed (that rule is in edit.css, as the eyes are Edit's). Transform only */
     .col-b .cn.settle { animation: m-count var(--dur-state) var(--ease-out) 1; }
     .toast-btn[data-undo] { animation: m-undo var(--dur-enter) var(--ease-out) 1; }
+    /* row 1075: the time left under a message that goes by itself shrinks over --dur-toast; it stands still while the pointer is over the message or focus is inside it (the clock holds too, stores/toastClock.js) */
+    .toast-bar { display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-cyan); transform-origin: left center; animation: toast-left var(--dur-toast) var(--ease-linear) 1 forwards; }
+    .toast:hover .toast-bar, .toast:focus-within .toast-bar { animation-play-state: paused; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* row 879: a changed field in the peek flashes its tint for about 1.6 s, the "please look here" line for about 1 s, then both settle */
@@ -1729,6 +1740,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-col-line { from { box-shadow: -6px 0 0 -3px transparent; } }
   @keyframes m-count { 40% { transform: scale(1.3); } }
   @keyframes m-undo { 40% { transform: scale(1.12); } }
+  @keyframes toast-left { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }
