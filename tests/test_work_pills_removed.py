@@ -31,5 +31,10 @@ class PillsRemoved(_base.Line):
             self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{self.shown(cdp, sid)} != {want}")
 
 
+for _name in dir(_base.Line):             # only the two tests above run here; the others belong to test_filter_line_page
+    if _name.startswith("test_") and _name not in PillsRemoved.__dict__:
+        setattr(PillsRemoved, _name, None)
+
+
 if __name__ == "__main__":
     unittest.main()
