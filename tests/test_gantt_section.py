@@ -260,3 +260,19 @@ class Section(unittest.TestCase):
         self.assertEqual(self.val(f"document.querySelector('{self.TABLE}').dataset.mode"), "view")
         self.assertEqual(self.count("input, select, .gt-eye, .gt-rb, .gt-rh"), 0, "the lines are chosen on the Gantt page")
         self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-note]').textContent"), "Lines are chosen on the Gantt page.")
+
+    def test_the_table_section_in_edit_with_no_eye_on_line_says_so_in_the_charts_words(self):
+        """No eye-on line: the Edit part says what the Gantt section's Edit says (the chart's own sentence), with the note, and draws no
+        header-only grid. (The View leaves an empty section out, as the server does.)"""
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.js(f"mountSection({lit(report([{**l, 'show': False} for l in LINES]))}, {lit({'width': width - 40, 'type': 'gantttable', 'edit': True})})")
+                self.assertTrue(wait(lambda: self.js("!!document.querySelector('[data-tpl=gantttable] [data-g-none]')"), 8), "the sentence is on the page")
+                self.assertEqual(self.val("document.querySelector('[data-tpl=gantttable] [data-g-none]').textContent"), "No lines to show.")
+                self.assertEqual(self.count(self.TABLE), 0, "no header-only grid")
+                self.assertEqual(self.count("[data-gantt]"), 0, "no chart either")
+                self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-note]').textContent"), "Lines are chosen on the Gantt page.")
+        self.look(1400)
+        self.mount_table(report(), 1400, edit=True)
+        self.assertEqual(self.count("[data-tpl=gantttable] [data-g-none]"), 0, "with a line the table is drawn and the sentence is not")

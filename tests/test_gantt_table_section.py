@@ -331,6 +331,62 @@ class Published(Base):
         published = {"sections": [{"id": "a", "type": KIND, "title": "Table", "beside": 0}], "data": {}}
         self.assertEqual(docx_build.sections(published, None), [])
 
+    def workbook(self, built):
+        import base64
+        import io
+        from openpyxl import load_workbook
+        embedded = built["published"]["data"].get("client_workbook")
+        self.assertIsNotNone(embedded, "the client workbook is in the file")
+        wb = load_workbook(io.BytesIO(base64.b64decode(embedded["base64"])))
+        return wb.sheetnames, [str(c.value) for ws in wb.worksheets for row in ws.iter_rows() for c in row if c.value is not None]
+
+    def test_the_client_workbook_is_still_made_with_the_switch_off_and_the_gantt_sheet_is_the_tabs(self):
+        """The Gantt sheet (row 926) is the tab's: it is in the workbook when the tab is in the file, not for a table section alone. With
+        the switch off the workbook is made (no KeyError, no 'could not be made' warning) and holds no Gantt sheet; with the switch on
+        the sheet is there as before."""
+        import logging
+        self.add()
+        self.lines()
+        self.tab(False)
+        records = []
+        handler = logging.Handler()
+        handler.emit = records.append
+        logging.getLogger("clark.publish").addHandler(handler)
+        self.addCleanup(logging.getLogger("clark.publish").removeHandler, handler)
+        off = publish.build(self.s, "ABC", now="2030-01-15", workbook=True)
+        self.assertEqual([r.getMessage() for r in records if "workbook" in r.getMessage()], [], "the workbook is made")
+        self.assertEqual([l["name"] for l in off["published"]["data"]["gantt"]["lines"]], ["Dig"], "the table section's lines are in the file")
+        names, cells = self.workbook(off)
+        self.assertNotIn("Gantt", names, "no tab, no Gantt sheet")
+        self.assertNotIn("Dig", cells)
+        self.assertNotIn(SECRET, "\n".join(cells))
+        self.tab(True)
+        names, cells = self.workbook(publish.build(self.s, "ABC", now="2030-01-15", workbook=True))
+        self.assertIn("Gantt", names, "the tab brings its sheet")
+        self.assertIn("Dig", cells)
+        self.assertNotIn(SECRET, "\n".join(cells))
+
+    def test_the_switch_off_with_a_table_section_is_not_held_back_by_the_marker_check(self):
+        """publish_flow.gantt_markers mirrors publish.select: with a shown table section the eye-on line may be in the file (not a marker);
+        the eye-off line is one; without a table section the eye-on line is a marker again (the switch alone decides)."""
+        from clark import publish_flow, to_client
+        ref = self.add()["ref"]
+        self.lines()
+        self.tab(False)
+        built = self.built()
+        on, off = [r["id"] for r in self.s.read("gantt_lines", "ABC")]
+        markers = list(publish_flow.markers_for(self.s, "ABC", built["published"]))
+        self.assertNotIn("Dig", markers)
+        self.assertNotIn(on, markers)
+        self.assertIn(SECRET, markers)
+        self.assertIn(off, markers)
+        self.assertEqual(to_client.check_copy(built["body"], markers=markers, folder=None), [], "the real publish would not hold the file back")
+        self.ok(op="update", id=ref, changes={"hidden": 1})
+        built = self.built()
+        markers = list(publish_flow.markers_for(self.s, "ABC", built["published"]))
+        self.assertIn(on, markers, "a hidden table section: the line may not be in the file")
+        self.assertEqual(to_client.check_copy(built["body"], markers=markers, folder=None), [])
+
 
 if __name__ == "__main__":
     unittest.main()
