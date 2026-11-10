@@ -163,7 +163,7 @@ class Property(unittest.TestCase):
         for _ in range(1000):
             words = "".join(rnd.choice(alphabet) for _ in range(rnd.randint(1, 60))).strip()
             words = re.sub(r" {2,}", " ", words)
-            if re.search(r"&#|&\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
+            if re.search(r"&#|&\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r":(?![\s\d]|$)", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
                 continue
             self.assertEqual(source_name(words), words if len(words) <= 120 else source_name(words), words)
 

@@ -27,7 +27,8 @@ _ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
 _ENTITY = re.compile(r"&#|&[A-Za-z0-9]+;")
 _DRIVE = re.compile(r"[A-Za-z]:")
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
-_BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\?#]*[/\\]?$")                                       # a web address with a host and nothing after it
+_BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\]*$")                                              # a web address with a host and no path after it (a "?query" or "#fragment" is not a path)
+_COLON_PATH = re.compile(r":(?![\s\d]|$)")                                                                   # "Macintosh HD:Users:name:Folder:file": a colon with words right after it, not "Plan: v2" or "12:30"
 
 
 def _day_as_shown(m):
@@ -81,7 +82,7 @@ def _normal(words):
 
 def _is_plain(text):
     return (all(ch.isalnum() or ch in PLAIN_EXTRA for ch in text) and not _DRIVE.match(text)
-            and not _ENTITY.search(text))                                  # "&#47" or "&amp;" left over is an entity, never words ("R&D", "C#" stay)
+            and not _ENTITY.search(text) and not _COLON_PATH.search(text))                                  # "&#47" or "&amp;" left over is an entity, never words ("R&D", "C#" stay)
 
 
 def _file_name(text):
@@ -89,6 +90,8 @@ def _file_name(text):
     if _BARE.match(text):
         return ""
     cut = max((i for i, ch in enumerate(text) if not (ch.isalnum() or ch in NAME_EXTRA)), default=-1)
+    if cut >= 0 and text[cut] == "@":                        # "name@host.example": a host name is no file name
+        return ""
     name = text[cut + 1:].strip()
     ext = _EXT.search(name)
     return name if ext and name[:ext.start()].strip() else ""
