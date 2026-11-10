@@ -142,6 +142,7 @@ function apply(s, history = false) {
     filterText.value = s.f;
   });
   restoreY.value = s.view === "settings" && (wasSettings || history) ? scrolls.get(scrollKey()) || 0 : 0;
+  seenY = restoreY.value;                            // the place noted is the one the page is about to be at, so an arrival with no scroll event keeps no old page's place
   if (s.project !== project.value) {
     project.value = s.project;
     data.value = null;
