@@ -8,8 +8,8 @@ export const SETTINGS_LINK = "Open Settings";
 // #54: every line that says where a question goes follows the provider in use, because it has to be true. The words themselves are written for Claude.
 export const named = (text, who) => (who === "ChatGPT" ? text.replace(/Claude, which Anthropic runs/g, "ChatGPT, which OpenAI runs").replace(/Claude/g, "ChatGPT") : text);
 export const DISCONNECTED_LINE = "Nothing is connected in Settings. Connect Claude or ChatGPT there to use this.";   // the server's status words, ai_connect.OFF_WORDS
-// #47a: the connect box says where the words go and who pays for them.
-export const SENT_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
+// #1062: where a question goes and who pays moved from the panel to the Asking card in Settings.
+export const ASK_NOTICE_LINE = "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.";
 export const CHECKING_LINE = "Checking whether you can ask…";
 export const READY_LINE = "Ready. Ask about this project.";
 export const MODEL_LINE = (name) => `Answering with ${name}.`;
