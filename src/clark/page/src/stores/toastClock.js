@@ -6,14 +6,14 @@ export const TOAST_MS = 5000;
 export function toastClock(onEnd) {
   let handle = 0, left = 0, since = 0, running = false;
   const holds = new Set();
-  const run = () => { since = Date.now(); running = true; handle = setTimeout(() => { running = false; onEnd(); }, left); };
+  const run = () => { since = performance.now(); running = true; handle = setTimeout(() => { running = false; onEnd(); }, left); };
   return {
     start() { clearTimeout(handle); holds.clear(); running = false; left = TOAST_MS; run(); },
     stop() { clearTimeout(handle); holds.clear(); running = false; left = 0; },
     hold(why) {
       if (holds.has(why)) return;
       holds.add(why);
-      if (running) { clearTimeout(handle); running = false; left = Math.max(0, left - (Date.now() - since)); }
+      if (running) { clearTimeout(handle); running = false; left = Math.max(0, left - (performance.now() - since)); }
     },
     release(why) {
       if (!holds.delete(why) || holds.size || running || left <= 0) return;

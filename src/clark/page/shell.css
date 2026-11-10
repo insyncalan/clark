@@ -632,15 +632,8 @@ input.sec-title { width: 100%; }
 .toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
 .toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
 .toast.problem { border-color: var(--status-red); }
-/* row 1075: the time left under a message that goes by itself. Not drawn at all unless motion is allowed (the computer's setting or <html data-motion="reduce">);
-   it stands still while the pointer is over the message or focus is inside it (the clock holds too, stores/toastClock.js). */
-.toast { position: relative; overflow: hidden; }
+.toast { position: relative; overflow: hidden; }   /* row 1075: the bar under a message is drawn in the Motion block (only where motion is allowed) */
 .toast-bar { display: none; }
-@media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) .toast-bar { display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-cyan); transform-origin: left center; animation: toast-left var(--toast-ms, 5000ms) linear 1 forwards; }
-  :root:not([data-motion="reduce"]) .toast:hover .toast-bar, :root:not([data-motion="reduce"]) .toast:focus-within .toast-bar { animation-play-state: paused; }
-  @keyframes toast-left { from { transform: scaleX(1); } to { transform: scaleX(0); } }
-}
 .toast-text { flex: 1 1 auto; text-align: center; min-width: 0; overflow-wrap: anywhere; }
 .toast-btn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; min-height: 28px; padding: 0 var(--space-2); border-radius: var(--radius-sm); font-size: var(--size-caption); text-decoration: underline; text-underline-offset: 2px; cursor: pointer; color: var(--white); }
 .toast-btn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
@@ -1666,6 +1659,9 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
        and an eye blinks once when it is pressed (that rule is in edit.css, as the eyes are Edit's). Transform only */
     .col-b .cn.settle { animation: m-count var(--dur-state) var(--ease-out) 1; }
     .toast-btn[data-undo] { animation: m-undo var(--dur-enter) var(--ease-out) 1; }
+    /* row 1075: the time left under a message that goes by itself shrinks over --dur-toast; it stands still while the pointer is over the message or focus is inside it (the clock holds too, stores/toastClock.js) */
+    .toast-bar { display: block; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--brand-cyan); transform-origin: left center; animation: toast-left var(--dur-toast) var(--ease-linear) 1 forwards; }
+    .toast:hover .toast-bar, .toast:focus-within .toast-bar { animation-play-state: paused; }
     /* a changed row glows, then settles to the still mark (tint, bar and the word stay) */
     .sec.is-changed, table.items tr.changed td, .msl-row.changed { animation: m-glow calc(var(--dur-enter) + var(--dur-state) + var(--dur-instant)) var(--ease-out) 1; }
     /* row 879: a changed field in the peek flashes its tint for about 1.6 s, the "please look here" line for about 1 s, then both settle */
@@ -1722,6 +1718,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
   @keyframes m-col-line { from { box-shadow: -6px 0 0 -3px transparent; } }
   @keyframes m-count { 40% { transform: scale(1.3); } }
   @keyframes m-undo { 40% { transform: scale(1.12); } }
+  @keyframes toast-left { from { transform: scaleX(1); } to { transform: scaleX(0); } }
   @keyframes m-tick { from { opacity: 0; transform: scale(.4); } }
   @keyframes m-line-top { from { box-shadow: 0 -3px 0 transparent; } }
   @keyframes m-line-end { from { box-shadow: 0 3px 0 transparent; } }

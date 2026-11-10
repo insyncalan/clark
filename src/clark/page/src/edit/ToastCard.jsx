@@ -6,7 +6,7 @@ import { holdOn, TOAST_MS } from "../stores/toastClock.js";
 
 // Row 1075: the bar under a message that goes by itself. It shrinks over the 5 seconds (CSS, and only where motion is allowed: with Reduce motion it is not shown),
 // and stands still while the pointer is over the message or focus is in it, as the clock does. A problem stays until Close, so it has no bar.
-export const ToastBar = ({ kind }) => kind === "problem" ? null : <span class="toast-bar" aria-hidden="true" style={`--toast-ms:${TOAST_MS}ms`} />;
+export const ToastBar = ({ kind }) => kind === "problem" ? null : <span class="toast-bar" aria-hidden="true" style={`--dur-toast:${TOAST_MS}ms`} />;
 
 /** Holds `clock` at once if the pointer is already over the message when it appears (no pointerenter comes then). */
 export const startHeld = (clock) => (el) => { if (el && el.matches && el.matches(":hover")) clock.hold("pointer"); };
