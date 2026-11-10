@@ -53,7 +53,7 @@ class Source(unittest.TestCase):
             self.assertIn(n, one)
 
     def test_the_view_is_routed_like_the_others(self):
-        self.assertIn('"usecases", "gantt", "clientreport", "settings", "published"]', read("router.js"))
+        self.assertIn('"usecases", "gantt", "settings", "published"]', read("router.js"))
         self.assertIn("get gantt()", read("stores", "report.js"))
         self.assertIn("gantt: GanttView", read("components", "App.jsx"))       # the page joined to its data (GanttView mounts GanttPage with a host)
         self.assertIn('from "../gantt/components/GanttView.jsx"', read("components", "App.jsx"))

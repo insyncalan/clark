@@ -159,6 +159,7 @@ class Pure(Browser):
                                            e("usecases"), e("usecases", uc="1.2", i="A-12"), e("usecases"),
                                            "#usecases&p=PDF&uc=1.2", "#usecases&p=PDF", "#work&p=PDF", "#usecases&p=PDF", "#usecases&p=PDF&uc=1.2&item=A-12"],
                          "a use case key is read on the Use cases page only, as one clean word; a peek can sit beside it")
+
     def test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek(self):
         got = self.run_in_page("""JSON.stringify([R.parse('#published&p=PDF'), R.parse('#published&p=PDF&item=A-12&ms=M-1'), R.format({view:'published',project:'PDF'})])""")
         plain, peek, fmt = json.loads(got)
@@ -166,16 +167,12 @@ class Pure(Browser):
         self.assertEqual(peek, plain, "like Settings, this page has no peek")
         self.assertEqual(fmt, "#published&p=PDF")
 
-    def test_the_client_report_view_has_its_own_address(self):
-        """#192: Client Requested Report View is "#clientreport", with a project and a peek like the other pages."""
-        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF'), R.parse('#clientreport&p=PDF&item=A-12'),
-            R.format({view:'clientreport',project:'PDF'}), R.format({view:'clientreport'}), R.parse('#clientreports&p=PDF').view,
-            R.parse('#CLIENTREPORT').view])""")
-        e = lambda i="": {"view": "clientreport", "project": "PDF", "item": i, "ms": "", "f": "", "uc": ""}  # noqa: E731
-        views, plain, peek, f1, f2, near, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings", "published"])
-        self.assertEqual((plain, peek, f1, f2), (e(), e("A-12"), "#clientreport&p=PDF", "#clientreport"))
-        self.assertEqual((near, upper), ("dashboard", "dashboard"), "a near miss or another case falls back to the Dashboard")
+    def test_1065_the_retired_client_report_address_falls_back_to_the_dashboard(self):
+        """Row 1065: "#clientreport" is no view any more; an old bookmark opens the Dashboard."""
+        got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF').view, R.parse('#CLIENTREPORT').view])""")
+        views, old, upper = json.loads(got)
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"])
+        self.assertEqual((old, upper), ("dashboard", "dashboard"))
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):
         hostile = json.dumps(HOSTILE + ["#work&item=" + "%41" * 70, "#work&item=A-" + "9" * 70])
