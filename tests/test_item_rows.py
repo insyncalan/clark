@@ -323,7 +323,7 @@ class EditRows(unittest.TestCase):
                              "status, owner, date and priority change in place (a risk's priority through its impact and likelihood, item 210)")
             self.assertEqual(p.js(f"document.querySelectorAll({row!r} + ' [data-fixed$=\":priority\"]').length"), 0,
                              "a risk's priority is no longer a fixed cell: its rating picker sets the impact and likelihood it is worked out from")
-            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Risk · Red", "the icon says Red, Amber or Green on a risk (row 1021: the pill is gone)")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Risk · Red · Urgent · Overdue", "the icon says Red, Amber or Green on a risk, and Urgent (and Overdue) on an Urgent one (row 1021: the pill is gone)")
             act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
             self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Action · Overdue")
             # the client's wording, in place

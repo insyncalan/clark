@@ -249,7 +249,7 @@ class Formatting(unittest.TestCase):
         self.assertEqual(colours.hexes("amber"), ("FBF0D2", "8A5A12"))
         self.assertEqual(colours.hexes("green"), ("DFF1EA", "2F6E57"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
-        self.assertEqual(colours.DECISION_STATUS, {"Pending": "amber", "Made": "green", "Withdrawn": "grey"})
+        self.assertEqual(colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
 
     def test_use_case_status_is_green_amber_red_and_done_grey(self):
         """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
@@ -318,7 +318,7 @@ class Formatting(unittest.TestCase):
         for name, (date_label, status_label, states) in want.items():
             ws = wb[name]
             head = {c.value: c.column_letter for c in ws[1]}
-            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression"]
+            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression" and col == head[date_label]]      # row 1021: the Status column has its own overdue rule (test_status_colours)
             with self.subTest(sheet=name):
                 self.assertEqual(len(late), 1)
                 col, rule = late[0]

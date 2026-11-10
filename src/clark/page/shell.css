@@ -2118,7 +2118,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows .c-date { font-size: var(--size-small); overflow: hidden; text-overflow: ellipsis; }
 .irows .c-prio { font-size: var(--size-small); overflow: hidden; }
 .irows .c-prio .prio { padding: 0 7px; border-radius: var(--radius-sm); background: var(--grey-100); color: var(--grey-700); }
-.irows .c-prio .late { color: var(--status-red-text); }
+.irows .c-prio .late { color: var(--tone-red-text); }
 .irows .wl-head .c-ico, .irows .wl-head .c-owner, .irows .wl-head .c-date, .irows .wl-head .c-prio { font-size: var(--size-small); color: var(--text-muted); }
 .irows:not(.is-file) .wl-head .c-ico { overflow: hidden; text-indent: -999px; }      /* the icon column is its own header in the app; the file names it (Status) */
 .irows .c-id { display: flex; justify-content: flex-end; }
@@ -2134,7 +2134,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after { left: 0; right: auto; }
 .ico-w { font-size: var(--size-caption); color: var(--text); white-space: nowrap; }
 .ico-w.r { color: var(--tone-red-text); } .ico-w.a { color: var(--tone-amber-text); } .ico-w.g { color: var(--tone-green-text); }
-.ico-w.b { color: var(--tone-blue-text); } .ico-w.n { color: var(--tone-grey-text); } .ico-w.u { color: var(--tone-red-text); }
+.ico-w.b { color: var(--tone-blue-text); } .ico-w.n { color: var(--tone-grey-text); }
 @media (max-width: 900px) {
   /* the screen shows initials from here down; the published file (.is-file) and the printed page keep the full name (paper has room, initials alone are ambiguous) */
   .irows:not(.is-file), .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 88px; }

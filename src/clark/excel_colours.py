@@ -44,7 +44,7 @@ RATING = {"High": "red", "Medium": "amber", "Low": "green"}
 # red, Forecast blue.
 MILESTONE_STATE = {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red", "Overdue": "red",
                    "Forecast": "blue"}
-DECISION_STATUS = {"Pending": "amber", "Made": "green", "Withdrawn": "grey"}
+DECISION_STATUS = {"Pending": "green", "Made": "blue", "Withdrawn": "grey"}
 USE_CASE_STATUS = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}     # Done: finished, grey as on the page
 
 # Action and RAID status, in the final 1021 tones: Open green, Delayed amber, Closed blue, Cancelled grey.

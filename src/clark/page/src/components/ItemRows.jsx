@@ -56,7 +56,7 @@ export const toneOf = (row, pill) => {
 const isLate = (row, today) => { const a = dayNumber(dueField(row)), b = dayNumber(today); return isOpen(row) && a !== null && b !== null && a < b; };
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
-  const parts = isUrgent(row) ? ["Urgent", pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
+  const parts = isUrgent(row) ? [pill.text, "Urgent", late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
   const words = parts.filter(Boolean);
   return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
 };
@@ -89,13 +89,13 @@ function Row({ row, today, words, inFile, type }) {
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${isUrgent(row) ? "u" : toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
+      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
       <span class="wl-title c-title" title={title}>{title}</span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
         {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
       </span>
       <span class="c-date num">{date ? `${type === "decisions" ? dateWord(row) + " " : ""}${showDate(date)}` : "No date"}</span>
-      <span class="c-prio">{risk && row.priority ? <span class="prio">{row.priority}</span> : late ? <span class="late">{late}</span> : null}</span>
+      <span class="c-prio">{(risk || (inFile && isUrgent(row))) && row.priority ? <span class="prio">{row.priority}</span> : late ? <span class="late">{late}</span> : null}</span>
       {inFile ? null : <span class="c-id wl-id num"><button type="button" class="idl" aria-label={`Open ${row.id}`} onClick={() => openPeek(row.id, "item")}>{row.id}</button></span>}
     </li>
   );
