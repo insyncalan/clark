@@ -200,7 +200,6 @@ export function AskPanel() {
           {W.SUGGESTIONS.map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
         </div>
       ) : null}
-      {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.named(W.SENT_LINE, askProvider.value)}</p> : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
         <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}

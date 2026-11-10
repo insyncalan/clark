@@ -14,8 +14,8 @@ import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
-export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383)
+export const SHORT_TITLES = {};   // a tab's name for a narrow window, where it has a shorter one; the page keeps the full name (none has one now)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -51,7 +51,7 @@ function reloadFor(s, wait = true) {
 // goes to GET /?project=<code>, and a Generic one is one load, not two (row 107: the first load was the one a slow computer's tests polled).
 if (typeof document !== "undefined" && document.getElementById && document.getElementById("brand-local")) reloadFor(start, false);
 export const project = signal(start.project);
-export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
+export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const settingsPage = signal(start.view === "settings" ? start.s || "" : "");   // item 1024: the Settings page shown, an address key from router.SETTINGS_PAGES, or "" for Projects
@@ -77,7 +77,7 @@ export const mode = signal("view");          // view | edit (#65): memory only, 
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
-export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
+export const SERVED_TABS = VIEWS;   // the served page offers every view; a published file lists its own, from p.tabs
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 // The tabs the bar offers right now. A published file lists its own (the server decides, #926); the served page adds the Gantt tab only
 // when the open project's setting says so, and until a project is read it does not (a reload on #gantt opens it once the setting is known).
@@ -132,7 +132,6 @@ export function takeArrival() { const m = moved; moved = false; return m; }
 function apply(s, history = false) {
   moved = true;
   if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
-  if (!fromFile.value && s.view === "clientreport") s = { ...s, view: SERVED_TABS[0] };   // #559
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   const wasSettings = view.value === "settings";
