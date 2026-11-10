@@ -131,6 +131,21 @@ class Rules(unittest.TestCase):
                          [{"id": "friday", "name": "Friday", "day": "2026-10-30", "line": "30-10-2026"},
                           {"id": "week", "name": "A week on", "day": "2026-11-05", "line": "05-11-2026"}])
 
+    def test_item_1070_typing_in_change_owner_searches_the_register_and_the_projects_names_and_offers_to_add_only_an_unknown_name(self):
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Ada Quillfeather", "email": "ada@example.com"}, {"name": "Bryony Castellan", "aliases": "Bry C"},
+                          {"name": "Cedric Dunmore", "role": "Supplier lead"}, {"name": "Old Hand", "archived": 1}])
+        names = json.dumps(["Ada Quillfeather", "Zelda Quince"])
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, '')"), ["Zelda Quince"], "no text: the list as it was, without the owner")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'bry')"), ["Bryony Castellan"], "the register is searched, an alias too")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'SUPPLIER')"), ["Cedric Dunmore"], "role")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'quil')"), [], "the current owner is never offered")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'zel')"), ["Zelda Quince"], "a name in the project that is not on the register")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'old')"), [], "an archived person is not found")
+        for typed, want in (("Wilhelmina Frost", True), ("  Wilhelmina   Frost ", True), ("", False), ("   ", False), ("tbc", False),
+                            ("Bryony Castellan", False), ("bry c", False), ("Zelda Quince", False), ("Ada Quillfeather", False)):
+            self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, {json.dumps(typed)})"), want, typed)
+
     def test_a_pick_is_the_cells_own_change_and_an_unchanged_value_is_nothing(self):
         row = json.dumps(self.ACTION)
         got = self.js(f"RM.pickChange({row}, 'status', 'Closed', {json.dumps(TODAY)})")
@@ -505,6 +520,64 @@ class Menu(board.Base):
             self.assertEqual(self.row(a)["owner"], "Priya Nair")
             self.open_menu(cdp, sid, self.TABLE % a)
             self.assertEqual(self.entries(cdp, sid)[0][1], "Draft email to Priya Nair", "the draft entry follows the owner")
+
+    def add_register(self, *people):
+        from _demo import USER
+        for name, email in people:
+            with self.store.step("dashboard", USER) as w:
+                w.add_person(name=name, source="test", **({"email": email} if email else {}))
+
+    def search_box(self, cdp, sid):
+        self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", "the search box in the owner list")
+
+    def type_in(self, cdp, sid, text):
+        cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+        cdp.call("Input.insertText", {"text": text}, sid)
+
+    def test_item_1070_change_owner_has_a_search_box_that_finds_people_on_the_register(self):
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').placeholder", sid), "Type a name")
+            self.assertEqual(cdp.js("document.activeElement.matches('input[data-rm-search]')", sid), True, "a click opens it on the box")
+            self.type_in(cdp, sid, "cedr")
+            self.until(cdp, sid, "[...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].length === 1", "the list narrowed")
+            self.assertEqual([e[1] for e in self.fly(cdp, sid)], ["Cedric Dunmore"])
+            self.assertEqual(cdp.js("!!document.querySelector('.rm-fly [data-rm=addp]')", sid), False, "a name on the register offers no add")
+            key(cdp, sid, "ArrowDown")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "o:Cedric Dunmore")
+            key(cdp, sid, "Enter")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Cedric Dunmore.")
+            self.assertEqual(self.row(a)["owner"], "Cedric Dunmore")
+
+    def test_item_1070_a_name_that_is_not_known_can_be_added_as_a_person_and_assigned_in_one_step_with_one_undo(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            self.assertEqual(cdp.js("document.querySelector('.rm-fly [data-rm=addp]').textContent.trim()", sid), "Add Wilhelmina Frost as a new person")
+            click(cdp, sid, ".rm-fly [data-rm=addp]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "the new person form")
+            self.assertEqual(cdp.js("document.querySelector('[data-pop] [data-new-name]').value", sid), "Wilhelmina Frost")
+            click(cdp, sid, "[data-pop] [data-new-email]")
+            cdp.call("Input.insertText", {"text": "not an email"}, sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-problem')", "the shared email rule refuses it")
+            self.assertEqual(self.steps(), before, "nothing was saved")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-email]'); i.value = 'wilhelmina@example.com'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Wilhelmina Frost, added as a new person.")
+            self.assertEqual(self.row(a)["owner"], "Wilhelmina Frost")
+            self.assertEqual(self.steps() - before, 1, "one step")
+            self.assertEqual([r[0] for r in self.query("SELECT email FROM people WHERE name = ?", "Wilhelmina Frost")], ["wilhelmina@example.com"])
 
     def test_archive_hides_the_item_and_undo_brings_it_back_nothing_is_deleted(self):
         with chrome() as cdp:
