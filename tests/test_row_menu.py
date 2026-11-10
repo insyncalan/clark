@@ -539,6 +539,13 @@ class Menu(board.Base):
     def search_box(self, cdp, sid):
         self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", "the search box in the owner list")
 
+    HOLD_PEOPLE = """(() => { const real = window.fetch.bind(window); let go; const held = new Promise((r) => { go = r; }); window.__peopleGo = go;
+        window.fetch = (u, ...a) => String(u).indexOf('/api/people') === 0 && !(a[0] && a[0].method && a[0].method !== 'GET') ? held.then(() => real(u, ...a)) : real(u, ...a); })()"""
+
+    def people_loaded(self, cdp, sid):
+        """Item 1070: the owner list has read the people (the list marks itself while it has not)."""
+        self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]') && !document.querySelector('.rowmenu .rm-fly[data-rm-loading]')", "the people list to load")
+
     def type_in(self, cdp, sid, text):
         cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
         cdp.call("Input.insertText", {"text": text}, sid)
@@ -551,6 +558,7 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % a)
             click(cdp, sid, "[data-rm=owner]")
             self.search_box(cdp, sid)
+            self.people_loaded(cdp, sid)
             self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').placeholder", sid), "Type a name")
             self.assertEqual(cdp.js("document.activeElement.matches('input[data-rm-search]')", sid), True, "a click opens it on the box")
             self.type_in(cdp, sid, "cedric dunmore")
@@ -562,6 +570,29 @@ class Menu(board.Base):
             key(cdp, sid, "Enter")
             self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Cedric Dunmore.")
             self.assertEqual(self.row(a)["owner"], "Cedric Dunmore")
+
+    def test_item_1070_a_name_typed_before_the_people_list_loads_never_offers_add_for_a_person_who_exists(self):
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                cdp.js(self.HOLD_PEOPLE, sid)
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=owner]")
+                self.search_box(cdp, sid)
+                cdp.js("window.__addSeen = false; new MutationObserver(() => { if (document.querySelector('.rm-fly [data-rm=addp]')) window.__addSeen = true; })"
+                       ".observe(document.body, {subtree: true, childList: true, characterData: true})", sid)
+                self.type_in(cdp, sid, "cedric dunmore")
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === 'cedric dunmore'", "the typing")
+                time.sleep(0.6)
+                self.assertEqual(cdp.js("!!document.querySelector('.rm-fly [data-rm=addp]')", sid), False, "no add while the list loads")
+                self.assertEqual(cdp.js("!!document.querySelector('.rm-fly[data-rm-loading]')", sid), True, "still loading")
+                cdp.js("window.__peopleGo()", sid)
+                self.people_loaded(cdp, sid)
+                self.until(cdp, sid, "[...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].some(b => b.textContent.trim() === 'Cedric Dunmore')", "the person found after the load")
+                self.assertEqual([e[1] for e in self.fly(cdp, sid)], ["Cedric Dunmore"])
+                self.assertEqual(cdp.js("window.__addSeen", sid), False, "an add entry was never in the page, at any moment")
 
     def test_item_1070_a_name_that_is_not_known_can_be_added_as_a_person_and_assigned_in_one_step_with_one_undo(self):
         with chrome() as cdp:
