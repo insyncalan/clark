@@ -698,10 +698,13 @@ def build_app(out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, r
     content = download_content("mac", root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
     top = top_folder(root)
     out = Path(out)
-    out.mkdir(parents=True, exist_ok=True)
     target = out / APP_NAME
-    part = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.app."))          # built whole beside the target, then moved into place
+    part = None
     try:
+        out.mkdir(parents=True, exist_ok=True)
+        if target.is_dir() and not target.is_symlink() and not _our_bundle(target):
+            raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{shown(target)} is a folder this tool did not make, so it was left as it is"))
+        part = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.app."))      # built whole beside the target, then moved into place
         bundle = part / APP_NAME
         _tool(run, [tools[OSACOMPILE], "-o", str(bundle), str(root / APPLET_SOURCE)])
         info_path = bundle / "Contents" / "Info.plist"
@@ -723,14 +726,24 @@ def build_app(out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, r
             path.write_bytes(data)
             os.chmod(path, mode & 0o777)
         _tool(run, [tools[CODESIGN], "--force", "--deep", "-s", "-", str(bundle)])     # last: the signature seals Info.plist and Resources
+        _tool(run, [tools[CODESIGN], "--verify", "--deep", "--strict", str(bundle)])   # and it must hold
         if target.is_dir() and not target.is_symlink():
             shutil.rmtree(target)
         os.rename(bundle, target)
     except OSError as e:
         raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
     finally:
-        shutil.rmtree(part, ignore_errors=True)
+        if part is not None:
+            shutil.rmtree(part, ignore_errors=True)
     return target
+
+
+def _our_bundle(folder):
+    """True when `folder` is a clark.app this tool built: its Contents/Info.plist carries BUNDLE_ID. Anything else is not ours to delete."""
+    try:
+        return plistlib.loads((Path(folder) / "Contents" / "Info.plist").read_bytes()).get("CFBundleIdentifier") == BUNDLE_ID
+    except Exception:
+        return False
 
 
 def shown(path):
@@ -742,6 +755,29 @@ def shown(path):
         except ValueError:
             pass
     return str(path)
+
+
+def build_both(args, notes):
+    """(zip, bundle) for --app. All or nothing: the zip is built in a part folder and moved over an earlier one only when the
+    bundle is built too, so a run that fails leaves what an earlier run made exactly as it was."""
+    out = Path(args.out)
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.zip."))
+    except OSError as e:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
+    try:
+        staged = build(args.system, stage, dirty=args.dirty, for_client=args.for_client, release=args.release,
+                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+        app = build_app(out, dirty=args.dirty, for_client=args.for_client, release=args.release, notes=notes,
+                        min_from=args.min_from, extra_folders=args.extra_folder)
+        target = out / staged.name
+        os.replace(staged, target)
+    except OSError as e:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+    return target, app
 
 
 def main(argv=None):
@@ -764,14 +800,12 @@ def main(argv=None):
         if args.app:
             app_tools()                                                     # before the zip is written: all or nothing
         notes = Path(args.notes).read_text(encoding="utf-8") if args.notes else ""
-        target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
-                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
-        try:
-            app = build_app(args.out, dirty=args.dirty, for_client=args.for_client, release=args.release, notes=notes,
-                            min_from=args.min_from, extra_folders=args.extra_folder) if args.app else None
-        except (Refused, OSError):
-            os.remove(target)                                               # all or nothing: the zip goes with the bundle it was built for
-            raise
+        if args.app:
+            target, app = build_both(args, notes)
+        else:
+            target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
+                           notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+            app = None
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
         return 1

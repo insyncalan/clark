@@ -98,8 +98,12 @@ exit 0
 FAKE_CODESIGN = r'''#!/bin/sh
 { printf '%s' "$0"; for a in "$@"; do printf '\t%s' "$a"; done; printf '\n'; } >> "$FAKE_CODESIGN_LOG"
 printf 'codesign\n' >> "$FAKE_TOOL_ORDER"
-[ -n "$FAKE_CODESIGN_FAIL" ] && { echo "fake codesign: no identity found" >&2; exit 1; }
 for last in "$@"; do :; done
+case " $* " in
+  *" --verify "*) [ -n "$FAKE_CODESIGN_VERIFY_FAIL" ] && { echo "fake codesign: $last: invalid signature" >&2; exit 1; }
+                  [ -d "$last" ] || exit 1; exit 0 ;;
+esac
+[ -n "$FAKE_CODESIGN_FAIL" ] && { echo "fake codesign: no identity found" >&2; exit 1; }
 [ -d "$last" ] || { echo "fake codesign: $last: No such file or directory" >&2; exit 1; }
 rm -rf "$FAKE_CODESIGN_SNAPSHOT"
 cp -Rp "$last" "$FAKE_CODESIGN_SNAPSHOT"
@@ -113,7 +117,7 @@ class FakeTool:
     osacompile put a file of that name in Contents/Resources (what a tool that clashes with ours would do); `codesign=False`
     leaves codesign out of the folder."""
 
-    def __init__(self, cleanup, fail=False, codesign=True, codesign_fail=False, extra=""):
+    def __init__(self, cleanup, fail=False, codesign=True, codesign_fail=False, extra="", verify_fail=False):
         self.folder = Path(tempfile.mkdtemp(prefix="clark fake osacompile "))
         cleanup(shutil.rmtree, self.folder, True)
         for name, text in (("osacompile", FAKE_OSACOMPILE), ("codesign", FAKE_CODESIGN)):
@@ -129,6 +133,7 @@ class FakeTool:
         env = {"PATH": f"{self.folder}{os.pathsep}{NODIALOG}{os.pathsep}{os.environ.get('PATH', '')}",
                "FAKE_OSACOMPILE_LOG": str(self.log), "FAKE_OSACOMPILE_FAIL": "1" if fail else "", "FAKE_OSACOMPILE_EXTRA": extra,
                "FAKE_CODESIGN_LOG": str(self.codesign_log), "FAKE_CODESIGN_FAIL": "1" if codesign_fail else "",
+               "FAKE_CODESIGN_VERIFY_FAIL": "1" if verify_fail else "",
                "FAKE_CODESIGN_SNAPSHOT": str(self.snapshot), "FAKE_TOOL_ORDER": str(self.order_log)}
         patch = mock.patch.dict(os.environ, env)
         patch.start()
@@ -242,9 +247,9 @@ class BuildAppTest(unittest.TestCase):
         fake = FakeTool(self.addCleanup)
         out = Path(self.tmp) / "signed"
         app = package.build_app(out, dirty=True)
-        self.assertEqual(["osacompile", "codesign"], fake.order())
+        self.assertEqual(["osacompile", "codesign", "codesign"], fake.order(), "compile, sign, then verify")
         calls = fake.codesign_calls()
-        self.assertEqual(1, len(calls), calls)
+        self.assertEqual(2, len(calls), calls)
         argv = calls[0].split("\t")
         self.assertEqual([str(fake.folder / "codesign"), "--force", "--deep", "-s", "-"], argv[:5])
         self.assertEqual(6, len(argv), argv)
@@ -252,6 +257,8 @@ class BuildAppTest(unittest.TestCase):
         self.assertEqual(package.APP_NAME, signed.name)
         self.assertEqual(out, signed.parent.parent, "signed where it was built, then moved into place")
         self.assertTrue(signed.parent.name.startswith(".clark.app."), signed)
+        check = calls[1].split("\t")
+        self.assertEqual([str(fake.folder / "codesign"), "--verify", "--deep", "--strict", argv[5]], check)
         self.assertEqual(tree(app), tree(fake.snapshot), "codesign saw the finished bundle, nothing changed after it")
         info = plistlib.loads((fake.snapshot / "Contents" / "Info.plist").read_bytes())
         self.assertEqual(package.BUNDLE_ID, info["CFBundleIdentifier"])
@@ -367,6 +374,43 @@ class RefusalsTest(unittest.TestCase):
         self.assertEqual(1, len(fake.codesign_calls()))
         self.assertEqual([], os.listdir(out) if out.exists() else [], "no bundle, no part folder")
 
+    def test_a_signature_that_does_not_verify_is_refused_and_leaves_no_bundle(self):
+        fake = FakeTool(self.addCleanup, verify_fail=True)
+        out = self.out_folder()
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertEqual("clark.app could not be built, so nothing was written: fake codesign: "
+                         f"{fake.codesign_calls()[1].split(chr(9))[-1]}: invalid signature", str(said.exception))
+        self.assertEqual(2, len(fake.codesign_calls()))
+        self.assertEqual([], os.listdir(out) if out.exists() else [])
+
+    def test_a_folder_that_is_not_our_bundle_is_never_deleted(self):
+        """dist/clark.app that the tool did not make (no Info.plist with our bundle id) is refused and left as it is."""
+        FakeTool(self.addCleanup)
+        for label, plist in (("no plist", None), ("another id", plistlib.dumps({"CFBundleIdentifier": "com.example.other"})),
+                             ("not a plist", b"junk")):
+            with self.subTest(label):
+                out = self.out_folder()
+                target = out / package.APP_NAME
+                (target / "Contents").mkdir(parents=True)
+                (target / "mine.txt").write_text("keep\n", encoding="utf-8")
+                if plist is not None:
+                    (target / "Contents" / "Info.plist").write_bytes(plist)
+                with self.assertRaises(package.Refused) as said:
+                    package.build_app(out, dirty=True)
+                self.assertTrue(str(said.exception).startswith("clark.app could not be built, so nothing was written: "), str(said.exception))
+                self.assertEqual("keep\n", (target / "mine.txt").read_text(encoding="utf-8"))
+                self.assertEqual([package.APP_NAME], os.listdir(out), "no part folder is left behind")
+
+    def test_a_folder_that_cannot_be_made_is_refused_in_the_could_not_build_words(self):
+        """An OSError before the bundle is started (the part folder here) is the bundle's own refusal too."""
+        FakeTool(self.addCleanup)
+        out = self.out_folder()
+        with mock.patch.object(package.tempfile, "mkdtemp", side_effect=PermissionError(13, "Permission denied")):
+            with self.assertRaises(package.Refused) as said:
+                package.build_app(out, dirty=True)
+        self.assertTrue(str(said.exception).startswith("clark.app could not be built, so nothing was written: "), str(said.exception))
+
     def test_a_tool_that_does_not_finish_is_refused_like_one_that_fails(self):
         """A hung osacompile ends in the could-not-build sentence, not a traceback, and leaves nothing."""
         FakeTool(self.addCleanup)
@@ -478,6 +522,54 @@ class CommandTest(unittest.TestCase):
             self.assertEqual("A file the download needs is missing: codesign. Restore it, then build again.", err.strip())
             self.assertEqual("", out)
             self.assertEqual([], os.listdir(tmp))
+
+    def test_a_failing_run_leaves_an_earlier_zip_exactly_as_it_was(self):
+        """The zip of an earlier good run is replaced only when the whole run succeeded."""
+        fake = FakeTool(self.addCleanup, fail=True)
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / package.zip_name("mac")
+            zip_path.write_bytes(b"an earlier good zip")
+            code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
+            self.assertEqual(1, code)
+            self.assertEqual(b"an earlier good zip", zip_path.read_bytes())
+            self.assertEqual([package.zip_name("mac")], os.listdir(tmp), "no staging folder is left behind")
+
+    def test_a_successful_run_replaces_an_earlier_zip(self):
+        FakeTool(self.addCleanup)
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = Path(tmp) / package.zip_name("mac")
+            zip_path.write_bytes(b"an earlier zip")
+            code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
+            self.assertEqual(0, code, err)
+            self.assertEqual(sorted([package.zip_name("mac"), package.APP_NAME]), sorted(os.listdir(tmp)))
+            self.assertTrue(zipfile.is_zipfile(zip_path))
+
+    def test_the_zip_with_app_is_the_zip_without_it(self):
+        FakeTool(self.addCleanup)
+        with tempfile.TemporaryDirectory() as one, tempfile.TemporaryDirectory() as two:
+            self.assertEqual(0, self.run_main("mac", "--out", one, "--dirty")[0])
+            self.assertEqual(0, self.run_main("mac", "--app", "--out", two, "--dirty")[0])
+            name = package.zip_name("mac")
+            self.assertEqual((Path(one) / name).read_bytes(), (Path(two) / name).read_bytes())
+
+    def test_an_os_error_before_the_bundle_is_the_could_not_build_sentence_and_keeps_the_zip(self):
+        FakeTool(self.addCleanup)
+        real = tempfile.mkdtemp
+
+        def deny(*a, **kw):
+            if kw.get("prefix") == ".clark.app.":
+                raise PermissionError(13, "Permission denied")
+            return real(*a, **kw)
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(package.tempfile, "mkdtemp", side_effect=deny):
+            zip_path = Path(tmp) / package.zip_name("mac")
+            zip_path.write_bytes(b"an earlier good zip")
+            code, out, err = self.run_main("mac", "--app", "--out", tmp, "--dirty")
+            self.assertEqual(1, code)
+            self.assertTrue(err.startswith("clark.app could not be built, so nothing was written: "), err)
+            self.assertNotIn("release notes", err)
+            self.assertEqual(b"an earlier good zip", zip_path.read_bytes())
+            self.assertEqual([package.zip_name("mac")], os.listdir(tmp))
 
     def test_a_bundle_that_fails_leaves_no_zip_behind(self):
         """--app is all or nothing: when the bundle can't be built the sentence says nothing was written, and that is true of
