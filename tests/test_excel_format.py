@@ -18,6 +18,7 @@ from openpyxl import load_workbook
 from clark import excel
 from clark import excel_colours as colours
 from clark import look
+from clark import sanitise
 from test_excel import Demo, ON
 
 FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
@@ -375,7 +376,7 @@ class Formatting(unittest.TestCase):
             back = excel.read_workbook(d.path)
             for _, table, cols, _ in excel.SHEETS:
                 fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
-                stored = {r["id"]: {f: r[f] for f in fields} for r in d.store.read(table, "ABC")}
+                stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in d.store.read(table, "ABC")}
                 got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
                        for r in back[table]}      # item 710: the cell reads ID: name; the import takes the ID
                 self.assertEqual(got, stored, table)
