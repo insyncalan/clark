@@ -44,7 +44,7 @@ export function PeekNeeded({ row }) {
   return (
     <label class="sw pk-act" data-pk-needed>
       <button type="button" class="switch" role="switch" aria-checked={on ? "true" : "false"} aria-label="Needed from the client" onClick={flip}></button>
-      <span>Needed from the client<small>Lists it under “Needs from you”</small></span>
+      <span>Needed from the client<small>Lists it under “Needs from you” when the report has that section</small></span>
     </label>
   );
 }
