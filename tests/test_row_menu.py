@@ -903,6 +903,28 @@ class Menu(board.Base):
             self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
 
+    def test_row_1048_the_owners_address_and_name_ride_on_the_ask_show_in_the_to_line_and_stay_on_a_changed_option_at_1400_and_900(self):
+        a = self.id_of("Order the laptops")
+        with self.store.step("dashboard", USER) as st:
+            pid = st.add_person(name="Ada Quillfeather", email="ada@example.com", source="test")
+            st.update("actions", a, {"owner": "Ada Quillfeather", "owner_id": pid})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.drafts.clear()
+                sid = self.visit(cdp, width=width)
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=draft]")
+                self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", f"{width}: the Draft email")
+                who = {"email": "ada@example.com", "name": "Ada Quillfeather"}
+                self.assertEqual(self.drafts, [{"project": "ABC", "item": a, "picked": [a], **who}], f"{width}: the first ask carries the owner's address and name")
+                meta = cdp.js("[...document.querySelectorAll('.de-meta dt, .de-meta dd')].map(e => e.textContent)", sid)
+                self.assertEqual(meta[0], "To")
+                self.assertIn("ada@example.com", meta[1], f"{width}: the To line shows the address")
+                click(cdp, sid, ".de-kinds input[value=decision]")
+                self.until(cdp, sid, "/Decision/.test(document.querySelector('.de-meta').textContent)", f"{width}: the other kind of email")
+                self.assertEqual(self.drafts[-1], {"project": "ABC", "item": a, "mode": "decision", "picked": [a], "include_update": False, **who}, f"{width}: the re-ask keeps them")
+                self.assertIn("ada@example.com", cdp.js("document.querySelectorAll('.de-meta dd')[0].textContent", sid), f"{width}: the To line still shows it")
+
     def test_the_draft_dialog_is_modal_and_everything_outside_it_is_inert_even_what_mounts_later(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
