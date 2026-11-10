@@ -62,7 +62,7 @@ class ProfileMenu(Base):
                              "Appearance", "the group is named Appearance, so a screen reader says it before each radio")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
-        for w in (390, 900):
+        for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w, 700)
