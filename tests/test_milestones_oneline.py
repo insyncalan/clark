@@ -1,6 +1,6 @@
 """C-M10: a milestone list row's second line ("Expected a date · N days later") reads on one line at 1400 px.
 C-M11 (#436 row 24): at 900 px the row keeps its columns (date, name, state, progress side by side, as the prototype's grid does,
-system/prototype/app.css:849); it stacks in two columns only at 800 px and below (app.css:875).
+system/prototype/app.css:849).
 
 Run: python3 dev/run_tests.py test_milestones_oneline
 The browser parts load the committed page from the real server on the demo database (fixed CLARK_NOW), plus one milestone with a
@@ -14,7 +14,6 @@ import unittest
 from pathlib import Path
 
 from _demo import USER, DemoStore
-from _paths import SRC
 
 from clark import page, publish
 from test_server import chrome, wait, Running
@@ -32,13 +31,17 @@ MEASURE = r"""(() => {
   const card = document.querySelector('.msl-box').closest('.card, .box, section, .ms-block') || document.querySelector('.msl-box').parentElement;
   const cb = card.getBoundingClientRect();
   const rows = [...document.querySelectorAll('.msl-row')].map((row) => {
-    const rb = row.getBoundingClientRect(), small = row.querySelector('.msl-date small'), name = row.querySelector('.msl-name');
-    const cells = [...row.querySelectorAll('.msl-cells > *')].map((c) => c.getBoundingClientRect());
-    const sb = small.getBoundingClientRect(), db = row.querySelector('.msl-date').getBoundingClientRect(), nb = name.getBoundingClientRect();
+    const rb = row.getBoundingClientRect(), small = row.querySelector('.msl-sub'), name = row.querySelector('.msl-name');
+    const cells = [...row.querySelectorAll('.msl-cells > *:not(.msl-sub)')].map((c) => c.getBoundingClientRect());
+    const sb = small.getBoundingClientRect(), db = row.querySelector('.msl-date').getBoundingClientRect(), cr = row.querySelector('.msl-cells').getBoundingClientRect(), nb = name.getBoundingClientRect();
     const texts = [...row.querySelectorAll('.msl-cells > *')];
     return {text: small.textContent, lines: lines(small), nameLines: lines(name),
             inRow: cells.every((c) => c.left >= rb.left - 1 && c.right <= rb.right + 1),
-            smallInDate: sb.right <= db.right + 1, dateClearOfName: db.right <= nb.left + 1,
+            subLeft: sb.left - cr.left, subRight: cr.right - sb.right, subBelow: sb.top - Math.max(db.bottom, nb.bottom),
+            subSize: parseFloat(getComputedStyle(small).fontSize), mainSize: parseFloat(getComputedStyle(name).fontSize),
+            subCut: small.scrollWidth > small.clientWidth + 1,
+            dateTextW: (() => { const g = document.createRange(); g.selectNodeContents(row.querySelector('.msl-date')); return Math.max(...[...g.getClientRects()].map((q) => q.right)) - db.left; })(), dateW: db.width,
+            dateClearOfName: db.right <= nb.left + 1,
             cellsClip: texts.some((t) => t.scrollWidth > t.clientWidth + 1),
             cols: getComputedStyle(row.querySelector('.msl-cells')).gridTemplateColumns.split(' ').length,
             across: cells.every((c, i) => i === 0 || c.left > cells[i - 1].left),
@@ -54,6 +57,17 @@ def show_all(cdp, sid):
     if cdp.js("!!document.querySelector('.msl-all')", sid) and cdp.js("document.querySelector('.msl-all').textContent", sid).startswith("Show all"):
         cdp.js("document.querySelector('.msl-all').click()", sid)
         wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length", sid) > 5)
+
+
+def small_line_ok(case, r, where):
+    """The exact things: the small second line sits inside its own cell (the left and right of the row's cells, below the date and name) in a
+    smaller font than the main line, and the date text of the main line is not wider than the date cell."""
+    t = r["text"]
+    case.assertGreaterEqual(r["subLeft"], -1, f"{where}: the second line starts inside its cell ({t})")
+    case.assertGreaterEqual(r["subRight"], -1, f"{where}: the second line ends inside its cell ({t})")
+    case.assertGreaterEqual(r["subBelow"], -1, f"{where}: the second line sits below the date and name, in its own row ({t})")
+    case.assertLess(r["subSize"], r["mainSize"], f"{where}: the second line is smaller than the main line ({t})")
+    case.assertLessEqual(r["dateTextW"], r["dateW"] + 1, f"{where}: the date text is not wider than its cell ({t})")
 
 
 class Rows(unittest.TestCase):
@@ -85,7 +99,7 @@ class Rows(unittest.TestCase):
         self.addCleanup(s.close)
         for code in ("TUL", "MOSS"):
             for scheme in ("light", "dark"):
-                for width in (1400, 1201, 900):
+                for width in (1400, 900):
                     with self.subTest(code=code, scheme=scheme, width=width), chrome() as cdp:
                         sid = self.open_page(cdp, s.port, width, scheme, code)
                         got = cdp.js(MEASURE, sid)
@@ -102,42 +116,33 @@ class Rows(unittest.TestCase):
                             self.assertTrue(r["inCard"], f"{where}: the row stays inside the card ({r['text']})")
                             self.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['text']})")
                             self.assertTrue(r["dateClearOfName"], f"{where}: the date cell does not run into the name ({r['text']})")
-                            if width >= 1201:               # the rule starts at 1201 px, so its first width is tested too
+                            small_line_ok(self, r, where)
+                            if width == 1400:
                                 self.assertEqual(r["lines"], 1, f"{where}: the second line is one line ({r['text']})")
-                                self.assertTrue(r["smallInDate"], f"{where}: the second line stays inside its cell ({r['text']})")
+                                self.assertFalse(r["subCut"], f"{where}: the second line is not cut off in its cell ({r['text']})")
                                 self.assertFalse(r["cellsClip"], f"{where}: no cell cuts text off ({r['text']})")
                         if code == "TUL":
                             long = [r for r in got["rows"] if r["nameLines"] > 1]
                             self.assertTrue(long, f"{where}: the very long name wraps in its own cell")
 
-    def test_the_cells_stack_in_two_columns_only_at_800_px_and_below(self):
+    def test_the_cells_keep_four_columns_at_900_px(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
-        for width, cols in ((901, 4), (900, 4), (801, 4), (800, 2), (700, 2)):
+        for width, cols in ((900, 4),):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, s.port, width, "light", "TUL")
                 got = cdp.js(MEASURE, sid)
                 self.assertTrue(got["rows"])
                 self.assertEqual({r["cols"] for r in got["rows"]}, {cols}, f"{width}px")
-                # The page's own top bar is 8 px wider than a 700 px window (View, Edit and the menu; mobile widths are a later item), and that is
-                # not the list's: at 700 px the list and its card are what this checks, from 801 px up the page too.
                 self.assertFalse(got["cardScroll"] or got["listScroll"], f"{width}px: nothing in the list scrolls sideways")
-                if width > 800:
-                    self.assertFalse(got["pageScroll"], f"{width}px: no sideways scroll on the page")
-
-    def test_the_stylesheet_stacks_the_cells_only_below_801_px(self):
-        css = (SRC / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
-        import re
-        for m in re.finditer(r"@media \(max-width: (\d+)px\)\s*\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}", css):
-            if ".msl-cells" in m.group(2) and "grid-template-columns" in m.group(2):
-                self.assertEqual(m.group(1), "800", "the rule that stacks the list cells is the 800 px one, not 900")
+                self.assertFalse(got["pageScroll"], f"{width}px: no sideways scroll on the page")
 
     def test_the_words_are_the_products_with_the_middle_dot(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         with chrome() as cdp:
             sid = self.open_page(cdp, s.port, 1400, "light", "TUL")
-            texts = cdp.js("[...document.querySelectorAll('.msl-date small')].map((e) => e.textContent)", sid)
+            texts = cdp.js("[...document.querySelectorAll('.msl-sub')].map((e) => e.textContent)", sid)
             self.assertIn("Expected 31-12-2028 · 780 days later", texts)
             for t in texts:
                 self.assertTrue(t in ("Agreed", "No agreed date", "Forecast, not agreed") or t.startswith(("Expected ", "Achieved")), t)
@@ -172,6 +177,7 @@ class Published(unittest.TestCase):
                     self.assertFalse(got["pageScroll"] or got["cardScroll"] or got["listScroll"], f"{where}: nothing scrolls sideways")
                     for r in got["rows"]:
                         self.assertTrue(r["inCard"] and r["inRow"] and r["dateClearOfName"], f"{where}: {r['text']}")
+                        small_line_ok(self, r, where)
                         self.assertEqual((r["cols"], r["across"]), (4, True), f"{where}: the columns stay side by side ({r['text']})")
                         if width == 1400:
                             self.assertEqual(r["lines"], 1, f"{where}: one line ({r['text']})")

@@ -93,6 +93,9 @@ PUBLISH_FIELDS = {
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
+# Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
+# the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
+WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
 RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
 LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
@@ -536,6 +539,9 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
+            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
+                for f in WORDLESS_DROPS.get(k, ()):
+                    c[f] = None
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
@@ -579,14 +585,9 @@ def select(inputs):
     ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
-    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
+    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)
     if listed:
         needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
-        if not needs_sections:           # no such section at all: one is made for the file (an owner who has hidden theirs is respected: it is not made again)
-            sections = sections + [{"id": "s-needs-flagged", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
-                                    "beside": 0, "hidden": 0, "sort_order": 1 << 30}]
-            extra["s-needs-flagged"] = {}
-            needs_sections = sections[-1:]
         mine = next((x for x in needs_sections if not x.get("hidden")), None)
         if mine is not None:
             typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
