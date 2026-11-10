@@ -35,10 +35,11 @@ def text(path):
 class UseCaseFields(unittest.TestCase):
     def test_page_has_the_pieces(self):
         page = re.sub(r"\s+", " ", text(SRCS / "edit" / "UseCasesPage.jsx"))
-        for want in ("Add a use case", "Export to Excel", "Show archived", "Hide archived", "Restore", "archived use case"):
+        for want in ("Add use case", "Show archived", "Hide archived", "Restore", "archived use case"):     # row 1085: the + says Add use case; Export left the page
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
-        self.assertIn("exportExcel", page)
+        self.assertNotIn("exportExcel", page)        # row 1085: the ruling leaves Export off this page; the workbook stays in the profile menu
+        self.assertIn("exportExcel", text(SRCS / "edit" / "ProfileMenu.jsx"))
         self.assertIn('plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.', page)     # plural() gives "1 archived use case" / "2 archived use cases"
         self.assertIn('Showing ${plural(n, "archived use case")}.', page)
         helper = text(SRCS / "workItems.js")
@@ -61,7 +62,7 @@ class UseCaseFields(unittest.TestCase):
 UC = "TUL-U-001"                     # demo: "Flag", on the dashboard, 1.1
 LIST = "#usecases&p=TUL"
 SIZES = ((1400, 1400), (915, 900))   # (window, page): the box's scrollbars take 15 px
-GONE = re.compile(r"Add a use case|Export to Excel|Add a next step|Link an existing work item|Show archived|Restore", re.I)
+GONE = re.compile(r"Add a use case|Add use case|Export to Excel|Add a next step|Link an existing work item|Show archived|Restore", re.I)
 
 
 class Live(unittest.TestCase):
@@ -131,10 +132,11 @@ class Live(unittest.TestCase):
             sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
-            add = cdp.js("(document.querySelector('#usecases .head #ucAddPage') || {}).textContent || ''", sid)
-            exp = cdp.js("(document.querySelector('#usecases .head #ucExp') || {}).textContent || ''", sid)
-            self.assertRegex(add, r"Add a use case")
-            self.assertRegex(exp, r"Export to Excel")
+            # row 1085: Add use case (the growing +) sits at the right end of the tabs row, not in the head, with the Work items word; the head's
+            # Export to Excel button is gone (the workbook stays in the profile menu) and no Import or Export icon joins this page (the ruling)
+            add = cdp.js("(document.querySelector('#usecases .fvrow #ucAddPage') || {}).getAttribute('aria-label') || ''", sid)
+            self.assertEqual(add, "Add use case")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp, #usecases #expBtn, #usecases #impBtn').length", sid), 0, "the head holds the title alone")
             self.no_sideways(cdp, sid)
             rows = cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length", sid)
             before, ref, title = self.steps(), f"9.{n}", f"Row 830 case {n}"
@@ -200,7 +202,7 @@ class Published(unittest.TestCase):
                         cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
                         self.assertTrue(pub_wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use cases"))
                         cdp.js("document.querySelector('.ucp summary').click()", sid)
-                        self.assertEqual(cdp.js("document.querySelectorAll('#ucAddPage, #ucExp, [data-uc-step], [data-uc-link], [data-arch-toggle], [data-restore]').length", sid), 0)
+                        self.assertEqual(cdp.js("document.querySelectorAll('#ucAddPage, #ucExp, #expBtn, #impBtn, [data-uc-step], [data-uc-link], [data-arch-toggle], [data-restore]').length", sid), 0)
                         self.assertIsNone(GONE.search(cdp.js("document.body.innerText", sid)), "none of the page's buttons")
                         self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no horizontal scroll")
 

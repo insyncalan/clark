@@ -339,7 +339,10 @@ table.items td.c-pick { vertical-align: middle; }
 /* Use cases page: list */
 .ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
 .ucl-bar { gap: 8px 12px; margin-top: 12px; }
-.ucl .fline-wrap { margin-top: 16px; }   /* row 1085: the filter line (the Work items box) stands where the search box was */
+/* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
+.ucl-views { margin-top: 16px; }
+.ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
+.ucl .fline-wrap { margin-top: 0; }
 .ucl-pill, #ucl-sort { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; }
 .ucl-pill.on { border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-medium); }
 .ucl-pop label { display: flex; align-items: center; gap: 10px; min-height: 28px; }
@@ -949,8 +952,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   .ad-add .ad-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* row 830: the Use cases page head buttons, the archived box under the list, and the next step row on the detail. Spacing is on the --space tokens; no exact token for 6px (gap, padding: --space-2), 10px (--space-3) or 280px (4 x --space-8 = 256px) */
-.ucl-acts { flex-wrap: wrap; justify-content: flex-end; }
-.ucl-acts .btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--space-6); color: var(--text); }
 .ucl-arch { margin-top: var(--space-4); }
 .ucl-arch .arch-l { margin: 0; padding: 0; list-style: none; }
 .ucl-arch .arch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }

@@ -9,6 +9,7 @@ page-view.html. The page for one use case is another part (components/UseCaseDet
 import json
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -292,7 +293,7 @@ class List(Setup):
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
         sels = ["#usecases h1", ".ucl-sub", ".ucl-ref", ".ucl-go", ".ucl-name small", ".ucl-head", ".ucl-ms", ".ucl-wi", ".ucl-wi small", ".ucl-st .pill",
-                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".ucl-hd span", ".seg button", ".ucl-pill", "#ucl-sort", ".ucl-search input"]
+                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".ucl-hd span", ".vtab", ".vtab em", ".ucl-pill", "#ucl-sort", "#ucl-q-count"]
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
@@ -416,7 +417,7 @@ class Eye(Setup):
     def test_the_eye_keeps_its_row_when_the_switch_is_narrowed_and_the_focus_moves_on(self):
         with chrome() as cdp:
             p = self.show(cdp, edit=True)
-            self.click(p, "[data-on=on]")
+            self.click(p, "[data-tab=on]")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "only those on the dashboard")
             self.click(p, f"[data-uc=\"{self.uc1}\"] [data-eye]")
             p.until(f"!document.querySelector('[data-uc=\"{self.uc1}\"]')", "it left the narrowed list")
@@ -495,24 +496,54 @@ class Narrowing(Setup):
             self.assertEqual(self.refs(p), ["UC 1.10"])
             self.assertEqual(p.js("document.querySelector('.ucl-pop input[value=Done] + .pill').className"), "pill n")
 
-    def test_the_switch_counts_follow_the_other_filters_and_narrow_the_list(self):
+    def test_the_tabs_counts_follow_the_line_and_narrow_the_list(self):
+        """Row 1085: the four fixed tabs (All use cases, On the dashboard, Committed, At risk) replace the switch; their counts follow the filter line."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc4, {"commitment": "Committed"})
         with chrome() as cdp:
             p = self.show(cdp)
-            nums = "[...document.querySelectorAll('#usecases .seg button')].map(b => b.textContent.replace(/\\s+/g, ' ').trim())"
-            self.assertEqual(p.js(nums), ["All 4", f"{ON} 2", f"{OFF} 2"])
-            self.click(p, "[data-on=off]")
+            nums = "[...document.querySelectorAll('#usecases .vtab')].map(b => b.querySelector('span').textContent + ' ' + b.querySelector('em').textContent)"
+            self.assertEqual(p.js(nums), ["All use cases 4", f"{ON} 2", "Committed 1", "At risk 2"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .vtab')].map(b => b.getAttribute('aria-pressed'))"), ["true", "false", "false", "false"])
+            self.click(p, "[data-tab=risk]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "at risk: Flag or High risk")
+            self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.10"])
+            self.assertEqual(p.js("document.querySelector('[data-tab=risk]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(self.count(p), "Showing 2 of 4 · 2 on the dashboard")
+            self.click(p, "[data-tab=committed]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "committed")
+            self.assertEqual(self.refs(p), ["UC 2.1"])
+            self.click(p, "[data-tab=on]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "on the dashboard")
+            self.type_in(p, "#ucl-q", 'status:"On track" ')
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "on the dashboard and On track")
+            self.assertEqual(p.js(nums), ["All use cases 2", f"{ON} 1", "Committed 1", "At risk 0"], "the counts follow the line, never the tab")
+            self.assertEqual(self.refs(p), ["UC 1.1"])
+            self.type_in(p, "#ucl-q", "portal")
+            p.until("!!document.querySelector('#usecases [data-empty]')", "nothing is On track, on the dashboard and a portal")
+            self.assertEqual(p.js("document.querySelector('#usecases [data-empty] p').textContent"), "No use cases match “portal” with these filters.")
+            self.click(p, "[data-clear-all]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "Clear the filters: the line and the tab")
+            self.assertEqual(p.js("document.querySelector('[data-tab=all]').getAttribute('aria-pressed')"), "true")
+
+    def test_not_on_the_dashboard_is_the_line_s_on_no(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.type_in(p, "#ucl-q", "on:no ")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "not on the dashboard")
             self.assertEqual(self.refs(p), ["UC 1.10", "UC 2.1"])
-            self.assertEqual(p.js("document.querySelector('[data-on=off]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(self.count(p), "Showing 2 of 4 · 2 on the dashboard")
-            self.click(p, "#ucl-status")
-            self.click(p, ".ucl-pop input[value='On track']")
-            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "not on the dashboard and On track")
-            self.assertEqual(p.js(nums), ["All 2", f"{ON} 1", f"{OFF} 1"], "the counts follow the Status choice")
-            self.assertEqual(self.refs(p), ["UC 2.1"])
-            self.type_in(p, "#ucl-q", "portal")
-            p.until("!!document.querySelector('#usecases [data-empty]')", "nothing is On track, not on the dashboard and a portal")
-            self.assertEqual(p.js("document.querySelector('#usecases [data-empty] p').textContent"), "No use cases match “portal” with these filters.")
+
+    def test_add_use_case_sits_on_the_tabs_row_and_import_and_export_do_not(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            got = p.js("[...document.querySelectorAll('#usecases .fvrow .ucl-tools button')].map(b => [b.id, b.getAttribute('aria-label')])")
+            self.assertEqual(got, [["ucAddPage", "Add use case"]], "the + with the Work items word, at the right end of the tabs row")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .head button, #usecases #impBtn, #usecases #expBtn, #usecases .bib').length"), 0, "nothing is left in the head; no Import or Export icon on this page (the ruling)")
+            self.assertGreater(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().left"), p.js("document.querySelector('[data-tab=risk]').getBoundingClientRect().right"), "to the right of the last tab")
+            self.assertLess(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().bottom"), p.js("document.querySelector('#usecases [data-fline]').getBoundingClientRect().top") + 1, "above the line")
+            self.click(p, "#ucAddPage")
+            p.until("!!document.querySelector('#ucF')", "Add use case opens the box")
 
     def test_sort_by_reference_status_and_open_work_items(self):
         with chrome() as cdp:
@@ -533,7 +564,7 @@ class Narrowing(Setup):
             before = p.js("history.length")
             self.type_in(p, "#ucl-q", "payment")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "the line applied (about 400 ms after the last key, as on Work items)")
-            self.click(p, "[data-on=on]")
+            self.click(p, "[data-tab=on]")
             self.click(p, "#ucl-sort")
             p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.includes('Status')).click()")
             p.until("document.querySelector('#ucl-sort').textContent.trim() === 'Sort: Status'", "sorted")
@@ -541,18 +572,18 @@ class Narrowing(Setup):
             self.assertEqual(p.js("location.hash"), "#usecases&p=ABC", "and are not in the address")
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment")
-            self.assertEqual(p.js("document.querySelector('[data-on=on]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Status")
             self.assertEqual(self.refs(p), ["UC 1.2"])
             saved = json.loads(p.js("localStorage.getItem('clark.ucPage')"))
             self.assertEqual(sorted(saved), ["ABC"], "kept under the project's code")
-            self.assertEqual(saved["ABC"], {"line": "payment", "on": "on", "sort": "status"}, "row 1085: the search and the Status choice are one line")
+            self.assertEqual(saved["ABC"], {"line": "payment", "tab": "on", "sort": "status"}, "row 1085: the search and the Status choice are one line, the switch a tab")
             p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {st: ['Flag'], on: 'nonsense', sort: 'nonsense', q: 5}, OTHER: {q: 'x'}}))")
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "", "a saved value that makes no sense falls back")
             self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag")
             self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Reference")
-            self.assertEqual(p.js("document.querySelector('[data-on=all]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("document.querySelector('[data-tab=all]').getAttribute('aria-pressed')"), "true")
 
 
 class Line(Setup):
@@ -579,7 +610,8 @@ class Line(Setup):
             self.assertEqual(p.js("document.querySelectorAll('#usecases .fhints, #usecases .ucl-search, #fline-input').length"), 0, "no Try row (approved), no old search box, not the Work items line")
             self.assertEqual(p.js("document.querySelector('#ucl-q-count').textContent"), "4 of 4", "the count sits in the box")
             self.assertEqual(self.line(p), "")
-            self.assertEqual(p.js("document.querySelectorAll('#ucl-status, #ucl-sort, #usecases .seg [data-on]').length"), 5, "the Status choice, the Sort menu and the switch stay beside it")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .vtab span:first-child')].map(e => e.textContent)"), ["All use cases", ON, "Committed", "At risk"], "the four tabs over the line")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .seg, #usecases .vtabmenu, #viewNew').length"), 0, "no switch; fixed tabs have no menu and no New view")
 
     def test_a_status_field_narrows_the_list_and_the_status_choice_and_the_line_follow_each_other(self):
         with chrome() as cdp:
@@ -655,18 +687,18 @@ class Line(Setup):
             self.assertEqual(self.chips(p), ["status:Flag,Done"])
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment runs")
             self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag, Done")
-            self.assertEqual(p.js("document.querySelector('[data-on=on]').getAttribute('aria-pressed')"), "true", "the switch is kept as it was")
+            self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true", "the switch's On the dashboard is the tab of that name")
             self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Status", "the sort is kept as it was")
             self.assertEqual(self.refs(p), ["UC 1.2"])
-            self.click(p, "[data-on=all]")
-            p.until("document.querySelector('[data-on=all]').getAttribute('aria-pressed') === 'true'", "all")
-            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"], {"line": "status:Flag,Done payment runs", "on": "all", "sort": "status"}, "written back in the new shape")
+            self.click(p, "[data-tab=all]")
+            p.until("document.querySelector('[data-tab=all]').getAttribute('aria-pressed') === 'true'", "all")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"], {"line": "status:Flag,Done payment runs", "tab": "all", "sort": "status"}, "written back in the new shape")
             p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {q: 'a:b  zebra', on: 'off'}}))")
             reload_to_new_page(p.js, "!!document.querySelector('#usecases [data-fline]') && !!document.querySelector('#usecases [data-empty]')")   # no row matches: the empty state
-            self.assertEqual(self.line(p), '"a:b" zebra', "a search word that would read as a field is quoted, so it stays a plain word")
+            self.assertEqual(self.line(p), 'on:no "a:b" zebra', "the switch's Not on the dashboard (no tab) is on:no; a search word that would read as a field is quoted, so it stays a plain word")
             self.assertEqual(self.refs(p), [], "the old search was plain text: it does not become a filter")
             self.assertEqual(p.js("document.querySelector('#usecases [data-empty] p').textContent"), "No use cases match “a:b zebra” with these filters.")
-            p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {line: 'status:Flag', on: 'all', sort: 'ref'}}))")
+            p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {line: 'status:Flag', tab: 'all', sort: 'ref'}}))")
             self.reload(p)
             self.assertEqual((self.line(p), self.refs(p)), ("status:Flag", ["UC 1.2"]), "the new shape reads as it is")
             p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {line: 7, st: ['Flag']}}))")
@@ -737,7 +769,10 @@ class Keys(Setup):
             self.press(p, "Enter")
             p.until("document.querySelector('.toast-text').textContent === 'UC 1.1 is on the dashboard.'", "Enter worked it again")
             self.assertEqual(self.eye("1.1"), 1)
+            p.until("document.getAnimations().length === 0", "the eye's blink is over")
+            time.sleep(0.3)                  # the eye's change hands the focus back to it a moment (60 ms) after the server answers: let that pass first
             p.js("document.querySelector('#ucl-q').focus()")
+            p.until("document.activeElement.id === 'ucl-q'", "the box has the focus")
             self.press(p, "ArrowDown")
             self.press(p, "Home")
             self.assertEqual(p.js("document.activeElement.id"), "ucl-q", "the arrows are taken only on a row")

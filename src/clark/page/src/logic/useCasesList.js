@@ -97,38 +97,47 @@ export function withStatus(line, st, rows) {
 /** The line in two: its complete filters and the plain words (what the empty state says back). */
 export const lineParts = (line, rows) => { const s = Q.splitLine(line, rows, CTX, LINE); return { chips: s.chips, words: parsedOf(s.rest, rows).text.join(" ") }; };
 
+// ---- the tabs (row 1085) ----
+// Four fixed views over the line, as the Work items saved views are drawn: [id, name, keeps(row)]. At risk is a status of Flag or High risk.
+export const COMMITTED = "Committed";                                            // the commitment word the Committed tab asks for (the server's word)
+export const TABS = [
+  ["all", "All use cases", () => true],
+  ["on", ON_WORDS, (r) => r.on],
+  ["committed", COMMITTED, (r) => r.commitment === COMMITTED],
+  ["risk", "At risk", (r) => r.status === "Flag" || r.status === "High risk"],
+];
+const tabKeeps = (id) => (TABS.find(([k]) => k === id) || TABS[0])[2];
+/** Each tab's count: the rows the line keeps that the tab keeps too (the counts follow the box, as the switch's did). */
+export function tabCounts(rows, f) {
+  const base = rows.filter(lineTest(f.line, rows));
+  return Object.fromEntries(TABS.map(([id, , keeps]) => [id, base.filter(keeps).length]));
+}
+
 // ---- narrowing, ordering and counts ----
-export const FIRST = { line: "", on: "all", sort: "ref" };                       // what a project starts with
+export const FIRST = { line: "", tab: "all", sort: "ref" };                      // what a project starts with
 
 // A browser's saved state from before the line held {st, on, sort, q}: the Status choice and the search become one line (row 1085), the
 // status chip first, then the search's words as plain words (one that would read as a field is quoted, so it stays the plain word it was).
+// The switch's On the dashboard is the tab of that name; its Not on the dashboard, which has no tab, is the line's on:no.
 const quoteWord = (w) => (/^-?[A-Za-z][\w-]*:/.test(w) || w.includes('"') ? `"${w.replace(/"/g, "")}"` : w);
 export function lineFromOld(x) {
   const st = Array.isArray(x.st) ? STATUS_WORDS.filter((w) => x.st.includes(w)) : [];
   const q = typeof x.q === "string" ? x.q.slice(0, 200) : "";
-  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), ...q.split(/\s+/).filter(Boolean).map(quoteWord)].join(" ");
+  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), ...(x.on === "off" ? ["on:no"] : []), ...q.split(/\s+/).filter(Boolean).map(quoteWord)].join(" ");
 }
 
 /** A saved or typed state made well-formed: anything unknown falls back to the start. A state with no `line` is an older one and is read as one. */
 export function tidy(s) {
   const x = s && typeof s === "object" ? s : {};
+  const old = x.line === undefined;
   return {
-    line: typeof x.line === "string" ? x.line.slice(0, 600) : x.line === undefined ? lineFromOld(x) : "",
-    on: ["all", "on", "off"].includes(x.on) ? x.on : "all",
+    line: typeof x.line === "string" ? x.line.slice(0, 600) : old ? lineFromOld(x) : "",
+    tab: TABS.some(([k]) => k === x.tab) ? x.tab : old && x.on === "on" ? "on" : "all",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
   };
 }
 
-export const narrowed = (f) => f.on !== "all" || f.line.trim() !== "";
-
-/** The switch alone: what the line's test leaves to it. */
-const onFits = (r, f) => f.on === "all" || (f.on === "on") === r.on;
-
-/** Counts for the switch: how many are All, On and Not on the dashboard, with the line applied. */
-export function onCounts(rows, f) {
-  const base = rows.filter(lineTest(f.line, rows));
-  return { all: base.length, on: base.filter((r) => r.on).length, off: base.filter((r) => !r.on).length };
-}
+export const narrowed = (f) => f.tab !== "all" || f.line.trim() !== "";
 
 // Reference order: its numbers one by one ("1.2" before "1.10"); one with no reference last, in the order the data gives.
 const numbers = (r) => String(r.u.ref || "").split(/[^0-9]+/).filter(Boolean).map(Number);
@@ -149,8 +158,8 @@ const ORDER = {
 
 /** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
 export function shownOf(rows, f) {
-  const test = lineTest(f.line, rows);
-  return rows.map((r, i) => [r, i]).filter(([r]) => test(r) && onFits(r, f)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
+  const test = lineTest(f.line, rows), keeps = tabKeeps(f.tab);
+  return rows.map((r, i) => [r, i]).filter(([r]) => test(r) && keeps(r)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
 }
 
 /** "Showing 3 of 7 · 4 on the dashboard": how many show, of how many, and how many of all are on the dashboard. */

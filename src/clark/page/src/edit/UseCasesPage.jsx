@@ -14,13 +14,13 @@ import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, shownOf, onCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, shownOf, tabCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, TABS, RAG } from "../logic/useCasesList.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
-import { exportExcel } from "./ProfileMenu.jsx";
 import { plural } from "../workItems.js";
 import { Menu, Fade } from "../components/Menu.jsx";
+import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
 
@@ -159,7 +159,7 @@ function ArchivedUseCases() {
 }
 
 function UseCasesList() {
-  const f = state.value, rows = all.value, shown = shownOf(rows, f), n = onCounts(rows, f);
+  const f = state.value, rows = all.value, shown = shownOf(rows, f), n = tabCounts(rows, f);
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
   useEffect(() => {      // coming back from a use case: its row takes the focus
@@ -171,8 +171,11 @@ function UseCasesList() {
     if (el) el.focus({ preventScroll: true });
   }, []);
   const sortWord = (SORTS.find(([k]) => k === f.sort) || SORTS[0])[1];
-  const clear = () => set({ line: "", on: "all" });
-  const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.on !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
+  const clear = () => set({ line: "", tab: "all" });
+  const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
+  // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Add use case (the growing +) at its
+  // right end (the ruling keeps the + and leaves the Import and Export icons off this page); the filter line under it. The tabs' counts follow the line.
+  const tools = <span class="ucl-tools"><NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} /></span>;
   return (
     <section class="frame ucl" id="usecases">
       <div class="head">
@@ -180,18 +183,24 @@ function UseCasesList() {
           <h1>Use cases</h1>
           <p class="muted ucl-sub">Every use case of this project. The home dashboard shows the ones marked {ON_WORDS}.</p>
         </div>
-        <div class="hacts ucl-acts">
-          <button type="button" class="btn" id="ucExp" onClick={() => exportExcel()}><Icon name="dl" /> Export to Excel</button>
-          <button type="button" class="btn" id="ucAddPage" onClick={openAdd}>Add a use case</button>
-        </div>
+        {rows.length ? null : <div class="hacts">{tools}</div>}
       </div>
+      {rows.length ? (
+        <div class="fviews ucl-views">
+          <div class="fvrow">
+            <div class="vtabs" role="group" aria-label="Narrow the list">
+              {TABS.map(([id, name]) => (
+                <button type="button" key={id} class="vtab" data-tab={id} aria-pressed={f.tab === id ? "true" : "false"} onClick={() => set({ tab: id })}><span>{name}</span><em class="num">{n[id]}</em></button>
+              ))}
+            </div>
+            {tools}
+          </div>
+        </div>
+      ) : null}
       {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} /> : null}
       {rows.length ? (
         <div class="wbar ucl-bar" role="group" aria-label="Narrow the list">
           <StatusFilter f={f} rows={rows} />
-          <div class="seg" role="group" aria-label="On the dashboard or not">
-            {[["all", "All"], ["on", ON_WORDS], ["off", OFF_WORDS]].map(([v, w]) => <button type="button" key={v} data-on={v} aria-pressed={f.on === v ? "true" : "false"} onClick={() => set({ on: v })}>{w} <em class="num">{n[v]}</em></button>)}
-          </div>
           <Menu label={`Sort: ${sortWord}`} id="ucl-sort" menuLabel="Sort by" left items={SORTS.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
           <span class="ucl-count num" id="ucl-count" role="status">{countWords(shown.length, rows)}</span>
         </div>
