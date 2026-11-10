@@ -29,7 +29,7 @@ READ = """(() => {
   for (const k of ['status', 'priority', 'owner', 'due']) {
     const el = peek.querySelector('.pk-fields > [data-row=' + k + ']'); if (!el) continue;
     const dd = el.querySelector('dd'), cs = getComputedStyle(el);
-    cells[k] = { ...box(el), border: [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].join(' '), radius: cs.borderTopLeftRadius, bg: cs.backgroundColor,
+    cells[k] = { ...box(el), border: [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].join(' '), radius: cs.borderTopLeftRadius, bg: cs.backgroundColor, shadow: cs.boxShadow,
       label: el.querySelector('dt').textContent, overflow: dd.scrollWidth - dd.clientWidth };
   }
   const type = [...peek.querySelectorAll('.pk-fields > .pk-row')].find((r) => r.querySelector('dt').textContent === 'Type');
@@ -63,6 +63,7 @@ class CardBrowser(unittest.TestCase):
             self.assertEqual(c["border"], "0px 0px 0px 0px", f"{where} {k}: flat, no tile edge (row 1077)")
             self.assertEqual(c["radius"], "0px", f"{where} {k}: no rounding")
             self.assertEqual(c["bg"], "rgba(0, 0, 0, 0)", f"{where} {k}: no fill of its own")
+            self.assertEqual(c["shadow"], "none", f"{where} {k}: no shadow")
             self.assertLessEqual(c["overflow"], 1, f"{where} {k}: nothing cut off")
             self.assertGreaterEqual(c["w"], 100, f"{where} {k}: wide enough to read")
             self.assertGreaterEqual(c["l"], got["peek"]["l"], where)

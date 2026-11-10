@@ -33,8 +33,9 @@ EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
-CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor]; } return out; })()"
-FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)"]
+CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor, c.boxShadow]; } return out; })()"
+FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)", "none"]          # border, border, radius, fill, shadow
+SECTIONS = "(() => { const out = {}; for (const s of ['.pk-bar', '.pk-title', '.pk-fields', '.pk-latest', '.pk-tabs', '.pk-source', '.pk-last']) { const e = document.querySelector('#peek ' + s); if (e) out[s] = getComputedStyle(e).boxShadow; } return out; })()"   # the peek's sections draw no shadow (only the panel itself does)
 PROBE = "((name) => { const e = document.createElement('i'); e.style.cssText = 'border:1px solid var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; })"
 
 
@@ -76,6 +77,29 @@ class Source(unittest.TestCase):
         self.assertEqual(t["t"], "Change an item with words (Sneak peek)")
         self.assertIn(LABEL, t["s"][0])
         self.assertNotIn(OLD_LABEL, json.dumps(t["s"]), "the steps name the box as the page labels it")
+
+    def test_no_shown_help_text_mentions_the_draft_chip(self):
+        """Ruling 1: the chip is gone, so Help neither names it in the peek's steps and parts nor draws its legend icon."""
+        import sys
+        sys.path.insert(0, str(ROOT / "tests"))
+        from _help_shown import shown_content
+        shown = json.dumps(shown_content(), ensure_ascii=False)
+        raw = json.dumps(json.loads((SRC / "help" / "helpContent.json").read_text(encoding="utf-8")), ensure_ascii=False)
+        for text, where in ((shown, "shown Help"), (raw, "the Help source")):
+            self.assertNotIn("**Draft**", text, where)
+            self.assertNotIn("writes one from the item", text, where)
+            self.assertNotIn("Write the latest update from the item", text, where)
+
+        def walk(o):
+            if isinstance(o, list):
+                if o[:2] == ["sparkle", "Draft"]:
+                    yield o
+                for x in o:
+                    yield from walk(x)
+            elif isinstance(o, dict):
+                for x in o.values():
+                    yield from walk(x)
+        self.assertEqual(list(walk(json.loads(raw))), [], "the icon legend has no Draft entry")
 
     def test_source_is_read_live_on_the_page_and_carried_by_name_in_a_file(self):
         """Ruling 2 (10-11): on the live page the line comes from the server (Edit and View alike, items and milestones); a published file
@@ -224,9 +248,13 @@ class Browser(Peeks):
                 self.assertNotIn("Source", self.labels(cdp, sid), "a line under the fields, not a field row")
                 self.no_controls(cdp, sid, "published file")
                 self.no_draft(cdp, sid, "published file")
-                cells = cdp.js(CELLS, sid)
-                self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, "the published cells are flat too (ruling of 10-11): " + str(cells))
+                for theme in ("light", "dark"):
+                    cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
+                    cells = cdp.js(CELLS, sid)
+                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
+                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"the published cells are flat too, {theme} (ruling of 10-11): " + str(cells))
+                    shadows = cdp.js(SECTIONS, sid)
+                    self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on a published peek's sections, {theme}: " + str(shadows))
                 published = self.labels(cdp, sid)
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
                 self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS + HISTORY_ROWS))
@@ -253,9 +281,14 @@ class Flat(Peeks):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.work(cdp, width)
-                cells = cdp.js(CELLS, sid)
-                self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, str(cells))
+                for theme in ("light", "dark"):
+                    cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
+                    cells = cdp.js(CELLS, sid)
+                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
+                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"{theme}: " + str(cells))
+                    shadows = cdp.js(SECTIONS, sid)
+                    self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on the editor's peek sections, {theme}: " + str(shadows))
+                cdp.js("document.documentElement.dataset.theme = 'light'", sid)
                 # the Activity tab (not selected): a keyboard focus draws an underline in the focus colour and no outline box
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
                 cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
@@ -281,6 +314,26 @@ class Flat(Peeks):
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
                 self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))
+
+    def test_the_words_box_placeholder_reads_at_4_5_to_1_in_light_and_dark(self):
+        """The browser's default placeholder colour was 3.14:1 in dark: the input's placeholder uses the muted text token."""
+        probe = ("(() => { const i = document.querySelector('#peek .sn-in'), rgb = (c) => (c.match(/[\\d.]+/g) || []).map(Number).slice(0, 3);"
+                 " return [rgb(getComputedStyle(i, '::placeholder').color), rgb(getComputedStyle(i).backgroundColor)]; })()")
+        lum = lambda c: sum(w * (v / 255 / 12.92 if v / 255 <= 0.03928 else ((v / 255 + 0.055) / 1.055) ** 2.4) for w, v in zip((0.2126, 0.7152, 0.0722), c))
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.work(cdp, width)
+                    cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+                    for _ in range(2):
+                        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .sn-in')", sid)))
+                    ink, ground = cdp.js(probe, sid)
+                    hi, lo = max(lum(ink), lum(ground)), min(lum(ink), lum(ground))
+                    self.assertGreaterEqual((hi + 0.05) / (lo + 0.05), 4.5, f"placeholder {ink} on {ground}")
+                    self.assertEqual(ink, cdp.js("(() => { const d = document.createElement('i'); d.style.color = 'var(--text-muted)'; document.body.append(d); const c = getComputedStyle(d).color; d.remove(); return (c.match(/[\\d.]+/g) || []).map(Number).slice(0, 3); })()", sid), "it is the muted text token")
 
     def test_the_words_box_is_a_foot_band_pinned_to_the_bottom_while_the_body_scrolls(self):
         for width in (1400, 900):

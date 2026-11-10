@@ -396,7 +396,7 @@
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and the item is listed under “Needs from you”.",
-     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
+     "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
@@ -1436,7 +1436,7 @@
        "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
        "**A warning**, when an action is overdue or due on a weekend, with fixes.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
-       "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
+       "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
        "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
@@ -2240,12 +2240,6 @@
     "Legend",
     "What each milestone mark means",
     "Under the milestones"
-   ],
-   [
-    "sparkle",
-    "Draft",
-    "Write the latest update from the item’s own facts",
-    "The peek, in Edit"
    ],
    [
     "close",
