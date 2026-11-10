@@ -58,6 +58,7 @@ class Pick(Bar):
                 want = "2031-05-09" if how == "day" else self.store.read("projects", ref="ABC")["week_ending"]
                 self.assertEqual(self.week(), want)
                 self.assertRegex(p.toast(), r"^Week ending changed to \d\d-\d\d-\d{4}\.$")
+                p.until("!(%s)" % PANEL, "the panel closed")      # it closes a frame after the save is shown
                 self.assertIsNone(p.js(PANEL))
                 self.assertEqual(p.js("document.activeElement.id"), "week-ending-pick")
                 self.set_week("2031-05-02")
