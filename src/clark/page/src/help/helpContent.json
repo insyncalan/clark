@@ -2769,7 +2769,7 @@
      "d": "When the table shows what you want, press **+ New view**, at the end of the tabs."
     },
     {
-     "d": "A box opens with the label **Name for the new view**. Type a name of up to 40 characters, then press **Save**. A name that is empty, too long or already used by another view is refused, and a line beside the box says why."
+     "d": "The view is made at once, with no name asked first. It is called View 1, then View 2, and so on, using the lowest number no other view has. To give it a name of your own, see the steps on renaming below."
     },
     {
      "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
