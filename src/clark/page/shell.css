@@ -2049,7 +2049,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .pk-fields > .pk-row[data-row=due] { order: 4; }
 .pk-fields > .pk-row[data-row] dd { min-width: 0; }
 @container (min-width: 560px) { .pk-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
-@container (max-width: 420px) { .pk-fields > .pk-row[data-ms-row] { grid-template-columns: minmax(0, 1fr); gap: var(--space-1); } }   /* row 1078 (the design's narrow case): in a narrow peek a milestone's label sits above its value, so the rich editor keeps its width */
 
 /* Publish progress: main draws the ring (.spin, a still ring with one strong quarter) and the green tick; clark's own setting
    (<html data-motion="reduce">) also stops the ring, which the media query alone would not. */
