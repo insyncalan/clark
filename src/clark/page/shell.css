@@ -22,12 +22,12 @@ a { color: var(--status-blue-text); }
 .logo-icon { display: var(--logo-icon); width: 28px; height: 28px; margin-right: var(--space-2); background: center / contain no-repeat; }   /* the image is added by dev/tools/build_page.py */
 .logo .wm { font-weight: var(--weight-medium); font-size: var(--size-h2); letter-spacing: .02em; }   /* 24 px, as the owner ruled for the PR 240 sizes */
 .top .divider { width: 1px; height: 26px; background: color-mix(in srgb, var(--white) 20%, transparent); }
-.proj { font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
 .projbtn { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; padding: var(--space-1) var(--space-2); border-radius: var(--radius); cursor: pointer; font-size: var(--size-small); color: color-mix(in srgb, var(--white) 85%, transparent); }
 .projbtn:hover { background: color-mix(in srgb, var(--white) 14%, transparent); }
 .projbtn:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .projbtn .nch { width: 14px; height: 14px; }
-.top .projbtn { display: inline-flex; justify-content: space-between; width: 220px; max-width: 100%; min-width: 0; border: 1px solid var(--grey-500); }   /* a bordered box with the chevron at its right edge; it narrows (the name's ellipsis) rather than run the bar past 900 px */
+.top .projbtn { display: inline-flex; justify-content: center; width: auto; min-width: 24px; min-height: 24px; padding: var(--space-1); border: 0; }   /* row 1064: the name is not drawn in the bar (it stays for a screen reader), so the switcher is the chevron alone */
+@media (min-width: 481px) { .top .tabs { margin-left: var(--space-4); } }   /* row 1064: room between the logo (and the switcher) and the top menu items */
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
@@ -128,7 +128,7 @@ button.pillbtn { min-height: 28px; border: 0; cursor: pointer; font: inherit; fo
 .tile .l { font-size: var(--size-caption); color: var(--text-muted); }
 ul.plain { margin: 0; padding: 0; list-style: none; }
 ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
-@media (max-width: 900px) { main { padding: 20px var(--space-4) 72px; } .frame { padding: 18px var(--space-4); } .proj { display: none; } }
+@media (max-width: 900px) { main { padding: 20px var(--space-4) 72px; } .frame { padding: 18px var(--space-4); } }
 
 /* The contents minimap (FR-18, #67): short lines at the right edge; hover or focus opens the list. Tokens only. */
 .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -1546,7 +1546,7 @@ h1, h2, h3, .fig .v, .tile .n { font-family: var(--font-head); font-weight: 800;
 #work .crumbs, #milestones.pub .crumbs, #usecases-file .crumbs { font-weight: 400; text-transform: none; letter-spacing: normal; }   /* the published tabs share one plain line (the editor's Milestones keeps its own) */
 #work .head h1 { margin: 0; }
 .fig .k, .tile .l { font-family: var(--font-label); font-weight: var(--weight-medium); }
-.tab, .proj { font-family: var(--font-label); font-weight: 500; }
+.tab { font-family: var(--font-label); font-weight: 500; }
 
 /* the home banner: a still picture a person's own look may set (--art-home, --art-home-height); empty and flat by default */
 .frame.empty::before { content: ""; display: block; height: var(--art-home-height); background: var(--art-home) center / contain no-repeat; }

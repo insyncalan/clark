@@ -59,7 +59,7 @@
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects."
+    "d": "The project button (the arrow beside the logo) in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -734,7 +734,7 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
+     "The project button (the arrow beside the logo) in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ],
     "page": [
      "settings"
@@ -884,7 +884,7 @@
      [
       "ul",
       [
-       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
+       "The project button (an arrow beside the logo): switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
