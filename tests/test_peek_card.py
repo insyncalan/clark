@@ -1,10 +1,12 @@
-"""Row 766: the peek's card. Status, Priority, Owner and Due are four cells above the other fields (the prototype's property row).
+"""Row 766: the peek's property row. Status, Priority, Owner and Due are four cells above the other fields (the prototype's property row);
+row 1077 (the owner's ruling of 10-11-2026) makes them FLAT: no tile edge, no rounding, no fill, one hairline under the row (the first
+ordinary row's top edge), in the editor and in a published file alike (shell.css is the published page's).
 
 Run: python3 dev/run_tests.py test_peek_card
 
-The page is measured in a real browser at 1400 and 900 px, light and dark, in View and in Edit: the cells sit in a card order
+The page is measured in a real browser at 1400 and 900 px, light and dark, in View and in Edit: the cells sit in a row order
 (Status, Priority, Owner, Due) above Type and the other rows, two by two in the usual width and four across when the panel is
-widened, each with a visible edge in the theme's own grey, none cut off or pushing the panel sideways. A decision has no Priority
+widened, none boxed, none cut off or pushing the panel sideways. A decision has no Priority
 cell and keeps the other three. The look needs no new words: the rows are the same ones, so the labels are checked unchanged.
 """
 import json
@@ -27,12 +29,13 @@ READ = """(() => {
   for (const k of ['status', 'priority', 'owner', 'due']) {
     const el = peek.querySelector('.pk-fields > [data-row=' + k + ']'); if (!el) continue;
     const dd = el.querySelector('dd'), cs = getComputedStyle(el);
-    cells[k] = { ...box(el), border: cs.borderTopWidth, borderColor: cs.borderTopColor, radius: cs.borderTopLeftRadius, label: el.querySelector('dt').textContent,
-      overflow: dd.scrollWidth - dd.clientWidth };
+    cells[k] = { ...box(el), border: [cs.borderTopWidth, cs.borderRightWidth, cs.borderBottomWidth, cs.borderLeftWidth].join(' '), radius: cs.borderTopLeftRadius, bg: cs.backgroundColor,
+      label: el.querySelector('dt').textContent, overflow: dd.scrollWidth - dd.clientWidth };
   }
   const type = [...peek.querySelectorAll('.pk-fields > .pk-row')].find((r) => r.querySelector('dt').textContent === 'Type');
   const labels = [...peek.querySelectorAll('.pk-fields > .pk-row dt')].map((d) => d.textContent);
-  return { id: peek.dataset.peek, cells, type: type ? box(type) : null, labels, peek: box(peek), edge: probe('--grey-200'),
+  const ts = type ? getComputedStyle(type) : null;
+  return { id: peek.dataset.peek, cells, type: type ? { ...box(type), line: ts.borderTopWidth, lineColor: ts.borderTopColor } : null, labels, peek: box(peek), edge: probe('--grey-100'),
     sideways: peek.scrollWidth - peek.clientWidth, doc: document.documentElement.scrollWidth - document.documentElement.clientWidth };
 })()"""
 
@@ -57,9 +60,9 @@ class CardBrowser(unittest.TestCase):
         cells = got["cells"]
         self.assertEqual(list(cells), ["status", "priority", "owner", "due"] if "priority" in cells else ["status", "owner", "due"], where)
         for k, c in cells.items():
-            self.assertEqual(c["border"], "1px", f"{where} {k}: a visible edge")
-            self.assertEqual(c["borderColor"], got["edge"], f"{where} {k}: the edge is the theme's own grey")
-            self.assertGreater(float(c["radius"].replace("px", "")), 0, f"{where} {k}: rounded like the other cards")
+            self.assertEqual(c["border"], "0px 0px 0px 0px", f"{where} {k}: flat, no tile edge (row 1077)")
+            self.assertEqual(c["radius"], "0px", f"{where} {k}: no rounding")
+            self.assertEqual(c["bg"], "rgba(0, 0, 0, 0)", f"{where} {k}: no fill of its own")
             self.assertLessEqual(c["overflow"], 1, f"{where} {k}: nothing cut off")
             self.assertGreaterEqual(c["w"], 100, f"{where} {k}: wide enough to read")
             self.assertGreaterEqual(c["l"], got["peek"]["l"], where)
@@ -76,7 +79,8 @@ class CardBrowser(unittest.TestCase):
             self.assertEqual(round(order[0]["l"]), round(order[2]["l"]), f"{where}: two columns")
             self.assertEqual(round(order[0]["w"]), round(order[1]["w"]), f"{where}: equal cells")
         self.assertIsNotNone(got["type"], where)
-        self.assertGreaterEqual(got["type"]["t"], max(c["b"] for c in order) - 1, f"{where}: Type and the rest sit below the card")
+        self.assertGreaterEqual(got["type"]["t"], max(c["b"] for c in order) - 1, f"{where}: Type and the rest sit below the row")
+        self.assertEqual((got["type"]["line"], got["type"]["lineColor"]), ("1px", got["edge"]), f"{where}: one hairline under the property row, the theme's own")
         known = {"Type", "Owner", "Decision by", "Due", "Needed by", "Date", "Priority", "Status", "Workstream", "Milestone", "Use case", "Shown to client", "Client wording", "Raised", "Last reviewed"}
         self.assertLessEqual(set(got["labels"]), known, f"{where}: the same labels as before (no new words)")
 
@@ -113,6 +117,10 @@ class CardRule(unittest.TestCase):
         block = css[start:css.index("\n\n", start)]
         self.assertIn("container-type: inline-size", block)
         self.assertIn("@container (min-width: 560px)", block)
+        flat = next(l for l in block.splitlines() if l.startswith(".pk-fields > .pk-row[data-row] {"))
+        for boxed in ("border: 1px", "border-radius: var(", "background: var("):
+            self.assertNotIn(boxed, flat, "row 1077: the four cells are flat")
+        self.assertNotIn(".pk-row[data-row]", (ROOT / "src" / "clark" / "page" / "src" / "edit" / "edit.css").read_text(encoding="utf-8"), "one rule for the cells, the published page's")
         self.assertNotRegex(block, r"#[0-9A-Fa-f]{3,8}\b|rgba?\(|hsla?\(", "tokens only")
         self.assertNotRegex(block, r"font-size:\s*\d", "sizes come from the scale")
 

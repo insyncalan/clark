@@ -2,7 +2,9 @@
 peek, work item or milestone, shows its Source by NAME (never a path): the live page in Edit and in View, and a published file too;
 (3) the words box is headed "Ask clark to update for you"; (4) a client's peek (the Dashboard in View, and a published file) is the editor's,
 read only: no button, box or editable text among its fields, and the same field rows as the editor's, less the two rows that are themselves
-controls (Shown to client, Client wording).
+controls (Shown to client, Client wording); (5, ruled 10-11-2026) the peek is flat: the four property cells have no tile, a tab's focus is an
+underline and not a box, the Latest update field has no box at rest or under the pointer, and the words box is a foot band pinned to the
+bottom of the peek while its body scrolls; the flat cells reach the published peek too (shell.css is the published page's).
 Run: python3 dev/run_tests.py test_peek_ruled_1077
 
 The source and the built pages are read first (no browser); then the page in headless Chrome at 1400 and 900 px.
@@ -29,6 +31,9 @@ OLD_LABEL = "Change an item with words"
 EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows that are controls, not fields: the editor's alone
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
+CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor]; } return out; })()"
+FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)"]
+PROBE = "((name) => { const e = document.createElement('i'); e.style.cssText = 'border:1px solid var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).borderTopColor; e.remove(); return c; })"
 
 
 def code_files():
@@ -213,6 +218,9 @@ class Browser(unittest.TestCase):
                 self.assertNotIn("Source", self.labels(cdp, sid), "a line under the fields, not a field row")
                 self.no_controls(cdp, sid, "published file")
                 self.no_draft(cdp, sid, "published file")
+                cells = cdp.js(CELLS, sid)
+                self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
+                self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, "the published cells are flat too (ruling of 10-11): " + str(cells))
                 published = self.labels(cdp, sid)
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS], "the published rows are the editor's, read only")
                 self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS))
@@ -222,6 +230,72 @@ class Browser(unittest.TestCase):
                 self.assertEqual(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid), "Source: milestones.xlsx")
                 self.no_controls(cdp, sid, "published file, milestone")
                 self.no_draft(cdp, sid, "published file, milestone")
+
+
+class Flat(Browser):
+    """Ruling 5 (10-11-2026), in Edit on the Work items page: no tile, no boxed tab focus, no box round the Latest update, a pinned foot band."""
+    def work(self, cdp, width, height=900):
+        sid = self.live(cdp, width, self.store, f"#work&p={self.code}")
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": height, "deviceScaleFactor": 1, "mobile": False}, sid)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))
+        self.open_peek(cdp, sid, ACTION, "item")
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", sid)), "the slide-in has ended")
+        return sid
+
+    def test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.work(cdp, width)
+                cells = cdp.js(CELLS, sid)
+                self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
+                self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, str(cells))
+                # the Activity tab (not selected): a keyboard focus draws an underline in the focus colour and no outline box
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
+                cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
+                cdp.js("document.querySelector('#peek [data-pk-tab=activity]').focus()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkTab", sid) == "activity"))
+                got = cdp.js("(() => { const e = document.activeElement, c = getComputedStyle(e); return [e.matches(':focus-visible'), c.outlineStyle, c.borderBottomWidth, c.borderBottomColor]; })()", sid)
+                self.assertTrue(got[0], "the focus came from the keyboard: " + str(got))
+                self.assertEqual(got[1], "none", "no box round the tab: " + str(got))
+                self.assertEqual((got[2], got[3]), ("2px", cdp.js(f"{PROBE}('--focus')", sid)), "an underline in the focus colour: " + str(got))
+
+    def test_the_latest_update_has_no_box_at_rest_or_under_the_pointer(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.work(cdp, width)
+                sel = "#peek [data-pk-latest] [data-rich=latest_update]"
+                self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(sel)})", sid), "the Latest update is drawn (Work items has no View)")
+                look = f"(() => {{ const c = getComputedStyle(document.querySelector({json.dumps(sel)})); return [c.outlineStyle, c.outlineWidth, c.borderTopWidth, c.backgroundColor]; }})()"
+                rest = cdp.js(look, sid)
+                self.assertEqual((rest[0], rest[2], rest[3]), ("none", "0px", "rgba(0, 0, 0, 0)"), "at rest, plain text: " + str(rest))
+                x, y = cdp.js(f"(() => {{ const r = document.querySelector({json.dumps(sel)}).getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(sel)}).matches(':hover')", sid)), "the pointer is over it")
+                hover = cdp.js(look, sid)
+                self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
+                self.assertEqual(hover[3], cdp.js(f"{PROBE}('--grey-50')", sid), "a quiet tint says it can be edited: " + str(hover))
+
+    def test_the_words_box_is_a_foot_band_pinned_to_the_bottom_while_the_body_scrolls(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.work(cdp, width, height=560)                      # a short window: the peek's body is taller than the peek
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+                for _ in range(2):
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .wordsbox')", sid)), "two slashes open the box")
+                geo = "(() => { const p = document.querySelector('#peek'), w = p.querySelector('.wordsbox'), a = p.getBoundingClientRect(), b = w.getBoundingClientRect(), c = getComputedStyle(w); return { peekB: a.bottom, peekL: a.left, peekR: a.right, boxB: b.bottom, boxL: b.left, boxR: b.right, scroll: p.scrollHeight - p.clientHeight, top: p.scrollTop, line: c.borderTopWidth, radius: c.borderTopLeftRadius, shadow: c.boxShadow }; })()"
+                cdp.js("document.querySelector('#peek').scrollTop = 0", sid)
+                g = cdp.js(geo, sid)
+                self.assertGreater(g["scroll"], 40, "the body is taller than the peek, so there is something to scroll: " + str(g))
+                self.assertAlmostEqual(g["boxB"], g["peekB"], delta=1.5, msg="pinned to the bottom at the top of the scroll: " + str(g))
+                self.assertAlmostEqual(g["boxL"], g["peekL"] + 1, delta=1.5, msg="the band spans the peek (its left edge is the peek's border): " + str(g))
+                self.assertAlmostEqual(g["boxR"], g["peekR"], delta=1.5, msg="and reaches its right edge: " + str(g))
+                self.assertEqual((g["line"], g["radius"], g["shadow"]), ("1px", "0px", "none"), "a hairline above, no rounding, no floating shadow: " + str(g))
+                cdp.js("document.querySelector('#peek').scrollTop = 10000", sid)
+                h = cdp.js(geo, sid)
+                self.assertGreater(h["top"], 0, "the body scrolled")
+                self.assertAlmostEqual(h["boxB"], h["peekB"], delta=1.5, msg="still at the bottom after the scroll: " + str(h))
 
 
 if __name__ == "__main__":
