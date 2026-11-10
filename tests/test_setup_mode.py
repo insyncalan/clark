@@ -182,6 +182,31 @@ class Choose(Case):
         self.assertFalse(self.pointer().exists())
         self.assertEqual(service.folder, self.default)
 
+    def test_a_kept_folder_is_told_before_its_report_is_made(self):
+        # Critical reader: the setup server's /health kept saying the FIRST folder's mark, so the port check for the chosen folder saw
+        # another clark with other data (FIX), ready went false and done was refused for ever. `kept` is told the folder first.
+        told, during = [], []
+
+        def check(seen):
+            during.append(list(told))
+            return doctor.Line(doctor.READY, "fine")
+        service = self.setup(str(self.good), kept=told.append, checks=(doctor.Check("A check", True, check),))
+        report = service.choose("Choose")
+        self.assertEqual(told, [self.good])
+        self.assertEqual(during, [[self.good]])             # the report's checks ran after the folder was told
+        self.assertTrue(report["ready"])
+
+    def test_a_cancel_or_a_refusal_tells_nothing(self):
+        told = []
+        self.assertIsNone(self.setup(None, kept=told.append).choose("Choose"))
+        with self.assertRaises(setup_mode.Refused):
+            self.setup(str(self.onedrive / "clark"), kept=told.append).choose("Choose")
+        self.default.parent.rmdir()
+        self.default.parent.write_text("in the way", encoding="utf-8")
+        with self.assertRaises(setup_mode.Refused):
+            self.setup(str(self.good), kept=told.append).choose("Choose")
+        self.assertEqual(told, [])
+
     def test_refused_answers_write_nothing_and_say_the_doctors_words(self):
         link = self.home / "link"
         link.symlink_to(self.good)
@@ -609,6 +634,23 @@ class Relaunch(Case):
         (argv, env, log, cwd), = started
         self.assertEqual(argv, [sys.executable, "-m", "clark", "--data", str(self.good), "--port", "8801"])
         self.assertEqual((env["CLARK_LAUNCHED"], env["CLARK_PORT"], log, cwd), ("1", "8801", self.good / "server.log", str(self.good)))
+
+    def test_main_tells_the_server_the_chosen_folders_mark(self):
+        # so the real port check (doctor.check_port asking this server's /health) still sees clark with THIS data after the choice
+        from unittest import mock
+        from clark import appfiles, server
+        marks = []
+
+        def serve(setup):
+            marks.append(server.DATA_MARK)
+            setup.choose_folder = lambda prompt: str(self.good)        # never the system's window
+            setup.pointer = self.pointer                                 # the test's pointer: the real one is the Mac's
+            setup.choose("x")
+            marks.append(server.DATA_MARK)
+            return 0
+        with mock.patch.object(server, "DATA_MARK", None):
+            self.run_main(serve)
+        self.assertEqual(marks, [appfiles.data_mark(self.default), appfiles.data_mark(self.good)])
 
     def test_a_server_that_stopped_without_an_accepted_done_starts_nothing(self):
         self.assertEqual(self.run_main(lambda setup: 0)[:2], (0, []))

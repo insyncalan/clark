@@ -16,7 +16,7 @@ from unittest import mock
 from _paths import ROOT, SRC
 from test_server import Running, Stoppable
 
-from clark import platform as pl, server as sv, setup_mode
+from clark import appfiles, doctor, platform as pl, server as sv, setup_mode
 
 SETUP_GET = ["/api/setup/checks"]
 SETUP_POST = ["/api/setup/done", "/api/setup/finish", "/api/setup/folder"]
@@ -346,6 +346,51 @@ class Done(Case):
         old = sv.TOKEN
         with mock.patch.object(sv, "TOKEN", "n" * len(old)):
             self.assertEqual(self.get("/api/setup/checks", token=old)[1]["code"], "stale")
+
+
+class ChosenFolderPort(Case):
+    """Critical reader (CHANGES): the server's data mark was set once, from the first folder. After a folder was chosen the REAL port check
+    (doctor.check_port asking this server's own /health with the new folder's mark) saw another clark with other data: FIX, ready false,
+    done 409 not_ready, and the page could never finish. Here the real check runs against the real setup server on its own port."""
+
+    def setUp(self):
+        super().setUp()
+        self.service = setup_mode.Setup(
+            self.default, home=self.home, on=pl.MAC, choose_folder=self.choose, onedrive_roots=lambda: [self.onedrive],
+            prompt="Pick", kept=setup_mode.server_mark, checks=[c for c in doctor.CHECKS if doctor.check_id(c) == "port"])
+        self.s = self.start(self.service)
+        self.service.environ = {"CLARK_PORT": str(self.s.port)}                  # the check asks THIS server
+        patch = mock.patch.object(sv, "DATA_MARK", appfiles.data_mark(self.default))   # as main sets it before serving
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def port_row(self):
+        status, body = self.get("/api/setup/checks")
+        self.assertEqual(status, 200)
+        return body["ready"], [r for r in body["checks"] if r["id"] == "port"][0]
+
+    def test_the_real_port_check_stays_ready_after_a_folder_is_chosen_so_done_is_accepted(self):
+        ready, row = self.port_row()
+        self.assertEqual((ready, row["status"]), (True, doctor.READY))
+        self.answer = str(self.good)
+        status, body = self.post("/api/setup/folder")
+        self.assertEqual((status, body["chosen"], body["folder"]), (200, True, "~/Elsewhere"))
+        ready, row = self.port_row()
+        self.assertEqual((ready, row["status"]), (True, doctor.READY), row["words"])     # was FIX "...different data", ready False
+        self.assertNotIn("different data", row["words"])
+        self.assertEqual(sv.DATA_MARK, appfiles.data_mark(self.good))
+        status, body = self.post("/api/setup/done")
+        self.assertEqual((status, body), (200, {"ok": True, "restart": True}))
+        self.s.thread.join(5)
+        self.assertFalse(self.s.thread.is_alive())
+
+    def test_a_refused_folder_leaves_the_mark_alone(self):
+        inside = self.onedrive / "clark"
+        inside.mkdir()
+        self.answer = str(inside)
+        self.assertEqual(self.post("/api/setup/folder")[0], 409)
+        self.assertEqual(sv.DATA_MARK, appfiles.data_mark(self.default))
+        self.assertEqual(self.port_row()[1]["status"], doctor.READY)
 
 
 class Source(unittest.TestCase):

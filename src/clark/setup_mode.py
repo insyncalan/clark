@@ -53,8 +53,9 @@ def _plain_path(text):
 
 class Setup:
     def __init__(self, folder, home=None, on=None, choose_folder=None, onedrive_roots=None, pointer=None, checks=None,
-                 environ=None, prompt=None, finish=None):
+                 environ=None, prompt=None, finish=None, kept=None):
         self.folder, self.home, self.on = Path(folder), home, on
+        self.kept = kept or (lambda folder: None)       # told the chosen folder once it is kept, before its report (main: server_mark)
         self.choose_folder = choose_folder or platform.choose_folder
         self.onedrive_roots, self.environ = onedrive_roots, environ
         self.pointer = pointer or (lambda: Path(platform.data_dir(home, on=on)).parent / POINTER_NAME)
@@ -94,6 +95,7 @@ class Setup:
             folder = self.accept(answer)
             self.remember(folder)
             self.folder = folder
+            self.kept(folder)                               # the server's /health says the new folder before the port check asks it
             return self.report(folder)
         finally:
             self._dialog.release()
@@ -225,6 +227,14 @@ def start_refusal(folder):
     return lock_refusal(folder)
 
 
+def server_mark(folder):
+    """What main gives Setup as `kept`: the server's /health now says the chosen folder's mark. Without this the port check for the
+    chosen folder (doctor.check_port, which asks this very server) saw another clark with other data: FIX, ready false, and done
+    refused for ever. With it the check sees clark running with this data, as it did for the first folder."""
+    from clark import appfiles, server
+    server.set_data_mark(appfiles.data_mark(folder))
+
+
 def _busy():
     return {"ok": False, "code": "busy", "message": platform.TRY_AGAIN}        # existing words: a second try is the right thing
 
@@ -260,7 +270,7 @@ def main(argv=None, out=None, err=None, serve=None, environ=None, start=None, ho
     server.set_data_mark(appfiles.data_mark(folder))
     server.set_version(__version__)
     server.set_code_mark(appfiles.code_mark())
-    service = Setup(folder, home=home, onedrive_roots=onedrive_roots, prompt=FOLDER_PROMPT, finish=finish)
+    service = Setup(folder, home=home, onedrive_roots=onedrive_roots, prompt=FOLDER_PROMPT, finish=finish, kept=server_mark)
     code = (serve or server.serve)(port=port, out=out, err=err, setup=service)
     if code or not service.done:
         return code
