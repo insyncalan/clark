@@ -286,18 +286,20 @@ class Bulk(bb.Page):
 
 
 class UseCasesStatus(ucl.Setup):
-    """Row 3: the column filter box (.fbox) exists in the Edit app only on the Use cases page (Status); the Work items one is the published file's older bar."""
+    """Row 3, as row 1085 left it: the Status column filter box (.fbox) went with the Use cases page's switch (the Status choice is the filter line's
+    status: field); the page's one menu, Group by, fades out as every menu does (.ddmenu.leaving). The .fbox rule stays pinned below for the published file's older bar."""
 
-    def test_row_962_3_the_use_cases_status_filter_fades_out(self):
+    def test_row_962_3_the_use_cases_group_by_menu_fades_out(self):
         for motion in ("no-preference", "reduce"):
             with self.subTest(motion=motion), chrome() as cdp:
                 p = self.show(cdp, edit=True)
                 motion_of(cdp, p.sid, motion)
                 d = Drive(self, p.js, lambda e, what: p.until(e, what))
-                p.js("document.querySelector('#ucl-status').click()")
-                d.until("!!document.querySelector('.ucl-pop')", "the status choices")
-                d.fades(motion, esc_on(p.js, ".ucl-pop"), ".fbox.ucl-pop.leaving")
-                d.until("!document.querySelector('.ucl-pop:not(.leaving)')", "closed")
+                self.assertEqual(p.js("document.querySelectorAll('#ucl-status, .ucl-pop').length"), 0, "no Status popup on the page any more")
+                p.js("document.querySelector('#ucl-group').click()")
+                d.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu")
+                d.fades(motion, esc_on(p.js, ".ddmenu"), ".ddmenu.leaving")
+                d.until("!document.querySelector('.ddmenu:not(.leaving)')", "closed")
 
 
 class Pins(unittest.TestCase):

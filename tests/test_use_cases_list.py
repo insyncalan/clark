@@ -283,17 +283,17 @@ class List(Setup):
                     small = p.js("""[...document.querySelectorAll('#usecases button, #usecases input:not([type=checkbox]), #usecases a, #usecases [tabindex]')].map(e => {
                         const r = e.getBoundingClientRect(); return [e.className || e.id || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => x[1] < 24 || x[2] < 24)""")
                     self.assertEqual(small, [], "every control is at least 24 px each way")
-                    p.js("document.querySelector('#ucl-status').click()")
-                    p.until("!!document.querySelector('.ucl-pop')", "the status choices opened")
-                    small = p.js("""[...document.querySelectorAll('.ucl-pop label, .ucl-pop button')].map(e => { const r = e.getBoundingClientRect(); return [e.className || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => x[1] < 24 || x[2] < 24)""")
-                    self.assertEqual(small, [], "the status choices are big enough")
-                    self.assertTrue(p.js("[...document.querySelectorAll('.ucl-pop')].every(e => e.getBoundingClientRect().right <= window.innerWidth)"), "the choices stay in the window")
+                    p.js("document.querySelector('#ucl-group').click()")
+                    p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu opened")
+                    small = p.js("""[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].map(e => { const r = e.getBoundingClientRect(); return [e.className || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => x[1] < 24 || x[2] < 24)""")
+                    self.assertEqual(small, [], "the Group by choices are big enough")
+                    self.assertTrue(p.js("[...document.querySelectorAll('.ddmenu')].every(e => e.getBoundingClientRect().right <= window.innerWidth)"), "the menu stays in the window")
                     sizes = p.js("[...document.querySelectorAll('#usecases *')].filter(e => e.childNodes.length && [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim())).map(e => parseFloat(getComputedStyle(e).fontSize))")
                     self.assertGreaterEqual(min(sizes), 13, "no text under 13 px")
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
         sels = ["#usecases h1", ".ucl-sub", ".ucl-ref", ".ucl-go", ".ucl-name small", ".ucl-head", ".ucl-ms", ".ucl-wi", ".ucl-wi small", ".ucl-st .pill",
-                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".ucl-hd span", ".vtab", ".vtab em", ".ucl-pill", "#ucl-sort", "#ucl-q-count"]
+                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".ucl-hd span", ".vtab", ".vtab em", "#ucl-group", ".ucl-hd .ucl-sort", "#ucl-q-count"]
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
@@ -452,49 +452,46 @@ class Narrowing(Setup):
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "Clear the filters brings them all back")
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "")
 
-    def test_the_status_choice_takes_any_number_and_clears(self):
+    def test_the_status_field_takes_any_number_of_words_and_the_x_clears_it(self):
+        """Row 1085: the Status choice is the line's status: field (the popup went with the switch): one word, a list, or -status: to leave one out."""
         with chrome() as cdp:
             p = self.show(cdp)
-            self.click(p, "#ucl-status")
-            p.until("!!document.querySelector('.ucl-pop')", "open")
-            p.until("document.activeElement.value === 'On track'", "the first choice takes the focus")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucl-pop label')].map(e => e.textContent)"), ["On track", "Flag", "High risk", "Done"])
-            self.click(p, ".ucl-pop input[value=Flag]")
+            self.type_in(p, "#ucl-q", "status:Flag ")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "one is Flag")
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag")
-            self.click(p, ".ucl-pop input[value='High risk']")
+            self.assertEqual(p.js("document.querySelectorAll('#ucl-status, .ucl-pop, #usecases .seg, #ucl-sort').length"), 0, "no Status popup, switch or Sort menu beside the line")
+            self.click(p, "#ucl-q-x")
+            self.type_in(p, "#ucl-q", 'status:Flag,"High risk" ')
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "Flag and High risk")
             self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.10"])
             self.assertEqual(self.count(p), "Showing 2 of 4 · 2 on the dashboard")
-            self.press(p, "Escape")
-            p.until("!document.querySelector('.ucl-pop') && document.activeElement.id === 'ucl-status'", "Esc closes it and the focus returns")
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag, High risk")
-            self.click(p, "#ucl-status")
-            self.click(p, ".ucl-pop [data-clear]")
-            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "Clear")
-            self.click(p, "h1")
-            p.until("!document.querySelector('.ucl-pop')", "a click away closes it")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-chip]')].map(e => e.dataset.chip)"), ['status:Flag,"High risk"'])
+            self.click(p, "#ucl-q-x")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "the x clears it")
+            self.assertEqual(p.js("document.activeElement.id"), "ucl-q", "and the box keeps the focus")
+            self.type_in(p, "#ucl-q", "-status:Flag ")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 3", "all but Flag")
+            self.assertEqual(self.refs(p), ["UC 1.1", "UC 1.10", "UC 2.1"])
 
-    def test_done_has_its_word_in_a_grey_pill_its_own_filter_and_sorts_last(self):
-        """#412: a Done use case says Done in a grey pill, the Status choice can pick it, and sorting by status puts it last."""
+    def test_done_has_its_word_in_a_blue_chip_its_own_filter_and_sorts_last(self):
+        """#412 and row 1085: a Done use case says Done in a blue tinted dot chip (the approved colours), status:Done finds it, and sorting by status puts it last."""
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc3, {"status": "Done"})          # 1.10 was High risk: the worst, now finished
         with chrome() as cdp:
             p = self.show(cdp)
             pill = "document.querySelector('#usecases .ucl-row[data-uc=\"%s\"] [data-status]')" % self.uc3
             self.assertEqual(p.js(pill + ".textContent"), "Done")
-            self.assertEqual(p.js(pill + ".className"), "pill n")
-            self.click(p, "#ucl-sort")
-            p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the sort menu")
-            p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.includes('Status')).click()")
-            p.until("document.querySelector('#ucl-sort').textContent.trim() === 'Sort: Status'", "sorted")
+            self.assertEqual(p.js(pill + ".className"), "pill b")
+            self.assertEqual(p.js("getComputedStyle(" + pill + ", '::before').content"), '""', "the dot")
+            self.click(p, ".ucl-hd [data-sort=status]")
+            p.until("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed') === 'true'", "sorted")
             self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"], "Flag, then On track, then Done")
-            self.click(p, "#ucl-status")
-            p.until("!!document.querySelector('.ucl-pop')", "open")
-            self.click(p, ".ucl-pop input[value=Done]")
+            self.type_in(p, "#ucl-q", "status:")
+            self.press(p, "ArrowDown")
+            p.until("!!document.querySelector('#ucl-q-list')", "the status values")
+            self.assertEqual(p.js("[...document.querySelectorAll('#ucl-q-list .fopt')].find(o => o.dataset.ins === 'status:Done').querySelector('.fdv').dataset.tone"), "b", "Done is blue in the line's offer too")
+            p.js("[...document.querySelectorAll('#ucl-q-list .fopt')].find(o => o.dataset.ins === 'status:Done').click()")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "one is Done")
             self.assertEqual(self.refs(p), ["UC 1.10"])
-            self.assertEqual(p.js("document.querySelector('.ucl-pop input[value=Done] + .pill').className"), "pill n")
 
     def test_the_tabs_counts_follow_the_line_and_narrow_the_list(self):
         """Row 1085: the four fixed tabs (All use cases, On the dashboard, Committed, At risk) replace the switch; their counts follow the filter line."""
@@ -538,25 +535,28 @@ class Narrowing(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             got = p.js("[...document.querySelectorAll('#usecases .fvrow .ucl-tools button')].map(b => [b.id, b.getAttribute('aria-label')])")
-            self.assertEqual(got, [["ucAddPage", "Add use case"]], "the + with the Work items word, at the right end of the tabs row")
+            self.assertEqual(got, [["ucl-group", "Group by: Nothing"], ["ucAddPage", "Add use case"]], "Group by, then the + with the Work items word, at the right end of the tabs row")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .head button, #usecases #impBtn, #usecases #expBtn, #usecases .bib').length"), 0, "nothing is left in the head; no Import or Export icon on this page (the ruling)")
             self.assertGreater(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().left"), p.js("document.querySelector('[data-tab=risk]').getBoundingClientRect().right"), "to the right of the last tab")
             self.assertLess(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().bottom"), p.js("document.querySelector('#usecases [data-fline]').getBoundingClientRect().top") + 1, "above the line")
             self.click(p, "#ucAddPage")
             p.until("!!document.querySelector('#ucF')", "Add use case opens the box")
 
-    def test_sort_by_reference_status_and_open_work_items(self):
+    def test_sort_by_reference_status_and_open_work_items_on_the_column_names(self):
+        """Row 1085: the sort is on the column names (Ref, Status, Work items), the current one pressed and marked; the Sort menu went."""
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Reference")
-            for word, refs in (("Status", ["UC 1.10", "UC 1.2", "UC 1.1", "UC 2.1"]), ("Open work items", ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"]),
-                               ("Reference", ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])):
-                self.click(p, "#ucl-sort")
-                p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the sort menu")
-                self.assertEqual(p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].map(b => b.textContent.replace('✓', '').trim())"), ["Reference", "Status", "Open work items"])
-                p.js(f"[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.includes({json.dumps(word)})).click()")
+            heads = "[...document.querySelectorAll('#usecases .ucl-hd .ucl-sort')].map(b => [b.dataset.sort, b.getAttribute('aria-label'), b.getAttribute('aria-pressed'), b.querySelectorAll('svg').length])"
+            self.assertEqual(p.js(heads), [["ref", "Sort by Reference", "true", 1], ["status", "Sort by Status", "false", 0], ["open", "Sort by Open work items", "false", 0]], "Reference to start, marked")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-hd > *')].map(e => e.textContent.trim())"), ["Ref", "Use case", "Where it stands", "Status", "Work items", "Milestones", ""], "the column names read as before")
+            for key, word, refs in (("status", "Status", ["UC 1.10", "UC 1.2", "UC 1.1", "UC 2.1"]), ("open", "Open work items", ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"]),
+                                    ("ref", "Reference", ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])):
+                self.click(p, f".ucl-hd [data-sort={key}]")
                 p.until(f"{json.dumps(refs)}.join() === [...document.querySelectorAll('#usecases .ucl-list .ucl-row .ucl-ref')].map(e => e.textContent).join()", f"sorted by {word}")
-                self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), f"Sort: {word}")
+                self.assertEqual(p.js(f"document.querySelector('.ucl-hd [data-sort={key}]').getAttribute('aria-pressed')"), "true")
+                self.assertEqual(p.js(f"document.querySelector('.ucl-hd [data-sort={key}]').title"), f"Sort by {word}")
+                self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [aria-pressed=true]').length"), 1, "one column marked")
+            self.assertEqual(p.js("document.querySelectorAll('#ucl-sort').length"), 0)
 
     def test_what_was_chosen_is_remembered_for_each_project_and_adds_no_back_entry(self):
         with chrome() as cdp:
@@ -565,24 +565,23 @@ class Narrowing(Setup):
             self.type_in(p, "#ucl-q", "payment")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "the line applied (about 400 ms after the last key, as on Work items)")
             self.click(p, "[data-tab=on]")
-            self.click(p, "#ucl-sort")
-            p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.includes('Status')).click()")
-            p.until("document.querySelector('#ucl-sort').textContent.trim() === 'Sort: Status'", "sorted")
+            self.click(p, ".ucl-hd [data-sort=status]")
+            p.until("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed') === 'true'", "sorted")
             self.assertEqual(p.js("history.length"), before, "a filter, a search and a sort add no entry")
             self.assertEqual(p.js("location.hash"), "#usecases&p=ABC", "and are not in the address")
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment")
             self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true")
-            self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Status")
+            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(self.refs(p), ["UC 1.2"])
             saved = json.loads(p.js("localStorage.getItem('clark.ucPage')"))
             self.assertEqual(sorted(saved), ["ABC"], "kept under the project's code")
-            self.assertEqual(saved["ABC"], {"line": "payment", "tab": "on", "sort": "status"}, "row 1085: the search and the Status choice are one line, the switch a tab")
+            self.assertEqual(saved["ABC"], {"line": "payment", "tab": "on", "group": "nothing", "sort": "status"}, "row 1085: the search and the Status choice are one line, the switch a tab")
             p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {st: ['Flag'], on: 'nonsense', sort: 'nonsense', q: 5}, OTHER: {q: 'x'}}))")
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "", "a saved value that makes no sense falls back")
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag")
-            self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Reference")
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-chip]')].map(e => e.dataset.chip)"), ["status:Flag"])
+            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=ref]').getAttribute('aria-pressed')"), "true")
             self.assertEqual(p.js("document.querySelector('[data-tab=all]').getAttribute('aria-pressed')"), "true")
 
 
@@ -621,21 +620,14 @@ class Line(Setup):
             self.assertEqual(self.refs(p), ["UC 1.2"])
             self.assertEqual(self.chips(p), ["status:Flag"], "the complete filter became a chip")
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "", "and left the box")
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag", "the Status choice reads the line")
             self.assertEqual(p.js("document.querySelector('#ucl-q-count').textContent"), "1 of 4")
             self.assertEqual(self.count(p), "Showing 1 of 4 · 2 on the dashboard")
-            self.click(p, "#ucl-status")
-            p.until("!!document.querySelector('.ucl-pop')", "open")
-            self.assertEqual(p.js("document.querySelector('.ucl-pop input[value=Flag]').checked"), True)
-            self.click(p, ".ucl-pop input[value='High risk']")
-            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "Flag and High risk")
-            self.assertEqual(self.chips(p), ['status:Flag,"High risk"'], "the Status choice writes the one status chip")
-            self.assertEqual(self.line(p), 'status:Flag,"High risk"')
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag, High risk")
-            self.click(p, ".ucl-pop [data-clear]")
-            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "Clear")
+            self.assertEqual(self.line(p), "status:Flag")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"]["line"], "status:Flag", "remembered as the line")
+            self.click(p, "[data-fx]")
+            p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "the chip's own x takes it away")
             self.assertEqual((self.chips(p), self.line(p)), ([], ""))
-            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"]["line"], "", "remembered as the line")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"]["line"], "")
 
     def test_commitment_milestone_no_and_plain_words_and_a_field_this_page_does_not_have(self):
         with self.store.step("dashboard", USER) as st:
@@ -686,13 +678,12 @@ class Line(Setup):
             self.assertEqual(self.line(p), "status:Flag,Done payment runs", "the Status choice and the search are one line, the status first in its own order")
             self.assertEqual(self.chips(p), ["status:Flag,Done"])
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment runs")
-            self.assertEqual(p.js("document.querySelector('#ucl-status').textContent.trim()"), "Status: Flag, Done")
             self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true", "the switch's On the dashboard is the tab of that name")
-            self.assertEqual(p.js("document.querySelector('#ucl-sort').textContent.trim()"), "Sort: Status", "the sort is kept as it was")
+            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed')"), "true", "the sort is kept as it was")
             self.assertEqual(self.refs(p), ["UC 1.2"])
             self.click(p, "[data-tab=all]")
             p.until("document.querySelector('[data-tab=all]').getAttribute('aria-pressed') === 'true'", "all")
-            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"], {"line": "status:Flag,Done payment runs", "tab": "all", "sort": "status"}, "written back in the new shape")
+            self.assertEqual(json.loads(p.js("localStorage.getItem('clark.ucPage')"))["ABC"], {"line": "status:Flag,Done payment runs", "tab": "all", "group": "nothing", "sort": "status"}, "written back in the new shape")
             p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {q: 'a:b  zebra', on: 'off'}}))")
             reload_to_new_page(p.js, "!!document.querySelector('#usecases [data-fline]') && !!document.querySelector('#usecases [data-empty]')")   # no row matches: the empty state
             self.assertEqual(self.line(p), 'on:no "a:b" zebra', "the switch's Not on the dashboard (no tab) is on:no; a search word that would read as a field is quoted, so it stays a plain word")
@@ -855,7 +846,10 @@ class Keys(Setup):
             p = self.show(cdp, edit=True)
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases button, #usecases input')].filter(e => !(e.getAttribute('aria-label') || e.textContent.trim() || e.labels && e.labels.length)).length"), 0)
             self.assertEqual(p.js("document.querySelector('#usecases .ucl-list').getAttribute('aria-label')"), "Use cases")
-            self.assertEqual(p.js("document.querySelector('#usecases .ucl-hd').getAttribute('aria-hidden')"), "true")
+            # row 1085: the column names carry the sort, so the header row is not hidden from a screen reader any more; each sort button says what it does
+            self.assertIsNone(p.js("document.querySelector('#usecases .ucl-hd').getAttribute('aria-hidden')"))
+            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-hd button')].map(b => b.getAttribute('aria-label'))"), ["Sort by Reference", "Sort by Status", "Sort by Open work items"])
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [tabindex=\"-1\"]').length"), 0, "a keyboard reaches each one")
             self.assertEqual(p.js("document.querySelector('[data-eye]').getAttribute('aria-label')"),
                              f"UC 1.1 Invoice matching: {ON}. Take it off the dashboard")
             self.assertEqual(p.js("document.querySelector('#ucl-count').getAttribute('role')"), "status")

@@ -4,9 +4,10 @@
 // and how many are open, the linked milestones, and the eye (an icon alone; its words are the tooltip). The eye is the dashboard's own switch (use_cases.client_visible),
 // changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
-// row's eye and Left back to its name. The filter line (row 1085: the Work items box over this page's own fields, edit/UseCasesFilter.jsx),
-// the Status choice (the line's status chip), the On the dashboard switch and the sort are remembered for each project in this browser
-// (logic/useCasesList.js), never in the address, so they add no Back entry.
+// row's eye and Left back to its name. Row 1085: the page follows the Work items page: four fixed tabs with counts (All use cases, On the
+// dashboard, Committed, At risk) over one rule, Group by and the + at the row's end, the filter line under it (the Work items box over this
+// page's own fields, edit/UseCasesFilter.jsx), the sort on the column names. The tab, the line, the group and the sort are remembered for
+// each project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
@@ -14,13 +15,13 @@ import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
-import { listOf, ucFor, tidy, recalled, keep, shownOf, tabCounts, narrowed, countWords, rowSay, statusOf, withStatus, lineParts, groupsOf, groupLabel, STATUS_WORDS, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
+import { listOf, ucFor, tidy, recalled, keep, shownOf, tabCounts, narrowed, countWords, rowSay, lineParts, groupsOf, groupLabel, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
 import { commitWords } from "../logic/commitment.js";
 import { UseCaseDetail } from "../components/UseCaseDetail.jsx";
 import { UCEDIT, openAdd } from "./UseCasesEdit.jsx";
 import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { plural } from "../workItems.js";
-import { Menu, Fade } from "../components/Menu.jsx";
+import { Menu } from "../components/Menu.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
@@ -30,7 +31,6 @@ const tick = signal(0);
 const state = computed(() => { void tick.value; const code = project.value; return kept[code] || recalled(code); });
 const all = computed(() => (data.value ? listOf(data.value, allRows.value) : []));
 const current = signal("");                                   // the id of the row that is the list's one tab stop
-const statusOpen = signal(false);
 const archShown = signal(false);                            // row 830: Show archived is on (kept for the visit)
 const shutGroups = signal(new Set());                       // row 1085: the groups shut for the visit ("group|key"), never remembered
 let returning = "";                                           // the use case just left by Back: its row takes the focus when the list comes back
@@ -94,37 +94,6 @@ function keys(e) {
   (eye ? r.querySelector(".ucl-eye") || r.querySelector(".ucl-go") : r.querySelector(".ucl-go")).focus();
 }
 
-// The Status choice reads and writes the line's status chip (row 1085), so the two never disagree.
-function StatusFilter({ f, rows }) {
-  const st = statusOf(f.line, rows), setSt = (next) => set({ line: withStatus(f.line, next, rows) });
-  const box = useRef(null), wrap = useRef(null), open = statusOpen.value;
-  useEffect(() => {
-    if (!open) return;
-    const first = box.current && box.current.querySelector("input");
-    if (first) first.focus({ preventScroll: true });
-    const away = (e) => { if (wrap.current && !wrap.current.contains(e.target)) statusOpen.value = false; };
-    document.addEventListener("pointerdown", away, true);
-    return () => document.removeEventListener("pointerdown", away, true);
-  }, [open]);
-  const toggle = (w) => setSt(st.includes(w) ? st.filter((x) => x !== w) : [...st, w]);
-  const close = () => { statusOpen.value = false; const b = wrap.current && wrap.current.querySelector("button"); if (b) b.focus(); };
-  return (
-    <span class="fwrap" ref={wrap} onFocusOut={(e) => { if (open && e.relatedTarget && !wrap.current.contains(e.relatedTarget)) statusOpen.value = false; }}>
-      <button type="button" class={`btn ucl-pill${st.length ? " on" : ""}`} id="ucl-status" aria-haspopup="true" aria-expanded={open ? "true" : "false"} onClick={() => { statusOpen.value = !open; }}>
-        {st.length ? `Status: ${st.join(", ")}` : "Status: All"} <Icon name="chevdown" />
-      </button>
-      {open ? (
-        <Fade boxRef={box} class="fbox ucl-pop" role="group" aria-label="Status" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } }}>
-          {STATUS_WORDS.map((w) => (
-            <label key={w}><input type="checkbox" value={w} checked={st.includes(w)} onChange={() => toggle(w)} /><span class={`pill ${RAG[w]}`}>{w}</span></label>
-          ))}
-          <div class="fact ucl-pop-f"><button type="button" class="btn sm" data-clear onClick={() => setSt([])}>Clear</button></div>
-        </Fade>
-      ) : null}
-    </span>
-  );
-}
-
 // Row 830: the archived use cases, read with the archived rows (the page's own data leaves them out), under the list: a footer with
 // Show archived, and when on a box with each one's name (it opens read-only), a tag, its linked work items and Restore.
 function ArchivedUseCases() {
@@ -160,8 +129,15 @@ function ArchivedUseCases() {
   );
 }
 
-// The column names over the rows (hidden on a phone: each row names its own parts).
-const Hd = () => <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>;
+// The column names over the rows (hidden on a phone: each row names its own parts). Row 1085: Ref, Status and Work items carry the sort
+// (Reference, Status, Open work items: SORTS), the current one pressed and marked with a small chevron; the Sort menu went.
+function Hd({ sort }) {
+  const col = (k, word) => {
+    const label = (SORTS.find(([x]) => x === k) || [k, word])[1], on = sort === k;
+    return <button type="button" class="ucl-sort" data-sort={k} aria-pressed={on ? "true" : "false"} aria-label={`Sort by ${label}`} title={`Sort by ${label}`} onClick={() => set({ sort: k })}>{word}{on ? <Icon name="chevdown" /> : null}</button>;
+  };
+  return <div class="ucl-row ucl-hd">{col("ref", "Ref")}<span>Use case</span><span class="ucl-head">Where it stands</span>{col("status", "Status")}{col("open", "Work items")}<span class="ucl-ms">Milestones</span><span></span></div>;
+}
 
 function UseCasesList() {
   const f = state.value, rows = all.value, kept_ = shownOf(rows, f), n = tabCounts(rows, f);
@@ -179,14 +155,13 @@ function UseCasesList() {
     const el = list.current && list.current.querySelector(`[data-uc="${CSS.escape(from)}"] .ucl-go`);
     if (el) el.focus({ preventScroll: true });
   }, []);
-  const sortWord = (SORTS.find(([k]) => k === f.sort) || SORTS[0])[1];
   const clear = () => set({ line: "", tab: "all" });
   const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
   // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Add use case (the growing +) at its
   // right end (the ruling keeps the + and leaves the Import and Export icons off this page); the filter line under it. The tabs' counts follow the line.
   const tools = (
     <span class="ucl-tools">
-      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" left items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
+      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
     </span>
   );
@@ -212,13 +187,6 @@ function UseCasesList() {
         </div>
       ) : null}
       {rows.length ? <UseCasesFilter f={f} rows={rows} now={() => state.value.line} apply={(text) => set({ line: text })} /> : null}
-      {rows.length ? (
-        <div class="wbar ucl-bar" role="group" aria-label="Narrow the list">
-          <StatusFilter f={f} rows={rows} />
-          <Menu label={`Sort: ${sortWord}`} id="ucl-sort" menuLabel="Sort by" left items={SORTS.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} />
-          <span class="ucl-count num" id="ucl-count" role="status">{countWords(kept_.length, rows)}</span>
-        </div>
-      ) : null}
       {!rows.length ? <p class="muted ucl-none" data-empty>No use cases yet.</p>
         : !kept_.length ? (
           <div class="ucl-none" data-empty>
@@ -227,7 +195,7 @@ function UseCasesList() {
           </div>
         ) : f.group === "nothing" ? (
           <div class="ucl-box" ref={list} onKeyDown={keys}>
-            <Hd />
+            <Hd sort={f.sort} />
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
@@ -243,7 +211,7 @@ function UseCasesList() {
                 </div>
                 {g.shut ? null : (
                   <>
-                    <Hd />
+                    <Hd sort={f.sort} />
                     <ul class="ucl-list" aria-label={g.label}>
                       {g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
                     </ul>
@@ -253,6 +221,7 @@ function UseCasesList() {
             ))}
           </div>
         )}
+      {rows.length ? <p class="ucl-count num" id="ucl-count" role="status">{countWords(kept_.length, rows)}</p> : null}
       <ArchivedUseCases />
     </section>
   );

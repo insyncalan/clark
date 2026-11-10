@@ -10,7 +10,7 @@ import * as Q from "./filterQueryUi.js";
 import { compileQuery } from "./filterQueryEval.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
-export const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };  // the tint of each status word's chip
+export const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "b" };  // the tint of each status word's chip (row 1085: Done is blue, the approved colours)
 export const CALM_WORDS = ["On track", "Done"];                                // the two that are not flagged: on track, and finished
 const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
 export const ON_WORDS = "On the dashboard";
@@ -83,17 +83,6 @@ const parsedOf = (line, rows) => Q.parseFor(line, rows, CTX, LINE);
 /** One test for the line: row -> true when the line keeps it. A word the line cannot use filters nothing. */
 export const lineTest = (line, rows) => compileQuery(parsedOf(line, rows), CTX, LINE);
 const quoteVal = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : String(v));
-const isStatusTok = (t) => t.kind === "field" && t.field === "status" && !t.negate;
-/** The status words the line asks for (its status: chips, in STATUS_WORDS order). */
-export function statusOf(line, rows) {
-  const vals = parsedOf(line, rows).tokens.filter(isStatusTok).flatMap((t) => t.values).map((v) => v.toLowerCase());
-  return STATUS_WORDS.filter((w) => vals.includes(w.toLowerCase()));
-}
-/** The line with its status set to `st` (none: no status chip); everything else in the line stays. The chip goes first, as the box draws chips before the words. */
-export function withStatus(line, st, rows) {
-  const rest = Q.withoutTokens(line, isStatusTok, rows, CTX, LINE);
-  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), rest].filter(Boolean).join(" ");
-}
 /** The line in two: its complete filters and the plain words (what the empty state says back). */
 export const lineParts = (line, rows) => { const s = Q.splitLine(line, rows, CTX, LINE); return { chips: s.chips, words: parsedOf(s.rest, rows).text.join(" ") }; };
 
