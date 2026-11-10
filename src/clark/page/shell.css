@@ -285,6 +285,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fbox label .c { margin-left: auto; color: var(--text-muted); font-size: var(--size-caption); }
 /* The published file keeps the older filter bar and its chips (#69); the line is the app's only. */
 .wbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-4); margin-top: var(--space-3); }
+.wbar.keep { min-height: 32px; }                   /* row 1059: the app's bar holds the Show archived pill alone, which arrives after the first draw */
 .seg { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; background: var(--surface); }
 .seg button { all: unset; box-sizing: border-box; padding: 6px var(--space-3); min-height: 32px; font-size: var(--size-small); cursor: pointer; color: var(--text); }
 .seg button + button { border-left: 1px solid var(--border); }
