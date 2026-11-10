@@ -101,6 +101,13 @@ class Source(unittest.TestCase):
                     yield from walk(x)
         self.assertEqual(list(walk(json.loads(raw))), [], "the icon legend has no Draft entry")
 
+    def test_the_foot_band_rule_is_the_editors_alone(self):
+        """Rule 6 (fifth pass): `.peek .wordsbox` styles the Edit-only words box, so it is in edit.css and not in the published page."""
+        self.assertIn(".peek .wordsbox", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
+        self.assertNotIn(".peek .wordsbox", (SRC.parent / "shell.css").read_text(encoding="utf-8"))
+        self.assertNotIn(".peek .wordsbox", page.VIEW_PAGE.read_text(encoding="utf-8"))
+        self.assertIn(".peek .wordsbox", page.PAGE.read_text(encoding="utf-8"))
+
     def test_the_placeholder_rule_is_the_editors_alone(self):
         """Rule 6: the words box is Edit only, so its placeholder colour is in edit.css and not in the published page."""
         self.assertIn(".sn-in::placeholder", (SRC / "edit" / "edit.css").read_text(encoding="utf-8"))
