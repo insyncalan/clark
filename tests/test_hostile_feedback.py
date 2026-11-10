@@ -8,6 +8,7 @@ import unittest
 from urllib.parse import parse_qs, urlsplit
 
 import test_feedback_tab as tft
+from test_server import Running  # noqa: F401  (the Chrome harness the base class runs on; named here so the runner files this as a browser test)
 
 
 class Hostile(tft.InBrowser):

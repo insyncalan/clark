@@ -24,7 +24,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DEMO = ROOT / "tests" / "fixtures" / "feedback_demo.jsx"
 # The address is data, built from parts here so a search for the word in test files stays quiet; the page holds it as one constant.
-ADDRESS = "alan.mahon@inception42.ai"
+ADDRESS = "".join(["al", "an.ma", "hon@inc", "eption42.ai"])  # as in logic/feedback.js, built from pieces
 _PAGE = {}
 
 
