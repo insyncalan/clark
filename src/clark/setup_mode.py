@@ -130,7 +130,7 @@ class Setup:
 
     def page_html(self):
         """The setup page the server sends for GET / and GET /setup (the server adds this run's token)."""
-        return setup_page.html()
+        return setup_page.html(self.on)
 
     def remember(self, folder):
         platform.write_file(self.pointer(), str(folder) + "\n")

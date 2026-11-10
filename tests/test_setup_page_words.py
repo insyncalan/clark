@@ -281,7 +281,7 @@ class Replies(Case):
         self.assertTrue(all("page" in row for row in body["checks"]))
 
     def test_the_service_gives_the_page(self):
-        self.assertEqual(self.service().page_html(), setup_page.html())
+        self.assertEqual(self.service().page_html(), setup_page.html(on=pl.MAC))
 
     def test_the_default_prompt_stays_unset(self):
         self.assertIsNone(setup_mode.Setup(self.default).prompt)

@@ -11,7 +11,7 @@ Standard library only; this module imports nothing that reaches the store or pub
 import json
 import re
 
-from clark import doctor, typed
+from clark import doctor, platform, typed
 
 WORDS = {
     "title": "Setting up clark",
@@ -25,6 +25,14 @@ WORDS = {
     "fix_many": "{n} things to fix before clark can start. Fix each one, then choose Check again.",
     "unknown": ("Some checks can't run on this computer yet, so we can't say whether clark will start. Try starting it; if it won't, "
                 "tell the clark team."),
+}
+# PROPOSED, awaiting the owner's approval (comms/PLAN-106/836-gatekeeper-strings.md): clark.app is not signed or notarised, so a Mac asks once.
+GATEKEEPER = {
+    "head": "If your Mac won't open clark",
+    "why": "Apple has not checked clark, so your Mac asks you to allow it the first time. This is expected.",
+    "step_open": "Right click clark, choose Open, then choose Open again in the window that appears.",
+    "step_settings": ("If there is no Open button, open System Settings, choose Privacy and Security, find the message about clark "
+                      "and choose Open Anyway."),
 }
 LABELS = {kind: label.rstrip(":") for kind, label in doctor.LABELS.items()}
 
@@ -94,6 +102,9 @@ li[data-status="advice"] .label { color: var(--note); background: var(--note-bg)
 li[data-status="not checked"] .label { color: var(--unknown); background: var(--unknown-bg); }
 .line { font-weight: 700; }
 .problem { color: var(--fix); font-weight: 700; }
+#gatekeeper { margin-top: 32px; color: var(--muted); }
+#gatekeeper h2 { margin: 0 0 8px; font-size: 1.1rem; color: var(--text); }
+#gatekeeper ol { margin: 0 0 16px; padding-left: 24px; }
 .row { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
 button { font: inherit; font-weight: 700; min-height: 44px; padding: 8px 20px; border-radius: 8px; border: 2px solid var(--focus);
   background: var(--surface); color: var(--text); cursor: pointer; }
@@ -235,8 +246,24 @@ SCRIPT = """
 """ % {"choose_checks": json.dumps(list(CHOOSE_CHECKS))}
 
 
-def html():
-    """The page, as the server sends it (the server adds this run's token in the clark-boot block)."""
+def gatekeeper_section(on=None):
+    """The Gatekeeper help, only on a Mac (`on` is the system, default this computer); nothing on Windows, Linux or in Docker."""
+    if (on or platform.system()) != platform.MAC or platform.container_mode():
+        return ""
+    g = GATEKEEPER
+    return f"""<section id="gatekeeper">
+<h2>{g["head"]}</h2>
+<p>{g["why"]}</p>
+<ol>
+<li>{g["step_open"]}</li>
+<li>{g["step_settings"]}</li>
+</ol>
+</section>
+"""
+
+
+def html(on=None):
+    """The page, as the server sends it (the server adds this run's token in the clark-boot block). `on` is the system (default this computer)."""
     data = json.dumps({"words": WORDS, "labels": LABELS}).replace("<", "\\u003c")
     w = WORDS
     return f"""<!doctype html>
@@ -255,7 +282,7 @@ def html():
 <button type="button" id="choose" class="main" hidden>{w["choose"]}</button>
 <button type="button" id="again">{w["again"]}</button>
 </div>
-</main>
+{gatekeeper_section(on)}</main>
 <script type="application/json" id="setup-words">{data}</script>
 <script>{SCRIPT}</script>
 </body></html>
