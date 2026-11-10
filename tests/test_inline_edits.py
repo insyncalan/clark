@@ -6,7 +6,7 @@ pick sends, the choices each kind of item has, and the date picker's days. Part 
 are the real clark.changes over a real demo store (fictional data, built at CLARK_NOW=2026-10-28) and drives the committed page
 at 1400 and 900 px with real mouse and key events: each picker opens by a click and by the keyboard, a pick changes the row and
 the store in one step with Undo, Esc leaves the value as it was (one panel, closed by one Esc), and a click on the row still opens
-the item's peek. The table has no phone layout of its own (it is the 900 px one below that), so 390 px is not tested here.
+the item's peek.
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import contextlib
