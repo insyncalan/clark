@@ -720,6 +720,10 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cpop [role="menuitemradio"] { display: flex; align-items: center; }
 .cpop [role="menuitemradio"] { flex-wrap: wrap; }
 .cpop .menu-head { padding: 8px 12px 2px; font-size: var(--size-small); color: var(--text-muted); border-top: 1px solid var(--border); margin-top: 4px; }
+/* Row 1074: an icon before the word of a drop-down choice; its colour is the tone class's (.ic-r ...), so none is written here. */
+.cpop .mi-i { display: inline-flex; align-items: center; flex: none; margin-right: 8px; }
+.cpop .mi-i .i { width: 16px; height: 16px; }
+.cpop .cp-q .mi-i + span { margin-right: auto; }
 .cpop .mi-note { flex-basis: 100%; order: 2; font-size: var(--size-caption); color: var(--text-muted); }
 .cpop [role="menuitemradio"][aria-checked="true"]::after { content: "✓"; margin-left: auto; padding-left: 14px; color: var(--status-blue-text); }
 .cpop .menu-item:focus-visible, .cpop button:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
