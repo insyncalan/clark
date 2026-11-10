@@ -28,6 +28,13 @@ class Default(unittest.TestCase):
         env = {"LOCALAPPDATA": "D:\\Local", "USERPROFILE": "C:\\Users\\Someone"}
         self.assertEqual(pl.windows_data_default(env), "D:\\Local\\clark")
 
+    def test_a_local_app_data_that_is_not_a_usable_path_falls_to_the_profile(self):
+        profile = "C:\\Users\\Someone"
+        for bad in ("Local", "\\\\server\\share", "", None, 7):
+            with self.subTest(bad=bad):
+                self.assertEqual(pl.windows_data_default({"LOCALAPPDATA": bad, "USERPROFILE": profile}),
+                                 "C:\\Users\\Someone\\AppData\\Local\\clark")
+
     def test_a_trailing_separator_is_not_doubled(self):
         self.assertEqual(pl.windows_data_default({"LOCALAPPDATA": "D:\\Local\\"}), "D:\\Local\\clark")
 

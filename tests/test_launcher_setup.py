@@ -265,7 +265,7 @@ class StartSetup(unittest.TestCase):
         self.assertFalse(self.folder.parent.exists())
 
     def test_setup_is_only_started_for_a_reason_it_can_fix(self):
-        for reason in ("update", "version", "anything else"):
+        for reason in ("update", "version", "update_stopped", "anything else"):
             f = Fakes([launch.NOTHING])
             self.assertFalse(self.go(fakes=f, reason=reason), reason)
             self.assertEqual((f.started, f.windows, f.said), ([], [], []), reason)
