@@ -386,7 +386,7 @@ def read_milestone(data, row, words, now):
     return r
 
 
-COMMIT_WORDS = (("Planned 2027", re.compile(r"\bplanned\s+(?:for\s+)?2027\b", re.I)), ("Planned 2026", re.compile(r"\bplanned\s+(?:for\s+)?2026\b", re.I)),
+COMMIT_WORDS = (("Planned 2027", re.compile(r"\bplanned\s+(?:for\s+)?2027\b", re.I)), ("Planned 2026", re.compile(r"\bplanned\s+(?:for\s+)?2026\b(?![-/.]\d)", re.I)),
                 ("Committed", re.compile(r"\bcommitted\b", re.I)))
 NO_COMMIT = re.compile(r"\bno\s+(?:flag|commitment)\b|\b(?:clear|remove|drop|unset)\s+(?:the\s+)?(?:flag|commitment)\b", re.I)
 HEADLINE_QUOTED = re.compile(r"\bheadline\b\s*(?:\b(?:is|to|as)\b|[:=])?\s*(?:\"([^\"]*)\"|“([^”]*)”)", re.I)
