@@ -43,7 +43,7 @@ class BuildAppFailures(unittest.TestCase):
         return sorted(p.name for p in self.tmp.iterdir() if p.name.startswith(("clark-applet.", "clark-app.")))
 
     def scratch_requests(self):
-        text = self.mklog.read_text() if self.mklog.exists() else ""
+        text = self.mklog.read_text(encoding="utf-8") if self.mklog.exists() else ""
         return [l for l in text.splitlines() if "clark-applet." in l]
 
     def test_a_refusal_leaves_no_folder_and_no_scratch_source(self):

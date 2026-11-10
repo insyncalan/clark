@@ -25,7 +25,7 @@ class BuildAppMutProof(unittest.TestCase):
         return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, env=env)
 
     def source(self):
-        return (self.out / "clark.app" / "source.applescript").read_text()
+        return (self.out / "clark.app" / "source.applescript").read_text(encoding="utf-8")
 
     def test_a_port_with_every_digit_is_accepted(self):
         r = self.run_script("--test-data", str(self.tmp / "d"), "--test-port", "0123456789", str(self.out))
@@ -85,7 +85,7 @@ class BuildAppMutProof(unittest.TestCase):
         self.assertIn(f"Built {made[0]}/clark.app", r.stdout)
 
     def test_header_comment_names_the_real_dialog_text_path(self):
-        head = "".join(SCRIPT.read_text().splitlines(True)[:20])
+        head = "".join(SCRIPT.read_text(encoding="utf-8").splitlines(True)[:20])
         self.assertIn("FOLDER.applet-out.txt", head)
         self.assertNotIn("FOLDER/../applet-out.txt", head)
 

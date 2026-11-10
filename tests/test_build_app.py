@@ -13,7 +13,7 @@ SCRIPT = Path(__file__).resolve().parent.parent / "dev" / "tools" / "build_app.s
 
 def fake(bindir, name, body):
     p = Path(bindir) / name
-    p.write_text("#!/bin/sh\n" + body + "\n")
+    p.write_text("#!/bin/sh\n" + body + "\n", encoding="utf-8")
     p.chmod(p.stat().st_mode | stat.S_IXUSR)
 
 
@@ -45,7 +45,7 @@ class BuildApp(unittest.TestCase):
         return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, env=env)
 
     def source(self):
-        return (self.out / "clark.app" / "source.applescript").read_text()
+        return (self.out / "clark.app" / "source.applescript").read_text(encoding="utf-8")
 
     def test_the_script_is_valid_shell(self):
         self.assertEqual(subprocess.run(["/bin/bash", "-n", str(SCRIPT)]).returncode, 0)
@@ -70,11 +70,11 @@ class BuildApp(unittest.TestCase):
 
     def test_it_will_not_overwrite_an_app(self):
         (self.out / "clark.app").mkdir(parents=True)
-        (self.out / "clark.app" / "keep").write_text("mine")
+        (self.out / "clark.app" / "keep").write_text("mine", encoding="utf-8")
         r = self.run_script(str(self.out))
         self.assertEqual(r.returncode, 1)
         self.assertIn("already there", r.stderr)
-        self.assertEqual((self.out / "clark.app" / "keep").read_text(), "mine")
+        self.assertEqual((self.out / "clark.app" / "keep").read_text(encoding="utf-8"), "mine")
 
     def test_an_unknown_option_is_refused(self):
         r = self.run_script("--nope")
