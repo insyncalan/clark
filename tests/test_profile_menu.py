@@ -201,16 +201,17 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
 
-    def test_C_the_published_reports_entry_opens_settings_at_its_card(self):
-        """#443: after Export; it opens Settings and brings the Published reports card to the top. Nothing is published or written."""
+    def test_C_the_published_reports_entry_opens_its_own_page(self):
+        """#443, row 1087: after Export; it opens the Published reports page (no tab, no Settings card). Nothing is published or written."""
         with chrome() as cdp:
             p = self.page(cdp)
             before = self.rig.everything_written()
             self.open_menu(p)
             p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
-            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
-            p.until("!!document.querySelector('#pubs')", "the Published reports card is there")
-            self.assertEqual(p.js("document.querySelector('#pubs h2').textContent.indexOf('Published reports') === 0"), True)
+            p.until("location.hash.indexOf('#published') === 0", "the Published reports page opened")
+            p.until("!!document.querySelector('#pubs-page')", "the Published reports page is there")
+            self.assertEqual(p.js("document.querySelector('#pubs-page h1').textContent"), "Published reports")
+            self.assertEqual(p.js("[...document.querySelectorAll('header.top [role=tab]')].some(t => t.textContent.includes('Published'))"), False, "no tab")
             self.assertEqual(self.rig.everything_written(), before, "opening it writes nothing")
 
     def test_C_the_keys(self):
