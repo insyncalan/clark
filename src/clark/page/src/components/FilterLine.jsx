@@ -93,7 +93,12 @@ function SavedViews({ board }) {
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
-    else if (id === "saveas") setForm({ mode: "saveas", name: "", error: "" });
+    else if (id === "saveas") {          // row 1073: made at once, named View 1, View 2 ...; Rename… changes the name
+      const r = FL.addView(all, FL.nextViewName(all), line.trim());
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(code, r.views);
+      chosen.value = { ...chosen.value, [code]: r.id };
+    }
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
   };
@@ -177,7 +182,7 @@ function SavedViews({ board }) {
             </>
           ) : form.mode === "note" ? null : (
             <>
-              <label for="vname">{form.mode === "rename" ? "New name for this view" : "Name for the new view"}</label>
+              <label for="vname">New name for this view</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
               <button type="submit" class="btn sm" id="vsave">Save</button>
             </>
