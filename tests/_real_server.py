@@ -15,7 +15,7 @@ from _demo import USER
 from _paths import SRC
 from clark import (activity_read, app_settings, as_at, ask_folders, changes, draft_email_feed, milestone_feed, safety, sneak,
                    word_route)
-from test_server import Running
+from test_server import Running, Stoppable  # noqa: F401 (Stoppable is re-used by test_server_setup)
 
 
 def real_handlers(path, data_for, who=USER, roots=None, choose_folder=None):

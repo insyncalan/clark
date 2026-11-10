@@ -42,7 +42,7 @@ class Hooks(unittest.TestCase):
     def test_an_update_that_cannot_be_finished_says_its_line_then_hands_over_to_setup(self):
         f = Fakes([launch.NOTHING])
         code = self.run_launch(f, finish=lambda folder, say: say("UPDATE LINE") and False)
-        self.assertEqual((code, self.setup.calls), (0, [(8800, self.folder, "update")]))
+        self.assertEqual((code, self.setup.calls), (0, [(8800, self.folder, "update_stopped")]))
         self.assertEqual((f.said, f.started), (["UPDATE LINE"], []))
 
     def test_when_setup_does_not_come_up_the_old_exit_and_line_stay(self):

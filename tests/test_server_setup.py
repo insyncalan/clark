@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest import mock
 
 from _paths import ROOT, SRC
-from test_server import Running, Stoppable
+from _real_server import Running, Stoppable   # the server harness, by way of the real-server helper (this file drives no browser)
 
 from clark import appfiles, doctor, platform as pl, server as sv, setup_mode
 

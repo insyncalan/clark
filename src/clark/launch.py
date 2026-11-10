@@ -213,7 +213,7 @@ def data_problem(folder, environ=None):
 def start_setup(port, folder, reason, say, environ, start, health, wait, find_chrome, open_window, open_browser, log_dir=None):
     """Row 836 step 4c: start setup mode (python3 -m clark.setup_mode, a process of its own, named by a string) for `folder` on
     `port` and open its window. True when it answered and the window was opened; False when it could not be started or did not
-    answer, with nothing said and nothing left running, so the caller says its old line. `reason` ("data_folder", "update",
+    answer, with nothing said and nothing left running, so the caller says its old line. `reason` ("data_folder", "update_stopped",
     "version") is the caller's for its own words; the setup page draws every check itself. The log goes to the log folder and the
     process runs in clark's own folder: `folder` is the one that may not be used, so it is neither made nor written to.
     A `reason` setup cannot mend (SETUP_REASONS) is False at once: it would show all ready, finish, and start clark into the same stop."""
@@ -256,7 +256,7 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
     folder = Path(folder)
     mark = appfiles.data_mark(folder)
     if not finish(folder, say):
-        return 0 if setup is not None and setup(port, folder, "update") else 1
+        return 0 if setup is not None and setup(port, folder, "update_stopped") else 1
     if setup is None:
         if same_version.refuse():               # row 760: a folder of mixed versions never starts; after the recovery of an interrupted update, never before it
             return 1
