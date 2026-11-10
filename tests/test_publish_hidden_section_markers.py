@@ -120,6 +120,28 @@ class HiddenSections(Base):
         self.section("s-a-big", "text", runs, 1)
         self.section("s-b-later", "text", "<p>Zqcorp later section leaked sentence</p><p>Zq another later sentence</p>", 1)
         built, got = self.got()
-        self.assertEqual(len([m for m in got if len(m) < 1000 and "Hostile run number" in m]), publish_flow.MAX_RUN_MARKERS)
         self.assertIn("Zqcorp later section leaked sentence", got)
         self.assertTrue(self.refused(built, got, "Zqcorp later section leaked sentence"))
+        self.assertEqual(len([m for m in got if len(m) < 1000 and "Hostile run number" in m]), publish_flow.MAX_RUN_MARKERS // 2)   # two hidden sections: half the cap each
+
+    def test_many_big_hidden_sections_are_bounded_in_all_and_each_is_scanned(self):
+        # The store allows 100 sections: 90 hidden ones of 400 distinct runs each must not make 36,000 markers, and the last is still scanned.
+        for n in range(90):
+            runs = "".join("<p>Sect %02d bulk run number %04d filler</p>" % (n, i) for i in range(400))
+            self.section("s-%02d" % n, "text", runs, 1)
+        built, got = self.got()
+        run_markers = [m for m in got if len(m) < 1000 and "bulk run number" in m]
+        self.assertLessEqual(len(run_markers), publish_flow.MAX_TOTAL_RUN_MARKERS)
+        self.assertLessEqual(sum(len(m) for m in run_markers), publish_flow.MAX_TOTAL_RUN_CHARS)
+        for n in (0, 45, 89):
+            self.assertGreaterEqual(len([m for m in run_markers if m.startswith("Sect %02d " % n)]), publish_flow.MIN_SECTION_RUNS)
+
+    def test_the_character_cap_stops_long_runs(self):
+        # 100 distinct runs of 2,000 characters: the count cap (300) is not reached, the character cap is.
+        runs = "".join("<p>Long%03d %s</p>" % (i, "x" * 2000) for i in range(100))
+        self.section("s-long", "text", runs, 1)
+        got = self.got()[1]
+        run_markers = [m for m in got if m.startswith("Long")]
+        self.assertGreater(len(run_markers), 10)
+        self.assertLess(len(run_markers), 100)
+        self.assertLessEqual(sum(len(m) for m in run_markers), publish_flow.MAX_RUN_CHARS)

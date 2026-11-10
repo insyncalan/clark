@@ -39,8 +39,12 @@ from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 CLIENT_WORKBOOK = True      # item 713: every file made here carries the client workbook (or the too-large sentence) in its data block
-MAX_RUN_MARKERS = 300                # a hidden section's text runs become at most this many markers in all (each marker costs a scan), and at most
-MAX_RUN_CHARS = 100000               # this many characters; past either, no more run markers (the whole-body marker still stands)
+MAX_RUN_MARKERS = 300                # the text runs of the hidden sections share this many markers (each marker costs a scan): a section's share is this
+MAX_RUN_CHARS = 100000               # divided by the number of hidden sections (never under MIN_SECTION_RUNS / MIN_SECTION_CHARS), and the same for characters;
+MIN_SECTION_RUNS = 25                # past its share a section adds no more run markers (its whole-body marker still stands)
+MIN_SECTION_CHARS = 1000
+MAX_TOTAL_RUN_MARKERS = 3000         # a ceiling on all hidden sections together, whatever the shares: the store allows 100 sections, and 8,000 markers took 145 s
+MAX_TOTAL_RUN_CHARS = 200000
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
 TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",), "raid": ("description",),
                "decisions": ("decision",), "use_cases": ("title", "headline")}
@@ -229,24 +233,29 @@ def _body_runs(body):
 def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
     """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
     this is the second look at the finished file. A run is excused only when a kept value IS that run (the whole-value rule of
-    markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. At most MAX_RUN_MARKERS runs
-    and MAX_RUN_CHARS characters of each hidden section become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
+    markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. Each hidden section's share of MAX_RUN_MARKERS runs
+    and MAX_RUN_CHARS characters, and in all MAX_TOTAL_RUN_MARKERS runs and MAX_TOTAL_RUN_CHARS characters, become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
     whole body is still one marker (markers_for), so pasting all of it is refused."""
     kept_whole = {" ".join(t.split()) for t in kept_text} | {" ".join(r.split()) for r in kept_runs}
-    seen = set()
-    for row in store.read("report_sections", project=code):
-        if not row.get("hidden") or not _text(row.get("body")):
-            continue
-        count = chars = 0                                    # each hidden section has its own share of the cap, so a big one cannot hide a later one
+    seen, total, total_chars = set(), 0, 0
+    hidden = [row for row in store.read("report_sections", project=code) if row.get("hidden") and _text(row.get("body"))]
+    share = max(MIN_SECTION_RUNS, MAX_RUN_MARKERS // max(1, len(hidden)))              # each hidden section has its own share, so a big one cannot hide a later one
+    share_chars = max(MIN_SECTION_CHARS, MAX_RUN_CHARS // max(1, len(hidden)))
+    for row in hidden:
+        count = chars = 0
         for run in _body_runs(row["body"]):
             value = " ".join(run.split())
             if len(value) < MIN_MARKER or value in seen or value in kept_whole or to_client._key(value) in bare:
                 continue
-            if count >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
+            if count >= share or chars + len(value) > share_chars:
                 break
+            if total >= MAX_TOTAL_RUN_MARKERS or total_chars + len(value) > MAX_TOTAL_RUN_CHARS:
+                return
             seen.add(value)
             count += 1
             chars += len(value)
+            total += 1
+            total_chars += len(value)
             add(value, row.get("id"))
 
 
