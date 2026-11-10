@@ -4,7 +4,7 @@
 // Settings). The server decides and checks everything (past_reports.py); this draws its answers in plain words (logic/pastReports.js).
 // `api`, `openTab`, `code` and `name` are seams for the tests; the page passes none of them.
 import { useEffect, useState } from "preact/hooks";
-import { data, project, show } from "../stores/report.js";
+import { data, project, openSettings } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { dialog } from "./publishState.js";
 import { say } from "../stores/changes.js";
@@ -14,16 +14,9 @@ import { AsAtPick } from "./AsAtPick.jsx";            // item 349: the Dashboard
 
 const REAL = { list: listPublications, ready: readyPast, archive: archivePublication, restore: restorePublication };
 
-// The profile menu's "Published reports": Settings, with the card brought to the top (smoothly unless the person asked for less motion).
+// The profile menu's "Published reports": Settings on its own page (item 1024), the heading focused by the page.
 export function showPublished() {
-  show("settings");
-  setTimeout(() => {
-    const el = document.getElementById("pubs");
-    if (!el) return;
-    let calm = false;
-    try { calm = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { calm = false; }
-    el.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
-  }, 60);
+  openSettings("published");
 }
 
 export function PublishedReports({ api = REAL, openTab = openInNewTab, code = project.value, name, withAsAt = true, toast = say }) {
@@ -78,7 +71,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
   const rows = list ? list.publications.map(L.rowView) : [];
   return (
     <section class="frame setting" id="pubs">
-      <h2>{L.TITLE} · {title}</h2>
+      <h2 id="pubs-h" tabIndex={-1}>{L.TITLE} · {title}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted" id="pubs-loading">{L.LOADING}</p> : null}
       {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-pubs-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}

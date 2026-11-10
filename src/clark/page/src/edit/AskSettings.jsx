@@ -78,17 +78,16 @@ export function AskSettings() {
 
   const list = Array.isArray(folders) ? folders : [];
   return (
-    <>
     <section class="frame setting" id="ask-settings">
-      <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
-      <p class="muted">{named("Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.", askProvider.value)}</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
+      <h2 id="ask-settings-h" tabIndex={-1}>Claude and AI</h2>
+      <p class="muted">{named("Claude is started on this computer for you. What you ask, and the passages and folder files it needs, go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.", askProvider.value)}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on.", askProvider.value) : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>
       </div>
-      <h3>Folders asking may read</h3>
-      <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.", askProvider.value)}</p>
+      <h3 id="ask-folders-h">Folders asking may read</h3>
+      <p class="muted">{named("Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file.", askProvider.value)}</p>
       {folders === "unavailable" ? <p class="muted" id="ask-folders-note">{NOT_READY}</p> : null}
       {folders !== "unavailable" && folders !== null && !list.length ? <p class="muted" id="ask-folders-none">No folders are set. Asking uses only this project's data.</p> : null}
       {list.length ? (
@@ -104,8 +103,7 @@ export function AskSettings() {
         </div>
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      <AiSettings />
     </section>
-    <AiSettings />
-    </>
   );
 }

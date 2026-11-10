@@ -39,7 +39,7 @@ class AsAtPage(Base):
             con.execute(f"UPDATE {table} SET at = ? {where[0]}", (when, *where[1]))
 
     def show(self, cdp, width=1400, dark=False):
-        p = Pg.at(self, cdp, self.s.port, "#settings&p=ABC")
+        p = Pg.at(self, cdp, self.s.port, "#settings&p=ABC&s=published")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         if dark:
             p.js("document.documentElement.dataset.theme = 'dark'")

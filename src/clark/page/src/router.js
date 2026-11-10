@@ -8,6 +8,9 @@
 // goes through navigate(), the one place that touches history, and filters, search, sort, scroll, Edit mode and the calendar
 // scale never call it, so they add no entry.
 //
+// Settings shows one page at a time (item 1024): "#settings&s=people". `s` is one of SETTINGS_PAGES, kept only on the Settings view; an
+// unknown page is dropped, and Projects (the page plain "#settings" opens) is never written, so it has one address and one history entry.
+//
 // One more key, `f`, belongs to the Work items filters (#64a): "#work&p=PDF&f=<text>". The router NEVER parses it. `f` is an
 // opaque string, kept exactly as it stands in the address: never decoded, re-encoded or double-encoded, so "%26" and "%3D" in it
 // come back as "%26" and "%3D", and the caller (the filters) encodes and decodes its own text. It is trusted only if it is at
@@ -19,6 +22,7 @@
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
 export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"];   // "clientreport": Client Requested Report View (#192); "gantt": the project's Gantt, offered only where its setting says so (#926)
+export const SETTINGS_PAGES = ["projects", "people", "published", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"];   // the Settings pages' address keys, in menu order (item 1024); the menu in Views.jsx names them
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
@@ -42,7 +46,8 @@ function clean(state) {
   const item = peekable && ID.test(text(s.item)) ? s.item : "";
   const ms = peekable && !item && ID.test(text(s.ms)) ? s.ms : "";
   const uc = view === "usecases" && UC_KEY.test(text(s.uc)) ? s.uc : "";     // "#usecases&p=PDF&uc=1.2": one use case's own page; no other page has it
-  return { view, project, item, ms, f: opaque(s.f), uc };
+  const page = view === "settings" && text(s.s) !== SETTINGS_PAGES[0] && SETTINGS_PAGES.includes(text(s.s)) ? s.s : "";     // "#settings&s=people"; "" is Projects
+  return { view, project, item, ms, f: opaque(s.f), uc, s: page };
 }
 
 /** True for a well-formed project code. */
@@ -54,25 +59,25 @@ function unescape(v) {
   try { return decodeURIComponent(v); } catch (e) { return ""; }
 }
 
-/** A hash (with or without the "#") as {view, project, item, ms, f, uc}. Never throws; whatever it can't trust is left empty. */
+/** A hash (with or without the "#") as {view, project, item, ms, f, uc, s}. Never throws; whatever it can't trust is left empty. */
 export function parse(hash) {
   const parts = (typeof hash === "string" ? hash : "").replace(/^#/, "").split("&");
   const found = {};
   for (const part of parts.slice(1)) {
     const at = part.indexOf("=");
     const key = at < 0 ? part : part.slice(0, at);
-    if (key in found || !["p", "item", "ms", "f", "uc"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
+    if (key in found || !["p", "item", "ms", "f", "uc", "s"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
     const raw = at < 0 ? "" : part.slice(at + 1);
     found[key] = key === "f" ? raw : unescape(raw);                        // `f` is passed through as it stands, never decoded
   }
-  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc });
+  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc, s: found.s });
 }
 
-/** {view, project, item, ms, f, uc} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
+/** {view, project, item, ms, f, uc, s} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
 export function format(state) {
   const s = clean(state);
   return "#" + s.view + (s.project ? "&p=" + s.project : "") + (s.uc ? "&uc=" + encodeURIComponent(s.uc) : "") + (s.item ? "&item=" + encodeURIComponent(s.item) : "") +
-    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "");
+    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.s ? "&s=" + s.s : "") + (s.f ? "&f=" + s.f : "");
 }
 
 try { history.scrollRestoration = "manual"; } catch (e) { /* the page works with the browser's default */ }
@@ -87,6 +92,15 @@ function here() {
   try { return location.hash; } catch (e) { return ""; }
 }
 shown = screenKey(parse(here()));
+// An address with something the page drops (a junk "s" value, say) is rewritten once at startup to the form it will draw, in place: no entry is added.
+try {
+  // A parameter this page does not know (a later version's, a link's own "&foo=1") is kept as typed when it is plain text: the page drops
+  // only what it cannot use. (format() itself never writes one; navigate() still sets the known keys only.)
+  const typed = here(), known = ["p", "item", "ms", "f", "uc", "s"];
+  const extra = typed ? typed.replace(/^#/, "").split("&").slice(1).filter((part) => /^[A-Za-z0-9_.-]{1,40}(=[A-Za-z0-9_.~%-]{0,200})?$/.test(part) && !known.includes(part.split("=")[0])) : [];
+  const plain = typed ? format(parse(typed)) + extra.map((part) => "&" + part).join("") : "";
+  if (typed && plain !== typed) history.replaceState(history.state, "", plain);
+} catch (e) { /* no history to rewrite: the page works with the address as typed */ }
 
 /** The screen an address is on: page, project and use case. A peek, the filters and the item are not part of it, so opening or closing
  *  a peek never counts as leaving. */

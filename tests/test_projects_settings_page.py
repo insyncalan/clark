@@ -306,7 +306,8 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-open]').getAttribute('aria-label')", sid), "Open " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-edit]').getAttribute('aria-label')", sid), "Edit " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('#projects-table thead th:last-child').getAttribute('aria-label')", sid), "What you can do")
-            self.assertEqual(cdp.js("document.querySelector('#projects').compareDocumentPosition(document.querySelector('#data-card')) & 4", sid), 4, "the Data card follows the Projects table")
+            # item 1024: one page at a time, so "follows" is the menu order: Export and import is after Projects in the menu
+            self.assertEqual(cdp.js("(() => { const n = [...document.querySelectorAll('.set-menu .set-item')].map(b => b.textContent); return n.indexOf('Projects') >= 0 && n.indexOf('Projects') < n.indexOf('Export and import'); })()", sid), True, "the Data card follows the Projects table")
 
     def test_open_goes_to_that_project_s_dashboard(self):
         s = self.serve()

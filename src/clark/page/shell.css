@@ -1255,31 +1255,45 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn { min-height: 32px; }
 .btn:disabled { cursor: default; opacity: .6; }
 .setting { margin-top: var(--space-3); }
+td.acts .btn { white-space: nowrap; }      /* item 1024c: a row's buttons stay on one line when the card is squeezed (900 to 1099 px) */
+.proj-table th:last-child { width: 12.5rem; }      /* round 5: room for Open, Edit and Archive side by side at 900 px; the other columns share the rest */
+.proj-table td.acts { white-space: nowrap; }
+.proj-table td.acts .btn + .btn { margin-left: var(--space-1); }
 .set-head p { margin: 0; }
-/* The Settings links (item 440, S2; issue 697). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
+/* The Settings links (item 440, S2; issue 697; item 1024). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
    as you scroll (and scrolls itself if the window is short). Below 900 px it is the old bar of chips under the head, on the page's own
-   ground carried out to both edges, and its height is kept clear when a card or a box is scrolled into view (--set-bar, Views.jsx). */
+   ground carried out to both edges, and it scrolls away with the page. */
 .set-layout { display: grid; grid-template-columns: minmax(150px, 14rem) minmax(0, 1fr); column-gap: var(--space-5); align-items: start; }
 .set-layout > .set-head { grid-column: 1 / -1; }
 .set-cards { grid-column: 2; min-width: 0; }
 .set-cards > :first-child { margin-top: 0; }
-.set-bar { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-4); padding: var(--space-2) var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
-.set-nav { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-1); }
-.set-nav li { display: block; }
-.set-chip { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 28px; padding: 3px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
-/* From 900 to 1099 px the list is the narrowest the grid allows (150 px), so the cards are wider at 900 (about 670 px, not 596) and a control keeps more than 420 px beside its label; the four section styles wrap two and two. */
-@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 150px minmax(0, 1fr); } }
+.set-menu { grid-column: 1; position: sticky; top: var(--topbar); z-index: 15; margin-top: var(--space-2); padding: var(--space-1); background: var(--grey-50); max-height: calc(100vh - var(--topbar) - var(--space-4)); overflow-y: auto; }
+.set-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 2px; }
+.set-list li { display: block; }
+.set-group + .set-group { margin-top: var(--space-1); }
+.set-group-h { margin: 0 0 2px; padding: 0 var(--space-1); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text-muted); }
+.set-advanced { margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--grey-300); }      /* item 1024: set apart at the foot and greyed (the text stays at the muted colour, 4.5:1 on its ground) */
+.set-group + .set-advanced { margin-top: var(--space-1); }
+.set-group-note { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: 12px; line-height: 1.3; color: var(--text-muted); }
+.set-advanced .set-item { color: var(--text-muted); }
+.set-item { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 24px; padding: 1px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
+@media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 176px minmax(0, 1fr); } }      /* round 5: 176 px, not 150: the longest entry name (Logs and diagnostics) stays whole on one line */
 @media (max-width: 899px) {
   .set-layout { display: block; }
-  .set-bar { position: sticky; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }
-  :root:has(.set-bar) { scroll-padding-top: var(--set-bar, 0px); }
-  .set-bar + .set-cards > .setting:first-child { margin-top: var(--space-2); }
-  .set-nav { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
-  .set-chip { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
+  .set-menu { position: static; padding: var(--space-2) 0; margin-top: var(--space-3); max-height: none; overflow-y: visible; box-shadow: 0 0 0 100vmax var(--grey-50); clip-path: inset(0 -100vmax); }      /* item 1024c: not sticky here, the block is about 340 px tall on a phone; the dropdown step brings back a one-line bar */
+  .set-menu + .set-cards > .setting:first-child { margin-top: var(--space-2); }
+  .set-menu { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+  .set-group, .set-group + .set-group { display: contents; margin: 0; }
+  .set-group-h { display: none; }
+  .set-advanced, .set-group + .set-advanced { border-top: 0; padding-top: 0; margin: 0; }
+  .set-group-note { flex: 1 0 100%; padding: 0; margin: 0; }
+  .set-list { flex-direction: row; flex-wrap: wrap; gap: var(--space-2); }
+  .set-item { display: inline-flex; width: auto; border-radius: var(--radius-pill); }
 }
-.set-chip:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
-.set-chip[aria-current], .set-chip[aria-current]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
-.set-chip:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
+.set-item:hover { border-color: var(--text-muted); background: var(--brand-blue-tint); }
+.ai-part { margin-top: var(--space-5); border-top: 1px solid var(--border); padding-top: var(--space-3); }
+.set-item[aria-current="page"], .set-item[aria-current="page"]:hover { border-color: var(--brand-blue); background: var(--brand-blue); color: var(--text-on-brand); }      /* the same weight, so marking a chip never moves the row */
+.set-item:focus-visible, .setting h2[tabindex="-1"]:focus-visible, .personal h2[tabindex="-1"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
 .setting, .personal { scroll-margin-top: calc(var(--topbar) + 16px); }
 /* The Settings cards (row 841): the prototype's card, compact: less padding, a smaller heading, a 14 px intro line and no shadow. Later than .frame and its 900 px rule, and more specific. */
 .set-cards .frame { padding: var(--space-4) var(--space-5); box-shadow: none; }
@@ -1633,7 +1647,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 /* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
 @media (max-width: 640px) {
   table.pp-table { table-layout: fixed; }
-  .set-chip { min-height: 44px; }
+  .set-item { min-height: 44px; }
   .ddmenu [role="menuitem"], .ddmenu [role="menuitemradio"], .ddmenu [role="menuitemradio"].hp { min-height: 44px; display: flex; align-items: center; }
 }
 

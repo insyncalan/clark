@@ -1,4 +1,4 @@
-"""#444 (rows 44): Settings › Data in a real browser against the real routes: Import workbook (the two-step box, one step, Undo this import).
+"""#444 (rows 44; item 1024: Settings › Export and import): in a real browser against the real routes: Import workbook (the two-step box, one step, Undo this import).
 Run: python3 dev/run_tests.py test_settings_data_page
 
 The server is the real one over the #39 plant in a temporary folder (tests/test_publish_route.py Rig) with the real workbook import. Widths 1400 and 900, light and dark. Chrome is required:
@@ -73,6 +73,9 @@ class Card(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+        # item 1024: the Data card is on the Export and import page, one page at a time: reached by its address, as the wait before was by the card
+        p.js("location.hash = location.hash.replace(/&s=[^&]*/, '') + '&s=export'")
         p.until("!!document.querySelector('#data-card')", "the Data card drew")
 
     def choose(self, p, b64, through=True):

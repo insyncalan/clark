@@ -99,11 +99,11 @@ export function AiSettings() {
     return () => { live = false; };
   }, []);
   return (
-    <section class="frame setting" id="ai-settings">
-      <h2>AI</h2>
+    <div class="ai-part" id="ai-settings">
+      <h3>AI</h3>
       <ConnectCard />
       <p class="muted">Suggestions for the text you select in the report. Nothing changes until you accept one.</p>
       <p id="ai-state" data-state={shown.state}>{shown.line}</p>
-    </section>
+    </div>
   );
 }

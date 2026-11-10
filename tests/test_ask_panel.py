@@ -379,7 +379,7 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("document.querySelector('#ask-panel') === null", "closed")
             start = p.js("location.hash")
-            p.js("location.hash = '#settings&p=ABC'")
+            p.js("location.hash = '#settings&p=ABC&s=claude-ai'")
             # row 872: the switch can read ready from the earlier read before Settings asks again; the folders answer comes after that ask has started
             p.until("!!document.querySelector('[data-ask-switch]') && !document.querySelector('[data-ask-switch]').disabled && !!document.querySelector('#ask-folders, #ask-folders-none, #ask-folders-note')", "Settings has the asking switch")
             p.js("document.querySelector('[data-ask-switch]').click()")          # a change in Settings: the kept check is dropped

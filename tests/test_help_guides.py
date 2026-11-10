@@ -360,9 +360,10 @@ WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vau
 
 def settings_parts():
     code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-    body = code[code.index("export function Settings"):]
-    body = body[:body.index("\n}\n")]
-    return set(re.findall(r"\{(\w+) \? <\1 />", body))
+    # item 1024: the cards a page draws are named in the menu's GROUPS (one list of tools for each page), no longer one line each in Settings()
+    groups = code[code.index("const GROUPS = ["):]
+    groups = groups[:groups.index("\n];")]
+    return {name for tools in re.findall(r'\["[a-z-]+", "[^"]+", \[([^\]]*)\], "[\w-]+"\]', groups) for name in re.findall(r'"(\w+)"', tools)}
 
 
 class ContextText(unittest.TestCase):
