@@ -660,6 +660,26 @@ class SavedViews(Line):
         for name in ("archiveView", "restoreView", "archivedViews"):
             self.assertNotIn(name, keys)
 
+    def test_insert_a_deleted_view_back_where_it_was(self):
+        """Row 1071: the Undo after Delete view puts the tab back at its place."""
+        base = self.v("viewsGet(null, 'ABC')")
+        gone = self.v(f"deleteView({lit(base)}, 'core-risks')")["views"]
+        back = self.v(f"insertView({lit(gone)}, {lit(base[2])}, 2)")
+        self.assertEqual(back["views"], base)
+        self.assertFalse(self.v(f"insertView({lit(base)}, {lit(base[2])}, 2)")["ok"], "already there")
+
+    def test_insert_a_deleted_view_at_the_end(self):
+        """Row 1071: Undo of deleting the last tab puts it last again (the place is the length, not the last index)."""
+        base = self.v("viewsGet(null, 'ABC')")
+        gone = self.v(f"deleteView({lit(base)}, 'mine')")["views"]
+        back = self.v(f"insertView({lit(gone)}, {lit(base[-1])}, {len(gone)})")
+        self.assertEqual(back["views"], base)
+
+    def test_a_view_added_or_missing_from_the_stored_order_still_shows(self):
+        fake = "{store: {'clark.forder': JSON.stringify({ABC: ['mine', 'gone', 'core-all']}) }, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        got = self.val(f"T.fl.viewsGet({fake}, 'ABC').map(function (x) {{ return x.id; }})")
+        self.assertEqual(got, ["mine", "core-all", "core-open", "core-actions", "core-risks", "core-decisions", "overdue", "client"])
+
     def test_new_ids_never_repeat(self):
         views = self.v("DEFAULT_VIEWS")
         a = self.v(f"addView({lit(views)}, 'A', '')")
