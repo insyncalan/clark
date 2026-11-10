@@ -116,10 +116,9 @@ function SavedViews({ board }) {
       if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; closeForm(); } else setForm({ ...form, error: r.message });
       return;
     }
-    const r = form.mode === "rename" ? FL.renameView(all, active.id, form.name) : FL.addView(all, form.name, line.trim());
+    const r = FL.renameView(all, active.id, form.name);
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
-    if (form.mode === "saveas") chosen.value = { ...chosen.value, [code]: r.id };
     closeForm();
   };
   // The name box takes focus once the menu has given focus back to its button (it does that in an effect of its own, so we go a moment later).
