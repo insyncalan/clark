@@ -38,7 +38,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 20          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 21          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1068): report_sections.type takes 'gantttable'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -81,8 +81,9 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
                  "needs", "tracker",
                  "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
                  "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
-                 "gantt")                                                    # row 926: the Gantt section, which carries no body of its own
-# the thirty of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+                 "gantt",                                                    # row 926: the Gantt section, which carries no body of its own
+                 "gantttable")                                               # row 1068: the Gantt table alone, the same lines and no body of its own
+# the thirty-one of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be deleted; a built-in's row holds no data (its records live in their own tables)
@@ -2656,6 +2657,31 @@ def migrate_brand(con):
         con.execute("ALTER TABLE projects ADD COLUMN " + BRAND_COLUMN)
 
 
+# Row 1068: the table-only section type. The report_sections table as schema.sql makes it once a section may be of type 'gantttable',
+# frozen here (tests/test_gantt_table_section.py pins it to schema.sql as it is today). It keeps every type the earlier steps allow.
+REPORT_SECTIONS_WITH_GANTT_TABLE = REPORT_SECTIONS_WITH_GANTT.replace("'onedoc','gantt')),", "'onedoc','gantt','gantttable')),", 1)
+GANTT_TABLE_STEP = 21        # row 1068's step number, written once here and used by MIGRATIONS
+
+
+def migrate_gantt_table_section_type(con):
+    """Schema version 20 to 21 (row 1068): report_sections.type gains 'gantttable'. SQLite cannot change a CHECK in place, so the table
+    is made again from the frozen text above, the rows copied in their order (as steps 8 and 19 do; nothing references this table, it
+    has no trigger or index, and its one outgoing key is kept). Skipped when the table's own definition already names 'gantttable' (a
+    new database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 21 in MIGRATIONS."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE)
+        return
+    if "'gantttable'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_table (", 1))
+    con.execute("INSERT INTO report_sections_table (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_table RENAME TO report_sections")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2663,7 +2689,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
-              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand))
+              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand),
+              (GANTT_TABLE_STEP, migrate_gantt_table_section_type))
 
 
 def migration_plan(version, table=None):
