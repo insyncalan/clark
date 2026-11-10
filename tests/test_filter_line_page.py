@@ -968,6 +968,9 @@ class Line(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "row 1073: the focus stays on + New view after it makes a view")
             click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
             click(cdp, sid, "#viewTabMenu")
             click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
@@ -1150,6 +1153,24 @@ class Line(unittest.TestCase):
             self.type(cdp, sid, "Mine")
             key(cdp, sid, "Enter")
             self.assertTrue(wait(lambda: "Mine" in cdp.js(tabs, sid)))
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_row_1073_a_new_view_past_the_limit_says_why_and_changes_nothing(self):
+        s = self.serve()
+        views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 21)]
+        tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
+            reload_to_new_page_cdp(cdp, sid)
+            self.assertTrue(wait(lambda: "Mine 20" in (cdp.js(tabs, sid) or [])), "the twenty seeded views are there")
+            before = cdp.js(tabs, sid)
+            picked = cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid)
+            click(cdp, sid, "#viewNew")
+            self.assertTrue(wait(lambda: "Delete one to make room" in (cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid) or "")), "the limit is said")
+            self.assertEqual(cdp.js(tabs, sid), before, "no twenty-first view")
+            self.assertEqual(len(json.loads(cdp.js("localStorage.getItem('clark.fviews')", sid))["TUL"]), 20)
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span') && document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), picked, "the open view is unchanged")
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
     def test_the_five_core_tabs_come_first_with_counts_that_match_the_rows_and_have_rename_and_delete_but_no_save_changes(self):
