@@ -863,8 +863,9 @@ class ClosedRiskPublished(unittest.TestCase):
         row = next(r for r in pub["data"]["raid"] if r["id"] == "PUB-001")
         self.assertEqual((row["status"], row["priority"], row["impact"], row["likelihood"]), ("Closed", "Medium", "Medium", "Medium"))
         self.assertLessEqual(set(row), set(publish.PUBLISH_FIELDS["raid"]), "nothing outside the allow-list is on the row")
-        for flag in ("client_visible", "archived", "internal_note", "source"):
+        for flag in ("client_visible", "archived", "internal_note"):
             self.assertNotIn(flag, row)
+        self.assertEqual(row["source"], "raid.xlsx", "row 1077: the source by name, never its path (the plant's is ZQ-SOURCE-PATH/raid.xlsx)")
         for key, marker in plant["markers"].items():
             for spelling in tp.fx.spellings(marker):
                 self.assertNotIn(spelling, text, f"the planted internal text {key} is not in the file")
