@@ -76,7 +76,7 @@ class Roots(Case):
 
     def test_not_the_mac_is_not_built_yet_and_a_container_finds_nothing(self):
         with self.assertRaises(pl.NotBuiltYet):
-            pl.synced_roots(self.home, on=pl.WINDOWS)
+            pl.synced_roots(self.home, on="freebsd")
 
 
 class Lookalikes(Case):
@@ -189,6 +189,87 @@ class OneDriveCase(Case):
                          "that OneDrive doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the "
                          f"Terminal window and press Return. Type {doctor.typed.clark('--data')} and a space, drag the folder you "
                          "chose into the window, and press Return. Backups can still go to OneDrive.")
+
+
+class ICloudDesktopDocuments(Case):
+    def cloud(self, name):
+        folder = self.home / "Library" / "Mobile Documents" / "com~apple~CloudDocs" / name
+        folder.mkdir(parents=True, exist_ok=True)
+        return folder
+
+    def test_desktop_and_documents_linked_into_icloud_are_refused(self):
+        for name in ("Desktop", "Documents"):
+            with self.subTest(name=name):
+                real = self.cloud(name)
+                (self.home / name).symlink_to(real)
+                inside = self.home / name / "clark"
+                inside.mkdir()
+                roots = pl.synced_roots(self.home, on=pl.MAC)
+                self.assertEqual(pl.inside_synced(inside, roots)[0], "iCloud Drive")
+                with self.assertRaises(pl.PlatformError):
+                    pl.check_data_dir(inside, roots=[], synced=roots)
+
+    def test_same_folder_seen_through_the_home_spelling_is_refused(self):
+        real = self.cloud("Desktop")
+        (self.home / "Desktop").mkdir()
+        with mock.patch.object(pl.os.path, "samestat", return_value=True):
+            roots = pl.synced_roots(self.home, on=pl.MAC)
+        self.assertIn(("iCloud Drive", self.home / "Desktop"), roots)
+        self.assertEqual(pl.inside_synced(self.home / "Desktop" / "clark", roots)[0], "iCloud Drive")
+        self.assertTrue(real.is_dir())
+
+    def test_a_separate_desktop_with_icloud_present_is_not_refused(self):
+        self.cloud("Desktop")
+        self.cloud("Documents")
+        (self.home / "Desktop").mkdir()
+        (self.home / "Documents").mkdir()
+        roots = pl.synced_roots(self.home, on=pl.MAC)
+        for name in ("Desktop", "Documents"):
+            self.assertIsNone(pl.inside_synced(self.home / name / "clark", roots))
+
+    def test_desktop_without_icloud_is_not_refused(self):
+        (self.home / "Desktop").mkdir()
+        self.assertIsNone(pl.inside_synced(self.home / "Desktop" / "clark", pl.synced_roots(self.home, on=pl.MAC)))
+
+
+class WindowsDropbox(Case):
+    def env(self, **extra):
+        return dict(extra)
+
+    def roots(self, env):
+        return pl.synced_roots(self.home, on=pl.WINDOWS, environ=env)
+
+    def test_userprofile_dropbox_is_refused(self):
+        (self.home / "Dropbox").mkdir()
+        env = {"USERPROFILE": str(self.home)}
+        inside = self.home / "Dropbox" / "clark"
+        inside.mkdir()
+        self.assertEqual(pl.inside_synced(inside, self.roots(env))[0], "Dropbox")
+        with self.assertRaises(pl.PlatformError) as caught:
+            pl.check_data_dir(inside, roots=[], synced=self.roots(env))
+        self.assertIn("Dropbox copies files", str(caught.exception))
+
+    def test_info_json_paths_are_refused_from_appdata_and_localappdata(self):
+        for var in ("APPDATA", "LOCALAPPDATA"):
+            for kind in ("personal", "business"):
+                with self.subTest(var=var, kind=kind):
+                    app = self.home / var
+                    (app / "Dropbox").mkdir(parents=True)
+                    where = self.home / "elsewhere" / kind
+                    where.mkdir(parents=True)
+                    (app / "Dropbox" / "info.json").write_text('{"%s": {"path": "%s"}}' % (kind, str(where).replace("\\", "\\\\")), encoding="utf-8")
+                    env = {"USERPROFILE": str(self.home), var: str(app)}
+                    self.assertEqual(pl.inside_synced(where / "clark", self.roots(env))[0], "Dropbox")
+                    shutil.rmtree(app)
+                    shutil.rmtree(self.home / "elsewhere")
+
+    def test_nothing_there_and_bad_json_refuse_nothing(self):
+        app = self.home / "AppData"
+        (app / "Dropbox").mkdir(parents=True)
+        (app / "Dropbox" / "info.json").write_text("not json", encoding="utf-8")
+        env = {"USERPROFILE": str(self.home), "APPDATA": str(app)}
+        self.assertEqual(self.roots(env), [])
+        self.assertEqual(self.roots({}), [])
 
 
 class Doctor(Case):

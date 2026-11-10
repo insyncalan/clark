@@ -193,14 +193,57 @@ def container_host_in_synced(environ=None):
     return None
 
 
-def synced_roots(home=None, on=None):
+def _windows_dropbox_roots(environ):
+    """Dropbox on Windows: %USERPROFILE%\\Dropbox (and its named forms), and the personal / business folders that Dropbox itself
+    records in info.json under %APPDATA%\\Dropbox or %LOCALAPPDATA%\\Dropbox. A missing or unreadable info.json refuses nothing."""
+    import json
+    found = []
+    profile = environ.get("USERPROFILE")
+    if profile and Path(profile).is_dir():
+        found += [p for p in Path(profile).glob("Dropbox*") if _dropbox_name(p.name)]
+    for var in ("APPDATA", "LOCALAPPDATA"):
+        if not environ.get(var):
+            continue
+        try:
+            info = json.loads((Path(environ[var]) / "Dropbox" / "info.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        for kind in (info.values() if isinstance(info, dict) else ()):
+            where = kind.get("path") if isinstance(kind, dict) else None
+            if isinstance(where, str) and where:
+                found.append(Path(where))
+    return sorted(("Dropbox", p) for p in set(found) if p.is_dir())
+
+
+def _icloud_desktop_documents(home):
+    """With "Desktop & Documents Folders" on, the Mac keeps the real Desktop and Documents in
+    ~/Library/Mobile Documents/com~apple~CloudDocs/. A link from ~/Desktop is followed by resolve() and lands inside the iCloud
+    root already. Where ~/Desktop is itself a folder, it counts as iCloud only when it is the very same folder as the CloudDocs one
+    (same device and inode). LIMIT: a pure-python check cannot read the iCloud setting itself, so a ~/Desktop that is a separate
+    folder is never refused, even while CloudDocs/Desktop exists."""
+    found = []
+    cloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+    for name in ("Desktop", "Documents"):
+        mine, theirs = home / name, cloud / name
+        try:
+            if mine.is_dir() and theirs.is_dir() and os.path.samestat(mine.stat(), theirs.stat()):
+                found.append(("iCloud Drive", mine))
+        except OSError:
+            pass
+    return found
+
+
+def synced_roots(home=None, on=None, environ=None):
     """NEW (step 6). The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
     only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox, ~/Dropbox (...), ~/Dropbox - ... and
     ~/Library/CloudStorage/Dropbox*; iCloud Drive in ~/Library/Mobile Documents (which holds com~apple~CloudDocs and every
-    app's iCloud folder); Google Drive in ~/Library/CloudStorage/GoogleDrive-*, ~/Google Drive and ~/My Drive. Inside the
-    shipped container there is nothing to find (an empty list); on another system that is not the Mac it raises NotBuiltYet."""
+    app's iCloud folder), plus ~/Desktop and ~/Documents when they are the iCloud ones; Google Drive in
+    ~/Library/CloudStorage/GoogleDrive-*, ~/Google Drive and ~/My Drive. On Windows only Dropbox is looked for (OneDrive has its
+    own check). Inside the shipped container there is nothing to find (an empty list); on any other system it raises NotBuiltYet."""
     if (on or system()) == "linux" and container_mode():
         return []
+    if (on or system()) == WINDOWS:
+        return _windows_dropbox_roots(os.environ if environ is None else environ)
     _only_mac("Finding Dropbox, iCloud Drive and Google Drive", on)
     try:
         home = Path(home or Path.home())
@@ -209,7 +252,7 @@ def synced_roots(home=None, on=None):
     storage = home / "Library" / "CloudStorage"
     # In the home folder Dropbox is "Dropbox" or "Dropbox (Name)" / "Dropbox - Name", not any name that starts with it (Dropbox-old).
     found = [("Dropbox", p) for p in list(storage.glob("Dropbox*")) + [q for q in home.glob("Dropbox*") if _dropbox_name(q.name)]]
-    found += [("iCloud Drive", home / "Library" / "Mobile Documents")]
+    found += [("iCloud Drive", home / "Library" / "Mobile Documents")] + _icloud_desktop_documents(home)
     found += [("Google Drive", p) for p in list(storage.glob("GoogleDrive-*")) + [home / "Google Drive", home / "My Drive"]]
     return sorted((service, p) for service, p in found if p.is_dir())
 

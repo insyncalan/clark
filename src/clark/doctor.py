@@ -56,7 +56,7 @@ class Seen:
         self.sqlite_version = (sqlite3.sqlite_version if sqlite3 else "") if sqlite_version is None else sqlite_version
         self.data_dir = data_dir or (lambda: platform.data_dir(self.home, on=self.on))
         self.onedrive_roots = onedrive_roots or (lambda: platform.onedrive_roots(self.home, on=self.on))
-        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on))     # NEW (step 6)
+        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on, environ=self.environ))     # NEW (step 6)
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
         self.health, self.free = health, free
