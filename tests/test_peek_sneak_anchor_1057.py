@@ -14,7 +14,8 @@ from test_server import chrome  # noqa: E402
 FIND = """const p = document.querySelector('#peek');
   const sc = [p, ...p.querySelectorAll('*')].filter((e) => e.scrollHeight > e.clientHeight + 4 && /(auto|scroll)/.test(getComputedStyle(e).overflowY))[0];"""
 READ = """(() => { %s const w = document.querySelector('[data-sneak]'); const r = w.getBoundingClientRect(); const pr = p.getBoundingClientRect();
-  return { wb: r.bottom, pb: pr.bottom, max: sc ? sc.scrollHeight - sc.clientHeight : 0 }; })()""" % FIND
+  return { wb: r.bottom, pb: pr.bottom, max: sc ? sc.scrollHeight - sc.clientHeight : 0,
+  gap: sc ? sc.getBoundingClientRect().bottom - r.bottom : -1, raw: parseFloat(getComputedStyle(w).bottom), off: parseFloat(getComputedStyle(w).bottom) + (sc ? parseFloat(getComputedStyle(sc).paddingBottom) : 0) }; })()""" % FIND
 SCROLL = """(() => { %s sc.scrollTop = %%s * (sc.scrollHeight - sc.clientHeight); return sc.scrollTop; })()""" % FIND
 
 
@@ -39,6 +40,10 @@ class SneakAnchor(unittest.TestCase):
                 start = cdp.js(READ, sid)
                 self.assertGreater(start["max"], 40, f"{width}: the peek scrolls in this window")
                 self.assertLessEqual(abs(start["pb"] - start["wb"]), 40, f"{width}: the box starts at the foot of the peek")
+                self.assertGreater(start["raw"], 4, f"{width}: the box keeps a real offset above the foot ({start['raw']})")
+                cdp.js(SCROLL % 0, sid)
+                top = cdp.js(READ, sid)
+                self.assertLess(abs(top["gap"] - top["off"]), 2, f"{width}: the stuck box sits its bottom offset above the scroll box edge ({top['gap']} vs {top['off']})")
                 for frac in (0.5, 1, 0):
                     cdp.js(SCROLL % frac, sid)
                     now = cdp.js(READ, sid)
