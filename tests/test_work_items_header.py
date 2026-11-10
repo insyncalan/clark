@@ -353,6 +353,18 @@ class Header(Base):
             self.assertGreaterEqual(min(got["g"]), 24)
         self.each(check)
 
+    def test_row_1072_the_group_by_menu_is_named_group_by_and_its_icon_is_two_bars(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList').getAttribute('aria-label')", sid), "Group by")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
+            bars = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('#viewMenu svg rect')].map(e => [+e.getAttribute('y'), +e.getAttribute('height')]))", sid))
+            self.assertEqual(len(bars), 2, f"the Group by icon is two stacked bars: {bars}")
+            self.assertGreaterEqual(bars[1][0] - (bars[0][0] + bars[0][1]), 4, f"a gap between the bars: {bars}")
+        self.each(check)
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
