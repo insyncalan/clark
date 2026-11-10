@@ -109,8 +109,7 @@ class Notes(unittest.TestCase):
         self.assertNotIn("still called Client report", text)
         self.assertIn("Client Requested Report View", text)
         self.assertIn("Week ending date", text)
-        titles = (ROOT / "src" / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
-        self.assertIn('"Client Requested Report View"', titles)
+        # row 1065: the tab itself is gone, so the code no longer carries its name; the 0.5.1 notes stay as they were written.
 
 
 def _skips():
