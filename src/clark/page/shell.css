@@ -1274,7 +1274,7 @@ td.acts .btn { white-space: nowrap; }      /* item 1024c: a row's buttons stay o
 .set-group-h { margin: 0 0 2px; padding: 0 var(--space-1); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text-muted); }
 .set-advanced { margin-top: var(--space-1); padding-top: var(--space-2); border-top: 1px solid var(--grey-300); }      /* item 1024: set apart at the foot and greyed (the text stays at the muted colour, 4.5:1 on its ground) */
 .set-group + .set-advanced { margin-top: var(--space-1); }
-.set-group-note { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: 12px; line-height: 1.3; color: var(--text-muted); }
+.set-group-note { margin: 0 0 var(--space-1); padding: 0 var(--space-1); font-size: var(--size-small); line-height: 1.3; color: var(--text-muted); }
 .set-advanced .set-item { color: var(--text-muted); }
 .set-item { all: unset; box-sizing: border-box; display: flex; align-items: center; width: 100%; min-height: 24px; padding: 1px 12px; border: 1px solid var(--grey-500); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font-size: var(--size-small); line-height: 20px; cursor: pointer; transition: border-color var(--dur-instant) var(--ease-out); }      /* no background transition: a theme switch must not leave a light chip for 120 ms (test_v020 reads the ground at once) */
 @media (min-width: 900px) and (max-width: 1099px) { .set-layout { grid-template-columns: 176px minmax(0, 1fr); } }      /* round 5: 176 px, not 150: the longest entry name (Logs and diagnostics) stays whole on one line */
