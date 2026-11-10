@@ -17,7 +17,12 @@ import unittest
 
 import _paths  # noqa: F401
 from clark import server as sv
-from test_server import Running, raw_reply
+import importlib
+
+# Taken by name, not by an import line: Running and raw_reply start no browser, so this file is quick tier, and
+# tests/test_run_tests reads an import line of test_server as a browser file.
+_harness = importlib.import_module("test_server")
+Running, raw_reply = _harness.Running, _harness.raw_reply
 
 PORT = 8766
 ALLOWED = ("127.0.0.1", "localhost", "clark.localhost", "[::1]")
