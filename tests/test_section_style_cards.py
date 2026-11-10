@@ -7,7 +7,7 @@ person who has chosen nothing, and an unknown stored word is as no choice; the o
 the chosen card shows a 2 px edge in the brand blue and a tick, and no other card does; the focus ring is 2 px in the brand blue; the
 card text is at least 13 px and 4.5:1, the edge and ring 3:1; the two cards sit in one row at both widths with no sideways scroll; and
 the bridge to the guarded publish code (which still speaks the old section words, see the plan on item 1025): Compact publishes as
-"card" and Comfortable as "slim", and a file carrying "slim" opens Comfortable while any other word opens Compact.
+"card" and Comfortable as "roomy", and a file carrying "roomy" opens Comfortable while any other word opens Compact.
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
@@ -321,8 +321,8 @@ class Cards(Base):
                 "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.", "Each Dashboard section is its own card, with room between them."])
 
     def test_C_the_choice_goes_to_publish_as_the_word_the_guarded_code_knows(self):
-        # The bridge: Compact is "card", Comfortable is "slim" (publish.STYLES). Nothing else is ever sent.
-        for pick, word in (("compact", "card"), ("comfortable", "slim")):
+        # The bridge: Compact is "card", Comfortable is "roomy" (publish.STYLES). Nothing else is ever sent.
+        for pick, word in (("compact", "card"), ("comfortable", "roomy")):
             with self.subTest(pick=pick), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p)
@@ -340,7 +340,7 @@ class Cards(Base):
 
     def test_C_a_file_published_at_comfortable_draws_comfortable_and_one_at_compact_draws_compact(self):
         # Behaviour, not words: pick the density in Settings, publish through the dialog, open the finished file from file://. Comfortable
-        # goes out as the word "slim" (the bridge) and the file must still draw the looser Comfortable spacing, not the Compact one.
+        # goes out as the word "roomy" (the bridge) and the file must still draw the looser Comfortable spacing, not the Compact one.
         drawn = {}
         for pick in ("compact", "comfortable"):
             with chrome() as cdp:
@@ -365,15 +365,15 @@ class Cards(Base):
                                    " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
                 drawn[pick + "-stored"] = f.js("localStorage.getItem('clark.density')")
         self.assertEqual(drawn["compact"][0], "compact")
-        self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word slim")
+        self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word roomy")
         self.assertGreater(drawn["comfortable"][1], drawn["compact"][1], "its sections have more room above and below")
         self.assertEqual((drawn["compact-stored"], drawn["comfortable-stored"]), (None, None), "a published file never remembers its density as a reader's choice")
         self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, False), "Compact sections run on flat, Comfortable ones are cards")
 
-    def test_the_reading_of_a_files_word_is_slim_for_comfortable_and_compact_for_the_rest(self):
+    def test_the_reading_of_a_files_word_is_roomy_for_comfortable_and_compact_for_the_rest(self):
         src = (SRC / "clark" / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
-        self.assertIn('densityOfWord = (w) => (w === "slim" ? "comfortable" : DEFAULT_DENSITY)', src)
-        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "slim" : "card")', src)
+        self.assertIn('densityOfWord = (w) => (w === "roomy" ? "comfortable" : DEFAULT_DENSITY)', src)
+        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "roomy" : "card")', src)
 
     def test_the_guarded_code_is_unchanged_it_refuses_a_word_it_does_not_know_and_defaults_to_slim(self):
         for body in ({"section_style": "wide"}, {"section_style": 3}):

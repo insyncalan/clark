@@ -51,10 +51,10 @@ class Style(unittest.TestCase):
         # item 1025: the page speaks two densities and sends each as one of the words publish knows (the bridge in density.js)
         page = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
         self.assertIn('export const IDS = ["compact", "comfortable"];', page)
-        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "slim" : "card")', page)
-        self.assertLessEqual({"slim", "card"}, set(publish.STYLES))
+        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "roomy" : "card")', page)
+        self.assertLessEqual({"roomy", "card"}, set(publish.STYLES))
 
-    def test_comfortable_publishes_as_slim_and_compact_as_card(self):
+    def test_comfortable_publishes_as_roomy_and_compact_as_card(self):
         # item 1025: run the page's own density.js in node (signals stubbed), choose each density, and publish with the word it sends
         node = shutil.which("node")
         if not node:
@@ -67,8 +67,8 @@ class Style(unittest.TestCase):
         done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr)
         sent = json.loads(done.stdout)
-        self.assertEqual(sent, {"comfortable": "slim", "compact": "card", "bogus": "card"})
-        self.assertEqual(block(inputs(section_style=sent["comfortable"]))[0]["style"], "slim")
+        self.assertEqual(sent, {"comfortable": "roomy", "compact": "card", "bogus": "card"})
+        self.assertEqual(block(inputs(section_style=sent["comfortable"]))[0]["style"], "roomy")
         self.assertEqual(block(inputs(section_style=sent["compact"]))[0]["style"], "card")
 
 
