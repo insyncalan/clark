@@ -399,6 +399,7 @@
      "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
+     "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
     ],
     "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept.",
