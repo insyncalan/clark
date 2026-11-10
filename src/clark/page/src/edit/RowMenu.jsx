@@ -24,6 +24,14 @@ import { openCard } from "./Board.jsx";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
+// The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
+// so a published file holds no trace of it (#115).
+const withOwnerLink = (row, d) => {
+  if (!row || !d) return row;
+  const all = [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])], src = all.find((r) => r.id === row.id);
+  return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
+};
+
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
 const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, from: the element to give focus back to }
@@ -162,7 +170,7 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemRows.value.find((r) => r.id === s.id), data.value), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
   const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
