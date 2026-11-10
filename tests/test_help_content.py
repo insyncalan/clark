@@ -484,6 +484,16 @@ class PublicationNumberWords(unittest.TestCase):
         self.assertIn("A number is never used again, and **Undo** does not take it back.", text)
 
 
+class NeededFromTheClientWords(unittest.TestCase):
+    def test_help_says_the_flag_lists_the_item_only_when_the_report_has_a_needs_from_you_section(self):
+        """Row 1066: publish adds no 'Needs from you' section the editor lacks, so Help must not promise the item is listed without one."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.", text)
+        self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
+        peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+
+
 class ProfileCircleWords(unittest.TestCase):
     def test_help_says_the_profile_circle_is_a_person_icon_that_opens_the_menu_not_initials(self):
         """1.0.6: the editor's profile circle is a person icon that opens the menu; only the published report's own button shows initials."""
