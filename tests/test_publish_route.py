@@ -364,6 +364,60 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.assertTrue(publish_flow.folder_inside(Broken(), "/c/b", "/c"))
 
 
+class HostileFolderInside(unittest.TestCase):
+    """#1047 hostile pass: folder_inside on edge inputs (empty, unicode, huge, NUL, loops, whole-name compare)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, self.tmp, True)
+
+    def test_a_sibling_sharing_a_name_prefix_is_not_inside(self):
+        client = self.tmp / "Client"
+        (self.tmp / "Client-old").mkdir()
+        client.mkdir()
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "Client-old"), str(client)))
+        (self.tmp / "ClientLink").symlink_to(self.tmp / "Client-old", target_is_directory=True)
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "ClientLink"), str(client)))
+
+    def test_an_empty_client_folder_contains_nothing(self):
+        """A client folder that is not saved ('') must not make every Local folder count as inside it."""
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp), ""))
+        self.assertFalse(publish_flow.folder_inside(None, "", str(self.tmp)))
+
+    def test_dotdot_and_trailing_slash_do_not_hide_the_client_folder(self):
+        client = self.tmp / "Client"
+        (client / "Sub").mkdir(parents=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(client / "Sub" / ".." / "Sub") + "/", str(client)))
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "x" / ".." / "Client" / "Sub"), str(client) + "/"))
+        self.assertFalse(publish_flow.folder_inside(None, str(client / ".." / "Other"), str(client)))
+
+    def test_unicode_hostile_huge_and_nul_paths_answer_false_never_raise(self):
+        client = self.tmp / "Cl\u00e9ment"
+        client.mkdir()
+        nfd = str(self.tmp / "Cle\u0301ment" / "x")                      # same name, other accent form
+        self.assertTrue(publish_flow.folder_inside(None, nfd, str(client)))
+        for bad in ("a\x00b", "\u202e" * 50, "/" + "d/" * 3000, "\ud800", "$(rm -rf ~)", "-rf", "\n"):
+            self.assertIn(publish_flow.folder_inside(None, bad, str(client)), (True, False), bad)
+            self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "none") + bad, str(client)), bad)
+
+    def test_a_link_loop_and_a_dangling_link_are_not_inside_and_do_not_hang(self):
+        client = self.tmp / "Client"
+        client.mkdir()
+        (self.tmp / "a").symlink_to(self.tmp / "b")
+        (self.tmp / "b").symlink_to(self.tmp / "a")
+        (self.tmp / "dangling").symlink_to(self.tmp / "nowhere")
+        for p in (self.tmp / "a" / "x", self.tmp / "dangling" / "x"):
+            self.assertFalse(publish_flow.folder_inside(None, str(p), str(client)), p)
+
+    def test_a_link_chain_two_deep_into_the_client_folder_is_inside(self):
+        client = self.tmp / "Client"
+        (client / "Deep").mkdir(parents=True)
+        (self.tmp / "l1").symlink_to(self.tmp / "l2", target_is_directory=True)
+        (self.tmp / "l2").symlink_to(client, target_is_directory=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "l1" / "Deep"), str(client)))
+        self.assertTrue(publish_flow.folder_inside(None, str(client / "Deep"), str(self.tmp / "l1")))
+
+
 class LocalNeverOverwritesClarksOwnFiles(Base):
     """#43 review, MEDIUM 2: the Save dialog can't choose the database, the data folder, the backups, or a non-.html name."""
 

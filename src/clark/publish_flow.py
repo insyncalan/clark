@@ -229,9 +229,12 @@ def gantt_markers(store, code, published, add, kept_whole):
 def folder_inside(fs, a, b):
     """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
     the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
+    if not a or not b:                                      # an empty (unsaved) folder is nowhere, so contains and is in nothing
+        return False
     real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
     try:
-        return to_client._inside(a, b) or to_client._inside(real(a), real(b))
+        # ".." must not hide the folder as written; the link-following check keeps the raw text (a link before ".." matters)
+        return to_client._inside(os.path.normpath(a), os.path.normpath(b)) or to_client._inside(real(a), real(b))
     except (OSError, ValueError):
         return False
 
