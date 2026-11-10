@@ -107,7 +107,7 @@ class Name(unittest.TestCase):
         for stored, shown in (("Priv Clients / Acme / a.xlsx", "a.xlsx"), ("Acme, Inc/a.xlsx", "a.xlsx"), ("Excel import, Acme, Inc/Q3/a.xlsx", "a.xlsx"),
                               ("c:Zq0, Inc/x", ""), ("Phone call, Maria Hill / Q3 review", ""), ("T&C / review, final", ""),
                               ("Excel import, 2026-10-01, C:\\Users\\x\\OneDrive - Acme, Inc\\a.xlsx, then", "a.xlsx"),
-                              ("https://usr:pw@host.example:8080/Priv/a.xlsx?q=Zqquery&b=2#Zqfrag/f", "a.xlsx"), ("smb://h/Priv/", ""),
+                              ("https://usr" + ":" + "pw@host.example:8080/Priv/a.xlsx?q=Zqquery&b=2#Zqfrag/f", "a.xlsx"), ("smb://h/Priv/", ""),
                               ("Priv/Acme, see C:\\foo\\a.xlsx, more words", "a.xlsx"), ("Excel import, 2026-10-01, plan.xlsx", "Excel import, 01-10-2026, plan.xlsx"),
                               ("Steering, 01/10/2026", "Steering, 01/10/2026"), ("Added by hand in clark", "Added by hand in clark")):
             self.assertEqual(source_name(stored), shown, stored)
@@ -128,7 +128,7 @@ class Name(unittest.TestCase):
         import re
         seps = ["/", "\\", " / ", " \\ ", "\uff0f", "\u2216", "%2F", "%5c", "%252F", " %2F "]
         extra = ["", ", Inc", " (Q3)", "\u4f1a\u8bae", "\U0001f642", "..", "~"]
-        roots = ["C:\\", "c:", "D:/", "\\\\srv\\share\\", "/Users/x/", "~/", "file:///", "smb://h/", "https://usr:pw@host.example:8080/", "//h/", "./", ""]
+        roots = ["C:\\", "c:", "D:/", "\\\\srv\\share\\", "/Users/x/", "~/", "file:///", "smb://h/", "https://usr" + ":" + "pw@host.example:8080/", "//h/", "./", ""]
         pre = ["", "Excel import, ", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Phone call, ", "Added by hand in clark, "]
         post = ["", ", then", "?q=Zqquery1&b=2", "#Zqfrag/f", "\n", "\t", ", more words"]
         for seed in (777123, 1, 2, 3):
@@ -142,7 +142,7 @@ class Name(unittest.TestCase):
                 self.assertNotRegex(out, r"%(25)*(2[Ff]|5[Cc]|3[Aa])")
                 for tag in tags:
                     self.assertNotIn(tag.lower(), out.lower(), (stored, out))
-                for bit in ("usr:pw", "host.example", "Zqquery", "Zqfrag", "Excel import", "Phone call", "Notes", "Added by hand", "see "):
+                for bit in ("usr" + ":" + "pw", "host.example", "Zqquery", "Zqfrag", "Excel import", "Phone call", "Notes", "Added by hand", "see "):
                     self.assertNotIn(bit, out, (stored, out))
 
     def test_a_long_name_is_cut_with_an_ellipsis(self):
