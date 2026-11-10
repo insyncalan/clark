@@ -1072,3 +1072,12 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
+
+/* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
+.pk-lh { margin-top: var(--space-1); }
+.pk-lh-btn { display: block; margin-left: auto; padding: 2px 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
+.pk-lh-btn:focus-visible, .pk-lh-list:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-lh-panel { margin-top: var(--space-1); }
+.pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
+.pk-lh-list { list-style: none; margin: 0; padding: 0; max-height: calc(5 * 4.5em); overflow-y: auto; }
+.pk-lh-row { box-sizing: border-box; min-height: 4.5em; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); overflow-wrap: anywhere; }

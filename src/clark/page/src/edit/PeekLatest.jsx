@@ -12,6 +12,7 @@ import { showDate, todayIso } from "../workItems.js";
 import { changeFor, tableOf } from "./itemEdit.js";
 import { warnFor, draftFor, cleanLatest, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
+import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
 const toClose = () => { const el = document.activeElement; if (!el || el === document.body || !el.isConnected) { const c = document.querySelector("#peek [data-pk-close]"); if (c) c.focus(); } };
@@ -78,6 +79,7 @@ export function PeekLatest({ row }) {
           {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         <RichField key={rev} forceOpen={reopen} field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
+      {action ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
     </div>
   );
