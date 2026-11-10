@@ -61,6 +61,17 @@ class IconsOnTheLine(Base):
             self.until(cdp, sid, "!!document.querySelector('table.items')", "the list")
             self.assertGreaterEqual(cdp.js("document.querySelectorAll('.vtab em.num').length", sid), 1, "tab counts stay")
 
+    def test_group_by_has_its_own_picture_and_its_menu_still_regroups(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            same = cdp.js("document.querySelector('#viewMenu svg').innerHTML === document.querySelector('#work .vicons [data-lay=table] svg').innerHTML", sid)
+            self.assertEqual(same, False, "Group by is not drawn as the List icon")
+            self.assertEqual(cdp.js("!!document.querySelector('#viewMenu svg circle')", sid), True, "the grouping picture (bullets under a header)")
+            cdp.js("document.querySelector('#viewMenu').click()", sid)
+            self.until(cdp, sid, "!!document.querySelector('#viewMenuList [data-kind=\"group:status\"]')", "the Group by menu")
+            cdp.js("document.querySelector('#viewMenuList [data-kind=\"group:status\"]').click()", sid)
+            self.until(cdp, sid, "/grouped by Status/.test(document.querySelector('#viewMenu').getAttribute('aria-description') || '')", "picking a grouping from the icon regroups")
+
 
 if __name__ == "__main__":
     unittest.main()
