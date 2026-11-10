@@ -276,8 +276,8 @@ class Logic(unittest.TestCase):
 
     def test_icon_legend(self):
         icons = self.r["icons"]
-        self.assertEqual(len(icons), 30)      # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
-        self.assertEqual(len({i["icon"] for i in icons}), 30)
+        self.assertEqual(len(icons), 29)      # row 1077: the Draft entry is out with the Draft chip; # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
+        self.assertEqual(len({i["icon"] for i in icons}), 29)
         self.assertTrue(all(i["title"] and i["does"] and i["where"] for i in icons))
         self.assertIn("eyeoff", [i["icon"] for i in icons])
 

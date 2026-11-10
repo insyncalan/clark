@@ -53,6 +53,52 @@ class Name(unittest.TestCase):
         for bare in ("https://intranet.example/", "https://intranet.example", "https://intranet.example/?a=1"):
             self.assertEqual(source_name(bare), "", bare)
 
+    def test_a_prefix_before_a_root_is_cleaned_by_the_same_rule(self):
+        # delta reader, MEDIUM: words before the root were kept raw
+        self.assertEqual(source_name("Priv Clients/Acme, C:\\foo\\a.xlsx"), "a.xlsx")
+        self.assertEqual(source_name("see Priv/x, then /Users/me/a.xlsx"), "a.xlsx")
+        self.assertEqual(source_name("Excel import, 2026-10-01, /Users/me/a.xlsx"), "Excel import, 01-10-2026, a.xlsx")
+
+    def test_lookalike_slashes_and_percent_escapes_are_separators(self):
+        # delta reader, LOW
+        for ch in ("\u2216", "\ufe68", "\u2571", "\u29f5", "\uff0f", "\uff3c", "\u2215"):
+            self.assertEqual(source_name(f"C:{ch}Users{ch}xuser{ch}plan.xlsx"), "plan.xlsx", hex(ord(ch)))
+            self.assertEqual(source_name(f"Priv{ch}Folder{ch}plan.xlsx"), "plan.xlsx", hex(ord(ch)))
+        for esc in ("%2F", "%2f", "%5C", "%5c"):
+            self.assertEqual(source_name(f"https://h.example/Private{esc}Clients{esc}plan.xlsx"), "plan.xlsx", esc)
+        self.assertEqual(source_name("C%3A%5CUsers%5Cxuser%5Cplan.xlsx"), "plan.xlsx")
+        self.assertEqual(source_name("https://h.example/Private%252FClients%252Fplan.xlsx"), "plan.xlsx", "an escape of an escape")
+
+    def test_a_rootless_path_with_a_comma_names_a_file_or_nothing(self):
+        # delta reader, LOW: the last part of a rootless relative path with no extension names a folder
+        self.assertEqual(source_name("Notes, 2026-10-01 Priv/Folder, a.xlsx"), "Notes")
+        self.assertEqual(source_name("Notes, Priv/Folder"), "Notes")
+        self.assertEqual(source_name("Word import, 2026-11-07, team/notes.docx, under Risks"), "Word import, 07-11-2026, notes.docx, under Risks")
+
+    def test_property_no_published_value_holds_a_separator_or_a_folder_of_the_stored_path(self):
+        """2000 seeded stored values: a prefix, a root (or none), 1 to 4 folders (commas, spaces, unicode), a separator kind, a file name, a tail.
+        Every folder carries a unique tag QZ<i>k<j>; no output has a separator of any kind or any tag, and, when rooted, no piece of any folder."""
+        import random
+        rnd = random.Random(11)
+        seps = ["/", "\\", "\uff0f", "\uff3c", "\u2215", "\u2216", "\ufe68", "\u2571", "\u29f5", "%2F", "%5C"]
+        names = ["Priv Clients", "Acme, Inc", "OneDrive - Acme, Inc", "M\u00fcller (Q3)", "\u4f1a\u8bae, \u8bb0\u5f55", "a b", "x,y", "Zed"]
+        roots = ["C:\\", "D:/", "/", "~/", "\\\\srv\\", "file:///", "https://h.example/", "//h/", "./", "../", ""]
+        pre = ["", "Excel import, 2026-10-01, ", "see ", "Notes, ", "Priv Clients/Acme, ", "see Priv/x, then ", "a\\b, "]
+        post = ["", ", then", "  ", "?q=1", "#f/g"]
+        for i in range(2000):
+            root, sep = rnd.choice(roots), rnd.choice(seps)
+            folders = [rnd.choice(names) + f" QZ{i}k{j}" for j in range(rnd.randint(1, 4))]
+            stored = rnd.choice(pre) + root + sep.join(folders) + sep + rnd.choice(["a.xlsx", "plan.docx", "my plan (v2).xlsx"]) + rnd.choice(post)
+            out = source_name(stored)
+            self.assertFalse(set(out) & set("/\\\uff0f\uff3c\u2215\u2216\ufe68\u2571\u29f5"), (stored, out))
+            self.assertNotIn("%2F", out.upper().replace("%2f", "%2F"), (stored, out))
+            for j, folder in enumerate(folders):
+                self.assertNotIn(f"QZ{i}k{j}", out, (stored, out))
+                if root:
+                    for piece in [folder] + [x.strip() for x in folder.split(",")]:
+                        if piece and not piece.startswith("Zed"):
+                            self.assertNotIn(piece, [x.strip() for x in out.split(",")], (stored, out))      # as a whole word of the output (a short piece such as "x" is also inside "a.xlsx")
+
     def test_a_long_name_is_cut_with_an_ellipsis(self):
         long = "Q" * 300 + " plan.xlsx"
         got = source_name(long)
