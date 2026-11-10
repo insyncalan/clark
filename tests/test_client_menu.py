@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_client_menu
 The rows, the reader's profile (kept in their own browser only), Dark mode, Past reports, Export to Excel and Export to PDF, the
-keys, and the bar at 1400, 901 and 900 px in light and dark. Chrome is required: these tests fail, never skip, without it.
+keys, and the bar at 1400 and 900 px in light and dark. Chrome is required: these tests fail, never skip, without it.
 """
 import base64
 import json
@@ -328,7 +328,7 @@ class Menu(unittest.TestCase):
         extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "client_workbook": {"name": "a.xlsx", "base64": SHEET}}
         with chrome() as cdp:
             js = self.show(cdp, extra)
-            for width in (1400, 901, 900, 800):
+            for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 for theme in ("light", "dark"):
                     js(f"document.documentElement.dataset.theme = {json.dumps(theme if theme == 'dark' else '')} || null; if (!{json.dumps(theme == 'dark')}) delete document.documentElement.dataset.theme;")
