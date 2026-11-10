@@ -575,6 +575,13 @@ export function addView(views, name, line) {
   const id = nextId(vs);
   return { ok: true, id, views: [...vs, { id, name: cleanName(name), line: String(line || "") }] };
 }
+/** Row 1073: the name a new view gets without asking, View 1, View 2 ... the lowest number no view (hidden ones too) already has. */
+export function nextViewName(views) {
+  const taken = new Set((views || []).map((v) => low(cleanName(v.name))));
+  let n = 1;
+  while (taken.has(`view ${n}`)) n++;
+  return `View ${n}`;
+}
 /** Save the current line over a view (Save). */
 export function saveView(views, id, line) {
   if (!findView(views, id) || isCoreView(findView(views, id))) return { ok: false, message: "That view is not there any more." };
