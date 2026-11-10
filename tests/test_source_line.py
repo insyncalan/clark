@@ -97,13 +97,13 @@ class PublishedByName(unittest.TestCase):
         rig = Rig(self)
         with rig.store.step("dashboard", PUB_USER) as st:
             st.create("actions", {"project": "PUB", "description": "Check the rota", "raised": "2026-10-01", "client_visible": 1,
-                                  "source": "Excel import, 2026-10-01, /Volumes/share/ZQ-SECRET-FOLDER/sub/" + MARK})
+                                  "source": "Excel import, 2026-10-01, /Volumes/share/ZQ-SECRET-FOLDER, Inc/sub/" + MARK})   # a comma inside the path (reader A)
         status, got = rig.publish(to_client=True)
         self.assertEqual((status, got["ok"]), (200, True), got)
         for folder in (rig.local / "chosen.html", rig.client / WANTED):
             text = Path(folder).read_bytes().decode("utf-8")
             self.assertIn("Excel import, 01-10-2026, " + MARK, text, folder)
-            for bit in ("ZQ-SECRET-FOLDER", "sub/" + MARK, "/Volumes", MARK + " by ", "Excel import, 2026-10-01"):
+            for bit in ("ZQ-SECRET-FOLDER", "ZQ-SECRET-FOLDER, Inc", "Inc/", "sub/" + MARK, "/Volumes", MARK + " by ", "Excel import, 2026-10-01"):
                 self.assertNotIn(bit, text, folder)
 
     def test_the_line_is_one_shared_piece_drawn_by_the_edit_part_too(self):
