@@ -148,8 +148,8 @@ class Line(unittest.TestCase):
                     self.assertEqual(self.chips(cdp, sid), ["is:open"])
                     self.assertEqual(self.shown(cdp, sid), expect(self.rows(cdp, sid)))
                     self.assertEqual(cdp.js("document.querySelectorAll('.fbar, .fbtn').length", sid), 0)
-                    # the type and Open / Closed / All switches stay, each with its count
-                    self.assertEqual(cdp.js("document.querySelectorAll('[data-show] em.num, [data-type] em.num').length", sid), 7)
+                    # row 1059: the type and Open / Closed / All pills are gone (is:open, is:closed and type: on the line do their work)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-show], [data-type=all], [data-type=action], [data-type=risk], [data-type=decision]').length", sid), 0)
                     self.assertEqual(cdp.js("document.querySelectorAll('#fline-input[role=combobox][aria-label]').length", sid), 1)
                     self.assertEqual(cdp.js("document.querySelector('#fline-msg').getAttribute('role')", sid), "status")
                     n = len(expect(self.rows(cdp, sid)))
@@ -157,62 +157,35 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
                     self.assertEqual(cdp.js("history.length", sid), self.steps)
 
-    def switch(self, cdp, sid):
-        return cdp.js("Object.fromEntries([...document.querySelectorAll('[data-show]')].map(b => [b.dataset.show, +b.querySelector('em').textContent]))", sid)
-
-    def types(self, cdp, sid):
-        return cdp.js("Object.fromEntries([...document.querySelectorAll('[data-type]')].map(b => [b.dataset.type, +b.querySelector('em').textContent]))", sid)
-
-    def test_the_switch_counts_equal_the_list_after_each_filter_at_1400_and_900_px(self):
+    def test_the_list_equals_the_rows_for_each_mode_and_type_typed_on_the_line_at_1400_and_900_px(self):
+        # row 1059: the Open / Closed / All and type pills are gone; the same words typed on the line (is:open, is:closed, type:) show the same rows
         s = self.serve()
         for code in self.data:
             for width in SIZES:
                 with self.subTest(project=code, width=width), chrome() as cdp:
                     sid = self.load(cdp, s.port, width, hash_=f"#work&p={code}")
                     rows = self.rows(cdp, sid)
-                    self.assertEqual(cdp.js("document.querySelector('[data-show=open]').getAttribute('aria-pressed')", sid), "true")
-                    self.assertEqual(self.switch(cdp, sid), {m: len(expect(rows, m)) for m in ("open", "closed", "all")})
-                    self.assertEqual(self.switch(cdp, sid)["open"], len(self.shown(cdp, sid)))
-                    self.assertEqual(self.switch(cdp, sid)["all"], len(rows))
-                    self.assertEqual(self.types(cdp, sid), {t: len(expect(rows, "open", t)) for t in ("all", "action", "risk", "decision")})
-                    # a series of filters through the line: after each, the count of the mode that is on is the number of rows shown
+                    self.assertEqual(self.shown(cdp, sid), expect(rows, "open"))
                     for line, filters in (("priority:High", {"priority": ["High"]}), ("priority:High,Medium client:internal", {"priority": ["High", "Medium"], "client": ["no"]}),
                                           ("due:overdue", {"due": ["overdue"]})):
-                        set_line(cdp, sid, "is:open " + line)
-                        want = expect(rows, "open", filters=filters)
-                        self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line}: {self.shown(cdp, sid)} != {want}")
-                        self.assertEqual(self.switch(cdp, sid), {m: len(expect(rows, m, filters=filters)) for m in ("open", "closed", "all")}, line)
-                        self.assertEqual(self.switch(cdp, sid)["open"], len(self.shown(cdp, sid)))
-                        self.assertEqual(self.types(cdp, sid), {t: len(expect(rows, "open", t, filters)) for t in ("all", "action", "risk", "decision")}, line)
-                        # the switches change the line and keep the filters
-                        for mode in ("closed", "all"):
-                            click(cdp, sid, f"[data-show={mode}]")
+                        for mode in ("open", "closed", "all"):
+                            set_line(cdp, sid, ("" if mode == "all" else f"is:{mode} ") + line)
                             want = expect(rows, mode, filters=filters)
                             self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line} {mode}")
-                            self.assertEqual(self.switch(cdp, sid)[mode], len(want))
-                        click(cdp, sid, "[data-type=action]")
+                        set_line(cdp, sid, "type:action " + line)
                         want = expect(rows, "all", "action", filters)
                         self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line} actions")
-                        self.assertEqual(self.types(cdp, sid)["action"], len(want))
-                        click(cdp, sid, "[data-type=all]")
-                        click(cdp, sid, "[data-show=open]")
 
     def test_a_filter_change_redraws_only_the_list(self):
         s = self.serve()
-        sels = ["h1", ".crumbs", ".head", ".wbar", ".seg", "[data-type=action]", "[data-show=closed]", ".fline-wrap", INPUT, "#newBtn", "#work-list"]
+        sels = ["h1", ".crumbs", ".head", ".fline-wrap", INPUT, "#newBtn", "#work-list"]
         with chrome() as cdp:
             sid = self.load(cdp, s.port)
             cdp.js(f"window.__sels = {json.dumps(sels)}; window.__keep = window.__sels.map(q => document.querySelector(q)); window.__tbody = document.querySelector('#work tbody')", sid)
-            click(cdp, sid, "[data-show=closed]")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-show=closed]').getAttribute('aria-pressed')", sid) == "true"), "the Closed show button is pressed")
-            click(cdp, sid, "[data-type=action]")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-type=action]').getAttribute('aria-pressed')", sid) == "true"), "the Actions type button is pressed")
-            click(cdp, sid, "[data-show=all]")                     # a change through the line itself, from the page's own start
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-show=all]').getAttribute('aria-pressed')", sid) == "true"), "the All show button is pressed")
             self.put(cdp, sid, "type:action is:closed")
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-show=closed]').getAttribute('aria-pressed')", sid) == "true"), "the Closed show button is pressed")
+            self.assertTrue(wait(lambda: self.chips(cdp, sid) == ["type:action", "is:closed"]), "the line holds both words")
             self.assertEqual(cdp.js("window.__keep.map((e, i) => e === document.querySelector(window.__sels[i]))", sid), [True] * len(sels),
-                             "the heading, the switches, the line, Add and the list's own box are the same elements")
+                             "the heading, the line, Add and the list's own box are the same elements")
             self.assertEqual(cdp.js("window.__tbody === document.querySelector('#work tbody')", sid), True)
             self.assertEqual(sorted({k for k in cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.kind)", sid)}), ["action"])
 
@@ -1373,11 +1346,6 @@ class Line(unittest.TestCase):
         with chrome() as cdp:
             sid = self.load(cdp, s.port, motion="no-preference")   # the thumb is a motion rule: pin the media, as a runner may report reduce
             bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
-            for on, off in (("[data-type][aria-pressed=true]", "[data-type][aria-pressed=false]"),
-                            ("[data-show][aria-pressed=true]", "[data-show][aria-pressed=false]")):
-                with self.subTest(on=on):
-                    self.assertTrue(cdp.js(f"!!document.querySelector({json.dumps(on)}) && !!document.querySelector({json.dumps(off)})", sid), "one of each is drawn")
-                    self.assertNotEqual(bg(on), bg(off), "the pressed button has its own background")
             self.put(cdp, sid, "priority:High")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fline .k-val')", sid)), "a value token is drawn")
             self.assertNotEqual(bg(".fline .k-val"), bg(".fline"), "a chosen filter value is drawn as a chip with its own background")
