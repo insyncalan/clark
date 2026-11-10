@@ -90,6 +90,84 @@ class Tabs(unittest.TestCase):
             self.assertEqual(cdp.js(self.IDS, sid)[5], "overdue", "and it did not move")
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 
+    def test_a_drag_that_ends_over_its_own_tab_does_not_choose_it(self):
+        with chrome() as cdp:
+            sid = self.fresh(cdp)
+            before = cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid)
+            x, y = self.centre(cdp, sid, "overdue")
+            self.mouse(cdp, sid, "mouseMoved", x, y)
+            self.mouse(cdp, sid, "mousePressed", x, y, button="left", buttons=1, clickCount=1)
+            for dx in (6, 12, 6, 0):
+                self.mouse(cdp, sid, "mouseMoved", x + dx, y, buttons=1)
+            self.mouse(cdp, sid, "mouseReleased", x, y, button="left", buttons=0, clickCount=1)
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), before, "a drag is not a click")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    @unittest.expectedFailure
+    def test_a_drag_that_ends_over_its_own_tab_leaves_it_in_place(self):
+        """Found by the mutation proof: the drop skips the dragged tab itself, so a drop over its own place finds no tab and sends it to the end of the row."""
+        with chrome() as cdp:
+            sid = self.fresh(cdp)
+            x, y = self.centre(cdp, sid, "overdue")
+            self.mouse(cdp, sid, "mouseMoved", x, y)
+            self.mouse(cdp, sid, "mousePressed", x, y, button="left", buttons=1, clickCount=1)
+            for dx in (6, 12, 6, 0):
+                self.mouse(cdp, sid, "mouseMoved", x + dx, y, buttons=1)
+            self.mouse(cdp, sid, "mouseReleased", x, y, button="left", buttons=0, clickCount=1)
+            self.assertEqual(cdp.js(self.IDS, sid)[5], "overdue")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_a_tab_dropped_past_either_end_goes_to_that_end(self):
+        with chrome() as cdp:
+            sid = self.fresh(cdp)
+            first = cdp.js(self.IDS, sid)[0]
+            cdp.js("document.querySelector('.vtab[data-view-id=%s]').scrollIntoView({inline: 'start', block: 'nearest', behavior: 'instant'})" % first, sid)
+            x0, y0 = self.centre(cdp, sid, "core-actions")
+            left = cdp.js("document.querySelector('.vtab[data-view-id=%s]').getBoundingClientRect().left" % first, sid) - 12
+            self.mouse(cdp, sid, "mouseMoved", x0, y0)
+            self.mouse(cdp, sid, "mousePressed", x0, y0, button="left", buttons=1, clickCount=1)
+            for i in range(1, 11):
+                self.mouse(cdp, sid, "mouseMoved", x0 + (left - x0) * i / 10, y0, buttons=1)
+            self.mouse(cdp, sid, "mouseReleased", left, y0, button="left", buttons=0, clickCount=1)
+            self.assertTrue(wait(lambda: cdp.js(self.IDS, sid)[0] == "core-actions"), cdp.js(self.IDS, sid))
+            last = cdp.js(self.IDS, sid)[-1]
+            cdp.js("document.querySelector('.vtab[data-view-id=%s]').scrollIntoView({inline: 'end', block: 'nearest', behavior: 'instant'})" % last, sid)
+            x0, y0 = self.centre(cdp, sid, cdp.js(self.IDS, sid)[-2])
+            moved = cdp.js(self.IDS, sid)[-2]
+            right = cdp.js("document.querySelector('.vtab[data-view-id=%s]').getBoundingClientRect().right" % last, sid) + 12
+            self.mouse(cdp, sid, "mouseMoved", x0, y0)
+            self.mouse(cdp, sid, "mousePressed", x0, y0, button="left", buttons=1, clickCount=1)
+            for i in range(1, 11):
+                self.mouse(cdp, sid, "mouseMoved", x0 + (right - x0) * i / 10, y0, buttons=1)
+            self.mouse(cdp, sid, "mouseReleased", right, y0, button="left", buttons=0, clickCount=1)
+            self.assertTrue(wait(lambda: cdp.js(self.IDS, sid)[-1] == moved), cdp.js(self.IDS, sid))
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_a_cancelled_drag_moves_nothing(self):
+        with chrome() as cdp:
+            sid = self.fresh(cdp)
+            order = cdp.js(self.IDS, sid)
+            x0, y0 = self.centre(cdp, sid, "core-actions")
+            x1, y1 = self.centre(cdp, sid, "core-decisions")
+            cdp.js("""(() => {
+              const ev = (t, x, tgt) => tgt.dispatchEvent(new PointerEvent(t, {bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', clientX: x, clientY: %s}));
+              ev('pointerdown', %s, document.querySelector('.vtab[data-view-id=core-actions]'));
+              ev('pointermove', %s, document); ev('pointermove', %s, document);
+              ev('pointercancel', %s, document);
+            })()""" % (y0, x0, (x0 + x1) / 2, x1, x1), sid)
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('.vt[data-lifted]')", sid)), "put down")
+            self.assertEqual(cdp.js(self.IDS, sid), order, "a cancelled drag keeps the order")
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    def test_the_tab_menu_entries_have_icons_and_delete_is_red(self):
+        with chrome() as cdp:
+            sid = self.fresh(cdp)
+            click(cdp, sid, "#viewTabMenu")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+            got = cdp.js("[...document.querySelectorAll('#viewTabMenuList [data-kind=rename], #viewTabMenuList [data-kind=move], #viewTabMenuList [data-kind=duplicate], #viewTabMenuList [data-kind=delete]')].map(b => [b.dataset.kind, !!b.querySelector('.mico'), b.classList.contains('mdanger')])", sid)
+            self.assertEqual(sorted(got), [["delete", True, True], ["duplicate", True, False], ["move", True, False], ["rename", True, False]])
+            cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
     def test_move_view_by_keys(self):
         with chrome() as cdp:
             sid = self.fresh(cdp)
@@ -137,6 +215,7 @@ class Tabs(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "an Undo message")
             click(cdp, sid, "[data-undo]")
             self.assertTrue(wait(lambda: cdp.js(self.IDS, sid)[2] == "core-risks"), cdp.js(self.IDS, sid))
+            self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-risks", "and it is the chosen tab again")
             self.assertEqual(len(cdp.js(self.IDS, sid)), n)
             cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
 

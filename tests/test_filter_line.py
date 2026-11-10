@@ -645,6 +645,13 @@ class SavedViews(Line):
         self.assertFalse(self.v(f"moveView({lit(base)}, 'zzz', 1)")["ok"])
         self.assertEqual(self.val(f"(function(){{ var v = {lit(base)}; T.fl.moveView(v, 'mine', 0); return v; }})()"), base)
 
+    def test_insert_a_deleted_view_at_the_end(self):
+        """Row 1071: Undo of deleting the last tab puts it last again (the place is the length, not the last index)."""
+        base = self.v("viewsGet(null, 'ABC')")
+        gone = self.v(f"deleteView({lit(base)}, 'mine')")["views"]
+        back = self.v(f"insertView({lit(gone)}, {lit(base[-1])}, {len(gone)})")
+        self.assertEqual(back["views"], base)
+
     def test_duplicate_a_view(self):
         """Row 1071: Duplicate view names the copy '<name> copy', puts it right after the original, with the same line; it is never a core view."""
         base = self.v("viewsGet(null, 'ABC')")
