@@ -48,6 +48,15 @@ class TheBrandKitGuide(unittest.TestCase):
         self.assertRegex(t, r"(?i)no links")
         self.assertRegex(t, r"(?i)outside")
 
+    def test_it_says_the_layout_and_the_checks_the_code_makes(self):
+        t = text(guide())
+        code = (SRC / "brands.py").read_text(encoding="utf-8")
+        self.assertIn("the manifest's id is not the folder's", code)
+        self.assertIn("size, sha, mode = rows[rel]", code)
+        self.assertIn("one folder named by the brand id", t)
+        for w in ("size", "sha256", "mode", "must match"):
+            self.assertIn(w, t, w)
+
     def test_it_says_no_file_name_is_required(self):
         self.assertRegex(text(guide()), r"(?i)no (particular )?file name is required|needs no particular file name|any file name")
 
