@@ -51,6 +51,10 @@ class UseCaseChanges(Base):
                 self.assertEqual(body["message"], words)
                 self.assertEqual(self.counts(), before)
 
+    def test_the_rules_name_the_three_commitment_words(self):
+        self.assertIn("(Planned 2026, Committed or Planned 2027)", ask.RULES)
+        self.assertNotIn("Candidate", ask.RULES)
+
     def test_the_model_may_read_the_commitment_flag_but_a_proposal_to_change_it_is_refused(self):      # the Head's ruling
         with self.s.step("dashboard", USER) as st:
             st.update("use_cases", self.uc, {"commitment": "Planned 2026"})

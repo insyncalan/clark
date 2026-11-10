@@ -68,6 +68,21 @@ class PlannedTwentySix(unittest.TestCase):
             con.close()
         self.assertNotIn("Planned 2026", text, "the migration writes no history line and rewrites none")
 
+    def test_old_change_log_lines_keep_the_word_candidate(self):
+        path = make_at(self.dir, STEP - 1)
+        plant(path, ["Candidate"])
+        con = sqlite3.connect(str(path), isolation_level=None)
+        con.execute("INSERT INTO change_log (at, apply_id, tbl, item_id, field, old_value, new_value, op, via) "
+                    "VALUES ('2026-10-30 09:00:00', 'a1', 'use_cases', 'ABC-U-001', 'commitment', 'Candidate', 'Committed', 'update', 'dashboard')")
+        con.close()
+        open_store(path, onedrive_roots=[]).close()
+        con = sqlite3.connect(str(path))
+        try:
+            rows = con.execute("SELECT old_value, new_value FROM change_log WHERE field = 'commitment'").fetchall()
+        finally:
+            con.close()
+        self.assertEqual(rows, [("Candidate", "Committed")], "the migration rewrites no history line")
+
     def test_a_second_open_changes_nothing(self):
         path = make_at(self.dir, STEP - 1)
         plant(path, ["Candidate"])

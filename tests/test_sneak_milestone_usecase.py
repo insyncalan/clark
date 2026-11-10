@@ -126,7 +126,7 @@ class UseCase(unittest.TestCase):
         self.assertFalse(read("U-1", "flag")["confirm"])
 
     def test_the_commitment_words_are_exact(self):
-        for said, word in (("planned 2026", "Planned 2026"), ("COMMITTED", "Committed"), ("planned for 2027", "Planned 2027"), ("Planned 2027", "Planned 2027")):
+        for said, word in (("planned 2026", "Planned 2026"), ("planned for 2026", "Planned 2026"), ("COMMITTED", "Committed"), ("planned for 2027", "Planned 2027"), ("Planned 2027", "Planned 2027")):
             r = read("U-1", said)
             self.assertEqual(next(c for c in r["changes"] if c["field"] == "commitment")["to"], word)
             self.assertIn(word, changes.UC_COMMITMENTS)
