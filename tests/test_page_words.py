@@ -242,10 +242,12 @@ class Words(unittest.TestCase):
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ],
                 "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
-                                  "Claude is started on this computer for you. What you ask, and the passages and folder files it needs, go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
+                                  "Claude is started on this computer for you.",
+                                  "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
-                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file.",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
                                   "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
