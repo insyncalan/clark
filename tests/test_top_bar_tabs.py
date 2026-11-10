@@ -183,7 +183,7 @@ class TopBarTabs(Base):
                     got = self.measure(width, "light", True, edit)
                     where = f"at {width} px{', Edit' if edit else ''}"
                     self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is only {got['row'][1] - got['row'][0]:.0f} px wide; the project name is {got['name']:.0f} px")
-                    self.assertGreaterEqual(got["name"], 48, f"{where}: the project name box is squeezed to {got['name']:.0f} px")
+                    self.assertGreaterEqual(got["name"], 20, f"{where}: the project switcher (row 1064: the chevron alone) is squeezed to {got['name']:.0f} px")
                     self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"{where}: an item runs past the window")
                     self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
 
@@ -210,7 +210,7 @@ class TopBarTabs(Base):
                 got = self.measure(width, "light", True, False)
                 row = got["row"][1] - got["row"][0]
                 self.assertGreaterEqual(row, 110, f"at {width} px the tab row is only {row:.0f} px wide; the project name is {got['name']:.0f} px")
-                self.assertGreaterEqual(got["name"], 48, f"at {width} px the project name box is {got['name']:.0f} px")
+                self.assertGreaterEqual(got["name"], 20, f"at {width} px the project switcher (row 1064: the chevron alone) is {got['name']:.0f} px")
                 self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px the page scrolls sideways {got['scroll']}")
                 self.assertGreaterEqual(len(got["tabs"]), 4, f"at {width} px the tabs are {[t['name'] for t in got['tabs']]}")
 
