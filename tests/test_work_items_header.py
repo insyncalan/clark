@@ -11,6 +11,7 @@ import unittest
 from test_server import chrome
 from test_work_board_page import Base
 from test_work_filters import arm, click, hover, key, select_line, set_line
+from test_filter_line_page import click_tab
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -146,7 +147,7 @@ class Header(Base):
             self.assertNotEqual(got["badge"]["radius"], "0px", "the count is in a round badge")
             self.assertNotEqual(got["badge"]["bg"], "rgba(0, 0, 0, 0)")
             # the made view can be opened, and then it is the one with the underline
-            click(cdp, sid, ".vtab[data-view-id=mine]")
+            click_tab(cdp, sid, ".vtab[data-view-id=mine]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=mine]').getAttribute('aria-pressed') === 'true'", "the made view is open")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
@@ -178,7 +179,7 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
-            click(cdp, sid, ".vtab[data-view-id=risky]")
+            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open", why=lambda: cdp.js(self.CLICK_DIAG, sid))
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
@@ -203,7 +204,7 @@ class Header(Base):
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
             for tab in ("core-open", "risky"):         # the first tab (its arrow is near the page's left edge) and a later one
-                click(cdp, sid, f".vtab[data-view-id={tab}]")
+                click_tab(cdp, sid, f".vtab[data-view-id={tab}]")
                 self.until(cdp, sid, f"document.querySelector('.vtab[data-view-id={tab}]').getAttribute('aria-pressed') === 'true' && document.querySelector('#viewTabMenu')", f"{tab} chosen")
                 click(cdp, sid, "#viewTabMenu")
                 self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
@@ -295,7 +296,7 @@ class Header(Base):
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
-            click(cdp, sid, ".vtab[data-view-id=risky]")
+            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
             self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no message before")
             click(cdp, sid, "#fline-input")
@@ -374,7 +375,7 @@ class Header(Base):
             self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
             self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
-            click(cdp, sid, ".vtab[data-view-id=quiet]")
+            click_tab(cdp, sid, ".vtab[data-view-id=quiet]")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
             click(cdp, sid, "#fline-x")          # row 845: the saved line's filters are chips; Clear takes them away before the new word is typed

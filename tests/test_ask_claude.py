@@ -79,12 +79,13 @@ for name in os.listdir("/dev/fd"):
 FDS.sort()
 mask = os.umask(0)
 os.umask(mask)
-with open(os.path.join(here, "seen.json"), "w", encoding="utf-8") as f:
+with open(os.path.join(here, "seen.json.part"), "w", encoding="utf-8") as f:   # written whole, then moved into place: a reader never finds it empty (CI flake)
     json.dump({"args": args, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": data.decode("utf-8", "surrogateescape"),
                "stdin_len": len(data), "eof": again == b"", "pid": os.getpid(), "pgid": os.getpgid(0), "fds": FDS,
                "inodes": {str(n): INO[n] for n in FDS if n > 2 and n in INO}, "sockets": [n for n in FDS if n in SOCK],
                "umask": mask, "tmp": tmp, "tmp_mode": (tmp_st.st_mode & 0o777) if tmp_st else None,
                "tmp_uid": tmp_st.st_uid if tmp_st else None, "start_cwd": start_cwd, "start_tmp": start_tmp}, f)
+os.replace(os.path.join(here, "seen.json.part"), os.path.join(here, "seen.json"))
 if mode == "slow":
     time.sleep(60)
 if mode == "helper":

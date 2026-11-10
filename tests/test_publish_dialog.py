@@ -521,7 +521,8 @@ class NoFolder(Base):
                 self.assertEqual(p.js("document.querySelector('#pub-client').checked"), False, "pressing the link does not tick the box")
                 p.js("document.querySelector('#pub-to-set').click()")
                 p.until("!document.querySelector('#publish-dialog') && document.activeElement && document.activeElement.id === 'publishing'", f"{w}: the box closed and the Publishing card has the focus")
-                self.assertEqual(p.js("document.querySelector('[data-view=settings]').getAttribute('aria-selected')"), "true", "Settings is open")
+                self.assertEqual(p.js("document.querySelector('h1').textContent"), "Settings", "Settings is open")      # row 976: Settings is no tab, so the page's own heading says it is open
+                self.assertEqual(p.js("document.querySelectorAll('[data-view=settings]').length"), 0, "and it is not a tab")
                 self.assertTrue(p.js("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()"), "the card is in view")
                 self.assertTrue(p.js("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()"), "clear of the top bar")
 

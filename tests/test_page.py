@@ -237,9 +237,12 @@ class RealBrowser(unittest.TestCase):
                 s = self.serve(branding)
                 with chrome() as cdp:
                     sid = navigate(cdp, s.port, "#dashboard&p=ABC")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.top')", sid)), "the page drew")
-                    seen[name] = cdp.js("[getComputedStyle(document.documentElement).getPropertyValue('--brand-navy').trim(), "
-                                        "getComputedStyle(document.querySelector('.top')).backgroundColor]", sid)
+                    # One read does both the waiting and the reading: a separate look for .top and then a second evaluate can fall on
+                    # either side of the page's start-up navigation, and that second one then answered nothing (null, not an error).
+                    read = ("(() => { const top = document.querySelector('.top'); return top ? "
+                            "[getComputedStyle(document.documentElement).getPropertyValue('--brand-navy').trim(), "
+                            "getComputedStyle(top).backgroundColor] : null; })()")
+                    self.assertTrue(wait(lambda: seen.__setitem__(name, cdp.js(read, sid)) or seen[name]), "the page drew")
         self.assertEqual(seen["demo"][0], demo_navy)
         self.assertEqual(seen["override"], ["#123456", "rgb(18, 52, 86)"])
         self.assertNotEqual(seen["demo"][1], seen["override"][1])
