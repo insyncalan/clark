@@ -230,20 +230,22 @@ def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
     """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
     this is the second look at the finished file. A run is excused only when a kept value IS that run (the whole-value rule of
     markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. At most MAX_RUN_MARKERS runs
-    and MAX_RUN_CHARS characters in all become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
+    and MAX_RUN_CHARS characters of each hidden section become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
     whole body is still one marker (markers_for), so pasting all of it is refused."""
     kept_whole = {" ".join(t.split()) for t in kept_text} | {" ".join(r.split()) for r in kept_runs}
-    seen, chars = set(), 0
+    seen = set()
     for row in store.read("report_sections", project=code):
         if not row.get("hidden") or not _text(row.get("body")):
             continue
+        count = chars = 0                                    # each hidden section has its own share of the cap, so a big one cannot hide a later one
         for run in _body_runs(row["body"]):
             value = " ".join(run.split())
             if len(value) < MIN_MARKER or value in seen or value in kept_whole or to_client._key(value) in bare:
                 continue
-            if len(seen) >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
-                return
+            if count >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
+                break
             seen.add(value)
+            count += 1
             chars += len(value)
             add(value, row.get("id"))
 

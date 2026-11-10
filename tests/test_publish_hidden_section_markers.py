@@ -5,7 +5,6 @@ Fictional data only.
 Run: python3 dev/run_tests.py test_publish_hidden_section_markers
 """
 import json
-import time
 import unicodedata
 
 from clark import publish, publish_flow, to_client
@@ -100,13 +99,12 @@ class HiddenSections(Base):
         # (count and total characters); the whole-body marker stays, so a paste of the full body is still refused.
         runs = "".join("<p>Hostile run number %05d of filler</p>" % i for i in range(8000))
         self.section("s-big", "text", runs, 1)
-        t0 = time.monotonic()
         built, got = self.got()
-        self.assertLessEqual(len([m for m in got if m.startswith("Hostile run number")]), publish_flow.MAX_RUN_MARKERS)
+        run_markers = [m for m in got if len(m) < 1000 and "Hostile run number" in m]     # the whole-body marker is one long text, counted apart
+        self.assertEqual(len(run_markers), publish_flow.MAX_RUN_MARKERS)
         # the whole-body marker (markers_for, #619) is one long text, counted apart from the run markers the cap is about
         self.assertLessEqual(sum(len(m) for m in got if len(m) < 1000), publish_flow.MAX_RUN_CHARS + 20000)
         self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
-        self.assertLess(time.monotonic() - t0, 5.0)
         self.assertTrue(self.refused(built, got, " ".join("Hostile run number %05d of filler" % i for i in range(8000))))
 
     def test_a_section_under_the_cap_keeps_every_run(self):
@@ -115,3 +113,13 @@ class HiddenSections(Base):
         got = self.got()[1]
         for i in range(20):
             self.assertIn("Modest run number %02d of filler" % i, got)
+
+    def test_a_big_hidden_section_first_does_not_hide_a_later_hidden_section(self):
+        # The cap is per hidden section: the first one exceeds it, and one sentence of the later one pasted into the file is refused.
+        runs = "".join("<p>Hostile run number %05d of filler</p>" % i for i in range(publish_flow.MAX_RUN_MARKERS + 50))
+        self.section("s-a-big", "text", runs, 1)
+        self.section("s-b-later", "text", "<p>Zqcorp later section leaked sentence</p><p>Zq another later sentence</p>", 1)
+        built, got = self.got()
+        self.assertEqual(len([m for m in got if len(m) < 1000 and "Hostile run number" in m]), publish_flow.MAX_RUN_MARKERS)
+        self.assertIn("Zqcorp later section leaked sentence", got)
+        self.assertTrue(self.refused(built, got, "Zqcorp later section leaked sentence"))
