@@ -4,7 +4,14 @@ Each icon button has a name and a target of 24 px or more. 1400 and 900 px, ligh
 
 Run: python3 dev/run_tests.py test_view_icons_filter_line
 """
+import tempfile
 import unittest
+from pathlib import Path
+
+from _demo import USER  # noqa: E402
+from clark import publish  # noqa: E402
+from _real_server import real_server  # noqa: E402
+import _testpage  # noqa: E402
 
 from test_server import chrome  # noqa: E402
 from test_work_board_page import Base  # noqa: E402
@@ -85,6 +92,46 @@ class IconsOnTheLine(Base):
             self.until(cdp, sid, "!!document.querySelector('#viewMenuList [data-kind=\"group:status\"]')", "the Group by menu")
             cdp.js("document.querySelector('#viewMenuList [data-kind=\"group:status\"]').click()", sid)
             self.until(cdp, sid, "/grouped by Status/.test(document.querySelector('#viewMenu').getAttribute('aria-description') || '')", "picking a grouping from the icon regroups")
+
+    def test_with_no_board_only_group_by_shows(self):
+        self.s = real_server(self.store.path, self.store.data_for, page_html=_testpage.html)      # the test build of the page: it has the hook window.clarkPage
+        self.addCleanup(self.s.close)
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.assertEqual(cdp.js("document.querySelectorAll('#work .fline .vicons button').length", sid), 3, "with a board: List, Board, Group by")
+            cdp.js("window.clarkPage.withoutBoard()", sid)
+            self.until(cdp, sid, "document.querySelectorAll('#work .fline .vicons button').length === 1", "only Group by")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.vicons button')].map(b => b.getAttribute('aria-label'))", sid), ["Group by"])
+
+
+class ImportExportPlace(Base):
+    def test_with_no_work_items_import_and_export_stay_in_the_top_bar(self):
+        with self.store.step("dashboard", USER) as st:
+            for k in ("actions", "raid", "decisions"):
+                for r in self.data[k]:
+                    st.archive(k, r["id"])
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width, wait_for="#work h1")
+                self.until(cdp, sid, "/no work items yet/.test(document.querySelector('#work').textContent)", "the empty project")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .fline').length", sid), 0, "no filter line")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .hacts #impBtn').length", sid), 1, "Import is in the top bar")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1)
+
+    def test_a_published_file_has_no_import_or_export_anywhere(self):
+        out = Path(publish.publish(self.store, "ABC", tempfile.mkdtemp(prefix="clark-pub-"), by_user=USER, now="2026-10-29", branding=tempfile.mkdtemp())["path"])
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                from test_work_items import page_target
+                sid = page_target(cdp)
+                cdp.call("Page.enable", {}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": out.as_uri()}, sid)
+                self.until(cdp, sid, "!!document.querySelector('.tab')", "the file")
+                cdp.js("[...document.querySelectorAll('.tab')].find(t => /Work items/.test(t.textContent)).click()", sid)
+                self.until(cdp, sid, "!!document.querySelector('#work h1')", "Work items")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn, #expBtn').length", sid), 0)
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .vicons, #work .fline').length", sid), 0)
 
 
 if __name__ == "__main__":
