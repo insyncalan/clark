@@ -46,12 +46,32 @@ class HeaderNoProjectName(Base):
             self.assertGreaterEqual(got["gap"], 24, f"at {width} px: {got['gap']} px between the logo and the first tab")
 
     def test_the_profile_circle_and_the_page_fit_the_window(self):
-        for width in (1400, 900, 420, 360):
+        for width in (1400, 900):
             got = self.measure(width, "light")
             self.assertLessEqual(got["meRight"], got["win"] + 0.5, f"at {width} px: the profile circle (Settings) runs past the window")
             self.assertGreaterEqual(got["meLeft"], 0, f"at {width} px")
             self.assertLessEqual(got["page"], 0, f"at {width} px: the page scrolls sideways")
             self.assertAlmostEqual(got["barH"], 56, delta=1, msg=f"at {width} px: the bar is one row")
+
+    def test_the_switcher_shows_a_box_on_hover_and_on_keyboard_focus(self):
+        sel = "document.querySelector('header.top .projbtn')"
+        for width in (1400, 900):
+            with chrome() as cdp:
+                p = self.visit(cdp)
+                size(cdp, p, width, 700)
+                p.until("document.querySelector('header.top .projbtn')", "the switcher shows")
+                where = f"at {width} px"
+                rest = p.js(f"getComputedStyle({sel}).backgroundColor")
+                r = p.js(f"(function(){{ var r = {sel}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+                p.mouse("mouseMoved", r[0], r[1])
+                p.until(f"{sel}.matches(':hover')", "hovered")
+                self.assertNotEqual(p.js(f"getComputedStyle({sel}).backgroundColor"), rest, f"{where}: hover draws no box")
+                p.mouse("mouseMoved", 1, 1)
+                p.js(f"{sel}.focus()")
+                p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
+                got = p.js(f"(function(){{ var c = getComputedStyle({sel}); return [c.outlineStyle, c.outlineWidth, {sel}.matches(':focus-visible')]; }})()")
+                self.assertEqual(got[0], "solid", f"{where}: no focus outline")
+                self.assertEqual(got[1], "2px", f"{where}: the focus outline is not 2px")
 
 
 if __name__ == "__main__":

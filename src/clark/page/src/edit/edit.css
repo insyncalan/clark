@@ -392,7 +392,7 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
-  .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
+  .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
 }
 @media (min-width: 801px) and (max-width: 1000px) {      /* row 757: from 801 px to 1000 px (the 900 px layout runs in a 915 px window too) the project name gives way first (it is the item that shrinks, 1000 times as hard as the tab row, which must keep a shrink factor of 1 or more or flexbox would absorb only a fraction of the overflow, down to a floor of 72 px); only then does the tab row scroll inside its own box, the open tab kept in view by the top bar; 800 px and below stay as above */
   .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
