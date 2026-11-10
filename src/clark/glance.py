@@ -163,6 +163,13 @@ def pill_of(row, today):
     return {"text": "Open", "class": "b"}
 
 
+def client_pill(row, today):
+    """The status word a client reads on a report row: pill_of, except that an action neither late, delayed nor due soon reads
+    "On track" (green) instead of "Open". The page, the published file and the Word copy all say this word. (sectionRows.js clientPill)"""
+    p = pill_of(row, today)
+    return {"text": "On track", "class": "g"} if row.get("kind") == "action" and p["text"] == "Open" else p
+
+
 _CLASS_COLOUR = {"r": "red", "a": "amber", "g": "green"}
 
 

@@ -16,21 +16,23 @@ TOKEN_NAMES = (
     "brand-navy", "brand-ink", "white", "brand-blue", "grey-50", "grey-100", "grey-300", "grey-700", "brand-blue-tint",
     "status-blue-text", "status-green-tint", "status-green-text", "status-amber-tint", "status-amber-text",
     "status-red-tint", "status-red-text", "status-red",
+    "tone-red-text", "tone-red-tint", "tone-amber-text", "tone-amber-tint", "tone-green-text", "tone-green-tint", "tone-blue-text",
+    "tone-blue-tint", "tone-grey-text", "tone-grey-tint", "tone-urgent",
 )
 TOKENS = {name: look.colour(name) for name in TOKEN_NAMES}
 
 # Colour name -> (fill token, text token). The names are what the value tables below use.
 COLOURS = {
-    "red": ("status-red-tint", "status-red-text"),
-    "amber": ("status-amber-tint", "status-amber-text"),
-    "green": ("status-green-tint", "status-green-text"),
-    "blue": ("brand-blue-tint", "status-blue-text"),
-    "grey": ("grey-100", "grey-700"),
+    "red": ("tone-red-tint", "tone-red-text"),
+    "amber": ("tone-amber-tint", "tone-amber-text"),
+    "green": ("tone-green-tint", "tone-green-text"),
+    "blue": ("tone-blue-tint", "tone-blue-text"),
+    "grey": ("tone-grey-tint", "tone-grey-text"),
 }
 
 HEADER_FILL = TOKENS["brand-navy"]
 HEADER_TEXT = TOKENS["white"]
-LATE_TEXT = TOKENS["status-red-text"]       # an open item past its date: red text (the page's .late)
+LATE_TEXT = TOKENS["tone-red-text"]       # an open item past its date: red text (the page's .late)
 
 # Each kind of row follows what the page shows for it (the Head's decision on #85).
 # RAID priority: D-12 (Urgent or High red, Medium amber, Low green). Impact and likelihood use the same scale.
@@ -42,12 +44,12 @@ RATING = {"High": "red", "Medium": "amber", "Low": "green"}
 # red, Forecast blue.
 MILESTONE_STATE = {"Achieved": "green", "On track": "green", "At risk": "amber", "Slipped": "red", "Overdue": "red",
                    "Forecast": "blue"}
-DECISION_STATUS = {"Pending": "amber", "Made": "green", "Withdrawn": "grey"}
+DECISION_STATUS = {"Pending": "green", "Made": "blue", "Withdrawn": "grey"}
 USE_CASE_STATUS = {"On track": "green", "Flag": "amber", "High risk": "red", "Done": "grey"}     # Done: finished, grey as on the page
 
-# Action and RAID status, in the page's tones: Open blue, Delayed amber, Closed and Cancelled grey.
-ACTION_STATUS = {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"}
-RAID_STATUS = {"Open": "blue", "Closed": "grey", "Cancelled": "grey"}
+# Action and RAID status, in the final 1021 tones: Open green, Delayed amber, Closed blue, Cancelled grey.
+ACTION_STATUS = {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"}
+RAID_STATUS = {"Open": "green", "Closed": "blue", "Cancelled": "grey"}
 
 # (table, field) -> the value table. A value not in the table (or an empty cell) gets no colour.
 BY_FIELD = {
