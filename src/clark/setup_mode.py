@@ -16,6 +16,13 @@ from clark import doctor, platform
 POINTER_NAME = "clark-data-folder"          # one line, beside the default data folder (not in it)
 MAX_PATH = 1000                             # the rule settings.set_backup_copy_folder applies to a typed folder
 
+# Sentences borrowed from the folder picker of asking (ask_folders.MESSAGES, same keys), carried here because that module opens
+# the store and this one may not. test_setup_mode pins them equal.
+WORDS = {
+    "cant_save": "That folder could not be saved. Try Choose folder again; if it keeps happening, close clark and start it again. "
+                 "Nothing was changed.",
+}
+
 
 class Refused(Exception):
     """A folder (or a step) the service will not take. `code` is for the page, `words` is the doctor's own line."""
@@ -62,7 +69,8 @@ class Setup:
     def choose(self, prompt):
         """Open the system's folder window and check the answer. None on Cancel (nothing changes). On a good answer the folder
         is kept (pointer file written) and the new report is returned. Raises Refused (the folder's own words; code "busy" if a
-        window is already open) or lets a PlatformError out (the window could not be opened)."""
+        window is already open; "cant_save" if the pointer file could not be written) or lets a PlatformError out (the window
+        could not be opened)."""
         if not self._dialog.acquire(blocking=False):
             raise Refused("busy", "")
         try:
@@ -91,7 +99,15 @@ class Setup:
         return resolved
 
     def remember(self, folder):
-        platform.write_file(self.pointer(), str(folder) + "\n")
+        """Keep `folder` in the pointer file, making the pointer's own folder first (a fresh computer may not have it). A pointer
+        that can't be written is Refused("cant_save") in plain words, never an OSError: the chosen folder is left alone, nothing is
+        kept, and the person can choose again. (Kept but forgotten would put them back in setup at the next start.)"""
+        pointer = Path(self.pointer())
+        try:
+            pointer.parent.mkdir(parents=True, exist_ok=True)
+            platform.write_file(pointer, str(folder) + "\n")
+        except (OSError, platform.PlatformError):
+            raise Refused("cant_save", WORDS["cant_save"]) from None
 
     def remembered(self):
         """The folder in the pointer file if it still passes every check, else None. An unreadable, odd or refused value is
