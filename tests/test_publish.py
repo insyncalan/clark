@@ -913,6 +913,10 @@ class Making(unittest.TestCase):
                         continue
                     if field in publish.RICH.get(table, ()):                                    # cleaned of script and handlers
                         continue
+                    if field == "source":                                                        # row 1077: the name of the stored words, never a path
+                        self.assertEqual(row[field], publish.source_name(have[row["id"]][field]) or None, f"{row['id']}.{field}")
+                        self.assertNotIn("ZQ-SOURCE-PATH", str(row[field]))
+                        continue
                     self.assertEqual(row[field], have[row["id"]][field], f"{row['id']}.{field}")
                     checked += 1
         self.assertGreater(checked, 50)
@@ -935,7 +939,7 @@ class Making(unittest.TestCase):
         asked = " ".join(sql)
         for column in ("internal_note", "movement", "reasoning", "options", "response_action", "publish_local", "keywords", "comments"):
             self.assertNotIn(column, asked, "a column the file never carries isn't even read")
-        self.assertNotRegex(asked, r"\bsource\b")
+        self.assertRegex(asked, r"\bsource\b", "row 1077: the source is read, to be published by name (select)")
         self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before, "the database is not changed")
         ro = store_module.connect(self.db, readonly=True)
         with self.assertRaises(sqlite3.OperationalError):

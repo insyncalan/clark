@@ -110,7 +110,8 @@ export function rowsOf(data) {
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
     ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null } : {});
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_action: !!r.client_action, client_message: String(r.client_message || "").trim(),
-    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
+    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
+    source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,

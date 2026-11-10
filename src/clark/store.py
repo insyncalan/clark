@@ -187,8 +187,10 @@ def attach_freshness(con, data, days, cache=None):
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
-NEVER_PUBLISH = frozenset({"internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords",
+NEVER_PUBLISH = frozenset({"internal_note", "movement", "reasoning", "options", "response_action", "keywords",
                            "aliases", "lead", "publish_local", "publish_client", "by_user", "device"})
+# `source` left this list on row 1077 (the owner's ruling of 10-11-2026): a published file carries a row's source by NAME only; publish.select
+# puts the stored words through source_name.source_name, so a path never reaches a file.
 PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
                  "use_cases": "sort_order, id"}                                                  # this order
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal

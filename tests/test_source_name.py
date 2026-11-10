@@ -15,6 +15,10 @@ class Name(unittest.TestCase):
         for words in ("Added by hand in clark", "Added by ask clark", "Duplicated from ABC-A-001", "Demo data (fictional)", "People list"):
             self.assertEqual(source_name(words), words)
 
+    def test_words_with_a_slash_that_are_not_a_path_are_as_they_were(self):
+        for words in ("Steering, 01/10/2026", "<b>x</b>", "Either/or", "Added by hand in clark / checked", "A/B test notes"):
+            self.assertEqual(source_name(words), words, words)
+
     def test_a_path_keeps_its_last_part_only(self):
         self.assertEqual(source_name("projects/HRB secret/minutes/2026-10-20 Pilot readiness review.html"), "20-10-2026 Pilot readiness review.html")
         self.assertEqual(source_name("ZQ-SOURCE-PATH/actions.xlsx"), "actions.xlsx")
@@ -32,7 +36,7 @@ class Name(unittest.TestCase):
             self.assertEqual(source_name(text), text, text)
 
     def test_nothing_or_not_text_is_nothing(self):
-        for v in (None, "", "   ", 7, "/", "\\", " / , / "):
+        for v in (None, "", "   ", 7, "/", "\\", " / , / ", "C:\\"):
             self.assertEqual(source_name(v), "", repr(v))
 
     def test_the_words_are_trimmed_and_hidden_characters_dropped(self):

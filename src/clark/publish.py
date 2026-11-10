@@ -44,6 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, sanitise, section_bodies
+from clark.source_name import source_name
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
@@ -80,19 +81,22 @@ def hidden_types(sections, deleted=False):
 PUBLISH_FIELDS = {
     "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-                   "state_reason", "owner", "actual_date", "client_message", "workstream"),
+                   "state_reason", "owner", "actual_date", "client_message", "workstream", "source"),
     "workstreams": ("id", "name", "status"),
     "actions": ("id", "description", "workstream", "owner", "priority", "due_date", "status", "raised", "closed",
-                "latest_update", "client_message", "milestone", "use_case"),
+                "latest_update", "client_message", "milestone", "use_case", "source"),
     "raid": ("id", "type", "workstream", "description", "owner", "due_date", "impact", "likelihood",
-             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case"),
+             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
-                  "revisit", "replaces", "use_case"),
+                  "revisit", "replaces", "use_case", "source"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
+# Row 1077 (the owner's ruling of 10-11-2026): a row's `source` is published by NAME only. select() puts the stored words through
+# source_name.source_name (the last part of any path, the date day first), so no folder and no path ever reaches a file; the peek draws it as its Source line.
+SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
 WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
@@ -539,6 +543,8 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
+            if k in SOURCED:                                      # row 1077: the source by name, never a path
+                c["source"] = source_name(c.get("source")) or None
             if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
                 for f in WORDLESS_DROPS.get(k, ()):
                     c[f] = None
@@ -1361,8 +1367,8 @@ def file_name(code, week_ending, as_at, folder=None):
 # ===== Reading (Store.publish_inputs: one read-only connection, one read transaction) =====
 def read_inputs(store, code, as_at=None):
     """Everything select() needs, read from the store in ONE read-only transaction (so a write can't come between two reads).
-    Only the columns in PUBLISH_FIELDS (and GATES, to decide) are asked for: internal_note, movement and source never leave the
-    database. The SQL itself lives in store.py, the only module that touches the database."""
+    Only the columns in PUBLISH_FIELDS (and GATES, to decide) are asked for: internal_note and movement never leave the
+    database, and a row's source leaves it as its name only (select, row 1077). The SQL itself lives in store.py, the only module that touches the database."""
     if not CODE.fullmatch(code or ""):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
