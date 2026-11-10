@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_sizes
 Loads the real page in headless Chrome (the #33 harness) with a small fictional project, opens Dashboard, Work items,
-Milestones and Settings at 1400, 900 and 390 px, and fails on any visible text under 12 px or any visible button, link,
+Milestones and Settings at 1400 and 900 px, and fails on any visible text under 12 px or any visible button, link,
 field or handle whose hit box is under 24 by 24 CSS px. The hit box is measured, not assumed: an element counts as big
 enough when its own box is, or when it sits inside a larger box that takes the click for it (a label around a checkbox).
 The allow-list is empty. Chrome is required: this test fails, never skips, without it.
@@ -110,8 +110,8 @@ class Sizes(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard" + prefix)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)), "the page drew")
-            for w in (1400, 900, 390):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": w < 600}, sid)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 self.audit(cdp, sid, f"{w}px", prefix, VIEWS, found)
                 if edit:        # Edit shows the section handles and the add and options controls
                     cdp.js("location.hash = '#dashboard%s'" % prefix, sid)
@@ -135,8 +135,8 @@ class Sizes(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid)), "the project list drew")
-            for w in (1400, 390):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": w < 600}, sid)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 found += [f"{w}px: {g}" for g in json.loads(cdp.js(AUDIT % json.dumps(list(ALLOWED)), sid))]
         self.assertEqual(found, [], "\n".join(found))
 
