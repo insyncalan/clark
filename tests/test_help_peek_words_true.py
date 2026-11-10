@@ -59,8 +59,8 @@ class ItemPeek(unittest.TestCase):
     def test_arrows_are_previous_and_next_buttons(self):
         step = find(HOWTO, "With the peek open")
         self.assertNotIn("up and down arrows at the top", step)
-        self.assertIn("Previous and Next", step)
-        self.assertIn("Up and Down", step)
+        self.assertIn("**Previous** and **Next**", step)
+        self.assertIn("[[Up]] and [[Down]]", step)
 
 
 class MilestonePeek(unittest.TestCase):
