@@ -338,12 +338,15 @@ class Pins(unittest.TestCase):
                 self.assertIn(n + ":not(.leaving)", text, f"{path}: {n} in the list of open layers ignores a copy that is fading")
 
     def test_row_962_every_one_of_the_eleven_is_wired_to_the_fade(self):
-        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Fade boxRef=\{box\} class="fbox ucl-pop"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
+        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Menu label="Group by"[^>]*id="ucl-group"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
                  "edit/Gutter.jsx": r'useFadeOut\(boxRef, true, ""\)', "gantt/components/GanttChart.jsx": r'<Fade class="gt-menu"',
                  "edit/TemplateSettings.jsx": r'<Fade class="tset"', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
         for path, pattern in wired.items():
             self.assertRegex(read(path), pattern, path)
+        # row 1085: the Use cases Status popup (<Fade class="fbox ucl-pop">) is gone; the page's one menu is the shared Menu (Group by), which fades through its own leaving copy
+        self.assertRegex(MENU_JSX, r"<MenuPanel key=\{gen.current\} leaving=\{leaving\}", "the shared Menu draws its closing copy: the Group by menu fades with it")
+        self.assertNotRegex(read("edit/UseCasesPage.jsx"), r"ucl-pop|ucl-status", "the deleted Status popup is not wired any more")
         self.assertEqual(len(re.findall(r"useFadeOut\(root, true", read("edit/Board.jsx"))), 2, "the date box and the decision box")
         self.assertIn("<Pop ", read("edit/Bulk.jsx"), "the bulk menu is a Pop")
 
