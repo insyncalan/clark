@@ -283,6 +283,8 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("Import from Word", self.ALL)
         self.assertNotIn("bring items in from a Word file", self.ALL)
         self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
+        self.assertNotIn("Import from Word", raw, "no help line, in any section, names the removed menu entry")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
