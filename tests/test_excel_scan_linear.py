@@ -7,6 +7,7 @@ import zipfile
 from pathlib import Path
 from unittest import mock
 
+import _paths  # noqa: F401
 from clark import excel_import as xi
 
 SST = b'<sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><si><t>%s</t></si></sst>'
