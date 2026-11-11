@@ -689,3 +689,5 @@ test_work_pills_removed.py 1.0
 test_build_app.py 30.0
 test_build_app_failures.py 30.0
 test_build_app_mutproof.py 30.0
+test_gantt_markers_hostile.py 30.0
+test_publish_hidden_section_markers.py 30.0
