@@ -41,6 +41,23 @@ class Marker(unittest.TestCase):
         off = sv.csp_policy(sv.with_boot(PAGE))
         self.assertEqual(on, off)
 
+    def test_ribbon_goes_after_the_whole_body_tag(self):
+        page = '<html><head><title>clark</title></head><body class="a" data-x="1"><p>x</p></body></html>'
+        out = sv.dev_marked(page)
+        self.assertIn('<body class="a" data-x="1"><div id="clark-dev-ribbon"', out)
+
+    def test_a_page_without_a_body_gets_no_ribbon_and_is_not_cut(self):
+        page = "<html><head><title>clark</title></head><p>x</p></html>"
+        out = sv.dev_marked(page)
+        self.assertNotIn("clark-dev-ribbon", out)
+        self.assertEqual(out, page.replace("<title>clark", "<title>DEV clark"))
+
+    def test_only_the_first_title_is_renamed(self):
+        page = "<html><head><title>clark</title></head><body><svg><title>clark chart</title></svg></body></html>"
+        out = sv.dev_marked(page)
+        self.assertEqual(out.count("DEV clark"), 1)
+        self.assertIn("<svg><title>clark chart</title></svg>", out)
+
 
 if __name__ == "__main__":
     unittest.main()
