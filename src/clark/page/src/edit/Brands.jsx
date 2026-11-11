@@ -40,7 +40,7 @@ export function Brands({ api = REAL }) {
     const r = await api.review(from);
     setBusy(false);
     // The server answers {ok: true, review: null} when no file was chosen (Cancel in the dialog, or nothing in Downloads).
-    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: L.CANCELLED }); return; }
+    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: from === "downloads" && !r.body.cancelled ? L.NO_BRAND : L.CANCELLED }); return; }
     if (ok(r) && r.body.review) {
       setPanel({ id: text(r.body.review.review_id), view: L.reviewView(r.body.review, state.view ? state.view.brands : []) });
       return;
@@ -74,7 +74,7 @@ export function Brands({ api = REAL }) {
               {v.brands.map((b) => (
                 <li key={b.id} data-brand={b.id}>
                   <b>{b.name}</b> {b.version}{" "}
-                  <button type="button" class="btn sm" data-remove disabled={busy} onClick={() => setArmed(b.id)}>{L.LABELS.remove}</button>
+                  {b.own ? <button type="button" class="btn sm" data-remove disabled={busy} onClick={() => setArmed(b.id)}>{L.LABELS.remove}</button> : null}
                 </li>
               ))}
             </ul>
@@ -86,7 +86,7 @@ export function Brands({ api = REAL }) {
             </div>
           ) : null}
           <div class="row">
-            <button type="button" class="btn pri" data-review aria-describedby="brands-hint" disabled={busy} onClick={() => review("downloads")}>{L.LABELS.review}</button>
+            <button type="button" class={v.ready ? "btn pri" : "btn"} data-review aria-describedby="brands-hint" disabled={busy} onClick={() => review("downloads")}>{L.LABELS.review}</button>
             <button type="button" class="btn" data-choose disabled={busy} onClick={() => review("file")}>{L.LABELS.choose}</button>
             {v.undo ? <button type="button" class="btn" data-undo disabled={busy} onClick={() => act(() => api.undo())}>{L.LABELS.undo}</button> : null}
           </div>
@@ -108,7 +108,7 @@ export function Brands({ api = REAL }) {
           </div>
         </div>
       ) : null}
-      <div class="pub-msg" role="status" aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      <div class="pub-msg" role="status" aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}{msg.kind === "error" ? <> <button type="button" class="btn sm" data-dismiss onClick={() => setMsg(null)}>{L.LABELS.dismiss}</button></> : null}</p> : null}</div>
     </section>
   );
 }

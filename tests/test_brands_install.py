@@ -86,6 +86,28 @@ class Installed(Base):
         (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
         self.assertEqual([x["id"] for x in brands.installed(self.root)], ["local-brand"])
 
+    def _top_pack(self, name="Fabrikam", brand_id="fabrikam"):
+        import json
+        top = branding(self.root)
+        (top / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
+        (top / "clark-brand.json").write_text(json.dumps({"id": brand_id, "name": name, "version": "2.1.0", "files": []}), encoding="utf-8")
+
+    def test_a_pack_unzipped_straight_into_the_branding_folder_shows_under_its_own_name(self):
+        self._top_pack()
+        got = brands.installed(self.root)
+        self.assertEqual([(x["name"], x["version"]) for x in got], [("Fabrikam", "2.1.0")])
+        self.assertNotEqual(got[0]["name"], "local-brand")
+
+    def test_that_pack_applies_to_projects_through_its_listed_id(self):
+        self._top_pack()
+        listed = brands.installed(self.root)[0]["id"]
+        self.assertEqual(brands.folder(self.root, listed), branding(self.root))
+
+    def test_a_top_pack_with_a_broken_manifest_is_still_local_brand(self):
+        self._top_pack()
+        (branding(self.root) / "clark-brand.json").write_text("{nope", encoding="utf-8")
+        self.assertEqual([(x["id"], x["name"]) for x in brands.installed(self.root)], [("local-brand", "local-brand")])
+
     def test_a_missing_library_folder_is_an_empty_list(self):
         os.rmdir(branding(self.root))
         self.assertEqual(brands.installed(self.root), [])

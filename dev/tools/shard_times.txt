@@ -672,7 +672,6 @@ test_work_no_mode.py 21.0
 test_work_table_parity.py 19.7
 test_workflow.py 21.0
 test_zip_readme.py 0.6
-test_dev_marker.py 1.0
 test_brand_isolation.py 1.0
 test_gantt_markers_hostile.py 10.0
 test_hostile_1087.py 1.0
@@ -710,3 +709,5 @@ test_help_link_targets.py 3.0
 test_sizes_panels.py 25.0
 test_excel_scan_linear.py 30.0
 test_completed_blue.py 30.0
+test_dev_marker.py 1.0
+test_brands_top_pack.py 30.0
