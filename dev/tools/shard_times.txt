@@ -321,7 +321,10 @@ test_milestones_details.py 27.0
 test_milestones_eye.py 84.6
 test_milestones_inline.py 32.5
 test_milestones_oneline.py 59.0
-test_milestones_page.py 279.7
+# 11-11-2026 (#912): test_milestones_page.py split into three files (calendar checks moved out); its 279.7 shared by local times 36/42/47 s
+test_milestones_calendar.py 93.2
+test_milestones_calendar_keys.py 105.1
+test_milestones_page.py 81.5
 test_milestones_page_458.py 55.4
 test_milestones_parity.py 21.2
 test_milestones_route.py 6.1
