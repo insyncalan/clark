@@ -88,7 +88,7 @@ function Dialog() {
               <span><b>Also a Word document</b><small>A Word copy of the report, saved in the folder last used for this project.</small></span></label>
             {/* the prototype's words (system/prototype/io.js:349); the note under the tick (WORDING: owner to rule) */}
             <label class="pubopt"><input type="checkbox" id="pub-pdf" checked={s.pdf} disabled={working} onChange={(e) => tickPdf(e.currentTarget.checked)} />
-              <span><b>Also a PDF</b><small>The page as it prints: the tabs one after another, no controls, with the publication number in the foot</small>
+              <span><b>Also a PDF</b><small>The page as it prints: the tabs one after another, no controls, with the publication number in the foot.</small>
                 {s.pdf ? <small id="pub-pdf-note">Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address.</small> : null}</span></label>
           </div>
         )}
