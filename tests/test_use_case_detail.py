@@ -776,6 +776,44 @@ class Detail(unittest.TestCase):
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('.peek, [data-peek], [data-sneak-open]')", "Enter opens the peek")
 
+    def test_every_chip_tone_red_amber_green_blue_grey_is_painted_on_the_card_row_1081(self):
+        """Row 1081 (mutation gap): the demo's two items only show amber and one other tone, so a wrong red, green or grey chip passed. Seed each state and read the colours."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
+        chips = "[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor, dot: getComputedStyle(b.querySelector('.pill'), '::before').backgroundColor}; })"
+        cases = [({"status": "Open", "due_date": "2020-01-01"}, "Overdue", "red"), ({"status": "Open", "due_date": "2030-01-01"}, "Open", "green"),
+                 ({"status": "Open", "due_date": "2026-11-02"}, "Due soon", "amber"), ({"status": "Closed", "due_date": "2030-01-01"}, "Closed", "blue"),
+                 ({"status": "Cancelled", "due_date": "2030-01-01"}, "Cancelled", "grey")]
+        for change, word, tone in cases:
+            with self.subTest(word=word):
+                with self.store.step("dashboard", USER) as st:
+                    st.update("actions", "TUL-A-001", change)
+                for scheme in ("light", "dark"):
+                    with chrome() as cdp:
+                        sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                        tones = cdp.js(probe, sid)
+                        got = next(c for c in cdp.js(chips, sid) if c["id"] == "TUL-A-001")
+                        self.assertEqual(got["word"], word)
+                        self.assertEqual([got["fg"], got["bg"]], tones[tone], f"{word} chip is {tone} in {scheme}")
+                        self.assertEqual(got["dot"], tones[tone][0], f"{word} dot is {tone} in {scheme}")
+
+    def test_the_card_row_cuts_long_text_with_dots_and_never_overlaps_the_id_row_1081(self):
+        """Row 1081 (mutation gap): id, title and owner/due are single-line cells that end in dots; the id never runs into the title; the owner and due cell is not wider than 260px."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", "TUL-A-001", {"description": "T" * 400 + " end", "owner": "Somebody With An Extremely Long Name " * 8})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_detail(cdp, width, "light", edit=False)
+                m = cdp.js("(() => { const b = document.querySelector('[data-item=\"TUL-A-001\"]'), q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), g = (e, p) => getComputedStyle(e)[p];"
+                           " return {ws: [g(q('.ucd-id'), 'whiteSpace'), g(q('.ucd-t'), 'whiteSpace'), g(q('.ucd-x'), 'whiteSpace')], to: [g(q('.ucd-t'), 'textOverflow'), g(q('.ucd-x'), 'textOverflow')],"
+                           " idw: r(q('.ucd-id')).width, idRight: r(q('.ucd-id')).right, tLeft: r(q('.ucd-t')).left, xw: r(q('.ucd-x')).width, h: r(b).height}; })()", sid)
+                self.assertEqual(m["ws"], ["nowrap", "nowrap", "nowrap"], "id, title and owner stay on one line")
+                self.assertEqual(m["to"], ["ellipsis", "ellipsis"], "a long title or owner ends in dots")
+                self.assertLessEqual(m["idRight"], m["tLeft"], "the id does not run into the title")
+                self.assertGreaterEqual(m["idw"], 100, "the id column is wide enough for a full id")
+                self.assertLessEqual(m["xw"], 261, "the owner and due cell is capped at 260px")
+                self.assertLess(m["h"], 48)
+
     def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
         data = self.read("TUL")
         item = sorted(r["id"] for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC)[0]
