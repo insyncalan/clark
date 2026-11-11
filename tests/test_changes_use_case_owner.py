@@ -175,6 +175,68 @@ class Owner(unittest.TestCase):
             self.assertTrue(now is None or (len(now) <= 200 and now.isprintable() and now == now.strip()), repr(now))
         self.assertEqual(self.s.con.execute("SELECT count(*) FROM use_cases").fetchone()[0], 1)
 
+    # ---- hostile pass on PR 1286 ----
+    def test_hostile_an_archived_person_or_two_people_of_one_name_never_link(self):
+        with self.s.step("dashboard", USER) as st:
+            st.archive_person(self.anna)
+        self.ok({"owner": "Anna Example"})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Anna Example", None))
+        a, b = self.person("Twin Name"), self.person("Twin Name")
+        self.assertNotEqual(a, b)
+        self.ok({"owner": "Twin Name"})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Twin Name", None))
+
+    def test_hostile_the_link_always_equals_what_the_one_resolver_says_for_the_stored_text(self):
+        for typed in ("anna example", "ANNA EXAMPLE", "  Anna Example  ", "Anna\u00a0Example", "Anna  Example", "Anna Exampl"):
+            with self.subTest(typed=typed):
+                status, _ = self.edit({"owner": typed})
+                if status != 200:
+                    continue
+                found = self.s.resolve_owner(self.row()["owner"] or "")
+                self.assertEqual(self.row()["owner_id"], found["id"] if found["status"] == "one" else None)
+
+    def test_hostile_undo_after_the_person_was_archived_or_merged_leaves_text_and_link_consistent(self):
+        self.ok({"owner": "Anna Example"})
+        body = self.ok({"owner": "Someone Else"})
+        with self.s.step("dashboard", USER) as st:
+            st.archive_person(self.anna)
+        status, undone = self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertIn(status, (200, 400, 409), undone)
+        row = self.row()
+        if status == 200:
+            self.assertEqual(row["owner"], "Anna Example")
+            self.assertIn(row["owner_id"], (self.anna, None))
+        else:
+            self.assertEqual((row["owner"], row["owner_id"]), ("Someone Else", None))
+        self.assertEqual(self.s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
+
+    def test_hostile_undo_then_the_owner_again_then_undo_twice_never_goes_past_the_start(self):
+        first = self.ok({"owner": "Anna Example"})
+        second = self.ok({"owner": ""})
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+        s2, u2 = self.undo({"project": "ABC", "apply_id": second["apply_id"]})
+        self.assertEqual(s2, 200, u2)
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), ("Anna Example", self.anna))
+        s1, u1 = self.undo({"project": "ABC", "apply_id": first["apply_id"]})
+        self.assertEqual(s1, 200, u1)
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+        s3, _ = self.undo({"project": "ABC", "apply_id": first["apply_id"]})
+        self.assertNotEqual(s3, 200)
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+
+    def test_hostile_a_use_case_owner_is_in_no_client_or_ask_field_list(self):
+        from clark import publish
+        for fields in (publish.PUBLISH_FIELDS["use_cases"], changes.ASK_SHOWN["use_cases"]):
+            self.assertNotIn("owner", fields)
+            self.assertNotIn("owner_id", fields)
+        self.assertNotIn("owner", __import__("clark.use_cases_read", fromlist=["x"]).HISTORY_FIELDS)
+
+    def test_hostile_a_bare_owner_id_row_in_a_step_is_not_undoable_without_its_owner_text(self):
+        self.ok({"owner": "Anna Example"})
+        row = self.s.con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
+        status, body = self.undo({"project": "ABC", "apply_id": row + 99})
+        self.assertNotEqual(status, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
