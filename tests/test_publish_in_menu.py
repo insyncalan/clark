@@ -10,7 +10,7 @@ import unittest
 from test_publish_dialog import Base, PAGE_SRC, WIDTHS
 from test_server import chrome
 
-TIP = "Your menu: Publish, Preview, Export"
+TIP = "Your menu: Publish, Preview, Export, Settings"
 
 # Every control a person can click on the page, outside the profile menu and the (closed) dialog, whose words or name mention Publish
 # and that can be seen: it has a size and is not hidden. The last-published note is text, not a control, so it is not counted.
