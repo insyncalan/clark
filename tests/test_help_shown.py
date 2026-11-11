@@ -347,7 +347,8 @@ class NeverDelete(unittest.TestCase):
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
         self.assertIn("Archive this use case", text)       # the button as the page labels it (#421: the held entry once said "Archive use case")
-        self.assertIn("Archive milestone", text)
+        self.assertIn("the Archive button archives the milestone and closes the peek", text)      # the milestone peek button is labelled Archive; the held wording "Archive milestone" is gone
+        self.assertNotIn("Archive milestone", text)
 
 
 class AskClark(unittest.TestCase):
