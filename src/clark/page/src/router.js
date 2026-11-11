@@ -18,7 +18,7 @@
 // key written in the address would. `f` is written with navigate({...state, f}, {replace: true}): a filter change never pushes an
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
-export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"];   // "clientreport": Client Requested Report View (#192); "gantt": the project's Gantt, offered only where its setting says so (#926)
+export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
@@ -38,7 +38,7 @@ function clean(state) {
   const text = (v) => (typeof v === "string" ? v : "");
   const view = VIEWS.includes(s.view) ? s.view : "dashboard";
   const project = CODE.test(text(s.project)) ? s.project : "";
-  const peekable = view !== "settings";                    // Settings has no peek; one peek at a time, an item before a milestone
+  const peekable = view !== "settings" && view !== "published";                    // Settings has no peek; one peek at a time, an item before a milestone
   const item = peekable && ID.test(text(s.item)) ? s.item : "";
   const ms = peekable && !item && ID.test(text(s.ms)) ? s.ms : "";
   const uc = view === "usecases" && UC_KEY.test(text(s.uc)) ? s.uc : "";     // "#usecases&p=PDF&uc=1.2": one use case's own page; no other page has it
