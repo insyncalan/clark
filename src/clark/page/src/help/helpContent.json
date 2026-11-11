@@ -605,8 +605,8 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
@@ -728,7 +728,7 @@
     "w": "Settings › Projects · the project switcher",
     "go": "settings",
     "s": [
-     "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
+     "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
@@ -762,7 +762,7 @@
     "w": "Settings › Profile",
     "go": "settings#profile",
     "s": [
-     "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
+     "Fill in **Your name**, **Alias** and **Your email**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history."
     ],
@@ -815,7 +815,7 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
      "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
@@ -1824,15 +1824,51 @@
       [
        [
         "Profile",
-        "About you (your name, Alias and Email)."
+        "About you: **Your name**, **Alias** and **Your email**."
+       ],
+       [
+        "Publishing",
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Personal",
         "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
+        "Freshness",
+        "**Not reviewed after (days)**: a whole number from 1 to 365, 14 as standard. It sets when an open item in this project counts as not reviewed. Not in the published report."
+       ],
+       [
+        "Gantt",
+        "**Show the Gantt to me**, **Show the Gantt to the client** and the **Tab name**. The client sees a Gantt only when at least one line is shown to the client."
+       ],
+       [
+        "Logs and diagnostics",
+        "The log level (**Normal** or **Debug**), **Open folder** for the log folder, **Copy diagnostics** and the errors of the last 7 days. See [Diagnostics and logs](#ref-diagnostics)."
+       ],
+       [
         "Projects",
-        "Every project with its code, client, workstreams and item count; Open, Edit and Archive; **+** adds one."
+        "Every project with its name, code, client, workstreams and item count; **Open**, **Edit** and **Archive**; **+** adds one, and **Show archived** lists the archived ones, each with **Restore**."
+       ],
+       [
+        "Data",
+        "**Export workbook** and **Import workbook**. Both need an open project."
+       ],
+       [
+        "Backups",
+        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
+       ],
+       [
+        "Version and updates",
+        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
+       ],
+       [
+        "People",
+        "Everyone who owns a work item or a milestone, with email, organisation and role; **Paste from Excel** adds rows. See [People](#ref-people)."
        ],
        [
         "Asking",
@@ -1845,26 +1881,6 @@
        [
         "Quit",
         "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
-       ],
-       [
-        "Publishing",
-        "The **Local folder**, where the Publish save window opens, and the **Client folder**, the client’s SharePoint folder. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
-       ],
-       [
-        "Data",
-        "Export to Excel, and Import from Excel."
-       ],
-       [
-        "Version and updates",
-        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
-       ],
-       [
-        "Brands",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
-       ],
-       [
-        "Diagnostics",
-        "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
        ]
       ]
      ]
@@ -1898,7 +1914,7 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says Up to date, or shows **Review X.Y.Z** when a newer update is in Downloads. There is no online check.",
+       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button with the new version number when a newer update is in Downloads. There is no online check.",
        "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
        "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
