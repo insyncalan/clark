@@ -1303,7 +1303,7 @@ def add_glance(published, inputs):
     return published
 
 
-STYLES = ("slim", "roomy", "grey", "card")       # how the sections sit on the page (#45); the page's stores/style.js holds the same four
+STYLES = ("slim", "roomy", "grey", "card")       # how the sections sit on the page (#45); the page's stores/density.js sends one of these words
 DEFAULT_STYLE = "slim"
 
 

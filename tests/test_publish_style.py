@@ -4,6 +4,7 @@ Run: python3 dev/run_tests.py test_publish_style
 The style is one of slim, roomy, grey or card; anything else is replaced by slim. All rows are fictional.
 """
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -26,6 +27,15 @@ def block(i):
 
 
 class Style(unittest.TestCase):
+    def need_node(self):
+        # item 1025: no node fails in CI (the check must not pass by skipping); locally it skips
+        node = shutil.which("node")
+        if not node:
+            if os.environ.get("CI"):
+                self.fail("node is missing in CI: the density tests must run, not skip")
+            self.skipTest("no node")
+        return node
+
     def test_the_four_styles_are_carried_next_to_as_at(self):
         self.assertEqual(publish.STYLES, ("slim", "roomy", "grey", "card"))
         for name in publish.STYLES:
@@ -56,9 +66,7 @@ class Style(unittest.TestCase):
 
     def test_comfortable_publishes_as_roomy_and_compact_as_card(self):
         # item 1025: run the page's own density.js in node (signals stubbed), choose each density, and publish with the word it sends
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("no node")
+        node = self.need_node()
         src = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
         src = re.sub(r"^import .*signals.*$", "const signal = (v) => ({ value: v });", src, flags=re.M)
         code = ("globalThis.localStorage = { getItem: () => null, setItem() {} };\n" + src +
@@ -73,9 +81,7 @@ class Style(unittest.TestCase):
 
     def test_an_unknown_density_is_ignored_and_never_remembered(self):
         # item 1025: setDensity with anything but compact or comfortable changes nothing: not the signal, not the page, not the stored word
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("no node")
+        node = self.need_node()
         src = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
         src = re.sub(r"^import .*signals.*$", "const signal = (v) => ({ value: v });", src, flags=re.M)
         code = ("const kept = {};\nglobalThis.localStorage = { getItem: () => null, setItem(k, v) { kept[k] = v; } };\n"
