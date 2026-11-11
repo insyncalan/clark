@@ -19,7 +19,7 @@ from _brand_rig import branding, make_dirs, write_zip
 from clark import brands
 
 
-def top_pack(root, brand_id="energyai", name="ENERGYai", version="2.1.0"):
+def top_pack(root, brand_id="fabrikam", name="Fabrikam", version="2.1.0"):
     top = branding(root)
     (top / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
     (top / "clark-brand.json").write_text(json.dumps({"id": brand_id, "name": name, "version": version, "files": []}), encoding="utf-8")
@@ -40,24 +40,24 @@ class Base(unittest.TestCase):
 class Removal(Base):
     def test_remove_refuses_a_folder_that_is_not_an_installed_brand_even_when_the_top_pack_has_its_id(self):
         top_pack(self.root)
-        mine = branding(self.root) / "energyai"
+        mine = branding(self.root) / "fabrikam"
         mine.mkdir()
         (mine / "notes.txt").write_text("my own files", encoding="utf-8")
         with self.assertRaises(brands.BrandError):
-            brands.remove("energyai", self.root, self.data)
+            brands.remove("fabrikam", self.root, self.data)
         self.assertEqual((mine / "notes.txt").read_text(encoding="utf-8"), "my own files")
 
     def test_remove_refuses_a_top_pack_that_has_no_folder_of_its_own(self):
         top_pack(self.root)
         with self.assertRaises(brands.BrandError):
-            brands.remove("energyai", self.root, self.data)
+            brands.remove("fabrikam", self.root, self.data)
         self.assertTrue((branding(self.root) / "tokens.css").exists())
 
     def test_undo_of_an_install_leaves_a_folder_that_is_not_an_installed_brand(self):
-        mine = branding(self.root) / "energyai"
+        mine = branding(self.root) / "fabrikam"
         mine.mkdir()
         (mine / "notes.txt").write_text("my own files", encoding="utf-8")
-        (self.data / brands.JOURNAL).write_text(json.dumps({"kind": "install", "id": "energyai"}), encoding="utf-8")
+        (self.data / brands.JOURNAL).write_text(json.dumps({"kind": "install", "id": "fabrikam"}), encoding="utf-8")
         with self.assertRaises(brands.BrandError):
             brands.undo(self.root, self.data)
         self.assertTrue((mine / "notes.txt").exists())
@@ -67,9 +67,9 @@ class Listing(Base):
     def test_a_top_pack_is_listed_with_no_folder_of_its_own_and_says_local_brand_still_works(self):
         top_pack(self.root)
         got = brands.installed(self.root)
-        self.assertEqual([(x["id"], x["name"], x["own_folder"], x["alias"]) for x in got], [("energyai", "ENERGYai", False, "local-brand")])
+        self.assertEqual([(x["id"], x["name"], x["own_folder"], x["alias"]) for x in got], [("fabrikam", "Fabrikam", False, "local-brand")])
         self.assertEqual(brands.folder(self.root, "local-brand"), branding(self.root))
-        self.assertEqual(brands.folder(self.root, "energyai"), branding(self.root))
+        self.assertEqual(brands.folder(self.root, "fabrikam"), branding(self.root))
 
     def test_a_folder_brand_listed_has_no_alias_and_has_its_own_folder(self):
         review = brands.review(write_zip(self.scratch, bz.valid()), self.root)
@@ -95,7 +95,7 @@ class Listing(Base):
             with self.subTest(bad):
                 top_pack(self.root, brand_id=bad)
                 got = brands.installed(self.root)
-                self.assertEqual([(x["id"], x["name"]) for x in got], [("local-brand", "ENERGYai")])
+                self.assertEqual([(x["id"], x["name"]) for x in got], [("local-brand", "Fabrikam")])
 
     def test_a_bare_top_tokens_file_is_local_brand_with_no_folder_of_its_own(self):
         (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")

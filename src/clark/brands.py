@@ -249,8 +249,7 @@ def has_manifest(path):
                 if info.filename.count("/") == 1 and info.filename.endswith("/" + MANIFEST):
                     if info.file_size > MANIFEST_CAP:
                         return False
-                    with zf.open(info) as f:
-                        body = f.read(MANIFEST_CAP + 1)
+                    body = zf.read(info)
                     doc = _parse_manifest(body) if len(body) <= MANIFEST_CAP else None
                     given = doc.get("id") if doc else None
                     return isinstance(given, str) and bool(ID_RE.fullmatch(given)) and given not in RESERVED

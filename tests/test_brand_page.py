@@ -102,7 +102,7 @@ class Page(InBrowser):
                 self.assertFalse(self.present("#brands-panel"))
 
     def test_a_brand_with_no_folder_of_its_own_has_no_remove_button_at_1400_and_900(self):
-        listing = {**LIST, "brands": [LIST["brands"][0], {"id": "energyai", "name": "ENERGYai", "version": "2.1.0", "own_folder": False},
+        listing = {**LIST, "brands": [LIST["brands"][0], {"id": "fabrikam", "name": "Fabrikam", "version": "2.1.0", "own_folder": False},
                                               {"id": "local-brand", "name": "local-brand", "version": "", "own_folder": False, "alias": "local-brand"}]}
         for width in up.WIDTHS:
             with self.subTest(width=width):
@@ -110,8 +110,8 @@ class Page(InBrowser):
                 self.replies(list=OK(listing))
                 self.mount()
                 self.assertTrue(self.present("#brands-list li[data-brand='example-brand'] [data-remove]"))
-                self.assertTrue(self.present("#brands-list li[data-brand='energyai']"))
-                self.assertFalse(self.present("#brands-list li[data-brand='energyai'] [data-remove]"))
+                self.assertTrue(self.present("#brands-list li[data-brand='fabrikam']"))
+                self.assertFalse(self.present("#brands-list li[data-brand='fabrikam'] [data-remove]"))
                 self.assertTrue(self.present("#brands-list li[data-brand='local-brand']"))
                 self.assertFalse(self.present("#brands-list li[data-brand='local-brand'] [data-remove]"))
 
