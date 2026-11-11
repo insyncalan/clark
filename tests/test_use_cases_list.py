@@ -482,6 +482,8 @@ class Narrowing(Setup):
             self.assertEqual(p.js(pill + ".textContent"), "Done")
             self.assertEqual(p.js(pill + ".className"), "pill b")
             self.assertEqual(p.js("getComputedStyle(" + pill + ", '::before').content"), '""', "the dot")
+            blue = "(() => { const s = document.createElement('span'); s.style.cssText = 'background:var(--brand-blue-tint);color:var(--status-blue-text)'; document.body.appendChild(s); const c = getComputedStyle(s); const r = [c.backgroundColor, c.color]; s.remove(); return r; })()"
+            self.assertEqual(p.js("[getComputedStyle(" + pill + ").backgroundColor, getComputedStyle(" + pill + ").color]"), p.js(blue), "the .pill.b rule paints Done blue, not the unstyled pill")
             self.click(p, ".ucl-hd [data-sort=status]")
             p.until("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed') === 'true'", "sorted")
             self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"], "Flag, then On track, then Done")
