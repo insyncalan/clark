@@ -362,14 +362,14 @@ class Flat(Peeks):
                 cdp.js("document.querySelector('#peek').scrollTop = 0", sid)
                 g = cdp.js(geo, sid)
                 self.assertGreater(g["scroll"], 40, "the body is taller than the peek, so there is something to scroll: " + str(g))
-                self.assertAlmostEqual(g["boxB"], g["peekB"], delta=1.5, msg="pinned to the bottom at the top of the scroll: " + str(g))
+                self.assertTrue(28 < g["peekB"] - g["boxB"] <= 36, "pinned 32px (the peek padding plus var(--space-2); over 28, at most 36) above the peek's bottom edge at the top of the scroll: " + str(g))
                 self.assertAlmostEqual(g["boxL"], g["peekL"] + 1, delta=1.5, msg="the band spans the peek (its left edge is the peek's border): " + str(g))
                 self.assertAlmostEqual(g["boxR"], g["peekR"], delta=1.5, msg="and reaches its right edge (the scrollbar's inner side): " + str(g))
                 self.assertEqual((g["line"], g["radius"], g["shadow"]), ("1px", "0px", "none"), "a hairline above, no rounding, no floating shadow: " + str(g))
                 cdp.js("document.querySelector('#peek').scrollTop = 10000", sid)
                 h = cdp.js(geo, sid)
                 self.assertGreater(h["top"], 0, "the body scrolled")
-                self.assertAlmostEqual(h["boxB"], h["peekB"], delta=1.5, msg="still at the bottom after the scroll: " + str(h))
+                self.assertTrue(28 < h["peekB"] - h["boxB"] <= 36, "still a small way above the bottom edge after the scroll: " + str(h))
 
 
 if __name__ == "__main__":
