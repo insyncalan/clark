@@ -332,9 +332,10 @@ class WhereItIsNamed(unittest.TestCase):
 
     def test_the_card_is_mounted_in_settings_through_the_edit_tools(self):
         self.assertIn("Safety", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
+        pages = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")
+        self.assertIn('["backups", "Backups", ["Safety"]', pages)      # item 1024: the Backups page draws the Safety card through tools[tool]
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-        self.assertIn("tools.Safety", views)
-        self.assertIn("<Safety />", views)
+        self.assertIn("tools[tool]", views)
 
 
 if __name__ == "__main__":
