@@ -1239,9 +1239,8 @@ def list_sheets(path, store=None, project=None):
 
 MAX_CELL_TEXT = 32767                                # the most characters Excel itself keeps in a cell: a longer text is not from Excel
 _SCAN_CHUNK = 65536
-_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
+_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c|t)(?![\w:.-])")   # one tag (cut out by _scan_member), matched by local name: <row>, <x:row>, <ns:c>, <x:t>
 _ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
-_TEXT = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>([^<]*)</(?:[A-Za-z_][\w.-]*:)?t>")   # by local name too: <x:t>
 _SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
 _REL_TAG = re.compile(rb"<Relationship\b[^>]*>")
 
@@ -1285,21 +1284,42 @@ def _scan_member(z, member, title):
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
     max_row = max_col = cells = row = col = read = 0
     buf = b""
+    text = None                                          # the bytes of a <t> node read so far (it can run over a chunk cut), else None
     opener = z.open                                      # a zip member is read as bytes, never as text
     with opener(member) as f:
         while True:
             chunk = f.read(_SCAN_CHUNK)
             read += len(chunk)
             buf += chunk
-            cut = len(buf) if (not chunk or buf.endswith(b">")) else max(buf.rfind(b"<"), 0)
-            head, buf = buf[:cut], buf[cut:]
-            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag or a text node this long is not a cell
-                raise _TextTooLong()
-            for t in _TEXT.finditer(head):
-                if len(t.group(1)) > MAX_CELL_TEXT and len(unescape(t.group(1).decode("utf-8", "replace"))) > MAX_CELL_TEXT:
-                    raise _TextTooLong()
-            for m in _TAG.finditer(head):
-                tag = m.group(0)
+            pos = 0
+            while True:                                  # one pass over buf: each byte is looked at a bounded number of times
+                if text is not None:                     # inside a text node: it ends at the next '<', which may be in a later chunk
+                    lt = buf.find(b"<", pos)
+                    text += buf[pos:] if lt < 0 else buf[pos:lt]
+                    if len(text) > 8 * MAX_CELL_TEXT:    # a text node this long is not a cell
+                        raise _TextTooLong()
+                    if lt < 0:
+                        pos = len(buf)
+                        break
+                    if len(text) > MAX_CELL_TEXT and len(unescape(text.decode("utf-8", "replace"))) > MAX_CELL_TEXT:
+                        raise _TextTooLong()
+                    text, pos = None, lt
+                lt = buf.find(b"<", pos)
+                if lt < 0:
+                    pos = len(buf)
+                    break
+                gt = buf.find(b">", lt)
+                if gt < 0:                               # the tag goes on in the next chunk: keep it from its '<'
+                    pos = lt
+                    break
+                tag, pos = buf[lt:gt + 1], gt + 1
+                m = _TAG.match(tag)
+                if m is None:
+                    continue
+                if m.group(1) == b"t":
+                    if not tag.endswith(b"/>"):
+                        text = b""
+                    continue
                 at = _ATTR_R.search(tag)
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
@@ -1320,6 +1340,9 @@ def _scan_member(z, member, title):
                                   "clark will import in one go. Check this is the right file. Nothing was changed.")
                 if cells > MAX_SHEET_ROWS * MAX_SHEET_COLUMNS:
                     raise Invalid(_too_large(title, max_row, max_col))
+            buf = buf[pos:]
+            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag this long is not a cell
+                raise _TextTooLong()
             if not chunk or read > excel.MAX_MEMBER_BYTES:
                 return max_row, max_col
 
