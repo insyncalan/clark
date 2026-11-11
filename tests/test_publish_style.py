@@ -71,6 +71,21 @@ class Style(unittest.TestCase):
         self.assertEqual(block(inputs(section_style=sent["comfortable"]))[0]["style"], "roomy")
         self.assertEqual(block(inputs(section_style=sent["compact"]))[0]["style"], "card")
 
+    def test_an_unknown_density_is_ignored_and_never_remembered(self):
+        # item 1025: setDensity with anything but compact or comfortable changes nothing: not the signal, not the page, not the stored word
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        src = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        src = re.sub(r"^import .*signals.*$", "const signal = (v) => ({ value: v });", src, flags=re.M)
+        code = ("const kept = {};\nglobalThis.localStorage = { getItem: () => null, setItem(k, v) { kept[k] = v; } };\n"
+                "globalThis.document = { documentElement: { dataset: {} } };\n" + src +
+                "\nsetDensity('comfortable');\nfor (const bad of ['bogus', 'roomy', '', null, 3, 'Compact']) setDensity(bad);\n"
+                "console.log(JSON.stringify({ now: density.value, painted: document.documentElement.dataset.density, kept }));")
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), {"now": "comfortable", "painted": "comfortable", "kept": {"clark.density": "comfortable"}})
+
 
 if __name__ == "__main__":
     unittest.main()
