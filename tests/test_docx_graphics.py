@@ -648,3 +648,74 @@ class OverflowIsHandledWhereItHappens(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LabelsExact(unittest.TestCase):
+    """#1036 mutation proof: the exact numbers, glyph shapes and positions of the words in a picture."""
+
+    def spans(self, months, x):
+        got = []
+        real = g.draw_text
+        c = Canvas(g.WIDTH, 30, "#ffffff")
+        with mock.patch.object(g, "draw_text", lambda cv, px, py, text, col: (got.append((px, py, text)), real(cv, px, py, text, col))):
+            g.month_labels(c, months, x, "#000000")
+        return got
+
+    def test_the_sizes_are_these_numbers(self):
+        self.assertEqual((g.TEXT_SCALE, g.LABEL_W, g.LABEL_MAX), (2, 240, 19))
+        self.assertEqual((g.TOP, g.G_TOP), (20, 20))
+        self.assertEqual(g.text_width("ABC"), 36)
+        self.assertEqual(len(g.label("x" * 40)), 19)
+
+    def test_every_glyph_is_five_by_seven_and_space_is_empty(self):
+        for ch, rows in g._GLYPHS.items():
+            self.assertEqual((len(rows), {len(r) for r in rows}), (7, {5}), ch)
+        self.assertFalse(any(any(r) for r in g._GLYPHS[" "]))
+        self.assertTrue(all(any(r) for ch, r in g._GLYPHS.items() if ch != " "))
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["A"]][:2], ["01110", "10001"])
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["8"]][3:5], ["01110", "10001"])
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["Z"]][1:3], ["00001", "00010"])
+
+    def test_draw_text_puts_each_dot_at_its_exact_pixel(self):
+        c = Canvas(40, 30, "#ffffff")
+        g.draw_text(c, 5, 4, "I", "#000000")
+        k = g.TEXT_SCALE
+        inked = {(x, y) for y in range(c.h) for x in range(c.w) if c.px[y * c.w + x] != c.px[0]}
+        want = {(5 + gx * k + i, 4 + gy * k + j) for gy, row in enumerate(g._GLYPHS["I"]) for gx, on in enumerate(row) if on
+                for i in range(k) for j in range(k)}
+        self.assertEqual(inked, want)
+
+    def test_the_axis_words_are_month_and_two_digit_year_at_three_pixels_right_of_the_month_line_in_the_band(self):
+        got = self.spans([date(2026, 11, 1)], lambda d: 300)
+        self.assertEqual(got, [(303, 3, "NOV 26")])
+
+    def test_axis_words_need_a_gap_of_a_few_pixels_and_may_end_exactly_at_the_edge(self):
+        w = g.text_width("JAN 26")
+        two = lambda gap: self.spans([date(2026, 1, 1), date(2026, 2, 1)], lambda d: 300 if d.month == 1 else 300 + w + gap)
+        self.assertEqual(len(two(6)), 1)     # touching the 6 pixel gap is too close
+        self.assertEqual(len(two(7)), 2)
+        self.assertEqual(len(self.spans([date(2026, 1, 1)], lambda d: g.WIDTH - w - 3)), 1)
+        self.assertEqual(len(self.spans([date(2026, 1, 1)], lambda d: g.WIDTH - w - 2)), 0)
+
+    def test_a_lane_name_is_centred_in_its_lane_and_starts_at_the_side_space(self):
+        png = g.plan([ms(1, name="HHH")], "2026-11-08", TOKENS)[0][0]
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        pts = [(x, y) for y in range(g.TOP, g.TOP + g.LANE) for x in range(g.LABEL_W) if palette[rows[y][x]] == want]
+        self.assertEqual(min(x for x, _ in pts), g.PAD)
+        self.assertEqual((min(y for _, y in pts), max(y for _, y in pts)), (g.TOP + 2, g.TOP + 2 + 7 * g.TEXT_SCALE - 1))
+
+    def test_a_gantt_name_is_centred_in_its_lane(self):
+        import test_docx_gantt as tg
+        png = g.gantt([tg.line(1, "HHH")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        pts = [(x, y) for y in range(g.G_TOP, g.G_TOP + g.G_LANE) for x in range(g.LABEL_W) if palette[rows[y][x]] == want]
+        self.assertEqual((min(x for x, _ in pts), min(y for _, y in pts)), (g.PAD, g.G_TOP + (g.G_LANE - 14) // 2))
+
+    def test_a_long_plan_labels_only_the_ticks_it_draws_lines_for(self):
+        seen = []
+        real = g.month_labels
+        with mock.patch.object(g, "month_labels", lambda c, months, x, col: (seen.append(len(months)), real(c, months, x, col))):
+            g.plan([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")], "2026-11-08", TOKENS)
+        self.assertTrue(seen and all(n <= g.MAX_TICKS for n in seen), seen)
