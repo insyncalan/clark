@@ -27,7 +27,7 @@ class PublishedPills(_pub.ClientPageFilters):
 
 for _name in dir(_pub.ClientPageFilters):
     if _name.startswith("test_") and _name not in PublishedPills.__dict__:
-        setattr(PublishedPills, _name, None)
+        setattr(PublishedPills, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class AppBar(_line.Line):
@@ -44,13 +44,13 @@ class AppBar(_line.Line):
 
 for _name in dir(_line.Line):
     if _name.startswith("test_") and _name not in AppBar.__dict__:
-        setattr(AppBar, _name, None)
+        setattr(AppBar, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class HelpWords(unittest.TestCase):
     def test_help_names_the_line_words_and_not_the_pills(self):
         text = HELP.read_text(encoding="utf-8")
-        for need in ("Type type: on the filter line to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
+        for need in ("On the filter line, write type: to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
                      "Type is:open or is:closed on the filter line to say which items to list.",
                      "From the top: the saved views with the **Table** and **Board** icons"):
             self.assertIn(need, text)
