@@ -79,7 +79,7 @@ export function People() {
         <button type="button" class="btn sm" id="ppPasteBtn" ref={pasteBtn} aria-expanded={open ? "true" : "false"} aria-controls="ppPaste" onClick={toggle}>Paste from Excel</button>
       </div>
       <p class="muted pp-intro">Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.</p>
-      <div class="pp-paste" id="ppPaste" hidden={!open}>
+      <div class="pp-paste" id="ppPaste" hidden={!open} onKeyDown={(e) => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); setMsg(""); if (pasteBtn.current) pasteBtn.current.focus(); } }}>
         <label for="ppText">Rows from Excel: name, email, organisation, role, separated by tabs</label>
         <textarea id="ppText" class="grow" ref={box} rows={3} value={text} placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"
           aria-describedby="ppPlan" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeBox(); } }} onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
