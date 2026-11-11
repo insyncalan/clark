@@ -41,7 +41,7 @@ function commands() {
 }
 
 function pages() {
-  return shownTabs.value.filter((v) => v !== "settings" && TITLES[v]).map((v) => ({ id: "page-" + v, kind: "Page", label: TITLES[v], more: "", disabled: "", current: view.value === v, run: () => show(v) }));
+  return shownTabs.value.filter((v) => v !== "settings" && v !== "published" && TITLES[v]).map((v) => ({ id: "page-" + v, kind: "Page", label: TITLES[v], more: "", disabled: "", current: view.value === v, run: () => show(v) }));
 }
 
 // The create entries, each calling the very function the existing Add button calls: the Add menu on Work items (addItem) and the Milestones page's add. The words are the Add buttons' own (filters.js KIND_ADD, ADD_MILESTONE).

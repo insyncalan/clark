@@ -11,7 +11,7 @@ Same shape as test_v050.
   WALK_THROUGH  judgement or live only, with the reason and the one line a person follows. Skipped: 'needs a person'.
 
 NOT YET MERGED to origin/main on 02-11-2026 (so WAITING, no test): the #130 and #132 UX sweep fixes beyond the Publish spinner,
-the tick and Publication N (phone layouts, timeline labels, the 12 px minimum). #124 the PDF option and #153 the one filter line
+the tick and Publication N (timeline labels, the 12 px minimum; only widths 1400 and 900 are tested). #124 the PDF option and #153 the one filter line
 are in the 0.6.0 train and are COVERED by their own tests. Merged and checked here: #120 numbered publications, #87 the design-system sizes (PR 240), #559 (PR 378), #495 (PR 363) and #570. The calendar (test_calendar_scales, #76) and the filter
 line in test_filter_line are 0.4 features and are covered by test_v040, not here.
 The cut checks (version, release notes, hand-check sheet) skip until the cut commit sets 0.6.0, then fail if they are wrong.
@@ -94,7 +94,7 @@ LIVE = [
 
 # Not on main yet: (item, check, the question or where it is being built).
 WAITING = [
-    ("#130", "Settings tables stack at phone width, the timeline labels never overlap, text is 12 px or more", "open; phone checks go through the 390 px window but the rule is desktop only, so ask before writing them"),
+    ("#130", "The timeline labels never overlap, text is 12 px or more", "open; the rule is desktop only (1400 and 900), so ask before writing them"),
 ]
 
 # (item, check, kind, why, what the person does)
@@ -400,7 +400,7 @@ class Numbers120(unittest.TestCase):
         schema = read(SRC / "clark" / "schema.sql")
         for name in ("publications_no_delete", "publications_number_fixed", "publications_never_replaced"):
             self.assertRegex(schema, rf"CREATE TRIGGER IF NOT EXISTS {name}\b", name)
-        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 20\b")      # 20 since step 20 (#944, projects.brand); 19 since step 19 (row 926, Gantt section type); 18 was step 18 (row 926, the Gantt lines); 17 was step 17 (row 811, client_action); 16 was step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
+        self.assertRegex(read(SRC / "clark" / "store.py"), r"SCHEMA_VERSION = 21\b")      # 21 since step 21 (row 1061, Planned 2026); 20 since step 20 (#944, projects.brand); 19 since step 19 (row 926, Gantt section type); 18 was step 18 (row 926, the Gantt lines); 17 was step 17 (row 811, client_action); 16 was step 16 (issue 709, use_cases.commitment); 15 was step 15 (#269, publications.pdf_name); 14 was #171 (review_after_days); 13 was #368 (a web page and its Word copy share a number); 12 was #325 (the trigger guards client_path); step 10 is this item\'s
 
     def test_120_2_a_number_is_fixed_and_never_reused(self):
         schema = read(SRC / "clark" / "schema.sql")

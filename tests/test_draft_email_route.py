@@ -252,6 +252,11 @@ class Seam(unittest.TestCase):
             status, body = seam()({"project": "ABC", "email": bad})
             self.assertEqual((status, body["code"]), (400, "bad_address"), repr(bad))
         self.assertEqual(seam()({"project": "ABC", "email": "dana.o'hart+uat@partner.test"})[0], 200)
+        for bad in ("a@b.co,c@d.co", "a@b.co\r\nBcc: x@y.co", "a@b.co\tx@y.co", "a@b.co&cc=x@y.co?"):
+            self.assertEqual(seam()({"project": "ABC", "email": bad})[1]["code"], "bad_address", repr(bad))       # #1048: an owner's address cannot inject a header or a second recipient
+        self.assertEqual(seam()({"project": "ABC", "email": "a@b.co\n"})[1]["draft"]["to"], "a@b.co")      # a trailing newline is flattened, never kept
+        status, body = seam()({"project": "ABC", "email": "dana.o'hart+uat@partner.test", "name": "Dana Hart"})
+        self.assertEqual((status, body["draft"]["to"]), (200, "dana.o'hart+uat@partner.test"))
 
     def test_a_look_alike_letter_does_not_hide_a_confidential_item(self):
         data = dict(DATA, actions=[action(7, "Conf\u0456dential figures", "2026-10-20")])       # a Cyrillic "i" in the word
