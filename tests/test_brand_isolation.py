@@ -1,7 +1,7 @@
 """Row 999 (guarded): every output takes the brand of the project it is made for, and no other: the web page, the preview, the Excel
 workbook, the client workbook inside the page, the PDF's marker check and the Word file. Run: python3 dev/run_tests.py test_brand_isolation
-Two invented brands (ZEBRA teal, QUOKKA plum) are installed in a temporary folder (system/branding/<id>/ with a manifest); nothing is
-read from the real system/branding. A project on Generic gets the committed look. The brand's id and name appear in no output.
+Two invented brands (ZEBRA teal, QUOKKA plum) are installed in a temporary folder (branding/<id>/ with a manifest); nothing is
+read from the real branding. A project on Generic gets the committed look. The brand's id and name appear in no output.
 """
 import base64
 import io
@@ -27,7 +27,7 @@ IDS = {"generic", "zebra", "quokka"}
 
 
 def install(root, name):
-    d = make_brand(Path(root) / "system" / "branding", name)
+    d = make_brand(Path(root) / "branding", name)
     (d / brands.MANIFEST).write_text(json.dumps({"id": name, "name": name.title() + " Co", "version": "1.0.0"}), encoding="utf-8")
     return d
 
