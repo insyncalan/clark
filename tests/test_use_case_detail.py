@@ -861,6 +861,32 @@ class Detail(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] [role^=menuitem]').length", sid), 5, "it can be added again")
             self.assertEqual(cdp.js(CONTRAST, sid), [], "contrast in dark")
 
+    def test_added_step_words_and_due_date_and_remove_spares_other_use_cases_row_1079(self):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            ms = [m for m in st.data_for("TUL")["milestones"] if m["id"] == "TUL-M-002"][0]
+            other = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") and r.get("use_case") != UC][0]["id"]
+        finally:
+            st.close()
+        self.sql("UPDATE actions SET milestone = 'TUL-M-005' WHERE id = ?", (other,))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "listed")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "removed")
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            acts = st.data_for("TUL")["actions"]
+        finally:
+            st.close()
+        made = [r for r in acts if r.get("use_case") == UC and r.get("milestone") == "TUL-M-002"][0]
+        self.assertEqual(made["description"], "Reach " + ms["name"], "the step's words")
+        self.assertEqual(made.get("due_date"), ms.get("baseline_date") or ms.get("forecast_date"), "due on the milestone's date")
+        self.assertEqual([r["milestone"] for r in acts if r["id"] == other], ["TUL-M-005"], "another use case's link is not cleared")
+
     def test_an_archived_milestone_is_neither_listed_nor_offered_row_1079(self):
         self.sql("UPDATE milestones SET archived = 1 WHERE id IN ('TUL-M-005', 'TUL-M-003')")
         with chrome() as cdp:
