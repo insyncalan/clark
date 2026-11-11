@@ -486,7 +486,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=quiet]')", "the saved view")
             self.assertEqual(cdp.js("document.querySelectorAll('#freshMenu, #freshMenuList, [aria-label=Freshness]').length", sid), 0, "no Freshness pill")
             self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-1:], ["vtabs"], "row 1084: the layout switch and Group by left the row; the tabs are in it")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-1:], ["vnew"], "row 1084: the layout switch and Group by left the row; the tabs are in it, and + New view sits beside them (row 1032)")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
             click_tab(cdp, sid, ".vtab[data-view-id=quiet]")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
