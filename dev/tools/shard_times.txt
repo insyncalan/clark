@@ -696,3 +696,6 @@ test_mutants_publish_flow_graphics.py 3.3
 test_publish_mutwave.py 0.5
 test_setup_mode.py 0.7
 test_store_migration_mutants.py 1.0
+test_help_wording_107_b.py 30.0
+test_gantt_markers_hostile.py 30.0
+test_publish_hidden_section_markers.py 30.0
