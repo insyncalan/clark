@@ -979,7 +979,11 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "ArrowRight")
                     self.assertEqual(self.tab_ids(cdp, sid)[:4], ["core-open", "core-risks", "core-actions", "core-decisions"], "and the arrows move nothing now")
                     # Esc also finishes (and keeps the place)
-                    click(cdp, sid, "#viewTabMenu")
+                    wait(lambda: not cdp.js("!!document.querySelector('#viewTabMenuList')", sid))      # the menu is shut before it is opened again: a click on a closing menu toggles it shut
+                    for _try in range(3):
+                        click(cdp, sid, "#viewTabMenu")
+                        if wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=move]')", sid)):
+                            break
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=move]')", sid)))
                     cdp.js("document.querySelector('#viewTabMenuList [data-kind=move]').click()", sid)      # a script click: the mouse helper scrolls the item into view first, and a scroll closes the open menu
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.vtab[data-moving]')", sid)))

@@ -361,7 +361,7 @@ test_needs_page.py 40.6
 test_needs_route.py 4.2
 test_no_client_image.py 1.0
 test_no_real_names.py 46.2
-test_no_type_pills.py 30.0
+test_no_type_pills.py 430.0
 test_one_editor_gate.py 30.1
 test_one_secret_screen.py 1.7
 test_one_view_menu.py 30.0
