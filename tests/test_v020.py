@@ -288,6 +288,7 @@ LIGHT_PATCHES = """(() => {
   const patches = [];
   for (const e of document.querySelectorAll('body *')) {
     const r = e.getBoundingClientRect(), cs = getComputedStyle(e);
+    if (e.closest('.secpick-pic')) continue;      // item 1025: the Spacing setting's drawing of a section title bar uses the heading colour, light in dark on purpose
     if (r.width * r.height < 4000 || cs.display === 'none' || cs.visibility === 'hidden' || +cs.opacity === 0) continue;
     const l = lum(cs.backgroundColor);
     if (l !== null && l > 0.3) patches.push(e.tagName.toLowerCase() + (e.id ? '#' + e.id : '') +

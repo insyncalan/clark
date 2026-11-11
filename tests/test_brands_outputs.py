@@ -154,7 +154,6 @@ class Word(Rig):
         self.assertTrue(brand_pictures.isdisjoint({z.read(n) for n in names if n.startswith("word/media")}))
         self.assertNotIn(b"zebra", b"".join(zipfile.ZipFile(io.BytesIO(data)).read(n) for n in names).lower())
 
-    @unittest.expectedFailure
     def test_NEW_word_route_builds_with_the_projects_brand(self):
         # word_route.py:544 is docx_build.build(published) with no colours. Needs a seam from project -> brand folder in _do_export
         # (name unknown until the design note settles it); this checks the file only, through the existing build() signature.
@@ -177,12 +176,6 @@ class ClientWorkbook(Rig):
         wb = load_workbook(io.BytesIO(data))
         return wb.worksheets[0]["A1"].fill.fgColor.rgb[-6:].upper(), data
 
-    def test_today_the_client_workbook_is_committed_colours_whatever_the_brand(self):
-        # PINS TODAY'S BEHAVIOUR so the change is visible: the page takes the brand, its workbook does not.
-        fill, _ = self.header_fill(self.zebra)
-        self.assertEqual(fill, excel_client.colours.HEADER_FILL.upper())
-
-    @unittest.expectedFailure
     def test_NEW_each_brand_colours_its_own_client_workbook_and_no_logo(self):
         for name, folder in (("zebra", self.zebra), ("quokka", self.quokka)):
             fill, data = self.header_fill(folder)
@@ -190,7 +183,6 @@ class ClientWorkbook(Rig):
             self.assertFalse([n for n in zipfile.ZipFile(io.BytesIO(data)).namelist() if n.startswith("xl/media")])
             self.assertNotIn(self.other(name)["navy"].encode(), zipfile.ZipFile(io.BytesIO(data)).read("xl/styles.xml").upper())
 
-    @unittest.expectedFailure
     def test_NEW_generic_client_workbook_is_committed_after_a_branded_one_in_the_same_process(self):
         self.header_fill(self.zebra)
         fill, _ = self.header_fill(self.generic)
@@ -257,7 +249,6 @@ class ProjectBrandT1(Rig):
         self.assertEqual(self.s.read("projects", ref="ABC")["brand"], "zebra")
         self.assertNotIn(b"zebra", json.dumps(publish.select(fx.inputs()), default=str).lower().encode())
 
-    @unittest.expectedFailure
     def test_NEW_publisher_resolves_the_projects_brand_folder_instead_of_one_fixed_branding(self):
         # publish_flow.Publisher passes self.branding (one folder, set at launch) to publish.build and excel.export_project for every
         # project (publish_flow.py:263/620). T4 must pass the folder of the project's brand id; the resolver (T2's library) is not built.

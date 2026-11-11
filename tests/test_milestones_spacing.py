@@ -24,7 +24,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
-PAD = 14
+PAD = 14                                                     # Comfortable (item 1025); Compact is the default and keeps 2 px
+PADS = {"comfortable": 14, "compact": 2}
 CODE = "MOSS"                                                        # the demo project with more than five milestones
 WIDTHS = (1400, 900)
 
@@ -81,7 +82,7 @@ class Spacing(unittest.TestCase):
         cls.store.close()
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def check(self, got, where):
+    def check(self, got, where, pad=PAD):
         rows = got["rows"]
         self.assertGreater(len(rows), 5, f"{where}: every milestone is on the page")
         self.assertEqual(got["all"], "Show the first 5", f"{where}: the words after Show all")
@@ -89,7 +90,7 @@ class Spacing(unittest.TestCase):
         self.assertFalse(got["listScroll"], f"{where}: nothing scrolls inside the list")
         for i, r in enumerate(rows):
             last = i == len(rows) - 1
-            self.assertEqual((r["padTop"], r["padBottom"]), (PAD, PAD), f"{where}: row {i} has {PAD} px above and below")
+            self.assertEqual((r["padTop"], r["padBottom"]), (pad, pad), f"{where}: row {i} has {pad} px above and below")
             # The rail and its dot are as they were: a 2 px grey-200 line down the left, a 12 px ring on it half way down the row.
             self.assertEqual((r["rail"]["w"], r["rail"]["style"], r["rail"]["colour"]), (2, "solid", got["grey200"]), f"{where}: row {i} rail")
             self.assertEqual((r["dot"]["w"], r["dot"]["h"], r["dot"]["ring"], r["dot"]["round"]), (12, 12, 2, "50%"), f"{where}: row {i} dot")
@@ -118,8 +119,10 @@ class Spacing(unittest.TestCase):
                     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p={CODE}"}, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)), "the list drew")
                     show_all(cdp, sid)
-                    got = cdp.js(LOOK, sid)
-                    self.check(got, f"live {scheme} {width}px")
+                    for dens, pad in PADS.items():
+                        cdp.js(f"document.documentElement.dataset.density = '{dens}'", sid)
+                        got = cdp.js(LOOK, sid)
+                        self.check(got, f"live {dens} {scheme} {width}px", pad)
                     greys[scheme] = got["grey200"]
         self.assertNotEqual(greys["light"], greys["dark"], "the line's grey follows the theme's token")
 
@@ -136,7 +139,9 @@ class Spacing(unittest.TestCase):
                     cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)))
                     show_all(cdp, sid)
-                    self.check(cdp.js(LOOK, sid), f"published {scheme} {width}px")
+                    for dens, pad in PADS.items():
+                        cdp.js(f"document.documentElement.dataset.density = '{dens}'", sid)
+                        self.check(cdp.js(LOOK, sid), f"published {dens} {scheme} {width}px", pad)
 
 
 class Stylesheet(unittest.TestCase):
@@ -150,7 +155,9 @@ class Stylesheet(unittest.TestCase):
     def check(self, css, where):
         cells, line = self.rules(css)
         self.assertIsNotNone(cells, f"{where}: the .msl-cells rule")
-        self.assertIn(f"padding: {PAD}px var(--space-2) {PAD}px 22px", cells, f"{where}: {PAD} px above and below the text")
+        self.assertIn("padding: var(--d-msl-y) var(--space-2) var(--d-msl-y) 22px", cells, f"{where}: the spacing token above and below the text")
+        self.assertRegex(css, r'html\[data-density="comfortable"\] \{[^}]*--d-msl-y: %dpx' % PAD, f"{where}: Comfortable has {PAD} px above and below")
+        self.assertRegex(css, r":root \{[^}]*--d-msl-y: 2px", f"{where}: Compact has 2 px above and below")
         self.assertIsNotNone(line, f"{where}: a line under every row but the last")
         for part in ("content: \"\"", "position: absolute", "left: 22px", "right: 0", "bottom: 0", "height: 1px", "background: var(--grey-200)"):
             self.assertIn(part, line, f"{where}: the line rule has {part}")
