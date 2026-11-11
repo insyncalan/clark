@@ -334,6 +334,8 @@ class WhereItIsNamed(unittest.TestCase):
         self.assertIn("Safety", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
         pages = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")
         self.assertIn('["backups", "Backups", ["Safety"]', pages)
+        views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
+        self.assertIn("tools.SettingsPages", views)
 
 
 if __name__ == "__main__":
