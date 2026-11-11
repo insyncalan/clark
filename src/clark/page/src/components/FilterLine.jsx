@@ -263,8 +263,8 @@ function SavedViews({ board }) {
             </span>
           );
         })}
-        {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
+      {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       {fromFile.value || !dirty ? null : (
         <span class="fvacts">
           {core ? null : <button type="button" class="btn sm" id="fvSave" onClick={() => act("save")}>Save view</button>}

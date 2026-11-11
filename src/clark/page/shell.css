@@ -319,7 +319,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
 .fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
-.fvrow > .vtabs + * { margin-left: auto; }
+.fvrow > .vtabs + *:not(.vnew), .fvrow > .vnew + * { margin-left: auto; }   /* item 1032: + New view sits beside the scrolling tabs, not inside them, so a full row never cuts it off under Discard changes */
+.fvrow > .vnew { flex: none; }
 .vtabs { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 2px; min-width: 0; flex: 0 1 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
 .vtabs > * { flex: none; }
