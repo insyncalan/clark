@@ -12,7 +12,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
-import { say } from "../stores/changes.js";
+import { say, toast } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -63,10 +63,14 @@ function pickLayout(id) {
 
 function SavedViews({ board }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
-  const all = viewsOf(code), shown = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
+  const [moving, setMoving] = useState(null);             // row 1071: the id of the tab Move view is moving with the arrow keys, or null
+  const [draft, setDraft] = useState(null);               // row 1071: while a tab is dragged, the ids of the tabs in the order shown; saved when it is let go
+  const drag = useRef(null), swallow = useRef(false);
+  const all = viewsOf(code), here = FL.visibleViews(all).filter((v) => !Q.heldBackQuery(v, rows, ctx));
+  const shown = draft && draft.length === here.length && draft.every((id) => here.some((v) => v.id === id)) ? draft.map((id) => here.find((v) => v.id === id)) : here;
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "delete" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
+  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
   const mine = chosen.value[code];
   const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const active = shown.find((v) => v.id === mine) || matching;
@@ -74,6 +78,7 @@ function SavedViews({ board }) {
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
   useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
+  const click = (e, v) => { if (swallow.current) { swallow.current = false; e.preventDefault(); return; } pick(v); };      // the click that ends a drag chooses nothing
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
   const tabsBox = useRef(null);
@@ -100,22 +105,114 @@ function SavedViews({ board }) {
       chosen.value = { ...chosen.value, [code]: r.id };
     }
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
-    else if (id === "delete" && active) setForm({ mode: "delete", name: "", error: "" });
+    else if (id === "move" && active) { setMoving(active.id); announce.value = `Moving ${active.name}. Press Left or Right arrow to move it, Enter to finish.`; setTimeout(() => focusTab(active.id), 60); }
+    else if (id === "duplicate" && active) {
+      const r = FL.duplicateView(all, active.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: r.id };
+      announce.value = `Duplicated as ${r.views.find((v) => v.id === r.id).name}.`;
+    } else if (id === "delete" && active) {
+      // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
+      const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
+      if (!r.ok) { say("problem", r.message); return; }
+      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
+      say("done", `View deleted: ${gone.name}`);
+      toast.value = { ...toast.value, local: () => { const b = FL.insertView(viewsOf(code), gone, at); if (b.ok) saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id }; } };
+      setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
+    }
+  };
+  const focusTab = (id) => { const el = document.querySelector(`.vtab[data-view-id="${id}"]`); if (el && document.activeElement !== el) el.focus(); };
+  const shownIds = shown.map((v) => v.id);
+  // The tab being moved keeps the focus when the order changes (a moved element may lose it), and the move ends when the focus goes elsewhere.
+  useEffect(() => { if (moving) focusTab(moving); }, [moving, shownIds.join(",")]);
+  useEffect(() => {
+    if (!moving) return undefined;
+    const away = (e) => { if (!(e.target.closest && e.target.closest(`.vtab[data-view-id="${moving}"]`))) setMoving(null); };
+    document.addEventListener("pointerdown", away, true);
+    return () => document.removeEventListener("pointerdown", away, true);
+  }, [moving]);
+  // Keys go to the page while a tab is being moved, not to the tab: a moved tab may lose the focus for a moment, and a key pressed then must still count.
+  const live = useRef(null);
+  live.current = () => {
+    const ids = FL.visibleViews(viewsOf(code)).filter((x) => !Q.heldBackQuery(x, rows, ctx)).map((x) => x.id);      // read again each time: two keys can come before the page has drawn the first move
+    const v = shown.find((x) => x.id === moving);
+    return v && ids.includes(v.id) ? { v, ids, code } : null;
+  };
+  useLayoutEffect(() => {          // a layout effect: the keys count from the moment the tab shows it is being moved
+    if (!moving) return undefined;
+    const onKey = (e) => {
+      const c = live.current();
+      if (!c) return;
+      if (e.key === "Enter" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMoving(null); announce.value = `${c.v.name} is tab ${c.ids.indexOf(c.v.id) + 1} of ${c.ids.length}.`; return; }
+      if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+      e.preventDefault(); e.stopPropagation();
+      const i = c.ids.indexOf(c.v.id), j = i + (e.key === "ArrowLeft" ? -1 : 1);
+      if (j < 0 || j >= c.ids.length) return;
+      const ids = c.ids.slice(); ids[i] = ids[j]; ids[j] = c.v.id;
+      const r = FL.reorderViews(viewsOf(c.code), ids);
+      if (r.ok) { saveViews(c.code, r.views); announce.value = `${c.v.name} moved to tab ${j + 1} of ${ids.length}.`; }
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [moving]);
+  // Row 1071: pick a tab up with the mouse (or a pen) and drag it left or right. A press that does not move is a click (it chooses the tab). Esc puts it back.
+  // A finger keeps scrolling the row, so touch uses Move view.
+  const pressTab = (e, v) => {
+    if (e.button !== 0 || e.pointerType === "touch" || moving || drag.current || shownIds.length < 2) return;
+    const btn = e.currentTarget, d = { id: v.id, x0: e.clientX, y0: e.clientY, pid: e.pointerId, on: false, dead: false, ids: shownIds.slice(), from: shownIds.join(",") };
+    drag.current = d;
+    const stop = (ev) => ev.preventDefault();
+    const finish = () => {
+      document.removeEventListener("pointermove", move, true); document.removeEventListener("pointerup", up, true); document.removeEventListener("pointercancel", cancel, true);
+      document.removeEventListener("keydown", key, true); document.removeEventListener("selectstart", stop, true); document.removeEventListener("dragstart", stop, true);
+      document.documentElement.classList.remove("vdragging"); drag.current = null;
+      if (d.on) { swallow.current = true; setTimeout(() => { swallow.current = false; }, 0); }
+    };
+    const move = (ev) => {
+      if (d.dead) return;
+      if (!d.on) {
+        if (Math.abs(ev.clientX - d.x0) < 5 && Math.abs(ev.clientY - d.y0) < 5) return;
+        d.on = true; document.documentElement.classList.add("vdragging");
+        try { btn.setPointerCapture(d.pid); } catch (x) { /* the press has ended already */ }
+        const sel = window.getSelection && window.getSelection(); if (sel) sel.removeAllRanges();
+        setDraft(d.ids);
+      }
+      ev.preventDefault();
+      const row = tabsBox.current, box = row.getBoundingClientRect();
+      if (ev.clientX < box.left + 24) row.scrollLeft -= 14; else if (ev.clientX > box.right - 24) row.scrollLeft += 14;
+      const others = [...row.querySelectorAll(".vt")].filter((el) => el.querySelector(".vtab").dataset.viewId !== d.id);
+      const want = others.filter((el) => { const r = el.getBoundingClientRect(); return r.left + r.width / 2 < ev.clientX; }).length;
+      const rest = d.ids.filter((id) => id !== d.id);
+      if (d.ids.indexOf(d.id) !== want) { rest.splice(want, 0, d.id); d.ids = rest; setDraft(rest); }
+    };
+    const up = () => {
+      const was = d.on && !d.dead && d.ids.join(",") !== d.from;
+      finish();
+      if (was) {
+        setDraft(null);
+        const r = FL.reorderViews(viewsOf(code), d.ids);
+        if (r.ok) { saveViews(code, r.views); announce.value = `${v.name} moved to tab ${d.ids.indexOf(d.id) + 1} of ${d.ids.length}.`; }
+      } else if (d.on) setDraft(null);
+    };
+    const cancel = () => { finish(); if (d.on) setDraft(null); };
+    const key = (ev) => {
+      if (ev.key !== "Escape" || d.dead) return;
+      ev.preventDefault(); ev.stopPropagation();
+      d.dead = true; if (d.on) setDraft(null);
+      document.documentElement.classList.remove("vdragging");
+    };
+    document.addEventListener("pointermove", move, true); document.addEventListener("pointerup", up, true); document.addEventListener("pointercancel", cancel, true);
+    document.addEventListener("keydown", key, true); document.addEventListener("selectstart", stop, true); document.addEventListener("dragstart", stop, true);
   };
   // The form's input goes with the form, so focus is handed to the button that opened it (the tab's own menu for a rename or a delete) a moment after it closes.
   const closeForm = () => {
     const mode = form && form.mode;
     setForm(null);
-    const order = mode === "rename" || mode === "delete" ? ["viewTabMenu", "viewNew", "viewMenu"] : ["viewNew", "viewMenu", "viewTabMenu"];
+    const order = mode === "rename" ? ["viewTabMenu", "viewNew", "viewMenu"] : ["viewNew", "viewMenu", "viewTabMenu"];
     setTimeout(() => { const el = order.map((id) => document.getElementById(id)).find(Boolean); if (el) el.focus(); }, 0);
   };
   const submit = (e) => {
     e.preventDefault();
-    if (form.mode === "delete") {
-      const r = FL.deleteView(all, active.id);
-      if (r.ok) { saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; closeForm(); } else setForm({ ...form, error: r.message });
-      return;
-    }
     const r = FL.renameView(all, active.id, form.name);
     if (!r.ok) { setForm({ ...form, error: r.message }); return; }
     saveViews(code, r.views);
@@ -131,9 +228,14 @@ function SavedViews({ board }) {
   // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
-  if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes" });
-  tabItems.push({ id: "saveas", name: "Save as a new view…" });
-  if (active) { tabItems.push({ id: "rename", name: "Rename…" }); tabItems.push({ id: "delete", name: "Delete" }); }
+  if (active && dirty && !core) tabItems.push({ id: "save", name: "Save changes", icon: "check" });
+  tabItems.push({ id: "saveas", name: "Save as a new view…", icon: "plus" });
+  if (active) {      // row 1071: the four words the issue approves, each with its icon; Delete view in red
+    tabItems.push({ id: "rename", name: "Rename view", icon: "pencil" });
+    if (shown.length > 1) tabItems.push({ id: "move", name: "Move view", icon: "move" });
+    tabItems.push({ id: "duplicate", name: "Duplicate view", icon: "copy" });
+    tabItems.push({ id: "delete", name: "Delete view", icon: "trash", danger: true });
+  }
   return (
     <div class="fviews">
       <div class="fvrow">
@@ -144,8 +246,8 @@ function SavedViews({ board }) {
           const arrow = on && !fromFile.value ? <Menu label="" ariaLabel={`Options for ${v.name}`} id="viewTabMenu" btnCls="vtabmenu" menuId="viewTabMenuList" fixed="start" menuLabel={`Options for ${v.name}`} items={tabItems} onPick={act} /> : null;
           if (bad) {          // no count: the line is not applied, so there is nothing to count
             return (
-              <span class="vt" key={v.id}>
-                <button type="button" class="vtab" data-view-id={v.id} data-broken="true" aria-pressed={on ? "true" : "false"} title={bad} onClick={() => pick(v)}
+              <span class="vt" key={v.id} data-lifted={draft && drag.current && drag.current.id === v.id ? "" : undefined}>
+                <button type="button" class="vtab" data-view-id={v.id} data-broken="true" aria-pressed={on ? "true" : "false"} data-moving={moving === v.id ? "" : undefined} title={bad} onClick={(e) => click(e, v)} onPointerDown={(e) => pressTab(e, v)}
                   aria-label={`${v.name}, cannot be used any more`}>
                   <span>{v.name}</span>
                 </button>{arrow}
@@ -153,8 +255,8 @@ function SavedViews({ board }) {
             );
           }
           return (
-            <span class="vt" key={v.id}>
-              <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} onClick={() => pick(v)}
+            <span class="vt" key={v.id} data-lifted={draft && drag.current && drag.current.id === v.id ? "" : undefined}>
+              <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} data-moving={moving === v.id ? "" : undefined} onClick={(e) => click(e, v)} onPointerDown={(e) => pressTab(e, v)}
                 aria-label={`${v.name}, ${count} items${dot ? ", the line has changes you have not saved" : ""}`}>
                 <span>{v.name}</span><em class="num">{count}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
               </button>{arrow}
@@ -174,12 +276,7 @@ function SavedViews({ board }) {
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
-          {form.mode === "delete" ? (
-            <>
-              <span class="vask" id="vask">Delete this view?</span>
-              <button type="submit" class="btn sm" id="vdelete" ref={nameBox}>Delete</button>
-            </>
-          ) : form.mode === "note" ? null : (
+          {form.mode === "note" ? null : (
             <>
               <label for="vname">New name for this view</label>
               <input id="vname" type="text" value={form.name} maxLength={FL.MAX_NAME} ref={nameBox} onInput={(e) => setForm({ ...form, name: e.target.value, error: "" })} />
