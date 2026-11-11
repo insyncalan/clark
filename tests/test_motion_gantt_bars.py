@@ -259,10 +259,13 @@ class Bars(unittest.TestCase):
         self.reset()
         self.mount_key("PRJ-B")
         self.assertEqual(self.grow(), 0)
-        # and going back to the first project is another change: it grows again
+        # and going back to the first project draws nothing again: each project keeps its own memory for the session (ultrareview-105 section 10)
         self.reset()
         self.mount_key("PRJ-A")
-        self.assertEqual(self.grow(), n)
+        self.assertEqual(self.grow(), 0, "back to the first project: its bars already grew once")
+        self.reset()
+        self.mount_key("PRJ-B")
+        self.assertEqual(self.grow(), 0, "and the second project is still remembered")
 
     def test_reduced_motion_by_the_computer_or_the_setting_runs_nothing(self):
         for motion, attr in (("reduce", False), ("no-preference", True)):
@@ -376,7 +379,7 @@ class OnThePage(unittest.TestCase):
         self.mount("PRJ-B")
         self.assertEqual(self.grow(), 0, "a remount of the second project grows none")
         self.mount("PRJ-A")
-        self.assertEqual(self.grow(), n, "back on the first project it grows again")
+        self.assertEqual(self.grow(), 0, "back on the first project it grows none: each project keeps its own memory (ultrareview-105 section 10)")
 
 
 if __name__ == "__main__":
