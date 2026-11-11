@@ -57,10 +57,14 @@
 .mvm-actions button:disabled { opacity: .55; cursor: default; }
 .mvm-form { margin-top: var(--space-3); padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); }
 .mvm-f { display: grid; gap: 2px; margin: var(--space-2) 0; }
-.mvm-f span { font-size: var(--size-caption); color: var(--text-muted); }
+.mvm-f > span { font-size: var(--size-caption); color: var(--text-muted); }
 .mvm-f input { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .mvm-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .mvm-note { display: block; box-sizing: border-box; width: 100%; }
+.mvm-f .rt-view, .rce-f .rt-view { display: block; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); cursor: text; }
+.mvm-f .rt-view:focus-visible, .rce-f .rt-view:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.mvm-f .rt-view .quiet, .rce-f .rt-view .quiet, .mvm-f .rt-view .prose p, .rce-f .rt-view .prose p { margin: 0; }
+.mvm-f .rt-view .quiet, .rce-f .rt-view .quiet { color: var(--text-muted); }
 .mvm-note .rt-view { display: block; min-height: 84px; padding: var(--space-2) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); }
 .mvm-note .rt-view .quiet { margin: 0; color: var(--text-muted); }
 /* item 1005: the At a glance reason is the one rich editor too: a bordered view that opens the editor in the tile */
@@ -533,7 +537,7 @@ textarea.tpl-field { resize: vertical; }
 .rce-list { display: grid; gap: var(--space-3); margin: 0; padding: 0; list-style: none; }
 .rce-card { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: var(--space-2) var(--space-3); padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
 .rce-f { display: grid; gap: 2px; min-width: 0; }
-.rce-f span { font-size: var(--size-caption); color: var(--text-muted); }
+.rce-f > span { font-size: var(--size-caption); color: var(--text-muted); }
 .rce-f select, .rce-f input { min-height: 32px; min-width: 0; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .rce-f select:focus-visible, .rce-f input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .rce-what, .rce-note { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }

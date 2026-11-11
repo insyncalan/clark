@@ -1,8 +1,11 @@
 // The Edit part RAID cards (#96) share: one row per card (the work item, where its words come from, and the card's own words),
 // saved in place. Every committed choice is one change() to the section's body: one step, one Undo, place "report". A card holds
-// the item's id only, so what the item says is read when the page is drawn or published. Plain text only; nothing is drawn as markup.
+// the item's id only, so what the item says is read when the page is drawn or published. Plain text only (the Own words are typed in the one editor and kept as one plain line); nothing is drawn as markup.
 import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
+import { RichField } from "../RichField.jsx";
+import { legacyToHtml } from "../../logic/richOrPlain.js";
+import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
 import { OWN_MAX, SOURCES, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
 
@@ -51,15 +54,12 @@ export function RaidEdit({ section, size }) {
       return put(i, { id, source, own: card ? card.own : "" }, card ? "Card changed." : "Card added.");
     };
     const pick = (e) => put(i, { ...card, source: e.currentTarget.value }, "Card text changed.");
-    const commit = (e) => {
-      const el = e.currentTarget, text = el.value.replace(/\s+/g, " ").trim();
-      if (text === card.own) { el.value = card.own; return; }
-      put(i, { ...card, own: text }, "Card text changed.");
-    };
-    const keys = (e) => {
-      if (e.isComposing) return;
-      if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
-      else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = card.own; e.currentTarget.blur(); }
+    // Item 1005: Own words is the one editor. The card keeps one line of plain text (plainLine of what was typed); more than the limit is not saved.
+    const commit = (html) => {
+      const text = plainLine(html);
+      if (text === card.own) return true;
+      if (Array.from(text).length > OWN_MAX) return false;
+      return put(i, { ...card, own: text }, "Card text changed.");
     };
     const missing = card && !found;
     const note = !card ? "" : missing ? "This item is not in the record any more. Choose another item or remove the card."
@@ -81,8 +81,8 @@ export function RaidEdit({ section, size }) {
                 {SOURCES.filter(([v]) => v !== "latest" || isAction).map(([v, w]) => <option key={v} value={v}>{w}</option>)}
               </select></label>
             {card.source === "own" ? (
-              <label class="rce-f"><span>Own words</span>
-                <input type="text" key={`${card.id}|${card.own}`} defaultValue={card.own} maxLength={OWN_MAX} aria-label={`Card ${i + 1} own words`} onBlur={commit} onKeyDown={keys} spellcheck /></label>
+              <div class="rce-f"><span id={`rce-own-${i}`}>Own words</span>
+                <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} /></div>
             ) : null}
             {found ? <p class="quiet rce-what">{`${kindWords(found.row, found.kind)}: ${cut(titleOf(found.row, found.kind), 100)}`}</p> : null}
             {note ? <p class="quiet rce-note">{note}</p> : null}

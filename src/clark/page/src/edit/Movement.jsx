@@ -8,7 +8,8 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
-import { richOrPlain } from "../logic/richOrPlain.js";
+import { richOrPlain, legacyToHtml } from "../logic/richOrPlain.js";
+import { plainLine } from "../logic/plainLine.js";
 import { isEditing } from "../logic/editing.js";
 import { project, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
@@ -173,6 +174,18 @@ async function move(r) {
   focusRow(r.id);
 }
 
+// Item 1005: Who agreed it, Reason and Source are the one editor. They stay one line of plain text in the form and in what is sent
+// (the store refuses a line break there), so leaving the editor keeps plainLine of what was typed, and it is drawn back from that text.
+function FormField({ k, f }) {
+  const keep = (html) => { form.value = { ...form.value, [k]: plainLine(html), errors: [] }; return true; };
+  return (
+    <div class="mvm-f" data-f={k}>
+      <span id={`mv-${k}-l`}>{W.FIELDS[k]}</span>
+      <RichField field={`mv_${k}`} value={legacyToHtml(f[k])} label={W.FIELDS[k].toLowerCase()} viewId={`mv-${k}`} labelledBy={`mv-${k}-l`} save={keep} />
+    </div>
+  );
+}
+
 function MoveForm({ r }) {
   const f = form.value;
   const set = (k) => (e) => { form.value = { ...form.value, [k]: e.currentTarget.value, errors: [] }; };
@@ -182,12 +195,12 @@ function MoveForm({ r }) {
   useEffect(() => { const el = document.getElementById("mv-to"); if (el) el.focus(); }, []);
   return (
     <form class="mvm-form" aria-labelledby="mv-form-h" onSubmit={(e) => { e.preventDefault(); if (!f.busy) move(r); }}
-      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); cancel(); } }}>
+      onKeyDown={(e) => { if (e.key === "Escape" && !e.target.closest(".ProseMirror")) { e.stopPropagation(); cancel(); } }}>
       <h4 id="mv-form-h">{W.MOVE_LABEL}</h4>
       <label class="mvm-f" for="mv-to"><span>{W.FIELDS.to}</span><input id="mv-to" type="text" inputmode="numeric" autocomplete="off" value={f.to} onInput={set("to")} /></label>
-      <label class="mvm-f" for="mv-who"><span>{W.FIELDS.who}</span><input id="mv-who" type="text" autocomplete="off" value={f.who} onInput={set("who")} /></label>
-      <label class="mvm-f" for="mv-reason"><span>{W.FIELDS.reason}</span><input id="mv-reason" type="text" autocomplete="off" value={f.reason} onInput={set("reason")} /></label>
-      <label class="mvm-f" for="mv-source"><span>{W.FIELDS.source}</span><input id="mv-source" type="text" autocomplete="off" value={f.source} onInput={set("source")} /></label>
+      <FormField k="who" f={f} />
+      <FormField k="reason" f={f} />
+      <FormField k="source" f={f} />
       <p class="mvm-confirm" id="mvm-confirm">{confirm}</p>
       <div class="mvm-problems" role="alert">{f.errors.map((e) => <p key={e}>{e}</p>)}</div>
       <div class="mvm-actions">
