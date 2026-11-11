@@ -225,7 +225,7 @@ class Header(Base):
         def check(cdp, sid, width):
             self.assertEqual(cdp.js(chips, sid), ["is:open"], "the starting line is a chip")
             self.assertEqual(cdp.js("document.querySelector('#fline-input').placeholder", sid), "", "no placeholder once a chip exists")
-            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is filter")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is:open filter")
             click(cdp, sid, "#fline-input")
             cdp.call("Input.insertText", {"text": "priority:High "}, sid)
             self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'priority:High'])", "the accepted word became a chip")
