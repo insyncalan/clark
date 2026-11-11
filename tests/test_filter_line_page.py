@@ -231,24 +231,15 @@ class Line(unittest.TestCase):
                     cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
                     self.assertNotEqual(cdp.js("document.activeElement.id", sid), "fline-input", "the slash key goes to ask clark, not the line")
 
-    def test_hint_chips_show_only_while_focused_and_a_hint_goes_into_the_box(self):
+    def test_hint_chips_are_gone_and_the_examples_row_keeps_only_its_room_and_gloss(self):
+        # Row 1084: the "Try status: owner:me due:overdue ..." chip line is removed; the row stays (out of the flow) for the meaning of the listed word.
         s = self.serve()
         for width in SIZES:
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, s.port, width)
-                self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid), "hidden")
                 self.focus(cdp, sid)
-                key(cdp, sid, "Escape")                                           # #640: the field list opens on focus and the examples wait until it is closed
-                self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('.fhints')).visibility", sid) == "visible"), "the filter hints are visible")
-                hints = cdp.js("[...document.querySelectorAll('.fhint')].map(h => h.textContent)", sid)
-                self.assertIn("due:overdue", hints)
-                self.assertIn("is:quiet", hints, "the demo carries review facts, so the word is offered")
-                self.assertGreaterEqual(cdp.js("Math.min(...[...document.querySelectorAll('.fhint')].map(h => h.getBoundingClientRect().height))", sid), 24)
-                click(cdp, sid, ".fhint[title*='Leave closed']")
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "is:open -status:Closed"))
-                self.assertTrue(wait(lambda: "-status:Closed" in self.chips(cdp, sid)), "the -status:Closed chip is shown")
-                pause(cdp, sid)
-                self.assertTrue(wait(lambda: self.shown(cdp, sid) == expect(self.rows(cdp, sid), "open", filters={"status": ["Closed"]}, nots=("status",))), "the rows shown are the open items less the Closed status")
+                key(cdp, sid, "Escape")
+                self.assertEqual(cdp.js("document.querySelectorAll('.fhint, .fhl').length", sid), 0, "no hint chips and no Try word")
 
     def test_typing_offers_fields_then_values_with_arrows_and_enter_choose(self):
         s = self.serve()
@@ -409,9 +400,9 @@ class Line(unittest.TestCase):
                     self.put(cdp, sid, "priority:High")
                     n = len(expect(rows, "all", filters={"priority": ["High"]}))
                     self.assertEqual(cdp.js("document.querySelector('#fline-count').textContent", sid), f"{n} of {len(rows)}")
-                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: b.right - x.right, gap: x.left - c.right}; })()", sid)
+                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: document.querySelector('.fline .fio').getBoundingClientRect().left - x.right, gap: x.left - c.right}; })()", sid)
                     self.assertTrue(geo["inside"], "inside the box")
-                    self.assertLess(geo["right"], 24, "at the right end, by the clear button")
+                    self.assertLess(geo["right"], 24, "at the right end, by the clear button (row 1084: Import, Export and the view icons follow the clear button)")
                     self.assertLess(geo["gap"], 24)
 
     def test_the_list_follows_the_box_after_a_pause_not_on_enter(self):
@@ -1146,7 +1137,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == ""))
                     # Tab into the box from the control before it opens the list too
                     cdp.js("document.querySelector('#fline-input').blur()", sid)
-                    cdp.js("document.querySelector('#viewMenu').focus()", sid)
+                    cdp.js("document.querySelector('#viewNew').focus()", sid)      # row 1084: the control before the box is now + New view (View left the tab row)
                     for _ in range(3):
                         if cdp.js("document.activeElement.id", sid) == "fline-input":
                             break
@@ -1659,7 +1650,7 @@ class Line(unittest.TestCase):
                 self.arm(cdp, sid)
                 self.type(cdp, sid, "st")
                 self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 0), "the list has options")
-                small = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .fopt, #work .fhint, #viewMenu, #fline-input')]"
+                small = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .fopt, #viewMenu, #fline-input')]"
                                ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.id)", sid)
                 self.assertEqual(small, [])
                 tiny = cdp.js("[...document.querySelectorAll('#work *')].filter(e => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim()) && parseFloat(getComputedStyle(e).fontSize) < 13).map(e => e.className)", sid)
