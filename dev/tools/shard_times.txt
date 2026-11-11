@@ -709,6 +709,8 @@ test_sent_note_caps.py 30.0
 test_bundle2_hostile_mutants.py 1.0
 test_empty_words.py 30.0
 test_tab_count_words.py 30.0
+test_feedback_tab.py 20.0
+test_hostile_feedback.py 10.0
 test_glance_tile_words.py 1.0
 test_rows_bundle_hostile.py 1.0
 test_rows_bundle_hostile_data.py 1.0
