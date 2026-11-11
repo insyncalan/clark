@@ -48,7 +48,7 @@ const Glyph = ({ name }) => (
 const grown = new Map();
 let grownKey = null;
 function grownFor(key) {
-  const k = key || "";
+  const k = key || grownKey || "";      // a chart with no key (none given) is not a project change: it keeps what the open project has grown
   if (grownKey !== k) { grown.clear(); grownKey = k; }
   if (!grown.has(k)) grown.set(k, new Set());
   return grown.get(k);
