@@ -479,6 +479,118 @@ class RefusalsTest(unittest.TestCase):
         self.assertFalse(out.exists())
 
 
+
+class PinnedSurvivorsTest(unittest.TestCase):
+    """Behaviours the mutation proof found unpinned: the tool timeout, the applet-folder check, a clash that differs only in
+    case, which stream a failure is read from, --dirty on the zip and bundle paths, the name guard on the bundle, and the
+    injected tool lookup. Fake tools only; temporary folders only."""
+
+    def out_folder(self):
+        tmp = tempfile.mkdtemp(prefix="clark app pin ")
+        self.addCleanup(shutil.rmtree, tmp, True)
+        return Path(tmp) / "out"
+
+    def test_every_tool_run_is_given_a_timeout_of_300_seconds(self):
+        FakeTool(self.addCleanup)
+        seen = []
+
+        def spy(argv, **kw):
+            seen.append((Path(argv[0]).name, kw.get("timeout", "absent")))
+            return subprocess.run(argv, **kw)
+
+        package.build_app(self.out_folder(), dirty=True, run=spy)
+        self.assertEqual(["osacompile", "codesign", "codesign"], [n for n, _ in seen])
+        self.assertEqual([300, 300, 300], [t for _, t in seen])
+
+    def test_a_failure_is_read_from_stderr_before_stdout(self):
+        def run(argv, **kw):
+            return subprocess.CompletedProcess(argv, 1, stdout="said on stdout\n", stderr="first\nsaid on stderr\n")
+
+        with self.assertRaises(package.Refused) as said:
+            package._tool(run, ["/x/osacompile"])
+        self.assertEqual("clark.app could not be built, so nothing was written: said on stderr", str(said.exception))
+
+        def only_out(argv, **kw):
+            return subprocess.CompletedProcess(argv, 1, stdout="a\nonly stdout\n", stderr="")
+
+        with self.assertRaises(package.Refused) as said:
+            package._tool(only_out, ["/x/osacompile"])
+        self.assertTrue(str(said.exception).endswith("only stdout"), str(said.exception))
+
+    def test_an_applet_with_a_plist_but_no_macos_folder_is_refused(self):
+        fake = FakeTool(self.addCleanup)
+        text = (fake.folder / "osacompile").read_text(encoding="utf-8").replace(
+            'mkdir -p "$out/Contents/MacOS" ', 'mkdir -p ').replace(
+            "printf 'applet stand-in\\n' > \"$out/Contents/MacOS/applet\"\nchmod 755 \"$out/Contents/MacOS/applet\"\n", "")
+        self.assertNotIn("Contents/MacOS", text)
+        (fake.folder / "osacompile").write_text(text, encoding="utf-8")
+        out = self.out_folder()
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertEqual("clark.app could not be built, so nothing was written: osacompile wrote no applet bundle", str(said.exception))
+        self.assertFalse((out / package.APP_NAME).exists())
+
+    def test_a_clash_that_differs_from_our_name_only_in_case_is_refused(self):
+        """Our top-level README.md against the tool's readme.md: the two are one file on a Mac's disk."""
+        FakeTool(self.addCleanup, extra="readme.md")
+        out = self.out_folder()
+        with self.assertRaises(package.Refused) as said:
+            package.build_app(out, dirty=True)
+        self.assertEqual("clark.app could not be built, so nothing was written: osacompile already put README.md in Contents/Resources",
+                         str(said.exception))
+
+    def test_dirty_builds_the_zip_the_bundle_and_both_from_uncommitted_files(self):
+        FakeTool(self.addCleanup)
+        with mock.patch.object(package, "uncommitted", return_value=" M README.md"):
+            with self.assertRaises(package.Refused):
+                package.build("mac", self.out_folder())                      # control: without --dirty it is refused
+            self.assertTrue(package.build("mac", self.out_folder(), dirty=True).is_file())
+            self.assertTrue(package.build_app(self.out_folder(), dirty=True).is_dir())
+            tmp = self.out_folder()
+            err, out = io.StringIO(), io.StringIO()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                code = package.main(["mac", "--app", "--out", str(tmp), "--dirty"])
+            self.assertEqual(0, code, err.getvalue())
+            self.assertEqual(sorted([package.zip_name("mac"), package.APP_NAME]), sorted(os.listdir(tmp)))
+            with contextlib.redirect_stderr(io.StringIO()), contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(1, package.main(["mac", "--app", "--out", str(self.out_folder())]))
+
+    def test_the_bundle_for_a_client_is_refused_for_a_name_in_a_file(self):
+        from test_package import ForClientTest
+        from test_no_real_names import FICTIONAL
+        helper = ForClientTest("run_main")
+        self.addCleanup(helper.doCleanups)
+        FakeTool(self.addCleanup)
+        root = helper.snapshot({"src/clark/notes.py": "# Prepared for Northwind Traders\nx = 1\n",
+                                "dev/tools/clark_applet.applescript": "-- applet\n"})
+        out = self.out_folder()
+        with mock.patch.object(package, "SHARED", ("README.md", "src/clark/")), \
+                mock.patch.object(package, "SYSTEMS", {"mac": ("clark.command",)}), \
+                mock.patch.object(package, "APPLET_SOURCE", Path("dev") / "tools" / "clark_applet.applescript"):
+            with self.assertRaises(package.Refused) as said:
+                package.build_app(out, root=root, for_client=True, banned=FICTIONAL)
+        self.assertIn("the name guard found one in: src/clark/notes.py.", str(said.exception))
+        self.assertFalse(out.exists() and (out / package.APP_NAME).exists())
+
+    def test_the_tool_lookup_that_is_passed_in_is_the_one_used(self):
+        fake = FakeTool(self.addCleanup)
+        elsewhere = Path(tempfile.mkdtemp(prefix="clark other tools "))
+        self.addCleanup(shutil.rmtree, elsewhere, True)
+        for name in ("osacompile", "codesign"):
+            shutil.copy2(fake.folder / name, elsewhere / name)
+        asked = []
+
+        def which(name):
+            asked.append(name)
+            return str(elsewhere / name)
+
+        package.build_app(self.out_folder(), dirty=True, which=which)
+        self.assertEqual(["osacompile", "codesign"], asked)
+        self.assertEqual([str(elsewhere / "osacompile")], [c.split("\t")[0] for c in fake.calls()])
+        with self.assertRaises(package.Refused):
+            package.build_app(self.out_folder(), dirty=True, which=lambda name: None)   # the PATH has both; the lookup says no
+
+
 class CommandTest(unittest.TestCase):
     def run_main(self, *argv):
         err, out = io.StringIO(), io.StringIO()

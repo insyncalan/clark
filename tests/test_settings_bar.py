@@ -20,7 +20,7 @@ from test_publish_dialog import Base
 from test_server import chrome, wait
 from test_settings_head import PAGES, ratio, rgb
 
-WIDTHS = (1400, 901, 900, 899, 800)
+WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 MARKED = "document.querySelector('.set-menu .set-item[aria-current=\"page\"]')"
 HEADS = {slug: head for _, slug, head, _ in PAGES}

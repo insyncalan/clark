@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, restoreY, openSettings, settingsFallback, takeArrival, wantName } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, restoreY, show, openSettings, settingsFallback, takeArrival, wantName } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -176,7 +176,7 @@ export function Settings({ tools }) {
         <h1>Settings</h1>
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
       </section>
-      {page ? <SettingsMenu groups={groups} here={slug} onChoose={(s) => openSettings(s === all[0][0] ? "" : s)} note={ADVANCED_NOTE} /> : null}
+      {page ? <SettingsMenu groups={groups} here={slug} onChoose={(s) => (s === "published" ? show("published") : openSettings(s === all[0][0] ? "" : s))} note={ADVANCED_NOTE} /> : null}
       <div class="set-cards" data-settings-page={slug}>
         {drawn.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}
       </div>

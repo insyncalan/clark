@@ -167,17 +167,24 @@ class Pure(Browser):
             R.format({view:'work', project:'PDF', s:'people'}), R.format({view:'settings', project:'PDF', s:'claude-ai'}),
             R.format(R.parse('#settings&p=PDF&s=backups'))])""")
         pages, people, bogus, other, twice, projects, escaped, upper, f1, f2, f3, f4, f5, round_trip = json.loads(got)
-        self.assertEqual(pages, ["projects", "people", "published", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"])
+        self.assertEqual(pages, ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"])
         self.assertEqual([x["s"] for x in (people, bogus, other, twice, projects, escaped, upper)], ["people", "", "", "people", "", "people", ""],
                          "a known page is kept; an unknown one, another page's, Projects (plain) and another case are dropped; the first of a repeated key wins")
         self.assertEqual((f1, f2, f3, f4, f5, round_trip), ("#settings&p=PDF&s=people", "#settings&p=PDF", "#settings", "#work&p=PDF", "#settings&p=PDF&s=claude-ai",
                                                            "#settings&p=PDF&s=backups"))
 
+    def test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek(self):
+        got = self.run_in_page("""JSON.stringify([R.parse('#published&p=PDF'), R.parse('#published&p=PDF&item=A-12&ms=M-1'), R.format({view:'published',project:'PDF'})])""")
+        plain, peek, fmt = json.loads(got)
+        self.assertEqual(plain, {"view": "published", "project": "PDF", "item": "", "ms": "", "f": "", "uc": "", "s": ""})
+        self.assertEqual(peek, plain, "like Settings, this page has no peek")
+        self.assertEqual(fmt, "#published&p=PDF")
+
     def test_1065_the_retired_client_report_address_falls_back_to_the_dashboard(self):
         """Row 1065: "#clientreport" is no view any more; an old bookmark opens the Dashboard."""
         got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF').view, R.parse('#CLIENTREPORT').view])""")
         views, old, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings"])
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"])
         self.assertEqual((old, upper), ("dashboard", "dashboard"))
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):

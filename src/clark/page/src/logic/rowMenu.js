@@ -21,13 +21,31 @@ export function emailOf(data, ownerId) {
   return p && typeof p.email === "string" ? p.email.trim() : "";
 }
 
+// The server's own rule for an address (draft_email_feed.py ADDRESS, MAX_EMAIL): one plain address, no space, bracket, quote, comma, semicolon,
+// colon or query mark, at most 254 characters. The page sends nothing that the server would refuse, so a bad People address leaves the To line empty.
+const ADDRESS = /^[^@\s<>?,;:"()[\]\\]+@[^@\s<>?,;:"()[\]\\]+\.[^@\s<>?,;:"()[\]\\]+$/;
+// The server also refuses a control character, a line break, a space and any hidden mark (bidi override, zero-width, private use, lone surrogate).
+const HIDDEN = /[\p{Cc}\p{Cf}\p{Co}\p{Cs}\p{Zl}\p{Zp}]/u;
+const ADDRESS_MAX = 254, NAME_MAX = 100;
+
+/** The Draft email's recipient from the People list: {email, name} for the owner's id, or null when there is no id, no such person, no
+ *  address, or an address the server would refuse. Found by id, never by name; nothing is invented. */
+export function recipientOf(people, ownerId) {
+  if (!Array.isArray(people)) return null;
+  const email = emailOf({ people }, ownerId);
+  if (!email || email.length > ADDRESS_MAX || !ADDRESS.test(email) || HIDDEN.test(email)) return null;
+  const id = String(ownerId).trim(), p = people.find((x) => x && x.id === id);
+  const name = typeof p.name === "string" ? p.name.trim() : "";
+  return { email, name: name.length <= NAME_MAX && !/[\r\n]/.test(name) ? name : "" };
+}
+
 /** The Draft email entry: {name, reason, to, disabled}. It opens the Draft email dialog with a draft the server builds for this one
  *  item (POST /api/draft-email); nothing is sent. Only an item with no owner is greyed. `to` is the address found by owner id on the People
  *  list (#115), "" until that exists, and then the To line is left empty for the person to type: `reason` says so. */
 export function draftEntry(row, data) {
   const o = ownerOf(row.owner);
   if (!o.initials) return { name: "Draft email to the owner", reason: "This item has no owner yet, so there is no one to write to.", to: "", disabled: true };
-  const to = emailOf(data, row.owner_id);
+  const who = recipientOf(data && data.people, row.owner_id), to = who ? who.email : "";
   const reason = !(data && Array.isArray(data.people)) ? NO_PEOPLE : to ? "" : `${o.text} has no email on the People list, so the To line is left empty.`;
   return { name: `Draft email to ${o.text}`, reason, to, disabled: false };
 }
@@ -48,12 +66,15 @@ export const NOT_OFFERED = "This item cannot go in an email: it is hidden from t
 
 /** The body of POST /api/draft-email (draft_email_feed.py) for this one item. `state` is the dialog's (logic/draftEmail.js buildOptions); without
  *  it, the first ask: the item ticked and the kind left for the server to choose from the item. `item` keeps the offer to this one item. */
-export function draftRequest(id, state) {
-  if (!state) return { item: id, picked: [id] };
-  const o = buildOptions(state);
-  const body = { item: id, mode: o.mode, picked: o.picked, include_update: o.include_update };
-  if (o.reply_by) body.reply_by = o.reply_by;
-  if (o.unblocks) body.unblocks = o.unblocks;
+export function draftRequest(id, state, who) {
+  let body = { item: id, picked: [id] };
+  if (state) {
+    const o = buildOptions(state);
+    body = { item: id, mode: o.mode, picked: o.picked, include_update: o.include_update };
+    if (o.reply_by) body.reply_by = o.reply_by;
+    if (o.unblocks) body.unblocks = o.unblocks;
+  }
+  if (who && who.email) { body.email = who.email; if (who.name) body.name = who.name; }      // #1048: the owner, from their People row
   return body;
 }
 
