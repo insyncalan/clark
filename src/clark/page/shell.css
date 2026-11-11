@@ -2003,7 +2003,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
    Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes. */
 .peek .pk-body { container-type: inline-size; }
 /* item 1057: the peek itself scrolls, so the body must not be a scroll box of its own; the words box is sticky and follows the nearest scroll box */
-.peek .pk-body { overflow: visible; }
+.peek .pk-body { overflow: visible; padding-inline: 0; }   /* the peek's own padding is the edge: the title, the tabs and the cards all start on it */
 .pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
 .pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
 .pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--d-pk-card); margin-bottom: var(--d-pk-card-gap); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
@@ -2239,7 +2239,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 var(--space-2); white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
 .gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
 .gt-bt { position: relative; }
-.gt-b-phase { height: 12px; background: var(--brand-navy); border: 1px solid var(--grey-500); border-radius: 2px; }
+.gt-b-phase { height: 12px; background: var(--phase-bar, var(--brand-navy));   /* item 1327 look: dark sets --phase-bar so the fill is not the page's own dark */ border: 1px solid var(--grey-500); border-radius: 2px; }
 .gt-phlab { font-weight: var(--weight-semibold); }
 .gt-b.edit { cursor: grab; }
 .gt-b.drag { cursor: grabbing; box-shadow: var(--shadow); z-index: 5; }
@@ -2259,7 +2259,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
 .gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); margin-top: 6px; color: var(--text-muted); }
 .gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
-.gt-sw-p { background: var(--brand-navy); border: 1px solid var(--grey-500); box-sizing: border-box; }
+.gt-sw-p { background: var(--phase-bar, var(--brand-navy)); border: 1px solid var(--grey-500); box-sizing: border-box; }
 .gt-sw-t { background: var(--gt-task); }
 .gt-sw-m, .gt-sw-d { width: 10px; transform: rotate(45deg); }
 .gt-sw-m { background: var(--status-amber); border: 1px solid var(--status-amber-text); }
