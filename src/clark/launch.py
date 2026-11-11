@@ -101,6 +101,18 @@ BROKEN_PAGE = ("clark is already running, but its page answers with an error. No
                "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
 
 
+def ours_problem(port, mark, identity=ask_identity, page=ask_page):
+    """Row 1030: for a clark that answers as this data's, the plain line saying it cannot be used (not this folder or version:
+    NOT_THIS_ONE; its page errors or does not answer: BROKEN_PAGE), or None when it is this one and its page is fine.
+    The one test for launch() and the doctor's port check. Read only."""
+    if identity(port, mark) != (__version__, appfiles.code_mark()):
+        return NOT_THIS_ONE
+    status = page(port)
+    if status is None or status >= 500:
+        return BROKEN_PAGE
+    return None
+
+
 def address(port):
     """Where clark's window opens. Always 127.0.0.1: Chrome offers to install an app only from a loopback address."""
     return f"http://127.0.0.1:{port}/"
@@ -212,12 +224,9 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         say(report(seen, port, folder, free))
         return 1
     if seen == OURS:
-        if identity(port, mark) != (__version__, appfiles.code_mark()):     # row 975: this data, but not this folder's clark or not this version
-            say(NOT_THIS_ONE)
-            return 1
-        status = page(port)
-        if status is None or status >= 500:         # it answers /health but not its own page: no window is opened on it
-            say(BROKEN_PAGE)
+        problem = ours_problem(port, mark, identity, page)      # row 975: this data, but not this folder's clark or version, or its page errors
+        if problem:
+            say(problem)
             return 1
         say("It is already running. Opening its window.")
     elif (refusal := lock_refusal(folder)):     # clark is open on this folder (on another port), or that can't be checked: none is started

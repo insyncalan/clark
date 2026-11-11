@@ -226,10 +226,28 @@ class Port(DoctorCase):
         self.assertIn(" If you can't close it, open Terminal in the clark folder and type: ./clark.command --port ", line)
         self.assertNotIn("\n", line)
 
+    def ours(self, version=None, folder=None, status=200):
+        from clark import __version__, appfiles
+        return dict(health=lambda port, mark: launch.OURS,
+                    identity=lambda port, mark: (version or __version__, folder or appfiles.code_mark()),
+                    page=lambda port: status)
+
     def test_ours_already_running_is_ready(self):
-        code, lines = self.run_doctor(health=lambda port, mark: launch.OURS)
+        code, lines = self.run_doctor(**self.ours())
         self.assertEqual(code, 0, lines)
         self.line(lines, "Ready: Your clark is already running with this data.")
+
+    def test_row_1030_ours_but_another_version_or_folder_is_not_ready(self):
+        for over in (dict(version="0.0.1"), dict(folder="0" * 16)):
+            code, lines = self.run_doctor(**self.ours(**over))
+            self.assertNotEqual(code, 0, lines)
+            self.line(lines, "To fix: " + launch.NOT_THIS_ONE)
+
+    def test_row_1030_ours_whose_page_errors_or_is_silent_is_not_ready(self):
+        for status in (500, 503, None):
+            code, lines = self.run_doctor(**self.ours(status=status))
+            self.assertNotEqual(code, 0, lines)
+            self.line(lines, "To fix: " + launch.BROKEN_PAGE)
 
     def test_the_mark_is_this_data_folders(self):
         from clark import appfiles
