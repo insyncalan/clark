@@ -99,6 +99,7 @@ test_cdp_navigation_wait.py 1.0
 test_change_known_parity.py 1.5
 test_changes.py 14.1
 test_changes_archive.py 3.8
+test_changes_commitment_old_word.py 0.2
 test_changes_bulk.py 2.7
 test_changes_clear_wording.py 2.0
 test_changes_client_action.py 1.4
