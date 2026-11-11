@@ -383,8 +383,8 @@
     "w": "Work items › Group by",
     "go": "work",
     "s": [
-     "The **Group by** button beside the saved views (the icon next to Table and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "The **Group by** button, at the right end of the filter line (the icon after **List** and **Board**), holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
@@ -459,7 +459,7 @@
     "id": "import-and-export",
     "g": "Work items",
     "t": "Import or export Excel",
-    "w": "Work items toolbar · Settings › Data · profile circle",
+    "w": "Work items filter line · Settings › Data · profile circle",
     "go": "work",
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
@@ -1276,7 +1276,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes); then the filter line."
+      "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
       "tbl",
@@ -2235,8 +2235,8 @@
    ],
    [
     "rows",
-    "Table",
-    "Work items as a table, in groups",
+    "List",
+    "Work items as a list, in groups",
     "Work items"
    ],
    [
@@ -2463,7 +2463,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; the **Group by** button holds the grouping."
+    "The **List** and **Board** icons, at the right end of the filter line, switch between a list and a board; **Group by** holds the grouping."
    ],
    "full": "ref-work-items"
   },
@@ -2678,7 +2678,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, press the **Export to Excel** icon in the page header, beside the add button.",
+     "d": "On **Work items**, press the **Export to Excel** icon at the right end of the filter line. With no work items yet there is no filter line, and the icon is in the page header, beside the add button.",
      "pic": "excel-out-icon"
     },
     {
@@ -2964,7 +2964,7 @@
   },
   {
    "id": "excel-out-icon",
-   "alt": "The Export to Excel icon in the page header, ringed."
+   "alt": "The Export to Excel icon on the filter line, ringed."
   },
   {
    "id": "excel-out-menu",

@@ -244,6 +244,21 @@ class Chart(unittest.TestCase):
                         self.assertGreaterEqual(left, -1, "the label does not start left of the chart")
                         if flip:
                             self.assertLessEqual(maxw, room + 0.5, "a word left of its bar is held to the room there")
+    def test_row_1037_a_long_label_near_the_left_edge_never_starts_left_of_the_chart(self):
+        # a long name on a milestone at the very start of the plan flips left of its mark; it must stay inside the chart and end in an ellipsis
+        lines = [dict(l) for l in LINES]
+        lines[2].update(name="Records audit complete " * 8, start="2026-08-30", end="2026-08-30")
+        lines[0]["start"] = "2026-08-30"
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=False, lines=lines)
+                got = self.val("[...document.querySelectorAll('.gt-mslab.gt-flip')].map(e => [e.textContent.trim().slice(0, 7), e.getBoundingClientRect().left - e.offsetParent.getBoundingClientRect().left, getComputedStyle(e).textOverflow])")
+                flipped = [g for g in got if g[0] == "Records"]
+                self.assertTrue(flipped, "the long label is drawn left of its mark")
+                for _, left, to in flipped:
+                    self.assertGreaterEqual(left, -0.5, "the label starts at or right of the chart's left edge, never behind the left columns")
+                    self.assertEqual(to, "ellipsis")
 
     def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
         bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]

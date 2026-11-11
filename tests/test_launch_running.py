@@ -5,6 +5,7 @@ launch.launch() runs in-process with fakes for starting clark, finding Chrome an
 "running clark" is a small stub server on a scratch port (8791-8795) with a scratch data folder; never port 8766, never real data.
 """
 import http.server
+import hashlib
 import json
 import os
 import tempfile
@@ -220,6 +221,8 @@ class Identity(unittest.TestCase):
             self.assertNotIn("folder", server.health_answer("m"))
 
     def test_the_launcher_and_the_server_work_out_one_mark(self):
+        st = os.stat(Path(launch.__file__).resolve().parents[2])      # #1031 s7: the folder's file identity, not its spelling
+        self.assertEqual(appfiles.code_mark(), hashlib.sha256(f"{st.st_dev}:{st.st_ino}".encode("utf-8")).hexdigest()[:16])
         self.assertEqual(appfiles.code_mark(), appfiles.code_mark())
         self.assertRegex(appfiles.code_mark(), r"^[0-9a-f]{16}$")
 

@@ -15,7 +15,7 @@ export function PeekArchive({ row, milestone = false }) {      // row 867: the m
     if (el) el.focus();
   }, 0);
   const run = () => { const next = nextId(); return changeRecord({ kind: milestone ? "milestones" : tableOf(row), op: "archive", id: row.id, place: "peek" },
-    { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.` })
+    { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focusUndo: !(milestone && next) })
     .then((r) => { if (r) { if (milestone) settle(next); closePeek(); } }); };
   return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;
 }

@@ -57,6 +57,11 @@ class Static(unittest.TestCase):
         self.assertNotIn("m-grow", SHELL)
         self.assertNotIn("gt-grow", SHELL)
 
+    def test_the_dashboard_gantt_gives_the_chart_its_project_key_as_the_gantt_page_does(self):
+        # ultrareview-105 s8: GanttSection passed no projectKey, so each Dashboard <-> Gantt switch alternated "" and the code and cleared the grown set.
+        src = (SRC / "clark" / "page" / "src" / "components" / "GanttSection.jsx").read_text(encoding="utf-8")
+        self.assertRegex(src, r"<GanttChart[^>]*projectKey=\{[^}]*project[^}]*code[^}]*\}")
+
     def test_the_published_bundle_holds_no_keyframe_of_it(self):
         view = build_page.build(build_page.ENTRY_VIEW)
         self.assertIn("data-g-bar", view, "the published page does draw the Gantt bars")
@@ -210,6 +215,18 @@ class Bars(unittest.TestCase):
         self.js(f"mountGantt({lit(lines)}, {lit({'edit': True, 'today': TODAY, 'width': w, 'projectKey': key})})")
         self.until("document.querySelector('[data-g-bar]')", "bars are drawn")
 
+    def test_a_chart_with_no_project_key_does_not_clear_what_the_project_has_grown(self):
+        # ultrareview-105 s8: only a real project change clears the grown set, not a switch to a key-less chart
+        self.page()
+        self.mount_key("PRJ-A")
+        self.assertEqual(self.grow(), self.n_bars(), "the first draw grows every bar")
+        self.reset()
+        self.mount_key("")
+        self.assertEqual(self.grow(), 0, "a chart with no key replays nothing")
+        self.reset()
+        self.mount_key("PRJ-A")
+        self.assertEqual(self.grow(), 0, "back on the project nothing replays")
+
     def test_bars_grow_once_per_page_open_or_project_not_per_mount(self):
         self.page()
         self.mount_key("PRJ-A")
@@ -242,10 +259,13 @@ class Bars(unittest.TestCase):
         self.reset()
         self.mount_key("PRJ-B")
         self.assertEqual(self.grow(), 0)
-        # and going back to the first project is another change: it grows again
+        # and going back to the first project draws nothing again: each project keeps its own memory for the session (ultrareview-105 section 10)
         self.reset()
         self.mount_key("PRJ-A")
-        self.assertEqual(self.grow(), n)
+        self.assertEqual(self.grow(), 0, "back to the first project: its bars already grew once")
+        self.reset()
+        self.mount_key("PRJ-B")
+        self.assertEqual(self.grow(), 0, "and the second project is still remembered")
 
     def test_reduced_motion_by_the_computer_or_the_setting_runs_nothing(self):
         for motion, attr in (("reduce", False), ("no-preference", True)):
@@ -383,7 +403,7 @@ class OnThePage(unittest.TestCase):
         self.mount("PRJ-B")
         self.assertEqual(self.grow(), 0, "a remount of the second project grows none")
         self.mount("PRJ-A")
-        self.assertEqual(self.grow(), n, "back on the first project it grows again")
+        self.assertEqual(self.grow(), 0, "back on the first project it grows none: each project keeps its own memory (ultrareview-105 section 10)")
 
 
 if __name__ == "__main__":
