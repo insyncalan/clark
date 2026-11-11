@@ -26,6 +26,7 @@ To ban another name, add the hash of its lower-cased form (one word, or two word
 
 Run: python3 dev/run_tests.py test_no_real_names
 """
+import codecs
 import hashlib
 import html
 import io
@@ -267,6 +268,13 @@ def part_hits(base, data, banned, depth, budget):
     return found
 
 
+# Row 1069 (the narrower option): the feedback recipient address, as that one exact string, is let through in exactly these two files
+# and nowhere else. Stored rot13-encoded so this file holds no name. Anything else in those two files is still read.
+FEEDBACK_ADDRESS = codecs.decode("nyna.znuba@vaprcgvba42.nv", "rot13")
+FEEDBACK_ADDRESS_PATHS = ("src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py")
+_FEEDBACK_RE = re.compile(r"(?<![A-Za-z0-9._%+-])" + re.escape(FEEDBACK_ADDRESS) + r"(?!\.?[A-Za-z0-9-])")
+
+
 def findings(repo=ROOT, banned=None):
     """Every place a banned name is found, by place in `git ls-files` (and part number) only."""
     banned = BANNED if banned is None else banned
@@ -284,6 +292,8 @@ def findings(repo=ROOT, banned=None):
             continue
         text = text_of(data)
         if text is not None:
+            if path in FEEDBACK_ADDRESS_PATHS:
+                text = _FEEDBACK_RE.sub("feedback address", text)
             found += text_hits(at, text, banned)
         found += part_hits(at, data, banned, 1, [MAX_ZIP_BYTES])
     return found
@@ -299,6 +309,27 @@ class NoRealNames(unittest.TestCase):
     def test_no_tracked_file_names_a_real_client_project_or_person(self):
         self.assertEqual(findings(), [], "a real name (by its hash) is in these places; use the fictional sample data "
                                          "instead (find a file with: git ls-files | sed -n '<n>p')")
+
+    def test_the_feedback_address_is_let_through_in_exactly_two_files(self):
+        import tempfile
+        from pathlib import Path
+        self.assertEqual(FEEDBACK_ADDRESS_PATHS, ("src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py"))
+        local, domain = FEEDBACK_ADDRESS.split("@")
+        for path, text, hit in [(FEEDBACK_ADDRESS_PATHS[0], f'A = "{FEEDBACK_ADDRESS}"\n', False),
+                                (FEEDBACK_ADDRESS_PATHS[1], f'A = "{FEEDBACK_ADDRESS}"\n', False),
+                                ("src/other.js", f'A = "{FEEDBACK_ADDRESS}"\n', True),
+                                ("feedback.js", f'A = "{FEEDBACK_ADDRESS}"\n', True),
+                                (FEEDBACK_ADDRESS_PATHS[0], f'A = "{local}@example.com"\n', True),
+                                (FEEDBACK_ADDRESS_PATHS[0], f'A = "{FEEDBACK_ADDRESS}"\nB = "{local}"\n', True),
+                                (FEEDBACK_ADDRESS_PATHS[0], f'A = "x{FEEDBACK_ADDRESS}"\n', True),
+                                (FEEDBACK_ADDRESS_PATHS[0], f'A = "{FEEDBACK_ADDRESS}x"\n', True)]:
+            with tempfile.TemporaryDirectory() as tmp:
+                root = Path(tmp)
+                subprocess.run(["git", "-C", tmp, "init", "-q"], check=True)
+                (root / path).parent.mkdir(parents=True, exist_ok=True)
+                (root / path).write_text(text, encoding="utf-8")
+                subprocess.run(["git", "-C", tmp, "add", "."], check=True)
+                self.assertEqual(bool(findings(root)), hit, (path, text))
 
     def test_committed_files_name_no_client(self):
         """The two looks' names and the client's name are on the banned list (no client logo, name or picture in clark). Only their

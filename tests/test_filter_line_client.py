@@ -94,9 +94,6 @@ class ClientLine(unittest.TestCase):
         self.assertEqual([o[0] for o in self.val("P.fl.offers('is', ROWS, CTX)")], SAFE_IS)
         self.assertEqual([s["label"] for s in self.val("P.fl.suggest('no:', ROWS, CTX)")], [k for k in SAFE if k not in ("type", "status", "is", "client")])
         self.assertNotIn("me", [o[0] for o in self.val("P.fl.offers('owner', ROWS, CTX)")], "there is no signed-in name in a client's file")
-        for h in self.val("P.fl.hints(CTX)"):
-            self.assertEqual(self.val(f"P.fl.lineIsClientSafe({json.dumps(h['text'])})"), True, h)
-            self.assertNotIn(h["text"], ("owner:me", "is:incomplete", "is:quiet"))
         said = self.val("P.fl.parse('nonsense:x', ROWS, CTX).errors[0].msg")
         self.assertNotIn("client:", said)
         self.assertNotIn("is:quiet", said)

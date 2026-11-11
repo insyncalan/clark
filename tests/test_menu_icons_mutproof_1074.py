@@ -9,7 +9,6 @@ milestone peek's workstream menu, and that the icon is drawn (shown, 16 px, befo
 import json
 import shutil
 import subprocess
-import time
 import unittest
 
 from _paths import ROOT
@@ -128,7 +127,7 @@ class Inline(Shown):
                 got = self.menu(cdp, sid, "TUL-A-001:status")
                 self.assertTrue(got)
                 gap = cdp.js("(() => { const b = document.querySelector('[data-pop] [role=menuitemradio]'); return Math.round(b.querySelector('.mi-t').getBoundingClientRect().left - b.querySelector('svg.i').getBoundingClientRect().right); })()", sid)
-                self.assertGreaterEqual(gap, 6, "a gap between the icon and the words")
+                self.assertEqual(gap, 8, "the gap between the icon and the words is 8 px")
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "closed")
                 click(cdp, sid, "[data-cell='TUL-A-001:due']")
@@ -136,9 +135,9 @@ class Inline(Shown):
                 spots = cdp.js("(() => { const b = [...document.querySelectorAll('[data-pop] [data-quick]')].find((x) => x.querySelector('small')); const r = b.getBoundingClientRect(),"
                                " s = b.querySelector('small').getBoundingClientRect(), w = b.querySelector('span:not(.mi-i)').getBoundingClientRect(), i = b.querySelector('svg.i').getBoundingClientRect();"
                                " return {gapIcon: Math.round(w.left - i.right), toRight: Math.round(r.right - s.right), wordToDate: Math.round(s.left - w.right)}; })()", sid)
-                self.assertGreaterEqual(spots["gapIcon"], 6)
-                self.assertLessEqual(spots["toRight"], 24, "the date sits at the right edge of its choice")
-                self.assertGreater(spots["wordToDate"], 30, "the words and the date are pushed apart")
+                self.assertEqual(spots["gapIcon"], 8)
+                self.assertEqual(spots["toRight"], 8, "the date sits 8 px from the right edge of its choice")
+                self.assertTrue(66 <= spots["wordToDate"] <= 78, f"the words and the date are pushed apart (72 px, got {spots['wordToDate']})")
 
 
 class Bar(Shown, bb.Base):
@@ -244,7 +243,10 @@ class MilestoneButton(Shown, MoveBase):
                 self.click(p, button)
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
                 p.until("!!document.activeElement.closest('[data-pop]')", "the focus went into the menu")
-                time.sleep(0.5)
+                p.until("(() => { const m = document.querySelector('[data-pop][role=menu]'), b = m && m.querySelector('[role=menuitemradio][data-value=Build]');"
+                        " if (!b) return false; const r = b.getBoundingClientRect(), k = JSON.stringify([r.left, r.top, r.width, r.height]);"
+                        " const same = window.__menuSettled === k; window.__menuSettled = k; return same && m.contains(document.activeElement); })()",
+                        "the menu settled: the choice stopped moving and the focus is inside")
                 self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
                 self.saved(p, "workstream", "Build")
                 p.until("document.querySelectorAll('[data-pop]').length === 0", "a pick closes the menu")

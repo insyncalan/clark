@@ -148,6 +148,21 @@ class Rows(unittest.TestCase):
                 self.assertTrue(t in ("Agreed", "No agreed date", "Forecast, not agreed") or t.startswith(("Expected ", "Achieved")), t)
 
 
+    def test_the_second_line_says_agreed_only_for_a_milestone_with_an_agreed_date(self):
+        """Mutation sweep (item 11) on row 1020: swapping 'Agreed' and 'No agreed date' went unseen."""
+        with self.store.step("dashboard", USER) as step:
+            step.create("milestones", {"project": "TUL", "name": "Sweepwith agreed date", "baseline_date": "2026-12-20",
+                                       "forecast_date": "2026-12-20", "client_visible": 1, "source": "demo"})
+            step.create("milestones", {"project": "TUL", "name": "Sweepwithout any date", "client_visible": 1, "source": "demo"})
+        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = self.open_page(cdp, s.port, 1400, "light", "TUL")
+            got = cdp.js("Object.fromEntries([...document.querySelectorAll('.msl-row')].map((r) => [r.querySelector('.msl-name').textContent.trim(), r.querySelector('.msl-sub').textContent]))", sid)
+        self.assertEqual(got.get("Sweepwith agreed date"), "Agreed")
+        self.assertEqual(got.get("Sweepwithout any date"), "No agreed date")
+
+
 class Published(unittest.TestCase):
     def test_the_published_file_reads_the_second_line_on_one_line_at_1400_and_fits_at_900(self):
         demo = DemoStore()
