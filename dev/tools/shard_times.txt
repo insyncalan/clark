@@ -672,8 +672,10 @@ test_workflow.py 21.0
 test_zip_readme.py 0.6
 test_dev_marker.py 1.0
 test_brand_isolation.py 1.0
+test_gantt_markers_hostile.py 10.0
 test_hostile_1087.py 1.0
 test_hostile_planned_2026.py 1.0
+test_publish_hidden_section_markers.py 10.0
 test_settings_cards_widths_2.py 1.0
 test_settings_widths_1.py 1.0
 test_spacing_milestones_usecases.py 1.0
