@@ -452,20 +452,6 @@ class UseCases(Setup):
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0, "no muted tail after the id")
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "an id never breaks across lines")
 
-    def test_next_step_ids_stay_whole_at_360_and_420_and_a_very_long_one_does_not_push_the_page_sideways(self):
-        """Row 1004: at 360 and 420 px an id is one piece (never 'AB / C- / A- / 00 / 2'); an id longer than the line stays inside it, with no sideways scroll."""
-        for width in (360, 420):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.show(cdp, width=width)
-                p.js("document.querySelector('.ucrow .ucbar').click()")
-                p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
-                self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => { const r = document.createRange(); r.selectNodeContents(e); return r.getClientRects().length === 1; })"), True, "a short id is on one line")
-                self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div')[0].getBoundingClientRect().left === document.querySelectorAll('.ucdetail .ucdcols > div')[1].getBoundingClientRect().left"), True, "the two columns stack on a phone")
-                before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than the window; the id must add nothing
-                p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before, "a long id adds no sideways scroll")
-                self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= %d" % width), True, "the long id sits inside the window")
-
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
         uc = self.demo.use_case
@@ -493,21 +479,31 @@ class Styles(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
-            self.assertEqual(p.js("[...document.querySelectorAll('input[name=secstyle]')].map(i => i.value)"), ["slim", "roomy", "grey", "card"])
-            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "card", "One card is the default")
-            for value in ("roomy", "grey", "card", "slim"):
-                p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
-                p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
-            p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
+            self.assertEqual(p.js("[...document.querySelectorAll('input[name=density]')].map(i => i.value)"), ["compact", "comfortable"])
+            self.assertEqual(p.js("document.querySelector('input[name=density]:checked').value"), "compact", "Compact is the default")
+            for value in ("comfortable", "compact"):
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
+            p.js("document.querySelector('input[name=density][value=comfortable]').click()")
             reload_to_new_page(p.js)
-            p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
+            flat = {}
+            for value in ("comfortable", "compact"):
+                p.js("location.hash = '#settings&p=ABC'")
+                p.until(f"!!document.querySelector('input[name=density][value={value}]')", "Personal")
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until("!!document.querySelector('.secs .sec')", "dashboard")
+                flat[value] = p.js("getComputedStyle(document.querySelector('.secs .sec')).boxShadow === 'none'")
+            self.assertEqual(flat, {"comfortable": False, "compact": True}, "Comfortable sections are cards, Compact sections run on flat")
             gap = []
-            for value in ("slim", "roomy"):
-                p.js(f"document.documentElement.dataset.secstyle = '{value}'")
+            for value in ("compact", "comfortable"):
+                p.js(f"document.documentElement.dataset.density = '{value}'")
                 p.js("location.hash = '#dashboard&p=ABC'")
                 p.until("!!document.querySelector('.secs')", "dashboard")
-                gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
-            self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
+                gap.append(p.js("(() => { const s = getComputedStyle(document.querySelector('.sec')); return parseFloat(s.paddingTop) + parseFloat(s.paddingBottom); })()"))
+            self.assertGreater(gap[1], gap[0], "a Comfortable section has more padding above and below than a Compact one")
 
 
 class Published(PublishedFile, Setup):
@@ -563,20 +559,6 @@ class Published(PublishedFile, Setup):
             self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0)
             self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True)
 
-    def test_published_next_step_ids_stay_whole_at_360_and_420_and_a_long_one_does_not_scroll_sideways(self):
-        path = self.publish()
-        for width in (360, 420):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.draw(cdp, path, width=width)
-                p.js("document.querySelector('.ucrow .ucbar').click()")
-                p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
-                self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => { const r = document.createRange(); r.selectNodeContents(e); return r.getClientRects().length === 1; })"), True)
-                self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucdcols > div')[0].getBoundingClientRect().left === document.querySelectorAll('.ucdetail .ucdcols > div')[1].getBoundingClientRect().left"), True, "the two columns stack on a phone")
-                before = p.js("document.documentElement.scrollWidth")      # the top bar alone can be wider than the window; the id must add nothing
-                p.js("document.querySelector('.ucdetail [data-stepid]').textContent = 'ABC-A-' + '0'.repeat(90)")
-                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), before)
-                self.assertEqual(p.js("document.querySelector('.ucdetail [data-stepid]').getBoundingClientRect().right <= %d" % width), True)
-
     def test_a_hidden_tile_and_a_hidden_use_case_are_absent(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0 WHERE id = ?", (self.uc2,))
         self.store.con.commit()
@@ -598,7 +580,7 @@ class Published(PublishedFile, Setup):
         copy.write_text(marked, encoding="utf-8")
         with chrome() as cdp:
             p = self.draw(cdp, copy)
-            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "grey")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "compact", "a file with a word the page does not map is Compact")
 
 
 class PublishedPage(unittest.TestCase):

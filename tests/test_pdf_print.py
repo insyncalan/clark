@@ -83,9 +83,9 @@ class Logic(unittest.TestCase):
         self.assertEqual(logic('P.printTabs(["usecases","settings","milestones","work","dashboard"])'),
                          ["dashboard", "work", "milestones", "usecases"])
 
-    def test_the_weekly_snapshot_prints_and_use_cases_still_come_last(self):
+    def test_1065_a_tab_that_is_no_longer_offered_is_not_printed(self):
         self.assertEqual(logic('P.printTabs(["usecases","clientreport","milestones","work","dashboard"])'),
-                         ["dashboard", "work", "milestones", "clientreport", "usecases"])
+                         ["dashboard", "work", "milestones", "usecases"])
 
     def test_a_file_with_three_tabs_prints_three(self):
         self.assertEqual(logic('P.printTabs(["dashboard","work","milestones"])'), ["dashboard", "work", "milestones"])
@@ -268,7 +268,7 @@ class Browser(unittest.TestCase):
                 tabs = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid)
                 self.printed(cdp, sid)
                 titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
-                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Weekly snapshot", "Use cases"], "every tab the file has, in print order, Use cases last")
+                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Use cases"], "every tab the file has, in print order, Use cases last")
                 self.assertEqual(len(tabs), len(titles), "the file's tab bar has the same tabs")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none")
                 self.assertEqual(cdp.js("document.querySelectorAll('.print-tab').length", sid), len(tabs))
@@ -450,19 +450,24 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
-    def test_the_snapshot_tab_prints_before_use_cases_when_the_file_has_it(self):
+    def test_1065_a_file_with_a_stale_snapshot_tab_draws_only_the_tabs_the_page_has_and_a_tab_it_lacks_opens_the_first(self):
         text = self.path.read_text(encoding="utf-8")
         tabs = re.search(r'"tabs":\[[^\]]*\]', text)
         self.assertTrue(tabs, "the file lists its tabs")
-        changed = text.replace(tabs.group(0), '"tabs":["dashboard","work","milestones","clientreport","usecases"]', 1)
-        path = Path(self.folder) / "with-snapshot.html"
-        path.write_text(changed, encoding="utf-8")
-        with chrome() as cdp:
-            sid = open_page(cdp, path.as_uri(), 1400, "light")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
-            self.printed(cdp, sid)
-            titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
-            self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Weekly snapshot", "Use cases"])
+        path = Path(self.folder) / "stale-tab.html"
+        path.write_text(text.replace(tabs.group(0), '"tabs":["dashboard","work","milestones","clientreport","usecases"]', 1), encoding="utf-8")
+        for width in (1400, 900):
+            for hash_ in ("", "#clientreport", "#settings"):
+                with self.subTest(width=width, hash=hash_), chrome() as cdp:
+                    sid = open_page(cdp, path.as_uri() + hash_, width, "light")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                    views = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid)
+                    self.assertEqual(views, "dashboard,work,milestones,usecases", "the retired tab is not drawn")
+                    self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", "an address the file lacks opens its first tab")
+                    cdp.js("location.hash = '#work'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "work"))
+                    cdp.js("location.hash = '#settings'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "dashboard"), "a move to a tab the file lacks opens its first tab")
 
     def test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not(self):
         for flag, times in (("?print=1", 1), ("", 0)):

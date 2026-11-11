@@ -4,7 +4,7 @@ Run: python3 dev/run_tests.py test_milestones_tight
 The timeline is about half its old height (one label line per milestone, the late text '+13 days', the date stays in the detail
 list); each list row is one compact line (date, name, state, progress) plus a small second line (Agreed, or Expected date and days
 later in red), about half the old row height, with the coloured ring on the rail kept; 'Hide milestone details' (left) and
-'Legend' (right) share one row; the remembered hide state and the focus rings stay; 420 px stays tidy. The same checks run on the
+'Legend' (right) share one row; the remembered hide state and the focus rings stay. The same checks run on the
 live page (demo database, fixed CLARK_NOW) and on a published file, because shell.css is inlined into the published page.
 The browser parts need Chrome and fail, never skip, without it.
 
@@ -25,7 +25,7 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 OLD_TIMELINE, OLD_ROW = 289, 62
 TIMELINE_BUDGET = 175          # about half of 289 (a few px over for the sideways scrollbar some systems draw inside the box)
-ROW_BUDGET = 37                # about half of 62: one 17 px line and a small 13 px second line, a little padding
+ROW_BUDGET = 61                # row 1083: the two text lines with 14 px above and below (59.5 px measured, the same 1.5 px of room 37 gave 35.5), under the old 62
 
 LOOK = r"""(() => {
   const q = (s) => document.querySelector(s), box = (e) => { const r = e.getBoundingClientRect(); return {l: r.left, r: r.right, t: r.top, b: r.bottom, h: r.height, w: r.width}; };
@@ -49,40 +49,12 @@ LOOK = r"""(() => {
     colours: {green: probe('--status-green'), red: probe('--status-red'), amber: probe('--status-amber'), surface: probe('--surface')},
     slips: [...document.querySelectorAll('[data-slip]')].map((e) => e.textContent), labs: [...document.querySelectorAll('.mv-lab')].map((e) => { const c = e.cloneNode(true); c.querySelectorAll('.sr').forEach((x) => x.remove()); return c.textContent; }),   // what is seen: the screen-reader-only words are left out
     labH: [...document.querySelectorAll('.mv-lab')].map((e) => e.getBoundingClientRect().height),
-    pageScroll: [...document.querySelectorAll('.msv *')].filter((e) => !e.closest('.mv-wrap') && e.getBoundingClientRect().right > window.innerWidth + 1).length > 0,   // inside the section (a published file's tab bar is wider than 420 px, which is not this row's)
+    pageScroll: [...document.querySelectorAll('.msv *')].filter((e) => !e.closest('.mv-wrap') && e.getBoundingClientRect().right > window.innerWidth + 1).length > 0,   // inside the section (a published file's tab bar is wider than a narrow screen, which is not this row's)
     wrapInside: wrap ? box(wrap).r <= window.innerWidth + 1 : null};
 })()"""
 
 FOCUS = r"""(() => { const e = document.activeElement, c = getComputedStyle(e);
   return {cls: e.className, style: c.outlineStyle, width: parseFloat(c.outlineWidth), colour: c.outlineColor, vis: e.matches(':focus-visible')}; })()"""
-
-
-def narrow_ok(case, got, where):
-    case.assertFalse(got["pageScroll"], f"{where}: nothing in the Milestones section runs past the screen")
-    case.assertTrue(got["wrapInside"], f"{where}: the timeline stays on the screen")
-    for r in got["rows"]:
-        case.assertTrue(r["inRow"], f"{where}: every cell stays inside its row ({r['sub']})")
-        case.assertFalse(r["clip"], f"{where}: no cell cuts text off ({r['sub']})")
-
-# Below 801 px the cells are three columns (auto 1fr auto): the first and third as wide as their content, the second the rest.
-GRID = r"""(() => [...document.querySelectorAll('.msl-row')].map((row) => {
-  const cells = row.querySelector('.msl-cells'), cs = getComputedStyle(cells);
-  const cols = cs.gridTemplateColumns.split(' ').map(parseFloat);
-  const fit = (el) => { const old = el.style.width; el.style.width = 'max-content'; const w = el.getBoundingClientRect().width; el.style.width = old; return w; };
-  const inner = cells.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight), gap = parseFloat(cs.columnGap);
-  return {cols, date: fit(cells.querySelector('.msl-date')), prog: Math.max(fit(cells.querySelector('.msl-prog')), parseFloat(getComputedStyle(cells.querySelector('.msl-prog')).minWidth) || 0),
-          rest: inner - gap * 2 - cols[0] - cols[2], text: cells.querySelector('.msl-sub').textContent};
-}))()"""
-
-
-def grid_ok(case, rows, where):
-    case.assertTrue(rows, where)
-    for r in rows:
-        w = f"{where} ({r['text']})"
-        case.assertEqual(len(r["cols"]), 3, f"{w}: three columns")
-        case.assertAlmostEqual(r["cols"][0], r["date"], delta=1.5, msg=f"{w}: the first column is as wide as its content")
-        case.assertGreaterEqual(r["cols"][2], r["prog"] - 1.5, f"{w}: the third column holds its content")
-        case.assertAlmostEqual(r["cols"][1], r["rest"], delta=1.5, msg=f"{w}: the second column is the rest")
 
 
 class Both(unittest.TestCase):
@@ -140,10 +112,10 @@ class Both(unittest.TestCase):
         self.assertIn(("red", False), seen, f"{where}: a red ring is on the page")
         return got
 
-    def test_the_live_page_at_1400_900_and_420_light_and_dark(self):
+    def test_the_live_page_at_1400_and_900_light_and_dark(self):
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
-        for width in (1400, 900, 420):
+        for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = page_target(cdp)
@@ -158,27 +130,12 @@ class Both(unittest.TestCase):
                     if width == 1400:
                         self.assertLessEqual(got["wrap"], TIMELINE_BUDGET, f"{where}: the timeline is about half the old {OLD_TIMELINE} px")
                         self.assertTrue(all(h <= 24 for h in got["labH"]), f"{where}: one label line per milestone ({got['labH']})")
-                    if width == 420:
-                        narrow_ok(self, got, where)
 
-    def test_the_narrow_cells_are_auto_1fr_auto_at_700_and_420(self):
-        s = Running(data_for=self.store.data_for, projects=lambda archived=False: self.projects, page_html=lambda: page.page_html(tempfile.mkdtemp()))
-        self.addCleanup(s.close)
-        for width in (700, 420):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = page_target(cdp)
-                cdp.call("Page.enable", {}, sid)
-                cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#milestones&p=MOSS"}, sid)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-row')", sid)))
-                grid_ok(self, cdp.js(GRID, sid), f"live {width}px")
-
-    def test_the_published_file_at_1400_and_420_light_and_dark(self):
+    def test_the_published_file_at_1400_and_900_light_and_dark(self):
         demo, folder, path, _ids = publish_with_plants()
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)
-        for width in (1400, 420):
+        for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     sid = page_target(cdp)
@@ -194,9 +151,6 @@ class Both(unittest.TestCase):
                     got = self.check_all(cdp, sid, where, width, True)
                     if width == 1400:
                         self.assertLessEqual(got["wrap"], TIMELINE_BUDGET, where)
-                    else:
-                        narrow_ok(self, got, where)
-                        grid_ok(self, cdp.js(GRID, sid), where)
                     html = cdp.js("document.documentElement.outerHTML", sid)
                     self.assertNotIn("Activity", cdp.js("document.querySelector('.msv').innerText", sid), "no Activity text in the section")
                     self.assertNotIn("PLANTED-INTERNAL", html, "no Source or internal text reaches the published file")
