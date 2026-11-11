@@ -17,7 +17,7 @@ Not shipped, so not listed as bundled: esbuild (MIT), the tool that builds the p
 | et_xmlfile | 2.0.0 | MIT | 2010 openpyxl | vendor/et_xmlfile/ | [L1](#l1) |
 | et_xmlfile (parts taken from the Python standard library) | 2.0.0 | PSF-2.0 (Python licence) | 2001-present Python Software Foundation; All Rights Reserved | vendor/et_xmlfile/ | [L2](#l2) |
 | ed25519_verify | 1 | CC0 1.0 (public domain dedication) | Written for clark from RFC 8032, section 5.1.7; dedicated to the public domain | vendor/ed25519_verify/; licence file vendor/licenses/ed25519_verify-1-LICENSE.txt | The dedication is in that file |
-| pypdf | 6.21.4 | BSD-3-Clause | 2006-2008 Mathieu Fenniak and contributors | vendor/pypdf/; licence file vendor/pypdf/LICENSE | The text is in that file |
+| pypdf | 6.21.4 | BSD-3-Clause | As stated in vendor/pypdf/LICENSE (the pypdf authors and contributors) | vendor/pypdf/; licence file vendor/pypdf/LICENSE | By reference: the full BSD-3-Clause text and copyright line are in vendor/pypdf/LICENSE, shipped unchanged with the code |
 | typing_extensions (pypdf's one dependency on Python 3.9 and 3.10) | 4.16.0 | PSF-2.0 (Python licence) | 2001-present Python Software Foundation; All Rights Reserved | vendor/typing_extensions.py; licence file vendor/licenses/typing_extensions-4.16.0-LICENSE.txt | [L2](#l2) |
 
 ### Page libraries
@@ -136,7 +136,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 <a id="l2"></a>
 ### L2: PSF-2.0 (Python licence)
 
-Applies to: et_xmlfile (parts taken from the Python standard library) 2.0.0.
+Applies to: et_xmlfile (parts taken from the Python standard library) 2.0.0, and typing_extensions 4.16.0 (whose own licence file is vendor/licenses/typing_extensions-4.16.0-LICENSE.txt).
 
 ~~~~text
 et_xml is licensed under the MIT license; see the file LICENCE for details.
