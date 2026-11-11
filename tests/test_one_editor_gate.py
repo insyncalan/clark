@@ -182,6 +182,9 @@ class PageGate(unittest.TestCase):
     def test_every_rich_field_opens_a_clark_editor_and_nothing_else(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
+            # The test clicks every field in one go and expects every editor open at once. With page focus, each click blurs the editor
+            # before it and closes it, so only one stays open: this test needs the unfocused page it was written for.
+            cdp.FOCUS_EMULATION = False
             js, sid = self.edit(cdp, s)
             fields = js("document.querySelectorAll('[data-rich]').length")
             self.assertGreaterEqual(fields, 1, "the text sections show a rich field")
