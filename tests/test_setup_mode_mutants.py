@@ -51,13 +51,13 @@ class Mutants(Case):
         service = self.setup(answer=self.good)
         report = service.choose("x")
         self.assertEqual(Path(service.folder), self.good.resolve())
-        self.assertEqual(self.pointer().read_text(), str(self.good.resolve()) + "\n")
+        self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(self.good.resolve()) + "\n")
         self.assertTrue(report["ok"])
 
     def test_remembered_ignores_whitespace_around_the_line_and_a_missing_pointer(self):
         service = self.setup()
         self.assertIsNone(service.remembered())
-        self.pointer().write_text("  " + str(self.good) + " \n\n")
+        self.pointer().write_text("  " + str(self.good) + " \n\n", encoding="utf-8")
         self.assertEqual(service.remembered(), self.good.resolve())
 
 
@@ -85,7 +85,7 @@ class Hostile(Case):
 
     def test_a_file_a_missing_folder_and_a_link_are_refused_and_nothing_is_kept(self):
         a_file = self.home / "file.txt"
-        a_file.write_text("x")
+        a_file.write_text("x", encoding="utf-8")
         link = self.home / "link"
         link.symlink_to(self.good)
         for bad in (a_file, self.home / "nope", link):
@@ -115,7 +115,7 @@ class Hostile(Case):
 
     def test_a_pointer_that_cannot_be_made_is_cant_save_and_leaves_the_folder_alone(self):
         blocker = self.home / "blocker"
-        blocker.write_text("x")
+        blocker.write_text("x", encoding="utf-8")
         service = self.setup(answer=self.good, pointer=lambda: blocker / "inside" / "ptr")
         before = service.folder
         with self.assertRaises(setup_mode.Refused) as raised:
