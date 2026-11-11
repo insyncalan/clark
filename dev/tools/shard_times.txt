@@ -700,3 +700,4 @@ test_project_switch_empty.py 30.0
 test_ai_connect_log.py 30.0
 test_docker_words.py 30.0
 test_docker_front.py 30.0
+test_docker_front_help.py 30.0
