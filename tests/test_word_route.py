@@ -951,12 +951,13 @@ class ThroughTheServer(unittest.TestCase):
         self.assertEqual(status, 500)
         self.assertNotIn("secret", json.dumps(body))
 
-    def test_the_server_module_still_imports_nothing_from_clark(self):
+    def test_the_server_module_imports_only_the_stdlib_only_platform_module_from_clark(self):
+        # item 1100: the needs-Mac error name is bound at the top of server.py, from clark.platform, which imports only the stdlib
         import ast
         tree = ast.parse((SRC / "clark" / "server.py").read_text(encoding="utf-8"))
         names = [a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names]
         names += [(n.module or "") for n in ast.walk(tree) if isinstance(n, ast.ImportFrom)]
-        self.assertEqual([n for n in names if n.startswith("clark")], [])
+        self.assertEqual([n for n in names if n.startswith("clark")], ["clark.platform"])
 
     def test_no_route_was_opened_without_the_token(self):
         from clark import appfiles
