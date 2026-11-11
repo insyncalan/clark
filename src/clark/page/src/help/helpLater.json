@@ -6,41 +6,30 @@
  },
  "howto": {
   "find-work-items": "work item filters",
-  "change-an-item-in-the-peek": "the peek",
   "choose-what-the-client-sees": "the client view",
   "import-and-export": "Import and Export",
   "use-the-tiles": "At a glance tiles",
   "keep-the-use-cases": "use cases",
   "add-supporting-documents": "supporting documents",
-  "change-the-layout-and-look": "Settings",
   "update-a-milestone": "the milestone peek",
   "act-on-a-slipped-milestone": "the Movement actions and the Internal note (#458)",
   "read-the-milestones": "timeline and calendar",
   "format-text": "the editor",
   "improve-wording-with-ai": "the AI menu",
-  "set-up-a-project": "project settings",
-  "set-your-profile": "the profile",
-  "update-clark": "updates",
-  "show-progress": "the Progress tracker template (it can be added once it is in the Add a section box)",
-  "add-people-details": "the People card (#454), with Help's other Settings entries"
+  "show-progress": "the Progress tracker template (it can be added once it is in the Add a section box)"
  },
  "reference": {
   "top-bar": "the project menu and profile circle",
   "dashboard": "the peek, Week ending and On this page",
-  "peek": "the peek",
   "picker": "the picker (nothing opens it yet)",
   "milestone-peek": "the milestone peek",
   "timeline-calendar": "timeline and calendar",
   "editor": "the editor",
   "ai-menu": "the AI menu",
-  "publishing": "Publish",
   "client-page": "the published page",
-  "settings": "Settings",
-  "updating-clark": "updates",
   "excel": "Excel import (the page only exports today)",
   "saving": "history and ask clark",
-  "icons": "the icons it names (many are not on the page yet)",
-  "people": "the People card (#454), with Help's other Settings entries"
+  "icons": "the icons it names (many are not on the page yet)"
  },
  "keys": [
   {
@@ -72,11 +61,6 @@
    "at": 16,
    "keys": "[[Mod+Z]]",
    "waits_for": "the editor"
-  },
-  {
-   "at": 17,
-   "keys": "Double-click",
-   "waits_for": "the peek"
   }
  ],
  "missing": {

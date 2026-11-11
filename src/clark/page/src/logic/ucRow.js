@@ -1,6 +1,7 @@
 // What a use case's row on the Dashboard needs in Edit for its next steps and its links (#485). Plain functions, no DOM and no store,
 // so the row and the tests read them alone. Nothing here saves: the row sends each result through the one change path.
 import { isOpen, dueField, showDate, pillOf } from "../workItems.js";
+import { fitTitle } from "../edit/movementWords.js";
 
 /** Whether the words before a colon are a person: a name in `known` (any case), or a full name of 2 to 4 words that each start with a
  * capital ("Sam Rivers"). One word that nobody has ("Fix" in "Fix: the loader") is not an owner. */
@@ -77,3 +78,32 @@ export function narrow(items, kind, query) {
 
 /** "3 work items linked to use case 1.1." */
 export const linkedWords = (n, name) => `${n} work item${n === 1 ? "" : "s"} linked to use case ${name}.`;
+
+// Row 1079: a use case's milestones are the ones its work items name (actions, risks and issues; a decision has no milestone).
+
+/** The ids of the milestones the use case `ucId` has now. */
+export function milestoneIdsOf(d, ucId) {
+  return new Set([...((d && d.actions) || []), ...((d && d.raid) || [])].filter((r) => r.use_case === ucId && r.milestone).map((r) => r.milestone));
+}
+
+/** The milestones the use case can still be given: the project's live ones it does not have, in the project's order: [{id, name, date}]. */
+export function addableMilestones(d, ucId) {
+  const have = milestoneIdsOf(d, ucId);
+  return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name, date: m.baseline_date || m.forecast_date || "" }));
+}
+
+/** The values of the next step that gives a use case a milestone: it names both, and is due on the milestone's date when it has one. */
+export function milestoneStepValues(m, ucId) {
+  // the step's words are plain text of at most the title limit (changes.py: no control, hidden or line-break characters; ITEM_TITLE_MAX):
+  // the milestone's name is cleaned and cut here, for the step only; the milestone keeps its own name
+  const name = String(m.name || "").replace(/[\p{Cc}\p{Cf}\p{Cs}\p{Co}\p{Zl}\p{Zp}]/gu, " ").replace(/\s+/g, " ").trim();
+  const v = { description: fitTitle("Reach %s", name), use_case: ucId, milestone: m.id };
+  if (m.date) v.due_date = m.date;
+  return v;
+}
+
+/** The work items of the use case that name the milestone, by table: {actions: [ids], raid: [ids]}. Removing the milestone clears these. */
+export function milestoneLinks(d, ucId, msId) {
+  const ids = (rows) => ((rows) || []).filter((r) => r.use_case === ucId && r.milestone === msId).map((r) => r.id);
+  return { actions: ids(d && d.actions), raid: ids(d && d.raid) };
+}
