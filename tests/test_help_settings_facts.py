@@ -36,7 +36,9 @@ class TheSettingsTable(unittest.TestCase):
 
     def test_the_data_row_names_the_buttons_of_the_card(self):
         card = (SRC / "logic" / "dataCard.js").read_text(encoding="utf-8")
-        for word in re.findall(r'(?:export|import): "([^"]+)"', card.split("export const IMPORT")[0]):
+        words = re.findall(r'(?:export|import): "([^"]+)"', card.split("export const IMPORT =")[0])
+        self.assertEqual(words, ["Export workbook", "Import workbook"])
+        for word in words:
             self.assertIn(f"**{word}**", ROWS["Data"])
         self.assertNotIn("Export to Excel", ROWS["Data"])
 
