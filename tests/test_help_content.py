@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Comfortable', 'Personal › Spacing', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history'])
+CHECKED_BY_HAND = set(['Comfortable', 'Personal › Spacing', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Open in your mail app'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -100,7 +100,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446), and Excel file layout (#951)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446), and Excel file layout (#951), and the Feedback entry (#1069)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 30))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
@@ -220,7 +220,7 @@ class Words(unittest.TestCase):
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""
         absent = re.compile(r"\b(Outlook|transcripts?|VIP|steerco|Steerco|people register|Teams chat|sweep|meeting minutes|Cover-led|Health spine|health spine)\b")
-        found = [(p, s) for p, s in words() if absent.search(s)]
+        found = [(p, s) for p, s in words() if absent.search(s) and not s.startswith("**Open in your mail app** opens a new email")]   # Feedback (#1069): says clark cannot choose Outlook for you
         self.assertEqual(found, [])
 
     def test_every_button_and_label_in_bold_is_in_the_prototype(self):
