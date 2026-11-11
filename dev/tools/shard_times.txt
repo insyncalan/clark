@@ -697,3 +697,4 @@ test_build_app.py 30.0
 test_build_app_failures.py 30.0
 test_build_app_mutproof.py 30.0
 test_project_switch_empty.py 30.0
+test_ai_connect_log.py 30.0
