@@ -48,7 +48,7 @@ const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
 const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
-export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
+export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && (ctx.isReady || (v === "archived" && ctx.archivedReady))));   // item 1067: the Edit page answers is:archived
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
 const CLIENT_WORDS = [["shown", "Shown to the client"], ["internal", "Internal only"]];
 const gloss = () => ({ quiet: staleWords(), incomplete: "No owner or no date" });

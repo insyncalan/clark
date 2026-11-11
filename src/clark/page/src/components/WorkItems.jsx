@@ -334,7 +334,7 @@ export function WorkItems({ tools }) {
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
-  const Arch = tools && tools.ArchivedItems && !fromFile.value, Pill = Arch && tools.ArchivedPill ? tools.ArchivedPill : null;   // B-5: Edit parts only
+  const Arch = tools && tools.ArchivedItems && !fromFile.value && L && L.wantsArchived(allRows.value, filterCtx()) ? tools.ArchivedItems : null;   // item 1067: is:archived in the line; Edit parts only
   return (
     <section class={`frame work${fromFile.value ? " pub" : ""}`} id="work">
       <p class="crumbs">{d.project.name}</p>
@@ -359,17 +359,16 @@ export function WorkItems({ tools }) {
         : <>
             {!L
               ? <>
-                  <Switches>{Pill ? <Pill /> : null}<GroupBy board={board} /><SearchBox /></Switches>
+                  <Switches><GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
                   <PublishedList Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} />
                 </>
               : <>
-                  <Switches L={L}>{Pill ? <Pill /> : null}</Switches>   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
+                  <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
                   <FilterLine board={!!Board} />
-                  <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
+                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}
-      {Arch ? <tools.ArchivedItems pill={allRows.value.length === 0} /> : null}   {/* B-5: the pill is in the bar; a published file carries no archived row */}
     </section>
   );
 }

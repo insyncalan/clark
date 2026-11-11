@@ -514,8 +514,8 @@ class Line(unittest.TestCase):
             self.type(cdp, sid, "is:")
             self.assertTrue(wait(lambda: "is:open" in self.listed(cdp, sid)), "the list offers is:open")
             offered = self.listed(cdp, sid)
-            for hidden in ("is:needed", "is:archived"):
-                self.assertNotIn(hidden, offered)
+            self.assertNotIn("is:needed", offered)
+            self.assertIn("is:archived", offered, "item 1067: the Edit page answers is:archived")
             self.assertIn("is:incomplete", offered)
             self.assertTrue(cdp.js("[...document.querySelectorAll('#fline-list .fl2')].some(e => e.textContent.includes('No owner or no date'))", sid), "a gloss beside is:incomplete")
             self.type(cdp, sid, "needed")
