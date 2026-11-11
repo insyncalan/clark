@@ -15,6 +15,7 @@ from test_settings_head import Head, PAGES
 from test_server import chrome
 
 WIDTHS = (1400, 900)
+SETTINGS_PAGES = [pg for pg in PAGES if pg[1] != "published"]      # row 1087: the menu entry Published reports opens a page of its own, not a Settings page
 MODES = ("light", "dark")
 FIELDS = """(() => [...document.querySelectorAll('.set-cards .fld')].map(f => {
   const l = f.querySelector('label'), i = f.querySelector('input'), h = f.querySelector('small');
@@ -46,10 +47,10 @@ class Rows(Head):
                     with self.subTest(width=w, mode=mode, edit=edit), chrome() as cdp:
                         p = self.page(cdp)
                         got = {}
-                        for _, slug, _, _ in PAGES:
+                        for _, slug, _, _ in SETTINGS_PAGES:
                             self.drawn(p, w, mode, edit, slug)
                             got[slug] = read(p)
-                        self.assertEqual(list(got), [s for _, s, _, _ in PAGES], "every page in the menu was read")
+                        self.assertEqual(list(got), [s for _, s, _, _ in SETTINGS_PAGES], "every page in the menu was read")
                         check(got)
 
     def test_C_row_840_the_label_is_at_the_left_and_the_control_is_beside_it_and_not_capped(self):
@@ -80,7 +81,7 @@ class Rows(Head):
 
         def check(pages):
             self.assertGreaterEqual(sum(len(c) for c in pages.values()), 8, "the old floor of 8 cards, over all pages")
-            self.assertEqual(len(pages), len(PAGES), "a card page for each menu entry")
+            self.assertEqual(len(pages), len(SETTINGS_PAGES), "a card page for each menu entry")
             gaps = 0
             for page, cards in pages.items():
                 self.assertGreaterEqual(len(cards), 1, page + " holds a card")
