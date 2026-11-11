@@ -1,7 +1,7 @@
 """#440 (S2): the Settings chips' bar that stays under the top bar, with the chip of the card you are reading marked, in a real
 browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
-What is asserted: the bar (the list at the left at 900 px and wider, the row of chips below 900 px; issues 697 and 842) stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
+What is asserted: the bar (the list at the left at 900 px and wider, the row of chips below 900 px is not tested: only 1400 and 900 px are; issues 697 and 842) stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
 it; one chip is marked (aria-current="location") and it follows the card you are reading, both as you scroll and when a chip is chosen
 (the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; the menu's link still puts the cursor in the name
 box, clear of the bar. Chrome is required: these tests fail, never skip, without it.
@@ -57,7 +57,7 @@ class SettingsBar(Base):
         p.settled("the scroll finished")
 
     def clear_of_bar(self, p, sel):
-        """Clear of the bar: below it when the bar is a row of chips (below 900 px), at its right when it is the list at the left."""
+        """Clear of the bar: at its right, the list at the left (the only shape at 1400 and 900 px); the row-of-chips branch is never reached."""
         return p.js(f"(() => {{ const h = document.querySelector('{sel}').getBoundingClientRect(), b = document.querySelector('.set-bar').getBoundingClientRect(); "
                     f"return window.innerWidth >= 900 ? h.left >= b.right : h.top >= b.bottom; }})()")
 

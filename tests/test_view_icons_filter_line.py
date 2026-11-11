@@ -4,6 +4,7 @@ Each icon button has a name and a target of 24 px or more. 1400 and 900 px, ligh
 
 Run: python3 dev/run_tests.py test_view_icons_filter_line
 """
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,6 +72,23 @@ class IconsOnTheLine(Base):
                              " return ['#impBtn', '#expBtn'].map(q => { const r = document.querySelector(q).getBoundingClientRect();"
                              " return [r.left >= f.left && r.right <= f.right && r.top >= f.top && r.bottom <= f.bottom, r.right <= v.left + 1, r.width >= 24 && r.height >= 28]; }); })()", sid)
                 self.assertEqual(got, [[True, True, True]] * 2, "inside the box, before the List, Board and Group by icons, 24 x 28 or more")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
+
+    def test_count_x_import_export_and_three_icons_share_the_line_without_overlap(self):
+        # The page's start line is text, so the x shows: count, x, Import, Export, List, Board, Group by, in that order, on one row.
+        parts = ["#fline-count", "#fline-x", "#impBtn", "#expBtn", "#work .vicons [data-lay=table]", "#work .vicons [data-lay=board]", "#viewMenu"]
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(); return %s.map(q => { const e = document.querySelector(q);"
+                             " if (!e) return null; const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom, f.left, f.right, f.top, f.bottom]; }); })()" % json.dumps(parts), sid)
+                self.assertNotIn(None, got, "all seven parts are on the line")
+                for q, g in zip(parts, got):
+                    self.assertTrue(g[0] >= g[4] - 0.5 and g[1] <= g[5] + 0.5 and g[2] >= g[6] - 0.5 and g[3] <= g[7] + 0.5, f"{q} is inside the box: {g}")
+                for a, b, ga, gb in zip(parts, parts[1:], got, got[1:]):
+                    self.assertLessEqual(ga[1], gb[0] + 0.5, f"{a} ends before {b} starts")
+                for q, g in zip(parts[1:], got[1:]):
+                    self.assertTrue(g[1] - g[0] >= 24 and g[3] - g[2] >= 24, f"{q} is 24 px or more: {g}")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
 
     def test_the_icons_still_work_and_the_tabs_keep_their_counts(self):

@@ -1332,6 +1332,22 @@ class Line(unittest.TestCase):
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewTabMenu"), "a rename gives the focus back to the tab's menu button")
 
+    def test_a_deleted_tab_hands_the_focus_to_new_view_and_a_cancelled_rename_to_the_tab_menu_row_1138(self):
+        """The deleted tab's menu button goes with it, so the focus must not drop to the top of the page; a cancelled rename returns to the menu that opened it."""
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.load(cdp, s.port)
+            click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
+            click(cdp, sid, "#viewTabMenu")
+            click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vname"))
+            click(cdp, sid, ".vform .btn.sm[type=button]")                      # Cancel
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewTabMenu"), "Cancel returns to the tab's menu button")
+            click(cdp, sid, "#viewTabMenu")
+            click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+            self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.vtab[data-view-id=core-open]')", sid)), "the tab is gone")
+            self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "the focus goes to + New view, not to the page top")
+
     def test_the_list_opens_after_space_or_arrow_down_and_closes_on_a_choice_or_escape_row_931(self):
         s = self.serve()
         with chrome() as cdp:
@@ -1859,8 +1875,8 @@ class Line(unittest.TestCase):
                         cdp.js(f"document.querySelector('.vtabs').scrollLeft = {start + 5}", sid)
                         self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtabs').scrollLeft", sid) > start), "the row scrolled")
                     else:
-                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 880, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                        self.assertTrue(wait(lambda: cdp.js("window.innerWidth", sid) == 880), "the window is narrower")
+                        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                        self.assertTrue(wait(lambda: cdp.js("window.innerWidth", sid) == 1400), "the window is resized (the page was loaded at 900)")
                     self.assertTrue(wait(lambda: not cdp.js(menu, sid)), "the menu does not stay behind its arrow")
 
     def test_the_tab_row_stays_on_one_line_and_scrolls_inside_its_own_box(self):

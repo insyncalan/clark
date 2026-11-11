@@ -10,7 +10,7 @@
 # split 35/65, the ratio of the two files' local times (95 s and 174 s); no other line changed, as no run since has had both OSes.
 # 10-11-2026: refreshed from the per-file times the runner prints in five full macOS runs (medians, 15 shard logs; run 42567177889,
 # 42536667023, 42516833398, 42525467866, 42504628609). New weight = mean(old weight, macOS median x 0.93, the ratio that keeps the total),
-# and a file the list did not have takes its macOS median x 0.93 (it counted as 30 s). test_publish_public.py was 80 and measured 476.
+# and a file the list did not have takes its macOS median x 0.93 (it counted as 30 s). test_publish_public.py was 79.7 and measured 476; its 277.8 is (79.7 + 476) / 2, the median taken as measured, not x 0.93.
 test_about_you.py 185.4
 test_about_you_path.py 1.3
 test_activity_refusals.py 4.6
@@ -660,6 +660,8 @@ test_word_store.py 1.1
 test_word_template.py 0.9
 test_wording_small_fixes.py 0.6
 test_work_add_item.py 19.3
+test_work_archived_page.py 43.6
+test_work_archived_peek.py 31.2
 test_work_board_page.py 172.8
 test_work_export_button.py 12.6
 test_work_filters.py 20.0
@@ -684,15 +686,31 @@ test_spacing_report_blocks.py 1.0
 test_spacing_settings_help.py 1.0
 test_spacing_work_items.py 1.0
 test_store_planned_2026_migration.py 1.0
+test_toast_five_seconds_mutants.py 30.0
 test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
-test_work_archived_filter.py 30.0
 test_setup_mode.py 30.0
-test_gantt_today_reduced.py 30.0
+test_hostile_milestone_state_outline.py 30.0
+test_peek_history_1082_mutants.py 30.0
+test_publish_run_marker_limits.py 30.0
+test_client_workbook_palette.py 30.0
+test_mutants_excel_docx.py 30.0
+test_sneak_commit_words_edges.py 30.0
+test_needs_reason_guard.py 30.0
 test_view_icons_filter_line.py 30.0
+test_reader_lows_c.py 30.0
 test_help_wording_107_b.py 30.0
+test_hostile_item14_py.py 30.0
+test_projects_wrap_960.py 30.0
+test_milestones_mutants.py 30.0
+test_mutation_past_reports_doctor.py 30.0
+test_milestones_hostile_fixes.py 30.0
+test_sent_note_caps.py 30.0
+test_bundle2_hostile_mutants.py 1.0
+test_filter_line_keys.py 30.0
+test_gantt_today_reduced.py 30.0
+test_help_list_button_words.py 30.0
+test_help_work_icons_1333.py 30.0
+test_help_work_line_words.py 30.0
 test_milestones_dead_ghost_label.py 30.0
-test_help_list_button_words.py 1
-test_help_work_icons_1333.py 1
-test_help_work_line_words.py 1
-test_filter_line_keys.py 12
+test_work_archived_filter.py 30.0
