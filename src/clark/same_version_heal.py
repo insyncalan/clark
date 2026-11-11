@@ -281,7 +281,7 @@ def put_back(top, copies, files, data=None):
     top, count = Path(top), 0
     if server_running(data):
         return 0
-    for name, (data, _) in sorted(copies.items()):
+    for name, (blob, _) in sorted(copies.items()):
         dest = top / name
         if _linked(top, name):
             continue
@@ -289,7 +289,7 @@ def put_back(top, copies, files, data=None):
         try:
             dest.parent.mkdir(parents=True, exist_ok=True)
             with open(str(tmp), "wb") as f:
-                f.write(data)
+                f.write(blob)
                 f.flush()
                 os.fsync(f.fileno())
             try:
