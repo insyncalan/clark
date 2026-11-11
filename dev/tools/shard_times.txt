@@ -692,3 +692,6 @@ test_gantt_today_reduced.py 30.0
 test_view_icons_filter_line.py 30.0
 test_help_wording_107_b.py 30.0
 test_milestones_dead_ghost_label.py 30.0
+test_help_list_button_words.py 1
+test_help_work_icons_1333.py 1
+test_help_work_line_words.py 1
