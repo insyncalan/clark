@@ -28,7 +28,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 
@@ -281,7 +281,7 @@ function LinkBox({ uc, onClose, opener }) {
               </li>
             ))}
           </ul>
-          {!shown.length ? <p class="muted pk-none" data-none>{items.length ? "Nothing matches." : "Every open work item is linked to this use case already."}</p> : null}
+          {!shown.length ? <p class="muted pk-none" data-none>{items.length ? "Nothing matches." : openCount(rows.value) ? "Every open work item is linked to this use case already." : "There are no open work items to link."}</p> : null}
         </div>
         <div class="pk-foot">
           <span class="muted pk-count" aria-live="polite">{n ? `${n} selected` : "None selected"}</span>

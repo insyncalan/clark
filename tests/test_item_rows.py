@@ -313,6 +313,19 @@ class EditRows(unittest.TestCase):
                 return
         self.fail(what)
 
+    def add_line(self, p, selector, text, table, field, value):
+        """Type a line and press Enter, and wait for the row to reach the store. An Enter pressed in the first moments of a busy page, or
+        while the page draws again, can be lost: the line then still holds the text, and only then is it typed again (a line the page
+        took is empty, so a slow store is never given the row twice)."""
+        for _ in range(4):
+            self.type_into(p, selector, text)
+            if wait(lambda: any(r[field] == value for r in self.store.read(table, "ABC")), 8):
+                break
+            if not p.js(f"document.querySelector({selector!r}).value"):
+                wait(lambda: any(r[field] == value for r in self.store.read(table, "ABC")), 15)
+                break
+        return self.stored(table, field, value)
+
     def stored(self, table, field, value):
         """Wait until the store has a row of `table` whose `field` is `value` (a toast from an earlier change must not be taken for this one)."""
         found = []
@@ -350,21 +363,18 @@ class EditRows(unittest.TestCase):
             self.assertEqual(p.js("document.querySelector('[data-add-line=raid]').placeholder"), "+ Add a risk: type \u201cOwner: what it is\u201d, then Enter")
             before = p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent")
             self.assertTrue(before.startswith("Showing 2 of 3."), before)   # the third is the one not marked for the client
-            self.type_into(p, "[data-add-line=actions]", "Mia Hale: Send the plan")
-            row = self.stored("actions", "description", "Send the plan")
+            row = self.add_line(p, "[data-add-line=actions]", "Mia Hale: Send the plan", "actions", "description", "Send the plan")
             self.assertEqual((row["owner"], row["client_message"], row["client_visible"]), ("Mia Hale", "Send the plan", 1))
             p.until("document.querySelectorAll('[data-item-rows=actions] .wl-row').length === 3", "the new row is drawn")
             self.assertTrue(p.js("document.querySelector('[data-item-rows=actions] [data-showing]').textContent").startswith("Showing 3 of 4."))
             self.assertEqual(p.js("document.querySelector('[data-add-line=actions]').value"), "", "the line is empty again")
-            self.type_into(p, "[data-add-line=raid]", "Omar Reid: Licence may lapse")
-            risk = self.stored("raid", "description", "Licence may lapse")
+            risk = self.add_line(p, "[data-add-line=raid]", "Omar Reid: Licence may lapse", "raid", "description", "Licence may lapse")
             self.assertEqual((risk["type"], risk["owner"], risk["priority"], risk["client_message"]), ("Risk", "Omar Reid", "Medium", "Licence may lapse"))
-            self.type_into(p, "[data-add-line=decisions]", "Steering group: Pick the vendor")
-            made = self.stored("decisions", "decision", "Pick the vendor")
+            made = self.add_line(p, "[data-add-line=decisions]", "Steering group: Pick the vendor", "decisions", "decision", "Pick the vendor")
             self.assertEqual(made["made_by"], "Steering group")
             p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 2", "the new decision is drawn")
-            p.js("document.querySelector('.toast [data-undo]').click()")
-            p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
+            self.click(p, "document.querySelector('.toast [data-undo]') && document.querySelector('.toast [data-undo]').click()",
+                       "document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
 
     def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
         gone = id_of(self.store, "Supplier delivery may slip")

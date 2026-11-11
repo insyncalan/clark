@@ -119,7 +119,23 @@ class HostileHealthAndStatus(unittest.TestCase):
                 d = self.plant(bad)["data"]
                 rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
                 self.assertTrue(rows)
-                self.assertTrue(all(r["colour"] is None or r["colour"] == "grey" for r in rows))
+                self.assertTrue(all(r["colour"] is None for r in rows))
+
+
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
 
 
 class Repeatable(unittest.TestCase):
