@@ -692,3 +692,7 @@ test_work_pills_removed.py 1.0
 test_setup_mode.py 30.0
 test_hostile_milestone_state_outline.py 30.0
 test_peek_history_1082_mutants.py 30.0
+test_publish_run_marker_limits.py 30.0
+test_client_workbook_palette.py 30.0
+test_mutants_excel_docx.py 30.0
+test_sneak_commit_words_edges.py 30.0
