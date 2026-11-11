@@ -142,7 +142,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
   const leaving = phase.current === "leaving";
   const gone = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
   useEffect(() => { if (!leaving) return undefined; const t = setTimeout(gone, 400); return () => clearTimeout(t); }, [leaving]);
-  const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
+  const close = (how) => { back.current = how === "esc" || how === "pick"; if (how === "esc" && btn.current) btn.current.focus({ preventScroll: true }); setOpen(false); };   // Esc hands focus back at once: the fading menu must not hold it for a frame
   // Focus goes back to the button only if nothing took it: an item that opens a dialog has put focus there, and the menu must not steal it.
   useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current || (at.closest && at.closest(".ddmenu.leaving") && btn.current.parentNode.contains(at)))) btn.current.focus(); } }, [open]);
   const opens = () => { setOpen(true); if (onOpen) onOpen(); };   // `onOpen` runs each time the menu is opened, by a click or by Down
