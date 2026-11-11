@@ -18,8 +18,8 @@ from _paths import ROOT, SRC  # noqa: F401
 from clark import __version__, appfiles, launch, platform as pl, server
 
 THIS = (__version__, appfiles.code_mark())
-STOP = ("clark is already running, but it is not the copy you just started (it may be from another folder, or an older "
-        "version). Nothing was changed. Close the clark that is already open, then start this one again. "
+STOP = ("clark is already running, but it is not the copy you are trying to start (it may be from another folder, or an older "
+        "version). Close the clark that is already open, then start clark again. "
         "If you can't find it, restart your computer.")
 PORTS = __import__("itertools").cycle(range(8791, 8796))
 
@@ -165,6 +165,10 @@ class Running(unittest.TestCase):
         self.assertEqual(launch.ours_problem(1, "m", identity=lambda p, m: (None, None), page=lambda p: 200), launch.NOT_THIS_ONE)
         self.assertEqual(launch.ours_problem(1, "m", identity=ok, page=lambda p: 500), launch.BROKEN_PAGE)
         self.assertEqual(launch.ours_problem(1, "m", identity=ok, page=lambda p: None), launch.BROKEN_PAGE)
+
+    def test_row_1030_a_404_page_on_this_clark_is_no_problem_through_the_real_default_asks(self):
+        self.stub(version=THIS[0], folder=THIS[1], page=404)
+        self.assertIsNone(launch.ours_problem(self.port, self.mark))
 
     def test_nothing_running_starts_as_today(self):
         started = []

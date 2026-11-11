@@ -97,11 +97,11 @@ def ask_page(port, timeout=ASK_TIMEOUT * 5, connect=http.client.HTTPConnection):
 
 # Row 1030: no Terminal window is promised (the other clark may have been started without one), so the words say to close it
 # and, if it can't be found, to restart the computer.
-NOT_THIS_ONE = ("clark is already running, but it is not the copy you just started (it may be from another folder, or an older "
-                "version). Nothing was changed. Close the clark that is already open, then start this one again. "
+NOT_THIS_ONE = ("clark is already running, but it is not the copy you are trying to start (it may be from another folder, or "
+                "an older version). Close the clark that is already open, then start clark again. "
                 "If you can't find it, restart your computer.")
-BROKEN_PAGE = ("clark is already running, but its page shows an error. Nothing was opened or changed. "
-               "Close the clark that is already open, then start this one again. If you can't find it, restart your computer.")
+BROKEN_PAGE = ("clark is already running, but its page shows an error. "
+               "Close the clark that is already open, then start clark again. If you can't find it, restart your computer.")
 
 
 def ours_problem(port, mark, identity=ask_identity, page=ask_page):

@@ -244,6 +244,14 @@ class Port(DoctorCase):
             self.assertEqual(code, 1, lines)
             self.line(lines, "To fix: " + launch.BROKEN_PAGE)
 
+    def test_row_1030_the_refusal_words_make_sense_for_someone_who_started_nothing(self):
+        # the doctor shares these words with the launcher: they must not talk about a copy "just started" or a start that was made
+        for words in (launch.NOT_THIS_ONE, launch.BROKEN_PAGE):
+            for phrase in ("just started", "Nothing was", "this one again", "was opened or changed"):
+                self.assertNotIn(phrase, words)
+            self.assertIn("start clark again", words)
+        self.assertIn("not the copy you are trying to start", launch.NOT_THIS_ONE)
+
     def test_the_mark_is_this_data_folders(self):
         from clark import appfiles
         asked = []
