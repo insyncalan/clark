@@ -90,8 +90,10 @@ class Editor(unittest.TestCase):
             self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk}, self.sid)
 
     def edit(self):
-        self.js("document.querySelector('[data-mode=edit]').click()")
-        self.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
+        self.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('[data-mode=edit]')", "the Edit control is drawn")
+        # a slow runner can take the first click before the page has bound it: press again until the page is in Edit
+        self.until("(function(){var r = document.querySelector('#report'); if (r && r.dataset.mode === 'edit') return true;"
+                   " var b = document.querySelector('[data-mode=edit]'); if (b) b.click(); return false})()", "Edit", 20)
 
     def tab(self):
         return self.js("document.querySelector('.tab[aria-selected=true]').dataset.view")
