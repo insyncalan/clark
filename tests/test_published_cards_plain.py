@@ -126,8 +126,8 @@ class Plain(PublishedFile, glance.Setup):
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
-                for style in ("slim", "roomy", "grey", "card"):
-                    p.js("document.documentElement.dataset.secstyle = %s" % json.dumps(style))
+                for style in ("comfortable", "compact"):
+                    p.js("document.documentElement.dataset.density = %s" % json.dumps(style))
                     self.assertEqual(p.js(findings_js()), [], style)
                 kinds = p.js("window.__kinds")
                 self.assertLessEqual(set(self.published_ids()), set(p.js("window.__sections")), "every published template section was checked")
