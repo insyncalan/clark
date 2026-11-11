@@ -254,6 +254,7 @@ test_help_nav_page.py 57.5
 test_help_navigation.py 4.2
 test_help_panel.py 38.3
 test_help_parity.py 10.3
+test_help_gaps.py 1.0
 test_help_peek.py 65.4
 test_help_peek_logic.py 2.3
 test_help_peek_real.py 23.3
