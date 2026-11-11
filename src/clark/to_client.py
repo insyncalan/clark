@@ -349,9 +349,22 @@ def _spellings(marker):
             json.dumps(marker, ensure_ascii=False)[1:-1]}
 
 
+_JSON_SPACE = re.compile(r"\\(?:[ntrfv]|u(?:0009|000[a-d]|0020|0085|00a0|1680|20[0-2][0-9a]|2028|2029|202f|205f|3000))", re.I)
+
+
+def _flat(text, folded=False):
+    """Row 619: text with every run of white space made one space (str.split(), as the Word route squashes: spaces, tabs, line
+    breaks, a non-breaking space and the other Unicode spaces), and a JSON-escaped one (\\n, \\t, \\u00a0, ...) read as the space it is
+    in the file's data block. Letter case and Unicode form as _key (`folded`: the text already went through it, so the file is
+    folded once)."""
+    text = " ".join(_JSON_SPACE.sub(" ", text).split())
+    return text if folded else _key(text)
+
+
 def markers_found(data, markers, *, text=None, low=None):
     """The markers whose text is in these bytes, in order. The file is decoded and folded once; each marker is then one
-    look-up, so the time grows with the number of markers, not with markers times the size of the file."""
+    look-up, so the time grows with the number of markers, not with markers times the size of the file. Spacing does not
+    matter (row 619): a marker is also found when only its white space differs from the file's (see _flat), as in the Word route."""
     if text is None:
         try:
             text = data.decode("utf-8")
@@ -359,7 +372,8 @@ def markers_found(data, markers, *, text=None, low=None):
             return []
     if low is None:
         low = _key(text)
-    return [m for m in markers if any(s and (s in text or _key(s) in low) for s in _spellings(m))]
+    flat = _flat(low, folded=True)
+    return [m for m in markers if any(s and (s in text or _key(s) in low or ((f := _flat(s)) and f in flat)) for s in _spellings(m))]
 
 
 def check_copy(data, *, markers, folder=None):

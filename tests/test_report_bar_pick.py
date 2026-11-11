@@ -42,7 +42,7 @@ class Pick(Bar):
             p = self.show(cdp)
             self.opened(p)
             self.assertEqual(p.js(PANEL + ".getAttribute('aria-label')"), "Week ending date")
-            self.assertEqual(p.js("[...document.querySelectorAll('.cpop .cp-q button span')].map((e) => e.textContent)"), ["Friday"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.cpop .cp-q button span:not(.mi-i)')].map((e) => e.textContent)"), ["Friday"])
 
     def test_a_friday_is_saved_like_typing_it(self):
         self.set_week("2031-05-02")
@@ -58,6 +58,7 @@ class Pick(Bar):
                 want = "2031-05-09" if how == "day" else self.store.read("projects", ref="ABC")["week_ending"]
                 self.assertEqual(self.week(), want)
                 self.assertRegex(p.toast(), r"^Week ending changed to \d\d-\d\d-\d{4}\.$")
+                p.until("!(%s)" % PANEL, "the panel closed")      # it closes a frame after the save is shown
                 self.assertIsNone(p.js(PANEL))
                 self.assertEqual(p.js("document.activeElement.id"), "week-ending-pick")
                 self.set_week("2031-05-02")

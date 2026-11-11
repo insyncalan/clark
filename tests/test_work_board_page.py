@@ -22,7 +22,7 @@ from _new_page import reload_to_new_page_cdp
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, key, need_chrome, select_line, where  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, pause, select_line, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -61,7 +61,7 @@ class Base(unittest.TestCase):
         select_line(cdp, sid)
         cdp.call("Input.insertText", {"text": text}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text))
-        time.sleep(0.7)
+        pause(cdp, sid)         # was a fixed 0.7 s: too short on a loaded runner (the page's pause is about 400 ms), too long on a quick one
 
     # ---- the data ----
     def id_of(self, text):
@@ -258,15 +258,17 @@ class GroupBy(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertFalse(cdp.js("!!document.querySelector('#group-by')", sid), "no Group by button beside the line (#287)")
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by: Workstream")
             self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-haspopup')", sid), "menu")
             names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type", "Nothing"])
             self.view_pick(cdp, sid, "group:status")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status'")
-            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.querySelector('.gc').textContent, 10)])", sid)
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Status'")
+            groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.closest('table').querySelector('.gc').textContent, 10)])", sid)
             self.assertTrue(groups and all(n == c for _, n, c in groups), groups)       # the heading says "N items" (#456); its number is the row count
             self.assertEqual(sum(n for _, n, _ in groups), cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid))
+            self.assertEqual(cdp.js("[...document.querySelectorAll('tr.colh')].filter(r => r.parentElement.tagName !== 'THEAD').length", sid), 0)   # item 547: the column names sit in a thead
+            self.assertTrue(cdp.js("document.querySelectorAll('tr.colh').length > 0", sid))
             self.view_pick(cdp, sid, "group:nothing")
             self.until(cdp, sid, "!document.querySelector('tr.grp')", "a flat table")
             self.reload(cdp, sid)
@@ -276,12 +278,12 @@ class GroupBy(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             n = cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid)
-            click(cdp, sid, "tbody[data-group] .grp-b")
-            shut = cdp.js("document.querySelector('tbody[data-group] .grp-b').getAttribute('aria-expanded')", sid)
+            click(cdp, sid, "thead[data-group] .grp-b")
+            shut = cdp.js("document.querySelector('thead[data-group] .grp-b').getAttribute('aria-expanded')", sid)
             self.assertEqual(shut, "false")
             self.assertLess(cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid), n)
             self.reload(cdp, sid)
-            self.assertEqual(cdp.js("document.querySelector('tbody[data-group] .grp-b').getAttribute('aria-expanded')", sid), "false")
+            self.assertEqual(cdp.js("document.querySelector('thead[data-group] .grp-b').getAttribute('aria-expanded')", sid), "false")
 
     def test_the_board_columns_follow_group_by_and_nothing_is_not_offered(self):
         with chrome() as cdp:
@@ -292,7 +294,7 @@ class GroupBy(Base):
             names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertNotIn("Nothing", names)
             self.view_pick(cdp, sid, "group:owner")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Owner'")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Owner'")
             labels = cdp.js("[...document.querySelectorAll('#work-board .col-b .cl')].map(c => c.textContent)", sid)
             self.assertEqual(labels[-1], "No owner")
             self.assertIn("Priya Nair", labels)
@@ -430,7 +432,7 @@ class Cards(Base):
             self.assertEqual([[k, w.lstrip("\u2713"), c] for k, w, c in self.view_items(cdp, sid) if k.startswith("lane:")],
                              [["lane:none", "No lanes", "false"], ["lane:workstream", "Workstream lanes", "true"], ["lane:type", "Type lanes", "false"]])
             self.view_pick(cdp, sid, "lane:type")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Status, type lanes'")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Status, type lanes'")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work-board .lane .ll')].map(c => c.textContent)", sid), ["Actions", "Risks and issues", "Decisions"])
             self.view_pick(cdp, sid, "group:type")             # the group chosen is not offered as a lane
             self.until(cdp, sid, "!document.querySelector('#work-board .lane-h')", "no lanes when Group by takes the lane's place")

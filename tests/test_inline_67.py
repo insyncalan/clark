@@ -132,8 +132,31 @@ class Minimap(Base):
                            "return [r.left >= 0, r.right <= window.innerWidth, r.top >= 0, r.bottom <= window.innerHeight,"
                            "document.documentElement.scrollWidth <= window.innerWidth];})()")
                     # The list can still be sliding into its place after the width changed (it was open at the width before): wait for it to settle.
-                    p.until(f"{fit}.every(Boolean)", f"{scheme} {w}: settled inside the window")
+                    # The numbers are read after the wait, so a failure shows where the list ended up:
+                    # [left, right, top, bottom of the list; window width, height; page scroll width, client width].
+                    settled = wait(lambda: all(p.js(fit)), 10)
+                    where = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();return [r.left,r.right,r.top,r.bottom,innerWidth,innerHeight,"
+                                 "document.documentElement.scrollWidth,document.documentElement.clientWidth];})()")
+                    reduce = p.js("matchMedia('(prefers-reduced-motion: reduce)').matches")
+                    self.assertTrue(settled, f"{scheme} {w}: settled inside the window: {where}, prefers-reduced-motion: reduce is {reduce}")
                     self.assertEqual(p.js(fit), [True] * 5, f"{scheme} {w}")
+
+    def test_it_fits_a_short_window_with_reduced_motion_at_1400_and_900(self):
+        """With Reduce motion on, the list keeps its centring on the rail (1400) and its own place above the button (900): in a 600 px high window it stays inside."""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned
+            for w in SIZES:
+                size(cdp, p, w, 600)
+                open_list(p, w)
+                p.until("document.querySelector('.toc').classList.contains('open') && getComputedStyle(document.querySelector('.toc-card')).opacity === '1'", "open")
+                p.until("document.getAnimations().length === 0", "nothing is moving")
+                where = p.js("(function(){var r=document.querySelector('.toc-card').getBoundingClientRect();return [r.left,r.right,r.top,r.bottom,innerWidth,innerHeight,"
+                             "matchMedia('(prefers-reduced-motion: reduce)').matches];})()")
+                left, right, top, bottom, iw, ih, reduce = where
+                self.assertTrue(reduce, f"{w}: the emulated Reduce motion is on: {where}")
+                self.assertTrue(left >= 0 and right <= iw and top >= 0 and bottom <= ih,
+                                f"{w}: the list is inside a {ih} px high window with Reduce motion on [left, right, top, bottom, width, height, reduce]: {where}")
 
     def test_the_current_section_mark_can_be_seen_against_the_page_in_both_colours(self):
         with chrome() as cdp:

@@ -11,6 +11,7 @@ import unittest
 from test_server import chrome
 from test_work_board_page import Base
 from test_work_filters import arm, click, hover, key, select_line, set_line
+from test_filter_line_page import click_tab
 
 CASES = [(w, s, e) for w in (1400, 900) for s in ("light", "dark") for e in (False, True)]
 
@@ -146,7 +147,7 @@ class Header(Base):
             self.assertNotEqual(got["badge"]["radius"], "0px", "the count is in a round badge")
             self.assertNotEqual(got["badge"]["bg"], "rgba(0, 0, 0, 0)")
             # the made view can be opened, and then it is the one with the underline
-            click(cdp, sid, ".vtab[data-view-id=mine]")
+            click_tab(cdp, sid, ".vtab[data-view-id=mine]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=mine]').getAttribute('aria-pressed') === 'true'", "the made view is open")
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.vtab[data-view-id=mine]')).borderBottomWidth", sid), "2px")
         self.each(check)
@@ -178,7 +179,7 @@ class Header(Base):
             self.until(cdp, sid, "!document.querySelector('[data-dot]') && !document.querySelector('#fvRevert')", "discarded: no dot, no buttons")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line.trim() === 'is:open'", "the saved line is back")
             # a made view: Save view writes the line into it
-            click(cdp, sid, ".vtab[data-view-id=risky]")
+            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "the made view is open", why=lambda: cdp.js(self.CLICK_DIAG, sid))
             click(cdp, sid, "#fline-input")
             key(cdp, sid, "End")
@@ -203,7 +204,7 @@ class Header(Base):
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
             for tab in ("core-open", "risky"):         # the first tab (its arrow is near the page's left edge) and a later one
-                click(cdp, sid, f".vtab[data-view-id={tab}]")
+                click_tab(cdp, sid, f".vtab[data-view-id={tab}]")
                 self.until(cdp, sid, f"document.querySelector('.vtab[data-view-id={tab}]').getAttribute('aria-pressed') === 'true' && document.querySelector('#viewTabMenu')", f"{tab} chosen")
                 click(cdp, sid, "#viewTabMenu")
                 self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
@@ -295,7 +296,7 @@ class Header(Base):
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % __import__("json").dumps(saved), sid)
             self.reload(cdp, sid)
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
-            click(cdp, sid, ".vtab[data-view-id=risky]")
+            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
             self.assertFalse(cdp.js("!!document.querySelector('.toast')", sid), "no message before")
             click(cdp, sid, "#fline-input")
@@ -331,6 +332,99 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('#fline-gloss').hidden", "the meaning goes when the pointer and focus leave")
         self.each(check)
 
+    # ---- row 1072 ----
+    def test_row_1072_group_by_is_one_icon_button_the_size_of_table_and_board(self):
+        def check(cdp, sid, width):
+            got = cdp.js("""(() => { const g = document.querySelector('#viewMenu'), t = document.querySelector('#work [data-lay=table]'), b = document.querySelector('#work [data-lay=board]');
+              const r = (e) => { const q = e.getBoundingClientRect(); return [Math.round(q.width), Math.round(q.height)]; };
+              g.focus(); const cs = getComputedStyle(g);
+              return JSON.stringify({text: g.textContent.trim(), svg: g.querySelectorAll('svg').length, title: g.title, name: g.getAttribute('aria-label'), g: r(g), t: r(t), b: r(b),
+                ring: cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2, popup: g.getAttribute('aria-haspopup')}); })()""", sid)
+            got = json.loads(got)
+            self.assertEqual(got["text"], "", "no words on the button")
+            self.assertEqual(got["svg"], 1, "one icon, no chevron")
+            self.assertEqual(got["title"], "Group by")
+            self.assertTrue(got["name"].startswith("Group by"), got["name"])
+            self.assertEqual(got["popup"], "menu")
+            for other in ("t", "b"):
+                self.assertLessEqual(abs(got["g"][0] - got[other][0]), 1, f"the same width as Table and Board: {got}")
+                self.assertEqual(got["g"][1], got[other][1], f"the same height as Table and Board: {got}")
+            self.assertTrue(got["ring"], "a focus ring shows")
+            self.assertGreaterEqual(min(got["g"]), 24)
+        self.each(check)
+
+    def test_row_1072_the_group_by_menu_is_named_group_by_and_its_icon_is_two_bars(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenuList').getAttribute('aria-label')", sid), "Group by")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
+            bars = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('#viewMenu svg rect')].map(e => [+e.getAttribute('y'), +e.getAttribute('height')]))", sid))
+            self.assertEqual(len(bars), 2, f"the Group by icon is two stacked bars: {bars}")
+            self.assertGreaterEqual(bars[1][0] - (bars[0][0] + bars[0][1]), 4, f"a gap between the bars: {bars}")
+        self.each(check)
+
+    # ---- row 1072, hostile ----
+    def test_row_1072_hostile_help_text_never_names_the_old_view_menu(self):
+        import pathlib
+        txt = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
+        for stale in ("in the View menu", "the **View** menu", "View menu"):
+            self.assertNotIn(stale, txt, f"help still names the removed View menu: {stale!r}")
+
+    def test_row_1072_hostile_keyboard_opens_and_returns_focus_to_the_group_by_button(self):
+        def check(cdp, sid, width):
+            cdp.js("document.querySelector('#viewMenu').focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList')", "menu opens from the keyboard")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-expanded')", sid), "true")
+            key(cdp, sid, "Escape")
+            self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
+            self.assertEqual(cdp.js("document.activeElement && document.activeElement.id", sid), "viewMenu", "focus returns to the icon button")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-expanded')", sid), "false")
+        self.each(check)
+
+    def test_row_1072_hostile_board_label_has_no_view_word(self):
+        def check(cdp, sid, width):
+            click(cdp, sid, "#work [data-lay=board]")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList') === null && document.querySelector('#viewMenu').getAttribute('aria-label').startsWith('Group by')", "label")
+            name = cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid)
+            self.assertNotIn("View", name)
+            self.assertNotIn("board", name.lower(), name)
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').title", sid), "Group by")
+        self.each(check)
+
+    def test_row_1072_hostile_icon_is_inside_the_viewport_with_contrast_light_and_dark(self):
+        def check(cdp, sid, width):
+            got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), q = g.getBoundingClientRect(), s = g.querySelector('svg'), sc = getComputedStyle(s);
+              const rgb = (c) => c.match(/[\\d.]+/g).map(Number);
+              const L = (m) => { m = m.slice(0,3).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126*m[0]+0.7152*m[1]+0.0722*m[2]; };
+              let bg = null; for (let e = g; e && !bg; e = e.parentElement) { const m = rgb(getComputedStyle(e).backgroundColor); if ((m.length < 4 || m[3] === 1)) bg = m; }
+              bg = bg || [255,255,255];
+              const a = L(rgb(sc.color)), b = L(bg);
+              return JSON.stringify({l: q.left, r: q.right, w: innerWidth, vis: sc.visibility, ratio: (Math.max(a,b)+.05)/(Math.min(a,b)+.05)}); })()""", sid))
+            self.assertGreaterEqual(got["l"], 0, got)
+            self.assertLessEqual(got["r"], got["w"], got)
+            self.assertEqual(got["vis"], "visible")
+            self.assertGreaterEqual(got["ratio"], 3.0, f"icon contrast (non-text 3:1): {got}")
+        self.each(check)
+
+    def test_row_1072_mut_group_by_has_the_switch_margin_and_box(self):
+        def check(cdp, sid, width):
+            got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), sw = document.querySelector('#work .lsw'), cs = getComputedStyle(g);
+              return JSON.stringify({gm: cs.marginBottom, sm: getComputedStyle(sw).marginBottom, display: cs.display, box: cs.boxSizing}); })()""", sid))
+            self.assertEqual(got["gm"], got["sm"], f"the same bottom margin as the Table and Board switch: {got}")
+            self.assertNotEqual(got["gm"], "0px", got)
+            self.assertEqual(got["display"], "inline-grid", got)
+            self.assertEqual(got["box"], "border-box", got)
+        self.each(check)
+
+    def test_row_1072_mut_help_never_names_the_view_menu_in_any_case(self):
+        import pathlib, re
+        txt = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
+        hits = re.findall(r"\bView\*{0,2} menu", txt, flags=re.I)
+        self.assertEqual(hits, [], "help still names the removed View menu")
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
@@ -345,7 +439,7 @@ class Header(Base):
             click(cdp, sid, "#viewMenu")
             self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#viewMenuList .lab')].map(l => l.textContent)", sid), ["Group by"])
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by: Workstream")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('#viewMenuList')", "closed")
             # pressing Board: the board draws, the switch follows, and the menu gains the swimlanes; Table brings the table back
@@ -374,7 +468,7 @@ class Header(Base):
             self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
             self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
-            click(cdp, sid, ".vtab[data-view-id=quiet]")
+            click_tab(cdp, sid, ".vtab[data-view-id=quiet]")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
             click(cdp, sid, "#fline-x")          # row 845: the saved line's filters are chips; Clear takes them away before the new word is typed

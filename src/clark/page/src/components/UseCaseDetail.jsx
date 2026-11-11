@@ -21,6 +21,7 @@ import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
+import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -225,7 +226,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
+              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
           </div>
         ) : null}
       </div>
@@ -257,7 +258,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
                     <li key={r.id}>
                       <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
                         <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${pill.class}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );
@@ -275,7 +276,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             <h2 id="ucd-h-det" class="ucd-ch">Details</h2>
             <dl class="ucd-kv">
               {u.owner ? <><dt>Owner</dt><dd>{u.owner}</dd></> : null}
-              <dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd>
+              {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
               <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
             </dl>
           </section>
