@@ -85,7 +85,7 @@ class TheNumber(Base):
         self.assertEqual(after, before)
 
     def test_the_words_are_the_owners_and_in_one_tuple(self):
-        self.assertEqual(store_module.COMMITMENTS, ("Candidate", "Committed", "Planned 2027"))
+        self.assertEqual(store_module.COMMITMENTS, ("Planned 2026", "Committed", "Planned 2027"))
         self.assertEqual(store_module.ALLOWED[("use_cases", "commitment")], store_module.COMMITMENTS)
 
 
