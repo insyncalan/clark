@@ -22,8 +22,10 @@ export function ProjectSwitch({ name }) {
   useEffect(() => { live.current = true; read(); return () => { live.current = false; }; }, []);
   const shown = name || project.value || "No project open";
   const rows = list.length ? list : project.value ? [{ code: project.value, name: shown }] : [];
-  const items = rows.map((p) => ({ id: p.code, name: p.name || p.code, line: openWords(p.open), checked: p.code === project.value }));      // row 1092: only the projects; adding a project and project settings are in Settings
+  const none = !rows.length;      // no project exists or is open: the menu must not be empty, so its one row says where a project is added
+  const items = none ? [{ id: "__settings", name: "No project yet. Open Settings to add one." }] : rows.map((p) => ({ id: p.code, name: p.name || p.code, line: openWords(p.open), checked: p.code === project.value }));      // row 1092: only the projects; adding a project and project settings are in Settings
   const pick = (id) => {
+    if (id === "__settings") { location.hash = "#settings"; return; }
     setProject(id);
   };
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
