@@ -198,7 +198,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -207,7 +207,7 @@ class Browser(unittest.TestCase):
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
-                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), real(req))[1],
+                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -230,6 +230,10 @@ class Browser(unittest.TestCase):
         cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
         return sent, sid
+
+    @staticmethod
+    def refused():
+        raise RuntimeError("test refusal")
 
     SHOWN = "[data-pk-latest] [data-rich=latest_update]"           # item 1005: the update drawn as text; a click opens the one rich editor in its place
     BOX = "#peek .ProseMirror"
@@ -380,6 +384,39 @@ class Browser(unittest.TestCase):
                     time.sleep(1)
                     saves = [r["changes"] for r in sent if "latest_update" in r["changes"]]
                     self.assertEqual(saves, [{"latest_update": want}], "exactly one save for the Latest update: the draft")
+
+    def test_item_11_a_refused_draft_with_the_box_open_keeps_the_box_and_what_was_typed(self):
+        """Mutation sweep of row 549: without the guard on the reply, a refused Draft still re-reads and remounts the editor from the stored text."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE, refuse=True)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Typed then a refused Draft")
+                x, y = where(cdp, sid, "[data-pk-draft]")
+                for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+                self.assertTrue(wait(lambda: "nothing was changed" in self.toast(cdp, sid), 15), "the refusal is said: " + self.toast(cdp, sid))
+                time.sleep(1)
+                text = cdp.js("(e => e ? e.textContent : null)(document.querySelector('#peek .ProseMirror'))", sid)
+                self.assertIn("Typed then a refused Draft", text or "", "the box is still open with what was typed, got " + repr(text))
+
+    def test_item_11_draft_with_the_box_closed_leaves_it_closed_with_the_drafted_words_shown(self):
+        """Mutation sweep of row 549: the box is reopened only when Draft was pressed with it open."""
+        a = self.action(OVERDUE)
+        ms = next(m for m in self.data["milestones"] if m["id"] == a["milestone"])
+        name = ms["name"][0].lower() + ms["name"][1:]
+        d, y, m = ms["baseline_date"][8:], ms["baseline_date"][:4], ms["baseline_date"][5:7]
+        want = f"Overdue since 22-10-2026. {a['owner']} is working on it. Needed for {name} on {d}-{m}-{y}."
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                click(cdp, sid, "[data-pk-draft]")
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.SHOWN)}).textContent", sid) == want), "the drafted words are shown")
+                time.sleep(1)
+                self.assertFalse(cdp.js(f"!!document.querySelector({json.dumps(self.BOX)})", sid), "the box stays closed")
+                self.assertFalse(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid))
+                self.assertEqual(len(sent), 1)
 
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
