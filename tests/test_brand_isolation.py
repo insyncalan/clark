@@ -90,6 +90,53 @@ class Publisher(Rig):
             self.assertEqual(got[0], 409, got)          # stops at the Chrome check, after the marker check ran
             self.assertEqual(seen, [folder], brand)
 
+    def test_preview_and_export_are_made_with_the_projects_brand(self):
+        from clark import excel
+        pub = self.publisher()
+        real_build, real_export = publish.build, excel.export_project
+        seen = {"build": [], "export": []}
+
+        def build(store, code, now=None, branding=None, *a, **k):
+            seen["build"].append(branding)
+            return real_build(store, code, now, branding, *a, **k)
+
+        def export(*a, **k):
+            seen["export"].append(k.get("branding"))
+            return real_export(*a, **k)
+        for brand, folder in (("zebra", self.zebra), ("quokka", self.quokka), ("generic", page.NO_BRAND)):
+            self.set_brand(brand)
+            seen["build"].clear(), seen["export"].clear()
+            with mock.patch.object(publish, "build", build), mock.patch.object(excel, "export_project", export):
+                pub.preview({"project": "ABC"})
+                pub.export("ABC")
+            self.assertEqual(seen["build"], [folder], brand)
+            self.assertEqual(seen["export"], [folder], brand)
+
+    def test_a_publish_builds_and_checks_markers_with_the_projects_brand(self):
+        local = self.root / "Local"
+        local.mkdir()
+        client = self.root / "Client"
+        client.mkdir()
+        self.demo.update("projects", "ABC", {"publish_client": str(client)})
+        pub = publish_flow.Publisher(self.s.path, [], choose_save_file=lambda prompt, name, start=None: local / name,
+                                     today=lambda: "2026-10-29", by_user=lambda: USER, data_dir=self.s.path.parent, brand_root=self.root)
+        real_build, real_html = publish.build, page.page_html
+        built_with, html_with = [], []
+
+        def build(store, code, now=None, branding=None, *a, **k):
+            built_with.append(branding)
+            return real_build(store, code, now, branding, *a, **k)
+
+        def html(branding, *a, **k):
+            html_with.append(branding)
+            return real_html(branding, *a, **k)
+        self.set_brand("zebra")
+        with mock.patch.object(publish, "build", build), mock.patch.object(page, "page_html", html):
+            got = pub.publish({"project": "ABC", "to_client": True})
+        self.assertTrue(built_with, got)
+        self.assertEqual(set(map(str, built_with)), {str(self.zebra)})
+        self.assertEqual(set(map(str, html_with)), {str(self.zebra)})
+
 
 class Word(Rig):
     def test_each_brand_colours_its_own_word_file_and_not_the_others(self):
@@ -144,6 +191,50 @@ class ClientWorkbook(Rig):
         self.assertEqual(self.fill(self.quokka), BRANDS["quokka"]["navy"])
         self.assertEqual(self.fill(page.NO_BRAND), excel_client.colours.HEADER_FILL.upper())
         self.assertEqual(self.fill(self.zebra), BRANDS["zebra"]["navy"])
+
+    def test_title_sub_and_header_text_take_the_palette_and_the_gantt_sheet_too(self):
+        from clark import excel_client
+        pal = {"fill": "112233", "text": "445566"}
+        published = publish.select(fx.inputs())
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(published, pal)))
+        seen = set()
+        for ws in wb.worksheets:
+            for row in ws.iter_rows():
+                for c in row:
+                    if c.font and c.font.color is not None and c.value not in (None, ""):
+                        seen.add(c.font.color.rgb[-6:].upper() if isinstance(c.font.color.rgb, str) else None)
+        self.assertIn("445566", seen)
+        for ws in wb.worksheets:
+            for row in ws.iter_rows():
+                for c in row:
+                    if c.fill.fgColor.rgb and c.fill.fill_type == "solid":
+                        self.assertEqual(c.fill.fgColor.rgb[-6:].upper(), "112233", (ws.title, c.coordinate))
+                    if c.value not in (None, "") and c.font.bold and c.font.color is not None and isinstance(c.font.color.rgb, str):
+                        self.assertEqual(c.font.color.rgb[-6:].upper(), "445566", (ws.title, c.coordinate))
+        for ws in wb.worksheets:                       # the title and sub-title lines are in the palette text colour too
+            for c in (ws["A1"], ws["A2"]):
+                if c.value not in (None, "") and c.font.color is not None and isinstance(c.font.color.rgb, str):
+                    self.assertEqual(c.font.color.rgb[-6:].upper(), "445566", (ws.title, c.coordinate))
+
+    def test_the_branded_pair_text_is_the_brands_not_the_committed_one(self):
+        from clark import excel_client
+        cream = self.root / "cream"
+        cream.mkdir()
+        (cream / "tokens.css").write_text(":root { --brand-navy: #0B3D3A; --white: #FFFFF0; }\n", encoding="utf-8")
+        got = excel_client.palette_of(cream)
+        self.assertEqual(got, {"fill": "0B3D3A", "text": "FFFFF0"})
+
+    def test_the_gantt_sheet_takes_the_palette(self):
+        from clark import excel_client
+        published = publish.select(fx.inputs())
+        published["data"]["gantt"] = {"tab_name": "Plan", "columns": ["name", "start", "end", "pct"], "lines": [
+            {"id": "G1", "name": "Build", "start": "2026-10-01", "end": "2026-10-20", "pct": 50}]}
+        wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(published, {"fill": "112233", "text": "445566"})))
+        ws = wb["Plan"]
+        self.assertEqual(ws["A1"].fill.fgColor.rgb[-6:].upper(), "112233")
+        self.assertEqual(ws["A4"].fill.fgColor.rgb[-6:].upper(), "112233")
+        self.assertEqual(ws["A1"].font.color.rgb[-6:].upper(), "445566")
+        self.assertEqual(ws["A4"].font.color.rgb[-6:].upper(), "445566")
 
 
 class FakeStore:
