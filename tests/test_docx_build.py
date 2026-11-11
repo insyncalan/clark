@@ -316,7 +316,7 @@ class WhatIsInIt(unittest.TestCase):
         self.assertEqual(blocks(docx_build.build(with_project(self.p, week_ending=None)))[1]["text"], "As at 28-10-2026")
 
     def test_a_table_for_each_kind(self):
-        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Ref")]
+        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id", "Ref")]
         self.assertEqual([h[1] for h in heads], ["Use case", "Milestone", "Type", "Action", "Decision"])
 
     def test_client_wording_replaces_the_rows_own_text(self):
@@ -356,7 +356,7 @@ class WhatIsInIt(unittest.TestCase):
 
     def test_status_words_travel_with_their_colour(self):
         for b in self.blocks:
-            if b["kind"] == "table" and b["rows"][0][0] == "ID" and "Priority" in b["rows"][0]:
+            if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id") and "Priority" in b["rows"][0]:
                 col = b["rows"][0].index("Priority")
                 self.assertTrue(all(r[col] in ("Urgent", "High", "Medium", "Low") for r in b["rows"][1:]))
 
@@ -641,7 +641,7 @@ class Source(unittest.TestCase):
 
 # Row 769: the Word copy's tables. The narrowest each column may be, in twentieths of a point, so that an ID, a date, a status
 # word or "Commitment" is never broken across two lines (nine-point text and 80-twip cell margins on each side).
-MIN_COL = {"ID": 1150, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
+MIN_COL = {"ID": 1150, "Id": 1150, "Review by": 1050, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
            "Forecast": 1050, "State": 1050, "Slip": 900, "Commitment": 1300, "Impact / likelihood": 1000, "Made by": 1300,
            "Date": 1700, "Work items": 1000}
 W_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
@@ -663,7 +663,7 @@ class WordTableWidths(unittest.TestCase):
                                 "repeat": rows[0].find("w:trPr/w:tblHeader", W_NS) is not None})
 
     def data_tables(self):
-        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Ref")]
+        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Id", "Ref")]
 
     def test_every_table_fits_the_text_width_and_the_cells_follow_the_grid(self):
         self.assertTrue(self.tables)
@@ -687,8 +687,8 @@ class WordTableWidths(unittest.TestCase):
 
     def test_open_actions_and_risks_columns_are_wide_enough_for_ids_dates_and_words(self):
         for second, names, wide in (("Action", ["ID", "Owner", "Priority", "Due", "Status"], "Action"),
-                                    ("Type", ["ID", "Type", "Owner", "Priority", "Impact / likelihood", "Due", "Status"], "Item")):
-            (t,) = [x for x in self.tables if x["head"][:2] == ["ID", second]]
+                                    ("Type", ["Id", "Type", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"], "Title")):
+            (t,) = [x for x in self.tables if x["head"][:2] in (["ID", second], ["Id", second])]
             for name in names:
                 self.assertGreaterEqual(t["grid"][t["head"].index(name)], MIN_COL[name], f"{second} table, {name}")
             self.assertGreaterEqual(t["grid"][t["head"].index(wide)], 1800)
@@ -716,7 +716,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 out += "".join(x.text or "" for x in t.iter(q + "t"))
         return out
 
@@ -741,7 +741,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 counts[head[1]] = len(rows) - 1
         self.assertEqual(counts, {"Action": 3, "Type": 2})
 
