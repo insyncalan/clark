@@ -678,8 +678,8 @@ def run_python_check(python, code, args=(), timeout=120, run=None):
 
 
 def open_in_chrome(url, chrome, popen=None, on=None):
-    """Open `url` in Chrome, as a page in an ordinary Chrome window (row 1076; not an app window: the person can install it as a
-    web app from Chrome if they want to). Chrome already running opens it there. It is left running."""
+    """Open `url` in Chrome, as a page in an ordinary Chrome window (row 1076; not an app window: the person can install
+    it as a web app from Chrome if they want to). Chrome already running opens it there. It is left running."""
     _only_mac("Opening Chrome", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):

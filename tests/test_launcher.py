@@ -802,7 +802,8 @@ class PlatformCalls(unittest.TestCase):
         self.assertIsNot(kw.get("shell"), True)
 
     def test_an_https_address_is_opened_too_as_the_refusal_line_promises(self):
-        """Mutation sweep of row 1076: the refusal says http:// or https:// can be opened; nothing pinned the https half."""
+        """Mutation sweep of row 1076: the refusal says http:// or https:// can be opened; nothing pinned the https
+        half."""
         calls = []
         pl.open_in_chrome("https://example.test/x", "/stub/browser", popen=lambda a, **kw: calls.append(a), on=pl.MAC)
         self.assertEqual(calls, [["/stub/browser", "https://example.test/x"]])

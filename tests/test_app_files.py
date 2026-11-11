@@ -315,9 +315,10 @@ class OfflinePageColours(unittest.TestCase):
 
 
 class TheStartFilesNameNoOutsideAddress(unittest.TestCase):
-    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer: only
-    http://127.0.0.1 and (row 1076) http://clark.localhost, the name Chrome resolves to this computer, each followed by its
-    port, a path or nothing. A name that merely starts with one of them (clark.localhost.evil.example) is outside."""
+    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer:
+    only http://127.0.0.1 and (row 1076) http://clark.localhost, the name Chrome resolves to this computer, each
+    followed by its port, a path or nothing. A name that merely starts with one of them (clark.localhost.evil.example)
+    is outside."""
 
     FILES = ("clark.command", "src/clark/launch.py", "src/clark/appfiles.py", "src/clark/idle.py", "src/clark/app/sw.js",
              "src/clark/app/offline.html")

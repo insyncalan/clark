@@ -269,8 +269,9 @@ HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|clark\.localhost|\[::1\])(?::
 
 
 def host_allowed(host):
-    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost, clark.localhost (row 1076: the address the launcher opens; Chrome resolves *.localhost to this computer) or [::1], with an
-    optional port of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
+    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost, clark.localhost (row
+    1076: the address the launcher opens; Chrome resolves *.localhost to this computer) or [::1], with an optional port
+    of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
     m = HOST_HEADER.fullmatch(host or "")
     return bool(m) and (m.group(2) is None or 1 <= int(m.group(2)) <= 65535)
 

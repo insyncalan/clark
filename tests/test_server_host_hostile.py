@@ -1,13 +1,15 @@
-"""Row 1076, loose end: server.host_allowed and server.page_load_is_ours against hostile Host and Origin headers (tests only).
+"""Row 1076, loose end: server.host_allowed and server.page_load_is_ours against hostile Host and Origin headers (tests
+only).
 
-The spellings a browser never sends but a hand-made request can: dots that are not dots (U+3002, U+FF0E, U+2024), IDN and
-look-alike letters, percent-encoding, NUL and other controls, 64 KB values, every IPv6 form but the one allowed, port 0 and
-ports with leading noughts, double colons. Each pins what the two functions answer today: host_allowed is a full match of one
-regular expression (nothing else passes); page_load_is_ours is an exact comparison with three spellings. A test marked
-expectedFailure records a wrong answer of no consequence (page_load_is_ours reads only the first of two Origin or
-Sec-Fetch-Site headers where csp_local reads every one; a plain load from a browser sends one or none, and a hand-made request
-that wants to count as a window needs no token anyway): recorded, not fixed; it flips to "unexpected success" when hardened.
-The real server (test_server.Running) answers the same headers over a socket, so the HTTP layer's own limits are seen too.
+The spellings a browser never sends but a hand-made request can: dots that are not dots (U+3002, U+FF0E, U+2024), IDN
+and look-alike letters, percent-encoding, NUL and other controls, 64 KB values, every IPv6 form but the one allowed,
+port 0 and ports with leading noughts, double colons. Each pins what the two functions answer today: host_allowed is a
+full match of one regular expression (nothing else passes); page_load_is_ours is an exact comparison with three
+spellings. A test marked expectedFailure records a wrong answer of no consequence (page_load_is_ours reads only the
+first of two Origin or Sec-Fetch-Site headers where csp_local reads every one; a plain load from a browser sends one or
+none, and a hand-made request that wants to count as a window needs no token anyway): recorded, not fixed; it flips to
+"unexpected success" when hardened. The real server (test_server.Running) answers the same headers over a socket, so the
+HTTP layer's own limits are seen too.
 
 Run: python3 dev/run_tests.py test_server_host_hostile
 """
@@ -210,7 +212,8 @@ class PageLoadIsOurs(unittest.TestCase):
 
 
 class OverTheWire(unittest.TestCase):
-    """The same headers sent to a real server: the HTTP layer's limits (a 64 KB line is refused before any route) and the 403s."""
+    """The same headers sent to a real server: the HTTP layer's limits (a 64 KB line is refused before any route) and
+    the 403s."""
 
     @classmethod
     def setUpClass(cls):
