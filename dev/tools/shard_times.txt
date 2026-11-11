@@ -698,3 +698,6 @@ test_mutants_publish_flow_graphics.py 1.0
 test_mutation_gl_docx.py 1.0
 test_publish_mutwave.py 1.0
 test_store_migration_mutants.py 1.0
+test_excel_colours_mutants.py 1.0
+test_idle_mutants.py 1.0
+test_setup_mode_mutants.py 1.0
