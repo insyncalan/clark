@@ -707,5 +707,7 @@ test_mutation_past_reports_doctor.py 30.0
 test_milestones_hostile_fixes.py 30.0
 test_sent_note_caps.py 30.0
 test_bundle2_hostile_mutants.py 1.0
+test_empty_words.py 30.0
+test_tab_count_words.py 30.0
 test_code_mark.py 1.0
 test_excel_client_mutwave.py 1.0
