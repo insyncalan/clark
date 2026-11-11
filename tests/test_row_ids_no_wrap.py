@@ -103,7 +103,6 @@ def check(test, js, surface, where, width):
     test.assertEqual(bad, [], f"{where} at {width}: {bad}")
 
 
-TAG_SHRINK = "(function(){var t=document.querySelector('.item-rows-edit .wl-title .tag');if(!t)return null;var c=getComputedStyle(t);var r=t.getBoundingClientRect();return {shrink:c.flexShrink,grow:c.flexGrow,oneLine:r.height<=parseFloat(c.lineHeight||c.fontSize)*1.4+parseFloat(c.paddingTop)+parseFloat(c.paddingBottom)+4,fits:t.scrollWidth<=t.clientWidth+1,text:t.textContent};})()"
 
 
 class RowIds(unittest.TestCase):
@@ -137,13 +136,6 @@ class RowIds(unittest.TestCase):
                 self.width(p, w)
                 p.until("document.querySelectorAll('.item-rows-edit .irows .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
-
-    def tag_holds(self, js, w):
-        """The Risk or Issue tag in an Edit row's title keeps its width (flex: none in edit.css): it does not shrink, wrap or clip."""
-        got = js(TAG_SHRINK)
-        self.assertIsNotNone(got, f"Edit rows draw a tag in the title at {w}")
-        self.assertEqual((got["shrink"], got["grow"]), ("0", "0"), f"the tag does not flex at {w}: {got}")
-        self.assertTrue(got["oneLine"] and got["fits"], f"the tag keeps its whole word on one line at {w}: {got}")
 
     def test_the_published_file(self):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
