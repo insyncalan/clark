@@ -34,7 +34,7 @@ class FocusRings(unittest.TestCase):
         self.assertIsNotNone(body, "focus has its own rule, apart from hover")
         self.assertIn("outline: 2px solid var(--focus)", body)
         self.assertIn("opacity: 1", body)
-        self.assertEqual(rule(".pk-edge:hover"), " background: var(--brand-cyan); opacity: .5; ")
+        self.assertEqual(rule(".pk-edge:hover"), " background: linear-gradient(var(--brand-cyan), var(--brand-cyan)) left / 8px 100% no-repeat; opacity: .5; ")
 
     def test_try_again_ring_is_the_focus_colour(self):
         self.assertIn("var(--focus)", rule(".again:focus-visible"))
