@@ -311,7 +311,7 @@ test_merge_driver.py 201.8
 test_merge_main.py 10.2
 test_migration_chain.py 9.2
 test_migration_word.py 1.9
-test_milestone_peek_828.py 64.3
+test_milestone_peek_828.py 90.0
 test_milestone_rows.py 1.9
 test_milestones.py 0.2
 test_milestones_archived.py 92.2
