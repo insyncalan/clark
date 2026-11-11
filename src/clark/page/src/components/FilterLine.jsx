@@ -119,7 +119,9 @@ function SavedViews({ board }) {
       sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
         const b = FL.insertView(viewsOf(code), gone, at);
         if (!b.ok) { say("problem", b.message); return; }          // a name taken since, say, is told, never silent
-        saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id };
+        saveViews(code, b.views);
+        const now = chosen.value[code];          // the restored view is chosen only if no other tab was chosen since the delete
+        if (!now || now === gone.id) chosen.value = { ...chosen.value, [code]: gone.id };
       }, code);
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }

@@ -1050,6 +1050,26 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), copy, "the restored copy is the chosen tab")
                 cdp.js("localStorage.clear()", sid)
 
+    def test_undo_of_a_delete_keeps_the_tab_chosen_since(self):
+        """Row 1071: delete a view, choose another tab, then Undo (button or key): the view comes back but the chosen tab stays."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: "core-risks" not in self.tab_ids(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "an Undo message")
+                click_tab(cdp, sid, ".vtab[data-view-id=core-actions]")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid) == "core-actions"))
+                cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
+                self.assertTrue(wait(lambda: "core-risks" in self.tab_ids(cdp, sid)), "Undo puts the view back")
+                time.sleep(0.3)
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-actions", "and does not take the chosen tab")
+                cdp.js("localStorage.clear()", sid)
+
     def test_cmd_z_after_delete_view_puts_the_view_back(self):
         """Row 1071: Cmd or Ctrl+Z after Delete view undoes the delete (the message may be gone), not some other change."""
         s = self.serve()
