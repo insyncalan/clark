@@ -691,3 +691,8 @@ test_spacing_work_items.py 1.0
 test_store_planned_2026_migration.py 1.0
 test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
+# 11-11-2026 (bundle A): new mutation-audit test files
+test_mutants_publish_flow_graphics.py 3.3
+test_publish_mutwave.py 0.5
+test_setup_mode.py 0.7
+test_store_migration_mutants.py 1.0
