@@ -109,7 +109,7 @@ class Panel(Base):
             p.until("document.querySelectorAll('.hp-ref').length > 0", "Reference drew")
             self.assertEqual(p.js("document.querySelectorAll('.hp-ref').length"), len(shown_content()["reference"]["sections"]))
             self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys tbody').children.length"), len(shown_content()["reference"]["keys"]))
-            self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys').textContent.indexOf('Mod+J')"), -1)      # #721: Sneak peek is shown now; the page has no Mod+J key
+            self.assertEqual(p.js("document.querySelector('#hp-ref-keys .hp-keys').textContent.indexOf('Mod+J') < 0 && /[CM][to][rm]*[l+d]*\\+J/.test(document.querySelector('#hp-ref-keys .hp-keys').textContent)"), True)      # the page binds Mod+J (askPanelState.js): Help names it as Ctrl+J or Cmd+J
             self.assertEqual(p.js("document.querySelector('.hp-idx') && document.querySelectorAll('.hp-idx a').length"), len(shown_content()["reference"]["sections"]))
 
     def test_search_finds_what_is_shown_and_opens_in_place_and_not_what_is_held(self):

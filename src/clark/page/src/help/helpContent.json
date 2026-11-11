@@ -132,7 +132,7 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
+    "Answers questions about the project and checks the report. Press [[/]] or [[Mod+J]], or open the palette with [[Mod+K]] and choose ask clark.",
     "ask"
    ],
    [
@@ -2162,6 +2162,10 @@
    [
     "[[Mod+K]]",
     "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose ask clark"
+   ],
+   [
+    "[[Mod+J]]",
+    "Opens ask clark, from any page, even in a box. It does nothing while Help or another box is open"
    ],
    [
     "[[Up]] [[Down]] [[Home]] [[End]]",

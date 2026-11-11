@@ -334,9 +334,16 @@ class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
         self.assertNotIn("health reason", row)                             # a reason saves on blur
         self.assertNotIn("Accept** ([[Mod+Enter]])", self.ALL)
 
-    def test_no_row_for_a_last_instruction_or_mod_j(self):
+    def test_no_row_for_a_last_instruction(self):
         self.assertNotIn("last instruction", self.ALL)
-        self.assertNotIn("Mod+J", self.ALL)
+
+    def test_mod_j_opens_ask_clark_and_help_names_it(self):
+        # askPanelState.js installAskKeys: Ctrl or Cmd + J opens the panel from anywhere, a box included
+        self.assertIn("[[Mod+J]]", self.KEYS)
+        row = self.KEYS["[[Mod+J]]"]
+        self.assertIn("ask clark", row)
+        self.assertIn("even in a box", row)
+        self.assertIn("(e.key || \"\").toLowerCase() === \"j\"", read("page", "src", "edit", "askPanelState.js"))
 
 
 if __name__ == "__main__":
