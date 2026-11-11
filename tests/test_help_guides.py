@@ -352,10 +352,10 @@ class PageKey(unittest.TestCase):
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 # item 1024d: the help line for each Settings page is titled by the page's name in the menu (Reports holds Freshness and Gantt together)
-SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Folder", "PublishedPage": "Published reports", "Personal": "Appearance", "ReviewDays": "Reports", "GanttSetting": "Reports",
+SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Folder", "Personal": "Appearance", "ReviewDays": "Reports", "GanttSetting": "Reports",
                   "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Export and import", "Update": "Version and updates", "Brands": "Brand", "Quit": "Quit",
                   "AskSettings": "Claude and AI"}
-SETTINGS_LEFT_OUT = set()
+SETTINGS_LEFT_OUT = {"PublishedPage"}      # the Published reports entry opens the page of its own (row 1087); it is not a Settings card
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
 
