@@ -131,7 +131,7 @@ Programme managers spend hours each week turning their work items into a report 
   - History is data, not logs: the diagnostic log never holds report text, names or values (FR-8b); a log line for a saved change holds only the kind, the ID and the field.
 - **FR-43c (28-10-2026):** **Nothing is ever deleted; it is archived** ("we never delete - we archive"). Projects, work items, milestones, use cases and supporting documents have **Archive** where they had Delete. An archived record:
   - leaves the default views, the counts and the published page;
-  - is found with **Show archived** (Work items, Milestones and Settings › Projects);
+  - is found with **Show archived** (Milestones and Settings › Projects) or, for work items, the filter word **is:archived**;
   - opens read-only with **Restore**;
   - keeps all its history.
 
