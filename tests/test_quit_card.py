@@ -16,6 +16,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 STOPPING = "Stopping clark. You can close this window."
 FAILED = "Quitting did not work. Try again."
+ASK = "Quit clark now? Nothing is left running. To start it again, open clark the way you did before."
+AGAIN = "To start clark again, open it the way you did before."
 
 
 class Card(unittest.TestCase):
@@ -68,11 +70,31 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp, s.port)
             cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({ASK!r})", "the confirm words")
+            self.assertEqual(self.stops, [], "one click only asks")
+            self.confirm(cdp, sid)
             self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({STOPPING!r})", "the stopping line")
+            self.assertEqual(cdp.js(f"document.querySelector('#quit').innerText.includes({AGAIN!r})", sid), True)
             self.assertTrue(wait(lambda: len(self.stops) == 1, 10), "the server was told to stop")
-            self.assertEqual(cdp.js("document.querySelector('#quit button').disabled", sid), True)
-            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#quit button')].every(b => b.disabled)", sid), True)
+            cdp.js("document.querySelectorAll('#quit button').forEach(b => b.click())", sid)
             self.assertEqual(len(self.stops), 1, "a second click does nothing")
+
+    def confirm(self, cdp, sid):
+        self.until(cdp, sid, "document.querySelector('#quit-yes')", "the confirm button")
+        cdp.js("document.querySelector('#quit-yes').click()", sid)
+
+    def test_cancel_leaves_clark_running(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port)
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.querySelector('#quit-no')", "the cancel button")
+            cdp.js("document.querySelector('#quit-no').click()", sid)
+            self.until(cdp, sid, "!document.querySelector('#quit-yes')", "the confirm to close")
+            self.assertEqual(cdp.js(f"document.querySelector('#quit').innerText.includes({ASK!r})", sid), False)
+            self.assertEqual(cdp.js("document.querySelector('#quit button').textContent.trim()", sid), "Quit clark")
+            self.assertEqual(self.stops, [])
 
     def test_a_refusal_and_no_answer_are_said_plainly_and_can_be_tried_again(self):
         s = self.serve()
@@ -80,10 +102,12 @@ class Card(unittest.TestCase):
             sid = self.visit(cdp, s.port)
             cdp.js("window.fetch = () => Promise.resolve(new Response(JSON.stringify({ok: false, code: 'server_error', message: 'Something went wrong, and nothing was changed. Try again, or restart clark.'}), {status: 500}))", sid)
             cdp.js("document.querySelector('#quit button').click()", sid)
+            self.confirm(cdp, sid)
             self.until(cdp, sid, "document.querySelector('#quit').innerText.includes('Something went wrong, and nothing was changed.')", "the server's words")
             self.assertEqual(cdp.js("document.querySelector('#quit button').disabled", sid), False)
             cdp.js("window.fetch = () => Promise.reject(new TypeError('failed'))", sid)
             cdp.js("document.querySelector('#quit button').click()", sid)
+            self.confirm(cdp, sid)
             self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({FAILED!r})", "the fallback words")
             self.assertEqual(cdp.js("document.querySelector('#quit').innerText.includes('TypeError')", sid), False)
             self.assertEqual(cdp.js("document.querySelector('#quit button').disabled", sid), False)
