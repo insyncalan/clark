@@ -18,6 +18,7 @@ import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
+import { fitCharts } from "../logic/printFit.js";
 import {
   WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
   chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
@@ -125,6 +126,13 @@ export function GanttChart({
     document.addEventListener("pointerdown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
   }, [box, menu, showOpen, full, sel]);
+
+  useEffect(() => {      // row 1038: the chart is scaled to the paper's width while the browser prints (logic/printFit.js, shell.css)
+    const on = () => fitCharts(document, true), off = () => fitCharts(document, false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); off(); };
+  }, []);
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, width - leftW), range);
