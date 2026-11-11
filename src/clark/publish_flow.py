@@ -22,6 +22,7 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -30,13 +31,16 @@ import tempfile
 import threading
 import time
 import unicodedata
+from html.parser import HTMLParser
 from pathlib import Path
 
-from clark import changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
+from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 CLIENT_WORKBOOK = True      # item 713: every file made here carries the client workbook (or the too-large sentence) in its data block
+MAX_RUN_MARKERS = 300                # a hidden section's text runs become at most this many markers in all (each marker costs a scan), and at most
+MAX_RUN_CHARS = 100000               # this many characters; past either, no more run markers (the whole-body marker still stands)
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
 TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",), "raid": ("description",),
                "decisions": ("decision",), "use_cases": ("title", "headline")}
@@ -180,10 +184,68 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                 add(value, row["id"])
+    kept_runs = [r for s in published.get("sections", ()) if isinstance(s, dict) and s.get("body") for r in _body_runs(s["body"])]
+    hidden_section_markers(store, code, kept_text, bare, add, kept_runs)
     gantt_markers(store, code, published, add, kept_whole)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
+
+
+class _Runs(HTMLParser):
+    """The text runs of an HTML body, one per piece of text between tags."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.runs = []
+
+    def handle_data(self, data):
+        self.runs.append(data)
+
+
+def _body_runs(body):
+    """The pieces of text in a section body: the strings of a JSON body (needs, tracker, templates), else the text between the tags."""
+    try:
+        doc = json.loads(body)
+    except ValueError:
+        doc = None
+    if isinstance(doc, (dict, list)):
+        todo, out = [doc], []
+        while todo:
+            v = todo.pop()
+            if isinstance(v, str):
+                out.append(v)
+            elif isinstance(v, dict):
+                todo.extend(v.values())
+            elif isinstance(v, list):
+                todo.extend(v)
+        return out
+    parser = _Runs()
+    parser.feed(body)
+    parser.close()
+    return parser.runs
+
+
+def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
+    """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
+    this is the second look at the finished file. A run is excused only when a kept value IS that run (the whole-value rule of
+    markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. At most MAX_RUN_MARKERS runs
+    and MAX_RUN_CHARS characters in all become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
+    whole body is still one marker (markers_for), so pasting all of it is refused."""
+    kept_whole = {" ".join(t.split()) for t in kept_text} | {" ".join(r.split()) for r in kept_runs}
+    seen, chars = set(), 0
+    for row in store.read("report_sections", project=code):
+        if not row.get("hidden") or not _text(row.get("body")):
+            continue
+        for run in _body_runs(row["body"]):
+            value = " ".join(run.split())
+            if len(value) < MIN_MARKER or value in seen or value in kept_whole or to_client._key(value) in bare:
+                continue
+            if len(seen) >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
+                return
+            seen.add(value)
+            chars += len(value)
+            add(value, row.get("id"))
 
 
 def gantt_markers(store, code, published, add, kept_whole):
@@ -229,11 +291,25 @@ def gantt_markers(store, code, published, add, kept_whole):
 def folder_inside(fs, a, b):
     """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
     the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
+    if not a or not b:                                      # an empty (unsaved) folder is nowhere, so contains and is in nothing
+        return False
     real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
     try:
-        return to_client._inside(a, b) or to_client._inside(real(a), real(b))
+        # ".." must not hide the folder as written; the link-following check keeps the raw text (a link before ".." matters)
+        return to_client._inside(os.path.normpath(a), os.path.normpath(b)) or to_client._inside(real(a), real(b))
     except (OSError, ValueError):
         return False
+
+
+def brand_of(store, code, root):
+    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/system/branding, or
+    page.NO_BRAND (a folder with nothing in it) for Generic, an unknown code, an unreadable row or a brand that was removed."""
+    try:
+        row = store.read("projects", ref=code) if isinstance(code, str) else None
+        folder = brands.folder(root, row["brand"] if isinstance(row, dict) and row.get("brand") else "generic")
+    except Exception:     # any unreadable row (a locked database included) is the plain page; KeyboardInterrupt and SystemExit pass
+        return page.NO_BRAND
+    return page.NO_BRAND if folder is brands.GENERIC else folder
 
 
 class Publisher:
@@ -243,7 +319,7 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
@@ -254,12 +330,19 @@ class Publisher:
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
+        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent.parent      # #944: the clark folder that holds system/branding
         self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
         self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
+
+    def project_brand(self, store, code):
+        """Row 999: the branding folder for this project's own brand, looked up at each call (page.NO_BRAND for Generic, an unknown code or
+        a removed brand), so no output of one project wears another's brand. A `branding` given when the Publisher was made wins."""
+        # NOTE: a Publisher-wide `branding` defeats per-project isolation (every project gets this one folder); production does not pass it.
+        return self.branding if self.branding is not None else brand_of(store, code, self.brand_root)
 
     # ----- publish -----
     def publish(self, body):
@@ -308,7 +391,7 @@ class Publisher:
         today = str(self.today())
         last = store.last_publish_folder(code)
         try:       # item 713: the earlier reports are read from the folder last used here; the Save window's own folder is read again below
-            built = publish.build(store, code, today, self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK,
+            built = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), workbook=CLIENT_WORKBOOK,
                                   past_reports=past_files.listing(last, code) if last else None)
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -338,7 +421,7 @@ class Publisher:
         if past != built["past_reports"]:
             try:
                 keep = built["number"] if store.next_publication(code) == built["number"] else None
-                built = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                built = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
                                       past_reports=past)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -349,7 +432,7 @@ class Publisher:
             try:
                 # #120: the same number while it is still the next one; else the file is made again with the new next number
                 keep = built["number"] if store.next_publication(code) == built["number"] else None
-                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                again = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
                                        past_reports=past)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -446,7 +529,7 @@ class Publisher:
                 choice=body.get("on_clash"), new_name=body.get("new_name"), at=today)
             return self.reply(got), None, None, []
         self.folder_warning = pre.get("warning")
-        markers = markers_for(store, code, built["published"], page.page_html(self.branding, view=True))
+        markers = markers_for(store, code, built["published"], page.page_html(self.project_brand(store, code), view=True))
         problems = to_client.check_copy(body_bytes, markers=markers, folder=saved)
         if problems:
             held = to_client.MESSAGES["held_back"].format(what=to_client.held_words(problems))
@@ -689,7 +772,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK)
+                built = publish.build(store, code, str(self.today()), self.project_brand(store, code), body.get("section_style"), workbook=CLIENT_WORKBOOK)
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
@@ -734,7 +817,7 @@ class Publisher:
                 # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
-                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.branding,
+                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
                                        exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)

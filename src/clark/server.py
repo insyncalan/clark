@@ -595,7 +595,22 @@ def with_boot(html):
     boot = json.dumps({"token": TOKEN}).replace("<", "\\u003c")
     block = f'<script type="application/json" id="clark-boot">{boot}</script>'
     i = html.rfind("</body>")
-    return html[:i] + block + html[i:] if i >= 0 else html + block
+    html = html[:i] + block + html[i:] if i >= 0 else html + block
+    return dev_marked(html) if os.environ.get("CLARK_DEV") == "1" else html
+
+
+DEV_RIBBON = ('<div id="clark-dev-ribbon" style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;'
+              'background:#d9480f;color:#fff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.08em;padding:4px 14px;'
+              'border-radius:0 0 8px 8px;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.3)">DEV COPY</div>')
+
+
+def dev_marked(html):
+    """The dev instance (CLARK_DEV=1, set by dev-clark.command) shows an orange DEV COPY tab at the top and "DEV" in the browser tab,
+    so it is never taken for production. A style attribute only: the policy allows those, so no new hash is needed."""
+    html = html.replace("<title>clark", "<title>DEV clark", 1)
+    i = html.find("<body")
+    j = html.find(">", i) + 1 if i >= 0 else -1
+    return html[:j] + DEV_RIBBON + html[j:] if j > 0 else html
 
 
 def data_route(handler):

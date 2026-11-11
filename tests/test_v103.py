@@ -126,7 +126,7 @@ COVERED = [
     ("#757", "The open tab stays in view in the top bar at 900 px.",
      "test_top_bar_tabs::TopBarTabs::test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900"),
     ("#764", "The top bar's tab row is not cut off at 900 px.",
-     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap"),
+     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_900_px_and_never_wrap"),
     ("#775", "The Work items board columns are lifted cards and the full-screen icon is arrows.",
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#776", "The Sneak peek words box is a floating card.",
