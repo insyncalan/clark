@@ -53,6 +53,7 @@ test_ask_injection_more.py 14.5
 test_ask_look.py 40.1
 test_ask_one_screen.py 0.2
 test_ask_panel.py 177.2
+test_ask_panel_isolation.py 30.0
 test_ask_passage_screen.py 4.3
 test_ask_passages.py 3.8
 test_ask_provider.py 0.6
@@ -75,6 +76,7 @@ test_blank_lines.py 1.4
 test_board.py 10.8
 test_board_columns.py 45.9
 test_brand.py 0.6
+test_brand_backdrop.py 30.0
 test_brand_circle.py 7.1
 test_brand_follow_e2e.py 25.5
 test_brand_page.py 14.7
@@ -126,9 +128,6 @@ test_client_folder_paste.py 9.4
 test_client_menu.py 56.7
 test_client_menu_contract.py 6.9
 test_client_page_filters.py 48.3
-test_client_report.py 53.8
-test_client_report_file.py 19.7
-test_client_report_part3.py 4.3
 test_client_workbook.py 9.9
 test_commitment_page.py 46.3
 test_cover_band.py 53.6
@@ -182,6 +181,7 @@ test_excel_lists.py 24.5
 test_excel_milestone_fields_828.py 14.2
 test_excel_palette.py 0.6
 test_excel_picture.py 22.4
+test_excel_plain_1060.py 30.0
 test_excel_pre1900.py 1.5
 test_excel_protection.py 48.6
 test_excel_refs.py 46.3
@@ -237,11 +237,13 @@ test_glance_store.py 3.3
 test_glance_tiles.py 23.9
 test_growth.py 31.2
 test_hand_over.py 54.3
+test_header_no_project_name.py 30.0
 test_health_pill_menu.py 0.2
 test_help_ask_peek.py 0.4
 test_help_ask_secret_words.py 0.4
 test_help_assign_to.py 0.3
 test_help_content.py 1.1
+test_help_guide_brand_kit.py 30.0
 test_help_guide_pictures.py 1.0
 test_help_guides.py 5.2
 test_help_guides_excel_publish.py 4.7
@@ -268,10 +270,12 @@ test_history_from_file.py 5.0
 test_history_rows.py 2.9
 test_history_section_bodies.py 1.7
 test_holds_ignore_updated_at.py 0.8
+test_hostile_1021.py 30.0
 test_ib_scope.py 30.8
 test_icon_labels.py 1.0
 test_icons.py 0.5
 test_idle.py 1.4
+test_idle_docker_wiring.py 30.0
 test_import_template.py 133.0
 test_import_words.py 0.4
 test_improve_menu_fit.py 42.6
@@ -280,11 +284,14 @@ test_inline_edits.py 99.8
 test_inline_history.py 1.2
 test_item_454_dark_900.py 81.5
 test_item_660_editors.py 158.3
+test_item_one_line.py 30.0
+test_item_row_fit.py 30.0
 test_item_rows.py 56.8
 test_keep_published.py 20.0
 test_latest_update_publish.py 3.3
 test_launch_e2e.py 45.4
 test_launch_running.py 34.2
+test_launch_translocation.py 30.0
 test_launcher.py 53.6
 test_launcher_words.py 2.5
 test_layout.py 0.3
@@ -297,6 +304,8 @@ test_log_wiring.py 54.9
 test_main.py 49.5
 test_main_anchor.py 5.7
 test_menu_border.py 6.3
+test_menu_icons.py 30.0
+test_menu_icons_mutproof_1074.py 30.0
 test_menu_tooltip.py 39.7
 test_merge_driver.py 201.8
 test_merge_main.py 10.2
@@ -316,6 +325,7 @@ test_milestones_page.py 279.7
 test_milestones_page_458.py 55.4
 test_milestones_parity.py 21.2
 test_milestones_route.py 6.1
+test_milestones_spacing.py 30.0
 test_milestones_tight.py 24.6
 test_mixed_folder.py 19.6
 test_modal_layers.py 3.3
@@ -351,12 +361,14 @@ test_needs_page.py 40.6
 test_needs_route.py 4.2
 test_no_client_image.py 1.0
 test_no_real_names.py 46.2
+test_no_type_pills.py 30.0
 test_one_editor_gate.py 30.1
 test_one_secret_screen.py 1.7
 test_one_view_menu.py 30.0
 test_open_at_page.py 4.0
 test_order.py 0.6
 test_package.py 21.1
+test_package_app.py 30.0
 test_package_layout_e2e.py 9.6
 test_page.py 13.0
 test_page_branding_root.py 1.0
@@ -380,10 +392,12 @@ test_peek_client_action.py 116.2
 test_peek_exit.py 18.9
 test_peek_fields.py 84.6
 test_peek_fresh.py 21.2
+test_peek_history_1082.py 30.0
 test_peek_icons.py 12.2
 test_peek_latest.py 111.3
 test_peek_narrow.py 31.2
 test_peek_outside.py 100.3
+test_peek_sneak_anchor_1057.py 30.0
 test_peek_spacing_1016.py 17.1
 test_people.py 0.3
 test_people_card.py 8.5
@@ -444,7 +458,9 @@ test_publish_usecases.py 12.6
 test_publish_words.py 0.9
 test_published_cards_plain.py 34.7
 test_published_frames.py 35.0
+test_published_identical_sweep.py 30.0
 test_published_item_column.py 7.6
+test_published_matches_editor.py 30.0
 test_published_tabs_eyebrow.py 9.6
 test_published_tracker_drawn.py 11.3
 test_published_work_no_add.py 12.8
@@ -515,11 +531,11 @@ test_single_load_e2e.py 30
 test_size_scale.py 0.6
 test_sizes.py 74.7
 test_skeleton_static.py 14.8
-test_snapshot_avatar_chip.py 13.2
 test_sneak_milestone_usecase.py 1.4
 test_source_folders_store.py 1.1
 test_source_line.py 4.9
 test_starter_synced.py 0.6
+test_status_colours.py 30.0
 test_status_count_words.py 2.8
 test_store_archive.py 7.9
 test_store_archive_reads.py 1.9
@@ -546,6 +562,7 @@ test_timefmt.py 0.6
 test_timeline_labels.py 4.2
 test_title_limit.py 3.5
 test_to_client.py 18.4
+test_toast_five_seconds.py 30.0
 test_toast_pill.py 39.9
 test_toc_button.py 13.7
 test_toc_button_source.py 0.4
@@ -624,6 +641,7 @@ test_v103.py 1.9
 test_v104.py 0.5
 test_v105.py 0.4
 test_v106.py 0.3
+test_v107.py 30.0
 test_vendor_preact.py 0.2
 test_vendor_python.py 2.1
 test_vendor_tiptap.py 0.4
@@ -637,6 +655,7 @@ test_word_import.py 0.8
 test_word_local_in_client_folder.py 3.5
 test_word_route.py 17.8
 test_word_screens.py 114.3
+test_word_status_word.py 30.0
 test_word_store.py 1.1
 test_word_template.py 0.9
 test_wording_small_fixes.py 0.6

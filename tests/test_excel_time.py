@@ -148,8 +148,10 @@ class ExcelTimeTests(unittest.TestCase):
         for tz in ZONES:
             ws = load_workbook(self.export(tz, now=late)[2])["Actions"]
             found = [r.formula for cf in ws.conditional_formatting for r in cf.rules if r.type == "expression"]
-            self.assertEqual(len(found), 1, tz)
-            self.assertIn("TODAY()", found[0][0])
+            # Row 1021: the Due cell's red rule and the Status cell's overdue rule (stop if true) are both live TODAY() formulas.
+            self.assertEqual(len(found), 2, tz)
+            for formula in found:
+                self.assertIn("TODAY()", formula[0])
             rules[tz] = found
             head = [c.value for c in ws[1]]
             font = ws.cell(row=2, column=head.index("Due") + 1).font
