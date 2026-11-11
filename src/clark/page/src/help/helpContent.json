@@ -296,15 +296,15 @@
     "g": "Every week",
     "t": "Find or open a past publication",
     "w": "Profile circle › Published reports",
-    "go": "settings#pubs",
+    "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
-     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press your profile circle and choose **Published reports**.",
+     "The page says where the report is saved, shows the latest publication and lists the earlier ones. Each has its number, the week ending, when it was published, where it went, its files and who published it. The newest is first, and the list shows the latest ten; the older ones are kept.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
-     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown as UTC."
+     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
     ],
     "page": [
-     "settings#pubs"
+     "dashboard+edit"
     ]
    },
    {
@@ -910,7 +910,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Export to Word**: the report saved as a Word file, without publishing the web page.",
-       "**Published reports**: the **Published reports** card in Settings for the open project.",
+       "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**. Until you add your name in Settings, the top line is a link to Settings and this entry is left out.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
@@ -1760,20 +1760,24 @@
       ],
       [
        [
-        "#",
+        "No.",
         "The publication's number for this project, counting up from 1"
        ],
        [
-        "Date and time",
-        "When it was published, in UTC"
+        "Week ending",
+        "The week the report was for"
        ],
        [
-        "Where",
-        "Where it went"
+        "Published",
+        "When it was published, in your own time zone, and who published it"
        ],
        [
-        "Who",
-        "Who published it"
+        "Went to",
+        "Where it went: the Local folder, and the Client folder if there is one"
+       ],
+       [
+        "Files",
+        "The page, and the Word or PDF file saved with it"
        ],
        [
         "Open",
@@ -1783,7 +1787,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1818,7 +1822,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1834,10 +1838,6 @@
        [
         "Personal",
         "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
-       ],
-       [
-        "Published reports",
-        "The numbered copies you have published, each with **Open** to see it as it was."
        ],
        [
         "Projects",
@@ -2470,11 +2470,6 @@
      "line": "Where Publish saves the report, and the client folder it is copied to."
     },
     {
-     "card": "pubs",
-     "title": "Published reports",
-     "line": "The numbered copies you have published, each with Open to see it as it was."
-    },
-    {
      "card": "personal",
      "title": "Personal",
      "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
@@ -2807,7 +2802,7 @@
      "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
     },
     {
-     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. The **Published reports** page opens, and the day box under **Dashboard as at a day** is ready for you."
     },
     {
      "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."

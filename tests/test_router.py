@@ -159,11 +159,19 @@ class Pure(Browser):
                                            e("usecases"), e("usecases", uc="1.2", i="A-12"), e("usecases"),
                                            "#usecases&p=PDF&uc=1.2", "#usecases&p=PDF", "#work&p=PDF", "#usecases&p=PDF", "#usecases&p=PDF&uc=1.2&item=A-12"],
                          "a use case key is read on the Use cases page only, as one clean word; a peek can sit beside it")
+
+    def test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek(self):
+        got = self.run_in_page("""JSON.stringify([R.parse('#published&p=PDF'), R.parse('#published&p=PDF&item=A-12&ms=M-1'), R.format({view:'published',project:'PDF'})])""")
+        plain, peek, fmt = json.loads(got)
+        self.assertEqual(plain, {"view": "published", "project": "PDF", "item": "", "ms": "", "f": "", "uc": ""})
+        self.assertEqual(peek, plain, "like Settings, this page has no peek")
+        self.assertEqual(fmt, "#published&p=PDF")
+
     def test_1065_the_retired_client_report_address_falls_back_to_the_dashboard(self):
         """Row 1065: "#clientreport" is no view any more; an old bookmark opens the Dashboard."""
         got = self.run_in_page("""JSON.stringify([R.VIEWS, R.parse('#clientreport&p=PDF').view, R.parse('#CLIENTREPORT').view])""")
         views, old, upper = json.loads(got)
-        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings"])
+        self.assertEqual(views, ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"])
         self.assertEqual((old, upper), ("dashboard", "dashboard"))
 
     def test_hostile_hashes_never_throw_and_round_trip_to_a_stable_hash_only_address(self):

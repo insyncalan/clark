@@ -1097,6 +1097,22 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
 
+/* Row 1087: the Published reports page (edit/PublishedPage.jsx, edit/PublishedReports.jsx). Edit only, so not in the published page. The cover band is the shared one (brand picture and colours). */
+.pp-where { margin: var(--space-4) 0; padding-bottom: var(--space-4); border-bottom: 1px solid var(--grey-200); }
+.pp-where dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: var(--space-2) 0; }
+.pp-where dt { color: var(--text-muted); font-size: var(--size-small); }
+.pp-where dd { margin: 0; overflow-wrap: anywhere; }
+.pp-where p { margin: var(--space-2) 0 0; }
+.pp-kicker { margin: 0 0 var(--space-2); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.pp-block { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
+.pp-latest h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); color: var(--heading); }
+.pp-latest p { margin: 0 0 var(--space-2); }
+.pp-latest .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.pp-earlier .pubs { margin-top: 0; }
+.pp-earlier .pubs th:first-child, .pp-earlier .pubs td:first-child { width: 1%; white-space: nowrap; }      /* room for the Archived tag beside the number */
+.pp-earlier .pubs td.num, .pp-earlier .pubs td.files { white-space: nowrap; }      /* a date or 'Page, PDF' never breaks inside */
+.pubs-intro { margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--white); max-width: 70ch; }
+.pp-earlier .pubs td .muted.small { white-space: normal; }
 /* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
 .pk-lh { margin-top: 0; }
 .pk-lh-btn { display: block; margin-left: auto; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
