@@ -1,11 +1,12 @@
-// Settings › Projects (prototype parity A-S6, item 444): Name, Code, Client, Workstreams and Items for each project, with Open, Edit,
-// Archive and Restore, Show archived and Add project, as the prototype's table has them. Edit's page only: a published file has no
+// Settings › Projects (prototype parity A-S6, item 444): Name, Code, Client, Workstreams and Items for each project, with Open and Edit
+// and a row menu holding Archive and Restore (item 1024b), Show archived and Add project. Edit's page only: a published file has no
 // Settings. Archive and Restore are one step each with Undo (projectsApi.js); a project's data is never deleted. Archive is on every
 // project, the open one too: archiving the open one opens the first other live project, and when there is none the page says so and
 // does nothing. Add project and Edit open the project form (ProjectForm.jsx, drawn by Boxes.jsx; POST /api/project). `api` is a seam for the tests.
 import { useEffect, useState } from "preact/hooks";
 import { project as openCode, openProjectAt, loadProjects, reread } from "../stores/report.js";
 import { say, undone, enqueue } from "../stores/changes.js";
+import { Menu } from "../components/Menu.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { listProjects, readProject, sendProjectArchive } from "./projectsApi.js";
 import { openBox, closeBox } from "./boxes.js";
@@ -44,6 +45,7 @@ export function Projects({ api = REAL }) {
         await load();
         loadProjects();                                              // the top bar's list follows
         if (op === "archive") focusHeading();                        // the clicked button is gone: keep the place
+        else requestAnimationFrame(() => { const m = document.querySelector(`tr[data-project="${row.code}"] [data-row-menu]`); if (m) m.focus(); else focusHeading(); });   // Restore: the row is redrawn, so focus goes to its menu button
         const nextName = next ? (state.live.find((x) => x.code === next) || {}).name || next : "";
         say("done", op === "archive" ? (next ? D.archivedOpenWords(row.name, nextName) : L.archivedWords(row.name)) : L.restoredWords(row.name), r.applyId, row.code);
       });
@@ -94,15 +96,15 @@ export function Projects({ api = REAL }) {
                 <td>{r.workstreams}</td>
                 <td class="num">{r.items}</td>
                 <td class="acts">
-                  {r.archived ? (
-                    <button type="button" class="btn sm" data-restore aria-label={`Restore ${r.name}`} disabled={!!busy} onClick={() => change(r, "restore")}>{L.LABELS.restore}</button>
-                  ) : (
+                  {r.archived ? null : (
                     <>
                       {r.code !== openCode.value ? <button type="button" class="btn sm" data-open aria-label={`Open ${r.name}`} onClick={() => openProjectAt(r.code, "dashboard")}>{L.LABELS.open}</button> : null}
                       <button type="button" class="btn sm" data-edit aria-label={`Edit ${r.name}`} disabled={!!busy} onClick={(e) => openForm(r, e.currentTarget)}>{L.LABELS.edit}</button>
-                      <button type="button" class="btn sm" data-archive aria-label={`Archive ${r.name}`} disabled={!!busy} onClick={() => change(r, "archive")}>{L.LABELS.archive}</button>
                     </>
                   )}
+                  <Menu icon="dots" label="" chevron={false} btnCls="btn sm" attrs={{ "data-row-menu": "", disabled: !!busy }} ariaLabel={L.moreFor(r.name)} menuLabel={L.moreFor(r.name)} fixed
+                    items={[{ id: r.archived ? "restore" : "archive", name: r.archived ? L.LABELS.restore : L.LABELS.archive }]}
+                    onPick={(k) => { if (!busy) change(r, k); }} />
                 </td>
               </tr>
             ))}

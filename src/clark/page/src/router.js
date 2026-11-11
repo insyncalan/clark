@@ -21,7 +21,7 @@
 // key written in the address would. `f` is written with navigate({...state, f}, {replace: true}): a filter change never pushes an
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
-export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
+export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (item 926)
 export const SETTINGS_PAGES = ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"];   // the Settings pages' address keys, in menu order (item 1024); the menu in Views.jsx names them
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
