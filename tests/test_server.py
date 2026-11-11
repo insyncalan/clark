@@ -1479,6 +1479,7 @@ class _Pipe:
 
     def __init__(self, w, r):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
+        self.events = []                       # every message that is not the answer to a call (page events), in order
 
     NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
     NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
@@ -1517,6 +1518,8 @@ class _Pipe:
                 if "error" in m:
                     raise RuntimeError(m["error"])
                 return m["result"]
+            if "method" in m:
+                self.events.append(m)
 
     def js(self, expr, session):
         return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True}, session)["result"].get("value")
