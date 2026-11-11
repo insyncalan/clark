@@ -34,7 +34,7 @@ const undoable = [];
 export const NOTHING_TO_UNDO = "Nothing to undo since this page was opened. Older changes are in Activity.";
 const MAX_KEPT = 50;
 
-export function say(kind, text, undo = null, code = project.value) {
+export function say(kind, text, undo = null, code = project.value, focusUndo = false) {
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
@@ -43,7 +43,7 @@ export function say(kind, text, undo = null, code = project.value) {
   }
   if (kind === "problem") trouble.n++;
   const id = ++counter;
-  toast.value = { id, kind, text, undo, code };
+  toast.value = { id, kind, text, undo, code, focusUndo };
   if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
@@ -170,7 +170,7 @@ export function changeRecord(req, done) {
     const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
     itemSteps.set(r.reply.apply_id, w.back || "");
     if (w.focus) focusSteps.set(r.reply.apply_id, w.focus);
-    say("done", w.text, r.reply.apply_id, code);
+    say("done", w.text, r.reply.apply_id, code, !!w.focusUndo);      // focusUndo: the toast puts the focus on its Undo as it is drawn
     return r.reply;
   });
 }
