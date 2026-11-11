@@ -196,8 +196,8 @@ class AskFolders:
         start = now[-1] if now else next(iter(self.onedrive_roots), None)
         try:
             picked = self.choose_folder(PICK_PROMPT, start=start)
-        except platform.PlatformError:
-            return 409, self.fail("dialog_failed")
+        except platform.PlatformError as e:
+            return 409, self.fail("dialog_failed", platform.refusal_words(e, MESSAGES["dialog_failed"]))
         if picked is None:
             return 200, {"ok": True, "folders": now}
         typed = str(picked)

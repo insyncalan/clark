@@ -359,6 +359,8 @@ class ClaudeCommand(ask.Provider):
     # ----- the checks -----
     def command(self):
         """(path, None) when the command is found, native and passes the version and flag check, else (None, plain reason)."""
+        if platform.container_mode():                   # item 1100: in Docker the server has no command; say where to start clark
+            return None, platform.needs_mac_words()
         if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's
             return None, MAC_ONLY
         path, why = find_command(self.places, self.roots)
