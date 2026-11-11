@@ -77,7 +77,8 @@ function SavedViews({ board }) {
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
-  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
+  const afterDelete = useRef(null);      // what was chosen right after a Delete view: "", or the view the effect below then picked by itself (no click)
+  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) { chosen.value = { ...chosen.value, [code]: matching.id }; if (afterDelete.current !== null) afterDelete.current = matching.id; } }, [matching && matching.id, code]);
   const click = (e, v) => { if (swallow.current) { swallow.current = false; e.preventDefault(); return; } pick(v); };      // the click that ends a drag chooses nothing
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
@@ -115,13 +116,13 @@ function SavedViews({ board }) {
       // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
       const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
       if (!r.ok) { say("problem", r.message); return; }
-      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
+      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; afterDelete.current = "";
       sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
         const b = FL.insertView(viewsOf(code), gone, at);
         if (!b.ok) { say("problem", b.message); return; }          // a name taken since, say, is told, never silent
         saveViews(code, b.views);
         const now = chosen.value[code];          // the restored view is chosen only if no other tab was chosen since the delete
-        if (!now || now === gone.id) chosen.value = { ...chosen.value, [code]: gone.id };
+        if (!now || now === gone.id || now === afterDelete.current) chosen.value = { ...chosen.value, [code]: gone.id };
       }, code);
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }

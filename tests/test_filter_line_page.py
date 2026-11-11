@@ -1070,6 +1070,33 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-actions", "and does not take the chosen tab")
                 cdp.js("localStorage.clear()", sid)
 
+    def test_undo_of_a_delete_chooses_the_restored_view_when_nothing_was_chosen_since(self):
+        """Row 1071: delete a view, then Undo with no click between: the restored view is the chosen tab, even when a copy with the same line was picked by the page itself."""
+        s = self.serve()
+        ctrl_z = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))"
+        chosen = "(document.querySelector('.vtab[aria-pressed=true]') || {dataset: {}}).dataset.viewId"
+        for width in SIZES:
+            for twin in (False, True):
+                with self.subTest(width=width, twin=twin), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width)
+                    cdp.js("localStorage.clear()", sid)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                    if twin:
+                        click(cdp, sid, "#viewTabMenu")
+                        click(cdp, sid, "#viewTabMenuList [data-kind=duplicate]")
+                        self.assertTrue(wait(lambda: len(self.tab_ids(cdp, sid)) > 0 and cdp.js(chosen, sid) != "core-risks"), "the copy is chosen")
+                        click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                        self.assertTrue(wait(lambda: cdp.js(chosen, sid) == "core-risks"))
+                    click(cdp, sid, "#viewTabMenu")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                    self.assertTrue(wait(lambda: "core-risks" not in self.tab_ids(cdp, sid)))
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "an Undo message")
+                    cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                    cdp.js(ctrl_z, sid)
+                    self.assertTrue(wait(lambda: "core-risks" in self.tab_ids(cdp, sid)), "Undo puts the view back")
+                    self.assertTrue(wait(lambda: cdp.js(chosen, sid) == "core-risks"), "and it is the chosen tab: " + str(cdp.js(chosen, sid)))
+                    cdp.js("localStorage.clear()", sid)
+
     def test_cmd_z_after_delete_view_puts_the_view_back(self):
         """Row 1071: Cmd or Ctrl+Z after Delete view undoes the delete (the message may be gone), not some other change."""
         s = self.serve()
