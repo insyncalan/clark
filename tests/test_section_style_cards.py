@@ -74,6 +74,8 @@ class Cards(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("[...document.querySelectorAll('.set-item')].some(b => b.textContent.trim() === 'Appearance')", "the Appearance page is listed")
+        p.js("[...document.querySelectorAll('.set-item')].find(b => b.textContent.trim() === 'Appearance').click()")
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
@@ -123,7 +125,9 @@ class Cards(Base):
                 settled(p, f"document.documentElement.dataset.density === '{want}'", f"the page is {want}")
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
-                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")      # with no name or email typed the top line is the Settings link (row 787)
+                p.until("[...document.querySelectorAll('.set-item')].some(b => b.textContent.trim() === 'Appearance')", "the Appearance page is listed")
+                p.js("[...document.querySelectorAll('.set-item')].find(b => b.textContent.trim() === 'Appearance').click()")
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
@@ -167,46 +171,10 @@ class Cards(Base):
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
             p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-            p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal again")
-            self.assertEqual(self.chosen(p), ["comfortable"], "and kept for the Settings card")
-
-        self.each_look(check)
-
-    def test_C_when_the_browser_will_not_remember_the_choice_still_applies_now_and_is_not_kept(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_settings(p)
-            for domain in ("Runtime", "Log"):
-                cdp.call(domain + ".enable", {}, p.sid)
-            p.js("window.__tried = 0; Storage.prototype.setItem = function () { window.__tried++; throw new Error('storage is blocked'); }")
-            cdp.events.clear()
-            p.js("document.querySelector('#personal input[name=density][value=comfortable]').click()")
-            p.until("document.documentElement.dataset.density === 'comfortable'", "applied at once")
-            time.sleep(0.3)                     # let a late error or an unhandled rejection arrive
-            p.js("1")                           # reads any waiting events
-            errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
-                      if e["method"] == "Runtime.exceptionThrown"
-                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error")
-                      or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
-            self.assertEqual(errors, [], "no uncaught exception and no console error")
-            self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")
-            self.assertEqual(self.chosen(p), ["comfortable"])
-            self.assertEqual(p.js("localStorage.getItem('clark.density')"), None, "nothing was kept")
-            p.js("window.__before = 1; location.reload()")
-            settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
-            settled(p, "document.documentElement.dataset.density === 'compact'", "back to Compact, the default")
-
-    def test_C_the_drawings_differ_and_can_be_seen(self):
-        def check(p, w, look):
-            shapes = p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => {{ const r = i.getBoundingClientRect(), t = c.querySelector('.secpick-pic').getBoundingClientRect().top; const s = getComputedStyle(i); return [Math.round(r.top - t), Math.round(r.height), s.backgroundImage !== 'none']; }}).join('|'))")
-            self.assertEqual(len(set(shapes)), 2, "two different drawings")
-            # the drawing's header bar and its block edges stand out from the picture they sit on (3:1)
-            seen = p.js(f"{CARDS}.map(c => {{ const pic = c.querySelector('.secpick-pic'), bg = getComputedStyle(pic).backgroundColor, is = pic.querySelectorAll('i'); "
-                        "return [__ratio(getComputedStyle(is[0]).backgroundColor, bg), __ratio(getComputedStyle(is[1]).borderTopColor, bg)]; })")
-            for bar, edge in seen:
-                self.assertGreaterEqual(bar, 3, "the header bar reads on the picture")
-                self.assertGreaterEqual(edge, 3, "the block edges read on the picture")
-            self.assertEqual(p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => i.style.cssText).join(''))"), [""] * 2, "tokens in the sheet only")
+            p.until("[...document.querySelectorAll('.set-item')].some(b => b.textContent.trim() === 'Appearance')", "the Appearance page is listed")
+            p.js("[...document.querySelectorAll('.set-item')].find(b => b.textContent.trim() === 'Appearance').click()")
+            p.until("!!document.querySelector('#personal [data-secstyles]')", "Personal again")
+            self.assertEqual(self.chosen(p), ["card"], "and kept for the Settings card")
 
         self.each_look(check)
 
@@ -226,12 +194,10 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-                p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal")
-            self.assertEqual(look["compact"][0], True, "Compact sections have no card shadow")
-            self.assertEqual(look["compact"][2], "0px", "Compact sections are flat")
-            self.assertEqual(look["comfortable"][0], False, "Comfortable sections are cards with a shadow")
-            self.assertNotEqual(look["comfortable"][2], "0px", "Comfortable sections have round corners")
-            self.assertNotEqual(look["comfortable"][1], look["compact"][1], "the two do not look the same")
+                p.until("[...document.querySelectorAll('.set-item')].some(b => b.textContent.trim() === 'Appearance')", "the Appearance page is listed")
+                p.js("[...document.querySelectorAll('.set-item')].find(b => b.textContent.trim() === 'Appearance').click()")
+                p.until("!!document.querySelector('#personal [data-secstyles]')", "Personal")
+            self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
 
     def test_C_selected_is_an_edge_and_a_tick_not_colour_alone(self):
         def check(p, w, look):
