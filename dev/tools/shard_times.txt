@@ -410,6 +410,7 @@ test_people_store.py 2.9
 test_picker_minimap.py 25.0
 test_pill_focus_ring.py 18.3
 test_placement.py 4.6
+test_plain_line_hostile.py 20.0
 test_platform.py 1.0
 test_platform_container.py 1.6
 test_platform_source.py 17.0
