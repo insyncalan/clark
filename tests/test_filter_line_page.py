@@ -16,7 +16,10 @@ from _paths import ROOT, SRC  # noqa: F401
 from _new_page import reload_to_new_page_cdp
 import _testpage as testpage
 
-from test_server import Running, chrome  # noqa: E402
+from test_server import Running, chrome  # noqa: E402,F401  (chrome: the runner tells a browser file by this import)
+from _shared_chrome import SharedChrome  # noqa: E402
+
+shared = SharedChrome()      # #918: one Chrome for the class, a new browser context for each use
 
 
 def wait(check, seconds=15):
@@ -65,12 +68,14 @@ class Line(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         need_chrome()
+        shared.start()
         cls.store, cls.folder, cls.ids = load_demo()
         cls.projects = cls.store.read("projects")
         cls.data = {p["code"]: cls.store.data_for(p["code"]) for p in cls.projects}
 
     @classmethod
     def tearDownClass(cls):
+        shared.stop()
         cls.store.close()
         import shutil
         shutil.rmtree(str(cls.folder), ignore_errors=True)
@@ -131,8 +136,16 @@ class Line(unittest.TestCase):
         cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)
         cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)
 
+    def settle(self, cdp, sid, frames=20):
+        """#918: let the page draw `frames` more frames (and finish its animations) before a test asserts that something did NOT happen.
+        Counted in frames, not seconds: a slow runner draws fewer frames per second and so waits longer, a quick one does not wait for a clock."""
+        got = cdp.call("Runtime.evaluate", {"expression": "(async () => { for (let i = 0; i < %d; i++) await new Promise(f => requestAnimationFrame(f));"
+                                            " return document.getAnimations().length; })()" % frames, "awaitPromise": True, "returnByValue": True}, sid)
+        assert wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "an animation is still running"
+        return got
+
     def no_list(self, cdp, sid, why):
-        time.sleep(0.3)
+        self.settle(cdp, sid)
         self.assertEqual(cdp.js("!!document.querySelector('#fline-list')", sid), False, why)
 
     def listed(self, cdp, sid):
@@ -143,7 +156,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.assertEqual(self.chips(cdp, sid), ["is:open"])
                     self.assertEqual(self.shown(cdp, sid), expect(self.rows(cdp, sid)))
@@ -162,7 +175,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for code in self.data:
             for width in SIZES:
-                with self.subTest(project=code, width=width), chrome() as cdp:
+                with self.subTest(project=code, width=width), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, hash_=f"#work&p={code}")
                     rows = self.rows(cdp, sid)
                     self.assertEqual(self.shown(cdp, sid), expect(rows, "open"))
@@ -179,7 +192,7 @@ class Line(unittest.TestCase):
     def test_a_filter_change_redraws_only_the_list(self):
         s = self.serve()
         sels = ["h1", ".crumbs", ".head", ".fline-wrap", INPUT, "#newBtn", "#work-list"]
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             cdp.js(f"window.__sels = {json.dumps(sels)}; window.__keep = window.__sels.map(q => document.querySelector(q)); window.__tbody = document.querySelector('#work tbody')", sid)
             self.put(cdp, sid, "type:action is:closed")
@@ -191,7 +204,7 @@ class Line(unittest.TestCase):
 
     def test_the_slash_key_focuses_the_line_but_not_while_typing_or_with_a_menu_open(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             # The ask panel takes "/" outside a field on every page (test_peek pins it), so the line is focused by a click here;
             # its own "/" handler only runs where the ask panel has not taken the key.
@@ -218,7 +231,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for mode in ("work",):
-                with self.subTest(width=width, mode=mode), chrome() as cdp:
+                with self.subTest(width=width, mode=mode), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width)
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch on Work items")
                     self.assertEqual(cdp.js("document.querySelectorAll('.fkey, .fline kbd, .fline-wrap [aria-keyshortcuts]').length", sid), 0)
@@ -235,7 +248,7 @@ class Line(unittest.TestCase):
         # Row 1084: the "Try status: owner:me due:overdue ..." chip line is removed; the row stays (out of the flow) for the meaning of the listed word.
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 self.focus(cdp, sid)
                 key(cdp, sid, "Escape")
@@ -245,7 +258,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     self.focus(cdp, sid)
@@ -282,7 +295,7 @@ class Line(unittest.TestCase):
 
     def test_the_box_holds_the_whole_line_and_escape_closes_the_list_keeping_what_was_typed(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             rows = self.rows(cdp, sid)
             self.put(cdp, sid, "is:open priority:High type:action")
@@ -302,7 +315,7 @@ class Line(unittest.TestCase):
 
     def test_backspace_or_delete_right_after_a_half_typed_field_value_removes_the_whole_word(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
             for name in ("Backspace", "Delete"):
@@ -317,7 +330,7 @@ class Line(unittest.TestCase):
 
     def test_delete_in_an_empty_box_takes_the_last_chip_and_before_a_space_takes_the_space(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.put(cdp, sid, "is:open priority:High ")
             self.assertEqual(self.chips(cdp, sid), ["is:open", "priority:High"])
@@ -337,7 +350,7 @@ class Line(unittest.TestCase):
     def test_a_token_with_an_error_is_underlined_says_why_and_filters_nothing(self):
         s = self.serve()
         for theme in THEMES:
-            with self.subTest(theme=theme), chrome() as cdp:
+            with self.subTest(theme=theme), shared.page() as cdp:
                 sid = self.load(cdp, s.port, theme=theme)
                 before = self.shown(cdp, sid)
                 self.put(cdp, sid, "is:open stat:Open")
@@ -369,7 +382,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.put(cdp, sid, 'is:open status:Open,Delayed owner:"Fictional Owner" supplier priority:Urgent,Medium')
                     self.assertEqual(self.chips(cdp, sid)[:4], ["is:open", "status:Open,Delayed", 'owner:"Fictional Owner"', "supplier"], "row 845: the complete filters are chips")
@@ -393,7 +406,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     self.assertEqual(cdp.js("document.querySelector('#fline-count').textContent", sid), f"{len(expect(rows))} of {len(rows)}")
@@ -407,7 +420,7 @@ class Line(unittest.TestCase):
 
     def test_the_list_follows_the_box_after_a_pause_not_on_enter(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             rows = self.rows(cdp, sid)
             before = self.shown(cdp, sid)
@@ -432,7 +445,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     self.assertTrue(cdp.js("!!document.querySelector('#fline-x')", sid), "the page's start line is text, so the x shows")
@@ -471,7 +484,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     self.put(cdp, sid, "is:open zzzqqq")
@@ -488,7 +501,7 @@ class Line(unittest.TestCase):
 
     def test_the_empty_state_says_items_not_open_items_on_closed_and_all(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.put(cdp, sid, "is:closed zzzqqq")
             self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#work-list .empty p') || {}).textContent", sid) == 'No items match "zzzqqq".'), "the empty list names the filter that matched nothing")
@@ -497,7 +510,7 @@ class Line(unittest.TestCase):
 
     def test_words_the_page_cannot_answer_yet_are_not_offered_and_are_refused(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
             select_line(cdp, sid)
@@ -520,7 +533,7 @@ class Line(unittest.TestCase):
             self.data["TUL"]["project"]["review_after_days"] = days
             self.addCleanup(self.data["TUL"]["project"].__setitem__, "review_after_days", 14)
             s = self.serve()
-            with self.subTest(days=days), chrome() as cdp:
+            with self.subTest(days=days), shared.page() as cdp:
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
                 self.assertFalse(cdp.js("!!document.querySelector('#freshMenu')", sid), "row 813: no Freshness pill")
@@ -536,7 +549,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.watch(cdp, sid)
                     self.assertFalse(cdp.js("!!document.querySelector('#freshMenu, [aria-label=Freshness]')", sid), "row 813: no Freshness pill in the row")
@@ -557,7 +570,7 @@ class Line(unittest.TestCase):
 
     def test_an_address_with_a_freshness_filter_opens_work_items_with_no_error(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port, hash_="#work&p=TUL&f=mode:open;reviewed:incomplete")
             self.watch(cdp, sid)
             self.assertIn("is:incomplete", self.chips(cdp, sid))
@@ -568,7 +581,7 @@ class Line(unittest.TestCase):
         d = self.data["TUL"]
         streams = [w["name"] for w in d["workstreams"] if w.get("name")]
         dated = sorted((m for m in d["milestones"] if m.get("name")), key=lambda m: (not (m.get("forecast_date") or m.get("baseline_date")), m.get("forecast_date") or m.get("baseline_date") or "", m.get("sort_order") or 0))
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
             select_line(cdp, sid)
@@ -595,7 +608,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for theme in THEMES:
             for tile, want in (("risks", "priority:Urgent,High"), ("overdue", "due:overdue")):
-                with self.subTest(theme=theme, tile=tile), chrome() as cdp:
+                with self.subTest(theme=theme, tile=tile), shared.page() as cdp:
                     sid = self.load(cdp, s.port, theme=theme)
                     self.watch(cdp, sid)
                     cdp.js("location.hash = '#dashboard&p=TUL'", sid)
@@ -607,7 +620,7 @@ class Line(unittest.TestCase):
 
     def test_the_older_filters_are_all_reachable_and_the_address_keeps_the_older_state(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             rows = self.rows(cdp, sid)
             self.put(cdp, sid, "is:open -owner:none priority:High,Medium client:internal due:next-7-days,later")
@@ -619,7 +632,7 @@ class Line(unittest.TestCase):
     def test_each_older_filter_is_reachable_through_the_line_and_gives_the_rows_the_oracle_gives(self):
         s = self.serve()
         for code in self.data:
-            with self.subTest(project=code), chrome() as cdp:
+            with self.subTest(project=code), shared.page() as cdp:
                 sid = self.load(cdp, s.port, hash_=f"#work&p={code}")
                 rows = self.rows(cdp, sid)
                 owner = next(r["owner"] for r in rows if r["owner"] and " " in r["owner"])
@@ -648,7 +661,7 @@ class Line(unittest.TestCase):
     def test_a_peek_and_the_line_share_the_address_and_neither_loses_the_other(self):
         s = self.serve()
         item = self.data["TUL"]["actions"][0]["id"]
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             set_line(cdp, sid, "type:action")
             self.assertTrue(wait(lambda: cdp.js("clarkPage.filters()", sid) == "mode:all;type:action"), "the page keeps the filter")
@@ -667,7 +680,7 @@ class Line(unittest.TestCase):
             pool[i]["owner"] = o
         s = Running(data_for=lambda code, **kw: copy.deepcopy(data.get(code)), projects=lambda archived=False: self.projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             before = self.shown(cdp, sid)
             click(cdp, sid, "#fline-input")
@@ -681,7 +694,7 @@ class Line(unittest.TestCase):
 
     def test_clear_filter_in_the_empty_state_clears_the_whole_line(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.assertEqual(cdp.js("!!document.querySelector('#clearAll, #clearAll2, #clearFilter')", sid), False)
             self.put(cdp, sid, "is:closed type:decision client:internal priority:Urgent")
@@ -693,7 +706,7 @@ class Line(unittest.TestCase):
 
     def test_the_address_carries_the_line_and_a_link_opens_the_same_list(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port, hash_="#work&p=TUL&f=mode:closed;type:action")
             self.assertEqual(self.chips(cdp, sid), ["is:closed", "type:action"])
             self.assertEqual(self.shown(cdp, sid), expect(self.rows(cdp, sid), "closed", "action"))
@@ -712,7 +725,7 @@ class Line(unittest.TestCase):
 
     def test_back_and_forward_bring_the_line_back_with_the_page(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.put(cdp, sid, "type:risk,issue,assumption,dependency")
             self.assertTrue(wait(lambda: "type:risk,issue,assumption,dependency" in self.chips(cdp, sid)), "the chips show the four types")
@@ -725,7 +738,7 @@ class Line(unittest.TestCase):
 
     def test_the_line_is_kept_for_the_session_per_project_including_search_words(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             title = self.rows(cdp, sid)[0]["id"]
             self.put(cdp, sid, "is:open priority:High supplier")
@@ -747,7 +760,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     rows = self.rows(cdp, sid)
                     names = cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)
@@ -820,7 +833,7 @@ class Line(unittest.TestCase):
                  {"id": "old", "name": "Old view", "line": "is:open colour:red"}]
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 self.watch(cdp, sid)
                 cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
@@ -890,7 +903,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     cdp.js("localStorage.clear()", sid)
                     start = self.tab_ids(cdp, sid)
@@ -914,7 +927,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     cdp.js("localStorage.clear()", sid)
                     start = self.tab_ids(cdp, sid)
@@ -935,7 +948,7 @@ class Line(unittest.TestCase):
                     box = cdp.js("(() => { const r = document.querySelector('.vtab[data-view-id=core-all]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
                     self.mouse(cdp, sid, "mouseMoved", box[0], box[1])
                     self.mouse(cdp, sid, "mouseReleased", box[0], box[1])
-                    time.sleep(0.2)
+                    self.settle(cdp, sid, 12)
                     self.assertEqual(self.tab_ids(cdp, sid), start, "letting go after Esc moves nothing")
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-decisions", "and chooses nothing")
                     self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
@@ -945,7 +958,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     cdp.js("localStorage.clear()", sid)
                     start = self.tab_ids(cdp, sid)
@@ -987,7 +1000,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     cdp.js("localStorage.clear()", sid)
                     tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
@@ -1004,7 +1017,7 @@ class Line(unittest.TestCase):
     def test_delete_view_gives_an_undo_that_puts_it_back_in_place(self):
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.clear()", sid)
                 start = self.tab_ids(cdp, sid)
@@ -1136,7 +1149,7 @@ class Line(unittest.TestCase):
     def test_a_tab_dropped_past_either_end_goes_to_that_end(self):
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.clear()", sid)
                 start = self.tab_ids(cdp, sid)
@@ -1150,7 +1163,7 @@ class Line(unittest.TestCase):
     def test_a_cancelled_drag_moves_nothing(self):
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.clear()", sid)
                 start = self.tab_ids(cdp, sid)
@@ -1162,7 +1175,7 @@ class Line(unittest.TestCase):
                   ev('pointermove', %s, document); ev('pointermove', %s, document);
                   ev('pointercancel', %s, document);
                 })()""" % (y0, x0, (x0 + x1) / 2, x1, x1), sid)
-                time.sleep(0.3)
+                self.settle(cdp, sid)
                 self.assertFalse(cdp.js("!!document.querySelector('.vt[data-lifted]')", sid), "put down")
                 self.assertEqual(self.tab_ids(cdp, sid), start, "a cancelled drag keeps the order")
                 self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
@@ -1231,12 +1244,12 @@ class Line(unittest.TestCase):
         for dx in (6, 12, 6, 0):
             self.mouse(cdp, sid, "mouseMoved", x + dx, y)
         self.mouse(cdp, sid, "mouseReleased", x, y)
-        time.sleep(0.4)      # a wrongly chosen tab shows after the next draw
+        self.settle(cdp, sid, 24)      # a wrongly chosen tab shows after the next draw
 
     def test_a_drag_that_ends_over_its_own_tab_does_not_choose_it(self):
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.clear()", sid)
                 before = cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid)
@@ -1247,7 +1260,7 @@ class Line(unittest.TestCase):
     def test_a_drag_that_ends_over_its_own_tab_leaves_it_in_place(self):
         s = self.serve()
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.clear()", sid)
                 start = self.tab_ids(cdp, sid)
@@ -1265,7 +1278,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.assertEqual(cdp.js("!!document.querySelector('#fline-list')", sid), False, "closed until the box is entered")
                     self.focus(cdp, sid)                                              # the box holds the starting line: no list for a click into text
@@ -1320,7 +1333,7 @@ class Line(unittest.TestCase):
     def test_the_view_name_form_gives_the_focus_back_when_it_closes(self):
         """The rename form's input is removed when it closes; focus goes back to the button that opened it, not to the top of the page. + New view has no form now (row 1073)."""
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             click(cdp, sid, "#viewNew")
             self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once")
@@ -1350,7 +1363,7 @@ class Line(unittest.TestCase):
 
     def test_the_list_opens_after_space_or_arrow_down_and_closes_on_a_choice_or_escape_row_931(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.focus(cdp, sid)
             self.no_list(cdp, sid, "entering the box opens no list")
@@ -1388,7 +1401,7 @@ class Line(unittest.TestCase):
                 "usecase": "doc", "milestone": "flag", "client": "ext", "has": "eye", "no": "eyeoff"}
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme, motion="reduce")
                     self.put(cdp, sid, "")
                     self.arm(cdp, sid)
@@ -1410,7 +1423,7 @@ class Line(unittest.TestCase):
 
     def test_tab_and_enter_accept_a_suggestion_and_a_value_leaves_a_space_and_the_field_list(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.put(cdp, sid, "")
             self.arm(cdp, sid)
@@ -1471,7 +1484,7 @@ class Line(unittest.TestCase):
     def test_single_select_values_show_their_colour_and_other_values_do_not(self):
         s = self.serve()
         for theme in THEMES:
-            with self.subTest(theme=theme), chrome() as cdp:
+            with self.subTest(theme=theme), shared.page() as cdp:
                 sid = self.load(cdp, s.port, theme=theme)
                 self.put(cdp, sid, "")
                 self.arm(cdp, sid)
@@ -1489,7 +1502,7 @@ class Line(unittest.TestCase):
 
     def test_the_owner_list_offers_me_as_at_me_and_none_is_the_no_row(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             self.put(cdp, sid, "")
             self.arm(cdp, sid)
@@ -1504,7 +1517,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     top = "document.querySelector('#work-list').getBoundingClientRect().top"
                     before = cdp.js(top, sid)
@@ -1525,7 +1538,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         views = [{"id": "a", "name": "View 1", "line": "is:open"}, {"id": "b", "name": "view 3", "line": "is:open"}]
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
             reload_to_new_page_cdp(cdp, sid)
@@ -1550,7 +1563,7 @@ class Line(unittest.TestCase):
     def test_row_1073_the_twentieth_view_is_still_made_and_a_hidden_view_keeps_its_number(self):
         s = self.serve()
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 20)]
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
@@ -1573,7 +1586,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         views = [{"id": "v%d" % i, "name": "Mine %d" % i, "line": "is:open"} for i in range(1, 21)]
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port)
             cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(views), sid)
             reload_to_new_page_cdp(cdp, sid)
@@ -1594,7 +1607,7 @@ class Line(unittest.TestCase):
                  "core-decisions": ["is:open", "type:decision"], "core-all": []}
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     names = cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)
                     self.assertEqual(names[:5], ["Open items", "Actions", "Risks and issues", "Decisions", "All work items"])
@@ -1624,7 +1637,7 @@ class Line(unittest.TestCase):
         tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     click(cdp, sid, "#viewTabMenu")
                     click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
@@ -1663,7 +1676,7 @@ class Line(unittest.TestCase):
         s = self.serve()
         for width in SIZES:
             for theme in THEMES:
-                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     self.assertEqual(cdp.js("document.querySelectorAll('#viewTabMenu').length", sid), 1, "one arrow, on the open tab")
                     self.assertEqual(cdp.js("document.querySelector('#viewTabMenu').closest('.dd').previousElementSibling.dataset.viewId", sid), "core-open", "right beside its name")
@@ -1716,7 +1729,7 @@ class Line(unittest.TestCase):
         stored = [{"id": "open", "name": "Open items", "line": "is:open"}, {"id": "mine", "name": "My list", "line": "is:open owner:me"},
                   {"id": "x1", "name": "Old and archived", "line": "status:Closed", "archived": True}]
         for width in SIZES:
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.load(cdp, s.port, width)
                 cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({TUL: %s}))" % json.dumps(stored), sid)
                 reload_to_new_page_cdp(cdp, sid)
@@ -1749,7 +1762,7 @@ class Line(unittest.TestCase):
         lines = (("constructor:x", "refused"), ("-constructor:x", "refused"), ("no:__proto__", "refused"), ("__proto__:x", "refused"),
                  ("toString:x", "refused"), ("hasOwnProperty:x", "refused"), ("owner:constructor", "empty"), ("is:__proto__", "marked"))
         for width in SIZES:
-            with chrome() as cdp:
+            with shared.page() as cdp:
                 for line, how in lines:
                     with self.subTest(line=line, width=width):
                         sid = self.load(cdp, s.port, width=width)
@@ -1773,7 +1786,7 @@ class Line(unittest.TestCase):
     def test_a_remembered_or_addressed_prototype_key_does_not_break_a_reload(self):
         s = self.serve()
         for kept in ("constructor:x", "__proto__:x", "-constructor:x"):
-            with chrome() as cdp:
+            with shared.page() as cdp:
                 sid = self.load(cdp, s.port)
                 cdp.js("sessionStorage.setItem('clark.fline', JSON.stringify({TUL: %s})); localStorage.setItem('clark.fviews', JSON.stringify({TUL: [{id: 'constructor', name: 'toString', line: 'constructor:x'}]}))" % json.dumps(kept), sid)
                 self.watch(cdp, sid)
@@ -1783,7 +1796,7 @@ class Line(unittest.TestCase):
                 self.assertEqual(self.errors(cdp, sid), [], kept)
                 cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
         for f in ("constructor:x", "__proto__:x;not:constructor", "mode:constructor;type:__proto__;owner:toString", "not:__proto__"):
-            with chrome() as cdp:
+            with shared.page() as cdp:
                 sid = self.load(cdp, s.port)
                 self.watch(cdp, sid)
                 cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/#work&p=TUL&f=" + urllib.parse.quote(f, safe=":;,")}, sid)
@@ -1794,7 +1807,7 @@ class Line(unittest.TestCase):
 
     def test_storage_that_is_refused_does_not_break_the_line(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = page_target(cdp)
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE + "Object.defineProperty(window, 'sessionStorage', {get() { throw new Error('no'); }}); Object.defineProperty(window, 'localStorage', {get() { throw new Error('no'); }});"}, sid)
@@ -1808,7 +1821,7 @@ class Line(unittest.TestCase):
         # Replaces the older bar's check (#153): the highlight rules in shell.css must match the aria-pressed the buttons set
         # (a rename of the attribute once lost them), and a chosen filter on the line is drawn as a chip, not as plain text.
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port, motion="no-preference")   # the thumb is a motion rule: pin the media, as a runner may report reduce
             bg = lambda sel: cdp.js(f"getComputedStyle(document.querySelector({json.dumps(sel)})).backgroundColor", sid)
             self.put(cdp, sid, "priority:High")
@@ -1830,7 +1843,7 @@ class Line(unittest.TestCase):
     def test_the_targets_are_big_enough_and_the_colours_come_from_the_tokens(self):
         s = self.serve()
         for theme in THEMES:
-            with self.subTest(theme=theme), chrome() as cdp:
+            with self.subTest(theme=theme), shared.page() as cdp:
                 sid = self.load(cdp, s.port, theme=theme)
                 self.put(cdp, sid, "")
                 self.arm(cdp, sid)
@@ -1851,7 +1864,7 @@ class Line(unittest.TestCase):
 
     def test_the_open_tabs_menu_closes_when_the_row_scrolls_or_the_window_resizes(self):
         s = self.serve()
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.load(cdp, s.port, 900)
             menu = "!!document.querySelector('#viewTabMenuList')"
             for how in ("row", "window"):
@@ -1889,7 +1902,7 @@ class Line(unittest.TestCase):
                   right: r.getBoundingClientRect().right, win: window.innerWidth}; })()"""
         for theme in THEMES:
             for width in SIZES:
-                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                with self.subTest(theme=theme, width=width), shared.page() as cdp:
                     sid = self.load(cdp, s.port, width, theme=theme)
                     m = cdp.js(probe, sid)
                     self.assertGreaterEqual(m["tabs"], 5)
