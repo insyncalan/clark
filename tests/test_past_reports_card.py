@@ -450,6 +450,42 @@ class Card(InBrowser):
                     self.assertTrue(self.val("document.documentElement.scrollWidth <= document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertTrue(self.val("[...document.querySelectorAll('#pubs-latest, #pubs-folders, #pubs-table, #pubs-latest p, #pubs-folders p')].every(b => b.getBoundingClientRect().right <= innerWidth + 1)"))
 
+    def test_row_1087_mutation_the_band_the_columns_and_one_number_from_two_rows(self):
+        self.replies(list=OK(LIST))
+        self.js("T.setClient('Acme Ltd')")
+        self.mount()
+        self.assertIn("for Acme Ltd", self.text("#pubs .cover-line"), "the band names the client")
+        self.assertEqual(self.val("getComputedStyle(document.querySelector('#pubs .cover h1')).color"), "rgb(255, 255, 255)")
+        for width, side in ((1400, True), (900, False)):
+            self.load(width=width)
+            self.replies(list=OK(LIST))
+            self.mount()
+            at = self.val("(() => { const a = document.querySelector('#pubs-latest').getBoundingClientRect(), b = document.querySelector('#pubs-folders').getBoundingClientRect(); return {beside: b.left >= a.right, below: b.top >= a.bottom}; })()")
+            self.assertEqual((at["beside"], at["below"]), (True, False) if side else (False, True), f"the saved box at {width}")
+        rows = [
+            {"number": 9, "when": "05-11-2026 10:00", "where": "Local and to client", "who": "Pat Page", "word": False, "kept": True, "archived": True, "week": "2026-11-06"},
+            {"number": 9, "when": "05-11-2026 11:11", "where": "Local \u00b7 Word", "who": "Wes Word", "word": True, "kept": False, "archived": False, "week": "2026-11-13"},
+            {"number": 8, "when": "01-11-2026 09:00", "where": "Local \u00b7 Word", "who": "Wes Word", "word": True, "kept": False, "week": None},
+            {"number": 8, "when": "01-11-2026 08:00", "where": "Local", "who": "Pat Page", "word": False, "kept": True, "week": None},
+        ]
+        self.load()
+        self.replies(list=OK({**LIST, "total": 4, "shown": 4, "archived": 1, "publications": rows}))
+        self.mount()
+        latest = self.text("#pubs-latest")
+        self.assertIn("Publication 8", latest)
+        self.assertIn("Published 01-11-2026 at 08:00", latest, "the time is the page's, not the Word copy's")
+        self.assertIn("by Pat Page", latest)
+        row = self.text("tr[data-pub='9']")
+        self.assertIn("06-11-2026", row, "the first week it records wins")
+        self.assertIn("Local folder, Client folder", row, "one row that went to the client makes the number go there")
+        self.assertTrue(self.present("tr[data-pub='9'] [data-pubrestore]"), "one archived row archives the number")
+        self.assertTrue(self.present("tr[data-pub='9'] [data-pubopen]"), "one kept row keeps the number")
+
+    def test_row_1087_mutation_the_shared_band_says_weekly_report_by_default(self):
+        self.js("T.mountCover()")
+        self.settle()
+        self.assertEqual(self.text("#cover .cover-kind"), "Weekly report")
+
 
 if __name__ == "__main__":
     unittest.main()

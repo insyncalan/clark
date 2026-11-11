@@ -5,6 +5,8 @@
 import { render } from "preact";
 import * as logic from "@src/logic/pastReports.js";
 import { PublishedReports } from "@src/edit/PublishedReports.jsx";
+import { Cover } from "@src/components/Cover.jsx";
+import { data } from "@src/stores/report.js";
 
 const T = { logic, replies: {}, calls: [], tabs: [], toasts: [], zone: "UTC", folders: { local: null, client: null }, toSettings: 0 };
 window.T = T;
@@ -24,3 +26,7 @@ T.mount = () => {
   root.innerHTML = '<div id="host" style="padding:16px"></div>';
   render(<PublishedReports api={api} openTab={openTab} toast={toast} code="PDF" name="Example Programme" zone={T.zone} folders={T.folders} toSettings={() => { T.toSettings += 1; }} />, document.getElementById("host"));
 };
+
+// Mutation proof (row 1087): the client name the band says, and the shared band with no `kind` given.
+T.setClient = (n) => { data.value = { project: { name: "Example Programme", client_name: n } }; };
+T.mountCover = () => { document.getElementById("root").innerHTML = '<div id="host"></div>'; render(<Cover title="Example Programme" lines={["Week ending 30-10-2026"]} />, document.getElementById("host")); };

@@ -198,6 +198,12 @@ class Results(Base):
                 p.key("Escape", 0, "Escape", 27)
                 p.until("!document.querySelector('#palette')", "closed")
 
+    def test_row_1087_mutation_published_reports_is_no_page_in_the_palette(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.show()
+            self.assertNotIn("Published reports", [r[1] for r in p.rows() if r[0] == "Page"])
+
     def test_an_id_match_comes_before_a_title_match(self):
         data = project("ABC", "Example Programme")
         data["actions"].insert(0, {"id": "ABC-A-009", "description": "Check ABC-R-002 with the supplier", "status": "Open", "owner": "Sam"})
