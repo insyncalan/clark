@@ -13,7 +13,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
-import { say, toast } from "../stores/changes.js";
+import { say, sayLocalUndo } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -84,14 +84,15 @@ function SavedViews({ board }) {
   const shown = draft && draft.length === here.length && draft.every((id) => here.some((v) => v.id === id)) ? draft.map((id) => here.find((v) => v.id === id)) : here;
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
+  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id, and Delete view has no question (row 1071)
   const mine = chosen.value[code];
   const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const active = shown.find((v) => v.id === mine) || matching;
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
-  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
+  const afterDelete = useRef(null);      // what was chosen right after a Delete view: "", or the view the effect below then picked by itself (no click)
+  useEffect(() => { if (chosen.value[code] !== mine) return; /* a slow effect from an older render must not undo a tab chosen since, such as the Undo of a delete */ if (matching && !shown.some((v) => v.id === mine)) { chosen.value = { ...chosen.value, [code]: matching.id }; if (afterDelete.current !== null) afterDelete.current = matching.id; } }, [matching && matching.id, code]);
   const click = (e, v) => { if (swallow.current) { swallow.current = false; e.preventDefault(); return; } pick(v); };      // the click that ends a drag chooses nothing
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
@@ -129,9 +130,14 @@ function SavedViews({ board }) {
       // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
       const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
       if (!r.ok) { say("problem", r.message); return; }
-      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
-      say("done", `View deleted: ${gone.name}`);
-      toast.value = { ...toast.value, local: () => { const b = FL.insertView(viewsOf(code), gone, at); if (b.ok) saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id }; } };
+      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; afterDelete.current = "";
+      sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
+        const b = FL.insertView(viewsOf(code), gone, at);
+        if (!b.ok) { say("problem", b.message); return; }          // a name taken since, say, is told, never silent
+        saveViews(code, b.views);
+        const now = chosen.value[code];          // the restored view is chosen only if no other tab was chosen since the delete
+        if (!now || now === gone.id || now === afterDelete.current) chosen.value = { ...chosen.value, [code]: gone.id };
+      }, code);
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }
   };
