@@ -908,6 +908,23 @@ class BuiltPage(Browser):
             self.assertTrue(wait(lambda: self.scroll_y() == 250), f"Forward put Work items where it was: {self.scroll_y()}")
             self.no_errors()
 
+    def test_item_1172_leaving_a_screen_by_back_saves_its_place_for_a_later_tab_click(self):
+        """The place of the screen Back leaves is saved by onPop alone (no navigate saved it), and a later tab click finds it."""
+        with chrome() as cdp:
+            self.draw(cdp, "#dashboard&p=PDF")
+            self.tall()
+            self.scroll_to(650)
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 0))
+            self.scroll_to(250)
+            self.ev("history.back()")
+            self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "dashboard", "back")
+            self.assertTrue(wait(lambda: self.scroll_y() == 650), f"Back restored the Dashboard: {self.scroll_y()}")
+            self.click_tab("work")
+            self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "work", "tab")
+            self.assertTrue(wait(lambda: self.scroll_y() == 250), f"Work items kept the place Back left it at: {self.scroll_y()}")
+            self.no_errors()
+
     def test_item_1019_a_peek_does_not_move_the_page_and_a_fresh_load_starts_at_the_top(self):
         with chrome() as cdp:
             self.draw(cdp, "#work&p=PDF")
