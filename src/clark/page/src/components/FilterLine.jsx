@@ -78,7 +78,7 @@ function SavedViews({ board }) {
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
   const afterDelete = useRef(null);      // what was chosen right after a Delete view: "", or the view the effect below then picked by itself (no click)
-  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) { chosen.value = { ...chosen.value, [code]: matching.id }; if (afterDelete.current !== null) afterDelete.current = matching.id; } }, [matching && matching.id, code]);
+  useEffect(() => { if (chosen.value[code] !== mine) return; /* a slow effect from an older render must not undo a tab chosen since, such as the Undo of a delete */ if (matching && !shown.some((v) => v.id === mine)) { chosen.value = { ...chosen.value, [code]: matching.id }; if (afterDelete.current !== null) afterDelete.current = matching.id; } }, [matching && matching.id, code]);
   const click = (e, v) => { if (swallow.current) { swallow.current = false; e.preventDefault(); return; } pick(v); };      // the click that ends a drag chooses nothing
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
