@@ -1344,6 +1344,7 @@
      [
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "Archived work is not in the list. To see it, type is:archived on the filter line.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ],
      [
