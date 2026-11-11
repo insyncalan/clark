@@ -27,14 +27,32 @@ def today():
     return date.today().isoformat()
 
 
+def _text(value):
+    """`value` when it is text, else None: a number, list or flag in a date column reads as no date."""
+    return value if isinstance(value, str) else None
+
+
+def _day(value):
+    """`value` as a date when it is a real YYYY-MM-DD day, else None."""
+    try:
+        return date.fromisoformat(value) if isinstance(value, str) else None
+    except ValueError:
+        return None
+
+
+def _on(on):
+    """The day to judge by: `on` when it is a real day, else today."""
+    return on if _day(on) else today()
+
+
 def suggested_state(row, on=None):
     """What the dates say: Achieved when Done; Overdue when the agreed date has passed; Slipped when the forecast is later than
     the agreed date; On track otherwise. At risk is only ever the user's call."""
-    on = on or today()
+    on = _on(on)
     if row.get("status") == "Done":
         return "Achieved"
-    base = row.get("baseline_date")
-    fc = row.get("forecast_date") or base
+    base = _text(row.get("baseline_date"))
+    fc = _text(row.get("forecast_date")) or base
     if base and base < on:
         return "Overdue"
     if base and fc and fc > base:
@@ -56,7 +74,7 @@ def needs_reason(row, on=None):
     """True when the user's state is better than the dates suggest, which needs a one-line reason (creaite's check_milestone
     rule, for #31's checks). Forecast never does."""
     state = row.get("state")
-    if not (row.get("state_set") and state) or state in ("Achieved", FORECAST):
+    if not (row.get("state_set") and isinstance(state, str)) or state not in MS_RANK or state == "Achieved":
         return False
     if not isinstance(state, str) or state not in MS_RANK:
         return False        # a list, a dict or a stray word is never "better than the dates"; no KeyError/TypeError
@@ -72,11 +90,13 @@ def slip_days(row, on=None):
     """Days a Planned milestone runs past its agreed date, as creaite's cockpit counts it: the expected date is the forecast
     (or the agreed date when there is none), or today if the agreed date has already passed, whichever is later. 0 when on
     time; None when the milestone isn't Planned or has no agreed date."""
-    if row.get("status", "Planned") != "Planned" or not row.get("baseline_date"):
+    if row.get("status", "Planned") != "Planned":
         return None
-    on = date.fromisoformat(on or today())
-    agreed = date.fromisoformat(row["baseline_date"])
-    expected = max(date.fromisoformat(row.get("forecast_date") or row["baseline_date"]), on if agreed < on else agreed)
+    agreed = _day(row.get("baseline_date"))
+    if agreed is None:
+        return None
+    on = date.fromisoformat(_on(on))
+    expected = max(_day(row.get("forecast_date")) or agreed, on if agreed < on else agreed)
     return (expected - agreed).days
 
 
