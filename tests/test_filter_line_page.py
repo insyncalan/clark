@@ -1685,7 +1685,7 @@ class Line(unittest.TestCase):
         # sideways: the row scrolls inside its own box. At 1400 px they all fit and the row looks as it did.
         s = self.serve()
         probe = """(() => { const r = document.querySelector('.vtabs'); const t = [...r.querySelectorAll('.vtab')];
-          return {tabs: t.length, tops: [...new Set(t.concat([r.querySelector('.vnew')]).map(e => { const b = e.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }))], sw: r.scrollWidth, cw: r.clientWidth,
+          return {tabs: t.length, tops: [...new Set(t.concat([document.querySelector('.fvrow .vnew')]).map(e => { const b = e.getBoundingClientRect(); return Math.round(b.top + b.height / 2); }))], sw: r.scrollWidth, cw: r.clientWidth,
                   ox: getComputedStyle(r).overflowX, wrap: getComputedStyle(r).flexWrap, page: document.documentElement.scrollWidth - document.documentElement.clientWidth,
                   right: r.getBoundingClientRect().right, win: window.innerWidth}; })()"""
         for theme in THEMES:
