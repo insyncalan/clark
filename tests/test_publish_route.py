@@ -8,6 +8,7 @@ Run: python3 dev/run_tests.py test_publish_route
 import hashlib
 import http.client
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -408,6 +409,28 @@ class HostileFolderInside(unittest.TestCase):
         (self.tmp / "dangling").symlink_to(self.tmp / "nowhere")
         for p in (self.tmp / "a" / "x", self.tmp / "dangling" / "x"):
             self.assertFalse(publish_flow.folder_inside(None, str(p), str(client)), p)
+
+    def test_an_empty_folder_is_not_inside_the_working_directory(self):
+        """'' resolves to the working directory on the real disk; it must still be nowhere."""
+        self.assertFalse(publish_flow.folder_inside(None, "", os.getcwd()))
+
+    def test_dotdot_after_a_link_is_judged_both_as_written_and_with_links_followed(self):
+        deep = self.tmp / "deep"
+        (deep / "e").mkdir(parents=True)
+        (deep / "Client").mkdir()
+        (self.tmp / "Client").mkdir()
+        (self.tmp / "link").symlink_to(deep / "e", target_is_directory=True)
+        # as written (".." folded) the folder is the Client beside link; with the link followed it is deep/Client
+        written = self.tmp / "link" / ".." / "Client"
+        self.assertTrue(publish_flow.folder_inside(None, str(written), str(self.tmp / "Client")))
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "Client" / "x"), str(written)))
+        self.assertTrue(publish_flow.folder_inside(None, str(written), str(deep / "Client")))
+
+    def test_the_given_disk_resolves_links_not_the_real_one(self):
+        class Fake:
+            def realpath(self, path):
+                return path.replace("/virtual", "/c")
+        self.assertTrue(publish_flow.folder_inside(Fake(), "/virtual/b", "/c"))
 
     def test_a_link_chain_two_deep_into_the_client_folder_is_inside(self):
         client = self.tmp / "Client"
