@@ -28,6 +28,7 @@ import build_page  # noqa: E402
 from clark import __main__ as launcher, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
+from test_undo_key import press_z  # noqa: E402
 from test_server import chrome, wait, wait_toast  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -882,17 +883,47 @@ class Detail(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_detail(cdp, edit=False)
             before = self.steps()
+            linked_before = [r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+            self.assertGreaterEqual(len(linked_before), 2, "the fixture links an action and a risk or issue")
             click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
             self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the milestone left the list")
             self.assertEqual(self.steps(), before + 2, "its action and its risk, a step for each kind")
             d = self.read("TUL")
             self.assertEqual([r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone")], [])
             self.assertEqual(len(d["milestones"]), 6, "the milestone itself is not deleted")
-            self.assertEqual(self.toast(cdp, sid), "Changed 1 item.", "clark's own bulk words")
+            self.assertTrue(re.search(r"removed from use case", self.toast(cdp, sid)), "the one toast says the milestone was removed")
             click(cdp, sid, "[data-undo]")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the undo of the last step put its risk back")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the one Undo put the risk back")
+            self.until(cdp, sid, "document.querySelectorAll('[data-ucd] [data-ms=TUL-M-005]').length === 1", "listed once")
+            self.assertTrue(wait(lambda: len([r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]) == len(linked_before)), "the second step is undone too")
+            back = [r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+            self.assertEqual(len(back), len(linked_before), "BOTH steps were undone: the action as well as the risk, none is lost")
             self.until(cdp, sid, "/Undone/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast says it was undone")
-            self.assertEqual(self.steps(), before + 3, "an undo is one step")
+            self.assertTrue(wait(lambda: self.steps() == before + 4), "one undo for each of its two steps")
+
+    def test_two_actions_in_a_row_can_both_be_undone_row_1079(self):
+        """Add a milestone, then remove another: the toast holds only the last message, but the first step is still undone by Cmd or Ctrl+Z."""
+        def linked():
+            d = self.read("TUL")
+            return sorted(r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone"))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            start = linked()
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the milestone was added")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the other milestone was removed")
+            self.until(cdp, sid, "!!document.querySelector('.toast-text') && /removed/.test(document.querySelector('.toast-text').textContent)", "the toast of the removal")
+            click(cdp, sid, "[data-undo]")      # the removal's one Undo takes back both of its steps
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the removal was undone")
+            self.assertTrue(wait(lambda: len(linked()) == len(start) + 1), "both steps of the removal are undone")
+            self.assertEqual(len(linked()), len(start) + 1, "the removed links are back; the added step is still there")
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            press_z(cdp, sid, 2)                # the first action has no toast now: Ctrl+Z undoes it
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the first action was undone too")
+            self.assertEqual(linked(), start, "both actions are undone, nothing is lost")
 
     def test_no_milestone_controls_when_archived_or_in_the_file_row_1079(self):
         with chrome() as cdp:

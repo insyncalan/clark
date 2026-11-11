@@ -20,7 +20,7 @@ import { signal } from "@preact/signals";
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
-import { change, changeBulk, say } from "../stores/changes.js";
+import { change, changeBulk, say, toast, undo } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
@@ -246,7 +246,7 @@ export function MilestoneAdd({ u }) {
 }
 
 /** Row 1079: "Remove" on a milestone of the use case: the use case's work items stop naming it (the milestone itself is kept, on the Milestones page).
- * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), each with its Undo (the toast keeps the last one; clark's own words say what changed). */
+ * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), and the toast's one Undo takes both back (Cmd or Ctrl+Z goes one step at a time). */
 export function MilestoneRemove({ u, m }) {
   const busy = useRef(false);
   const go = async () => {
@@ -254,8 +254,16 @@ export function MilestoneRemove({ u, m }) {
     busy.current = true;
     try {
       const links = milestoneLinks(data.value, u.id, m.id);
+      const steps = [];
       for (const table of ["actions", "raid"]) {
-        if (links[table].length) await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell", confirm: true }, "");   // confirm: the person pressed Remove, so a long list needs no second ask
+        if (links[table].length) {
+          const r = await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell", confirm: true }, "");   // confirm: the person pressed Remove, so a long list needs no second ask
+          if (r && r.ok && r.reply && r.reply.undoable === true && r.reply.apply_id) steps.push(r.reply.apply_id);
+        }
+      }
+      // Two steps were made (its actions, its risks and issues) but the toast holds one message: its Undo takes BOTH back (the newest first, each its own undo, so Cmd or Ctrl+Z does not undo the Undo), so the first is not lost.
+      if (steps.length > 1 && toast.value && toast.value.undo === steps[steps.length - 1]) {
+        toast.value = { ...toast.value, text: `${m.name} removed from use case ${name(u)}.`, undo: null, local: () => { for (const st of [...steps].reverse()) undo(st); } };
       }
     } finally {
       busy.current = false;
