@@ -152,7 +152,7 @@ class Panel(Base):
             p.until("!!document.querySelector('.hp-idx a')", "the contents list")
             p.js("document.querySelector('.hp-idx a[data-hlink=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found')", "a contents link opens its place and flashes it")
-            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=ref-publishing], [data-hlink=howto-publish-the-report]')"), None)
+            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-milestone-peek], [data-hlink=ref-publishing], [data-hlink=howto-publish-the-report]')"), None)
             self.assertTrue(p.js("location.hash.indexOf('#dashboard') === 0"), "the page left is the Dashboard")
 
     def test_focus_goes_back_to_what_had_it_when_help_closes(self):                     # MEDIUM

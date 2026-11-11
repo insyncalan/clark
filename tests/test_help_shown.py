@@ -118,8 +118,8 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek", "milestone-states", "published-reports", "settings", "people", "updating-clark", "diagnostics", "dates-and-ids", "using-help", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "published-reports", "settings", "people", "updating-clark", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
@@ -238,7 +238,7 @@ class AgainstThePage(unittest.TestCase):
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[/]]", "[[/]] [[/]]", "[[Esc]]", "[[Enter]]", "[[Shift+Enter]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
-                                "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
+                                "Double-click", "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
                                 "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]",
                                 "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
 
@@ -385,7 +385,7 @@ class Wording(unittest.TestCase):
         import build_page
         html = build_page.build()
         self.assertNotIn("Open the report with a message", html)
-        self.assertNotIn("click another item anywhere on the page and the peek moves to it", html)      # a held entry (the peek) is not in the page
+        self.assertNotIn("the archive picture in the top bar archives the milestone and closes the peek", html)      # a held entry (the milestone peek) is not in the page
 
 
 if __name__ == "__main__":
