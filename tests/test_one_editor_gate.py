@@ -122,7 +122,7 @@ class MovedFields(unittest.TestCase):
         move = (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8")
         self.assertNotRegex(move, r"<input[^>]*id=\"mv-(who|reason|source)\"")
         for k in ("who", "reason", "source"):
-            self.assertIn('<FormField k="%s"' % k, move)
+            self.assertIn('<FormRow k="%s"' % k, move)
         self.assertGreaterEqual(move.count("<RichField"), 2, "the note and the form's fields")
         self.assertIn("plainLine(", move)
         raid = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")

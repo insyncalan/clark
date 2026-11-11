@@ -176,12 +176,14 @@ async function move(r) {
 
 // Item 1005: Who agreed it, Reason and Source are the one editor. They stay one line of plain text in the form and in what is sent
 // (the store refuses a line break there), so leaving the editor keeps plainLine of what was typed, and it is drawn back from that text.
-function FormField({ k, f }) {
-  const keep = (html) => { form.value = { ...form.value, [k]: plainLine(html), errors: [] }; return true; };
+function keepFor(k) {
+  return (html) => { form.value = { ...form.value, [k]: plainLine(html), errors: [] }; return true; };
+}
+function FormRow({ k, children }) {
   return (
     <div class="mvm-f" data-f={k}>
       <span id={`mv-${k}-l`}>{W.FIELDS[k]}</span>
-      <RichField field={`mv_${k}`} value={legacyToHtml(f[k])} label={W.FIELDS[k].toLowerCase()} viewId={`mv-${k}`} labelledBy={`mv-${k}-l`} save={keep} />
+      {children}
     </div>
   );
 }
@@ -198,9 +200,15 @@ function MoveForm({ r }) {
       onKeyDown={(e) => { if (e.key === "Escape" && !e.target.closest(".ProseMirror")) { e.stopPropagation(); cancel(); } }}>
       <h4 id="mv-form-h">{W.MOVE_LABEL}</h4>
       <label class="mvm-f" for="mv-to"><span>{W.FIELDS.to}</span><input id="mv-to" type="text" inputmode="numeric" autocomplete="off" value={f.to} onInput={set("to")} /></label>
-      <FormField k="who" f={f} />
-      <FormField k="reason" f={f} />
-      <FormField k="source" f={f} />
+      <FormRow k="who">
+        <RichField field="mv_who" value={legacyToHtml(f.who)} label={W.FIELDS.who.toLowerCase()} viewId="mv-who" labelledBy="mv-who-l" save={keepFor("who")} />
+      </FormRow>
+      <FormRow k="reason">
+        <RichField field="mv_reason" value={legacyToHtml(f.reason)} label={W.FIELDS.reason.toLowerCase()} viewId="mv-reason" labelledBy="mv-reason-l" save={keepFor("reason")} />
+      </FormRow>
+      <FormRow k="source">
+        <RichField field="mv_source" value={legacyToHtml(f.source)} label={W.FIELDS.source.toLowerCase()} viewId="mv-source" labelledBy="mv-source-l" save={keepFor("source")} />
+      </FormRow>
       <p class="mvm-confirm" id="mvm-confirm">{confirm}</p>
       <div class="mvm-problems" role="alert">{f.errors.map((e) => <p key={e}>{e}</p>)}</div>
       <div class="mvm-actions">
