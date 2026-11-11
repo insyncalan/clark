@@ -17,11 +17,20 @@ import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { people, tableOf, canClearDue } from "./itemEdit.js";
+import { readPeople } from "./peopleApi.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
+
+// The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
+// so a published file holds no trace of it (#115).
+const withOwnerLink = (row, d) => {
+  if (!row || !d) return row;
+  const all = [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])], src = all.find((r) => r.id === row.id);
+  return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
+};
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
@@ -40,9 +49,22 @@ function refocus(id) {
   setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
+let opened = 0;                                // counts the opens, so only the last one draws
 function openFor(el, x, y, pointer) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  const at = ++opened;
+  // a dismiss while the list is still being read (Escape, or a press anywhere) cancels this open: the menu never appears after it
+  const stop = () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("pointerdown", cancel, true); };
+  const cancel = () => { if (at === opened) opened++; stop(); };
+  const onKey = (e) => { if (e.key === "Escape") cancel(); };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", cancel, true);
+  // #1048: the People list is read first, so the Draft email entry has its reason line from the first paint (the menu never changes size once open, row 848)
+  readPeople().then((r) => {
+    stop();
+    if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
+    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  });
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -83,8 +105,9 @@ const copied = (text, said) => {
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };
 
-function entries(row, level, edit, d, today) {
-  const dr = draftEntry(row, d), why = edit ? "" : VIEW_ONLY;
+function entries(row, level, edit, d, today, reg) {
+  const dr = draftEntry(row, reg ? { ...d, people: reg } : d), why = edit ? "" : VIEW_ONLY;
+  if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
   if (level === "status") {
     const l = statusList(row);
     return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
@@ -147,8 +170,9 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemRows.value.find((r) => r.id === s.id), data.value), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
+  const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
   const close = (how) => {
     const from = s.from;
@@ -200,10 +224,12 @@ function Panel({ s }) {
     if (id === "draft") {
       const from = s.from, code = project.value;
       close("pick");
-      return readDraftEmail(code, draftRequest(row.id)).then((r) => {
+      const owner = typeof row.owner_id === "string" ? row.owner_id : "";
+      const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
+      return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
         if (!r.ok) { say("note", r.message); refocus(row.id); return; }
         if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, person: typeof row.owner_id === "string" ? row.owner_id : "" };
+        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: typeof row.owner_id === "string" ? row.owner_id : "" };
       });
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
@@ -227,7 +253,7 @@ function Panel({ s }) {
     const at = document.activeElement;
     if (e.key === "ArrowRight" && at && at.dataset.sub) { e.preventDefault(); e.stopPropagation(); run(at.dataset.rm); }
   };
-  const list = entries(row, "", edit, d, today);
+  const list = entries(row, "", edit, d, today, reg);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
       {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
@@ -242,7 +268,7 @@ function Panel({ s }) {
           </button>
         ))}
       </MenuPanel>}
-      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today, reg)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
         onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
       {s.pick ? (
         <DuePick row={row} anchor={{ current: s.from }} today={today}
@@ -295,7 +321,7 @@ function DraftHost({ d }) {
     const n = ++asked.current;
     draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows
     let body;
-    try { body = draftRequest(d.id, next); } catch (e) { say("note", e.message); return; }
+    try { body = draftRequest(d.id, next, d.who); } catch (e) { say("note", e.message); return; }
     readDraftEmail(project.value, body).then((r) => {
       if (n !== asked.current || !draftOpen.value) return;
       if (!r.ok) { say("note", r.message); return; }

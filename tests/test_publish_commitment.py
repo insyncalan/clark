@@ -52,14 +52,14 @@ class Published(unittest.TestCase):
                 self.assertEqual(kept(plant_with(**{"PUB-U-001": word}))["PUB-U-001"]["commitment"], word)
 
     def test_a_use_case_the_eye_hides_carries_nothing_of_its_flag(self):
-        p = plant_with(**{"PUB-U-001": "Committed", "PUB-U-002": "Planned 2027", "PUB-U-003": "Candidate"})
+        p = plant_with(**{"PUB-U-001": "Committed", "PUB-U-002": "Planned 2027", "PUB-U-003": "Planned 2026"})
         out = publish.select(fx.inputs(p))
         got = {u["id"] for u in out["data"]["use_cases"]}
         self.assertNotIn("PUB-U-002", got)                     # the eye is off
         self.assertNotIn("PUB-U-003", got)                     # Sensitive
         text = json.dumps(out)
         self.assertNotIn("Planned 2027", text)
-        self.assertNotIn("Candidate", text)
+        self.assertNotIn("Planned 2026", text)
 
     def test_an_archived_or_report_hidden_use_case_carries_nothing(self):
         p = plant_with(**{"PUB-U-001": "Planned 2027"})
@@ -93,8 +93,8 @@ class Strip(unittest.TestCase):
         return {r["id"]: r for r in glance.use_case_strip(None, None, p["as_at"], for_client=True, kept=k)["rows"]}
 
     def test_a_strip_row_carries_the_flag_or_none(self):
-        rows = self.strip(plant_with(**{"PUB-U-001": "Candidate"}))
-        self.assertEqual(rows["PUB-U-001"]["commitment"], "Candidate")
+        rows = self.strip(plant_with(**{"PUB-U-001": "Planned 2026"}))
+        self.assertEqual(rows["PUB-U-001"]["commitment"], "Planned 2026")
         rows = self.strip(plant_with())
         self.assertIsNone(rows["PUB-U-001"]["commitment"])
 
@@ -122,12 +122,12 @@ class WordCopy(unittest.TestCase):
         self.assertEqual([r[head.index("Commitment")] for r in rows[1:]], ["Planned 2027"])
 
     def test_a_use_case_with_no_flag_has_a_blank_cell_and_a_hidden_one_is_not_there(self):
-        data = self.build(plant_with(**{"PUB-U-002": "Candidate"}))
+        data = self.build(plant_with(**{"PUB-U-002": "Planned 2026"}))
         rows = self.table(data)
         self.assertEqual([r[rows[0].index("Commitment")] for r in rows[1:]], [""])
         zf = zipfile.ZipFile(io.BytesIO(data))
         text = "\n".join(zf.read(n).decode("utf-8") for n in zf.namelist() if n.endswith((".xml", ".rels")))
-        self.assertNotIn("Candidate", text)
+        self.assertNotIn("Planned 2026", text)
 
 
 class OlderPublication(unittest.TestCase):

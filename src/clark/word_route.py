@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, milestones, platform, publish, publish_flow, to_client, word_import
+from clark import docx_build, docx_read, milestones, page, platform, publish, publish_flow, to_client, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -524,7 +524,19 @@ def _held_back(store, code, published, data, client_folder):
         (publish_flow.MESSAGES["look_at"].format(items=", ".join(ids[:10])) if ids else "")
 
 
-def _do_export(store, who, req, today, chosen, roots):
+def _colours(branding):
+    """Row 999: {token: "rrggbb"} from the branding folder's look, for docx_build.build(colours=). The same reader as the Excel
+    workbook (a pair under 4.5:1 reverts to the committed one); a folder with no look gives the committed colours."""
+    from clark import excel_palette           # late: it loads the look and the workbook code, which the import side never needs
+    return dict(excel_palette.palette(branding=branding).tokens)
+
+
+def brand_colours(store, code, root):
+    """The Word colours of project `code`'s own brand (installed under `root`/system/branding), the committed ones for Generic."""
+    return _colours(publish_flow.brand_of(store, code, root))
+
+
+def _do_export(store, who, req, today, chosen, roots, branding=None, brand_root=None):
     code, want_client, clash = _export_shape(req)
     row = store.read("projects", ref=code)
     if row is None:
@@ -541,7 +553,9 @@ def _do_export(store, who, req, today, chosen, roots):
     as_at = today()
     try:
         published = publish.select(publish.read_inputs(store, code, as_at))
-        data = docx_build.build(published)
+        if branding is None:                           # the project's own brand, looked up here (the code is checked above)
+            branding = publish_flow.brand_of(store, code, brand_root or page.BRANDING.parent.parent)
+        data = docx_build.build(published, colours=_colours(branding))
     except (publish.PublishError, docx_build.WordError) as e:
         raise Refused(_made_words(e)) from None
     digest = hashlib.sha256(data).hexdigest()
@@ -632,17 +646,18 @@ def _do_export(store, who, req, today, chosen, roots):
                  "client_name": copy.name if copy else None, "client_failed": bool(failed), "message": words}
 
 
-def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose_folder=None):
+def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose_folder=None, brand_root=None):
     """The `word_export` seam the server calls for POST /api/word-export, for the database at `path`. When the project has no
     folder to save in yet, the seam asks `choose_folder(prompt)` (default: the system's folder dialog) with no lock held; it
     returns a folder or None for Cancel. `today` and `choose_folder` are seams for tests."""
     today = today or milestones.today
+    root = Path(brand_root) if brand_root else page.BRANDING.parent.parent         # #944: the clark folder that holds system/branding
     ask = choose_folder or (lambda prompt: platform.choose_folder(prompt))
     asking = threading.Lock()                           # one folder window at a time; the lock is never held while the store is
 
     def run(req, chosen):
         roots = onedrive_roots if onedrive_roots is not None else _safe_roots()
-        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_export(store, who, r, today, chosen, roots), req)
+        return _call(path, onedrive_roots, by_user, lambda store, who, r: _do_export(store, who, r, today, chosen, roots, brand_root=root), req)
 
     def word_export_seam(req):
         status, body = run(req, None)
