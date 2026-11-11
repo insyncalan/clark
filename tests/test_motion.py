@@ -17,6 +17,7 @@ from _editor_checks import for_url
 from _paths import SRC, TOOLS
 import _testpage as testpage
 import test_enrichments as te
+import test_work_filters as tf
 import test_publish_dialog as tpd
 import test_report_editor as tre
 from test_server import Running, chrome
@@ -193,13 +194,13 @@ class Looks(tre.Base):
                 p = self.go(cdp, "#work&p=ABC", mode)
                 p.until("!!document.querySelector('#work-count')", "the list drew")
                 before = p.js("document.querySelector('#work-count').textContent")
-                p.js("document.querySelector('[data-show=\"closed\"]').click()")
+                tf.set_line(p.cdp, p.sid, "is:closed")      # row 1059: the Open / Closed / All pills are gone; the line says it
                 p.until(f"document.querySelector('#work-count').textContent !== {before!r}", "the count changed")
                 name, running = self.anim(p, "#work-count")
                 if mode[0] == "allowed":
                     self.assertEqual(name, "m-in")
                     self.assertGreater(running, 0)
-                    self.assertEqual(p.js("document.querySelector('[data-show=\"open\"]').disabled"), False, "the switches stay live")
+                    self.assertEqual(p.js("document.querySelector('#fline-input').disabled"), False, "the filter line stays live")
                 else:
                     self.assertEqual((name, running), ("none", 0))
 
@@ -346,6 +347,16 @@ class More(tre.Base):
                 self.assertFalse(p.js("!!document.querySelector('.sec-hint')"), "only once")
                 self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.dragHintSeen'))"), "[]", "the handle hint stores nothing (the report bar's own drag hint keeps its clark.dragHintSeen)")
 
+    def test_a_timeline_section_stores_no_zoom_until_the_edge_is_dragged(self):
+        """Entering Edit (and the 16 px room an overlay scrollbar keeps under the last lane) resizes the timeline box: that is not a drag, so no zoom is stored."""
+        with chrome() as cdp:
+            p = self.go(cdp, "#dashboard&p=ABC", MODES[0])
+            p.ready()
+            p.edit()
+            p.until("!!document.querySelector('.mv-wrap')", "a timeline section drew")
+            time.sleep(1.0)       # the resize handler waits 120 ms before it acts
+            self.assertEqual(p.js("JSON.stringify(Object.keys(localStorage).filter((k) => k.indexOf('clark.tlZoom') === 0))"), "[]", "a zoom was stored without any drag")
+
     def test_the_add_a_section_preview_fades_as_the_selection_moves_and_cards_lift_on_hover(self):
         for mode in MODES:
             with self.subTest(mode=mode[0]), chrome() as cdp:
@@ -426,7 +437,7 @@ class Fade(tre.Base):
     def test_it_fades_out_once_the_data_arrives_and_is_not_drawn_in_either_reduced_form(self):
         gate = {"open": False}
 
-        def data_for(code):
+        def data_for(code, archived=None):
             end = time.time() + 20
             while not gate["open"] and time.time() < end:
                 time.sleep(0.02)
