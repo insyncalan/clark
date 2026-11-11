@@ -22,6 +22,7 @@ export function install(tools) {
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },
+    withoutBoard: () => { tools.Board = undefined; data.value = { ...data.value }; },      // row 1084: the filter line drawn as it is where there is no board
     changeData: (fn) => { data.value = fn(data.value); },      // #970: a test adds or removes a work item as the data being read again does
     showHealth: (health, reason) => { data.value = { ...data.value, project: { ...data.value.project, health, health_reason: reason } }; }, ...help });
 }
