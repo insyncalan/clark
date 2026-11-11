@@ -24,7 +24,7 @@ class HelpLine(unittest.TestCase):
 
     def test_it_names_the_page_the_person_sees_and_the_default_port(self):
         self.assertIn("localhost:8766", LINE)
-        self.assertIn("clark is not running", LINE)
+        self.assertIn("cannot be reached", LINE)
         self.assertIn("Connect, ask clark", LINE)
 
     def test_it_is_one_new_line_in_the_existing_docker_task_and_the_task_ids_are_unchanged(self):
