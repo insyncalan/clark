@@ -12,10 +12,11 @@ port="${CLARK_PORT-8766}"; sport="${CLARK_SERVER_PORT-8767}"
 data="${CLARK_DATA_DIR-$HOME/Library/Application Support/clark}"
 
 say() { echo "$*" >&2; }
-# A port is 1024 to 65535, digits only (so nothing typed can reach a command or the proxy's settings file).
-valid_port() { case "$1" in ""|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 5 ] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]; }
-valid_port "$port" || { say "CLARK_PORT must be a number from 1024 to 65535 (it is \"$port\")."; exit 1; }
-valid_port "$sport" || { say "CLARK_SERVER_PORT must be a number from 1024 to 65535 (it is \"$sport\")."; exit 1; }
+# A port is 1024 to 65535, digits only, no leading zero (so nothing typed can reach a command or the proxy's settings file, and the
+# browser's own spelling of the port, which never has a zero in front, is the one the proxy matches).
+valid_port() { case "$1" in ""|0*|*[!0-9]*) return 1 ;; esac; [ "${#1}" -le 5 ] && [ "$1" -ge 1024 ] && [ "$1" -le 65535 ]; }
+valid_port "$port" || { say "CLARK_PORT must be a number from 1024 to 65535."; exit 1; }
+valid_port "$sport" || { say "CLARK_SERVER_PORT must be a number from 1024 to 65535."; exit 1; }
 [ "$port" != "$sport" ] || { say "CLARK_PORT and CLARK_SERVER_PORT must be two different numbers (both are $port)."; exit 1; }
 if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark/starter_check.py; fi
 # The same refusal as the other routes: no OneDrive, Dropbox, iCloud Drive or Google Drive data folder (before anything starts).
