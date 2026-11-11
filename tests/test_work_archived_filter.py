@@ -55,6 +55,18 @@ class ArchivedFilter(Base):
                 set_line(cdp, sid, "")
                 self.until(cdp, sid, "!document.querySelector('#archived-list') && !!document.querySelector('#work-list tr[data-id]')", "the live list back")
 
+    def test_is_archived_with_type_action_narrows_to_archived_action_items_only(self):
+        from test_server import chrome
+        for width in WIDTHS:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.show(cdp, sid)
+                set_line(cdp, sid, "is:archived type:action")
+                self.until(cdp, sid, "document.querySelectorAll('#archived-list tr.arch-row').length === 1", "only the archived action")
+                ids = cdp.js("[...document.querySelectorAll('#archived-list tr.arch-row')].map(r => r.dataset.archId)", sid)
+                self.assertEqual(ids, [i for i in self.gone if "-A-" in i])
+                self.assertFalse(cdp.js("!!document.querySelector('#work-list tr[data-id]')", sid), "the live list is not drawn beside it")
+
     def test_a_row_opens_the_read_only_peek_and_restore_puts_it_back_with_one_undo(self):
         from test_server import chrome
         for width in WIDTHS:
