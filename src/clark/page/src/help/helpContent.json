@@ -296,15 +296,15 @@
     "g": "Every week",
     "t": "Find or open a past publication",
     "w": "Profile circle › Published reports",
-    "go": "settings#pubs",
+    "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
-     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press your profile circle and choose **Published reports**.",
+     "The page says where the report is saved, shows the latest publication and lists the earlier ones. Each has its number, the week ending, when it was published, where it went, its files and who published it. The newest is first, and the list shows the latest ten; the older ones are kept.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
-     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown as UTC."
+     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
     ],
     "page": [
-     "settings#pubs"
+     "dashboard+edit"
     ]
    },
    {
@@ -369,9 +369,9 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the View menu, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
+     "The **Group by** button beside the saved views (the icon next to Table and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
@@ -910,7 +910,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Export to Word**: the report saved as a Word file, without publishing the web page.",
-       "**Published reports**: the **Published reports** card in Settings for the open project.",
+       "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**. Until you add your name in Settings, the top line is a link to Settings and this entry is left out.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
@@ -1270,7 +1270,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
+      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -1760,20 +1760,24 @@
       ],
       [
        [
-        "#",
+        "No.",
         "The publication's number for this project, counting up from 1"
        ],
        [
-        "Date and time",
-        "When it was published, in UTC"
+        "Week ending",
+        "The week the report was for"
        ],
        [
-        "Where",
-        "Where it went"
+        "Published",
+        "When it was published, in your own time zone, and who published it"
        ],
        [
-        "Who",
-        "Who published it"
+        "Went to",
+        "Where it went: the Local folder, and the Client folder if there is one"
+       ],
+       [
+        "Files",
+        "The page, and the Word or PDF file saved with it"
        ],
        [
         "Open",
@@ -1783,7 +1787,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1818,7 +1822,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1834,10 +1838,6 @@
        [
         "Personal",
         "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
-       ],
-       [
-        "Published reports",
-        "The numbered copies you have published, each with **Open** to see it as it was."
        ],
        [
         "Projects",
@@ -2433,7 +2433,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
+    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; the **Group by** button holds the grouping."
    ],
    "full": "ref-work-items"
   },
@@ -2468,11 +2468,6 @@
      "card": "publishing",
      "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
-    },
-    {
-     "card": "pubs",
-     "title": "Published reports",
-     "line": "The numbered copies you have published, each with Open to see it as it was."
     },
     {
      "card": "personal",
@@ -2779,10 +2774,10 @@
      "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
-     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename view**. Type the new name in the box labelled **New name for this view** and press **Save**. To move a view, pick its tab up with the mouse and drag it left or right, then let go. Or open it, press the small arrow and choose **Move view**: the tab gets a ring, the Left and Right arrows move it, and Enter or Esc finishes. The order is kept in your browser, for this project. To copy a view, open it, press the small arrow and choose **Duplicate view**. The copy is called the same with copy after it, and sits beside it."
     },
     {
-     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
     }
    ],
    "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
@@ -2807,7 +2802,7 @@
      "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
     },
     {
-     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. The **Published reports** page opens, and the day box under **Dashboard as at a day** is ready for you."
     },
     {
      "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
