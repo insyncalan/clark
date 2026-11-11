@@ -1282,7 +1282,7 @@ def _scan_member(z, member, title):
     with the words the loaded sheet would get, when it reaches past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS or holds more
     cells than the limits allow at all; raises _TextTooLong for a text longer than Excel can keep. Memory is one chunk and one
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
-    max_row = max_col = cells = row = col = read = 0
+    max_row = max_col = cells = row = col = read = tags = 0
     buf = b""
     text = None                                          # the bytes of a <t> node read so far (it can run over a chunk cut), else None
     opener = z.open                                      # a zip member is read as bytes, never as text
@@ -1324,8 +1324,8 @@ def _scan_member(z, member, title):
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
-                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
-                    if max_row > MAX_SHEET_ROWS:
+                    tags += 1                                    # an empty row does not move max_row (its number is only where the next cell
+                    if tags > MAX_SHEET_ROWS:                    # without an r lands), but row tags are still counted, so a flood of them is refused
                         raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
                                       "clark will import in one go. Check this is the right file. Nothing was changed.")
                     continue
