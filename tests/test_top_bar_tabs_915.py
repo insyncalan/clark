@@ -1,5 +1,5 @@
 """Row 757: the project switcher in the top bar (row 1064: the chevron alone, the name not drawn) does not collapse at 900 px (the file's name keeps the 915 px
-window it once also checked; only 1400 and 900 px are tested now), on any tab, in light and dark, in View and Edit, with a long project name written as an
+window it once also checked; the tests below run at 900 px only, the narrower of the two supported widths, where the bar is tightest), on any tab, in light and dark, in View and Edit, with a long project name written as an
 invented name. The button keeps a readable width with an ellipsis, stays clear of the first tab, the tab row does not scroll and the page does not scroll
 sideways. Chrome is required: these tests fail, never skip, without it.
 

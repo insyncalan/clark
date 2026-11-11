@@ -251,6 +251,7 @@ class HostileData(unittest.TestCase):
         ET.fromstring(parts(data)["word/document.xml"])
         self.assertIn("</w:t><w:p> & \"x\"", words(data))
 
+
 class WhenTheGraphicsFail(unittest.TestCase):
     """A picture is only an addition: whatever goes wrong drawing it, build() still gives the file, with the words and the table."""
 
