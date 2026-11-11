@@ -33,7 +33,7 @@ class Commitment(unittest.TestCase):
     def test_keep_the_use_cases_sentences(self):
         t = flat(TASKS["keep-the-use-cases"])
         for sentence in (
-            "A use case can carry a commitment: Candidate, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
+            "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
             "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
             "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
         ):
@@ -67,7 +67,7 @@ class Commitment(unittest.TestCase):
 
     def test_the_three_words_and_the_published_file(self):
         store = (ROOT / "src" / "clark" / "store.py").read_text(encoding="utf-8")
-        self.assertIn('COMMITMENTS = ("Candidate", "Committed", "Planned 2027")', store)
+        self.assertIn('COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")', store)
         pub = (ROOT / "src" / "clark" / "publish.py").read_text(encoding="utf-8")
         self.assertIn('"use_cases": ("client_visible", "archived")', pub)   # the eye: a use case that is off is not in the file at all
         self.assertIn('"sort_order", "commitment")', pub)

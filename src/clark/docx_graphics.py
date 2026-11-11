@@ -1,9 +1,10 @@
 """The pictures in the Word report (#1012): the milestone plan as the main screen draws it, the Health bar and the progress bar.
 
-Each function gives (png bytes, width, height in pixels) from png_draw, or None when there is nothing to draw. A picture holds only
-shapes and colours: every colour is a design token (`tok`, the Word build's colour table; the status colours the table does not
-carry are read from the look, the same tokens.css), and there is no text in a picture, so no font is needed. Every label is real
-Word text in the table beside it. The picture of the plan has one lane for each milestone, in the order of the table under it.
+Each function gives (png bytes, width, height in pixels) from png_draw, or None when there is nothing to draw. A picture holds shapes, colours and
+two kinds of short words, drawn as pixels with the small font below (no font file is needed): a lane's name at the left and the
+months along the top (#1036). Every colour is a design token (`tok`, the Word build's colour table; the status colours the table does
+not carry are read from the look, the same tokens.css). The full words are still real Word text in the table beside it. The picture
+of the plan has one lane for each milestone, in the order of the table under it.
 
 The marks and their colours are the page's (milestone_rows.LOOK, MsMark.jsx): Achieved a green ring with a tick, On track a green
 dot, At risk an amber triangle, Slipped a red diamond, Overdue (the client's word is Late) a red disc with a cross, Forecast a
@@ -17,7 +18,7 @@ from datetime import date, timedelta
 from clark import look, milestone_rows as mr, milestones as ms
 from clark.png_draw import Canvas
 
-WIDTH, LANE, TOP, PAD = 900, 18, 14, 10            # pixels: the picture's width, a lane's height, the month band, the side space
+WIDTH, LANE, TOP, PAD = 900, 18, 20, 10            # pixels: the picture's width, a lane's height, the month band, the side space
 MAX_LANES = 60
 MAX_TICKS = 40
 BAR_W, BAR_H = 600, 8
@@ -78,6 +79,76 @@ def health_bar(colour, tok):
         x = i * (seg + gap)
         c.rect(x, 0, x + seg, height, t["status-" + name] if name == colour else t["grey-100"])
     return c.png(), width, height
+
+
+# ===== Words in a picture =====
+# A small 5 x 7 pixel font, drawn at TEXT_SCALE, for the lane names and the axis dates (the table beside the picture still carries the
+# words as Word text). It holds the letters (a small letter is drawn as its capital), the digits and the usual marks; any other
+# character (another script, a control or direction mark) is one "?" box, so nothing in a name can bring anything but pixels.
+TEXT_SCALE, LABEL_W, LABEL_MAX = 2, 240, 19        # pixels per font dot; the lane name column's width; the most characters in a lane name
+_FONT = {
+    "A": "01110 10001 10001 11111 10001 10001 10001", "B": "11110 10001 10001 11110 10001 10001 11110",
+    "C": "01110 10001 10000 10000 10000 10001 01110", "D": "11110 10001 10001 10001 10001 10001 11110",
+    "E": "11111 10000 10000 11110 10000 10000 11111", "F": "11111 10000 10000 11110 10000 10000 10000",
+    "G": "01110 10001 10000 10111 10001 10001 01111", "H": "10001 10001 10001 11111 10001 10001 10001",
+    "I": "01110 00100 00100 00100 00100 00100 01110", "J": "00111 00010 00010 00010 00010 10010 01100",
+    "K": "10001 10010 10100 11000 10100 10010 10001", "L": "10000 10000 10000 10000 10000 10000 11111",
+    "M": "10001 11011 10101 10101 10001 10001 10001", "N": "10001 11001 10101 10011 10001 10001 10001",
+    "O": "01110 10001 10001 10001 10001 10001 01110", "P": "11110 10001 10001 11110 10000 10000 10000",
+    "Q": "01110 10001 10001 10001 10101 10010 01101", "R": "11110 10001 10001 11110 10100 10010 10001",
+    "S": "01111 10000 10000 01110 00001 00001 11110", "T": "11111 00100 00100 00100 00100 00100 00100",
+    "U": "10001 10001 10001 10001 10001 10001 01110", "V": "10001 10001 10001 10001 10001 01010 00100",
+    "W": "10001 10001 10001 10101 10101 11011 10001", "X": "10001 10001 01010 00100 01010 10001 10001",
+    "Y": "10001 10001 01010 00100 00100 00100 00100", "Z": "11111 00001 00010 00100 01000 10000 11111",
+    "0": "01110 10001 10011 10101 11001 10001 01110", "1": "00100 01100 00100 00100 00100 00100 01110",
+    "2": "01110 10001 00001 00010 00100 01000 11111", "3": "11110 00001 00001 01110 00001 00001 11110",
+    "4": "00010 00110 01010 10010 11111 00010 00010", "5": "11111 10000 11110 00001 00001 10001 01110",
+    "6": "00110 01000 10000 11110 10001 10001 01110", "7": "11111 00001 00010 00100 01000 01000 01000",
+    "8": "01110 10001 10001 01110 10001 10001 01110", "9": "01110 10001 10001 01111 00001 00010 01100",
+    " ": "00000 00000 00000 00000 00000 00000 00000", ".": "00000 00000 00000 00000 00000 01100 01100",
+    ",": "00000 00000 00000 00000 01100 00100 01000", "-": "00000 00000 00000 11111 00000 00000 00000",
+    ":": "00000 01100 01100 00000 01100 01100 00000", "/": "00001 00001 00010 00100 01000 10000 10000",
+    "(": "00010 00100 01000 01000 01000 00100 00010", ")": "01000 00100 00010 00010 00010 00100 01000",
+    "'": "00100 00100 01000 00000 00000 00000 00000", "&": "01100 10010 10100 01000 10101 10010 01101",
+    "+": "00000 00100 00100 11111 00100 00100 00000", "%": "11001 11010 00010 00100 01000 01011 10011",
+    "_": "00000 00000 00000 00000 00000 00000 11111", "?": "11111 10001 10001 10001 10001 10001 11111",
+}
+_GLYPHS = {k: [[c == "1" for c in row] for row in v.split()] for k, v in _FONT.items()}
+X0, X1 = LABEL_W + PAD, WIDTH - PAD                # the time line's first and last pixel, right of the lane names
+
+
+def label(text, limit=LABEL_MAX):
+    """What a picture shows of a name: whitespace made single spaces, a small letter a capital, a character the font lacks a "?",
+    and, past `limit` characters, the first limit - 2 and two dots."""
+    text = " ".join(str(text if text is not None else "").split()).upper()
+    text = "".join(ch if ch in _GLYPHS else "?" for ch in text)
+    return text if len(text) <= limit else (text[:max(0, limit - 2)] + "..")[:max(0, limit)]
+
+
+def text_width(text):
+    return len(text) * 6 * TEXT_SCALE
+
+
+def draw_text(c, x, y, text, colour):
+    """Draw `text` (already through label()) with its top left at x, y."""
+    k = TEXT_SCALE
+    for i, ch in enumerate(text):
+        for gy, row in enumerate(_GLYPHS[ch]):
+            for gx, on in enumerate(row):
+                if on:
+                    px, py = x + (i * 6 + gx) * k, y + gy * k
+                    c.rect(px, py, px + k, py + k, colour)
+
+
+def month_labels(c, months, x, colour):
+    """The axis dates: each month's first day as "NOV 26" in the band at the top, a month skipped if it would touch the one before."""
+    edge = -1
+    for d in months:
+        word = f"{d:%b} {d:%y}".upper()
+        at = x(d) + 3
+        if at > edge and at + text_width(word) <= c.w:
+            draw_text(c, at, 3, word, colour)
+            edge = at + text_width(word) + 6
 
 
 # ===== The plan =====
@@ -150,7 +221,7 @@ def plan(milestones, today, tok):
     height = TOP + LANE * len(rows) + 2
 
     def x(d):
-        return PAD + round((d - start).days * (WIDTH - 2 * PAD) / days)
+        return X0 + round((d - start).days * (X1 - X0) / days)
 
     c = Canvas(WIDTH, height, t["surface"])
     for i in range(len(rows)):
@@ -161,11 +232,15 @@ def plan(milestones, today, tok):
     while date(y, m, 1) < end and len(months) < 2000:
         months.append(date(y, m, 1))
         y, m = (y + 1, 1) if m == 12 else (y, m + 1)
-    for d in months[::-(-len(months) // MAX_TICKS)]:
+    ticks = months[::-(-len(months) // MAX_TICKS)]
+    for d in ticks:
         c.vline(x(d), 0, height, t["grey-200"])
+    month_labels(c, ticks, x, t["text"])
     c.hline(0, WIDTH, TOP, t["grey-300"], 2)
     if now and start <= now < end:
         c.vline(x(now), 0, height, t["brand-navy"], 2)
+    for i, r in enumerate(rows):
+        draw_text(c, PAD, TOP + i * LANE + (LANE - 7 * TEXT_SCALE) // 2, label(r["row"].get("name")), t["text"])
     for i, r in enumerate(rows):
         cy = TOP + i * LANE + LANE // 2
         if not r["solid"]:
@@ -183,7 +258,7 @@ def plan(milestones, today, tok):
 # lines, on one shared time line: a phase a navy bar, a task a bar in --gt-task with the done part lighter, a milestone a diamond
 # (amber, green when done), and the Today line in the status red. The lines are the published Gantt's (publish.gantt_for_client
 # has already left out every eye-off line); a line the page would not draw is left out here too and counted, never repaired.
-GANTT_CHUNK, G_LANE, G_TOP = 30, 22, 14
+GANTT_CHUNK, G_LANE, G_TOP = 30, 22, 20
 G_TYPES = ("phase", "task", "milestone")
 
 
@@ -235,12 +310,12 @@ def gantt(lines, today, tok):
     now = _day(today)
     first, last = gantt_range(drawn, now)
     t = tokens(tok)
-    ppd = (WIDTH - 2 * PAD) / ((last - first).days + 1)
+    ppd = (X1 - X0) / ((last - first).days + 1)
     task = mix(t["brand-blue-strong"], t["text"], 0.6)
     lighter = mix(t["white"], task, 0.3)
 
     def x(d):
-        return PAD + round((d - first).days * ppd)
+        return X0 + round((d - first).days * ppd)
     months = []
     y, m = first.year, first.month
     while date(y, m, 1) <= last and len(months) < 2000:
@@ -258,6 +333,9 @@ def gantt(lines, today, tok):
             c.hline(0, WIDTH, G_TOP + (i + 1) * G_LANE - 1, t["grey-100"])
         for d in ticks:
             c.vline(x(d), 0, height, t["grey-100"])
+        month_labels(c, ticks, x, t["text"])
+        for i, r in enumerate(run):
+            draw_text(c, PAD, G_TOP + i * G_LANE + (G_LANE - 7 * TEXT_SCALE) // 2, label(r["line"].get("name")), t["text"])
         c.hline(0, WIDTH, G_TOP, t["grey-300"], 2)
         if now and first <= now <= last:
             c.vline(x(now), 0, height, t["status-red"], 2)

@@ -1405,7 +1405,7 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
         try:
-            embedded = excel_client.embed(published)
+            embedded = excel_client.embed(published, excel_client.palette_of(branding))
         except Exception as e:                     # the report is the thing: no spreadsheet is better than no report
             logging.getLogger("clark.publish").warning("The client workbook could not be made (%s).", type(e).__name__)   # the class only: never a message or a row
         else:
