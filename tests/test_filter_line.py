@@ -645,6 +645,31 @@ class SavedViews(Line):
         self.assertEqual([x["name"] for x in again["views"]][1:4], ["Actions", "Actions copy 2", "Actions copy"])
         self.assertFalse(self.v(f"duplicateView({lit(base)}, 'zzz')")["ok"])
 
+    def test_mutation_proof_reorder_refuses_a_list_that_names_a_view_twice(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        got = self.v(f"reorderViews({lit(base)}, ['core-all', 'core-all'])")
+        self.assertFalse(got["ok"], "one view twice would put it in two places")
+
+    def test_mutation_proof_duplicate_is_refused_when_the_person_already_keeps_the_most(self):
+        full = [{"id": f"v{n}", "name": f"View {n}", "line": ""} for n in range(20)]
+        got = self.v(f"duplicateView({lit(full)}, 'v3')")
+        self.assertFalse(got["ok"])
+        self.assertEqual(got["message"], "You can keep 20 saved views. Delete one to make room.")
+
+    def test_mutation_proof_the_starting_order_stores_nothing_and_going_back_to_it_clears_the_stored_order(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        out = self.val("(function(){ var s = %s; var v = T.fl.viewsGet(s, 'ABC'); T.fl.viewsPut(s, 'ABC', v);"
+                       " var a = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " var ids = v.map(function (x) { return x.id; }); ids[0] = v[1].id; ids[1] = v[0].id;"
+                       " T.fl.viewsPut(s, 'ABC', T.fl.reorderViews(v, ids.slice(0, 2)).views);"
+                       " var b = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " T.fl.viewsPut(s, 'ABC', v);"
+                       " var c = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " return [a, b, c]; })()" % fake)
+        self.assertNotIn("ABC", out[0], "the order a project starts with is not stored")
+        self.assertIn("ABC", out[1], "a changed order is stored")
+        self.assertNotIn("ABC", out[2], "putting it back to the start clears what was stored")
+
     def test_a_deleted_view_is_gone_and_there_is_no_way_back(self):
         base = self.v("DEFAULT_VIEWS")
         gone = self.v(f"deleteView({lit(base)}, 'client')")
@@ -696,6 +721,38 @@ class SavedViews(Line):
                        " return [a.ABC === undefined, JSON.parse(s.store['clark.forder']).ABC !== undefined]; })()")
         self.assertEqual(out, [True, True], "the natural order (core first, then own) keeps no order; a changed one does")
 
+    def test_a_deleted_views_id_is_never_given_to_a_new_view(self):
+        """Row 1071: after Delete view, a new view must not take the id the deleted one had, or its Undo could not put it back."""
+        three = [{"id": "v1", "name": "One", "line": ""}, {"id": "v2", "name": "Two", "line": ""}, {"id": "v3", "name": "Three", "line": ""}]
+        gone = self.v(f"deleteView({lit(three)}, 'v3')")["views"]
+        new = self.v(f"addView({lit(gone)}, 'Four', '')")
+        self.assertNotEqual(new["id"], "v3")
+        dup = self.v(f"duplicateView({lit(gone)}, 'v1')")
+        self.assertNotEqual(dup["id"], "v3")
+        back = self.v(f"insertView({lit(new['views'])}, {lit(three[2])}, 2)")
+        self.assertTrue(back["ok"], "the deleted view can still come back after a new one was made")
+        self.assertEqual(sorted(x["id"] for x in back["views"]), sorted(["v1", "v2", "v3", new["id"]]))
+
+    def test_insert_refuses_a_name_a_view_already_has(self):
+        """Row 1071: Undo must not make two views with one name (addView and renameView forbid that too); it says why."""
+        base = [{"id": "a1", "name": "Alpha", "line": ""}, {"id": "b1", "name": "Beta", "line": ""}]
+        gone = self.v(f"deleteView({lit(base)}, 'b1')")["views"]
+        other = self.v(f"addView({lit(gone)}, 'beta', '')")["views"]
+        got = self.v(f"insertView({lit(other)}, {lit(base[1])}, 1)")
+        self.assertFalse(got["ok"])
+        self.assertIn("already exists", got["message"])
+
+    def test_insert_refuses_a_twenty_first_view(self):
+        """Row 1071: Undo must not take a person past 20 saved views (addView and duplicateView stop there too); a core view is not counted."""
+        full = [{"id": f"v{n}", "name": f"View {n}", "line": ""} for n in range(20)]
+        gone = {"id": "old", "name": "Old one", "line": ""}
+        got = self.v(f"insertView({lit(full)}, {lit(gone)}, 3)")
+        self.assertFalse(got["ok"])
+        self.assertEqual(got["message"], "You can keep 20 saved views. Delete one to make room.")
+        core = {"id": "core-all", "name": "All", "line": "", "core": True}
+        self.assertTrue(self.v(f"insertView({lit(full)}, {lit(core)}, 0)")["ok"], "a core view does not count toward the 20")
+        self.assertTrue(self.v(f"insertView({lit(full[:19])}, {lit(gone)}, 3)")["ok"], "19 plus one is 20 and fits")
+
     def test_a_view_added_or_missing_from_the_stored_order_still_shows(self):
         fake = "{store: {'clark.forder': JSON.stringify({ABC: ['mine', 'gone', 'core-all']}) }, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
         got = self.val(f"T.fl.viewsGet({fake}, 'ABC').map(function (x) {{ return x.id; }})")
@@ -710,6 +767,48 @@ class SavedViews(Line):
     def test_the_functions_do_not_change_what_they_are_given(self):
         base = self.v("DEFAULT_VIEWS")
         self.assertEqual(self.val(f"(function(){{ var v = {lit(base)}; T.fl.addView(v, 'A', ''); T.fl.deleteView(v, 'mine'); T.fl.renameView(v, 'mine', 'Z'); return v; }})()"), base)
+
+    def test_hostile_view_names_never_throw_and_never_store_more_than_the_limit(self):
+        """Hostile input on the saved-view name path (add, rename, duplicate): empty, huge, unicode, control characters, quotes, markup."""
+        names = ["", "   ", "\n\t ", "x" * 41, "x" * 100000, "caf\u00e9 \u202e rtl \U0001F600", "a\u0000b", "a\nb\tc  d", "'; DROP TABLE v; --",
+                 '"quoted"', "<img src=x onerror=alert(1)>", "</script><b>", "{{x}}", "${1+1}"]
+        for n in names:
+            got = self.v(f"addView([], {lit(n)}, '')")
+            clean = " ".join(n.split())
+            if not clean or len(clean) > 40:
+                self.assertFalse(got["ok"], repr(n[:20]))
+                self.assertTrue(got["message"], repr(n[:20]))
+            else:
+                self.assertTrue(got["ok"], repr(n))
+                self.assertEqual(got["views"][0]["name"], clean, "white space (newlines, tabs) is folded to single spaces; the text is kept as typed")
+            base = [{"id": "a1", "name": "Alpha", "line": ""}]
+            r = self.v(f"renameView({lit(base)}, 'a1', {lit(n)})")
+            self.assertEqual(r["ok"], bool(clean) and len(clean) <= 40, repr(n[:20]))
+        dup = self.v(f"duplicateView({lit([{'id': 'a1', 'name': 'x' * 40, 'line': ''}])}, 'a1')")
+        self.assertTrue(dup["ok"])
+        self.assertLessEqual(len(dup["views"][1]["name"]), 40, "a copy of a name at the limit still fits the limit")
+
+    def test_hostile_insert_places_and_views_never_throw(self):
+        """Undo of a delete with a bad place or a bad view: the place is clamped, a missing or nameless view is refused."""
+        base = [{"id": "a1", "name": "Alpha", "line": ""}, {"id": "b1", "name": "Beta", "line": ""}]
+        gone = {"id": "c1", "name": "Gamma", "line": ""}
+        for at, want in [(-5, 0), (0, 0), (1, 1), (99, 2), ("x", 0), (None, 0), (1.9, 1), (float("inf"), 2)]:
+            lit_at = "Infinity" if at == float("inf") else lit(at)
+            got = self.v(f"insertView({lit(base)}, {lit(gone)}, {lit_at})")
+            self.assertTrue(got["ok"], at)
+            self.assertEqual([x["id"] for x in got["views"]].index("c1"), want, at)
+        for bad in ["null", "{}", "{id: 'z', name: ''}", "{id: 'z', name: '" + "x" * 5000 + "'}"]:
+            self.assertFalse(self.v(f"insertView({lit(base)}, {bad}, 0)")["ok"], bad[:30])
+        self.assertTrue(self.v(f"insertView(null, {lit(gone)}, 0)")["ok"])
+
+    def test_hostile_line_words_for_archived_are_read_without_throwing(self):
+        """The line words that the archived list now depends on: markup, quotes, control characters and a huge line never throw."""
+        for line in ["is:archived", "is:archived " + "x" * 50000, "is:archived \u0000 \n\t", "is:\"archived\"", "is:<b>archived</b>", "-is:archived", "is:archived is:archived", "\U0001F600 is:archived"]:
+            p = self.val(f"T.fl.parse({lit(line)}, {lit(ROWS)}, {lit(dict(CTX, archivedReady=True))})")
+            self.assertIn("errors", p, line[:20])
+        ok = self.parse("is:archived", dict(OFF, archivedReady=True))
+        self.assertEqual(ok["errors"], [], "the Edit page answers is:archived")
+        self.assertTrue(self.parse("is:archived", OFF)["errors"], "a page that cannot answer it says so, never silently matches")
 
 
 class Memory(Line):
