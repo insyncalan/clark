@@ -2,7 +2,7 @@
 // these routes, so the published page (view.jsx) has no way to publish and no mention of them. Nothing here names a folder or a
 // file: the client folder is the one saved in Settings, which the server reads itself.
 import { token, plain } from "../stores/report.js";
-import { style } from "../stores/style.js";
+import { density, sectionWord } from "../stores/density.js";
 import { forgetCheck } from "./askCheck.js";
 
 // {status, body}: never a throw, whatever the network or the server did. A status of 0 is "no answer".
@@ -17,11 +17,11 @@ export async function call(method, path, body) {
   }
 }
 
-// The report is published, and previewed, in the section style chosen in Settings › Personal: it goes with the request and the file carries it.
-export const publishRequest = (body) => call("POST", "/api/publish", { ...body, section_style: style.value });
+// The report is published, and previewed, in the Spacing chosen in Settings › Personal: it goes with the request and the file carries it.
+export const publishRequest = (body) => call("POST", "/api/publish", { ...body, section_style: sectionWord(density.value) });
 export const localUndoRequest = (project, applyId) => call("POST", "/api/client-folder", { project, action: "undo_local", apply_id: applyId });
 export const folderRequest = (project, action, value) => call("POST", "/api/client-folder", action === "paste" ? { project, action, value } : { project, action });
-export const previewRequest = (project) => call("POST", "/api/preview", { project, section_style: style.value });
+export const previewRequest = (project) => call("POST", "/api/preview", { project, section_style: sectionWord(density.value) });
 export const latestRequest = (project) => call("GET", `/api/publication?project=${encodeURIComponent(project)}`);
 
 // The words for a reply. The publish routes write plain words themselves (to_client.py and publish_flow.py: a test pins that none
