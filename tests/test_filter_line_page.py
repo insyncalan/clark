@@ -30,7 +30,7 @@ def wait(check, seconds=15):
     return False
 
 
-from test_work_filters import click, expect, key, need_chrome, page_rows, pause, select_line, set_line  # noqa: E402
+from test_work_filters import click, expect, key, need_chrome, page_rows, pause, select_line, set_line, where  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 INPUT = "#fline-input"
@@ -765,7 +765,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
                     items = cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.textContent)", sid)
                     self.assertEqual(items[0], "Save changes")
-                    self.assertEqual(items, ["Save changes", "Save as a new view…", "Rename…", "Delete"])
+                    self.assertEqual(items, ["Save changes", "Save as a new view…", "Rename view", "Move view", "Duplicate view", "Delete view"])
                     click(cdp, sid, "#viewTabMenuList [data-kind=save]")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-dot]').length", sid) == 0), "saved: the dot goes")
                     # another tab, then back: the saved line is what comes back
@@ -788,7 +788,7 @@ class Line(unittest.TestCase):
                     # it is kept in this browser
                     reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: "Urgent soon" in (cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid) or [])), "the Urgent soon tab is there")
-                    # Save the line as a new view, then delete it: it asks first and cannot be brought back
+                    # Save the line as a new view, then delete it: no question, and the message at the foot has Undo
                     self.put(cdp, sid, "type:decision")
                     click(cdp, sid, "#viewNew")
                     self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once, named View 1")
@@ -796,10 +796,13 @@ class Line(unittest.TestCase):
                     self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "View 1")
                     click(cdp, sid, "#viewTabMenu")
                     click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
-                    self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#vask') || {}).textContent", sid) == "Delete this view?"))
-                    self.assertIn("View 1", cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid), "nothing is deleted until it is confirmed")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vdelete')", sid)))
-                    click(cdp, sid, "#vdelete")
+                    self.assertTrue(wait(lambda: "View 1" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "deleted at once")
+                    self.assertTrue(wait(lambda: "View deleted: View 1" in cdp.js("document.body.innerText", sid)), "the message says so")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "and has Undo")
+                    click(cdp, sid, "[data-undo]")
+                    self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "Undo puts it back")
+                    click(cdp, sid, "#viewTabMenu")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
                     self.assertTrue(wait(lambda: "View 1" not in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)))
                     self.assertFalse(cdp.js("!!document.querySelector('#viewTabMenu')", sid), "no tab is open now (the line matches none)")
                     click(cdp, sid, "#viewNew")
@@ -848,22 +851,239 @@ class Line(unittest.TestCase):
                 key(cdp, sid, "Enter")
                 self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items", "Actions", "Risks and issues", "Decisions", "All work items", "Older view"]), "the tabs include Older view")
                 self.assertIn("cannot be used any more", cdp.js("document.querySelector('[data-vbad]').textContent", sid), "renamed, still said")
-                # Delete it: the box asks first (Cancel keeps it)
+                # Delete it: at once, with Undo in the message
                 click(cdp, sid, "#viewTabMenu")
                 click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
-                self.assertTrue(wait(lambda: cdp.js("(document.querySelector('#vask') || {}).textContent", sid) == "Delete this view?"))
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "vdelete"), "the Delete button has the focus")
-                key(cdp, sid, "Escape")
-                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#vask')", sid)))
-                self.assertIn("Older view", cdp.js(tabs, sid))
-                click(cdp, sid, "#viewTabMenu")
-                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vdelete')", sid)))
-                click(cdp, sid, "#vdelete")
                 self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["Open items", "Actions", "Risks and issues", "Decisions", "All work items"]))
                 self.assertEqual(cdp.js("document.querySelector('[data-vbad]').textContent", sid), "")
                 self.assertEqual(self.errors(cdp, sid), [])
                 cdp.js("localStorage.clear(); sessionStorage.clear()", sid)
+
+    # ---- row 1071: drag a filter tab, Move view, Duplicate view ----
+    def tab_ids(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('.vtab')].map(e => e.dataset.viewId)", sid)
+
+    def centre(self, cdp, sid, selector):
+        cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
+        return where(cdp, sid, selector)
+
+    def mouse(self, cdp, sid, kind, x, y, **more):
+        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": 1 if kind != "mouseReleased" else 0, "clickCount": 1, **more}, sid)
+
+    def drag_tab(self, cdp, sid, src, dst_sel, past=0.75, release=True):
+        """A real mouse sequence: press the tab, move in steps across the row to `past` of the way across the destination tab, optionally let go."""
+        sx, sy = self.centre(cdp, sid, src)
+        wait(lambda: cdp.js("document.getAnimations().length === 0", sid))
+        sx, sy = where(cdp, sid, src)
+        box = cdp.js("(() => { const r = document.querySelector(%s).getBoundingClientRect(); return [r.left, r.width]; })()" % json.dumps(dst_sel), sid)
+        tx = box[0] + box[1] * past
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": sx, "y": sy}, sid)
+        self.mouse(cdp, sid, "mousePressed", sx, sy)
+        steps = 12
+        for i in range(1, steps + 1):
+            self.mouse(cdp, sid, "mouseMoved", sx + (tx - sx) * i / steps, sy)
+        if release:
+            self.mouse(cdp, sid, "mouseReleased", tx, sy)
+        return sx, sy, tx
+
+    def test_row_1071_a_tab_is_picked_up_and_dragged_left_or_right_and_the_order_is_kept(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    cdp.js("localStorage.clear()", sid)
+                    start = self.tab_ids(cdp, sid)
+                    self.assertEqual(start[:3], ["core-open", "core-actions", "core-risks"])
+                    # to the right: Actions is dropped after Decisions
+                    self.drag_tab(cdp, sid, ".vtab[data-view-id=core-actions]", ".vtab[data-view-id=core-decisions]")
+                    want = ["core-open", "core-risks", "core-decisions", "core-actions"] + start[4:]
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == want), f"dropped after Decisions: {self.tab_ids(cdp, sid)}")
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-open", "a drag does not choose the tab")
+                    # to the left, past a core tab onto an own one is just as good
+                    self.drag_tab(cdp, sid, ".vtab[data-view-id=core-actions]", ".vtab[data-view-id=core-open]", past=0.2)
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[0] == "core-actions"), f"dropped before Open items: {self.tab_ids(cdp, sid)}")
+                    # kept in this browser, for this project
+                    kept = self.tab_ids(cdp, sid)
+                    self.assertIn("core-actions", json.loads(cdp.js("localStorage.getItem('clark.forder')", sid))["TUL"], "the order is kept in the browser under clark.forder, per project")
+                    reload_to_new_page_cdp(cdp, sid)
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == kept), "the order is there after a reload")
+                    cdp.js("localStorage.clear()", sid)
+
+    def test_row_1071_a_click_without_movement_still_chooses_the_tab_and_a_drag_selects_no_text_and_esc_puts_it_back(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    cdp.js("localStorage.clear()", sid)
+                    start = self.tab_ids(cdp, sid)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid) == "core-risks"), "a click chooses it")
+                    self.assertEqual(self.tab_ids(cdp, sid), start, "and moves nothing")
+                    # a small shake under 5 px is still a click
+                    sx, sy = self.centre(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                    self.mouse(cdp, sid, "mousePressed", sx, sy); self.mouse(cdp, sid, "mouseMoved", sx + 2, sy); self.mouse(cdp, sid, "mouseReleased", sx + 2, sy)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid) == "core-decisions"))
+                    # a drag: no text is selected, and the tab is lifted while it is held
+                    self.drag_tab(cdp, sid, ".vtab[data-view-id=core-open]", ".vtab[data-view-id=core-risks]", release=False)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.vt[data-lifted]')", sid)), "the tab held is lifted")
+                    self.assertEqual(cdp.js("String(getSelection())", sid), "", "no text is selected")
+                    self.assertNotEqual(self.tab_ids(cdp, sid), start, "the tabs follow while it is held")
+                    key(cdp, sid, "Escape")
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == start), "Esc puts it back")
+                    box = cdp.js("(() => { const r = document.querySelector('.vtab[data-view-id=core-all]').getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; })()", sid)
+                    self.mouse(cdp, sid, "mouseMoved", box[0], box[1])
+                    self.mouse(cdp, sid, "mouseReleased", box[0], box[1])
+                    time.sleep(0.2)
+                    self.assertEqual(self.tab_ids(cdp, sid), start, "letting go after Esc moves nothing")
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-decisions", "and chooses nothing")
+                    self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
+                    cdp.js("localStorage.clear()", sid)
+
+    def test_row_1071_move_view_moves_the_tab_with_the_arrow_keys_and_enter_or_esc_finishes_with_no_bar(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    cdp.js("localStorage.clear()", sid)
+                    start = self.tab_ids(cdp, sid)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-actions]")
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)))
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.textContent)", sid),
+                                     ["Save as a new view…", "Rename view", "Move view", "Duplicate view", "Delete view"])
+                    self.assertTrue(cdp.js("document.querySelectorAll('#viewTabMenuList [role=menuitem] svg').length >= 4", sid), "each has an icon")
+                    self.assertTrue(cdp.js("getComputedStyle(document.querySelector('#viewTabMenuList [data-kind=delete]')).color !== getComputedStyle(document.querySelector('#viewTabMenuList [data-kind=rename]')).color", sid), "Delete view is red")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=move]")
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.viewId", sid) == "core-actions"), "the tab has the focus")
+                    self.assertTrue(cdp.js("document.activeElement.hasAttribute('data-moving') && getComputedStyle(document.activeElement).outlineStyle !== 'none'", sid), "and a focus ring")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('button')].some(b => /^(Move left|Move right|Done)$/.test(b.textContent.trim()))", sid), False, "no bar")
+                    key(cdp, sid, "ArrowRight"); key(cdp, sid, "ArrowRight")
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[:4] == ["core-open", "core-risks", "core-decisions", "core-actions"]), self.tab_ids(cdp, sid))
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.viewId", sid) == "core-actions"), "the focus stays on the moved tab")
+                    key(cdp, sid, "ArrowLeft")
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[:4] == ["core-open", "core-risks", "core-actions", "core-decisions"]))
+                    key(cdp, sid, "Enter")
+                    self.assertTrue(wait(lambda: not cdp.js("document.querySelector('.vtab[data-moving]')", sid)), "Enter finishes")
+                    key(cdp, sid, "ArrowRight")
+                    self.assertEqual(self.tab_ids(cdp, sid)[:4], ["core-open", "core-risks", "core-actions", "core-decisions"], "and the arrows move nothing now")
+                    # Esc also finishes (and keeps the place)
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=move]')", sid)))
+                    cdp.js("document.querySelector('#viewTabMenuList [data-kind=move]').click()", sid)      # a script click: the mouse helper scrolls the item into view first, and a scroll closes the open menu
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.vtab[data-moving]')", sid)))
+                    key(cdp, sid, "ArrowLeft")
+                    key(cdp, sid, "Escape")
+                    self.assertTrue(wait(lambda: not cdp.js("document.querySelector('.vtab[data-moving]')", sid)))
+                    self.assertEqual(self.tab_ids(cdp, sid)[:4], ["core-open", "core-actions", "core-risks", "core-decisions"], "Esc keeps where it got to")
+                    kept = self.tab_ids(cdp, sid)
+                    reload_to_new_page_cdp(cdp, sid)
+                    self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == kept), "kept after a reload")
+                    cdp.js("localStorage.clear()", sid)
+
+    def test_row_1071_duplicate_view_adds_name_copy_next_to_it(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    cdp.js("localStorage.clear()", sid)
+                    tabs = "[...document.querySelectorAll('.vtab span')].map(e => e.textContent)"
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-actions]")
+                    click(cdp, sid, "#viewTabMenu")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=duplicate]")
+                    self.assertTrue(wait(lambda: cdp.js(tabs, sid)[:3] == ["Open items", "Actions", "Actions copy"]), cdp.js(tabs, sid))
+                    self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid), "Actions copy")
+                    self.assertTrue(wait(lambda: sorted(self.chips(cdp, sid)) == ["is:open", "type:action"]), "same filters")
+                    reload_to_new_page_cdp(cdp, sid)
+                    self.assertTrue(wait(lambda: (cdp.js(tabs, sid) or [])[:3] == ["Open items", "Actions", "Actions copy"]), "kept")
+                    cdp.js("localStorage.clear()", sid)
+
+    def test_delete_view_gives_an_undo_that_puts_it_back_in_place(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: "core-risks" not in self.tab_ids(cdp, sid)))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)), "an Undo message")
+                click(cdp, sid, "[data-undo]")
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == start), self.tab_ids(cdp, sid))
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), "core-risks", "and it is the chosen tab again")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_tab_dropped_past_either_end_goes_to_that_end(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                self.drag_tab(cdp, sid, ".vtab[data-view-id=core-actions]", ".vtab[data-view-id=%s]" % start[0], past=-0.3)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[0] == "core-actions"), f"past the left end: {self.tab_ids(cdp, sid)}")
+                ids = self.tab_ids(cdp, sid)
+                self.drag_tab(cdp, sid, ".vtab[data-view-id=%s]" % ids[-2], ".vtab[data-view-id=%s]" % ids[-1], past=1.3)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid)[-1] == ids[-2]), f"past the right end: {self.tab_ids(cdp, sid)}")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_cancelled_drag_moves_nothing(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                x0, y0 = self.centre(cdp, sid, ".vtab[data-view-id=core-actions]")
+                x1, y1 = self.centre(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                cdp.js("""(() => {
+                  const ev = (t, x, tgt) => tgt.dispatchEvent(new PointerEvent(t, {bubbles: true, cancelable: true, button: 0, pointerType: 'mouse', clientX: x, clientY: %s}));
+                  ev('pointerdown', %s, document.querySelector('.vtab[data-view-id=core-actions]'));
+                  ev('pointermove', %s, document); ev('pointermove', %s, document);
+                  ev('pointercancel', %s, document);
+                })()""" % (y0, x0, (x0 + x1) / 2, x1, x1), sid)
+                time.sleep(0.3)
+                self.assertFalse(cdp.js("!!document.querySelector('.vt[data-lifted]')", sid), "put down")
+                self.assertEqual(self.tab_ids(cdp, sid), start, "a cancelled drag keeps the order")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
+                cdp.js("localStorage.clear()", sid)
+
+    def over_own_tab(self, cdp, sid):
+        """Press on a tab, shake it a little (past the 5 px), and let go over its own place."""
+        x, y = self.centre(cdp, sid, ".vtab[data-view-id=overdue]")
+        cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+        self.mouse(cdp, sid, "mousePressed", x, y)
+        for dx in (6, 12, 6, 0):
+            self.mouse(cdp, sid, "mouseMoved", x + dx, y)
+        self.mouse(cdp, sid, "mouseReleased", x, y)
+        time.sleep(0.4)      # a wrongly chosen tab shows after the next draw
+
+    def test_a_drag_that_ends_over_its_own_tab_does_not_choose_it(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                before = cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid)
+                self.over_own_tab(cdp, sid)
+                self.assertEqual(cdp.js("document.querySelector('.vtab[aria-pressed=true]').dataset.viewId", sid), before, "a drag is not a click")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_a_drag_that_ends_over_its_own_tab_leaves_it_in_place(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                self.over_own_tab(cdp, sid)
+                self.assertEqual(self.tab_ids(cdp, sid), start)
+                cdp.js("localStorage.clear()", sid)
 
     # ---- #640: the field list on click, the x, the core tabs, the tab's arrow and + New view ----
     FIELDS_ALL = ["is:", "type:", "status:", "owner:", "priority:", "due:", "workstream:", "usecase:", "milestone:", "client:", "has:", "no:"]
@@ -1182,7 +1402,7 @@ class Line(unittest.TestCase):
                         click(cdp, sid, "#viewTabMenu")
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
                         kinds = cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.dataset.kind)", sid)
-                        self.assertEqual(kinds, ["saveas", "rename", "delete"], vid)
+                        self.assertEqual(kinds, ["saveas", "rename", "move", "duplicate", "delete"], vid)
                         key(cdp, sid, "Escape")
                         self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu closed")
                     # the counts of the first four agree: every one is a part of Open items; All work items has the closed ones too
@@ -1212,8 +1432,6 @@ class Line(unittest.TestCase):
                     click(cdp, sid, ".vtab[data-view-id=core-open]")
                     click(cdp, sid, "#viewTabMenu")
                     click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vdelete')", sid)))
-                    click(cdp, sid, "#vdelete")
                     self.assertTrue(wait(lambda: cdp.js(tabs, sid)[:4] == ["Actions", "Risks and issues", "Decisions", "All work items"]))
                     reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: (cdp.js(tabs, sid) or [""])[0] == "Actions"), "still gone after a reload")
@@ -1222,13 +1440,12 @@ class Line(unittest.TestCase):
                     for _ in range(12):
                         if not cdp.js("document.querySelectorAll('.vtab').length", sid):
                             break
+                        n = cdp.js("document.querySelectorAll('.vtab').length", sid)
                         click(cdp, sid, ".vtab")
                         click(cdp, sid, "#viewTabMenu")
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=delete]')", sid)))
                         cdp.js("document.querySelector('#viewTabMenuList [data-kind=delete]').click()", sid)      # a script click: the mouse helper scrolls the item into view first, and a scroll closes the open menu
-                        self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#vdelete')", sid)))
-                        click(cdp, sid, "#vdelete")
-                        wait(lambda: not cdp.js("!!document.querySelector('#vask')", sid))
+                        wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) < n)
                     self.assertEqual(cdp.js("document.querySelectorAll('.vtab').length", sid), 0)
                     click(cdp, sid, "#viewNew")
                     self.assertTrue(wait(lambda: cdp.js(tabs, sid) == ["View 1"]), "row 1073: made at once")
@@ -1250,7 +1467,7 @@ class Line(unittest.TestCase):
                     click(cdp, sid, "#viewTabMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList')", sid)), "the tabs menu opened")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#viewTabMenuList [role=menuitem]')].map(b => b.textContent)", sid),
-                                     ["Save as a new view…", "Rename…", "Delete"], "no Save changes while there is no dot")
+                                     ["Save as a new view…", "Rename view", "Move view", "Duplicate view", "Delete view"], "no Save changes while there is no dot")
                     key(cdp, sid, "Escape")
                     self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewTabMenu"), "Esc gives the focus back to the arrow")
                     # change the line: the dot shows and Save changes appears and puts the dot out

@@ -43,12 +43,12 @@ class IconsOnTheLine(Base):
                     self.assertEqual(got, [True, True, True, True], "right end, inside the box, after the input, on the input's own line")
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
 
-    def test_group_by_keeps_its_name_and_the_current_state_is_still_announced(self):
+    def test_group_by_is_named_with_the_current_grouping(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by")
-            desc = cdp.js("document.querySelector('#viewMenu').getAttribute('aria-description')", sid)
-            self.assertTrue(desc and desc.startswith("View: "), f"the layout and grouping are described to a screen reader ({desc!r})")
+            lab = cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid)
+            self.assertTrue(lab and lab.startswith("Group by: "), f"the button is named Group by and the grouping ({lab!r})")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-description')", sid), None)
 
     def test_the_try_chip_line_is_gone_and_add_import_export_stay(self):
         with chrome() as cdp:
@@ -91,7 +91,7 @@ class IconsOnTheLine(Base):
             cdp.js("document.querySelector('#viewMenu').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#viewMenuList [data-kind=\"group:status\"]')", "the Group by menu")
             cdp.js("document.querySelector('#viewMenuList [data-kind=\"group:status\"]').click()", sid)
-            self.until(cdp, sid, "/grouped by Status/.test(document.querySelector('#viewMenu').getAttribute('aria-description') || '')", "picking a grouping from the icon regroups")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Status'", "picking a grouping from the icon regroups")
 
     def test_with_no_board_only_group_by_shows(self):
         self.s = real_server(self.store.path, self.store.data_for, page_html=_testpage.html)      # the test build of the page: it has the hook window.clarkPage

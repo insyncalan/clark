@@ -116,8 +116,9 @@ function groupedItems(items, menuId) {
 // One entry of the menu: a separator, the top line, a line of words, or a command or radio item.
 function entry(it, close, onPick) {
   return it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.head ? <div key={it.id} class="who" role="presentation" title={it.head.title}><b>{it.head.name}</b>{it.head.line ? <small>{it.head.line}</small> : null}</div> : it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
-    <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
+    <button key={it.id} type="button" class={it.link ? "who-link" : it.pill ? "hp" : it.danger ? "danger" : undefined} role={it.checked === undefined ? "menuitem" : "menuitemradio"} aria-checked={it.checked === undefined ? undefined : it.checked ? "true" : "false"}
       tabIndex={-1} data-kind={it.id} onClick={() => { close("pick"); onPick(it.id); }}>
+      {it.icon ? <Icon name={it.icon} cls="mi" /> : null}
       {it.checked === undefined || it.pill ? null : <span class="ck" aria-hidden="true">{it.checked ? "✓" : ""}</span>}
       {it.pill ? <span class={`hpill ${it.pill}`}>{it.name}</span> : it.word ? <span class={`ucword rag-${it.word}`}><i class="ragdot" aria-hidden="true"></i>{it.name}</span> : it.line ? <span><b>{it.name}</b><small>{it.line}</small></span> : it.name}
       {it.pill && it.checked ? <Icon name="check" cls="hck" /> : null}
@@ -142,7 +143,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
   const leaving = phase.current === "leaving";
   const gone = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
   useEffect(() => { if (!leaving) return undefined; const t = setTimeout(gone, 400); return () => clearTimeout(t); }, [leaving]);
-  const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
+  const close = (how) => { back.current = how === "esc" || how === "pick"; if (how === "esc" && btn.current) btn.current.focus({ preventScroll: true }); setOpen(false); };   // Esc hands focus back at once: the fading menu must not hold it for a frame
   // Focus goes back to the button only if nothing took it: an item that opens a dialog has put focus there, and the menu must not steal it.
   useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current || (at.closest && at.closest(".ddmenu.leaving") && btn.current.parentNode.contains(at)))) btn.current.focus(); } }, [open]);
   const opens = () => { setOpen(true); if (onOpen) onOpen(); };   // `onOpen` runs each time the menu is opened, by a click or by Down

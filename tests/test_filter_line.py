@@ -616,6 +616,35 @@ class SavedViews(Line):
         self.assertTrue(self.v(f"renameView({lit(base)}, 'mine', 'my actions')")["ok"], "the same name in other capitals is its own name")
         self.assertEqual(self.v(f"renameView({lit(base)}, 'mine', '')")["message"], "Give the view a name.")
 
+    def test_row_1071_views_are_reordered_across_core_and_own_and_the_order_is_kept_per_project(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        ids = [x["id"] for x in base]
+        got = self.v(f"reorderViews({lit(base)}, ['core-all', 'core-open'])")
+        self.assertTrue(got["ok"])
+        self.assertEqual([x["id"] for x in got["views"]][:5], ["core-all", "core-actions", "core-risks", "core-decisions", "core-open"], "the two take each other's places")
+        self.assertEqual(self.v(f"reorderViews({lit(base)}, ['nope'])")["ok"], False)
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        out = self.val(f"(function(){{ var s = {fake}; var v = T.fl.viewsGet(s, 'ABC'); v = T.fl.reorderViews(v, ['mine', 'core-open']).views; T.fl.viewsPut(s, 'ABC', v);"
+                       " return [T.fl.viewsGet(s, 'ABC').map(function (x) { return x.id; }), T.fl.viewsGet(s, 'DEF').map(function (x) { return x.id; }), T.fl.viewsPut(s, 'ABC', T.fl.addView(T.fl.viewsGet(s, 'ABC'), 'Late', '').views), T.fl.viewsGet(s, 'ABC').map(function (x) { return x.id; })]; })()")
+        self.assertEqual(out[0][0], "mine")
+        self.assertEqual(out[0][-1], "core-open")
+        self.assertEqual(out[1], ids, "another project keeps its own order")
+        self.assertEqual(out[3][-1], "v9", "a new view goes last")
+        self.assertEqual(out[3][0], "mine", "and the order stays")
+
+    def test_row_1071_a_duplicate_is_called_name_copy_sits_next_to_it_and_is_the_persons_own(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        got = self.v(f"duplicateView({lit(base)}, 'core-actions')")
+        self.assertTrue(got["ok"])
+        names = [x["name"] for x in got["views"]]
+        self.assertEqual(names[1:3], ["Actions", "Actions copy"])
+        copy = got["views"][2]
+        self.assertEqual(copy["line"], "type:action is:open")
+        self.assertFalse(copy.get("core"), "a copy of a core view is not core")
+        again = self.v(f"duplicateView({lit(got['views'])}, 'core-actions')")
+        self.assertEqual([x["name"] for x in again["views"]][1:4], ["Actions", "Actions copy 2", "Actions copy"])
+        self.assertFalse(self.v(f"duplicateView({lit(base)}, 'zzz')")["ok"])
+
     def test_a_deleted_view_is_gone_and_there_is_no_way_back(self):
         base = self.v("DEFAULT_VIEWS")
         gone = self.v(f"deleteView({lit(base)}, 'client')")
@@ -624,6 +653,26 @@ class SavedViews(Line):
         keys = self.val("Object.keys(T.fl)")
         for name in ("archiveView", "restoreView", "archivedViews"):
             self.assertNotIn(name, keys)
+
+    def test_insert_a_deleted_view_back_where_it_was(self):
+        """Row 1071: the Undo after Delete view puts the tab back at its place."""
+        base = self.v("viewsGet(null, 'ABC')")
+        gone = self.v(f"deleteView({lit(base)}, 'core-risks')")["views"]
+        back = self.v(f"insertView({lit(gone)}, {lit(base[2])}, 2)")
+        self.assertEqual(back["views"], base)
+        self.assertFalse(self.v(f"insertView({lit(base)}, {lit(base[2])}, 2)")["ok"], "already there")
+
+    def test_insert_a_deleted_view_at_the_end(self):
+        """Row 1071: Undo of deleting the last tab puts it last again (the place is the length, not the last index)."""
+        base = self.v("viewsGet(null, 'ABC')")
+        gone = self.v(f"deleteView({lit(base)}, 'mine')")["views"]
+        back = self.v(f"insertView({lit(gone)}, {lit(base[-1])}, {len(gone)})")
+        self.assertEqual(back["views"], base)
+
+    def test_a_view_added_or_missing_from_the_stored_order_still_shows(self):
+        fake = "{store: {'clark.forder': JSON.stringify({ABC: ['mine', 'gone', 'core-all']}) }, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        got = self.val(f"T.fl.viewsGet({fake}, 'ABC').map(function (x) {{ return x.id; }})")
+        self.assertEqual(got, ["mine", "core-all", "core-open", "core-actions", "core-risks", "core-decisions", "overdue", "client"])
 
     def test_new_ids_never_repeat(self):
         views = self.v("DEFAULT_VIEWS")
