@@ -122,7 +122,7 @@ def label(text, limit=LABEL_MAX):
     and, past `limit` characters, the first limit - 2 and two dots."""
     text = " ".join(str(text if text is not None else "").split()).upper()
     text = "".join(ch if ch in _GLYPHS else "?" for ch in text)
-    return text if len(text) <= limit else text[:limit - 2] + ".."
+    return text if len(text) <= limit else (text[:max(0, limit - 2)] + "..")[:max(0, limit)]
 
 
 def text_width(text):

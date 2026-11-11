@@ -378,6 +378,44 @@ class Labels(unittest.TestCase):
             g.month_labels(c, [date(2026, 1, 1)], lambda d: g.X0, "#000000")
             self.assertEqual(len(spans), 1)
 
+    # ---- hostile pass (#1036, PR 1273) ----
+    def test_hostile_non_string_and_odd_names_never_raise_and_stay_in_the_glyph_set(self):
+        odd = [123, 0, 1.5, ["a", "b"], {"k": "v"}, True, b"bytes", "\ud800", "e\u0301" * 30, "\u00df\ufb01\u01c5\u0130\u0131", "\u200b\u200d", "\t\r\n\x0b\x0c\x85\u2028\u2029", "\u3000x\u3000"]
+        for name in odd:
+            text = g.label(name)
+            self.assertLessEqual(len(text), g.LABEL_MAX, repr(name))
+            self.assertTrue(all(ch in g._GLYPHS for ch in text), repr(name))
+            self.assertLessEqual(g.text_width(text), g.LABEL_W - g.PAD, repr(name))
+            png = self.draw([ms(1, name=name)])
+            read_png(png)
+            self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + g.LANE), 0, repr(name))
+
+    def test_label_boundaries_and_tiny_limits(self):
+        self.assertEqual(g.label("x" * (g.LABEL_MAX + 1)), "X" * (g.LABEL_MAX - 2) + "..")
+        self.assertEqual(len(g.label("x" * (g.LABEL_MAX + 1))), g.LABEL_MAX)
+        self.assertEqual(g.label("", 5), "")
+        self.assertLessEqual(len(g.label("abcdefgh", 2)), 2)
+        self.assertLessEqual(len(g.label("abcdefgh", 1)), 1)
+        self.assertLessEqual(len(g.label("abcdefgh", 0)), 0)
+
+    def test_a_name_made_of_only_dots_and_the_ellipsis_cannot_widen_the_column(self):
+        text = g.label("." * 500)
+        self.assertLessEqual(g.text_width(text), g.LABEL_W - g.PAD)
+
+    def test_the_gantt_names_and_dates_are_pixels_only_stay_in_their_columns_and_repeat_the_same_bytes(self):
+        import test_docx_gantt as tg
+        names = ['"/><w:p>INJECTED</w:p>', "\u05e9\u05dc\u05d5\u05dd \u202e", "W" * 400, None, 42, "\U0001f600" * 30, "a\nb"]
+        lines = [tg.line(i + 1, n) for i, n in enumerate(names)]
+        a = g.gantt(lines, "2026-11-08", TOKENS)
+        b = g.gantt(copy.deepcopy(lines), "2026-11-08", TOKENS)
+        self.assertEqual([p[0][0] for p in a["pictures"]], [p[0][0] for p in b["pictures"]])
+        for (png, w, h), _ in a["pictures"]:
+            ww, hh, palette, rows = read_png(png)
+            want = tok()["text"]
+            ink = lambda x0, x1, y0, y1: sum(1 for y in range(y0, min(y1, hh)) for x in range(x0, min(x1, ww)) if palette[rows[y][x]] == want)
+            self.assertEqual(ink(g.LABEL_W, g.X0 - 2, g.G_TOP, hh), 0)
+            self.assertEqual(ink(0, g.X0 - 4, 0, g.G_TOP), 0)
+
     def test_the_picture_is_as_wide_as_before_and_the_word_file_holds_it_with_the_names_escaped(self):
         nasty = '"/><w:p>INJECTED</w:p>'
         _, data = build_with(milestones=[ms(1, name=nasty), ms(2, name="\u05e9\u05dc\u05d5\u05dd")])
