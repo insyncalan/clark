@@ -31,14 +31,14 @@ class NoTypePills(Line):
                         self.assertTrue(wait(lambda: self.shown(cdp, sid) == want), f"{line}: {self.shown(cdp, sid)} != {want}")
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
 
-    def test_the_app_keeps_a_32px_row_where_the_pills_were_so_the_list_does_not_jump(self):
+    def test_the_app_draws_no_empty_row_where_the_pills_were_and_the_list_sits_under_the_filter_line(self):
         s = self.serve()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, s.port, width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.wbar.keep')", sid)), "the reserved row is drawn")
-                self.assertGreaterEqual(cdp.js("document.querySelector('.wbar.keep').getBoundingClientRect().height", sid), 32)
-                self.assertGreater(cdp.js("document.querySelector('#work-list').getBoundingClientRect().top", sid), cdp.js("document.querySelector('.wbar.keep').getBoundingClientRect().bottom - 1", sid))
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fline-wrap')", sid)), "the filter line is there")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar').length", sid), 0)
+                self.assertGreater(cdp.js("document.querySelector('#work-list').getBoundingClientRect().top", sid), cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().bottom - 1", sid))
 
 
 for _name in [n for n in dir(Line) if n.startswith("test_")]:     # only the helpers of Line are wanted here, not its tests
