@@ -50,7 +50,7 @@ function linkedTo(d, id, all) {
 // The milestones its linked work items point at, in the order the project keeps them.
 function milestonesOf(d, id) {
   const named = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
-  return (d.milestones || []).filter((m) => named.has(m.id));
+  return (d.milestones || []).filter((m) => !m.archived && named.has(m.id));
 }
 
 // A stored UTC time (YYYY-MM-DD HH:MM:SS.sss) as the person's own time: DD-MM-YYYY and HH:MM.
@@ -285,9 +285,10 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => {
                 const st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
                 return <li key={m.id} data-ms={m.id}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed ? <ed.MilestoneRemove u={u} m={m} /> : null}</span></li>;
               })}</ul>
               : <p class="muted">No milestones: none of its work items is linked to one.</p>}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneAdd u={u} /></div> : null}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>
