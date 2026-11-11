@@ -218,7 +218,6 @@ test_gantt_grid.py 3.4
 test_gantt_hidden_hostile.py 1.2
 test_gantt_logic.py 2.3
 test_gantt_markers.py 24.8
-test_gantt_markers_hostile.py 30
 test_gantt_migration.py 3.7
 test_gantt_page.py 6.9
 test_gantt_print.py 19.6
@@ -315,7 +314,6 @@ test_migration_word.py 1.9
 test_milestone_peek_828.py 64.3
 test_milestone_rows.py 1.9
 test_milestones.py 0.2
-test_mixed_heal.py 2.4
 test_milestones_archived.py 92.2
 test_milestones_crowded.py 56.1
 test_milestones_dashboard.py 22.8
@@ -440,7 +438,6 @@ test_publish_data_block_client_words.py 3.3
 test_publish_dialog.py 105.6
 test_publish_escape_run.py 1.7
 test_publish_glance.py 1.0
-test_publish_hidden_section_markers.py 30
 test_publish_in_menu.py 14.6
 test_publish_no_warnings.py 6.0
 test_publish_progress.py 37.2
@@ -694,3 +691,4 @@ test_work_pills_removed.py 1.0
 test_help_wording_107_b.py 30.0
 test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
+test_server_host_hostile.py 1.0
