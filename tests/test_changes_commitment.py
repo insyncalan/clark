@@ -38,8 +38,8 @@ class Flag(unittest.TestCase):
             con.close()
 
     def test_the_three_words_are_the_owners_and_the_message_names_them(self):
-        self.assertEqual(changes.UC_COMMITMENTS, ("Candidate", "Committed", "Planned 2027"))
-        self.assertEqual(changes.UC_COMMITMENT_WORDS, "A use case's commitment can be Candidate, Committed or Planned 2027, or none.")
+        self.assertEqual(changes.UC_COMMITMENTS, ("Planned 2026", "Committed", "Planned 2027"))
+        self.assertEqual(changes.UC_COMMITMENT_WORDS, "A use case's commitment can be Planned 2026, Committed or Planned 2027, or none.")
 
     def test_a_use_case_starts_with_no_flag(self):
         self.assertIsNone(self.row()["commitment"])
@@ -67,8 +67,8 @@ class Flag(unittest.TestCase):
             self.assertEqual(undone["words"], "Put back: the commitment of “Invoice matching” is back to Committed.")
 
     def test_setting_the_same_flag_again_makes_no_step(self):
-        self.ok({"commitment": "Candidate"})
-        body = self.ok({"commitment": "Candidate"})
+        self.ok({"commitment": "Planned 2026"})
+        body = self.ok({"commitment": "Planned 2026"})
         self.assertEqual((body["apply_id"], body["undoable"]), (None, False))
         body = self.ok({"commitment": None}) and self.ok({"commitment": None})
         self.assertEqual(body["apply_id"], None)
@@ -104,9 +104,9 @@ class Flag(unittest.TestCase):
         self.assertIsNone(self.s.read("use_cases", ref=body["ref"])["commitment"])
         self.assertIsNone(body["use_case"]["commitment"])
         status, body = self.change({"project": "ABC", "kind": "use_cases", "op": "new",
-                                    "values": {"ref": "7.2", "title": "Flagged one", "commitment": "Candidate"}})
+                                    "values": {"ref": "7.2", "title": "Flagged one", "commitment": "Planned 2026"}})
         self.assertEqual(status, 200, body)
-        self.assertEqual(self.s.read("use_cases", ref=body["ref"])["commitment"], "Candidate")
+        self.assertEqual(self.s.read("use_cases", ref=body["ref"])["commitment"], "Planned 2026")
         before = self.counts()
         status, body = self.change({"project": "ABC", "kind": "use_cases", "op": "new",
                                     "values": {"ref": "7.3", "title": "Bad one", "commitment": "Soon"}})

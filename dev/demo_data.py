@@ -142,7 +142,7 @@ def tulip(d):
         "use_cases": [
             dict(ref="1.1", title=UC_TULIP[0], status="Flag", commitment="Committed", headline="Two thirds scanned, a fortnight behind",
                  standing="<p>The second scanner arrived late. Catch-up is planned over two weekends.</p>"),
-            dict(ref="1.2", title=UC_TULIP[1], status="On track", commitment="Candidate", headline="Indexing rules agreed",
+            dict(ref="1.2", title=UC_TULIP[1], status="On track", commitment="Planned 2026", headline="Indexing rules agreed",
                  standing="<p>Rules for the planning index are signed off and the first batch has loaded.</p>"),
             dict(ref="1.3", title=UC_TULIP[2], status="High risk", headline="No switch-off date without the legal hold",
                  standing="<p>The old archive cannot be switched off until the records hold is lifted.</p>"),
