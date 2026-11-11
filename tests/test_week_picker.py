@@ -119,8 +119,8 @@ class WeekPicker(Base):
         with chrome() as cdp:
             p = self.show(cdp)
             self.pick(p, "asat")
-            p.until("location.hash.startsWith('#settings') && document.activeElement && document.activeElement.id === 'as-at-day'",
-                    "Settings › Published reports, the day box")
+            p.until("location.hash.startsWith('#published') && document.activeElement && document.activeElement.id === 'as-at-day'",
+                    "the Published reports page, the day box")
 
     def test_nothing_published_has_no_picker(self):
         self.s.httpd.past.listing = lambda code: (200, {"ok": True, "project": code, "total": 0, "shown": 0, "limit": 10, "publications": []})

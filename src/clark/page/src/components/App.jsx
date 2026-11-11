@@ -11,10 +11,9 @@ import { Dashboard } from "./Dashboard.jsx";
 import { Peek } from "./Peek.jsx";
 import { UseCasesTab } from "./UseCasesTab.jsx";
 import { WorkItems } from "./WorkItems.jsx";
-import { ClientReport } from "./ClientReport.jsx";
 import { GanttView } from "../gantt/components/GanttView.jsx";
 
-const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, clientreport: ClientReport, gantt: GanttView, settings: Settings };
+const PAGES = { dashboard: Dashboard, work: WorkItems, milestones: Milestones, usecases: UseCasesTab, gantt: GanttView, settings: Settings };
 
 // The printed page (item 438): every tab the file has, one after another, each under its own name, with the day it was published at the head.
 // Only a published file draws it, and only while the browser is printing (stores/print.js).
@@ -61,7 +60,8 @@ export function App({ tools: given }) {
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
   const own = (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
-  const Page = view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
+  const Published = view.value === "published" && !fromFile.value && tools && tools.PublishedPage;      // row 1087: the Published reports page is the editor's; a published file never has it
+  const Page = Published ? Published : view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const DemoBanner = !fromFile.value && tools && tools.DemoBanner;         // #731: the demo data line (Edit only); a published file has none, nor has any page drawn from one
   const Toast = tools && tools.Toast;
   const RowMenu = tools && tools.RowMenu;               // the right-click menu on a work item (#97); a published file has none

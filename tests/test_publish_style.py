@@ -5,6 +5,8 @@ The style is one of slim, roomy, grey or card; anything else is replaced by slim
 """
 import json
 import re
+import shutil
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -46,8 +48,43 @@ class Style(unittest.TestCase):
             self.assertEqual(got["style"], "slim")
 
     def test_the_style_is_a_word_the_page_knows(self):
-        page = (Path(publish.__file__).parent / "page" / "src" / "stores" / "style.js").read_text(encoding="utf-8")
-        self.assertIn('export const IDS = ["slim", "roomy", "grey", "card"];', page)
+        # item 1025: the page speaks two densities and sends each as one of the words publish knows (the bridge in density.js)
+        page = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        self.assertIn('export const IDS = ["compact", "comfortable"];', page)
+        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "roomy" : "card")', page)
+        self.assertLessEqual({"roomy", "card"}, set(publish.STYLES))
+
+    def test_comfortable_publishes_as_roomy_and_compact_as_card(self):
+        # item 1025: run the page's own density.js in node (signals stubbed), choose each density, and publish with the word it sends
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        src = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        src = re.sub(r"^import .*signals.*$", "const signal = (v) => ({ value: v });", src, flags=re.M)
+        code = ("globalThis.localStorage = { getItem: () => null, setItem() {} };\n" + src +
+                "\nconst out = {};\nfor (const d of ['comfortable', 'compact']) { setDensity(d); out[d] = sectionWord(density.value); }\n"
+                "setDensity('bogus'); out.bogus = sectionWord(density.value);\nconsole.log(JSON.stringify(out));")
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        sent = json.loads(done.stdout)
+        self.assertEqual(sent, {"comfortable": "roomy", "compact": "card", "bogus": "card"})
+        self.assertEqual(block(inputs(section_style=sent["comfortable"]))[0]["style"], "roomy")
+        self.assertEqual(block(inputs(section_style=sent["compact"]))[0]["style"], "card")
+
+    def test_an_unknown_density_is_ignored_and_never_remembered(self):
+        # item 1025: setDensity with anything but compact or comfortable changes nothing: not the signal, not the page, not the stored word
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("no node")
+        src = (Path(publish.__file__).parent / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        src = re.sub(r"^import .*signals.*$", "const signal = (v) => ({ value: v });", src, flags=re.M)
+        code = ("const kept = {};\nglobalThis.localStorage = { getItem: () => null, setItem(k, v) { kept[k] = v; } };\n"
+                "globalThis.document = { documentElement: { dataset: {} } };\n" + src +
+                "\nsetDensity('comfortable');\nfor (const bad of ['bogus', 'roomy', '', null, 3, 'Compact']) setDensity(bad);\n"
+                "console.log(JSON.stringify({ now: density.value, painted: document.documentElement.dataset.density, kept }));")
+        done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertEqual(json.loads(done.stdout), {"now": "comfortable", "painted": "comfortable", "kept": {"clark.density": "comfortable"}})
 
 
 if __name__ == "__main__":
