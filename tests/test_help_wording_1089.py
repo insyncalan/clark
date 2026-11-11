@@ -48,5 +48,18 @@ class HelpWording(unittest.TestCase):
         self.assertIn("**Swimlanes**", steps)
 
 
+    def test_group_by_button_sentences_are_exact(self):
+        steps = task("use-the-board")["s"]
+        joined = " ".join(steps)
+        self.assertIn("The **Group by** button beside the saved views opens a menu. Its **Group by** list chooses the groups:", joined)
+        self.assertIn("The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board.", joined)
+        self.assertIn("On the board, **Swimlanes** in the **Group by** menu adds rows across it", joined)
+
+    def test_group_by_breadcrumb_and_overview_line(self):
+        self.assertIn('"w": "Work items › Group by"', TEXT)
+        self.assertIn("the **Group by** button (its menu holds Group by and Swimlanes); then the filter line.", TEXT)
+        self.assertIn("The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; its menu holds **Group by**.", TEXT)
+
+
 if __name__ == "__main__":
     unittest.main()
