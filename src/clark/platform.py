@@ -361,16 +361,29 @@ def open_file(path, run=None, on=None):
 CHROME = "Google Chrome"
 
 
+OPEN_WAIT = 30      # #943: seconds the opener waits for the system's `open` before it gives up (it only hands the file on)
+
+
+def _run_waiting(args, run=None):
+    """_run with a wait limit: a start that does not finish in OPEN_WAIT seconds is stopped and counts as one that failed."""
+    try:
+        return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False, timeout=OPEN_WAIT)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(list(args), 1, "", "")
+
+
 def open_pdf_at(path, url, run=None, on=None):
     """#943: open the PDF `path` at the page named by `url` (pdf_link.pdf_url: file:///...#page=N) in Chrome, whose viewer takes
-    #page=N. If Chrome is not there or refuses, open the file plainly (open_file) so the person still sees it, at its first page."""
+    #page=N. If Chrome is not there, refuses or does not answer in time, open the file plainly so the person still sees it. That
+    plain open (`open <file>`) hands the file to whatever the system uses for PDFs and cannot carry a page, so the fallback
+    shows the first page: this is by design, not a lost page. A plain open that fails or does not answer is a PlatformError."""
     _only_mac("Opening a PDF at a page", on)
     path = _existing(path)
     url = str(url)
     if not re.match(r"file:///[^\s]+\Z", url) or not url.lower().split("#")[0].endswith(".pdf"):
         raise PlatformError("Only the address of a PDF file can be opened here.")
-    if _run(["open", "-a", CHROME, url], run).returncode != 0:
-        open_file(path, run=run, on=on)
+    if _run_waiting(["open", "-a", CHROME, url], run).returncode != 0:
+        _checked(_run_waiting(["open", str(path)], run), f"{path.name} could not be opened")
 
 
 def reveal_file(path, run=None, on=None):
