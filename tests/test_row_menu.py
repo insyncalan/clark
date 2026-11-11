@@ -186,6 +186,19 @@ class Rules(unittest.TestCase):
                          [{"id": "friday", "name": "Friday", "day": "2026-10-30", "line": "30-10-2026"},
                           {"id": "week", "name": "A week on", "day": "2026-11-05", "line": "05-11-2026"}])
 
+    def test_item_1070_hostile_text_in_the_change_owner_search_never_throws_and_markup_is_only_text(self):
+        """Hostile pass: control characters, markup, quotes, a huge string, unicode and odd register rows (null, numbers) are only text to the search."""
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Ada Quillfeather"}, None, {"name": None}, {"name": 42, "aliases": 7}, {"name": "\u00dcn\u00ef \u540d\u524d"}])
+        names = json.dumps(["Zelda Quince"])
+        typed = ["<script>alert(1)</script>", "\u0000\u0007bell", "'\"`\\", "x" * 100000, "\u00e9\u00e9", "%", "*", ".", "a;b", "\u202eevil"]
+        got = self.js(f"{json.dumps(typed)}.map((t) => [RM.ownerChoices({reg}, {names}, {row}, t), RM.canAddPerson({reg}, {names}, {row}, t)])")
+        for t, (found, can) in zip(typed, got):
+            self.assertEqual(found, [], repr(t[:20]))
+            self.assertEqual(can, True, repr(t[:20]) + ": an unknown name is offered as text; the save's own checks refuse hidden characters")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, '\u540d')"), ["\u00dcn\u00ef \u540d\u524d"])
+        self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, '  ADA   quillfeather ')"), False, "spacing and case do not make a known name new")
+
     def test_item_1070_typing_in_change_owner_searches_the_register_and_the_projects_names_and_offers_to_add_only_an_unknown_name(self):
         row = json.dumps(self.ACTION)
         reg = json.dumps([{"name": "Ada Quillfeather", "email": "ada@example.com"}, {"name": "Bryony Castellan", "aliases": "Bry C"},
@@ -1432,6 +1445,34 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % rows[-1])
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 900 and box[3] <= 500, box)
+
+    def test_item_1070_typing_in_the_owner_list_moves_nothing_and_a_hostile_text_stays_inside_the_window_at_1400_and_900(self):
+        """Movement pass: while text is typed (the list narrows to nothing and to the add entry) the menu and the list's box keep their place
+        and the list stays inside the window; markup typed is shown as text, never as elements."""
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        box = "(() => { const r = document.querySelector('.rowmenu .rm-fly').getBoundingClientRect(); const m = document.querySelector('.rowmenu .ddmenu').getBoundingClientRect(); return [r.left, r.top, r.width, m.left, m.top, m.width, m.height, r.right <= window.innerWidth, r.bottom <= window.innerHeight, r.left >= 0, r.top >= 0]; })()"
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.people_loaded(cdp, sid)
+                before = cdp.js(box, sid)
+                self.type_in(cdp, sid, "q" * 500)
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length > 0", "the typing")
+                self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length", sid), 200, "a huge paste stops at 200 characters")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').select()", sid)
+                for text in ("ced", "<img src=x onerror=alert(1)>" + "w" * 150, "Zed Nobody"):
+                    self.type_in(cdp, sid, text)
+                    self.until(cdp, sid, f"document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === {json.dumps(text)}", "the typing")
+                    time.sleep(0.3)
+                    now = cdp.js(box, sid)
+                    self.assertEqual((now[1], now[3:7]), (before[1], before[3:7]), f"{width}: the menu and the list's top do not move or resize while typing")
+                    self.assertEqual(now[7:], [True] * 4, f"{width}: the list stays inside the window")
+                    self.assertEqual(cdp.js("document.querySelectorAll('.rm-fly img, .rm-fly script').length", sid), 0, "markup is only text")
+                    cdp.js("(() => { const i = document.querySelector('.rowmenu .rm-fly input[data-rm-search]'); i.select(); })()", sid)
 
     def test_no_dead_draft_email_event_is_left(self):
         for f in ("edit/RowMenu.jsx", "logic/rowMenu.js"):

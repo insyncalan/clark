@@ -7,6 +7,7 @@ nothing answers it shows "Quitting did not work. Try again." and the button work
 Chrome is required: these tests fail, never skip, without it.
 """
 import tempfile
+import time
 import unittest
 
 from _real_server import real_server
@@ -79,6 +80,19 @@ class Card(unittest.TestCase):
             self.assertEqual(cdp.js("[...document.querySelectorAll('#quit button')].every(b => b.disabled)", sid), True)
             cdp.js("document.querySelectorAll('#quit button').forEach(b => b.click())", sid)
             self.assertEqual(len(self.stops), 1, "a second click does nothing")
+
+    def test_two_presses_of_the_confirm_in_one_turn_stop_clark_once(self):
+        """Hostile pass: the confirm button pressed twice before the page redraws (a double click, a key repeat) asks the server once."""
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port)
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.querySelector('#quit-yes')", "the confirm button")
+            cdp.js("(() => { const b = document.querySelector('#quit-yes'); b.click(); b.click(); b.click(); })()", sid)
+            self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({STOPPING!r})", "the stopping line")
+            self.assertTrue(wait(lambda: len(self.stops) >= 1, 10))
+            time.sleep(1)
+            self.assertEqual(len(self.stops), 1, "one stop request, however many presses")
 
     def confirm(self, cdp, sid):
         self.until(cdp, sid, "document.querySelector('#quit-yes')", "the confirm button")
