@@ -4,6 +4,8 @@ import { useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
+const ASK = "Quit clark now? Nothing is left running. To start it again, open clark the way you did before.";
+const AGAIN = "To start clark again, open it the way you did before.";
 const FAILED = "Quitting did not work. Try again.";
 
 // {status, body}: never a throw; a status of 0 is "no answer".
@@ -20,14 +22,16 @@ const said = (b) => (b && typeof b.code === "string" && /^[a-z_]+$/.test(b.code)
 
 Quit.chip = "Quit";                                         // the Settings chip says the card's heading (components/Views.jsx); an Edit-only name stays out of the published page
 export function Quit() {
-  const [phase, setPhase] = useState("idle");              // idle | busy | done
+  const [phase, setPhase] = useState("idle");              // idle | ask | busy | done
   const [msg, setMsg] = useState("");
+  function ask() { if (phase === "idle") { setMsg(""); setPhase("ask"); } }
+  function cancel() { if (phase === "ask") setPhase("idle"); }
   async function go() {
-    if (phase !== "idle") return;
+    if (phase !== "ask") return;
     setPhase("busy");
     setMsg("");
     const r = await quit();
-    if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg(STOPPING); return; }
+    if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg(STOPPING + " " + AGAIN); return; }
     setMsg(said(r.body));
     setPhase("idle");
   }
@@ -36,7 +40,13 @@ export function Quit() {
       <h2 id="quit-h" tabIndex={-1}>Quit</h2>
       <p class="muted">Quit clark when you have finished. Nothing is left running.</p>
       <div class="row">
-        <button type="button" class="btn" onClick={go} disabled={phase !== "idle"}>Quit clark</button>
+        {phase === "ask" ? (
+          <div>
+            <p role="alert">{ASK}</p>
+            <button type="button" class="btn" id="quit-yes" onClick={go}>Quit clark</button>
+            <button type="button" class="btn" id="quit-no" onClick={cancel}>Cancel</button>
+          </div>
+        ) : <button type="button" class="btn" onClick={ask} disabled={phase !== "idle"}>Quit clark</button>}
       </div>
       <div class="pub-msg" role="status" aria-live="polite">{msg ? <p class={phase === "done" ? "note" : "error"}>{msg}</p> : null}</div>
     </section>
