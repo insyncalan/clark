@@ -688,3 +688,4 @@ test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
 test_work_archived_filter.py 30.0
 test_setup_mode.py 30.0
+test_gantt_today_reduced.py 30.0

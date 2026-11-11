@@ -153,7 +153,7 @@ export function GanttChart({
 
   const goToday = () => {
     const el = gx.current;
-    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: "smooth" });
+    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: reduced() ? "auto" : "smooth" });
   };
   const rowsAt = (n) => {
     if (full) return;
@@ -400,7 +400,7 @@ export function GanttChart({
               return (
                 <div key={l.id}>
                   <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}${born.current.get(l.id) ? " gt-grow" : ""}`}
-                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) born.current.set(l.id, false); }}
+                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) { born.current.set(l.id, false); e.currentTarget.classList.remove("gt-grow"); } }}
                     style={{ left: `${q.x1}px`, width: `${w}px`, top: `${l.type === "phase" ? top + 10 : top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
                     onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                     onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
