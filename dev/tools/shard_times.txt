@@ -693,3 +693,6 @@ test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
 test_server_host_hostile.py 1.0
 test_glance_tile_words.py 3.0
+test_rows_bundle_hostile.py 1.0
+test_rows_bundle_hostile_page.py 1.0
+test_rows_bundle_hostile_data.py 1.0
