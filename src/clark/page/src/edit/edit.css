@@ -257,10 +257,13 @@ table.items td.c-pick { vertical-align: middle; }
 .ask-dots i:nth-child(2) { animation-delay: 150ms; } .ask-dots i:nth-child(3) { animation-delay: 300ms; }
 @keyframes ask-dot { 0%, 100% { opacity: .3; transform: translateY(0); } 50% { opacity: 1; transform: translateY(-3px); } }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
-.ask-sent { flex: none; margin: 0; padding: 0 20px var(--space-2); font-size: var(--size-caption); line-height: 1.45; color: var(--text-muted); }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
 .ask-form { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+/* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
+.ask-form { position: relative; }
+.ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
+@media print { .ask-form::before { display: none; } }
 .ask-form textarea { width: 100%; box-sizing: border-box; min-height: 56px; max-height: 140px; padding: 10px 14px; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: vertical; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
@@ -392,7 +395,7 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
   .top .tabs::-webkit-scrollbar { display: none; }
   .top .tab { flex: none; white-space: nowrap; }
-  .top .proj, .top .projbtn { min-width: 0; flex: 0 1 auto; max-width: 160px; }
+  .top .projbtn { min-width: 24px; flex: 0 1 auto; max-width: 160px; }
 }
 @media (min-width: 801px) and (max-width: 1000px) {      /* row 757: from 801 px to 1000 px (the 900 px layout runs in a 915 px window too) the project name gives way first (it is the item that shrinks, 1000 times as hard as the tab row, which must keep a shrink factor of 1 or more or flexbox would absorb only a fraction of the overflow, down to a floor of 72 px); only then does the tab row scroll inside its own box, the open tab kept in view by the top bar; 800 px and below stay as above */
   .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: calc(var(--space-7) + var(--space-5)); }
@@ -400,7 +403,7 @@ table.items td.c-pick { vertical-align: middle; }
   .top .tabs::-webkit-scrollbar { display: none; }
 }
 @media (max-width: 480px) {      /* row 1033: at 420 px the project name kept 160 px and the tab row got 61 px (360 px: 1 px), so Settings was out of reach; the name gives way first, as from 801 to 1000 px; down to 48 px, an initial and the chevron */
-  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: 48px; }
+  .top .dd:has(> .projbtn) { flex-shrink: 1000; min-width: 24px; }
   .top .tabs { flex: 0 1 auto; min-width: 0; }
 }
 
@@ -457,11 +460,17 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-items { margin: 0; padding: 0; }
 .ucd-items li { padding: 0; border-top: 1px solid var(--grey-100); }
 .ucd-items li:first-child { border-top: 0; }
-.ucd-item { display: grid; grid-template-columns: 92px minmax(0, 1fr) auto minmax(110px, auto); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucd-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .ucd-item:hover { background: var(--grey-50); }
-.ucd-id { color: var(--text-muted); font-size: var(--size-caption); }
-.ucd-t { min-width: 0; overflow-wrap: anywhere; }
-.ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; overflow-wrap: anywhere; }
+.ucd-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
+/* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
+.ucd-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucd-item .pill.r::before { background: var(--tone-red-text); }
+.ucd-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucd-item .pill.a::before { background: var(--tone-amber-text); }
+.ucd-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucd-item .pill.g::before { background: var(--tone-green-text); }
+.ucd-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucd-item .pill.b::before { background: var(--tone-blue-text); }
+.ucd-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucd-item .pill.n::before { background: var(--tone-grey-text); }
+.ucd-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-foot { margin: 0; }
 .ucd-foot .link { font-size: var(--size-body); }
 .ucd-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 0; }
@@ -476,7 +485,9 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-hm { font-size: var(--size-caption); color: var(--text-muted); }
 @media (max-width: 1100px) {
   .ucd-grid { grid-template-columns: minmax(0, 1fr); }
-  .ucd-item { grid-template-columns: 84px minmax(0, 1fr) auto; }
+}
+@media (max-width: 640px) {
+  .ucd-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
   .ucd-x { grid-column: 2 / -1; text-align: left; }
 }
 /* G5 typed notes (#96): the Edit parts of Callout, Quote, Contacts and Table. Edit only. Tokens only. */
@@ -1064,11 +1075,49 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
-.item-rows-edit .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
-.item-rows-edit .wl-title .tag { flex: none; }
-.item-rows-edit .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-rows-edit .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
+.item-rows-edit .wl:not(.irows) .wl-title { display: flex; align-items: baseline; gap: var(--space-1); overflow: visible; }
+.item-rows-edit .wl:not(.irows) .wl-title .tag { flex: none; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-rows-edit .wl:not(.irows) .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* Row 1021: the status icon in Edit is the status control (a button around the tinted square): the caret and the tooltip share its ::after. */
+.irows .cell-pick[data-cell$=":status"]:not(:hover):not(:focus-visible)::after { content: none; }
+.irows .cell-pick[data-tip] { position: relative; }
+.irows .cell-pick[data-tip]:hover::after, .irows .cell-pick[data-tip]:focus-visible::after { opacity: 1; }
+.irows .c-owner .cell-pick, .irows .c-date .cell-pick { max-width: 100%; }
+.irows .c-owner .cell-val { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.irows .wl-title .cell-ce { display: block; width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.irows .wl-title .cell-ce:focus { text-overflow: clip; }
+.irows .c-id .ib { flex: none; }
+@media (max-width: 560px) {      /* a decision's 'Needed by 03-11-2026' in Edit goes on two lines in its 112 px column rather than run into the id */
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] { white-space: normal; line-height: 1.25; }
+  .irows.is-dec .c-date .cell-pick[data-cell$=":due"] .cell-val { flex: 0 1 auto; min-width: 0; }
+}
 /* The milestone peek's Description while its editor is open: the cell is half the peek at phone width, which left the toolbar 134 px of room and
    four or more rows. The open editor takes the whole row there, so the toolbar wraps to two rows at most. Edit only (the editor is). */
 @container (max-width: 559px) { .pk-fields > .pk-row[data-row=description]:has(.rt) { grid-column: 1 / -1; } }
+
+/* Row 1087: the Published reports page (edit/PublishedPage.jsx, edit/PublishedReports.jsx). Edit only, so not in the published page. The cover band is the shared one (brand picture and colours). */
+.pp-where { margin: var(--space-4) 0; padding-bottom: var(--space-4); border-bottom: 1px solid var(--grey-200); }
+.pp-where dl { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-1) var(--space-4); margin: var(--space-2) 0; }
+.pp-where dt { color: var(--text-muted); font-size: var(--size-small); }
+.pp-where dd { margin: 0; overflow-wrap: anywhere; }
+.pp-where p { margin: var(--space-2) 0 0; }
+.pp-kicker { margin: 0 0 var(--space-2); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+.pp-block { margin: var(--space-4) 0; padding: var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); }
+.pp-latest h2 { margin: 0 0 var(--space-1); font-size: var(--size-h2); color: var(--heading); }
+.pp-latest p { margin: 0 0 var(--space-2); }
+.pp-latest .acts { display: flex; gap: var(--space-2); flex-wrap: wrap; align-items: center; }
+.pp-earlier .pubs { margin-top: 0; }
+.pp-earlier .pubs th:first-child, .pp-earlier .pubs td:first-child { width: 1%; white-space: nowrap; }      /* room for the Archived tag beside the number */
+.pp-earlier .pubs td.num, .pp-earlier .pubs td.files { white-space: nowrap; }      /* a date or 'Page, PDF' never breaks inside */
+.pubs-intro { margin: var(--space-2) 0 0; font-size: var(--size-small); color: var(--white); max-width: 70ch; }
+.pp-earlier .pubs td .muted.small { white-space: normal; }
+/* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
+.pk-lh { margin-top: 0; }
+.pk-lh-btn { display: block; margin-left: auto; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
+.pk-lh-btn:focus-visible, .pk-lh-list:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-lh-panel { margin-top: var(--space-1); }
+.pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
+.pk-lh-list { list-style: none; margin: 0; padding: 0; max-height: calc(5 * 4.5em); overflow-y: auto; }
+.pk-lh-row { box-sizing: border-box; min-height: 4.5em; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); overflow-wrap: anywhere; }
