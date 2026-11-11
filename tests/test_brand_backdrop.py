@@ -190,6 +190,17 @@ class Backdrop(Rig):
             self.assertAlmostEqual(float(got["opacity"]), 0.2, delta=0.01)
             self.assertEqual(got["z"], "-1")
 
+    def test_the_ask_panel_wash_is_not_printed(self):
+        self.brand()
+        with chrome() as cdp:
+            p = self.load_app(cdp)
+            p.js("document.querySelector('#ask-btn').click()")
+            p.until("!!document.querySelector('#ask-panel')", "the panel opened")
+            wash = "getComputedStyle(document.querySelector('.ask-form'), '::before').display"
+            self.assertNotEqual(p.js(wash), "none")
+            cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            self.assertEqual(p.js(wash), "none", "paper and PDF: no wash at the panel's foot")
+
 
 class Generic(Rig):
     """Ruling 3 and the guards: no own look, nothing drawn, nothing asked for; Brands remove returns the plain page."""
