@@ -16,8 +16,10 @@ function remembered() {
 
 export const appearance = signal(remembered());
 
+let forPrint = false;                      // while the browser prints, the page is always light (#1050: "no to print dark")
 function paint(v) {
   try {
+    if (forPrint) v = "light";
     const root = document.documentElement;
     if (v === "dark") root.dataset.theme = "dark";
     else if (v === "system") root.dataset.theme = "auto";
@@ -32,4 +34,10 @@ export function setAppearance(v) {
   appearance.value = v;
   paint(v);
   try { localStorage.setItem(KEY, v); } catch (e) { /* a private window: it applies now, and is not remembered */ }
+}
+
+// Anything printed uses the light look, whatever the screen shows; the chosen look comes back after the print.
+if (typeof window === "object" && window.addEventListener) {
+  window.addEventListener("beforeprint", () => { forPrint = true; paint(appearance.value); });
+  window.addEventListener("afterprint", () => { forPrint = false; paint(appearance.value); });
 }
