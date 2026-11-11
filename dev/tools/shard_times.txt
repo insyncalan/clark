@@ -286,6 +286,7 @@ test_item_454_dark_900.py 81.5
 test_item_660_editors.py 158.3
 test_item_one_line.py 30.0
 test_item_row_fit.py 30.0
+test_half_cards_1099.py 10.0
 test_item_rows.py 56.8
 test_keep_published.py 20.0
 test_latest_update_publish.py 3.3

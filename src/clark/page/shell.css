@@ -483,6 +483,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 @media (max-width: 900px) { html[data-density="comfortable"] .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
 .slot-full { grid-column: 1 / -1; }
 .slot-left { grid-column: 1; }
+.sec.slot-left, .sec.slot-right { container: half / inline-size; }      /* row 1099: the item rows (shell.css, .irows) size to the half card, not to the window */
 .slot-right { grid-column: 2; }
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
@@ -2187,6 +2188,41 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   .irows.is-file.is-dec .c-date { white-space: normal; line-height: 1.25; }
 }
 @media (max-width: 560px) {
+  .irows:not(.is-file), .irows.is-dec:not(.is-file) { --cols: 28px minmax(0, 1fr) 28px 112px 88px; }
+  .irows.is-edit, .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px; row-gap: 2px; }      /* Edit: the id and the eye are wider than the room left, so they sit under the title, at the right */
+  .irows.is-edit .wl-row > .c-id { grid-column: 2; grid-row: 2; }
+  .irows.is-edit .wl-row > .c-date { grid-column: 4; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines here: it spans both rows, so it never runs down onto the id */
+  .irows.is-edit .wl-head .c-id { display: none; }
+  .irows .wl-row, .irows .wl-head { gap: 0 8px; }
+  .irows .c-prio { display: none; }
+  .irows.is-dec .c-date { white-space: normal; line-height: 1.25; }      /* 'Needed by 03-11-2026' goes on two lines rather than run into its neighbour */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px; }
+}
+
+/* Row 1099: a half-width card (the section is the container) is as narrow as a phone page, whatever the window: its rows take the narrow layouts by the CARD's width. Same rules as the three blocks above; keep them equal. */
+@container half (max-width: 700px) {
+  /* the screen shows initials from here down; the published file (.is-file) and the printed page keep the full name (paper has room, initials alone are ambiguous) */
+  .irows:not(.is-file), .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 88px; }
+  .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 124px; }
+  .irows.is-dec { --cols: 28px minmax(0, 1fr) 28px 184px 84px 88px; }
+  .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 184px 84px 124px; }
+  .irows:not(.is-file) .c-owner .nm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }      /* the name stays the avatar's spoken name */
+  .irows:not(.is-file) .wl-head .c-owner { overflow: hidden; text-indent: -999px; }
+  .irows:not(.is-file) .c-owner { position: relative; }
+}
+@container half (max-width: 700px) {      /* the file at phone width: the status icon and word at the left, the title, the date and the priority on the first line, the full owner name under the title (the date and the status take too much of the width for the name to keep a column of its own) */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px 84px; row-gap: 0; }
+  .irows.is-file .wl-row { padding: 4px 0; }
+  .irows.is-file .wl-row > .c-ico { grid-row: 1 / span 2; align-self: start; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .irows.is-file .wl-row > .c-title { grid-column: 2; grid-row: 1; }
+  .irows.is-file .wl-row > .c-date { grid-column: 3; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines: it spans both rows */
+  .irows.is-file .wl-row > .c-prio { grid-column: 4; grid-row: 1; }
+  .irows.is-file .wl-row > .c-owner { grid-column: 2; grid-row: 2; }
+  .irows.is-file .c-owner .nm { white-space: normal; }
+  .irows.is-file .wl-head .c-owner { display: none; }
+  .irows.is-file.is-dec .c-date { white-space: normal; line-height: 1.25; }
+}
+@container half (max-width: 460px) {
   .irows:not(.is-file), .irows.is-dec:not(.is-file) { --cols: 28px minmax(0, 1fr) 28px 112px 88px; }
   .irows.is-edit, .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px; row-gap: 2px; }      /* Edit: the id and the eye are wider than the room left, so they sit under the title, at the right */
   .irows.is-edit .wl-row > .c-id { grid-column: 2; grid-row: 2; }
