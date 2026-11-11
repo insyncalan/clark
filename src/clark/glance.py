@@ -333,6 +333,8 @@ def _risks_tile(rows):
     colour = "red" if high else "amber" if open_ else "green"          # the page's rule (glanceTiles.js tiles()), item 391
     if not open_:
         detail = "None open"
+    elif not high:
+        detail = "None high"                                         # #669: the page's words
     elif len(open_) == 1:
         detail = "of 1 open risk or issue"
     else:
@@ -350,7 +352,7 @@ def _decisions_tile(rows):
     elif oldest:
         detail = f"Oldest needed by {show_date(oldest)}"
     else:
-        detail = "No date needed by"
+        detail = "No date set"
     return {"tile": "decisions", "title": TILE_TITLES["decisions"], "value": len(pending), "detail": detail,
             "oldest": oldest, "oldest_shown": show_date(oldest) if oldest else "", "auto_colour": "amber" if pending else "green"}
 
