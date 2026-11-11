@@ -257,6 +257,7 @@ class Archive(Fields):
                 self.assertEqual(self.row(ACTION)["archived"], 1)
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "the peek closes with the item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "one Undo brings it back")
 

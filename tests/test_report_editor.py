@@ -980,14 +980,19 @@ class Gutter(Base):
     def test_faint_at_rest_clear_on_hover_and_focus_and_while_open(self):
         with chrome() as cdp:
             p = self.visit(cdp)
+            # motion pinned (a runner may set either), and every reading is taken once the fade has finished: a poll that lands
+            # inside a transition read 0.2934 against 0.3 on a slow runner
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
             p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.004" % (self.CTL % "ABC-S-004"), "faint at rest")
+            p.until("document.getAnimations().length === 0", "the fade finished")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-004"), 0.3, places=2)
             x, y, _ = p.box('[data-id="ABC-S-004"] .sec-head')
             p.mouse("mouseMoved", x, y)
             p.until("parseFloat(getComputedStyle(%s).opacity) === 1" % (self.CTL % "ABC-S-004"), "clear on hover")
+            p.until("document.getAnimations().length === 0", "the fade finished")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-003"), 0.3, places=2, msg="only the section being pointed at")
             p.mouse("mouseMoved", 5, 5)
             p.until("parseFloat(getComputedStyle(%s).opacity) < 1" % (self.CTL % "ABC-S-004"), "faint again")

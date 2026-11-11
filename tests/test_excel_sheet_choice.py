@@ -131,14 +131,20 @@ class Speed(Sheets):
             add_row(ws, "milestones", f"Milestone number {n}")
         wb.save(str(self.path))
         _, listed = self.sheets()
-        t = time.perf_counter()
-        _, small = self.post(op="check", project="ABC", file=listed["file"], sheets=["use_cases"])
-        quick = time.perf_counter() - t
+        quick = None
+        for _ in range(3):                                 # the best of three: a slow moment on a shared runner hits one run, not all
+            t = time.perf_counter()
+            _, small = self.post(op="check", project="ABC", file=listed["file"], sheets=["use_cases"])
+            took = time.perf_counter() - t
+            quick = took if quick is None else min(quick, took)
         self.assertEqual({i["table"] for i in small["items"]}, {"use_cases"})
         _, listed = self.sheets()
-        t = time.perf_counter()
-        _, big = self.post(op="check", project="ABC", file=listed["file"], sheets=["milestones"])
-        slow = time.perf_counter() - t
+        slow = None
+        for _ in range(3):
+            t = time.perf_counter()
+            _, big = self.post(op="check", project="ABC", file=listed["file"], sheets=["milestones"])
+            took = time.perf_counter() - t
+            slow = took if slow is None else min(slow, took)
         self.assertEqual(big["counts"]["new"], 901)
         self.assertLess(quick, slow)
 

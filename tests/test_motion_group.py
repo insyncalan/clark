@@ -74,6 +74,19 @@ class MotionGroup(unittest.TestCase):
         self.assertRegex(jsx, r"justOpened\s*=\s*shut\s*&&\s*!fromFile\.value\s*\?\s*c\.key")
         self.assertRegex(jsx, r'class=\{justOpened === c\.key && !shut && !fromFile\.value \? "opening"')
 
+    def test_row_1131_lows_heads_have_scope_col_thead_is_pinned_and_both_ends_are_awaited(self):
+        jsx = (ROOT / "src/clark/page/src/components/WorkItems.jsx").read_text(encoding="utf-8")
+        heads = re.search(r"function Heads\(.*?\n\}\n", jsx, re.S).group(0)
+        ths = re.findall(r"<th\b[^>]*>", heads)
+        self.assertGreaterEqual(len(ths), 7)
+        for th in ths:
+            self.assertIn('scope="col"', th)
+        self.assertRegex(EDIT, r'\[data-motion="reduce"\]\) thead\.opening > tr:not\(\.grp\)')
+        self.assertRegex(jsx, r'<thead data-group=\{c\.key\} class=\{justOpened === c\.key && !shut && !fromFile\.value \? "opening"')
+        # the group is marked done only when neither the thead nor the tbody is still gliding
+        opened = re.search(r"const opened = .*", jsx).group(0)
+        self.assertIn(".opening", opened.split("remove(\"opening\")", 1)[1])
+
 
 if __name__ == "__main__":
     unittest.main()
