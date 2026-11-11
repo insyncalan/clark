@@ -33,7 +33,7 @@ class TheBrandKitGuide(unittest.TestCase):
         text = " ".join(words(GUIDE))
         for part in ("clark-brand.json", "name, id and version", "file list", "colours and fonts", "logo", "cover pictures", "no other files"):
             self.assertIn(part, text, part)
-        self.assertIn("No file name is required", text)
+        self.assertIn("The colours and fonts file is tokens.css", text)
 
     def test_it_gives_the_limits_the_server_enforces(self):
         from clark import brands
