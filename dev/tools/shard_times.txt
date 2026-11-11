@@ -711,6 +711,7 @@ test_feedback_tab.py 20.0
 test_hostile_feedback.py 10.0
 test_filter_line_keys.py 30.0
 test_gantt_today_reduced.py 30.0
+test_help_links_exist.py 0.2
 test_help_list_button_words.py 30.0
 test_help_work_icons_1333.py 30.0
 test_help_work_line_words.py 30.0
