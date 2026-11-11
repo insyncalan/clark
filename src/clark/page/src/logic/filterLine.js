@@ -414,18 +414,6 @@ export function suggest(wordTyped, rows, ctx) {
     .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(gloss(), v) || "" : "" }));
 }
 
-/** The hint chips under the focused line: a few to start from, each with a plain meaning for its tooltip. */
-export const HINTS = [
-  { text: "status:", gloss: "Open, Pending, Delayed, Closed or Cancelled" },
-  { text: "owner:me", gloss: "Your own items (needs your name in Settings)" },
-  { text: "due:overdue", gloss: "Open items whose date has passed" },
-  { text: "-status:Closed", gloss: "Leave closed items out" },
-  { text: "no:owner", gloss: "Items with no owner" },
-  { text: "is:incomplete", gloss: "No owner or no date" },
-];
-/** The hint chips to show: HINTS, with is:quiet added once the page turns the `is:` data on (ctx.isReady). */
-export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: gloss().quiet }, ...HINTS.slice(5)] : HINTS.slice());
-
 /** True when every field word of the line is one the published file's line may use (CLIENT_FIELDS; `is:` only CLIENT_IS; no `owner:me`) and
  *  is a field at all. Needs no rows. Used to drop a remembered line or saved view that names anything else. */
 export function lineIsClientSafe(line) {

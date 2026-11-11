@@ -387,7 +387,7 @@ def tiles(rows_by_table, today, tile_order=None, hidden=None, outlines=None, for
             continue
         t = made[name]()
         outline = choice.get(name) or ""
-        colour = OUTLINE_COLOUR[outline] if outline in OUTLINE_COLOUR else t["auto_colour"]
+        colour = OUTLINE_COLOUR[outline] if isinstance(outline, str) and outline in OUTLINE_COLOUR else t["auto_colour"]
         t["colour"], t["class"] = colour, COLOUR_CLASS[colour]
         if "label" not in t:
             t["label"] = _label(t["title"], t["value"], t["detail"], colour)

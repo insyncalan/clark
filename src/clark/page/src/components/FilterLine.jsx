@@ -3,6 +3,7 @@
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
 // tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
+import { ImportExport } from "./ImportExport.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -41,16 +42,29 @@ export function layoutItems(w, board) {
   return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
 }
 
-// Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
+// Row 812: the list and the board as a two-icon switch (row 1084 names the buttons "List" and "Board"; "Layout" names the pair).
 function LayoutSwitch() {
   const onBoard = work.value.view === "board";
   return (
     <div class="seg lsw" role="group" aria-label="Layout">
       {["table", "board"].map((k) => {
-        const word = k === "table" ? "Table" : "Board";
+        const word = k === "table" ? "List" : "Board";
         return <button type="button" key={k} data-lay={k} aria-label={word} title={word} aria-pressed={onBoard === (k === "board") ? "true" : "false"} onClick={() => pickLayout(`layout:${k}`)}><Icon name={k} /></button>;
       })}
     </div>
+  );
+}
+
+// Row 1084: List, Board and Group by are three icon buttons at the right end of the filter box line (they were at the right of the tab row).
+// Group by is the one View menu (grouping, and on the board the swimlanes) as an icon-only button named "Group by".
+function ViewIcons({ board }) {
+  if (fromFile.value) return null;
+  const lay = layoutItems(work.value, !!board);
+  return (
+    <span class="vicons">
+      {board ? <LayoutSwitch /> : null}
+      <Menu label="" ariaLabel={lay.label} tip="Group by" icon="group" chevron={false} id="viewMenu" btnCls="btn sm vgb" menuId="viewMenuList" menuLabel="Group by" items={lay.items} onPick={pickLayout} />
+    </span>
   );
 }
 
@@ -224,7 +238,6 @@ function SavedViews({ board }) {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
-  const lay = layoutItems(work.value, !!board);
   // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
@@ -271,8 +284,6 @@ function SavedViews({ board }) {
           <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
         </span>
       )}
-      {fromFile.value || !board ? null : <LayoutSwitch />}
-      {fromFile.value ? null : <Menu label="" icon="group" chevron={false} tip="Group by" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm gbtn" menuId="viewMenuList" menuLabel="Group by" items={lay.items} onPick={act} />}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
@@ -299,8 +310,8 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // `apply(text)` makes it the page's line, `rows` and `ctx` are what the line reads, `extra` its schema (the Work items line passes none; a page's own
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
-// does, and `head` what stands over the box inside its focus (the Work items saved views). The Work items line (FilterLine, below) is this box with its stores.
-export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null }) {
+// does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items import/export and view icons). The Work items line (FilterLine, below) is this box with its stores.
+export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
   const live = useRef({ chips: first.current.chips, draft: first.current.rest });     // what the box holds right now, for a key that comes before the next draw
@@ -474,6 +485,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
         </div>
         <span class="fcount num" id={ids.count} data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id={ids.x} aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        {tail}
       </div>
       {notes.length ? null : suggestions}
       {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
@@ -481,11 +493,11 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
       {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
-        // A page that gives no hints (the Use cases page, row 1085: no Try row by the approved design) has no examples row.
-        hints ? (
+        // A page that gives neither hints nor chip words (the Use cases page, row 1085) has no examples row; the Work items line has the gloss only (main removed its Try row).
+        hints || meaning ? (
           <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
-            <span class="fhl">Try</span>
-            {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
+            {hints ? <span class="fhl">Try</span> : null}
+            {hints ? hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>) : null}
             <span class="fgloss" id={ids.gloss} aria-hidden="true" hidden={!gloss}>{gloss}</span>
           </div>
         ) : null
@@ -495,12 +507,12 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
   );
 }
 
-// The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, the Try row, each chip's plain words and the owner:me note.
-export function FilterLine({ board }) {
+// The Work items line: the box over the app's line store (stores/line.js), with the saved views over it, each chip's plain words and the owner:me note.
+export function FilterLine({ board, tools }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
-    <LineBox head={<SavedViews board={board} />} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items" hints={FL.hints(ctx)}
-      meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
+    <LineBox head={<SavedViews board={board} />} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
+      tail={<>{tools && !fromFile.value ? <ImportExport tools={tools} line /> : null}<ViewIcons board={board} /></>} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }

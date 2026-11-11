@@ -383,6 +383,7 @@ class Migration(unittest.TestCase):
             mine.close()
             theirs.close()
 
+
 class Refusals258(Base):
     """#258: hidden, closed, archived, Sensitive items and a day before 2020 are refused, each writing nothing."""
     def test_hidden_closed_archived_sensitive_and_withdrawn_items_are_refused(self):
