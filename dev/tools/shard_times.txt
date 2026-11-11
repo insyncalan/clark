@@ -718,5 +718,3 @@ test_milestones_dead_ghost_label.py 30.0
 test_work_archived_filter.py 30.0
 test_code_mark.py 1.0
 test_excel_client_mutwave.py 1.0
-test_work_archived_page.py 1.0
-test_work_archived_peek.py 1.0
