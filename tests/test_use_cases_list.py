@@ -775,7 +775,7 @@ class GroupBy(Setup):
     def test_group_by_status_commitment_and_the_dashboard_draws_bordered_groups_with_a_heading_and_a_count(self):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"commitment": "Committed"})
-            st.update("use_cases", self.uc4, {"commitment": "Candidate"})
+            st.update("use_cases", self.uc4, {"commitment": "Planned 2026"})
         with chrome() as cdp:
             p = self.show(cdp)
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group').length"), 0, "Nothing to start: one plain list")
@@ -794,7 +794,7 @@ class GroupBy(Setup):
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .grp-b')].map(b => b.getAttribute('aria-expanded'))"), ["true", "true", "true"])
             self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
             self.pick(p, "Commitment")
-            self.assertEqual(self.groups(p), [["Candidate", "1 use case", ["UC 2.1"]], ["Committed", "1 use case", ["UC 1.2"]], ["None", "2 use cases", ["UC 1.1", "UC 1.10"]]], "the server's words in its order, then None")
+            self.assertEqual(self.groups(p), [["Planned 2026", "1 use case", ["UC 2.1"]], ["Committed", "1 use case", ["UC 1.2"]], ["None", "2 use cases", ["UC 1.1", "UC 1.10"]]], "the server's words in its order, then None")
             self.pick(p, ON)
             self.assertEqual(self.groups(p), [[ON, "2 use cases", ["UC 1.1", "UC 1.2"]], [OFF, "2 use cases", ["UC 1.10", "UC 2.1"]]])
             self.type_in(p, "#ucl-q", "status:Flag ")
