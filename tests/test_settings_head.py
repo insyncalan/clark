@@ -149,6 +149,16 @@ class Head(Base):
                 p.js("location.hash = '#settings&p=PUB&s=nonsense'")
                 p.until("document.querySelector('.set-menu [aria-current]').textContent === 'Projects'", "an unknown page opens Projects")
 
+    def test_C_the_reports_page_holds_both_its_cards_in_order_and_no_other_page_holds_either(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w, page="reports")
+                self.assertEqual(p.js("[...document.querySelectorAll('.set-cards [id$=-h]')].map(h => h.id).filter(id => id === 'review-days-h' || id === 'gantt-setting-h')"),
+                                 ["review-days-h", "gantt-setting-h"], "Freshness then Gantt, both on Reports")
+                self.open_settings(p, w, page="appearance")
+                self.assertEqual(p.js("!!document.getElementById('gantt-setting-h') || !!document.getElementById('review-days-h')"), False, "neither is on Appearance")
+
     def test_C_a_heading_the_scroll_did_not_bring_into_view_is_scrolled_to(self):
         """The hosted macOS runner found a heading 4466 px down with scrollY=0 after the click (window.scrollTo did not take). Here scrollTo does
         nothing and the window is scrolled past the heading by hand: choosing a page still shows its heading."""
@@ -230,6 +240,16 @@ class Head(Base):
                 p.js("window.clarkPage.help.open(%s)" % json.dumps(place))
                 p.until("!!document.querySelector('[data-hgo=\"settings#%s\"]')" % anchor, "Help shows a link to settings#" + anchor)
                 p.js("document.querySelector('[data-hgo=\"settings#%s\"]').click()" % anchor)
+                p.until("!!document.getElementById('%s')" % head, "the %s page drew" % slug)
+                self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), slug, "the address names the page")
+
+    def test_C_every_help_anchor_for_settings_opens_its_own_page(self):
+        """go:settings#update, #profile, #people and #folder each open the page that holds what they name (SETTINGS_ANCHOR in helpStore.js); an anchor that is not mapped opens Projects."""
+        for anchor, slug, head in (("update", "version", "update-h"), ("profile", "profile", "profile-h"), ("people", "people", "people-h"), ("folder", "folder", "client-folder-h"), ("nothing", "projects", "projects-h")):
+            with self.subTest(anchor=anchor), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, 1400, page="backups")
+                p.js("window.clarkPage.help.goTo('settings#%s')" % anchor)
                 p.until("!!document.getElementById('%s')" % head, "the %s page drew" % slug)
                 self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), slug, "the address names the page")
 
