@@ -130,6 +130,10 @@ class Harness:
         self.ev(f"window.mount({json.dumps(value)})")
         assert self.until("!!document.querySelector('.rt .ProseMirror')"), "the editor did not open"
         assert self.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')"), "the editor has no focus"
+        # The editor's own focus call runs on a frame. Until that frame has run, a test that moves the focus away is undone by it
+        # (the focus comes back, the field never sees a leave). Wait for two frames after the mount, then the field has settled.
+        self.ev("window.settled = false; requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.settled = true; }); }); true")
+        assert self.until("window.settled === true"), "the editor's focus frame never ran"
         self.focused()
 
     def select_all(self):
