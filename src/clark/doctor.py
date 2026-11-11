@@ -109,12 +109,17 @@ def _can_save_in(folder):
     return parent.is_dir() and os.access(str(parent), os.W_OK | os.X_OK)
 
 
+def cant_save_line(seen):
+    """The 'to fix' line for a data folder that can't be saved in (also used by setup mode for a folder it refuses)."""
+    return Line(FIX, f"Your clark data can't be saved in {seen.tilde(seen.folder())}. Check you can save files there, then "
+                     "start clark again.")
+
+
 def check_data_folder(seen):
     folder = seen.folder()
     if _can_save_in(folder):
         return Line(READY, f"Your clark data can be saved in {seen.tilde(folder)}.")
-    return Line(FIX, f"Your clark data can't be saved in {seen.tilde(folder)}. Check you can save files there, then start "
-                     "clark again.")
+    return cant_save_line(seen)
 
 
 def check_data_not_in_onedrive(seen):
