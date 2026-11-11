@@ -51,6 +51,7 @@ class OneMenu(Base):
 
     def only_the_archived_pill_in_the_bar(self, cdp, sid):
         # item 450: the bar may hold one .vctl wrapper again, and it holds the Archived pill and nothing else
+        self.until(cdp, sid, "!!document.querySelector('.wbar .vctl .arch-pill')", "the Archived pill drew")          # the bar is drawn before its pill is
         got = cdp.js("[...document.querySelectorAll('.wbar .vctl')].map(v => [...v.children].map(c => c.className))", sid)
         self.assertEqual(got, [["arch-pill"]], "one wrapper, holding only the Archived pill")
         self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl [data-lay], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
@@ -60,7 +61,7 @@ class OneMenu(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout]').length", sid), 0)
-            self.assertEqual(cdp.js("document.querySelectorAll('.fvrow [role=group][aria-label=Layout] [data-lay]').length", sid), 2, "row 812: the two-icon switch is beside the View menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('.fline .vicons [data-lay]').length", sid), 2, "row 812: the two-icon switch is on the filter box line")
             self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)
