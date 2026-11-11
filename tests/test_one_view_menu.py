@@ -51,6 +51,8 @@ class OneMenu(Base):
 
     def only_the_archived_pill_in_the_bar(self, cdp, sid):
         # item 450: the bar may hold one .vctl wrapper again, and it holds the Archived pill and nothing else
+        # the Show archived pill arrives after the page draws (WorkFilters.jsx), so wait for it, then check the bar holds only it
+        self.until(cdp, sid, "document.querySelector('.wbar .vctl .arch-pill')", "the Archived pill in the bar")
         got = cdp.js("[...document.querySelectorAll('.wbar .vctl')].map(v => [...v.children].map(c => c.className))", sid)
         self.assertEqual(got, [["arch-pill"]], "one wrapper, holding only the Archived pill")
         self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl [data-lay], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
