@@ -321,10 +321,7 @@ test_milestones_details.py 27.0
 test_milestones_eye.py 84.6
 test_milestones_inline.py 32.5
 test_milestones_oneline.py 59.0
-# 11-11-2026 (#912): test_milestones_page.py split into three files (calendar checks moved out); its 279.7 shared by local times 36/42/47 s
-test_milestones_calendar.py 93.2
-test_milestones_calendar_keys.py 105.1
-test_milestones_page.py 81.5
+test_milestones_page.py 279.7
 test_milestones_page_458.py 55.4
 test_milestones_parity.py 21.2
 test_milestones_route.py 6.1
@@ -691,11 +688,13 @@ test_spacing_work_items.py 1.0
 test_store_planned_2026_migration.py 1.0
 test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
-# 11-11-2026 (bundle A): new mutation-audit test files
-test_mutants_publish_flow_graphics.py 3.3
-test_publish_mutwave.py 0.5
-test_setup_mode.py 0.7
-test_store_migration_mutants.py 1.0
 test_help_wording_107_b.py 30.0
 test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
+test_ai_menu_mutants.py 1.0
+test_milestones_calendar.py 1.0
+test_milestones_calendar_keys.py 1.0
+test_mutants_publish_flow_graphics.py 1.0
+test_mutation_gl_docx.py 1.0
+test_publish_mutwave.py 1.0
+test_store_migration_mutants.py 1.0
