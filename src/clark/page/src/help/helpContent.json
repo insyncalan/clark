@@ -1608,15 +1608,15 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
-       "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
-       "**The chips**: the state, the agreed date, the forecast and the progress.",
-       "**State**: the six states as buttons, and why it has the one it has.",
-       "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
-       "**Progress**: a slider and a number, set by hand.",
-       "**Description**: scope and needs, then Owner and Workstream.",
-       "**Client view**: Visible to client, and Client wording.",
-       "**Linked work items**, then the history."
+       "**The top bar**: Previous item and Next item, the milestone's number, Archive (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
+       "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
+       "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
+       "**Name** and **Owner**: click to change, press Enter to save and Esc to leave it as it was.",
+       "**Agreed date** is shown here and not changed. **Forecast date** opens the date picker. **Achieved on** shows for an achieved milestone.",
+       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons. Overdue is set by clark and cannot be picked.",
+       "**Progress**: a slider and a number from 0 to 100, set by hand.",
+       "**Description** and **Workstream**.",
+       "**Client view**: **Visible to client** (Yes or No) and **Client wording**."
       ]
      ]
     ]
