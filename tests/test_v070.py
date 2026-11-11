@@ -177,7 +177,7 @@ COVERED = [
     ("#607", "Export a Word report to a client folder where the file already appears: one clear message, no repeat.",
      "test_word_route::Export::test_a_client_copy_failure_says_it_once_and_plainly"),
     ("A-D25", "The menu lists the projects and marks the open one.",
-     "test_project_switch::ProjectSwitch::test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings"),
+     "test_project_switch::ProjectSwitch::test_C_the_menu_lists_only_the_projects_with_open_counts"),
     ("A-D25", "Choosing a project opens it.",
      "test_project_switch::ProjectSwitch::test_C_choosing_a_project_changes_the_address_and_says_so"),
     ("A-D1", "The band names the project, the week and the client.",

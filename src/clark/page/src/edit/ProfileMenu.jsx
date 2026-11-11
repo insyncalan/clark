@@ -83,21 +83,19 @@ export function ProfileMenu() {
   const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
     { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports" });
-  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // after Export, as in the prototype; Published reports (row 1087) is a page of its own, no short word, so the tooltip is as it was
+  items.push({ id: "settings", name: "Settings", tip: "Settings" });      // row 1092: always here, after Published reports and before the Appearance group (the tab list no longer holds Settings)
   items.push({ id: "help", name: "Help" });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
   const named = !!(me.name || me.email);
-  // Issue 787: while the top line is the link to Settings, the Settings entry at the foot is left out (one way in to Settings, not two).
-  if (!named) { const at = items.findIndex((i) => i.id === "settings"); if (at >= 0) items.splice(at, 1); }
   const tip = menuTip(items);
   const last = lastLine(latest.value);
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
   const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
-  const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
+  const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true };
   const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group

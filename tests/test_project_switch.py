@@ -1,6 +1,6 @@
 """A-D25 and #439 row 37 (prototype core.js:292-295): the project switcher in the top bar, in a real browser. The name is always a
 button with a chevron and a menu, with one project as with two. The menu lists the projects (the open one marked, each with "N open
-items"), then Project settings; choosing a project changes the address and the page loads for that project (no "Switched to" message: the name is on screen); a published file shows
+items"), and nothing else (row 1092); choosing a project changes the address and the page loads for that project (no "Switched to" message: the name is on screen); a published file shows
 the name as plain words and holds no switcher.
 
 Run: python3 dev/run_tests.py test_project_switch
@@ -29,7 +29,8 @@ class ProjectSwitch(Base):
             self.assertEqual(p.js("document.querySelector('#project-name').getAttribute('aria-haspopup')"), "menu")
             self.open_menu(p)
             self.assertEqual(len(p.js(ITEMS)), 1, "the one project")
-            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["New project...", "Project settings"])
+            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), [], "row 1092: only the project list, no New project or Project settings")
+            self.assertEqual(p.js("document.querySelectorAll('#project-menu [role=separator]').length"), 0)
 
     def test_C_the_switcher_is_the_chevron_alone_without_a_box(self):
         with chrome() as cdp:
@@ -46,7 +47,7 @@ class ProjectSwitch(Base):
             p.width(1400)
             self.assertLessEqual(p.js("document.querySelector('#project-name').getBoundingClientRect().width"), 48)
 
-    def test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings(self):
+    def test_C_the_menu_lists_only_the_projects_with_open_counts(self):
         self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:
             p = self.page(cdp)
@@ -59,25 +60,23 @@ class ProjectSwitch(Base):
                 self.assertEqual(p.js(ITEMS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] b').textContent"), "Harbour Bridge Programme")
                 self.assertEqual(p.js("document.querySelector('#project-menu [aria-checked=true] small').textContent"), "3 open items")
-                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), ["New project...", "Project settings"])
-                self.assertEqual(p.js("document.querySelectorAll('#project-menu [role=separator]').length"), 1)
-                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})")[0], "New project...")
+                self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return e.textContent})"), [], "row 1092: no New project and no Project settings in the menu")
+                self.assertEqual(p.js("document.querySelectorAll('#project-menu [role=separator]').length"), 0)
+                self.assertNotIn("Project settings", p.js("document.querySelector('#project-menu').textContent"))
+                self.assertNotIn("New project", p.js("document.querySelector('#project-menu').textContent"))
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('#project-menu')", "Esc closed it")
                 p.until("document.activeElement.id === 'project-name'", "focus is back on the name")
 
-    def test_C_the_menu_starts_on_the_open_project_and_has_New_project_that_opens_the_form(self):
-        """Row 856: focus is on the open project (Enter at once keeps it), and New project... opens the project form."""
+    def test_C_the_menu_starts_on_the_open_project(self):
+        """Row 856: focus is on the open project (Enter at once keeps it). Row 1092: the project list is all the menu holds."""
         self.rig.httpd.projects = lambda archived=False: [TWO[1], TWO[0]]
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
             p.until("document.activeElement && document.activeElement.getAttribute('aria-checked') === 'true'", "focus is on the open project")
             self.assertEqual(p.js("document.activeElement.querySelector('b').textContent"), "Harbour Bridge Programme")
-            self.assertEqual(p.js("[].map.call(document.querySelectorAll('#project-menu [role^=menuitem]'), function(e){return e.textContent.replace('✓','')}).slice(-2)"),
-                             ["New project...", "Project settings"])
-            p.js("document.querySelector('#project-menu [role=menuitem]').click()")          # New project... is the first plain item
-            p.until("!!document.querySelector('#project-form')", "the project form opened")
+            self.assertEqual(p.js("document.querySelectorAll('#project-menu [role^=menuitem]').length"), 2, "the two projects and nothing else")
 
     def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
         """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
@@ -107,16 +106,6 @@ class ProjectSwitch(Base):
             p.js("document.querySelector('[data-mode=edit]').click()")          # View draws no message on the Dashboard: Edit would show one that came across
             p.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
             self.assertEqual(p.js("(document.querySelector('.toast-text') || {textContent: ''}).textContent"), "", "no 'Switched to' message: the name is on the screen (#944 ruling)")
-
-    def test_C_Project_settings_opens_Settings(self):
-        self.rig.httpd.projects = lambda archived=False: TWO
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_menu(p)
-            p.js("[].filter.call(document.querySelectorAll('#project-menu [role=menuitem]'), function(e){return /settings/i.test(e.textContent)})[0].click()")
-            p.until("/^#settings/.test(location.hash)", "the address is Settings")
-            self.assertIn("p=PUB", p.js("location.hash"), "still the same project")
-
 
 class TheFileHasNoSwitcher(unittest.TestCase):
     def test_the_published_page_has_no_menu_words(self):
