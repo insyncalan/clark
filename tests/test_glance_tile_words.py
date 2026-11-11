@@ -1,4 +1,4 @@
-"""#669 (Alan's ruling 06-11, "keep file"): the At a glance tiles say the same words on the page and in the published file.
+"""#669 (ruling 06-11, "keep file"): the At a glance tiles say the same words on the page and in the published file.
 
 Run: python3 dev/run_tests.py test_glance_tile_words
 Risks: "of N open risks and issues" ("of 1 open risk or issue"), "None high" when some are open and none is high, "None open".
