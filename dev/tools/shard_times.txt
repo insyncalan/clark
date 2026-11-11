@@ -660,8 +660,6 @@ test_word_store.py 1.1
 test_word_template.py 0.9
 test_wording_small_fixes.py 0.6
 test_work_add_item.py 19.3
-test_work_archived_page.py 43.6
-test_work_archived_peek.py 31.2
 test_work_board_page.py 172.8
 test_work_export_button.py 12.6
 test_work_filters.py 20.0
@@ -672,3 +670,17 @@ test_work_no_mode.py 21.0
 test_work_table_parity.py 19.7
 test_workflow.py 21.0
 test_zip_readme.py 0.6
+test_brand_isolation.py 30.0
+test_hostile_1087.py 30.0
+test_hostile_planned_2026.py 30.0
+test_settings_cards_widths_2.py 30.0
+test_settings_widths_1.py 30.0
+test_spacing_milestones_usecases.py 30.0
+test_spacing_peek_dialogs.py 30.0
+test_spacing_report_blocks.py 30.0
+test_spacing_settings_help.py 30.0
+test_spacing_work_items.py 30.0
+test_store_planned_2026_migration.py 30.0
+test_work_pills_killers.py 30.0
+test_work_pills_removed.py 30.0
+test_work_archived_filter.py 30.0
