@@ -65,6 +65,9 @@ export function linkable(d, all, ucId, today) {
   });
 }
 
+/** How many of the work items are open: the link box says "none to link" when this is 0, and "all linked" only when it is not. */
+export const openCount = (all) => all.filter((r) => isOpen(r)).length;
+
 /** The rows the box shows: the kind chosen ("" is all) and the words typed (every word must be in the row's text). */
 export function narrow(items, kind, query) {
   const want = (KINDS.find(([k]) => k === kind) || [])[2];
