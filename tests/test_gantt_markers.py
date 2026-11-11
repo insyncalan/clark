@@ -321,6 +321,7 @@ class WithATableSection(Base):
             return ["stop"]
         pub = mock.Mock()
         pub.branding = None
+        pub.project_brand.return_value = None          # row 999: the Publisher says which folder the project's brand is in
         step = publish_pdf.Step({"on": True, "choice": None, "new_name": None, "confirmed": False, "error": None}, pub)
         built = dict(built, number=1)
         with mock.patch.object(pdf, "find_chrome", return_value="chrome"), mock.patch.object(publish_pdf, "make", return_value=b"%PDF"), \
