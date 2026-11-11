@@ -9,6 +9,6 @@ import { tableOf } from "./itemEdit.js";
 export function PeekArchive({ row, milestone = false }) {      // row 867: the milestone peek has the same button and words
   const run = () => changeRecord({ kind: milestone ? "milestones" : tableOf(row), op: "archive", id: row.id, place: "peek" },
     { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.` })
-    .then((r) => { if (r) closePeek(); });
+    .then((r) => { if (!r) return; closePeek(); requestAnimationFrame(() => requestAnimationFrame(() => { const u = document.querySelector(".toast [data-undo]"); if (u) u.focus(); })); });      // the button is gone with the peek: focus goes to Undo, not the top of the page
   return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;
 }

@@ -39,6 +39,16 @@ class FocusRings(unittest.TestCase):
     def test_try_again_ring_is_the_focus_colour(self):
         self.assertIn("var(--focus)", rule(".again:focus-visible"))
 
+    def test_menu_items_show_a_two_pixel_ring_when_focused(self):
+        m = re.search(r'(?m)^\.ddmenu \[role="menuitem"\]:focus-visible, \.ddmenu \[role="menuitemradio"\]:focus-visible\s*\{([^}]*)\}', CSS)
+        self.assertIsNotNone(m, "menu items have a ring rule of their own")
+        self.assertIn("outline: 2px solid var(--focus)", m.group(1))
+
+    def test_the_filter_box_shows_a_two_pixel_ring_while_the_input_has_focus(self):
+        body = rule(".fline:focus-within")
+        self.assertIsNotNone(body)
+        self.assertIn("outline: 2px solid var(--focus)", body)
+
 
 if __name__ == "__main__":
     unittest.main()
