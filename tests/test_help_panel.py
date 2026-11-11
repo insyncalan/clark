@@ -119,7 +119,7 @@ class Panel(Base):
             p.js("var q=document.querySelector('#hpQ'); q.focus()")
             p.type("shortcuts")
             p.until("document.querySelectorAll('#hpRes a.hp-r').length > 0", "results")
-            self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["Reference"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#hpRes .hp-resg h3')].map(h => h.textContent)"), ["How do I…", "Reference"])      # shortcuts: Single-key shortcuts is in the released Change the look task
             p.js("document.querySelector('#hpRes a.hp-r').click()")
             p.until("!document.querySelector('#hpRes') && !!document.querySelector('.hp-found')", "the result opened in place and flashed")
             for word in ("hdmi",):                              # "publish" and "peek" are in entries that say so (a row left out is not on the published page); test_help_logic pins those results exactly
@@ -152,7 +152,7 @@ class Panel(Base):
             p.until("!!document.querySelector('.hp-idx a')", "the contents list")
             p.js("document.querySelector('.hp-idx a[data-hlink=ref-keys]').click()")
             p.until("!!document.querySelector('#hp-ref-keys.hp-found')", "a contents link opens its place and flashes it")
-            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-peek], [data-hlink=ref-publishing], [data-hlink=howto-publish-the-report]')"), None)
+            self.assertEqual(p.js("document.querySelector('[data-hlink=ref-milestone-peek], [data-hlink=ref-picker], [data-hlink=howto-publish-the-report]')"), None)
             self.assertTrue(p.js("location.hash.indexOf('#dashboard') === 0"), "the page left is the Dashboard")
 
     def test_focus_goes_back_to_what_had_it_when_help_closes(self):                     # MEDIUM
