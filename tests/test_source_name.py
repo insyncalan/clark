@@ -1,7 +1,7 @@
 """Row 1077 (the owner's ruling of 10-11-2026): a Source is shown by its NAME, never by a path, everywhere the line is drawn (the live
 peek through activity_read, a published file through publish). clark.source_name.source_name is the one rule, a CHARACTER ALLOW-LIST
 (fourth pass, the coordinator's design):
-  A. Normalise: NFKC; decode %XX, %uXXXX, HTML numeric and named entities until nothing changes (5 rounds); one space for any white space;
+  A. Normalise: NFKC; decode %XX, %uXXXX, HTML numeric and named entities until nothing changes (at most 60 rounds); one space for any white space;
      control, format and zero-width characters out.
   B. PLAIN WORDS: every character is a letter or digit (str.isalnum) or one of  space , . - _ ( ) : ' & + #  and the value does not start
      with a drive letter (C:). Plain words keep their words, commas and a stored YYYY-MM-DD read day first.

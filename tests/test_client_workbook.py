@@ -165,7 +165,7 @@ class Workbook(unittest.TestCase):
 # Real commitment words: publish drops any other word (store.COMMITMENTS), so a planted stray word would never reach the file and
 # the "gone" assertions below would pass for the wrong reason. The kept use case carries one word, every hidden one another, and the
 # base use case a third; no other cell of the planted project holds either of these two.
-VISIBLE_FLAG, HIDDEN_FLAG = "Planned 2027", "Candidate"
+VISIBLE_FLAG, HIDDEN_FLAG = "Planned 2027", "Planned 2026"
 
 
 class Flag(unittest.TestCase):
