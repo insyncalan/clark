@@ -368,7 +368,7 @@
     "w": "Work items › Group by",
     "go": "work",
     "s": [
-     "The **Group by** button at the right end of the filter line (the icon after List and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The **Group by** button, at the right end of the filter line (the icon after **List** and **Board**), holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
      "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
