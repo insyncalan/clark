@@ -463,7 +463,8 @@ class Fade(tre.Base):
                     self.assertEqual((f["name"], f["pe"], f["aria"]), ("m-out", "none", "true"))
                     p.until("!document.querySelector('.skel-leave')", "it is gone when the fade ends", 3)
                 else:
-                    time.sleep(0.4)
+                    p.js("window.__raf = 0; (function f() { if (++window.__raf < 8) requestAnimationFrame(f); })()")
+                    p.until("window.__raf >= 8 && document.getAnimations().length === 0", "eight frames drew and nothing is animating")
                     self.assertFalse(p.js("window.__fade.seen"), "never drawn when the page may not move")
                     self.assertFalse(p.js("!!document.querySelector('.skel-leave')"))
 

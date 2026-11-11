@@ -319,7 +319,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .fviews { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-bottom: 8px; }
 .fvrow { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: var(--space-2); flex: 1 1 100%; min-width: 0; border-bottom: 1px solid var(--grey-200); }   /* row 809: the views are text tabs on a thin rule; the row of tabs scrolls inside its own box and the menus keep their place at the right */
 .fvrow > .dd { flex: none; margin-bottom: var(--space-1); }
-.fvrow > .vtabs + * { margin-left: auto; }
+.fvrow > .vtabs + *:not(.vnew), .fvrow > .vnew + * { margin-left: auto; }   /* item 1032: + New view sits beside the scrolling tabs, not inside them, so a full row never cuts it off under Discard changes */
+.fvrow > .vnew { flex: none; }
 .vtabs { display: flex; flex-wrap: nowrap; align-items: flex-end; gap: 2px; min-width: 0; flex: 0 1 auto; max-width: 100%; overflow-x: auto; scrollbar-width: none; padding: 3px; margin: -3px; }   /* room for the focus outline, which the scrolling box would cut */
 .vtabs::-webkit-scrollbar { display: none; }
 .vtabs > * { flex: none; }
@@ -347,6 +348,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.fline:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }   /* the box has a 2 px ring while the input has the focus */
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -454,6 +456,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
 @media (max-width: 900px) { .head { align-items: flex-start; } }
 
@@ -1144,7 +1147,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
 .mv-lab b { display: inline; margin-right: var(--space-1); font-weight: var(--weight-medium); color: var(--text); }   /* row 1020: one line a label, 'name date' */ .mv-lab:hover { background: var(--grey-100); }
 .mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); } .mv-lab.gl { color: var(--status-red-text); }
+.mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
 .msl { list-style: none; margin: var(--d-msl-top) 0 0; padding: 0 0 0 var(--space-1); }
@@ -1665,7 +1668,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 /* The first-time hint beside the section handle: plain words, there with or without the pulse. */
 .sec-ctl.hint { opacity: 1; z-index: 20; }
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
-@media (max-width: 640px) { .sec-hint { white-space: normal; max-width: calc(100vw - 72px); } }
+@media (max-width: 640px) { .sec-hint { white-space: normal; left: 0; top: calc(100% + var(--space-2)); bottom: auto; width: max-content; max-width: calc(100vw - 48px); } }      /* on a phone the heading starts under the handle's column, so the hint sits under the handle, never above the section top */
 /* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
 @media (max-width: 640px) {
   table.pp-table { table-layout: fixed; }
@@ -2261,6 +2264,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-ms { all: unset; box-sizing: border-box; position: absolute; z-index: 1; width: 14px; height: 14px; margin-left: -7px; transform: rotate(45deg); background: var(--status-amber); border: 2px solid var(--status-amber-text); cursor: pointer; }
 .gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
 .gt-mslab { position: absolute; line-height: 20px; white-space: nowrap; color: var(--text); max-width: 320px; overflow: hidden; text-overflow: ellipsis; }
+.gt-mslab.gt-flip { max-width: min(320px, var(--gt-room, 320px)); }   /* a word left of its mark is held to the room left of it on screen as well as in print (row 1037) */
 .gt-flip { padding: 0 3px; margin-right: -3px; background: var(--surface); }
 .gt-phlab.gt-flip { background: var(--grey-50); }
 .gt-clash { position: absolute; line-height: 20px; color: var(--status-amber-text); font-weight: var(--weight-semibold); }
