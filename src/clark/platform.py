@@ -64,6 +64,19 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+def container_on_host_network(net_dir="/sys/class/net"):
+    """#575: True when this container seems to share the host's network (docker run --network host). A container on Docker's own
+    bridge sees only its loopback and its ethN; the host's network shows its other interfaces too (wlan0, en0, docker0, br-...).
+    Read from the kernel's list of interfaces, never a name from a request; False when the list can't be read or not in a container."""
+    if not container_mode():
+        return False
+    try:
+        names = os.listdir(net_dir)
+    except OSError:
+        return False
+    return any(n != "lo" and not (n.startswith("eth") and n[3:].isdigit()) for n in names)
+
+
 def container_host_in_onedrive(environ=None):
     """item 427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
     CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`

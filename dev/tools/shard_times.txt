@@ -729,3 +729,4 @@ test_section_hint_phone.py 30.0
 test_hostile_h950.py 1.0
 test_synced_folders.py 1.0
 test_synced_refusal_words.py 1.0
+test_host_network_warning.py 1.0
