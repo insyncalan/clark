@@ -616,6 +616,7 @@ class Page(Base):
             p.js("document.querySelector('[data-id=" + ref + "] [data-act=delete]').click()")
             p.until("!document.querySelector('[data-id=" + ref + "]')", "deleted")
             self.assertEqual(self.steps(), before + 1)
+            p.saved()   # the section goes at once, its "Section deleted." message (with Undo) only after the reply: a click before it finds no button
             p.js("document.querySelector('[data-undo]').click()")
             p.until("!!document.querySelector('[data-id=" + ref + "]')", "Undo put it back")
             self.assertEqual([r["what"] for r in self.stored_rows(ref)], ["One"])
