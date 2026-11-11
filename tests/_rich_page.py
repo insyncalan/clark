@@ -90,6 +90,8 @@ class Harness:
         self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)   # the page has the focus from the start: element.focus() then fires blur/focus
         self.cdp.call("Page.navigate", {"url": (tmp / "page.html").as_uri()}, self.sid)
         assert wait_for(lambda: self.ev("typeof window.mount === 'function'") is True, 60), "the page's script did not load"
+        self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)   # again after the navigation: a slow runner can drop it with the old document
+        self.focused()
         self.mod = META if self.ev("/Mac/.test(navigator.platform)") else CTRL        # ProseMirror's Mod key
         return self
 
@@ -120,10 +122,15 @@ class Harness:
     def type(self, text):
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
 
+    def focused(self):
+        """The page counts as focused (the editor's leave handler ignores a blur while document.hasFocus() is false). Waits, then says so plainly."""
+        assert self.until("document.hasFocus() === true"), "the test page never got the window focus, so a blur would not count as leaving the field"
+
     def mount(self, value=""):
         self.ev(f"window.mount({json.dumps(value)})")
         assert self.until("!!document.querySelector('.rt .ProseMirror')"), "the editor did not open"
         assert self.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')"), "the editor has no focus"
+        self.focused()
 
     def select_all(self):
         self.key("a", self.mod, "KeyA", 65)

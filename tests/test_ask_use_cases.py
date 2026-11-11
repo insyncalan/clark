@@ -51,10 +51,14 @@ class UseCaseChanges(Base):
                 self.assertEqual(body["message"], words)
                 self.assertEqual(self.counts(), before)
 
+    def test_the_rules_name_the_three_commitment_words(self):
+        self.assertIn("(Planned 2026, Committed or Planned 2027)", ask.RULES)
+        self.assertNotIn("Candidate", ask.RULES)
+
     def test_the_model_may_read_the_commitment_flag_but_a_proposal_to_change_it_is_refused(self):      # the Head's ruling
         with self.s.step("dashboard", USER) as st:
-            st.update("use_cases", self.uc, {"commitment": "Candidate"})
-        for word in ("Candidate", "Committed", "Planned 2027", "", "Maybe", None):
+            st.update("use_cases", self.uc, {"commitment": "Planned 2026"})
+        for word in ("Planned 2026", "Committed", "Planned 2027", "", "Maybe", None):
             with self.subTest(word=word):
                 before = self.counts()
                 self.refused({"op": "change", "id": self.uc, "commitment": word}, "field_not_allowed")
@@ -64,7 +68,7 @@ class UseCaseChanges(Base):
                 self.assertGreaterEqual(status, 400)
                 self.assertEqual(body["code"], "not_yet")
                 self.assertEqual(self.counts(), before)
-                self.assertEqual(self.row()["commitment"], "Candidate")
+                self.assertEqual(self.row()["commitment"], "Planned 2026")
 
     def test_an_unknown_id_and_another_projects_use_case_are_refused(self):
         self.refused({"op": "change", "id": "ABC-U-099", "status": "Flag"}, "unknown_id")
@@ -129,11 +133,11 @@ class WhatTheModelSees(Base):
     def test_a_shown_use_case_gives_the_model_its_id_status_commitment_headline_and_standing_only(self):
         uc = self.demo.use_case
         with self.s.step("dashboard", USER) as st:
-            st.update("use_cases", uc, {"headline": "Matches invoices", "standing": "<p>Going well</p>", "commitment": "Candidate",
+            st.update("use_cases", uc, {"headline": "Matches invoices", "standing": "<p>Going well</p>", "commitment": "Planned 2026",
                                         "client_visible": 1})
         data, text = self.passages()
         (line,) = [x for x in text.splitlines() if x.startswith(uc)]
-        self.assertEqual(line, f"{uc} Invoice matching | status: On track | commitment: Candidate | headline: Matches invoices"
+        self.assertEqual(line, f"{uc} Invoice matching | status: On track | commitment: Planned 2026 | headline: Matches invoices"
                                " | standing: Going well")
         self.assertEqual(ask_data.SHOWN["use_cases"], ("ref", "status", "commitment", "headline", "standing"))
         self.assertIn(uc, data.facts)
