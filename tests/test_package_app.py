@@ -479,7 +479,6 @@ class RefusalsTest(unittest.TestCase):
         self.assertFalse(out.exists())
 
 
-
 class PinnedSurvivorsTest(unittest.TestCase):
     """Behaviours the mutation proof found unpinned: the tool timeout, the applet-folder check, a clash that differs only in
     case, which stream a failure is read from, --dirty on the zip and bundle paths, the name guard on the bundle, and the
