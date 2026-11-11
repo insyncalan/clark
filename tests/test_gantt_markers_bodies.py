@@ -86,6 +86,16 @@ class OwnerAndDates(Setup):
         self.assertIn("2031-05-06", self.markers())
         self.assertRefused()
 
+    def test_an_owner_a_body_also_names_is_refused_when_the_gantt_copy_leaks_it(self):
+        self.line(owner="ZQ-Dana Reyes")
+        self.section("This quarter the work is led by ZQ-Dana Reyes and her team.")
+        self.assertRefused()
+
+    def test_a_baseline_date_a_body_also_names_is_refused_when_the_gantt_copy_leaks_it(self):
+        self.line(baseline_start="2031-05-06")
+        self.section("The first plan said the work would start on 2031-05-06 and it did not.")
+        self.assertRefused()
+
     def test_an_owner_made_of_the_bare_pages_own_words_publishes(self):
         self.line(owner="Milestones")
         self.assertNotIn("Milestones", self.markers())

@@ -216,6 +216,7 @@ def gantt_markers(store, code, published, add, kept_whole, template=""):
 
     def text(v):
         return v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else ""
+    in_copy = [_same_words(text(v)) for v in leaves(data.get("gantt"))]   # the Gantt copy's own words: a body that names a value excuses it only while the copy does not carry it
     rows = [(r, tab and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
     shown = [r[f] for r, eyed in rows if eyed for f in ("id", "name") + columns if f in r and (f in ("id", "name") or f not in hidden)]
     kept |= {_same_words(text(v)) for v in leaves({k: v for k, v in data.items() if k != "gantt"})}
@@ -225,7 +226,7 @@ def gantt_markers(store, code, published, add, kept_whole, template=""):
             add(row["id"], row["id"])
         for field in (tuple(f for f in columns if f in hidden) if eyed else ("name",) + columns):
             value = text(row.get(field))
-            if len(value) >= MIN_MARKER and _same_words(value) not in kept and not any(_same_words(value) in b for b in bodies) \
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept and not (any(_same_words(value) in b for b in bodies) and not any(_same_words(value) in g for g in in_copy)) \
                     and to_client._key(value) not in bare:
                 add(value, row["id"])
 
