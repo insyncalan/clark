@@ -2002,6 +2002,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
   html.print-all main { max-width: none; margin: 0; padding: 0; }
   html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
+  html.print-all .frame.report .cover { margin: 0 0 16px; }      /* the printed frame has no padding, so the band is the frame's width in every spacing; Compact's side pull-out would run past the page */
   html.print-all .print-head { display: flex; gap: 12px; align-items: baseline; justify-content: space-between; margin: 0 0 10px; padding-bottom: 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); }
   html.print-all .print-tab + .print-tab { break-before: page; }
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }

@@ -157,7 +157,9 @@ class InTheFile(Published):
     def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
         path = self.publish()
         with chrome() as cdp:
-            got = self.draw(cdp, path).js(RADII)
+            p = self.draw(cdp, path)
+            p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; the rounded band is Comfortable
+            got = p.js(RADII)
         self.assertEqual(len(set(got["r"])), 1, got)
         self.assertNotEqual(got["r"][0], "0px", got)
         self.assertNotEqual(got["shadow"], "none", got)

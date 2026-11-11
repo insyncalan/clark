@@ -150,6 +150,7 @@ class PublishedCards(g.Setup):
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
+            p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; cards are Comfortable
             w, h, bg, border, radius, _, _ = p.js(SQUARE)
             self.assertEqual((w, h, border), ("10px", "10px", "1px"))
 
