@@ -238,9 +238,11 @@ class Guards(Rig):
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned: a machine that asks for less motion (a CI Mac) must not decide it")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
             p.js("document.documentElement.dataset.motion = 'reduce'")
+            p.until(BACKDROP + '.anim === "none"', "the page's own reduce setting reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none", "the page's own reduce-motion setting too")
 
     def test_print_and_pdf_have_no_backdrop(self):
@@ -422,10 +424,13 @@ class Published(Measure, Pub):
             p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned, whatever the machine asks")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.display !== "none"', "motion allowed again, the backdrop is drawn")
             self.assertNotEqual(p.js(BACKDROP)["display"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            p.until(BACKDROP + '.display === "none"', "print reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["display"], "none", "paper and PDF: no backdrop")
 
     def test_published_text_keeps_4_5_to_1_over_the_picture(self):

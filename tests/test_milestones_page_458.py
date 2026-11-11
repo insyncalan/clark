@@ -424,6 +424,10 @@ class Page(Base):
             p.until("!document.querySelector('#mvNote .ProseMirror')", "the editor closed")
             self.assertEqual(len(self.sent), before, "closing the box with no change sends nothing")
             self.open_note(p, IN)
+            # the editor hands the focus to the text a frame later and that puts the old caret back: a select-all sent before it is
+            # undone and the typing is added to the old note instead of replacing it (the CI diff), so wait two frames first
+            p.js("window.settled = false; requestAnimationFrame(() => requestAnimationFrame(() => { window.settled = true; })); true")
+            p.until("window.settled === true", "two frames have passed")
             p.js("document.execCommand('selectAll')")
             p.type("Waiting for the vendor")
             p.key("Enter", 0, "Enter", 13)
