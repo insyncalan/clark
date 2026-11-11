@@ -147,6 +147,18 @@ class Check(unittest.TestCase):
         late04 = [{"name": "clark-0.4.0-mac.zip", "size": 5, "created_at": "2026-11-02T10:30:00Z"}]
         self.assertEqual(mod.problems([good("v0.4.0", assets=late04)]), [])            # the 0.3.0 and 0.4.0 gap is history
 
+    def test_attach_order_compares_moments_not_text(self):
+        def zip_at(when):
+            return [{"name": "clark-0.5.0-mac.zip", "size": 5, "created_at": when}]
+        # 11:30 at +04:00 is 07:30Z, before the 10:00Z publish: not late, though the text sorts after it
+        self.assertEqual(mod.problems([good("v0.5.0", assets=zip_at("2026-11-02T11:30:00+04:00"))]), [])
+        # 13:30 at +04:00 is 09:30Z, before: not late
+        self.assertEqual(mod.problems([good("v0.5.0", published_at="2026-11-02T10:00:00Z", assets=zip_at("2026-11-02T13:30:00+04:00"))]), [])
+        # 10:30Z attached, published 14:00 at +04:00 (10:00Z): late, though the text sorts before it
+        out = mod.problems([good("v0.5.0", published_at="2026-11-02T14:00:00+04:00", assets=zip_at("2026-11-02T10:30:00Z"))])
+        self.assertEqual(len(out), 1)
+        self.assertIn("attached after the release was published", out[0])
+
     def test_the_command_reads_every_page_of_releases(self):
         pages = [mock.Mock(returncode=0, stdout=json.dumps([good(f"v0.5.{i}") for i in range(100)])),
                  mock.Mock(returncode=0, stdout=json.dumps([good("v0.4.0")]))]
