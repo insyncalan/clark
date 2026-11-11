@@ -21,11 +21,11 @@ export function tiles(rows, today) {
   const open = (type) => rows.filter((r) => isOpen(r) && (type === "action" ? r.kind === "action" : r.kind !== "action" && r.kind !== "decision")).length;
   const over = n(FILTERS.overdue), high = n(FILTERS.risks), dec = applyFilters(rows, FILTERS.decisions, today);
   const dates = dec.map((r) => dueField(r)).filter((d) => dayNumber(d) !== null).sort();
-  const risksOpen = open("risk");
+  const risksOpen = open("risk"), openActions = open("action");
   return [
-    { key: "overdue", label: "Overdue actions", value: over, detail: `of ${plural(open("action"), "open action")}`, rag: over ? "r" : "g", filter: FILTERS.overdue },
-    { key: "risks", label: "High risks and issues", value: high, detail: high ? `of ${risksOpen} open` : risksOpen ? "None high" : "None open", rag: high ? "r" : risksOpen ? "a" : "g", filter: FILTERS.risks },
-    { key: "decisions", label: "Decisions needed", value: dec.length, detail: dates.length ? `Oldest ${showDate(dates[0])}` : dec.length ? "No date set" : "None waiting", rag: dec.length ? "a" : "g", filter: FILTERS.decisions },
+    { key: "overdue", label: "Overdue actions", value: over, detail: openActions ? `of ${plural(openActions, "open action")}` : "No open actions", rag: over ? "r" : "g", filter: FILTERS.overdue },
+    { key: "risks", label: "High risks and issues", value: high, detail: !risksOpen ? "None open" : !high ? "None high" : risksOpen === 1 ? "of 1 open risk or issue" : `of ${risksOpen} open risks and issues`, rag: high ? "r" : risksOpen ? "a" : "g", filter: FILTERS.risks },
+    { key: "decisions", label: "Decisions needed", value: dec.length, detail: dates.length ? `Oldest needed by ${showDate(dates[0])}` : dec.length ? "No date set" : "None waiting", rag: dec.length ? "a" : "g", filter: FILTERS.decisions },
   ];
 }
 
