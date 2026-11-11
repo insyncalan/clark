@@ -701,3 +701,7 @@ test_ai_connect_log.py 30.0
 test_docker_words.py 30.0
 test_docker_front.py 30.0
 test_docker_front_help.py 30.0
+test_docker_hostile.py 30.0
+test_help_ui_1332.py 30.0
+test_help_words_1332.py 30.0
+test_settings_keys_900.py 30.0
