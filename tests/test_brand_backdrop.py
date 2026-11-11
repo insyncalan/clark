@@ -319,7 +319,7 @@ class AppContrast(Measure, Rig):
                     self.assertTrue(width < 1000 or any("+ New view" in t for t in texts), "the bare link that saves a new view is measured: " + str(texts))
                     p.js("document.querySelector('#viewTabMenu').click()")
                     p.until("!!document.querySelector('#viewTabMenuList')", "the tab menu opened")
-                    got = p.js("""(() => { const m = document.querySelector('#viewTabMenuList'), i = [...m.querySelectorAll('button')].find(e => /Save as a new view/.test(e.textContent));
+                    got = p.js("""(() => { const m = document.querySelector('#viewTabMenuList'), i = [...m.querySelectorAll('[role=menuitem]')].find(e => /Save as a new view/.test(e.textContent));
                       const c = getComputedStyle(m).backgroundColor.match(/[\\d.]+/g).map(Number); return {item: !!i, alpha: c.length > 3 ? c[3] : 1}; })()""")
                     self.assertTrue(got["item"], "Save as a new view is in the tab's menu")
                     self.assertEqual(got["alpha"], 1, "and the menu is an opaque card: that text is not over the picture")

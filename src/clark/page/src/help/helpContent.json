@@ -296,15 +296,15 @@
     "g": "Every week",
     "t": "Find or open a past publication",
     "w": "Profile circle › Published reports",
-    "go": "settings#pubs",
+    "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
-     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press your profile circle and choose **Published reports**.",
+     "The page says where the report is saved, shows the latest publication and lists the earlier ones. Each has its number, the week ending, when it was published, where it went, its files and who published it. The newest is first, and the list shows the latest ten; the older ones are kept.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
-     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown as UTC."
+     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
     ],
     "page": [
-     "settings#pubs"
+     "dashboard+edit"
     ]
    },
    {
@@ -369,9 +369,9 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the View menu, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
+     "The **Group by** button beside the saved views (the icon next to Table and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
@@ -557,7 +557,7 @@
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
-     "A use case can carry a commitment: Candidate, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
+     "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
      "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
@@ -606,7 +606,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Dashboard sections** is yours alone: **Slim gaps**, **Roomy gaps**, **Grey headers** or **One card** (the standard).",
+     "**Personal › Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -910,7 +910,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Export to Word**: the report saved as a Word file, without publishing the web page.",
-       "**Published reports**: the **Published reports** card in Settings for the open project.",
+       "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**. Until you add your name in Settings, the top line is a link to Settings and this entry is left out.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
@@ -1234,30 +1234,22 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; one card is the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections",
+       "Spacing",
        "What it does"
       ],
       [
        [
-        "Slim gaps",
-        "Each section is its own card, with a slim gap that shows the page picture."
+        "Compact",
+        "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."
        ],
        [
-        "Roomy gaps",
-        "The same, with more space between the sections."
-       ],
-       [
-        "Grey headers",
-        "Slim gaps, and each section title in a grey band, like the Work items groups."
-       ],
-       [
-        "One card",
-        "All the sections in one long card."
+        "Comfortable",
+        "Each Dashboard section is its own card, with room between them."
        ]
       ]
      ]
@@ -1270,7 +1262,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
+      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -1566,7 +1558,7 @@
         "A milestone’s forecast date, achieved date and status (Achieved asks first). Not its owner or its agreed date"
        ],
        [
-        "flag · high risk · on track · done · committed · candidate · planned 2027 · no flag · headline: …",
+        "flag · high risk · on track · done · committed · planned 2026 · planned 2027 · no flag · headline: …",
         "A use case’s status (Done asks first), commitment and headline"
        ],
        [
@@ -1760,20 +1752,24 @@
       ],
       [
        [
-        "#",
+        "No.",
         "The publication's number for this project, counting up from 1"
        ],
        [
-        "Date and time",
-        "When it was published, in UTC"
+        "Week ending",
+        "The week the report was for"
        ],
        [
-        "Where",
-        "Where it went"
+        "Published",
+        "When it was published, in your own time zone, and who published it"
        ],
        [
-        "Who",
-        "Who published it"
+        "Went to",
+        "Where it went: the Local folder, and the Client folder if there is one"
+       ],
+       [
+        "Files",
+        "The page, and the Word or PDF file saved with it"
        ],
        [
         "Open",
@@ -1783,7 +1779,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1798,7 +1794,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
-       "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
+       "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
@@ -1818,7 +1814,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1833,11 +1829,7 @@
        ],
        [
         "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
-       ],
-       [
-        "Published reports",
-        "The numbered copies you have published, each with **Open** to see it as it was."
+        "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
         "Projects",
@@ -1975,7 +1967,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2433,7 +2425,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
+    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; the **Group by** button holds the grouping."
    ],
    "full": "ref-work-items"
   },
@@ -2468,11 +2460,6 @@
      "card": "publishing",
      "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
-    },
-    {
-     "card": "pubs",
-     "title": "Published reports",
-     "line": "The numbered copies you have published, each with Open to see it as it was."
     },
     {
      "card": "personal",
@@ -2807,7 +2794,7 @@
      "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
     },
     {
-     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. The **Published reports** page opens, and the day box under **Dashboard as at a day** is ready for you."
     },
     {
      "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."

@@ -121,6 +121,61 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)}, {json.dumps(st)})"),
                          {"mode": "decision", "picked": ["ABC-D-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True})
 
+    def test_the_owners_address_and_name_come_from_their_people_row_and_ride_on_both_asks(self):
+        ppl = json.dumps([{"id": "P-001", "name": "Ada Quillfeather", "email": " ada@example.com "},
+                          {"id": "P-002", "name": "Bo Bad", "email": "a@b.co,c@d.co"}, {"id": "P-003", "name": "Cy None", "email": ""},
+                          {"id": "P-004", "name": "Di Line", "email": "a@b.co\nBcc: x@y.co"}, {"id": "P-005", "name": "Ed Long", "email": "x" * 250 + "@a.co"}])
+        self.assertEqual(self.js(f"RM.recipientOf({ppl}, 'P-001')"), {"email": "ada@example.com", "name": "Ada Quillfeather"})
+        for owner in ("P-002", "P-003", "P-004", "P-005", "P-404", "", None):
+            self.assertIsNone(self.js(f"RM.recipientOf({ppl}, {json.dumps(owner)})"), owner)       # never invented, never a bad address
+        self.assertIsNone(self.js("RM.recipientOf(null, 'P-001')"))
+        who = {"email": "ada@example.com", "name": "Ada Quillfeather"}
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', null, {json.dumps(who)})"),
+                         {"item": "ABC-A-001", "picked": ["ABC-A-001"], "email": "ada@example.com", "name": "Ada Quillfeather"})
+        st = {"mode": "chase", "picked": ["ABC-A-001"], "replyBy": "", "unblocks": "", "includeUpdate": False}
+        self.assertEqual(self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(st)}, {json.dumps(who)})"),
+                         {"item": "ABC-A-001", "mode": "chase", "picked": ["ABC-A-001"], "include_update": False, "email": "ada@example.com", "name": "Ada Quillfeather"})
+        self.assertEqual(self.js("RM.draftRequest('ABC-A-001', null, null)"), {"item": "ABC-A-001", "picked": ["ABC-A-001"]})
+
+    def test_the_name_sent_with_the_address_is_trimmed_and_left_out_when_the_server_would_refuse_it(self):
+        def name_for(name):
+            ppl = json.dumps([{"id": "P-001", "name": name, "email": "ada@example.com"}])
+            return self.js(f"RM.recipientOf({ppl}, 'P-001')")["name"]
+        self.assertEqual(name_for("  Ada Q  "), "Ada Q")
+        self.assertEqual(name_for("n" * 100), "n" * 100)
+        self.assertEqual(name_for("n" * 101), "")                 # over 100 characters: no name, the address still goes
+        self.assertEqual(name_for("Ada\nBcc: x@y.co"), "")        # a line break in a name never reaches the server
+        self.assertEqual(name_for("Ada\rQ"), "")
+
+    def test_the_page_refuses_every_address_the_server_refuses(self):
+        """The page rule (recipientOf) mirrors draft_email_feed: ADDRESS, then no Cf, Co or Cs character, and a control character or
+        a space inside makes one_line leave a gap the ADDRESS rule refuses. The same table is run against the server's own rule below."""
+        bad = ["a\u200b@b.co", "a\u202e@b.co", "a\x1c@b.co", "a @b.co", "a\ud800@b.co", "a\x00@b.co", "a\x7f@b.co", "a\x85@b.co",
+               "a\ufeff@b.co", "a\ue000@b.co", "a\u2028@b.co", "a\u00a0@b.co", "a@b\u200d.co", "a@b.co\u202c", "a\tb@b.co"]
+        for addr in bad:
+            ppl = json.dumps([{"id": "P-001", "name": "Ada", "email": addr}])
+            self.assertIsNone(self.js(f"RM.recipientOf({ppl}, 'P-001')"), repr(addr))
+            self.assertFalse(self.server_takes(addr), repr(addr))
+        good = json.dumps([{"id": "P-001", "name": "Ada", "email": "ada@example.com"}])
+        self.assertEqual(self.js(f"RM.recipientOf({good}, 'P-001')")["email"], "ada@example.com")
+
+    @staticmethod
+    def server_takes(addr):
+        """True when draft_email_feed's address rule lets the address through (the rule in make(): one_line, ADDRESS, no Cf, Co, Cs)."""
+        import unicodedata
+        from clark import draft_email
+        email = draft_email.one_line(addr)
+        return bool(email) and bool(draft_email_feed.ADDRESS.fullmatch(email)) and not any(unicodedata.category(c) in draft_email_feed.HIDDEN_IN_TEXT for c in email)
+
+    def test_the_draft_entrys_reason_line_follows_the_same_rule_as_the_address_that_is_sent(self):
+        row = json.dumps({**self.ACTION, "owner_id": "P-001"})
+        for addr in ("a\u200b@b.co", "x" * 250 + "@a.co", "a@b.co,c@d.co"):
+            ppl = json.dumps({"people": [{"id": "P-001", "name": "Ada", "email": addr}]})
+            got = self.js(f"RM.draftEntry({row}, {ppl})")
+            self.assertEqual((got["to"], got["reason"]), ("", "Ada Quillfeather has no email on the People list, so the To line is left empty."), repr(addr))
+        ok = json.dumps({"people": [{"id": "P-001", "name": "Ada", "email": "ada@example.com"}]})
+        self.assertEqual(self.js(f"RM.draftEntry({row}, {ok})")["to"], "ada@example.com")
+
     def test_the_lists_offer_what_the_cells_offer_without_what_the_item_has(self):
         row = json.dumps(self.ACTION)
         self.assertEqual(self.js(f"RM.statusList({row})"), ["Delayed", "Closed", "Cancelled"])
@@ -217,8 +272,8 @@ class Menu(board.Base):
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
                                                    "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
             by = {e[0]: e for e in got}
-            self.assertEqual(by["draft"][2:], [False, "The To line is left empty: there is no People list to take the address from yet."],
-                             "open, with the To line's reason in words")
+            self.assertEqual(by["draft"][2:], [False, "Sara Khan has no email on the People list, so the To line is left empty."],
+                             "open, with the To line's reason in words (#1048: the People list is read when the menu opens)")
             self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
             self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
@@ -228,7 +283,7 @@ class Menu(board.Base):
             self.assertEqual(self.steps(), before)
             # The Draft email's line is read with it, so a screen reader hears that the To line is empty.
             why = cdp.js("(() => { const b = document.querySelector('.rowmenu [data-rm=draft]'); const d = document.getElementById(b.getAttribute('aria-describedby')); return d ? d.textContent : null; })()", sid)
-            self.assertEqual(why, "The To line is left empty: there is no People list to take the address from yet.")
+            self.assertEqual(why, "Sara Khan has no email on the People list, so the To line is left empty.")
             # The menu items have a real focus ring: 2 px, a colour, not none.
             key(cdp, sid, "ArrowDown")                       # a key moved focus, so :focus-visible applies
             self.until(cdp, sid, "document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the focus ring to finish")
@@ -781,6 +836,43 @@ class Menu(board.Base):
             self.until(cdp, sid, f"document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('{hidden} is shown to the client.')", "the toast")
             self.assertEqual(self.row(hidden)["client_visible"], 1)
 
+    def gated_people(self):
+        """Holds GET /api/people until the test lets it go; returns (gate, done): done is set once the read has been answered."""
+        import threading
+        gate, done, real = threading.Event(), threading.Event(), self.s.httpd.people_list
+
+        def slow(*req):
+            gate.wait(10)
+            try:
+                return real(*req)
+            finally:
+                done.set()
+        self.s.httpd.people_list = slow
+        return gate, done
+
+    def test_a_dismiss_before_the_people_read_resolves_cancels_the_open(self):
+        for how in ("escape", "outside"):
+            with self.subTest(how=how), chrome() as cdp:
+                sid = self.visit(cdp)
+                a = self.id_of("Order the laptops")
+                gate, done = self.gated_people()
+                try:
+                    right_click(cdp, sid, self.TABLE % a)
+                    time.sleep(0.3)
+                    self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), "nothing is drawn while the list is read")
+                    if how == "escape":
+                        key(cdp, sid, "Escape")
+                    else:
+                        cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": 5, "y": 5, "button": "left", "buttons": 1, "clickCount": 1}, sid)
+                        cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": 5, "y": 5, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+                finally:
+                    gate.set()
+                self.assertTrue(done.wait(10))
+                time.sleep(0.8)
+                self.assertFalse(cdp.js("!!document.querySelector('.rowmenu')", sid), "the read came back after the dismiss: the menu stays shut")
+                self.open_menu(cdp, sid, self.TABLE % a)            # a fresh open still works afterwards
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu [role=menu]')", sid))
+
     def test_draft_email_opens_the_dialog_with_the_items_subject_and_sends_and_saves_nothing(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -810,6 +902,28 @@ class Menu(board.Base):
             self.until(cdp, sid, f"document.activeElement.dataset.id === {json.dumps(a)}", "focus back on the row")      # given back one tick after the dialog goes
             self.assertEqual((self.steps(), len(self.sent)), (before, sent), "nothing was changed, saved or sent")
             self.assertFalse(cdp.js("document.querySelector('#main, .top').hasAttribute('inert')", sid))
+
+    def test_row_1048_the_owners_address_and_name_ride_on_the_ask_show_in_the_to_line_and_stay_on_a_changed_option_at_1400_and_900(self):
+        a = self.id_of("Order the laptops")
+        with self.store.step("dashboard", USER) as st:
+            pid = st.add_person(name="Ada Quillfeather", email="ada@example.com", source="test")
+            st.update("actions", a, {"owner": "Ada Quillfeather", "owner_id": pid})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.drafts.clear()
+                sid = self.visit(cdp, width=width)
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=draft]")
+                self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", f"{width}: the Draft email")
+                who = {"email": "ada@example.com", "name": "Ada Quillfeather"}
+                self.assertEqual(self.drafts, [{"project": "ABC", "item": a, "picked": [a], **who}], f"{width}: the first ask carries the owner's address and name")
+                meta = cdp.js("[...document.querySelectorAll('.de-meta dt, .de-meta dd')].map(e => e.textContent)", sid)
+                self.assertEqual(meta[0], "To")
+                self.assertIn("ada@example.com", meta[1], f"{width}: the To line shows the address")
+                click(cdp, sid, ".de-kinds input[value=decision]")
+                self.until(cdp, sid, "/Decision/.test(document.querySelector('.de-meta').textContent)", f"{width}: the other kind of email")
+                self.assertEqual(self.drafts[-1], {"project": "ABC", "item": a, "mode": "decision", "picked": [a], "include_update": False, **who}, f"{width}: the re-ask keeps them")
+                self.assertIn("ada@example.com", cdp.js("document.querySelectorAll('.de-meta dd')[0].textContent", sid), f"{width}: the To line still shows it")
 
     def test_the_draft_dialog_is_modal_and_everything_outside_it_is_inert_even_what_mounts_later(self):
         with chrome() as cdp:
