@@ -434,7 +434,7 @@ class FrozenText(Base):
 
         def squash(text):
             return re.sub(r"\s+", " ", "\n".join(l.split("--")[0] for l in text.splitlines())).strip().rstrip(";")
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(statements[0]))      # row 1068: step 21 is now the newest
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT_TABLE), squash(statements[0]))      # row 1068: step 22 is now the newest
         self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(statements[0]).replace(",'gantttable'", "", 1))      # row 926: step 19's text is that one without 'gantttable'; this step's own text is that one without 'gantt' too
         self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_TEMPLATE_TYPES), squash(statements[0]).replace(",'gantt','gantttable'", "", 1))      # steps 19 and 21 added their types after this step's text was frozen
 

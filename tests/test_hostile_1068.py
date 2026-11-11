@@ -1,6 +1,6 @@
-"""Row 1068, hostile pass: the Gantt table section (type 'gantttable', schema layout 21). Fictional data only.
+"""Row 1068, hostile pass: the Gantt table section (type 'gantttable', schema layout 22). Fictional data only.
 
-Tries to break: the layout-21 step from every older layout (17 to 20) with odd rows (hidden, beside, duplicated ids across projects,
+Tries to break: the layout-22 step from every older layout (17 to 20) with odd rows (hidden, beside, duplicated ids across projects,
 large and unicode text, many rows); the section through the change route (Undo, History, stale and interleaved requests); the client
 copy (publish.select) with the client switch in every odd spelling, hidden columns, odd lines, duplicate section ids, a large plan;
 the marker check; and the editor workbook round trip with table sections present.
