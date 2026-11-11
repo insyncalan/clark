@@ -38,7 +38,9 @@ class UseCaseFields(unittest.TestCase):
         for want in ("Add use case", "Show archived", "Hide archived", "Restore", "archived use case"):     # row 1085: the + says Add use case; Export left the page
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
-        self.assertNotIn("exportExcel", page)        # row 1085: the ruling leaves Export off this page; the workbook stays in the profile menu
+        self.assertNotIn("exportExcel", page)        # the page reuses the Work items ExportBtn (it holds exportExcel), not its own copy of the call
+        for want in ("ImportBtn", "ExportBtn"):      # row 1085 ruling: the filter line carries Import and Export beside Group by and the +
+            self.assertIn(want, page)
         self.assertIn("exportExcel", text(SRCS / "edit" / "ProfileMenu.jsx"))
         self.assertIn('plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.', page)     # plural() gives "1 archived use case" / "2 archived use cases"
         self.assertIn('Showing ${plural(n, "archived use case")}.', page)
@@ -151,10 +153,11 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
             # row 1085: Add use case (the growing +) sits at the right end of the tabs row, not in the head, with the Work items word; the head's
-            # Export to Excel button is gone (the workbook stays in the profile menu) and no Import or Export icon joins this page (the ruling)
+            # Export to Excel button is gone from the head (the ruling puts the Import and Export icons on the tabs row with the +)
             add = cdp.js("(document.querySelector('#usecases .fvrow #ucAddPage') || {}).getAttribute('aria-label') || ''", sid)
             self.assertEqual(add, "Add use case")
-            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp, #usecases #expBtn, #usecases #impBtn').length", sid), 0, "the head holds the title alone")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp').length", sid), 0, "the head holds the title alone")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .fvrow #expBtn, #usecases .fvrow #impBtn').length", sid), 2, "Import and Export sit on the tabs row")
             self.no_sideways(cdp, sid)
             rows = cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length", sid)
             before, ref, title = self.steps(), f"9.{n}", f"Row 830 case {n}"
