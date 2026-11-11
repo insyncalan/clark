@@ -130,8 +130,11 @@ class Static(unittest.TestCase):
         views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
         self.assertNotIn("PublishedReports", views, "the Settings page no longer draws the card")
         self.assertIn("PublishedPage", (PAGE_SRC / "components" / "App.jsx").read_text(encoding="utf-8") + (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
+        pages = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")      # item 1024: the Settings pages are named in edit/settingsPages.js
         for name in ("ReviewDays", "Diagnostics"):
-            self.assertIn(name, views)
+            self.assertIn(name, pages)
+        self.assertIn('["published", "Published reports", ["PublishedPage"]', pages, "the menu entry is there, and it opens that page (Views.jsx), it draws no card")
+        self.assertIn('s === "published" ? show("published")', views)
 
 
 class InBrowser(unittest.TestCase):

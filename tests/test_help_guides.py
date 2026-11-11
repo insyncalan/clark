@@ -353,7 +353,7 @@ class PageKey(unittest.TestCase):
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
                   "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "Quit": "Quit"}
-SETTINGS_LEFT_OUT = {"AskSettings"}
+SETTINGS_LEFT_OUT = {"AskSettings", "PublishedPage"}      # the Published reports entry opens the page of its own (row 1087), which has its own Help line (test_past_reports)
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
 
