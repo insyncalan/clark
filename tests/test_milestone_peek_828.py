@@ -85,8 +85,12 @@ class Fields(Base):
         return p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''")
 
     def undo(self, p):
-        p.js("document.querySelector('.toast [data-undo]').click()")
-        p.until("/^Undone[.:]/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "Undone")
+        """The toast lives 5 seconds and a loaded runner can poll late: wait for the Undo button, then record every toast text from the click on, so a short-lived Undone line is never missed."""
+        p.until("!!document.querySelector('.toast [data-undo]')", "the Undo button")
+        p.js("(() => { window.__toastSeen = []; const note = () => { const t = document.querySelector('.toast .toast-text'); if (t) window.__toastSeen.push(t.textContent || ''); };"
+             " window.__toastWatch && window.__toastWatch.disconnect(); window.__toastWatch = new MutationObserver(note);"
+             " window.__toastWatch.observe(document.body, {subtree: true, childList: true, characterData: true}); document.querySelector('.toast [data-undo]').click(); })()")
+        p.until("window.__toastSeen.some((t) => /^Undone[.:]/.test(t))", "Undone")
 
     def test_the_fields_are_there_on_the_milestones_page_in_view_and_not_on_the_dashboard_in_view(self):
         with chrome() as cdp:
@@ -264,6 +268,7 @@ class Fields(Base):
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
+            p.until("document.activeElement && document.activeElement.hasAttribute('data-undo')", "the focus moved to Undo, not to the page body")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
 

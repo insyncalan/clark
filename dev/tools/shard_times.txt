@@ -660,8 +660,6 @@ test_word_store.py 1.1
 test_word_template.py 0.9
 test_wording_small_fixes.py 0.6
 test_work_add_item.py 19.3
-test_work_archived_page.py 43.6
-test_work_archived_peek.py 31.2
 test_work_board_page.py 172.8
 test_work_export_button.py 12.6
 test_work_filters.py 20.0
@@ -707,3 +705,14 @@ test_mutation_past_reports_doctor.py 30.0
 test_milestones_hostile_fixes.py 30.0
 test_sent_note_caps.py 30.0
 test_bundle2_hostile_mutants.py 1.0
+test_empty_words.py 30.0
+test_tab_count_words.py 30.0
+test_feedback_tab.py 20.0
+test_hostile_feedback.py 10.0
+test_filter_line_keys.py 30.0
+test_gantt_today_reduced.py 30.0
+test_help_list_button_words.py 30.0
+test_help_work_icons_1333.py 30.0
+test_help_work_line_words.py 30.0
+test_milestones_dead_ghost_label.py 30.0
+test_work_archived_filter.py 30.0
