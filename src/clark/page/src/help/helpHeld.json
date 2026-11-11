@@ -58,7 +58,7 @@
   },
   {
    "where": "ref-saving bullet",
-   "text": "In this prototype, everything is kept in this browser’s database. If the browser blocks it, changes last for this visit only, and Settings › Data says so.",
+   "text": "In this prototype, everything is kept in this browser’s database. If the browser blocks it, changes last for this visit only, and Settings › Export and import says so.",
    "why": "prototype storage in the browser"
   },
   {

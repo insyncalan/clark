@@ -705,3 +705,4 @@ test_docker_hostile.py 30.0
 test_help_ui_1332.py 30.0
 test_help_words_1332.py 30.0
 test_settings_keys_900.py 30.0
+test_help_link_targets.py 3.0
