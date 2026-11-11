@@ -8,6 +8,7 @@ import unittest
 
 from _paths import ROOT, SRC  # noqa: F401
 import test_client_page_filters as _pub  # noqa: E402
+import test_filter_line_page as _line  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 
 HELP = SRC / "clark" / "page" / "src" / "help" / "helpContent.json"
@@ -27,6 +28,23 @@ class PublishedPills(_pub.ClientPageFilters):
 for _name in dir(_pub.ClientPageFilters):
     if _name.startswith("test_") and _name not in PublishedPills.__dict__:
         setattr(PublishedPills, _name, None)
+
+
+class AppBar(_line.Line):
+    def test_the_app_keeps_one_bar_that_holds_the_archived_pill_alone_at_1400_and_900_px(self):
+        s = self.serve()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width=width)
+                self.assertEqual(cdp.js("document.querySelectorAll('.wbar').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('.wbar.keep').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('.wbar .seg').length", sid), 0)
+                self.assertGreaterEqual(cdp.js("parseFloat(getComputedStyle(document.querySelector('.wbar')).minHeight)", sid), 32)
+
+
+for _name in dir(_line.Line):
+    if _name.startswith("test_") and _name not in AppBar.__dict__:
+        setattr(AppBar, _name, None)
 
 
 class HelpWords(unittest.TestCase):
