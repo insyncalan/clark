@@ -14,7 +14,7 @@ sanitise.href passed and that starts https: or mailto:), never from row text.
 Rich text (current_state, a use case's standing, a text section's body) is cleaned again with sanitise.clean_html and mapped from
 its token stream: p, h1 to h3 (one level down, so the section title stays the top), strong, em, s, ul and ol to three levels,
 blockquote, hr, br, a checklist box, and a link only to https: or mailto:. The sanitiser has no img, so row text never brings a picture; the only pictures are the ones this module draws (docx_graphics:
-the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media with no label in them.
+the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media; the plan and the Gantt carry each lane's name and the months as pixels, never as markup.
 
 The same rows give the same bytes: parts in a fixed order, a fixed time, system and permission bits on every zip entry, relationship
 ids numbered in order of use, no clock and nothing left to chance, and the file's author and last editor are the word clark, never a person.
