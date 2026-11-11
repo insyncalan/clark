@@ -36,7 +36,7 @@ test_app_browser.py 8.7
 test_app_files.py 0.5
 test_app_page.py 4.2
 test_app_settings_route.py 8.6
-test_appearance.py 42.4
+test_appearance.py 60.0
 test_archived_email_sentence.py 0.6
 test_as_at.py 2.9
 test_as_at_page.py 13.3
