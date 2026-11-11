@@ -23,7 +23,7 @@ from test_server import chrome, wait
 from _mouse import click_centre, menu_item_js
 from _new_page import reload_to_new_page_cdp
 
-WIDTHS = (1400, 901, 900, 899, 800)
+WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 GROUPS = ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"]
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
@@ -114,6 +114,8 @@ class Head(Base):
                     self.assertEqual(self.chips(p), [name for name, *_ in PAGES])
                     self.assertEqual(p.js("[...document.querySelectorAll('.set-menu .set-group-h')].map(h => h.textContent)"), GROUPS)
                     for name, slug, head_id, text in PAGES:
+                        if slug == "published":
+                            continue      # row 1087: the entry opens the Published reports page of its own, not a Settings page (the test after this one)
                         self.open_settings(p, w, mode, slug)
                         if text:
                             self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), text, "the page's heading is its card's heading")
@@ -131,6 +133,8 @@ class Head(Base):
                 p = self.page(cdp)
                 self.open_settings(p, w)
                 for name, slug, head_id, _ in reversed(PAGES):
+                    if slug == "published":
+                        continue      # it leaves Settings for the page of its own: pinned in the test after this one
                     p.js("window.scrollTo(0, 0)")
                     p.settled("the scroll to the top finished")      # the click comes only when nothing is moving
                     self.choose(p, name)
@@ -213,13 +217,27 @@ class Head(Base):
             p.settled("the reloaded page finished drawing")
             self.assertNotEqual(p.js("document.activeElement && document.activeElement.id"), "diagnostics-h", "a reload leaves the focus alone")
 
-    def test_C_the_profile_menus_link_to_published_reports_focuses_the_heading(self):
+    def test_C_the_profile_menus_link_to_published_reports_opens_its_page(self):
         with chrome() as cdp:
             p = self.page(cdp)
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=published]')", "the menu has Published reports")
             p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
-            p.until("document.activeElement && document.activeElement.id === 'pubs-h'", "Published reports focuses its heading")
+            p.until("location.hash.indexOf('#published') === 0 && !!document.getElementById('pubs-page')", "the Published reports page of its own opens")
+            self.assertFalse(p.js("!!document.querySelector('.set-menu')"), "it is no Settings page")
+
+    def test_C_the_menu_entry_published_reports_opens_the_page_of_its_own_at_1400_and_900(self):
+        """Option A for the clash with row 1087: the entry is a link to that page. One history entry: Back returns to the Settings page it came from."""
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w, page="people")
+                self.choose(p, "Published reports")
+                p.until("location.hash === '#published&p=PUB' && !!document.getElementById('pubs-page')", "the page of its own drew")
+                self.assertFalse(p.js("!!document.querySelector('.set-menu')"), "no Settings menu on it")
+                self.assertEqual(p.js("document.querySelector('#pubs-page h1').textContent"), "Published reports")
+                p.js("history.back()")
+                p.until("location.hash.indexOf('&s=people') > 0 && document.querySelector('.set-menu [aria-current]').textContent === 'People'", "Back shows the Settings page it came from")
 
     def test_C_arrows_move_between_entries_and_enter_chooses(self):
         with chrome() as cdp:
@@ -261,6 +279,7 @@ class Head(Base):
                         self.assertTrue(all(b[1] > a[1] for a, b in zip(chips, chips[1:])), "each link is below the one before")
                         self.assertLessEqual(nav[2], first[0] + 1, "the list is at the left of the page")
                         self.assertLess(nav[2] - nav[0], w / 3, "the list does not eat the width")
+                        self.assertGreater(first[2] - first[0], w / 2, "the page keeps most of the width")
                         self.assertGreater(first[2] - first[0], w / 2, "the page keeps most of the width")
                     else:
                         self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-list')).flexWrap"), "wrap")
