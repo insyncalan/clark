@@ -707,8 +707,13 @@ test_mutation_past_reports_doctor.py 30.0
 test_milestones_hostile_fixes.py 30.0
 test_sent_note_caps.py 30.0
 test_bundle2_hostile_mutants.py 1.0
+test_empty_words.py 30.0
+test_tab_count_words.py 30.0
+test_feedback_tab.py 20.0
+test_hostile_feedback.py 10.0
 test_ai_menu_mutants.py 1.0
 test_excel_colours_mutants.py 1.0
+test_excel_import_mut.py 1.0
 test_idle_mutants.py 1.0
 test_milestones_calendar.py 1.0
 test_milestones_calendar_keys.py 1.0
@@ -716,9 +721,8 @@ test_mutants_publish_flow_graphics.py 1.0
 test_mutation_gl_docx.py 1.0
 test_publish_mut2.py 1.0
 test_publish_mutwave.py 1.0
+test_publish_pdf_mut.py 1.0
 test_server_mut2.py 1.0
 test_setup_mode_mutants.py 1.0
 test_store_migration_mutants.py 1.0
 test_store_mut2.py 1.0
-test_publish_pdf_mut.py 1.0
-test_excel_import_mut.py 1.0
