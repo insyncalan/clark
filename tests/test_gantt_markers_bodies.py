@@ -102,5 +102,48 @@ class OwnerAndDates(Setup):
         self.assertPublishes()
 
 
+class Hostile(Setup):
+    """Hostile pass on row 1027."""
+
+    def test_an_owner_named_only_in_a_hidden_section_is_still_refused(self):
+        self.line(owner="ZQ-Dana Reyes")
+        self.section("Led by ZQ-Dana Reyes and her team.", hidden=1)
+        self.assertIn("ZQ-Dana Reyes", self.markers())
+        self.assertRefused()
+
+    def test_an_owner_named_only_in_a_section_title_is_still_a_marker(self):
+        self.line(owner="ZQ-Dana Reyes")
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "ZQ-Dana Reyes", "body": "plain",
+                                          "hidden": 0, "sort_order": 51})
+        self.assertIn("ZQ-Dana Reyes", self.markers())
+
+    def test_unicode_and_hostile_owner_in_body_publishes_and_unnamed_one_refused(self):
+        owner = "Zo\u00eb <b>&amp; \"O'Neil\"</b> \u4e2d\u6587"
+        self.line(owner=owner)
+        self.section("Led by " + owner + " today.")
+        self.assertPublishes()
+
+    def test_unicode_owner_found_nowhere_is_refused(self):
+        owner = "Zo\u00eb ZQ\u4e2d\u6587 \U0001F600"
+        self.line(owner=owner)
+        self.section("Nobody named here.")
+        self.assertIn(owner, self.markers())
+        self.assertRefused()
+
+    def test_a_long_owner_that_is_only_a_prefix_of_a_body_word_is_not_silently_exempt_when_body_is_short(self):
+        owner = "ZQ-" + "x" * 80
+        self.line(owner=owner)
+        self.section("short body")
+        self.assertIn(owner, self.markers())
+
+    def test_an_eye_off_line_name_only_in_a_hidden_section_still_a_marker(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("gantt_lines", {"project": "ABC", "type": "task", "name": "ZQ-SECRET-LINE", "start": "2026-11-02",
+                                      "end": "2026-11-13", "show": 0, "sort_order": 91})
+        self.section("The ZQ-SECRET-LINE work.", hidden=1)
+        self.assertIn("ZQ-SECRET-LINE", self.markers())
+
+
 if __name__ == "__main__":
     unittest.main()
