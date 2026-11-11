@@ -16,7 +16,7 @@ export function View({ data }) {
   const today = fromFile.value && asAt.value ? asAt.value : undefined;
   return (
     <div class="tpl-gantt" data-tpl="gantt">
-      <GanttChart lines={allLinesOf(d)} edit={false} today={today} defaultRows={savedRows(d)} hiddenCols={hiddenOf(d)} />
+      <GanttChart projectKey={(d.project && (d.project.code || d.project.name)) || ""} lines={allLinesOf(d)} edit={false} today={today} defaultRows={savedRows(d)} hiddenCols={hiddenOf(d)} />
     </div>
   );
 }
