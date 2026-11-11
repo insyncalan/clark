@@ -712,3 +712,6 @@ test_tab_count_words.py 30.0
 test_hostile_1077.py 1.0
 test_peek_ruled_1077.py 1.0
 test_source_name.py 1.0
+test_help_peek_words_true.py 1.0
+test_milestone_peek_1078.py 1.0
+test_pin_1256.py 1.0
