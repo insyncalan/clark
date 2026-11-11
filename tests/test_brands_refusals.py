@@ -146,6 +146,34 @@ class FromDownloads(Base):
         write_zip(self.downloads, bz.valid(), name="whatever.zip")
         self.assertIs(self.listing()["review_ready"], True)
 
+    def test_the_library_listing_review_ready_follows_the_downloads_folder(self):
+        lib = sv.BrandLibrary(self.root, self.data, choose=lambda *a, **k: None, downloads=self.downloads)
+        status, got = lib.listing()
+        self.assertEqual((status, got["review_ready"]), (200, False))
+        write_zip(self.downloads, bz.valid(), name="fabrikam-kit.zip")
+        status, got = lib.listing()
+        self.assertEqual((status, got["review_ready"]), (200, True))
+
+    def test_a_brand_zip_is_found_as_the_last_one_looked_at_and_missed_one_further_down(self):
+        for rank in (5, 6):       # the fifth newest is looked at, the sixth is not
+            with self.subTest(rank=rank):
+                for old in self.downloads.glob("*.zip"):
+                    old.unlink()
+                kit = write_zip(self.downloads, bz.valid(), name="fabrikam-kit.zip")
+                os.utime(kit, (100, 100))
+                for i in range(rank - 1):
+                    os.utime(_plain_zip(self.downloads / ("other%d.zip" % i)), (500 + i, 500 + i))
+                found = brands.newest_brand_zip(self.downloads)
+                self.assertEqual(found, kit if rank == 5 else None)
+
+    def test_a_file_chosen_by_hand_installs_whatever_it_is_called(self):
+        self.picked[:] = [write_zip(self.scratch, bz.valid(), name="fabrikam notes (3).zip")]
+        status, got = self.post("review", {"from": "file"})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        status, got = self.post("install", {"review_id": got["review"]["review_id"]})
+        self.assertEqual((status, got["ok"]), (200, True), got)
+        self.assertEqual([b["id"] for b in self.listing()["brands"]], [bz.BRAND_ID])
+
 
 class DiskTrouble(Base):
     def test_undo_whose_backup_folder_is_gone_is_the_failed_refusal_and_changes_nothing(self):

@@ -97,10 +97,21 @@ class Listing(Base):
                 got = brands.installed(self.root)
                 self.assertEqual([(x["id"], x["name"]) for x in got], [("local-brand", "Fabrikam")])
 
+    def test_a_top_pack_with_a_plain_id_but_a_bad_version_or_name_is_the_bare_local_brand_entry(self):
+        for field, bad in (("version", "one"), ("version", 2), ("name", ""), ("name", " Fabrikam"), ("name", 7)):
+            with self.subTest(field, bad=bad):
+                top = branding(self.root)
+                (top / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
+                doc = {"id": "fabrikam", "name": "Fabrikam", "version": "2.1.0", "files": []}
+                doc[field] = bad
+                (top / "clark-brand.json").write_text(json.dumps(doc), encoding="utf-8")
+                got = brands.installed(self.root)
+                self.assertEqual([(x["id"], x["name"], x["version"], x["own_folder"]) for x in got], [("local-brand", "local-brand", "", False)])
+
     def test_a_bare_top_tokens_file_is_local_brand_with_no_folder_of_its_own(self):
         (branding(self.root) / "tokens.css").write_text(":root { --brand-ink: #000000; }\n", encoding="utf-8")
         got = brands.installed(self.root)
-        self.assertEqual([(x["id"], x["own_folder"], x["alias"]) for x in got], [("local-brand", False, "local-brand")])
+        self.assertEqual([(x["id"], x["name"], x["version"], x["own_folder"]) for x in got], [("local-brand", "local-brand", "", False)])
 
     def test_a_top_pack_with_a_non_text_id_is_local_brand(self):
         top_pack(self.root, brand_id=5)
