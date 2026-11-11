@@ -135,8 +135,9 @@ class Chips(unittest.TestCase):
         n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
         self.assertEqual(n("status:Open"), "Status")
         self.assertEqual(n("-owner:none"), "Owner")
-        self.assertEqual(n("is:open"), "is")
-        self.assertEqual(n("no:owner"), "no")
+        self.assertEqual(n("is:open"), "is:open", "two is: chips must not both be called the is filter")
+        self.assertEqual(n("no:owner"), "no:owner")
+        self.assertEqual(n("-is:open"), "-is:open")
 
 
 class Words(unittest.TestCase):
