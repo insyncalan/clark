@@ -22,6 +22,7 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
+import json
 import os
 import re
 import secrets
@@ -30,6 +31,7 @@ import tempfile
 import threading
 import time
 import unicodedata
+from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
@@ -37,6 +39,8 @@ from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
 CLIENT_WORKBOOK = True      # item 713: every file made here carries the client workbook (or the too-large sentence) in its data block
+MAX_RUN_MARKERS = 300                # a hidden section's text runs become at most this many markers in all (each marker costs a scan), and at most
+MAX_RUN_CHARS = 100000               # this many characters; past either, no more run markers (the whole-body marker still stands)
 MIN_MARKER = 8                       # a shorter piece of text can't be searched for without finding it everywhere
 TEXT_FIELDS = {"milestones": ("name", "description"), "actions": ("description",), "raid": ("description",),
                "decisions": ("decision",), "use_cases": ("title", "headline")}
@@ -180,10 +184,68 @@ def markers_for(store, code, published, template=""):
             value = (_text(row.get(field)) or "").strip()
             if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                 add(value, row["id"])
+    kept_runs = [r for s in published.get("sections", ()) if isinstance(s, dict) and s.get("body") for r in _body_runs(s["body"])]
+    hidden_section_markers(store, code, kept_text, bare, add, kept_runs)
     gantt_markers(store, code, published, add, kept_whole, template)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
+
+
+class _Runs(HTMLParser):
+    """The text runs of an HTML body, one per piece of text between tags."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.runs = []
+
+    def handle_data(self, data):
+        self.runs.append(data)
+
+
+def _body_runs(body):
+    """The pieces of text in a section body: the strings of a JSON body (needs, tracker, templates), else the text between the tags."""
+    try:
+        doc = json.loads(body)
+    except ValueError:
+        doc = None
+    if isinstance(doc, (dict, list)):
+        todo, out = [doc], []
+        while todo:
+            v = todo.pop()
+            if isinstance(v, str):
+                out.append(v)
+            elif isinstance(v, dict):
+                todo.extend(v.values())
+            elif isinstance(v, list):
+                todo.extend(v)
+        return out
+    parser = _Runs()
+    parser.feed(body)
+    parser.close()
+    return parser.runs
+
+
+def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
+    """Row S6: the words in the body of a section the owner hid are markers, like a left-out row's: select() drops the section, and
+    this is the second look at the finished file. A run is excused only when a kept value IS that run (the whole-value rule of
+    markers_for, #619; a kept section's own runs count as kept values), or when the bare page has it. At most MAX_RUN_MARKERS runs
+    and MAX_RUN_CHARS characters in all become markers, so a hostile section of thousands of runs cannot slow the scan; the section's
+    whole body is still one marker (markers_for), so pasting all of it is refused."""
+    kept_whole = {" ".join(t.split()) for t in kept_text} | {" ".join(r.split()) for r in kept_runs}
+    seen, chars = set(), 0
+    for row in store.read("report_sections", project=code):
+        if not row.get("hidden") or not _text(row.get("body")):
+            continue
+        for run in _body_runs(row["body"]):
+            value = " ".join(run.split())
+            if len(value) < MIN_MARKER or value in seen or value in kept_whole or to_client._key(value) in bare:
+                continue
+            if len(seen) >= MAX_RUN_MARKERS or chars + len(value) > MAX_RUN_CHARS:
+                return
+            seen.add(value)
+            chars += len(value)
+            add(value, row.get("id"))
 
 
 def gantt_markers(store, code, published, add, kept_whole, template=""):
