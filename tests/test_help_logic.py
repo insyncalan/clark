@@ -121,7 +121,7 @@ class Logic(unittest.TestCase):
         self.assertEqual([g["group"] for g in lst], CONTENT["howto"]["groups"] + [""])      # the guides: one run with no heading, at the end
         self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), len(TASKS))
         self.assertEqual(sum(len(g["entries"]) for g in lst[:-1]), 37)   # with the People entry (#454), Run clark with Docker and the AI card task (#446)
-        self.assertEqual([e["place"] for e in lst[-1]["entries"]], ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data", "guide-bring-in-a-brand-kit"])
+        self.assertEqual([e["place"] for e in lst[-1]["entries"]], ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data", "guide-the-brand-kit-guide", "guide-bring-in-a-brand-kit"])
         first = lst[0]["entries"][0]
         self.assertEqual(first, {"id": TASKS[0]["id"], "title": TASKS[0]["t"], "place": "howto-" + TASKS[0]["id"]})
 
@@ -170,7 +170,7 @@ class Logic(unittest.TestCase):
     def test_every_place_is_unique_and_the_count_is_right(self):
         p = self.r["places"]
         self.assertEqual(len(p), len(set(p)))
-        self.assertEqual(len(p), 7 + 37 + 35 + 10)   # with the People entries (#454), the AI card task (#446) and the nine guides (#642 guides A, B and C)
+        self.assertEqual(len(p), 7 + 37 + 35 + 11)   # with the People entries (#454), the AI card task (#446) and the eleven guides (#642 guides A, B and C)
 
     # ---- search ----
     def test_search_finds_every_entry_by_its_title(self):
@@ -318,7 +318,7 @@ class Shown(unittest.TestCase):
     def test_a_held_entry_is_in_no_list_no_place_and_no_search(self):
         s = self.shown
         SEC = ["start-top", "start-loop", "start-jobs", "start-where", "start-rules", "howto-write-the-weekly-report", "howto-set-the-health", "howto-check-the-report", "howto-publish-the-report", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-use-the-board", "howto-change-an-item-in-words", "howto-arrange-the-report", "howto-add-a-section-from-a-template", "howto-ask-for-what-you-need", "howto-find-a-use-case", "howto-handle-a-slipped-milestone", "howto-connect-claude-or-chatgpt", "howto-undo-a-mistake", "howto-start-check-and-restore-in-terminal", "howto-run-clark-with-docker", "ref-profile-circle", "ref-sections", "ref-section-templates", "ref-needs-from-you", "ref-freshness", "ref-archive-restore", "ref-at-a-glance", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-ask-clark", "ref-status-words", "ref-sneak-peek", "ref-milestone-states", "ref-published-reports", "ref-diagnostics", "ref-dates-and-ids", "ref-using-help", "ref-keys"]
-        GUIDES = ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data", "guide-bring-in-a-brand-kit"]      # #642 guides A, B and C: after the how-to and reference places
+        GUIDES = ["guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-bring-in-an-excel-workbook", "guide-send-the-workbook-out", "guide-publish-to-the-client", "guide-hand-an-item-over", "guide-save-a-view", "guide-see-the-dashboard-as-at-a-day", "guide-back-up-and-restore-your-data", "guide-the-brand-kit-guide", "guide-bring-in-a-brand-kit"]      # #642 guides A, B and C: after the how-to and reference places
         self.assertEqual(s["places"], SEC + GUIDES)
         jobs = [e["place"] for g in s["tabs"]["start"] if g["group"] == "The five jobs" for e in g["entries"]]
         self.assertEqual(jobs, ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"], "Start here lists the five jobs, all shown")

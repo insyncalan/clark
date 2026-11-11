@@ -114,9 +114,9 @@ class ShippedSource(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertGreater(len(bundle(RAW, tmp).encode("utf-8")), 100 * 1024, "the bundle is past the limit, so passing it as an argument would fail: this check bites")
 
-    def test_the_ten_guides_are_shipped_and_hold_the_shape(self):
+    def test_the_eleven_guides_are_shipped_and_hold_the_shape(self):
         """#642 guides A, B and C together: the pictures its steps draw are checked in test_help_guide_pictures."""
-        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data", "bring-in-a-brand-kit"])
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data", "the-brand-kit-guide", "bring-in-a-brand-kit"])
         self.assertEqual([len(g["steps"]) for g in RAW["guides"]][:5], [6, 7, 8, 7, 8])
         self.assertEqual(check_guides(RAW), [])
 
@@ -281,7 +281,7 @@ class ShippedGuides(unittest.TestCase):
 
     def test_the_shipped_index_holds_one_entry_for_each_guide(self):
         r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "idx": 10})
+        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "idx": 11})
 
 
 def page_values(content):
