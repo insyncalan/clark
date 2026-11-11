@@ -3,7 +3,7 @@
 import { workSelection } from "./stores/selection.js";
 import { data, show, openPeek, closePeek, setProject, setFilters, peek, project, f } from "./stores/report.js";
 import { markChanged, changed, useClock } from "./stores/changed.js";
-import { welcomeHeld } from "./stores/profile.js";
+import { welcomeHeld, wantName } from "./stores/profile.js";
 import { openImport } from "./edit/wordState.js";
 import { closeAfter, CLOSE_MS } from "./edit/publishState.js";
 import { openContext, toggleContext, closeContext, contextOpen, useContextText } from "./help/helpStore.js";
@@ -22,6 +22,7 @@ export function install(tools) {
     markChanged, changed: () => changed.value.slice(), useClock,
     openWordImport: () => openImport(),      // row 1063: the profile menu no longer has Import from Word; the box and route stay
     publishCloseMs: (ms) => { if (ms !== undefined) closeAfter.ms = ms; return { now: closeAfter.ms, page: CLOSE_MS }; },
+    wantName: (on) => { wantName.value = !!on; },      // the wish "Add your name" made while no box draws (test_about_you)
     changeData: (fn) => { data.value = fn(data.value); },      // #970: a test adds or removes a work item as the data being read again does
     showHealth: (health, reason) => { data.value = { ...data.value, project: { ...data.value.project, health, health_reason: reason } }; }, ...help });
 }

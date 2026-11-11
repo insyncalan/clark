@@ -348,21 +348,22 @@ class PageKey(unittest.TestCase):
         self.assertEqual(ids, sorted(ids, key=order.index))
 
 
-# The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
+# The Settings cards on the page, by the part that draws each (edit/settingsPages.js, drawn by Settings in components/Views.jsx): the visible title of the card.
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
                   "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "Quit": "Quit"}
-SETTINGS_LEFT_OUT = {"AskSettings"}
+SETTINGS_LEFT_OUT = {"AskSettings", "PublishedPage"}      # the Published reports entry opens the page of its own (row 1087), which has its own Help line (test_past_reports)
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
 
 
 def settings_parts():
-    code = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
-    body = code[code.index("export function Settings"):]
-    body = body[:body.index("\n}\n")]
-    return set(re.findall(r"\{(\w+) \? <\1 />", body))
+    code = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")
+    # item 1024: the cards a page draws are named in the menu's GROUPS (one list of tools for each page), no longer one line each in Settings()
+    groups = code[code.index("const GROUPS = ["):]
+    groups = groups[:groups.index("\n];")]
+    return {name for tools in re.findall(r'\["[a-z-]+", "[^"]+", \[([^\]]*)\], "[\w-]+"\]', groups) for name in re.findall(r'"(\w+)"', tools)}
 
 
 class ContextText(unittest.TestCase):

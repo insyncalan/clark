@@ -193,7 +193,7 @@ class Places(unittest.TestCase):
 
 class Words(unittest.TestCase):
     JARGON = re.compile(r"\b(sweeps?|proposals?|stag(?:e|ed|ing)|vault|live server|extract(?:s|ed|ion)?|refus(?:e|ed|al)|valid|invalid|"
-                        r"(?<!Progress )tracker|prototype|demo|creaite|Claude(?! (?:or|and) ChatGPT)|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
+                        r"(?<!Progress )tracker|prototype|demo|creaite|Claude(?! (?:or ChatGPT|and (?:ChatGPT|AI)))|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
     # "close the list to apply it" is ordinary English for a filter; nothing here means creaite's apply
     PATH = re.compile(r"(?:\w+/){2,}|\.py\b|\.js\b|\.json\b|\.md\b|~/|\\")
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)

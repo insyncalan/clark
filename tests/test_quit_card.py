@@ -1,6 +1,6 @@
 """#836 (Quit): the Settings card "Quit clark", in a real (headless) Chrome against the real server routes. Run: python3 dev/run_tests.py test_quit_card
 
-What is asserted: the card is on Settings with a chip, a heading and one button, "Quit clark"; one click posts /api/quit once (the server's stop is
+What is asserted: the card is on Settings with a place on the Version and updates page, a heading and one button, "Quit clark"; one click posts /api/quit once (the server's stop is
 recorded, not carried out, so the page stays to be read), the button goes off so a second click does nothing, and the page says
 "Stopping clark. You can close this window."; when the server refuses the page shows the server's own plain words, and when
 nothing answers it shows "Quitting did not work. Try again." and the button works again. No Export, Save, Publish or Import is pressed.
@@ -48,7 +48,7 @@ class Card(unittest.TestCase):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
-        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL"}, sid)
+        cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/#settings&p=TUL&s=version"}, sid)
         self.until(cdp, sid, "document.querySelector('#quit-h')", "the Quit card")
         self.until(cdp, sid, "document.getAnimations().length === 0", "motion to finish")
         return sid
@@ -58,7 +58,7 @@ class Card(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp, s.port)
             self.assertEqual(cdp.js("document.querySelector('#quit-h').textContent", sid), "Quit")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.set-nav .set-chip')].map(c => c.textContent.trim()).includes('Quit')", sid), True)
+            self.assertEqual(cdp.js("document.querySelector('[data-settings-page=version] #quit-h') !== null", sid), True)      # item 1024: Quit is drawn on the Version and updates page, no menu entry of its own
             self.assertEqual(cdp.js("document.querySelectorAll('#quit button').length", sid), 1)
             self.assertEqual(cdp.js("document.querySelector('#quit button').textContent.trim()", sid), "Quit clark")
             self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)

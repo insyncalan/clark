@@ -131,32 +131,44 @@ class TypedFilter(unittest.TestCase):
 class SettingsChips(unittest.TestCase):
     TEXT = flat(SECS["settings"])
 
-    def test_the_chip_names_and_order_are_the_pages(self):
+    # item 1024, WEAKENS-free: the chips (CARDS) became the menu (GROUPS): the regex reads the same way and pins the same things, the names and their order.
+    def test_the_menu_names_and_order_are_the_pages(self):
         views = code("components", "Views.jsx")
-        cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
-        names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", ""])
-        self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
+        pages = code("edit", "settingsPages.js")      # the pages and their groups are Edit's own (item 1024), so a published file holds none of them
+        groups = re.search(r"const GROUPS = \[(.*?)\n\];", pages, re.S).group(1)
+        names = re.findall(r'\["([a-z-]+)", "([^"]+)", \[[^\]]*\], "[\w-]+"\]', groups)
+        self.assertEqual(names, [("projects", "Projects"), ("people", "People"), ("published", "Published reports"), ("profile", "Profile"), ("folder", "Folder"), ("brand", "Brand"),
+                                 ("appearance", "Appearance"), ("reports", "Reports"), ("backups", "Backups"), ("export", "Export and import"), ("claude-ai", "Claude and AI"),
+                                 ("logs", "Logs and diagnostics"), ("version", "Version and updates")])
+        self.assertEqual(re.findall(r'^  \["([^"]+)", \[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
+        self.assertNotIn('""', "".join(n for _, n in names), "no page without a name")
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn.", self.TEXT)
-        self.assertIn('<nav class="set-bar"', views)
-        self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
-        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
-        self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
-        self.assertIn("A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title)", self.TEXT)
-        self.assertIn("The link of the card you are reading is marked.", self.TEXT)
+        self.assertIn("Update", re.search(r'"version", "Version and updates", \["(\w+)", "Quit"\]', pages).group(1))
+        self.assertIn("Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced.", self.TEXT)
+        self.assertIn('<nav class="set-menu"', views)
+        self.assertNotIn("set-chip", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
+        self.assertNotIn("set-bar", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
+        self.assertIn('aria-current={here === slug ? "page" : undefined}', views)
+        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedPage", "ReviewDays", "GanttSetting"]', pages)
+        self.assertIn("Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project.", self.TEXT)
+        self.assertIn("A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title)", self.TEXT)
+        self.assertIn("The page you are on is marked in the menu. Settings opens on Projects.", self.TEXT)
 
-    def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
-        views = code("components", "Views.jsx")
-        self.assertNotIn("PublishedReports", views)
-        self.assertNotIn("Published reports", self.TEXT)
+    def test_published_reports_is_a_menu_entry_that_opens_its_own_page(self):      # row 1087 and item 1024: a menu entry, not a Settings page
+        pages = code("edit", "settingsPages.js")
+        self.assertIn('["published", "Published reports", ["PublishedPage"], "pubs-h"]', pages)
+        self.assertIn("NEEDS_PROJECT", pages)
+        self.assertIn('s === "published" ? show("published")', code("components", "Views.jsx"))
+        self.assertNotIn('"published"', re.search(r"SETTINGS_PAGES = \[(.*?)\]", code("", "router.js"), re.S).group(1), "no address key s=published")
+        self.assertIn('id="pubs-page"', code("edit", "PublishedPage.jsx"))
 
-    def test_ai_is_drawn_straight_after_asking_and_has_no_chip(self):
+    def test_ai_is_drawn_straight_after_asking_on_the_same_page(self):      # item 1024c: Asking and AI are one card now, the AI part last inside it
         ask = code("edit", "AskSettings.jsx")
-        self.assertLess(ask.index("</section>"), ask.index("<AiSettings />"))
+        self.assertLess(ask.index('<div class="pub-msg"'), ask.index("<AiSettings />"))
+        self.assertLess(ask.index("<AiSettings />"), ask.index("</section>"))
         ai = code("edit", "AiSettings.jsx")
-        self.assertIn('<section class="frame setting" id="ai-settings">', ai)
-        self.assertIn("A card of its own, drawn straight after the Asking card and without a link.", self.TEXT)
+        self.assertIn('<div class="ai-part" id="ai-settings">', ai)
+        self.assertIn("A card of its own, drawn straight after the Asking card, on the same page.", self.TEXT)
         self.assertIn("AI (under Asking)", self.TEXT)
 
     def test_personal_holds_the_appearance_about_you_and_keys(self):
@@ -191,7 +203,7 @@ class AskOff(unittest.TestCase):
         words = code("edit", "askWords.js")
         self.assertIn('OFF_LINE = "Asking is off. Turn it on in Settings."', words)
         self.assertIn('OFF_LINK = "Open Settings"', words)
-        self.assertIn("{W.OFF_LINE} <a href=\"#settings\"", code("edit", "AskPanel.jsx"))
+        self.assertIn("{W.OFF_LINE} <a href=\"#settings&s=claude-ai\"", code("edit", "AskPanel.jsx"))      # item 1024: the page that holds the asking switch, not plain #settings (Projects)
         self.assertIn("The **ask clark** button shows only while asking is on. With asking off, [[/]] still opens the panel, except while Help is open, and the panel says “Asking is off. Turn it on in Settings.” and has an **Open Settings** link.", text)
         self.assertIn("!helpOpen.value", keys)       # #754: the ask key leaves Help alone, so the sentence says 'except while Help is open'
 

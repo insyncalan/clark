@@ -1814,7 +1814,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title): Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced. The page you are on is marked in the menu. Settings opens on Projects. Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project."
      ],
      [
       "tbl",
@@ -1841,7 +1841,7 @@
        ],
        [
         "AI (under Asking)",
-        "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "A card of its own, drawn straight after the Asking card, on the same page. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
         "Quit",
@@ -2446,7 +2446,7 @@
    "title": "Settings",
    "s": [
     "Settings holds what belongs to the whole project and to you, one card for each job.",
-    "The list at the left of the cards takes you to a card (a row of chips under the title in a window narrower than 900 px).",
+    "The menu at the left shows one page at a time (a row of buttons under the title in a narrow window).",
     "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",

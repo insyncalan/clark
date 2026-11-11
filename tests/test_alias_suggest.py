@@ -110,7 +110,17 @@ class OnThePage(Base):
     """The Alias box under the name box in the real page, kept by clark."""
     saved = about.AboutYou.saved
     open_menu = about.AboutYou.open_menu
-    open_settings = about.AboutYou.open_settings
+
+    def open_settings(self, p):
+        """Item 1024: the circle's Settings entry opens Projects once a name is known, so the Profile page is asked for by its address."""
+        p.js("location.hash = '#settings&p=PUB&s=profile'")
+        p.until("!!document.querySelector('#about-name')", "About you drew")
+
+    def pick_theme(self, p, theme):
+        """The appearance buttons are on the Appearance page; the name box is on Profile, so go there and come back."""
+        p.js("location.hash = '#settings&p=PUB&s=appearance'")
+        p.until("!!document.querySelector('#personal [data-appearance]')", "the Appearance page drew")
+        p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={theme}]').click()")
     type_into = about.AboutYou.type_into
     toast_is = about.AboutYou.toast_is
     handled = about.AboutYou.handled
@@ -160,9 +170,10 @@ class OnThePage(Base):
                                  "an empty name leaves the Alias empty")
                 for theme in ("light", "dark"):
                     with self.subTest(width=w, theme=theme):
-                        p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={theme}]').click()")
+                        self.pick_theme(p, theme)
                         p.until(f"document.documentElement.dataset.theme === {json.dumps('dark' if theme == 'dark' else None)} "
                                 f"|| ({json.dumps(theme)} === 'light' && !document.documentElement.dataset.theme)", "the appearance applied")
+                        self.open_settings(p)
                         for name, alias in (("Jane Doe", "Jane, JD"), ("Jane", "Jane"), ("Mary Ann Smith", "Mary, MAS")):
                             self.type_into(p, "name", name, leave="none")
                             p.until(f"document.querySelector('#about-alias').value === {json.dumps(alias)}", f"{name} fills in {alias}")

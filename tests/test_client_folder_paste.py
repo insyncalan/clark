@@ -159,7 +159,7 @@ class ThePage(unittest.TestCase):
         rig = Rig(self, saved=False, page_html=testpage.html)
         rig.publisher.onedrive_roots = [str(rig.onedrive)]
         with chrome() as cdp:
-            sid = navigate(cdp, rig.httpd.server_port, "#settings&p=PUB")
+            sid = navigate(cdp, rig.httpd.server_port, "#settings&p=PUB&s=folder")
             js = lambda expr: cdp.js(expr, sid)  # noqa: E731
             until = lambda expr, what: self.assertTrue(wait(lambda: js(expr), 15), what)  # noqa: E731
             until("!!document.querySelector('#client-folder-paste')", "the paste box")

@@ -533,7 +533,7 @@ class Settings(Base):
     def test_C_publishing_card_has_local_and_client(self):
         """A-S9: one Publishing card with a Local folder part (words only: no typed path) and the client folder part."""
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB")
+            p = self.page(cdp, "#settings&p=PUB&s=folder")
             p.until("!!document.querySelector('#publishing')", "the card")
             self.assertEqual(p.js("document.querySelector('#publishing h2').innerText"), "Publishing")
             self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').innerText"), "Local folder")
@@ -546,7 +546,7 @@ class Settings(Base):
     def test_C_settings_folder_field(self):
         self.rig.pick = self.rig.client
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB")
+            p = self.page(cdp, "#settings&p=PUB&s=folder")
             p.until("!!document.querySelector('[data-choose-folder]')", "the field")
             self.assertIn("No client folder yet.", p.js("document.querySelector('#client-folder-now').innerText"))
             self.assertIn("a folder OneDrive syncs", p.js("document.querySelector('#client-folder').innerText"))
@@ -580,7 +580,7 @@ class Settings(Base):
         mine.mkdir()
         self.rig.pick = mine
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB")
+            p = self.page(cdp, "#settings&p=PUB&s=folder")
             p.until("!!document.querySelector('[data-choose-local]')", "the Local folder's button")
             self.assertEqual(p.js("document.querySelector('#local-folder-now').innerText.trim()"), "No local folder yet.")
             p.js("document.querySelector('[data-choose-local]').click()")
@@ -599,7 +599,7 @@ class Settings(Base):
 
     def test_C_settings_fits_at_900(self):
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB")
+            p = self.page(cdp, "#settings&p=PUB&s=folder")
             p.width(900, 700)
             p.until("!!document.querySelector('[data-choose-folder]')", "the field")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))

@@ -13,9 +13,10 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 # AI is not here: its card is one line of words and no control; test_ai_settings checks that line fits at 1400 and 900.
-# (name, the id of the card or of its heading, how many controls are the least a person should see)
-CARDS = [("Asking", "ask-settings-h", 1), ("Backups", "safety-h", 1), ("Brands", "brands-h", 1),
-         ("Data", "data-card-h", 2), ("Freshness", "review-days-h", 1), ("Gantt", "gantt-setting-h", 3), ("Logs and diagnostics", "diagnostics-h", 4)]
+# (name, the Settings page address key (item 1024: one page at a time), the id of the card or of its heading, how many controls are the least a person should see)
+CARDS = [("Asking", "claude-ai", "ask-settings-h", 1), ("Backups", "backups", "safety-h", 1), ("Brands", "brand", "brands-h", 1),
+         ("Data", "export", "data-card-h", 2), ("Freshness", "reports", "review-days-h", 1), ("Gantt", "reports", "gantt-setting-h", 3),
+         ("Logs and diagnostics", "logs", "diagnostics-h", 4)]
 LOOK = """((id) => {
   const e = document.getElementById(id);
   if (!e) return null;
@@ -30,16 +31,16 @@ LOOK = """((id) => {
 
 
 class SettingsWidthsOne(Base):
-    def open_settings(self, p, w):
-        test_settings_head.Head.open_settings(self, p, w)      # the module is imported, not the class, so its own tests do not run again
+    def open_settings(self, p, w, page=None):
+        test_settings_head.Head.open_settings(self, p, w, page=page)      # the module is imported, not the class, so its own tests do not run again
 
     def test_C_each_card_fits_at_1400_and_900_with_its_controls_drawn(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
-                self.open_settings(p, w)
-                for name, ident, least in CARDS:
+                for name, page, ident, least in CARDS:
                     with self.subTest(card=name):
+                        self.open_settings(p, w, page)
                         look = p.js(LOOK % ident)
                         self.assertIsNotNone(look, f"{name}: the card is on the Settings page at {w}")
                         self.assertLessEqual(look["page"], 0, f"{name}: the page does not scroll sideways at {w}")

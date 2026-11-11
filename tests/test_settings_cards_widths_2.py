@@ -11,16 +11,16 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 
-# (name, heading id, controls that must be drawn and visible: CSS selectors inside the card)
+# (name, Settings page address key, heading id, controls that must be drawn and visible: CSS selectors inside the card)
 CARDS = [
-    ("People", "people-h", ["#ppPasteBtn", "#ppAgain"]),
-    ("Personal", "personal-h", ["[data-theme-pick]", ".switch"]),
-    ("Profile", "profile-h", ["#about-name", "#about-alias", "#about-email"]),
-    ("Projects", "projects-h", ["#show-archived", "#npBtn"]),
-    ("Published reports", "pubs", ["#as-at-day", "#as-at-show"]),
-    ("Publishing", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]", "#client-folder-paste"]),
-    ("Quit", "quit-h", ["button.btn"]),
-    ("Update", "update-h", ["button.btn"]),
+    ("People", "people", "people-h", ["#ppPasteBtn", "#ppAgain"]),
+    ("Personal", "appearance", "personal-h", ["[data-theme-pick]", ".switch"]),
+    ("Profile", "profile", "profile-h", ["#about-name", "#about-alias", "#about-email"]),
+    ("Projects", "projects", "projects-h", ["#show-archived", "#npBtn"]),
+    ("Published reports", "published", "pubs", ["#as-at-day", "#as-at-show"]),
+    ("Publishing", "folder", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]", "#client-folder-paste"]),
+    ("Quit", "version", "quit-h", ["button.btn"]),
+    ("Update", "version", "update-h", ["button.btn"]),
 ]
 
 PROBE = """((headId, sels) => {
@@ -52,9 +52,11 @@ class CardsWidths(Base):
         for w in WIDTHS:
             with chrome() as cdp:
                 p = self.page(cdp)
-                self.open_settings(p, w)
-                for name, head, sels in CARDS:
+                for name, page, head, sels in CARDS:
                     with self.subTest(width=w, card=name):
+                        if name == "Published reports":
+                            self.skipTest(name + " opens a page of its own, not a Settings page (row 1087)")
+                        self.open_settings(p, w, page=page)      # one page at a time (item 1024): the card's own page
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
                         if got is None and name in ("Published reports", "Update"):
                             self.skipTest(name + " is not on the test rig's Settings page")

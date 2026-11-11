@@ -4,7 +4,7 @@
 // Also a Word document (#48) is unticked every time as well: when it is ticked, the Word report is saved by the one Word path (wordApi.js exportWord,
 // the same as Export to Word) once the web page is published, in the folder last used for the project, and in the client folder too when To client is ticked.
 import { signal } from "@preact/signals";
-import { data, project, show } from "../stores/report.js";
+import { data, project, openSettings } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { exportWord } from "./wordApi.js";
 import { openInNewTab } from "../router.js";
@@ -76,14 +76,12 @@ export function toPublishingCard() {
   const el = document.getElementById("publish-dialog");
   if (el && el.open) el.close();
   dialog.value = null;
-  show("settings");
+  openSettings("folder");
   let tries = 10;
   const find = () => {
     const card = document.getElementById("publishing");
     if (!card) { if (--tries > 0) setTimeout(find, 40); return; }
-    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     card.setAttribute("tabindex", "-1");
-    card.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
     card.focus({ preventScroll: true });
   };
   setTimeout(find, 40);                                                    // after the box's own focus-back and Settings' first draw

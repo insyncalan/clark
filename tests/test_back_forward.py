@@ -280,6 +280,16 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.js("document.querySelector('.toast-text').textContent"), "Carried words.")
             self.assertFalse(self.js("!!document.querySelector('[data-undo]')"), "with no Undo when it had none")
 
+    def test_choosing_another_project_on_a_settings_page_keeps_that_page(self):      # item 1024: the switch carried no page, so Backups landed on Projects and the reload address lost the page
+        with chrome() as cdp:
+            self.visit(cdp, "?project=ABC#settings&p=ABC&s=backups")
+            self.until("!!document.querySelector('.set-menu [aria-current=page]')", "Settings drew")
+            self.assertEqual(self.js("document.querySelector('.set-menu [aria-current=page]').textContent"), "Backups")
+            after_reload(self.js, "clarkPage.setProject('XYZ')")
+            self.until("!!document.querySelector('.set-menu [aria-current=page]')", "Settings drew in the other project")
+            self.assertEqual(self.js("location.hash"), "#settings&p=XYZ&s=backups", "the address keeps the page")
+            self.assertEqual(self.js("document.querySelector('.set-menu [aria-current=page]').textContent"), "Backups", "the page stays")
+
     def test_choosing_another_project_while_a_title_is_being_typed_saves_it_first(self):      # #944: no blur before the switch
         with chrome() as cdp:
             self.visit(cdp, "?project=ABC#dashboard&p=ABC")

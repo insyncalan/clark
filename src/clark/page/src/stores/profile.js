@@ -2,10 +2,10 @@
 // parts only. Nothing here is read from the computer, the browser or the Claude sign-in: a fresh store has neither.
 import { signal } from "@preact/signals";
 import { getProfile, saveProfile } from "../api.js";
-import { plainChange } from "./report.js";
+import { plainChange, wantName } from "./report.js";
+export { wantName };
 
 export const profile = signal({ name: "", email: "", alias: "" });      // alias: the Alias (item 613), "" when none was saved
-export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn
 export const profileRead = signal(false);               // clark has answered a read: only then is an empty name known to be empty (the welcome, #174)
 export const welcomeHeld = signal(false);               // the browser tests' copy holds the welcome back unless a test asks for it (testhook.js)
 let asked = false;

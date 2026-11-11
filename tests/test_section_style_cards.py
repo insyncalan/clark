@@ -68,12 +68,17 @@ def settled(p, expr, what, seconds=15):
         time.sleep(0.1)
     p.t.fail(what)
 
+# item 1024: Settings shows one page at a time and opens on Projects; the Spacing cards are on the Appearance page
+APPEARANCE = "[...document.querySelectorAll('.set-menu .set-item')].find(b => b.textContent === 'Appearance').click()"
+
 
 class Cards(Base):
     def open_settings(self, p, look="light"):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+        p.until("!!document.querySelector('.set-menu .set-item')", "the Settings menu")
+        p.js(APPEARANCE)
         p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
         p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={look}]').click()")
         p.until("document.documentElement.dataset.theme === 'dark'" if look == "dark" else "!document.documentElement.dataset.theme", f"{look} is on")
@@ -124,6 +129,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-menu .set-item')", "the Settings menu")
+                p.js(APPEARANCE)
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
                 self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
@@ -167,6 +174,8 @@ class Cards(Base):
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
             p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('.set-menu .set-item')", "the Settings menu")
+            p.js(APPEARANCE)
             p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal again")
             self.assertEqual(self.chosen(p), ["comfortable"], "and kept for the Settings card")
 
@@ -226,6 +235,8 @@ class Cards(Base):
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
+                p.until("!!document.querySelector('.set-menu .set-item')", "the Settings menu")
+                p.js(APPEARANCE)
                 p.until("!!document.querySelector('#personal [data-density-pick]')", "Personal")
             self.assertEqual(look["compact"][0], True, "Compact sections have no card shadow")
             self.assertEqual(look["compact"][2], "0px", "Compact sections are flat")
