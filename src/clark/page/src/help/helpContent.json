@@ -852,7 +852,7 @@
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
-     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
+     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window. It does start again by itself after Docker Desktop is closed and opened again, or after the Mac restarts, unless you stopped it with this line.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
@@ -1352,7 +1352,7 @@
      ],
      [
       "p",
-      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines (the To line is the owner’s email from the People list; if the owner has no email there, the To line is left empty and the menu says so), the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
      ],
      [
       "p",
@@ -1511,7 +1511,7 @@
      ],
      [
       "p",
-      "In View and on the published page the pill says the words in the last column. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
+      "In View and on the published page the pill says the words in the last column. On a report’s rows (the Dashboard, the published page and the Word copy) an Open action that is not late, delayed or due soon reads **On track** (green), and a late one adds how many days late, for example 3 d late. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
      ],
      [
       "p",

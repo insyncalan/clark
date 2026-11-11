@@ -692,3 +692,4 @@ test_settings_advanced.py 30.0
 test_setup_mode.py 30.0
 test_help_line_length.py 30.0
 test_help_wording_107_b.py 30.0
+test_help_gaps_11_11.py 30.0
