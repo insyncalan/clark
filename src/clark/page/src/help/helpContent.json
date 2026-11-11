@@ -606,7 +606,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Dashboard sections** is yours alone: **Slim gaps**, **Roomy gaps**, **Grey headers** or **One card** (the standard).",
+     "**Personal › Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -1234,30 +1234,22 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; one card is the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections",
+       "Spacing",
        "What it does"
       ],
       [
        [
-        "Slim gaps",
-        "Each section is its own card, with a slim gap that shows the page picture."
+        "Compact",
+        "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."
        ],
        [
-        "Roomy gaps",
-        "The same, with more space between the sections."
-       ],
-       [
-        "Grey headers",
-        "Slim gaps, and each section title in a grey band, like the Work items groups."
-       ],
-       [
-        "One card",
-        "All the sections in one long card."
+        "Comfortable",
+        "Each Dashboard section is its own card, with room between them."
        ]
       ]
      ]
@@ -1802,7 +1794,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
-       "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
+       "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
@@ -1837,7 +1829,7 @@
        ],
        [
         "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
+        "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
         "Projects",
