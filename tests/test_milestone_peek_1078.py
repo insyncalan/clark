@@ -253,6 +253,51 @@ class Published(unittest.TestCase):
                 self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Not set")
 
+    def test_an_achieved_milestone_with_no_progress_reads_100_in_a_published_file(self):
+        plant = fx.load()
+        for m in plant["data"]["milestones"]:
+            if m["id"] == "PUB-M-001":
+                m["status"], m["percent_complete"], m["actual_date"] = "Done", None, "2026-03-02"
+        pub = publish.select(fx.inputs(plant))
+        text = publish.render(pub, page.page_html(tp.EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+        folder = Path(tempfile.mkdtemp(prefix="clark-1078-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        with chrome() as cdp:
+            sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-001", 1400)
+            from test_server import wait
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head]')", sid)), "the published milestone peek drew")
+            self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=progress]'))", sid), "100%")
+
+
+class ClientWordingElsewhere(unittest.TestCase):
+    """Mutation proof (row 1078): a milestone's rich client wording is words in the Word report and the client workbook, and has its AI place."""
+    RICH = "<p>Going <strong>well</strong> ZQ-RICH-WORDS</p>"
+
+    def test_the_word_report_carries_the_client_wording_as_words(self):
+        import io
+        import zipfile
+        from clark import docx_build
+        plant = fx.load()
+        for m in plant["data"]["milestones"]:
+            if m["id"] == "PUB-M-001":
+                m["client_message"] = self.RICH
+        data = docx_build.build(publish.select(fx.inputs(plant)))
+        z = zipfile.ZipFile(io.BytesIO(data))
+        xml = "\n".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml"))
+        self.assertIn("Going well ZQ-RICH-WORDS", xml.replace("</w:t></w:r><w:r><w:t>", "").replace("</w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>", ""), "the words, read as words")
+        self.assertNotIn("&lt;strong&gt;", xml, "never the markup as text")
+
+    def test_the_client_workbook_carries_the_client_wording_as_words(self):
+        from clark import excel_client
+        row = {"client_message": self.RICH, "description": "Own words"}
+        self.assertEqual(excel_client.value_of("milestones", row, "_words"), "Going well ZQ-RICH-WORDS")
+
+    def test_the_client_wording_has_its_ai_place(self):
+        src = (PAGE_SRC / "logic" / "aiPlaces.js").read_text(encoding="utf-8")
+        self.assertIn('client_message: "milestone.client_wording"', src)
+
 
 if __name__ == "__main__":
     unittest.main()
