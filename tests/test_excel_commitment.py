@@ -111,7 +111,7 @@ class Commitment(unittest.TestCase):
                 self.assertEqual(problem.id, self.uc)
                 self.assertIn("Use cases, row", problem.message)
                 self.assertIn(self.uc, problem.message)
-                self.assertIn("Commitment must be one of Candidate, Committed or Planned 2027, or left empty", problem.message)
+                self.assertIn("Commitment must be one of Planned 2026, Committed or Planned 2027, or left empty", problem.message)
                 self.assertIn("the row was left out", problem.message)
                 self.assertIsNone(self.flag(self.uc))
 
@@ -143,19 +143,19 @@ class Commitment(unittest.TestCase):
         ws = wb[SHEET]
         head = {c.value: c.column for c in ws[1]}
         row = ws.max_row + 1
-        ws.cell(row, head["Use case"]).value, ws.cell(row, head["Commitment"]).value = "A typed one", "Candidate"
+        ws.cell(row, head["Use case"]).value, ws.cell(row, head["Commitment"]).value = "A typed one", "Planned 2026"
         ws.cell(row + 1, head["Use case"]).value, ws.cell(row + 1, head["Commitment"]).value = "A bad one", "Soon"
         wb.save(str(self.path))
         p = self.read()
         news = [c for c in p.changes if c.kind == "new"]
-        self.assertEqual([c.after.get("commitment") for c in news], ["Candidate"])
+        self.assertEqual([c.after.get("commitment") for c in news], ["Planned 2026"])
         self.assertEqual(len(p.problems), 1)
         self.assertIn("(new)", p.problems[0].message)
 
     def test_spaces_round_a_word_are_not_part_of_it(self):
-        edit(self.path, self.uc, Commitment="  Candidate ")
+        edit(self.path, self.uc, Commitment="  Planned 2026 ")
         (c,) = self.read().changes
-        self.assertEqual(c.after, {"commitment": "Candidate"})
+        self.assertEqual(c.after, {"commitment": "Planned 2026"})
 
     def test_a_workbook_from_before_the_column_imports_as_before_and_keeps_every_flag(self):
         wb = load_workbook(self.path)
