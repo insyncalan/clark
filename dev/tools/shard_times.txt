@@ -548,6 +548,7 @@ test_store_history.py 2.5
 test_store_history_rows.py 14.2
 test_store_migration.py 7.7
 test_store_movement.py 3.1
+test_store_mut2.py 1.0
 test_store_publications.py 1.2
 test_store_review_days_migration.py 2.2
 test_store_schema.py 0.8
