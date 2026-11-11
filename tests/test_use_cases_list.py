@@ -600,6 +600,43 @@ class Line(Setup):
         self.click(p, "#ucl-q-x")
         p.until("document.querySelector('#usecases [data-fline]').dataset.line === '' && document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 4", "the x cleared the line")
 
+    def test_a_misspelt_field_word_says_which_of_this_pages_fields_it_is_nearest_to(self):
+        """Mutation sweep of row 1085: the unknown-field sentence names the near miss among this page's own fields (status for statsu), as the Work items one does."""
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.type_in(p, "#ucl-q", "statsu:Flag ")
+            p.until("document.querySelector('#ucl-q-msg').textContent !== ''", "the message")
+            self.assertEqual(p.js("document.querySelector('#ucl-q-msg').textContent"),
+                             "There is no “statsu” filter. Did you mean status? You can filter by status:, commitment:, milestone: and on:, or type plain words to search titles.")
+
+    def test_the_suggestions_carry_no_work_items_notes_narrow_by_the_typed_part_and_leave_out_a_value_already_taken(self):
+        """Mutation sweep of row 1085: has: and no: keep no Work items note (it names owner and date), a typed part narrows the values, a value already in the chip is not offered again, and a chip has no gloss here."""
+        with chrome() as cdp:
+            p = self.show(cdp)
+            values = "[...document.querySelectorAll('#ucl-q-list .fopt.value .fl1')].map(e => e.textContent)"
+            p.js("document.querySelector('#ucl-q').focus()")
+            self.press(p, "ArrowDown")
+            p.until("!!document.querySelector('#ucl-q-list')", "the list opened on an empty box")
+            self.assertEqual(p.js("document.querySelectorAll('#ucl-q-list .fopt .fl2').length"), 0, "no field row (has: and no: too) carries a Work items note")
+            self.press(p, "Escape")
+            self.type_in(p, "#ucl-q", "status:fl")
+            self.press(p, "ArrowDown")
+            p.until("!!document.querySelector('#ucl-q-list')", "the values")
+            self.assertEqual(p.js(values), ["Flag"], "the typed part narrows the values")
+            self.press(p, "Escape")
+            self.type_in(p, "#ucl-q", "status:Flag,")
+            self.press(p, "ArrowDown")
+            p.until("!!document.querySelector('#ucl-q-list')", "the values after the comma")
+            self.assertEqual(p.js(values), ["On track", "High risk", "Done"], "Flag is taken: not offered again")
+            self.press(p, "Escape")
+            self.type_in(p, "#ucl-q", "status:flag")
+            p.until("!!document.querySelector('#usecases [data-tok=val]')", "the value as it is typed")
+            self.assertTrue(p.js("document.querySelector('#usecases [data-tok=val]').classList.contains('a')"), "a status word typed in lower case has its tint")
+            self.press(p, "Escape")
+            self.type_in(p, "#ucl-q", "status:Flag ")
+            p.until("document.querySelectorAll('#usecases [data-chip]').length === 1", "the chip")
+            self.assertFalse(p.js("document.querySelector('#usecases [data-chip]').hasAttribute('data-gloss')"), "this page's chips have no gloss")
+
     def test_the_line_stands_where_the_search_box_was_with_the_work_items_words_and_no_examples(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -669,6 +706,15 @@ class Line(Setup):
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "the choice applied")
             self.assertEqual(self.chips(p), ['status:"High risk"'])
             self.assertEqual(p.js("document.querySelector('#usecases [data-tok=val], #usecases [data-chip]') !== null"), True)
+
+    def test_an_older_search_that_starts_with_a_minus_and_a_field_word_stays_a_plain_word(self):
+        """Mutation sweep of row 1085: an old search "-status:Flag" would read as a left-out status if it were not quoted; it was plain text, so it stays plain text."""
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.js("localStorage.setItem('clark.ucPage', JSON.stringify({ABC: {q: '-status:Flag zebra'}}))")
+            reload_to_new_page(p.js, "!!document.querySelector('#usecases [data-fline]') && !!document.querySelector('#usecases [data-empty]')")
+            self.assertEqual(self.line(p), '"-status:Flag" zebra', "a leading minus before a field word is quoted too")
+            self.assertEqual(self.refs(p), [], "no row has those words, and the line did not turn into a left-out status")
 
     def test_an_older_remembered_state_is_read_as_one_line_and_written_back_in_the_new_shape(self):
         with chrome() as cdp:
@@ -760,6 +806,17 @@ class GroupBy(Setup):
             self.pick(p, "Nothing")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group, #usecases .grp-b').length"), 0)
             self.assertEqual(self.refs(p), ["UC 1.2"])
+
+    def test_the_status_groups_keep_the_status_words_order_whatever_order_the_rows_come_in(self):
+        """Mutation sweep of row 1085: the groups follow the four status words (On track, Flag, High risk, Done), not the order the rows first show them in."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc1, {"status": "Done"})            # 1.1 first by reference, but Done is the last group
+            st.update("use_cases", self.uc4, {"status": "High risk"})       # 2.1 after it, but High risk comes before Done
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.pick(p, "Status")
+            self.assertEqual([g[0] for g in self.groups(p)], ["Flag", "High risk", "Done"], "the status words' order, not the rows'")
+            self.assertEqual(self.groups(p)[1][2], ["UC 1.10", "UC 2.1"])
 
     def test_a_group_shuts_and_opens_for_the_visit_and_the_keys_cross_the_groups(self):
         with chrome() as cdp:
