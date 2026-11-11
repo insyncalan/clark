@@ -96,6 +96,19 @@ class Browser(unittest.TestCase):
                     click_centre(cdp, sid, menu_item_js("'Projects'"), "the Projects entry")
                     self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card again")
 
+    def test_a_page_that_needs_a_project_opens_projects_by_rewriting_the_address(self):
+        """item 1024: a Folder address with no project open falls back to Projects (settingsFallback), the entry rewritten, none added."""
+        s = self.serve()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width, "light", "#settings&s=folder")
+                self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card (the Folder page is not here)")
+                self.until(cdp, sid, "!location.hash.includes('s=folder')", "the address rewritten")
+                self.assertEqual(cdp.js("document.querySelector('.set-menu [aria-current]').textContent", sid), "Projects")
+                self.assertEqual(cdp.js("document.querySelector('#client-folder-h')", sid), None)
+                self.assertEqual(cdp.js("location.hash", sid), "#settings")
+                self.assertEqual(cdp.js("history.length", sid), 2, "about:blank and this one: replaced, not added")
+
     def test_item_682_only_the_cards_that_work_show_and_import_says_why(self):
         s = self.serve()
         for width in (1400, 900):

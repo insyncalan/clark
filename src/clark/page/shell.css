@@ -1247,7 +1247,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .pubopt input { margin: 3px 0 0; flex: none; width: 16px; height: 16px; }
 .pubopt span { display: flex; flex-direction: column; min-width: 0; overflow-wrap: anywhere; }
 .pubopt small { font-size: var(--size-caption); color: var(--text-muted); }
-.pubopt small .link { font-size: inherit; display: inline; padding: 3px 0; }      /* "Settings, Publishing": a link in the sentence, at least 24 px to point at */
+.pubopt small .link { font-size: inherit; display: inline; padding: 3px 0; }      /* "Settings, Folder": a link in the sentence, at least 24 px to point at */
 .setting { scroll-margin-top: calc(var(--topbar) + 16px); }
 .setting:focus { outline: 2px solid var(--brand-blue); outline-offset: 2px; }       /* the card the Publish box's link opened */
 .pubopt:focus-within { outline: 2px solid var(--brand-blue); outline-offset: 1px; }

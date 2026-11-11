@@ -16,6 +16,7 @@ sys.path.insert(0, str(TOOLS))
 import build_page  # noqa: E402
 import esbuild  # noqa: E402
 from test_server import chrome  # noqa: E402
+from _mouse import click_centre, menu_item_js  # noqa: E402
 from test_report_editor import Base  # noqa: E402
 
 STORE = ROOT / "src" / "clark" / "page" / "src" / "stores"
@@ -94,7 +95,8 @@ class PageKeys(Base):
 
     def settings_box(self, p):
         p.js("clarkPage.show('settings')")
-        p.js("location.hash = location.hash.split('&s=')[0] + '&s=appearance'")      # item 1024: the switch is on the Appearance page
+        p.until("!!document.querySelector('.set-menu .set-item')", "Settings drew")
+        click_centre(p.cdp, p.sid, menu_item_js(json.dumps("Appearance")), "the Appearance entry")      # item 1024: Keys is on the Appearance page
         p.until("!!document.querySelector('fieldset.keys [role=switch]')", "Settings has the switch")
 
     def flip(self, p, on):
@@ -239,7 +241,7 @@ class PageKeys(Base):
             self.assertEqual(len(hit), 2, "the V row and the E row each say it")
             self.assertFalse([r for r in rows if r.startswith("?") and "Single-key" in r], "? is not a letter key: it is not covered")
             self.assertTrue(any(r.startswith("V") for r in hit) and any(r.startswith("E") for r in hit))
-            self.assertTrue(all("Settings › Personal" in r for r in hit))
+            self.assertTrue(all("Settings › Appearance" in r for r in hit))      # item 1024: the page that holds Keys is Appearance
 
     def test_the_setting_survives_a_reload(self):
         with chrome() as cdp:

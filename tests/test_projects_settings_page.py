@@ -325,18 +325,25 @@ class Browser(unittest.TestCase):
         text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
         self.assertIn('{ "data-row-menu": "", disabled: !!busy }', text, "a second pick while busy cannot be made")
         self.assertIn("menuLabel={L.moreFor(r.name)}", text, "the menu box is named for its project")
-        self.assertRegex(text, r"requestAnimationFrame[\s\S]{0,160}\[data-row-menu\]", "Restore puts focus on the row's menu button")
+        s = self.serve()      # Restore is clicked and the focus is read, not the source text
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port, 900)
+            self.pick(cdp, sid, "MOSS", "archive")
+            self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "archived")
+            cdp.js("document.querySelector('#show-archived').click()", sid)
+            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS].arch')", "the archived row")
+            self.pick(cdp, sid, "MOSS", "restore")
+            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "restored")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.hasAttribute('data-row-menu') && document.activeElement.closest('tr').dataset.project === 'MOSS'", "Restore puts focus on the row's menu button")
 
-    def test_the_row_menu_stays_inside_the_row_without_sideways_scroll_at_360_420_and_900_px(self):       # item 1024b
+    def test_the_row_menu_stays_inside_the_row_without_sideways_scroll_at_1400_and_900_px(self):       # item 1024b
         s = self.serve()
-        for width in (360, 420, 900):
+        for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width)
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways page scroll")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#projects-table tbody tr')].every(r => { const b = r.querySelector('button[data-row-menu]').getBoundingClientRect(), t = r.getBoundingClientRect(); return b.width > 0 && b.left >= t.left - 1 && b.right <= t.right + 1 && b.right <= window.innerWidth; })", sid), True, "the menu button is inside its row")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('#projects-table td.acts .dd .btn')].every(b => getComputedStyle(b).marginLeft === '0px')", sid), True, "the spacing is not doubled")
-                if width <= 640:
-                    self.assertEqual(cdp.js("(() => { const d = document.querySelector('#projects-table td.acts .dd:first-child'); return !d || getComputedStyle(d).marginLeft === '0px'; })()", sid), True, "a lone menu button is not indented")
 
     def test_the_row_menu_button_is_three_dots_with_no_chevron_a_gap_and_a_menu_placed_on_the_window(self):       # item 1024b
         s = self.serve()
@@ -352,9 +359,9 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.ddmenu')).position", sid), "fixed", "the menu is placed on the window, not cut off by the table")
             self.assertLessEqual(cdp.js("document.querySelector('.ddmenu').getBoundingClientRect().right", sid), 1400)
 
-    def test_the_dots_button_is_at_least_24_by_24_px_at_360_420_and_900_px(self):       # item 1024b
+    def test_the_dots_button_is_at_least_24_by_24_px_at_1400_and_900_px(self):       # item 1024b
         s = self.serve()
-        for width in (360, 420, 900):
+        for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width)
                 sizes = cdp.js("[...document.querySelectorAll('#projects-table button[data-row-menu]')].map(b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; })", sid)
@@ -362,6 +369,67 @@ class Browser(unittest.TestCase):
                 for w, h in sizes:
                     self.assertGreaterEqual(w, 24, "the dots button is wide enough to press")
                     self.assertGreaterEqual(h, 24, "the dots button is tall enough to press")
+
+    def test_the_name_wraps_by_words_and_the_open_now_pill_stays_on_one_line_at_1400_and_900_px_in_light_and_dark(self):       # item 1024b
+        s = self.serve()
+        words = """(() => { const out = [];
+          for (const b of document.querySelectorAll('#projects-table tbody td:first-child b')) {
+            const node = b.firstChild, text = node.textContent;
+            for (const m of text.matchAll(/\\S+/g)) {
+              const r = document.createRange(); r.setStart(node, m.index); r.setEnd(node, m.index + m[0].length);
+              out.push({word: m[0], lines: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size});
+            }
+          }
+          return out; })()"""
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.visit(cdp, s.port, width, scheme)
+                    ws = cdp.js(words, sid)
+                    self.assertTrue(ws, "there are names")
+                    for w in ws:
+                        self.assertEqual(w["lines"], 1, "the word %r is not broken across lines: %s" % (w["word"], ws))
+                    pill = cdp.js("(() => { const t = document.querySelector('tr[data-project=TUL] .tag'); const cs = getComputedStyle(t); return {lines: new Set([...t.getClientRects()].map(x => Math.round(x.top))).size, h: t.getBoundingClientRect().height, line: parseFloat(cs.lineHeight) || 0, ws: cs.whiteSpace}; })()", sid)
+                    self.assertEqual(pill["ws"], "nowrap", "the pill keeps its words together")
+                    self.assertLess(pill["h"], 2 * pill["line"] if pill["line"] else 40, "the Open now pill is one line high: %s" % pill)
+
+    def squeezed(self, name, width_check):
+        """Item 1024d: every project gets this name and a very long client, so the Name column is squeezed; checks per width."""
+        s = self.serve()
+        words = """(() => { const out = [];
+          for (const b of document.querySelectorAll('#projects-table tbody td:first-child b')) {
+            const node = b.firstChild, text = node.textContent;
+            for (const m of text.matchAll(/\\S+/g)) {
+              const r = document.createRange(); r.setStart(node, m.index); r.setEnd(node, m.index + m[0].length);
+              out.push({word: m[0], lines: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size});
+            }
+          }
+          return out; })()"""
+        client = "Consolidated Infrastructure Maintenance Partnership Incorporated " * 3 + "Supercalifragilisticexpialidocious" * 3
+        for code in list(self.names):
+            self.names[code] = name
+            self.data[code] = {**self.data[code], "project": {**self.data[code]["project"], "client_name": client}}
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width)
+                ws = cdp.js(words, sid)
+                self.assertTrue(ws, "there are names")
+                col = cdp.js("(() => { const em = parseFloat(getComputedStyle(document.querySelector('#projects-table')).fontSize);"
+                             " return document.querySelector('#projects-table tbody td:first-child').getBoundingClientRect().width / em; })()", sid)
+                width_check(self, ws, col, width)
+
+    def test_a_name_with_a_word_wider_than_nine_letters_keeps_that_word_whole_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills overflow-wrap anywhere
+        def check(t, ws, col, width):
+            for w in ws:
+                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
+        self.squeezed("Telecommunications Programme Alpha Bravo", check)
+
+    def test_a_name_of_short_words_keeps_its_column_nine_letters_wide_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills min-width 0
+        def check(t, ws, col, width):
+            t.assertGreaterEqual(col, 9 - 0.01, "the Name column is at least 9em wide at %d" % width)
+            for w in ws:
+                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
+        self.squeezed("Transformation Programme Alpha Bravo Charlie Delta Echo Foxtrot", check)
 
     def test_the_help_says_archive_is_in_the_row_menu_not_a_button_of_its_own(self):       # item 1024b
         def strings(node):

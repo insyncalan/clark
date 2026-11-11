@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Comfortable', 'Personal › Spacing', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history'])
+CHECKED_BY_HAND = set(['Claude and AI', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -179,7 +179,10 @@ class Places(unittest.TestCase):
         for g in gos:
             view, _, anchor = g.partition("#")
             self.assertIn(view, screens, g)
-            if anchor:
+            if anchor and view == "settings":      # item 1024: a Settings anchor names a Settings page, mapped in helpStore.js, not an id in the prototype
+                keys = re.search(r"const SETTINGS_ANCHOR = \{(.*?)\}", (HELP / "helpStore.js").read_text(encoding="utf-8")).group(1)
+                self.assertIn(anchor, re.findall(r"(\w+):", keys), g)
+            elif anchor:
                 self.assertIn(f'id="{anchor}"', protos, g)
 
     def test_every_place_the_prototype_opens_help_at_exists(self):
@@ -193,7 +196,7 @@ class Places(unittest.TestCase):
 
 class Words(unittest.TestCase):
     JARGON = re.compile(r"\b(sweeps?|proposals?|stag(?:e|ed|ing)|vault|live server|extract(?:s|ed|ion)?|refus(?:e|ed|al)|valid|invalid|"
-                        r"(?<!Progress )tracker|prototype|demo|creaite|Claude(?! (?:or ChatGPT|and (?:ChatGPT|AI)))|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
+                        r"(?<!Progress )tracker|prototype|demo|creaite|Claude(?! (?:or|and) (?:ChatGPT|AI))(?<!setting up Claude)|Tiptap|schema|database|SQLite|JSON|token|hook|script|payload)\b", re.I)
     # "close the list to apply it" is ordinary English for a filter; nothing here means creaite's apply
     PATH = re.compile(r"(?:\w+/){2,}|\.py\b|\.js\b|\.json\b|\.md\b|~/|\\")
     AMERICAN = re.compile(r"\b(color|colors|colored|organize|organized|center|behavior|favorite|gray|customize|license|canceled)\b", re.I)

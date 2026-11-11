@@ -234,12 +234,13 @@ class Words(unittest.TestCase):
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ],
                 "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
-                                  "Claude is started on this computer for you. What you ask, and the passages and folder files it needs, go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
+                                  "Claude is started on this computer for you.",
+                                  "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                                  "AI",                 # #72: the AI status line in the Asking part (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version."
                 ],
@@ -255,7 +256,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 92, "no line of the old list was lost in the split: 103 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 93, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):

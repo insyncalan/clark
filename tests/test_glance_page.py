@@ -477,9 +477,7 @@ class UseCases(Setup):
 class Styles(Setup):
     def test_each_section_style_applies_at_once_and_is_remembered(self):
         with chrome() as cdp:
-            p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
-            p.until("[...document.querySelectorAll('.set-item')].some(b => b.textContent.trim() === 'Appearance')", "the Appearance page is listed")
-            p.js("[...document.querySelectorAll('.set-item')].find(b => b.textContent.trim() === 'Appearance').click()")
+            p = self.show(cdp, hash_="#settings&p=ABC&s=appearance", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
             self.assertEqual(p.js("[...document.querySelectorAll('input[name=density]')].map(i => i.value)"), ["compact", "comfortable"])
             self.assertEqual(p.js("document.querySelector('input[name=density]:checked').value"), "compact", "Compact is the default")

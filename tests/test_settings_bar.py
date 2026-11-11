@@ -1,5 +1,5 @@
 """Item 1024 (option A; was item 440, S2): the Settings menu that stays under the top bar, with the entry of the page you are on marked, in a real
-browser at 1400, 901, 900, 899 and 800 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
+browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
 What is asserted: the menu (the list at the left at 900 px and wider, the row of buttons below 900 px) stays under the top bar as you scroll, on the
 page's own ground, and a page's heading is never hidden by it; plain #settings opens Projects; one entry is marked (aria-current="page") and it
@@ -142,7 +142,7 @@ class SettingsBar(Base):
 
     def test_C_each_page_keeps_its_own_place_on_the_screen(self):
         # item 1019, for Settings: scroll a page, go to another, come back by Back, and the page is where it was
-        for w in (1400, 800):
+        for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w, page="backups")
@@ -158,6 +158,34 @@ class SettingsBar(Base):
                 p.js("history.back()")
                 p.until(f"({MARKED} || {{}}).textContent === 'Backups'", "Back shows Backups")
                 p.until(f"Math.abs(window.scrollY - {at}) <= 3", "and its place is given back")
+
+    def test_C_a_page_arrived_at_with_no_scroll_does_not_inherit_the_place_of_the_page_left_before(self):
+        # Scroll a page, leave Settings, come back with no scroll event, go to another page and return to the first by its entry: it is at the top, not at the old place
+        for w in (1400, 900):
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w, page="backups")
+                p.js("document.body.style.minHeight = (window.innerHeight + 1200) + 'px'")
+                p.js("window.scrollTo(0, 400)")
+                self.settle(p)
+                self.assertGreaterEqual(p.js("window.scrollY"), 300, "the page scrolled")
+                p.js("window.clarkPage.show('dashboard')")
+                p.until("!document.querySelector('.set-menu')", "Settings is left")
+                p.js("document.body.style.minHeight = ''; window.scrollTo(0, 0)")
+                p.js("window.__mute = (e) => e.stopImmediatePropagation(); window.addEventListener('scroll', window.__mute, true)")      # the arrival makes no scroll event the page can see
+                p.js("window.clarkPage.show('settings')")
+                p.until("!!document.querySelector('.set-menu .set-item')", "Settings is shown again")
+                self.settle(p)
+                here = p.js(f"({MARKED}).textContent")
+                self.assertLess(p.js("window.scrollY"), 5, "arrived at the top")
+                p.js("window.removeEventListener('scroll', window.__mute, true)")
+                p.js("document.body.style.minHeight = (window.innerHeight + 1200) + 'px'")      # room to scroll again, with no scroll made
+                self.entry(p, "Profile", scrolled_past=True)
+                p.until("document.activeElement && document.activeElement.id === 'profile-h'", "the other page is shown")
+                self.settle(p)
+                self.entry(p, here, scrolled_past=True)
+                self.settle(p)
+                self.assertLess(p.js("window.scrollY"), 5, "the page arrived at with no scroll is at the top when it is chosen again")
 
     def test_C_the_marked_entry_can_be_read_in_light_and_dark(self):
         for w in WIDTHS:

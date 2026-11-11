@@ -168,8 +168,10 @@ class SettingsChips(unittest.TestCase):
         self.assertLess(ask.index("<AiSettings />"), ask.index("</section>"))
         ai = code("edit", "AiSettings.jsx")
         self.assertIn('<div class="ai-part" id="ai-settings">', ai)
-        self.assertIn("A card of its own, drawn straight after the Asking card, on the same page.", self.TEXT)
-        self.assertIn("AI (under Asking)", self.TEXT)
+        # Asking and AI are one card, so Help no longer says the AI part is a card of its own, drawn after the Asking card
+        self.assertNotIn("A card of its own", self.TEXT)
+        self.assertNotIn("under Asking", self.TEXT)
+        self.assertIn("AI (on Claude and AI)", self.TEXT)
 
     def test_personal_holds_the_appearance_about_you_and_keys(self):
         per = code("edit", "Personal.jsx")
@@ -213,7 +215,7 @@ class SlashInHelp(unittest.TestCase):
         store = code("help", "helpStore.js")
         self.assertIn('e.key === "/" && helpOpen.value && singleKeys.value', store)       # only while the switch is on
         line = flat(SECS["using-help"])
-        self.assertIn("[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys.", line)
+        self.assertIn("[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Appearance › Keys.", line)
         self.assertNotIn("Single-key", line)       # the switch's own name stays in the V and E key rows only (test_single_keys)
         every = flat(RAW)
         self.assertNotIn("In Help, it goes to the search box instead", every)
