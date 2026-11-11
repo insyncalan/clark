@@ -146,5 +146,66 @@ class ClientWorkbook(Rig):
         self.assertEqual(self.fill(self.zebra), BRANDS["zebra"]["navy"])
 
 
+class FakeStore:
+    def __init__(self, row=None, exc=None):
+        self.row, self.exc = row, exc
+
+    def read(self, table, ref=None):
+        if self.exc:
+            raise self.exc
+        return self.row
+
+
+class Hostile(Rig):
+    """Row 999, adversarial: hostile brand ids and codes, an unreadable row, a hostile token file, the client page's own words."""
+
+    def test_hostile_brand_ids_in_the_row_never_leave_the_branding_folder(self):
+        for bad in ("../zebra", "zebra/../quokka", "ZEBRA", "zebra\n", " zebra", "zebra\x00", "\u017eebra", "a" * 5000, "assets",
+                    "design-system", ".", "..", 5, ["zebra"], {"id": "zebra"}, True):
+            got = publish_flow.brand_of(FakeStore({"brand": bad}), "ABC", self.root)
+            self.assertIs(got, page.NO_BRAND, repr(bad)[:40])
+
+    def test_hostile_project_codes_give_the_plain_page_and_never_raise(self):
+        self.set_brand("zebra")
+        for bad in (None, 5, b"ABC", ["ABC"], "", "../../etc", "ABC\x00", "\u00c5BC", "A" * 100000, "abc", "ABC; DROP TABLE projects"):
+            self.assertIs(publish_flow.brand_of(self.s, bad, self.root), page.NO_BRAND, repr(bad)[:30])
+
+    def test_an_unreadable_row_is_the_plain_page_not_a_failed_publish(self):
+        import sqlite3
+        for exc in (sqlite3.OperationalError("database is locked"), sqlite3.DatabaseError("malformed"), KeyError("brand")):
+            self.assertIs(publish_flow.brand_of(FakeStore(exc=exc), "ABC", self.root), page.NO_BRAND, type(exc).__name__)
+        for row in (None, [], "zebra", {"brand": None}, {"brand": ""}, {}):
+            self.assertIs(publish_flow.brand_of(FakeStore(row), "ABC", self.root), page.NO_BRAND, repr(row))
+
+    def test_a_hostile_token_file_gives_a_plain_colour_pair_in_the_client_workbook(self):
+        from clark import excel_client
+        committed = {"fill": excel_client.colours.HEADER_FILL, "text": excel_client.colours.HEADER_TEXT}
+        evil = self.root / "evil"
+        (evil / "assets").mkdir(parents=True)
+        (evil / "tokens.css").write_text(":root{--brand-navy:red;}</style><script>x</script>;--white:#zzzzzz;--brand-ink:url(x);"
+                                         "--brand-navy:#" + "f" * 4000 + ";}", encoding="utf-8")
+        for folder in (evil, self.root / "missing", page.NO_BRAND, None):
+            pal = excel_client.palette_of(folder)
+            for k in ("fill", "text"):
+                self.assertRegex(pal[k], r"^[0-9A-Fa-f]{6}$", (str(folder), k))
+        self.assertEqual(excel_client.palette_of(page.NO_BRAND), committed)
+        from openpyxl import Workbook
+        wb = Workbook()
+        excel_client.write_sheet(wb, publish.select(fx.inputs()), "actions", excel_client.palette_of(evil))   # must not raise
+
+    def test_the_branded_client_page_names_no_brand_and_carries_no_other_brands_colour(self):
+        plant = fx.load()
+        db = open_store(fx.build_db(self.root / "h.db", plant), onedrive_roots=[])
+        self.addCleanup(db.close)
+        for name, other in (("zebra", "quokka"), ("quokka", "zebra")):
+            built = publish.build(db, "PUB", plant["as_at"], getattr(self, name), number=1, workbook=True)
+            raw = built["body"].decode("utf-8", "replace")
+            low = raw.lower()
+            self.assertNotIn(other, low)
+            self.assertNotIn(name + " co", low)
+            self.assertNotIn(str(self.root).lower(), low)           # no path of the branding folder in the client file
+            self.assertNotIn("system/branding", low)
+
+
 if __name__ == "__main__":
     unittest.main()
