@@ -9,8 +9,11 @@
 # 08-11-2026 (#907): the scrub test moved out of test_publish_public.py into test_publish_public_slow.py (#912 2B). Their one 227.8 weight is
 # split 35/65, the ratio of the two files' local times (95 s and 174 s); no other line changed, as no run since has had both OSes.
 # 10-11-2026: refreshed from the per-file times the runner prints in five full macOS runs (medians, 15 shard logs; run 42567177889,
-# 42536667023, 42516833398, 42525467866, 42504628609). New weight = mean(old weight, macOS median x 0.93, the ratio that keeps the total),
-# and a file the list did not have takes its macOS median x 0.93 (it counted as 30 s). test_publish_public.py was 80 and measured 476.
+# 42536667023, 42516833398, 42525467866, 42504628609). New weight = mean(old weight, scaled macOS median), where the scaled median is the
+# macOS median x 0.93 (the ratio that keeps the total); a file the list did not have takes its scaled median (it counted as 30 s).
+# Check on test_publish_public.py: it was 79.7 and its scaled median is 475.9 (the 476 s the runs showed), so the new weight is
+# (79.7 + 475.9) / 2 = 277.8. Counted from this file as it stands: 666 lines (one per test file), 19328 s in all; the greedy split of the 666 test files then
+# gives three shards of 53.7 minutes each (two files at a time, the macOS job) and six of 13.4 minutes each (four at a time, the Ubuntu job).
 test_about_you.py 185.4
 test_about_you_path.py 1.3
 test_activity_refusals.py 4.6
@@ -672,3 +675,8 @@ test_work_no_mode.py 21.0
 test_work_table_parity.py 19.7
 test_workflow.py 21.0
 test_zip_readme.py 0.6
+test_hostile_1087.py 30.0
+test_settings_widths_1.py 30.0
+test_settings_cards_widths_2.py 30.0
+test_work_pills_killers.py 30.0
+test_work_pills_removed.py 30.0
