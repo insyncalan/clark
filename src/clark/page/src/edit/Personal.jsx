@@ -1,6 +1,6 @@
 // Settings › Personal (#45, #179): how the page looks for you: Appearance (Light, Dark or System) and how the Dashboard's sections look. It applies at once and is remembered on this computer. Edit's page only:
 // a published file has no Settings.
-import { style, setStyle } from "../stores/style.js";
+import { density, setDensity } from "../stores/density.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
@@ -9,11 +9,9 @@ import { announce, leave, noteTyped } from "./aboutYouToast.js";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { aliasOffer } from "../logic/alias.js";
 
-export const STYLES = [
-  ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
-  ["roomy", "Roomy gaps", "The same, with more space between the sections."],
-  ["grey", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups."],
-  ["card", "One card", "All the sections in one long card."],
+export const DENSITIES = [
+  ["compact", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."],
+  ["comfortable", "Comfortable", "Each Dashboard section is its own card, with room between them."],
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
@@ -165,12 +163,12 @@ export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h" tabIndex={-1}>Personal</h2>
-      <p class="muted">These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.</p>
-      <fieldset class="styles secstyles" role="radiogroup" data-secstyles>
-        <legend>Dashboard sections</legend>
-        {STYLES.map(([id, name, line]) => (
+      <p class="muted">These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.</p>
+      <fieldset class="styles secstyles" role="radiogroup" data-density-pick>
+        <legend>Spacing</legend>
+        {DENSITIES.map(([id, name, line]) => (
           <label key={id} class={`secpick sk-${id}`}>
-            <input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
+            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => setDensity(id)} />
             <span class="secpick-card">
               <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="secpick-name"><b>{name}</b>
