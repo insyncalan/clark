@@ -694,3 +694,5 @@ test_help_rev_milestone_peek.py 30.0
 test_help_timeline_calendar.py 30.0
 test_help_publishing_released.py 30.0
 test_setup_mode.py 2.0
+test_help_milestone_screen_words.py 1
+test_help_straight_apostrophe.py 1
