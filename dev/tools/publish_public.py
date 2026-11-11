@@ -1139,6 +1139,11 @@ def listed_word_counts(text):
 CONTACT_EMAIL = codecs.decode("nyna@wnahfpbyyno.pbz", "rot13").encode()
 CONTACT_EMAIL_PATHS = ("LICENSE", "SECURITY.md", "README.md", "docs/public/README.md")
 
+# Row 1069 (the Feedback tab; ruling: the narrower option): the feedback recipient address, as that one exact string, is allowed in
+# exactly these two files and nowhere else. No domain, no pattern; any other name or address in them is still refused.
+FEEDBACK_ADDRESS = codecs.decode("nyna.znuba@vaprcgvba42.nv", "rot13").encode()
+FEEDBACK_ADDRESS_PATHS = ("src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py")
+
 
 def guard_kinds(path, data):
     """Kinds of listed word in one file's bytes (not zips): ["a person's name", ...]."""
@@ -1146,6 +1151,8 @@ def guard_kinds(path, data):
     kinds = set()
     if path in CONTACT_EMAIL_PATHS:
         data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(CONTACT_EMAIL) + rb"(?!\.?[A-Za-z0-9-])", b"contact address", data)
+    if path in FEEDBACK_ADDRESS_PATHS:
+        data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(FEEDBACK_ADDRESS) + rb"(?!\.?[A-Za-z0-9-])", b"feedback address", data)
     for form in _forms_of(data):
         counts = listed_word_counts(form)
         over = [word for word, n in counts["capitalised"].items() if n > allowed.get(word, 0)]

@@ -2,7 +2,7 @@
 1400 and 900 px, light and dark. At both widths the menu is a list down the left with ONE page at its right (narrower than 900 px the menu is
 still the row of buttons under the title; a later step turns that into one dropdown line; that is not tested here). Run: python3 dev/run_tests.py test_settings_head
 
-What is asserted: the title and the help line; an entry for each page (Projects, People, Published reports, Profile, Folder, Brand,
+What is asserted: the title and the help line; an entry for each page (Projects, People, Published reports, Profile, Feedback, Folder, Brand,
 Appearance, Reports, Backups, Export and import, Claude and AI, Logs and diagnostics, Version and updates) in five groups, and none for
 an old name; exactly one page is drawn and the other pages' headings are not; a click shows the page, puts the address on
 #settings&s=<page> and moves focus to the page's heading; Back and Forward step between pages; the keyboard does the same (arrows, Enter);
@@ -29,7 +29,7 @@ GROUPS = ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advance
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 # (menu name, address key, heading that takes the focus, that heading's text): the menu in plan order
 PAGES = [("Projects", "projects", "projects-h", "Projects"), ("People", "people", "people-h", "People"), ("Published reports", "published", "pubs-h", None),
-         ("Profile", "profile", "profile-h", "Profile"), ("Folder", "folder", "client-folder-h", "Publishing"), ("Brand", "brand", "brands-h", "Brands"),
+         ("Profile", "profile", "profile-h", "Profile"), ("Feedback", "feedback", "feedback-h", "Feedback"), ("Folder", "folder", "client-folder-h", "Publishing"), ("Brand", "brand", "brands-h", "Brands"),
          ("Appearance", "appearance", "personal-h", "Personal"), ("Reports", "reports", "review-days-h", "Freshness"), ("Backups", "backups", "safety-h", "Backups"),
          ("Export and import", "export", "data-card-h", "Data"), ("Claude and AI", "claude-ai", "ask-settings-h", "Claude and AI"), ("Logs and diagnostics", "logs", "diagnostics-h", "Logs and diagnostics"),
          ("Version and updates", "version", "update-h", "Version and updates")]
@@ -285,7 +285,7 @@ class Head(Base):
             p.key("Tab", code="Tab", vk=9)
             self.assertEqual(p.js("document.activeElement.textContent"), "Published reports", "Tab moves on in menu order")
             self.assertEqual(p.js("document.querySelectorAll('.set-menu .set-item').length"), len(PAGES))
-            for _ in range(2):
+            for _ in range(3):      # three: Profile, Feedback (merged from main), then Folder
                 p.key("ArrowDown", code="ArrowDown", vk=40)
             self.assertEqual(p.js("document.activeElement.textContent"), "Folder")
             p.js("window.scrollTo(0, 0)")

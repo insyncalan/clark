@@ -14,7 +14,7 @@ from test_page import navigate
 from test_server import Running, chrome, wait
 from test_sizes import AUDIT, ALLOWED, DATA, ONE
 
-PAGES = ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"]
+PAGES = ["projects", "people", "profile", "feedback", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"]
 
 
 class SizesPanels(unittest.TestCase):

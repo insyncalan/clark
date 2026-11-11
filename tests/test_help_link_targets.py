@@ -41,7 +41,7 @@ def strings(x):
 
 class HelpLinkTargets(unittest.TestCase):
     def test_the_menu_was_read(self):
-        self.assertEqual(sorted(SLUGS), sorted(["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"]))
+        self.assertEqual(sorted(SLUGS), sorted(["projects", "people", "profile", "feedback", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"]))
         self.assertIn("Folder", NAMES)
         self.assertIn("Publishing", NAMES)          # a group name, not a page
         self.assertTrue(ANCHORS and SCREENS)

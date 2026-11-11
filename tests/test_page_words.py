@@ -181,9 +181,9 @@ class Words(unittest.TestCase):
             # item 1024, WEAKENS-free: exact equality kept, split by page. Settings shows one page at a time, so the one 150-line list is cut
             # into the lines of each page (no line dropped or reworded) and each page is read at its own address, with the head and the menu.
             HEAD = ["Settings", "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."]
-            MENU = ["Everyday", "Projects", "People", "Published reports", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports",
+            MENU = ["Everyday", "Projects", "People", "Published reports", "Profile", "Feedback", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports",
                     "Data and safety", "Backups", "Export and import", "Advanced",
-                    "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]      # the menu: five groups, thirteen pages
+                    "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]      # the menu: five groups, fourteen pages
             PAGES = {
                 "projects": ["Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
@@ -197,6 +197,10 @@ class Words(unittest.TestCase):
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
                                   "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
+                ],
+                "feedback": ["Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",      # main's Feedback card (#1069), now its own page
+                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text"
                 ],
                 "folder": ["Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
@@ -256,7 +260,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 93, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 101, "no line of the old list was lost in the split: 112 before (104 plus the 8 lines of main's Feedback card), less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):

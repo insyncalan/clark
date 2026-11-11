@@ -2,7 +2,7 @@
 // "published" is the one entry that is not a Settings page: choosing it opens the Published reports page of its own (view published, row 1087), see Views.jsx.
 // [group, [[address key, name, tools drawn (in order), heading that takes the focus]]]
 export const GROUPS = [
-  ["Everyday", [["projects", "Projects", ["Projects"], "projects-h"], ["people", "People", ["People"], "people-h"], ["published", "Published reports", ["PublishedPage"], "pubs-h"], ["profile", "Profile", ["Profile"], "profile-h"]]],
+  ["Everyday", [["projects", "Projects", ["Projects"], "projects-h"], ["people", "People", ["People"], "people-h"], ["published", "Published reports", ["PublishedPage"], "pubs-h"], ["profile", "Profile", ["Profile"], "profile-h"], ["feedback", "Feedback", ["Feedback"], "feedback-h"]]],
   ["Publishing", [["folder", "Folder", ["ClientFolder"], "client-folder-h"], ["brand", "Brand", ["Brands"], "brands-h"]]],
   ["Look and feel", [["appearance", "Appearance", ["Personal"], "personal-h"], ["reports", "Reports", ["ReviewDays", "GanttSetting"], "review-days-h"]]],
   ["Data and safety", [["backups", "Backups", ["Safety"], "safety-h"], ["export", "Export and import", ["Data"], "data-card-h"]]],
