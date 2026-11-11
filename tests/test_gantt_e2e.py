@@ -202,8 +202,8 @@ class E2E(unittest.TestCase):
     def settings_and_the_tab(self, br):
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('#gantt-setting, [data-settings-menu], .setting')")
         self.assertNotIn("Gantt", self.tabs(br), "the tab is off to begin with")
-        br.until("[].some.call(document.querySelectorAll('button, a, li'), function(b){return b.textContent.trim()==='Gantt'})", "Settings lists Gantt")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.until("[].some.call(document.querySelectorAll('.set-item'), function(b){return b.textContent.trim()==='Reports'})", "Settings lists the Reports page")
+        br.js("[].find.call(document.querySelectorAll('.set-item'), function(b){return b.textContent.trim()==='Reports'}).click()")
         br.until("document.querySelector('#gantt-editor')", "the Gantt card")
         self.assertIn("Show the Gantt to me", br.text("#gantt-setting"))
         self.assertEqual(br.text("#gantt-setting h2"), "Gantt")
@@ -391,7 +391,7 @@ class E2E(unittest.TestCase):
         # the client switch on, then Publish: the file carries the Gantt
         self.send(kind="projects", op="update", changes={"gantt_hidden_columns": "show,note,budget,effort,baseline_start,baseline_end,owner"})
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.js("[].find.call(document.querySelectorAll('.set-item'), function(b){return b.textContent.trim()==='Reports'}).click()")
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 1), "ticked")
@@ -417,7 +417,7 @@ class E2E(unittest.TestCase):
         br.snap("published-table")
         # untick: the next file has no Gantt tab
         br.visit(self.base + f"#settings&p={CODE}", "document.querySelector('.setting, #gantt-setting')")
-        br.js("[].find.call(document.querySelectorAll('button, a'), function(b){return b.textContent.trim()==='Gantt'}).click()")
+        br.js("[].find.call(document.querySelectorAll('.set-item'), function(b){return b.textContent.trim()==='Reports'}).click()")
         br.until("document.querySelector('#gantt-client')", "the client tick")
         br.click("#gantt-client")
         self.assertTrue(wait(lambda: self.project()["show_gantt_client"] == 0), "unticked")
