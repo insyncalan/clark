@@ -268,10 +268,11 @@ class UltrareviewNitsSource(unittest.TestCase):
     """Ultrareview 105 #8, #9, #10: source checks (the grown set, the Dashboard's project key, the unused constant)."""
     PAGE = SRC / "clark" / "page" / "src"
 
-    def test_the_grown_memory_is_one_set_not_a_map_of_one_entry(self):
+    def test_the_grown_memory_is_one_set_per_project(self):
+        # main's rule (test_motion_gantt_bars): one Set per project key, so a switch of project keeps what each has grown
         text = (self.PAGE / "gantt" / "components" / "GanttChart.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("new Map()", text.split("function grownFor")[0].split("row 971")[-1])
-        self.assertIn("let grown = new Set()", text)
+        self.assertIn("const grown = new Map()", text)
+        self.assertIn("grown.set(k, new Set())", text)
 
     def test_the_dashboard_gantt_passes_the_project_key_like_the_gantt_page(self):
         text = (self.PAGE / "components" / "GanttSection.jsx").read_text(encoding="utf-8")

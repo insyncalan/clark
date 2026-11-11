@@ -280,7 +280,8 @@ export function GanttChart({
   const labelOut = (l, w) => l.type === "phase" || (l.name.length * 7.6 + 18 > w);
   // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
   const textW = (t) => Math.ceil(t.length * 8 + 6);
-  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
+  // Where the left has less room than the right (a long name on a bar near the left edge), it stays on the right rather than start behind the left columns.
+  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W && x1 - gap - 4 >= W - x2 - 6
     ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - gap - 4)}px` }}>{text}</span>
     : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
   const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W

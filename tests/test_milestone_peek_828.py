@@ -268,7 +268,8 @@ class Fields(Base):
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
-            p.until("document.activeElement && document.activeElement.hasAttribute('data-undo')", "the focus moved to Undo, not to the page body")
+            # row 1054: the focus goes to the next milestone row's cells, or to Undo where there is no next row (never to the page body)
+            p.until("document.activeElement && (document.activeElement.hasAttribute('data-undo') || (document.activeElement.classList.contains('msl-cells') && !!document.activeElement.closest('li.msl-row')))", "the focus moved to the next row or to Undo, not to the page body")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
 
