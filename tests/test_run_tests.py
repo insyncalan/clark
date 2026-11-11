@@ -133,6 +133,23 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         for heavy in ("test_publish_public.py", "test_publish_scan_time.py", "test_filter_line_page.py"):
             self.assertGreaterEqual(weights[heavy], 250, heavy)
 
+    def test_the_refreshed_heavy_weights_stay_near_what_was_measured(self):
+        """The refresh set these five files to the mean of the old weight and the macOS median x 0.93. A weight that drifts far
+        either way (too small leaves a shard slow, too large starves the others) is caught, within 10 percent of each."""
+        weights = run_tests.shard_weights()
+        refreshed = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,
+                     "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 109.8}
+        for name, expected in refreshed.items():
+            with self.subTest(name=name):
+                self.assertAlmostEqual(weights[name] / expected, 1.0, delta=0.10, msg=name)
+
+    def test_every_listed_time_is_a_positive_number_on_its_own_line(self):
+        """A line that does not parse is dropped silently by shard_weights, so a typo would send a heavy file back to 30 s."""
+        lines = [ln for ln in (run_tests.SHARD_TIMES.read_text(encoding="utf-8").splitlines()) if ln and not ln.startswith("#")]
+        weights = run_tests.shard_weights()
+        self.assertEqual(len(lines), len(weights), "a line of shard_times.txt does not read as 'name seconds'")
+        self.assertTrue(all(w > 0 for w in weights.values()), "a listed file has no time")
+
 
 class ShardArgument(unittest.TestCase):
     def test_good_and_bad(self):
