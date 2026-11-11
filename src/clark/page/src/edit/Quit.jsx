@@ -1,6 +1,6 @@
 // Settings › Quit (#836): one button that stops clark, so no Terminal is needed to end it. The server answers first and then stops;
 // this card only says what happened, in plain words (the server's own when it refused). Edit parts only: a published file has none.
-import { useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
@@ -24,14 +24,17 @@ Quit.chip = "Quit";                                         // the Settings chip
 export function Quit() {
   const [phase, setPhase] = useState("idle");              // idle | ask | busy | done
   const [msg, setMsg] = useState("");
+  const sent = useRef(false);                              // presses before the page redraws all see the same phase; this alone says a request is already out
   function ask() { if (phase === "idle") { setMsg(""); setPhase("ask"); } }
   function cancel() { if (phase === "ask") setPhase("idle"); }
   async function go() {
-    if (phase !== "ask") return;
+    if (phase !== "ask" || sent.current) return;
+    sent.current = true;
     setPhase("busy");
     setMsg("");
     const r = await quit();
     if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg(STOPPING + " " + AGAIN); return; }
+    sent.current = false;
     setMsg(said(r.body));
     setPhase("idle");
   }

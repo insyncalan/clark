@@ -157,6 +157,30 @@ class Hostile(Base):
         self.assertEqual(status, 409)
         self.assertEqual(self.cap.connect_lines(), [])
 
+    def test_every_failure_line_is_fixed_words_only_whatever_the_command_or_the_login_says(self):
+        """Item 1100 hostile pass: for each failing check, with a command path carrying a newline and markup, the one line is plain words
+        (letters, spaces and an apostrophe), so no path, format marker, markup or output can ride in it."""
+        import re
+        evil = "<b>%s %r\nINJECTED"
+        scenarios = [
+            lambda: self.cmd.unlink(),
+            lambda: self.mode("badversion"),
+            lambda: self.put("auth", json.dumps({"loggedIn": True, "authMethod": "api_key", "email": evil})),
+            lambda: self.put("auth", json.dumps({"loggedIn": False, "authMethod": evil})),
+        ]
+        for i, arrange in enumerate(scenarios):
+            with self.subTest(i):
+                if i:
+                    self.setUp()                    # a fresh fake command and log for each failing check
+                arrange()
+                self.provider = self.make(places=(str(self.cmd), str(self.d / evil / "claude")))
+                self.connect(ai_providers.ClaudeSubscription(self.provider))
+                got = self.cap.connect_lines()
+                self.assertEqual(len(got), 1, got)
+                said = re.search(r"ai: connect failed, (.*)$", got[0]).group(1)
+                self.assertRegex(said, r"^[A-Za-z' ]+$")
+                self.assertFalse(any("INJECTED" in x or "<b>" in x for x in self.cap.lines()))
+
     def test_the_home_folder_never_appears_unshortened(self):
         self.cmd.unlink()
         self.connect()

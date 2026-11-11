@@ -173,6 +173,19 @@ class Pure(Browser):
         self.assertEqual((f1, f2, f3, f4, f5, round_trip), ("#settings&p=PDF&s=people", "#settings&p=PDF", "#settings", "#work&p=PDF", "#settings&p=PDF&s=claude-ai",
                                                            "#settings&p=PDF&s=backups"))
 
+    def test_s_hostile_values_never_become_a_page_or_reach_the_address(self):
+        """Item 1024, hostile pass: a control character, markup, a huge value, an object-property name, a pasted separator and a non-string
+        never give a Settings page; none is written back by format()."""
+        got = self.run_in_page("""(() => { try { const bad = ['%00', 'people%00', '<script>', '%E0%A4%A', 'a'.repeat(100000), '__proto__', 'constructor', 'toString', 'people%26p%3DXYZ', 'people=1',
+              '%E2%80%8Bpeople', 'people%0A', '%20people', 'p\u00e9ople'];
+            const parsed = bad.map((v) => R.parse('#settings&s=' + v).s);
+            const formatted = [{}, [], ['people'], 7, null, 'toString', '__proto__', 'people\\n'].map((v) => R.format({view: 'settings', project: 'PDF', s: v}));
+            return JSON.stringify([parsed, formatted]); } catch (e) { return JSON.stringify(String(e)); } })()""")
+        self.assertIsNotNone(got, 'the page threw')
+        parsed, formatted = json.loads(got)
+        self.assertEqual(parsed, [""] * 14)
+        self.assertEqual(formatted, ["#settings&p=PDF"] * 8)
+
     def test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek(self):
         got = self.run_in_page("""JSON.stringify([R.parse('#published&p=PDF'), R.parse('#published&p=PDF&item=A-12&ms=M-1'), R.format({view:'published',project:'PDF'})])""")
         plain, peek, fmt = json.loads(got)
