@@ -412,7 +412,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('.lab')].map(e => e.textContent.trim())"), ["Commitment"])
                     self.assertEqual(js(f"{menu}.firstElementChild.querySelector('.lab') !== null || {menu}.firstElementChild.classList.contains('lab')"), True, "the heading is first")
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('[role=menuitemradio]')].map(e => e.textContent.replace('\u2713', '').trim())"),
-                                     ["Candidate", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
+                                     ["Planned 2026", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
                     self.assertEqual(js(f"{menu}.querySelector('[aria-checked=true]').textContent.replace('\u2713', '').trim()"), "Committed")
                     shots = os.environ.get("CLARK_SHOTS")
                     if shots:
@@ -501,12 +501,12 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
             type_words("done")
             self.until(cdp, sid, "!!document.querySelector('[data-sneak-confirm]')", "Done asks first, again")
-            type_words("high risk, candidate, headline: Vendor is late")
+            type_words("high risk, planned 2026, headline: Vendor is late")
             self.until(cdp, sid, "document.querySelectorAll('.sn-list li').length === 3", "three lines")
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "applied")
             row = self.row()
-            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Candidate", "Vendor is late", before + 1))
+            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Planned 2026", "Vendor is late", before + 1))
             self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "Enter closes the box")
             self.undo(cdp, sid)
             row = self.row()
@@ -699,6 +699,120 @@ class Detail(unittest.TestCase):
             self.assertEqual(cdp.js("location.hash", sid), hash_before, "Esc closed the peek and did not leave the page")
             self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "the page is still there")
             self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(opener)})", f"{how}: the focus is back on the opener")
+
+    def test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081(self):
+        """Row 1081: ID, title, one tinted status chip, then Owner and Due in muted text, on ONE line at 1400 and 900, light and dark.
+        The chip takes the colours of row 1021 (Open green, Made and Closed blue, grey when withdrawn or cancelled), not the old pill's."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
+        rows = ("[...document.querySelectorAll('[data-item]')].map(b => { const q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), chip = q('.pill'), c = getComputedStyle(chip), x = q('.ucd-x');"
+                " return {id: b.dataset.item, h: r(b).height, chips: b.querySelectorAll('.pill').length, word: chip.textContent.trim(), cls: chip.className, fg: c.color, bg: c.backgroundColor,"
+                " one: r(q('.ucd-id')).top < r(chip).bottom && r(x).top < r(chip).bottom && r(chip).top < r(q('.ucd-id')).bottom + 8 && Math.abs(r(x).top - r(q('.ucd-id')).top) < 12,"
+                " muted: getComputedStyle(x).color === getComputedStyle(q('.ucd-id')).color, ordered: r(q('.ucd-id')).left < r(q('.ucd-t')).left && r(q('.ucd-t')).left < r(chip).left && r(chip).left < r(x).left}; })")
+        want = {"Open": "green", "Pending": "green", "Made": "blue", "Closed": "blue", "Overdue": "red", "Due soon": "amber"}
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    tones = cdp.js(probe, sid)
+                    found = cdp.js(rows, sid)
+                    self.assertTrue(found, "the card lists its items")
+                    for r in found:
+                        self.assertEqual(r["chips"], 1, r["id"])
+                        self.assertTrue(r["one"], f"{r['id']}: the id, title, chip and owner and due sit on one line at {width}")
+                        self.assertTrue(r["ordered"], f"{r['id']}: id, title, chip, then owner and due")
+                        self.assertTrue(r["muted"], f"{r['id']}: owner and due are muted like the id")
+                        self.assertLess(r["h"], 48, r["id"])
+                        if r["word"] in want:
+                            self.assertEqual([r["fg"], r["bg"]], tones[want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone")
+
+    def _uc_items(self):
+        data = self.read("TUL")
+        return [(k, r) for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC]
+
+    def test_hostile_a_huge_unbroken_unicode_title_keeps_one_line_and_no_sideways_scroll_row_1081(self):
+        """Hostile row 1081: a 600-character title with no spaces, RTL and emoji must not wrap the row to many lines or push the page sideways."""
+        kind, row = next((k, r) for k, r in self._uc_items() if k == "actions")
+        with self.store.step("dashboard", USER) as st:
+            st.update(kind, row["id"], {"description": ("\u202e\u05e9\u05dc\u05d5\u05dd\U0001F525" + "W" * 600)})
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    m = cdp.js("(() => { const b = document.querySelector('[data-item=' + JSON.stringify(%s) + ']'); const r = b.getBoundingClientRect();"
+                               " return {h: r.height, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth}; })()" % json.dumps(row["id"]), sid)
+                    self.assertLessEqual(m["sw"], m["cw"], "no sideways scroll")
+                    self.assertLess(m["h"], 48, "ONE line per item: a long title is cut, it does not make the row many lines tall")
+
+    def test_hostile_markup_in_a_title_is_text_and_a_closed_item_takes_the_blue_tone_row_1081(self):
+        """Hostile row 1081: <img onerror> in a title shows as text, never an element; a Closed item has the blue chip, in both schemes."""
+        items = self._uc_items()
+        with self.store.step("dashboard", USER) as st:
+            for k, r in items:
+                if k == "actions":
+                    st.update(k, r["id"], {"description": "<img src=x onerror=window.__pwn=1><b>bold</b>", "status": "Closed"})
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                self.assertFalse(cdp.js("!!window.__pwn || !!document.querySelector('.ucd-item img, .ucd-item b')", sid), "markup in a title is text")
+                blue = cdp.js("(() => { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-blue-text);background:var(--tone-blue-tint)'; document.body.appendChild(e); const c = getComputedStyle(e); return [c.color, c.backgroundColor]; })()", sid)
+                for b in cdp.js("[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor}; })", sid):
+                    if b["word"] == "Closed":
+                        self.assertEqual([b["fg"], b["bg"]], blue, f"{b['id']} Closed is blue")
+
+    def test_hostile_an_archived_work_item_is_not_listed_and_enter_opens_the_peek_row_1081(self):
+        """Hostile row 1081: an archived work item is not on the card; only this use case's items are; Enter on a row opens the peek."""
+        items = self._uc_items()
+        kind, row = items[0]
+        with self.store.step("dashboard", USER) as st:
+            st.archive(kind, row["id"])
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, 1400, "light", edit=False)
+            ids = cdp.js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)", sid)
+            self.assertNotIn(row["id"], ids, "an archived item is not on the card")
+            self.assertTrue(set(ids) <= {r["id"] for _k, r in items}, "only this use case's items")
+            if ids:
+                cdp.js("document.querySelector('[data-item]').focus()", sid)
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, "!!document.querySelector('.peek, [data-peek], [data-sneak-open]')", "Enter opens the peek")
+
+    def test_every_chip_tone_red_amber_green_blue_grey_is_painted_on_the_card_row_1081(self):
+        """Row 1081 (mutation gap): the demo's two items only show amber and one other tone, so a wrong red, green or grey chip passed. Seed each state and read the colours."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
+        chips = "[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor, dot: getComputedStyle(b.querySelector('.pill'), '::before').backgroundColor}; })"
+        cases = [({"status": "Open", "due_date": "2020-01-01"}, "Overdue", "red"), ({"status": "Open", "due_date": "2030-01-01"}, "Open", "green"),
+                 ({"status": "Open", "due_date": "2026-11-02"}, "Due soon", "amber"), ({"status": "Closed", "due_date": "2030-01-01"}, "Closed", "blue"),
+                 ({"status": "Cancelled", "due_date": "2030-01-01"}, "Cancelled", "grey")]
+        for change, word, tone in cases:
+            with self.subTest(word=word):
+                with self.store.step("dashboard", USER) as st:
+                    st.update("actions", "TUL-A-001", change)
+                for scheme in ("light", "dark"):
+                    with chrome() as cdp:
+                        sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                        tones = cdp.js(probe, sid)
+                        got = next(c for c in cdp.js(chips, sid) if c["id"] == "TUL-A-001")
+                        self.assertEqual(got["word"], word)
+                        self.assertEqual([got["fg"], got["bg"]], tones[tone], f"{word} chip is {tone} in {scheme}")
+                        self.assertEqual(got["dot"], tones[tone][0], f"{word} dot is {tone} in {scheme}")
+
+    def test_the_card_row_cuts_long_text_with_dots_and_never_overlaps_the_id_row_1081(self):
+        """Row 1081 (mutation gap): id, title and owner/due are single-line cells that end in dots; the id never runs into the title; the owner and due cell is not wider than 260px."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", "TUL-A-001", {"description": "T" * 400 + " end", "owner": "Somebody With An Extremely Long Name " * 8})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_detail(cdp, width, "light", edit=False)
+                m = cdp.js("(() => { const b = document.querySelector('[data-item=\"TUL-A-001\"]'), q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), g = (e, p) => getComputedStyle(e)[p];"
+                           " return {ws: [g(q('.ucd-id'), 'whiteSpace'), g(q('.ucd-t'), 'whiteSpace'), g(q('.ucd-x'), 'whiteSpace')], to: [g(q('.ucd-t'), 'textOverflow'), g(q('.ucd-x'), 'textOverflow')],"
+                           " idw: r(q('.ucd-id')).width, idRight: r(q('.ucd-id')).right, tLeft: r(q('.ucd-t')).left, xw: r(q('.ucd-x')).width, h: r(b).height}; })()", sid)
+                self.assertEqual(m["ws"], ["nowrap", "nowrap", "nowrap"], "id, title and owner stay on one line")
+                self.assertEqual(m["to"], ["ellipsis", "ellipsis"], "a long title or owner ends in dots")
+                self.assertLessEqual(m["idRight"], m["tLeft"], "the id does not run into the title")
+                self.assertGreaterEqual(m["idw"], 100, "the id column is wide enough for a full id")
+                self.assertLessEqual(m["xw"], 261, "the owner and due cell is capped at 260px")
+                self.assertLess(m["h"], 48)
 
     def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
         data = self.read("TUL")
