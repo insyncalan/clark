@@ -749,7 +749,8 @@
      "Press **Connect** under the one you use if it says **Not connected**. No password is asked for: the Claude or ChatGPT command already signed in on this computer is the one used. If it is not signed in, the card says what to do.",
      "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept.",
      "Choose the model in **Model for ask clark**. If you choose a smaller one, the card asks first: **Use it anyway** or **Keep the model I have**.",
-     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it."
+     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.",
+     "If the card, ask clark, Review the brand or a Choose folder, Save or Open window says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. That means clark is running in Docker, and Docker cannot sign in to Claude or ChatGPT or open Mac windows. Close clark, open Terminal in the unzipped clark folder, type bash clark.command and press Return. Then try again."
     ],
     "page": [
      "settings"
@@ -852,6 +853,7 @@
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
+     "If a button says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. Connect to Claude or ChatGPT, ask clark, Review the brand, and the Choose folder, Save, Open and Show in Finder windows need clark to run on the Mac itself, which Docker does not do. Stop clark with the Stop line below, open Terminal in the clark folder, type bash clark.command and press Return.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window. It does start again by itself after Docker Desktop is closed and opened again, or after the Mac restarts, unless you stopped it with this line.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",

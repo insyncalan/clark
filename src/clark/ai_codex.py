@@ -163,6 +163,8 @@ class CodexCommand(ask_claude.ClaudeCommand):
         self.untested = False                  # the checked command is a version the wall hasn't been tested with
 
     def command(self):
+        if platform.container_mode():                   # item 1100: before the home check, which the container's own home would fail first
+            return None, platform.needs_mac_words()
         if self.walled and home_problem(own_home()):
             self.failed = "odd_home"
             return None, ODD_HOME
