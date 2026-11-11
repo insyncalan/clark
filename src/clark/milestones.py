@@ -76,8 +76,6 @@ def needs_reason(row, on=None):
     state = row.get("state")
     if not (row.get("state_set") and isinstance(state, str)) or state not in MS_RANK or state == "Achieved":
         return False
-    if not isinstance(state, str) or state not in MS_RANK:
-        return False        # a list, a dict or a stray word is never "better than the dates"; no KeyError/TypeError
     return MS_RANK[state] < MS_RANK[suggested_state(row, on)]
 
 
