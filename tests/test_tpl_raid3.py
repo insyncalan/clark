@@ -302,6 +302,9 @@ class PageSide(PageBase):
         ids = self.seed()
         sec = ids["sec"]
         with chrome() as cdp:
+            # The test focuses the words box and sends its own blur; on a focused page the box's real blur (when the card redraws) saves
+            # a second change. It counts changes, so it needs the unfocused page it was written for.
+            cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-first')", "the first-step line is shown")
