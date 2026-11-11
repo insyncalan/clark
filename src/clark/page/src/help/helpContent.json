@@ -55,11 +55,11 @@
   "first": [
    {
     "t": "Say who you are",
-    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make, and your initials go in the circle at the top right."
+    "d": "In [Settings › Profile](go:settings#profile), fill in your name. It goes on every change you make."
    },
    {
     "t": "Pick a project",
-    "d": "The project name in the top bar switches projects."
+    "d": "The project button (the arrow beside the logo) in the top bar switches projects."
    },
    {
     "t": "Bring in the work",
@@ -137,7 +137,7 @@
    ],
    [
     "The profile circle",
-    "Publish, Preview, Export to Excel, Export to Word, Import from Word, Published reports, Appearance (System, Light or Dark), Settings and Help. At the top right.",
+    "Publish, Preview, Export to Excel, Export to Word, Published reports, Appearance (System, Light or Dark), Settings and Help. At the top right.",
     ""
    ],
    [
@@ -170,7 +170,7 @@
    "loop_return": "Next week starts the loop again from the same record. The history keeps every change, so nothing is lost between weeks.",
    "first_title": "Your first ten minutes",
    "where_title": "Where things are",
-   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[Alt+/]] AI on selected text · [[?]] Help",
+   "keyline": "ask: the speech-bubble button in the top bar, or press [[/]] · [[/]] [[/]] Sneak peek, with a work item open in Edit · [[Esc]] close the top thing · [[Mod+Enter]] keep an edit · [[?]] Help",
    "keyline_link": "All the keys",
    "rules_title": "Four rules",
    "foot": "Dates are shown DD-MM-YYYY.",
@@ -277,14 +277,13 @@
    {
     "id": "word-in-and-out",
     "g": "Every week",
-    "t": "Export to Word, or bring items in from a Word file",
-    "w": "Profile circle › Export to Word · Import from Word",
+    "t": "Export to Word",
+    "w": "Profile circle › Export to Word",
     "go": "dashboard+edit",
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
-     "Choose **Import from Word** from the same menu, choose a .docx file of up to 25 MB and press **Read the file**. Work items under a heading called Actions, Risks, Issues or Decisions are listed. Tick the ones you want, or use **Tick all**, and press the Add button, which reads **Add** and the number you ticked, such as Add 3 items. Nothing is added until you press it. The new items are shown to the client until you hide them with the eye, and Undo takes them all back.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
@@ -297,15 +296,15 @@
     "g": "Every week",
     "t": "Find or open a past publication",
     "w": "Profile circle › Published reports",
-    "go": "settings#pubs",
+    "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Published reports**, or go to Settings and find the **Published reports** card for the open project.",
-     "Each row has the publication's number, the date and time, where it went and who published it. The newest is first, and the card lists the latest ten.",
+     "Press your profile circle and choose **Published reports**.",
+     "The page says where the report is saved, shows the latest publication and lists the earlier ones. Each has its number, the week ending, when it was published, where it went, its files and who published it. The newest is first, and the list shows the latest ten; the older ones are kept.",
      "Press **Open** to see the kept copy of the page in a new tab, as it was published. A row that says **Not kept** has no copy to open.",
-     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown as UTC."
+     "**Archive** on a row takes the publication out of the list. **Show archived** lists the archived ones, each with **Restore**. Times are shown in your own time zone."
     ],
     "page": [
-     "settings#pubs"
+     "dashboard+edit"
     ]
    },
    {
@@ -329,7 +328,7 @@
     "w": "Work items › the + at the top right",
     "go": "work",
     "s": [
-     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type switch: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, on All, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, with no type on the line, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
      "The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with **Undo**.",
      "Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.",
      "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.",
@@ -351,8 +350,7 @@
     "w": "Work items",
     "go": "work",
     "s": [
-     "The first switch picks the type: **All**, **Actions**, **Risks and issues** or **Decisions**.",
-     "The second picks **Open**, **Closed** or **All**, each with its count.",
+     "Type type: on the filter line to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
      "Click the filter line, which says **Filter by keyword or by field**, and type. A plain word finds the items with it in the title or the ID. A list of fields and values opens under the line: choose from it, or keep typing.",
      "To pick a field, type field:value, for example status:Open or priority:High,Urgent. The fields are type, status, owner, priority, due, workstream, usecase, milestone, client and is. A comma means or, a space between two parts means and, and a - in front means not, as in -status:Closed. no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you (set your name in Settings first).",
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
@@ -371,9 +369,9 @@
     "w": "Work items › View",
     "go": "work",
     "s": [
-     "The **View** menu beside the saved views holds the grouping. **Group by** chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the View menu, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, **Swimlanes** in the View menu adds rows across it: No lanes, Workstream lanes or Type lanes.",
+     "The **Group by** button beside the saved views (the icon next to Table and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
@@ -395,10 +393,11 @@
      "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
-     "**Needed from the client**: switch it on in Edit and the item is listed under “Needs from you”.",
+     "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
+     "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
      "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
     ],
     "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept.",
@@ -558,7 +557,7 @@
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
-     "A use case can carry a commitment: Candidate, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
+     "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
      "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
@@ -607,7 +606,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Dashboard sections** is yours alone: **Slim gaps**, **Roomy gaps**, **Grey headers** or **One card** (the standard).",
+     "**Personal › Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
      "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -713,9 +712,9 @@
     "go": "dashboard+edit",
     "s": [
      "Select some words. The floating bar has an AI part: **Format notes** (when you select two or more lines of a report section), **Improve**, **Structure**, **Make into** and **Ask…**.",
-     "Or press **✦ AI** on the editor’s bar, or [[Alt+/]], for every option at once, on the selection or on the whole text. Where the field allows it, **Draft from the project** is first.",
+     "Or press **✦ AI** on the editor’s bar for every option at once, on the selection or on the whole text. Where the field allows it, **Draft from the project** is first.",
      "**Improve**: Rewrite clearly, Shorter, Longer, Make it executive and Polish. **Structure**: Add headings and bold, Pull out the tasks and Summarise at the top. **Make into**: a new action, risk or decision from the text. **Ask…**: say what you want in your own words.",
-     "The answer is a suggestion: your text is unchanged until you press **Accept** ([[Mod+Enter]]). **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
+     "The answer is a suggestion: your text is unchanged until you press **Accept**. **Show changes** marks what goes and what comes, word by word. **Try again** asks again; **Discard** ([[Esc]]) drops it.",
      "After you accept, the editor’s undo ([[Mod+Z]]) takes it back."
     ],
     "n": "Item fields and client wording offer Improve and Ask; report sections offer Structure and Format notes as well.",
@@ -734,7 +733,7 @@
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
-     "The project name in the top bar switches projects, shows each one’s open items, and has **Project settings**."
+     "The project button (the arrow beside the logo) in the top bar switches projects, shows each one’s open items, and has **Project settings**."
     ],
     "page": [
      "settings"
@@ -766,7 +765,7 @@
     "s": [
      "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
-     "Your full name goes on every change you make, in each item’s history. Your initials fill the circle at the top right."
+     "Your full name goes on every change you make, in each item’s history."
     ],
     "page": [
      "settings#profile"
@@ -795,7 +794,7 @@
     "w": "The message at the foot of the page · the peek’s history",
     "go": "dashboard",
     "s": [
-     "Every change shows a message at the foot of the page with **Undo**, for about 20 seconds. Press **Undo** and the change goes back.",
+     "Every change shows a message at the foot of the page with **Undo**, for 5 seconds. Press **Undo** and the change goes back. After that, [[Mod+Z]] still undoes the last change.",
      "A step of several changes goes back as one, such as **Add from your project record**.",
      "In Edit, the peek’s **Activity** tab shows each change to the item: who made it, how, what it was, what it became, and when.",
      "To take back several changes at once, tick them in the **Activity** tab (click, [[Mod]] and click, or [[Shift]] and click for a run), then press **Undo** with the number. It shows what will go back and what stays, and asks again above 25. **Clear** or [[Esc]] drops the choice.",
@@ -884,9 +883,9 @@
      [
       "ul",
       [
-       "**The project name**: switch projects. Each shows its count of open items; **Project settings** is at the foot.",
+       "The project button (an arrow beside the logo): switch projects. Each shows its count of open items; **Project settings** is at the foot.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
-       "**The profile circle**: your initials (a person icon until you add your name). See [The profile circle](#ref-profile-circle)."
+       "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
      [
@@ -911,8 +910,7 @@
        "**Preview the page in a new tab**: the page as the client will see it. Nothing is saved.",
        "**Export to Excel**: the whole project as one workbook.",
        "**Export to Word**: the report saved as a Word file, without publishing the web page.",
-       "**Import from Word**: reads a Word file and lists the new actions, risks, issues and decisions it found.",
-       "**Published reports**: the **Published reports** card in Settings for the open project.",
+       "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Settings**. Until you add your name in Settings, the top line is a link to Settings and this entry is left out.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
@@ -1236,30 +1234,22 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the style in Settings › Personal; one card is the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
       [
-       "Dashboard sections",
+       "Spacing",
        "What it does"
       ],
       [
        [
-        "Slim gaps",
-        "Each section is its own card, with a slim gap that shows the page picture."
+        "Compact",
+        "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."
        ],
        [
-        "Roomy gaps",
-        "The same, with more space between the sections."
-       ],
-       [
-        "Grey headers",
-        "Slim gaps, and each section title in a grey band, like the Work items groups."
-       ],
-       [
-        "One card",
-        "All the sections in one long card."
+        "Comfortable",
+        "Each Dashboard section is its own card, with room between them."
        ]
       ]
      ]
@@ -1272,7 +1262,7 @@
     "b": [
      [
       "p",
-      "From the top: the type switch; **Open**, **Closed** and **All** with counts; the saved views with the **Table** and **Board** icons and the **View** menu (Group by and Swimlanes); then the filter line."
+      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes); then the filter line."
      ],
      [
       "tbl",
@@ -1360,6 +1350,14 @@
      [
       "p",
       "Assign to: click the owner. Under Recent are the names used lately in this project, then the people clark holds. Type to search them. If the name is new, the box offers to add it “as a new person”, which puts them on the list of people and assigns them in one step; “Keep the name only” assigns the name alone. “TBC (no one yet)” leaves the item with no one yet, and the owner stays as TBC. Recent names are kept in this browser only, not in Excel or a published file. If the browser will not keep them, there is no Recent list, and everything else works."
+     ],
+     [
+      "p",
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+     ],
+     [
+      "p",
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
      ]
     ]
    },
@@ -1390,7 +1388,7 @@
      ],
      [
       "p",
-      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it."
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
       "ul",
@@ -1430,7 +1428,8 @@
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**Activity** (in Edit): each change to the item, newest first: who, how and when."
+       "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],
      [
@@ -1559,7 +1558,7 @@
         "A milestone’s forecast date, achieved date and status (Achieved asks first). Not its owner or its agreed date"
        ],
        [
-        "flag · high risk · on track · done · committed · candidate · planned 2027 · no flag · headline: …",
+        "flag · high risk · on track · done · committed · planned 2026 · planned 2027 · no flag · headline: …",
         "A use case’s status (Done asks first), commitment and headline"
        ],
        [
@@ -1611,7 +1610,8 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and **⋯** (Archive milestone).",
+       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
+       "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**The chips**: the state, the agreed date, the forecast and the progress.",
        "**State**: the six states as buttons, and why it has the one it has.",
        "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
@@ -1631,7 +1631,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**. A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line, and its label reads, for example, 3 days later, then Expected and the date.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
@@ -1669,7 +1669,7 @@
        ],
        [
         "The line under it",
-        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it, Alt+/ for AI on it”"
+        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it”"
        ]
       ]
      ]
@@ -1706,7 +1706,7 @@
      ],
      [
       "p",
-      "The suggestion card: the new text, **Show changes** (word by word), **Try again**, **Discard** ([[Esc]]) and **Accept** ([[Mod+Enter]]). Nothing changes until you accept. **Make into** adds a new item at once, with **Undo** in the message."
+      "The suggestion card: the new text, **Show changes** (word by word), **Try again**, **Discard** ([[Esc]]) and **Accept**. Nothing changes until you accept. **Make into** adds a new item at once, with **Undo** in the message."
      ]
     ]
    },
@@ -1726,7 +1726,7 @@
      ],
      [
       "p",
-      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables."
+      "The web page holds only what the report shows in View. Anything left out is dropped before the file is made. The Word document has the cover, the health and the sections as tables. It also has pictures: a Project health bar under the health line, the milestone plan above the milestones table with one lane for each milestone, a small progress bar under each milestone’s percentage, and a picture of the Gantt section when the project has one. Every word in a picture is also real text in the table beside it. A milestone that has slipped has its days in the Slip column, such as +3 days."
      ],
      [
       "p",
@@ -1734,7 +1734,7 @@
      ],
      [
       "p",
-      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page. Import from Word reads a Word file and lists the new actions, risks, issues and decisions it found. Nothing is added until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items); the items are shown to the client until you hide them with the eye, and one Undo takes them all back."
+      "In your profile menu, Export to Word saves the Word file on its own, without publishing the web page."
      ]
     ]
    },
@@ -1752,20 +1752,24 @@
       ],
       [
        [
-        "#",
+        "No.",
         "The publication's number for this project, counting up from 1"
        ],
        [
-        "Date and time",
-        "When it was published, in UTC"
+        "Week ending",
+        "The week the report was for"
        ],
        [
-        "Where",
-        "Where it went"
+        "Published",
+        "When it was published, in your own time zone, and who published it"
        ],
        [
-        "Who",
-        "Who published it"
+        "Went to",
+        "Where it went: the Local folder, and the Client folder if there is one"
+       ],
+       [
+        "Files",
+        "The page, and the Word or PDF file saved with it"
        ],
        [
         "Open",
@@ -1775,7 +1779,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the card lists the latest ten."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1790,7 +1794,7 @@
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
-       "**Dashboard**: the report in the section style you chose, with **On this page** at the right.",
+       "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
        "A click on an item, a row or a milestone opens a read-only panel marked **View only**. A click outside, or [[Esc]], closes it; a click on another item moves it.",
@@ -1810,7 +1814,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1825,11 +1829,7 @@
        ],
        [
         "Personal",
-        "Dashboard sections (Slim gaps, Roomy gaps, Grey headers, One card), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
-       ],
-       [
-        "Published reports",
-        "The numbered copies you have published, each with **Open** to see it as it was."
+        "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
         "Projects",
@@ -1844,8 +1844,12 @@
         "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
+        "Quit",
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
+       ],
+       [
         "Publishing",
-        "The local folder, and the client’s SharePoint folder."
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, the client’s SharePoint folder. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Data",
@@ -1854,6 +1858,10 @@
        [
         "Version and updates",
         "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
        ],
        [
         "Diagnostics",
@@ -1959,7 +1967,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2061,11 +2069,7 @@
    ],
    [
     "[[Mod+Enter]]",
-    "In an editor: keep the text and close it. On an AI suggestion: accept it. In the health reason: keep it"
-   ],
-   [
-    "[[Alt+/]]",
-    "In an editor: the AI menu, for the selected text or all of it"
+    "In an editor: keep the text and close it. In Sneak peek: confirm and apply a change that needs your OK"
    ],
    [
     "[[/]] in an editor",
@@ -2409,7 +2413,7 @@
    "s": [
     "In Edit you change the report itself: its text, its tiles and its sections.",
     "Add a section from the **Add a section** box, and rename any heading in place.",
-    "Your profile circle’s menu has **Publish**, **Export to Word**, **Import from Word** and **Export to Excel**.",
+    "Your profile circle’s menu has **Publish**, **Export to Word** and **Export to Excel**.",
     "Press **View** to see the report as it will read."
    ],
    "full": "howto-arrange-the-report"
@@ -2419,9 +2423,9 @@
    "title": "Work items",
    "s": [
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
-    "Choose **Open**, **Closed** or **All** to say which items to list.",
+    "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **View** menu switch between a table and a board; the **View** menu holds **Group by**."
+    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; the **Group by** button holds the grouping."
    ],
    "full": "ref-work-items"
   },
@@ -2442,7 +2446,7 @@
    "title": "Settings",
    "s": [
     "Settings holds what belongs to the whole project and to you, one card for each job.",
-    "The list at the left of the cards takes you to a card (a row of chips under the title in a narrow window).",
+    "The list at the left of the cards takes you to a card (a row of chips under the title in a window narrower than 900 px).",
     "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",
@@ -2456,11 +2460,6 @@
      "card": "publishing",
      "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
-    },
-    {
-     "card": "pubs",
-     "title": "Published reports",
-     "line": "The numbered copies you have published, each with Open to see it as it was."
     },
     {
      "card": "personal",
@@ -2511,6 +2510,11 @@
      "card": "people",
      "title": "People",
      "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "quit",
+     "title": "Quit",
+     "line": "Quit clark when you have finished."
     }
    ]
   }
@@ -2750,7 +2754,7 @@
      "d": "When the table shows what you want, press **+ New view**, at the end of the tabs."
     },
     {
-     "d": "A box opens with the label **Name for the new view**. Type a name of up to 40 characters, then press **Save**. A name that is empty, too long or already used by another view is refused, and a line beside the box says why."
+     "d": "The view is made at once, with no name asked first. It is called View 1, then View 2, and so on, using the lowest number no other view has. To give it a name of your own, see the steps on renaming below."
     },
     {
      "d": "The new view appears as a tab, with the number of items it shows beside its name, and it is the open tab. The view is kept in your browser, for this project."
@@ -2762,10 +2766,10 @@
      "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
-     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename view**. Type the new name in the box labelled **New name for this view** and press **Save**. To move a view, pick its tab up with the mouse and drag it left or right, then let go. Or open it, press the small arrow and choose **Move view**: the tab gets a ring, the Left and Right arrows move it, and Enter or Esc finishes. The order is kept in your browser, for this project. To copy a view, open it, press the small arrow and choose **Duplicate view**. The copy is called the same with copy after it, and sits beside it."
     },
     {
-     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
     }
    ],
    "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
@@ -2790,7 +2794,7 @@
      "d": "A line that ends in rebuilt has no kept page. Picking it shows the Dashboard as it stood on the day that publication was made, rebuilt from the change history, in this same tab."
     },
     {
-     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. Settings opens at **Published reports**, and the day box in the **Dashboard as at a day** card is ready for you."
+     "d": "To choose any other day, pick **Dashboard as at a day…** at the foot of the list. The **Published reports** page opens, and the day box under **Dashboard as at a day** is ready for you."
     },
     {
      "d": "Type the day as DD-MM-YYYY and press **Show**. A day that has not happened yet, or from before the project existed, is turned away with a line saying so. Pick another day."
@@ -2843,6 +2847,39 @@
     }
    ],
    "result": "Your pages show the data from the copy you chose, a line confirms the restore, and a Before a restore copy of the data you had is in the list.",
+   "next": [
+    "howto-undo-a-mistake",
+    "ref-profile-circle"
+   ]
+  },
+  {
+   "id": "the-brand-kit-guide",
+   "t": "The brand kit guide",
+   "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
+   "steps": [
+    {
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. No file name is required."
+    },
+    {
+     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
+    },
+    {
+     "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."
+    },
+    {
+     "d": "Press **Choose zip…** and pick the kit, or press **Review the brand in Downloads** to read the newest zip in your Downloads folder."
+    },
+    {
+     "d": "Read the review. It lists what the kit adds, replaces or removes. Nothing changes yet."
+    },
+    {
+     "d": "Press **Install** for a new brand, or **Replace** for one already added. Press **Cancel** to stop with nothing changed."
+    },
+    {
+     "d": "To go back, press **Undo** to put back what the last install, replace or remove changed, or press **Remove** on the brand to return to the default look."
+    }
+   ],
+   "result": "The brand's colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
    "next": [
     "howto-undo-a-mistake",
     "ref-profile-circle"

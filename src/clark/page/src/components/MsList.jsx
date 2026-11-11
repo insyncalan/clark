@@ -1,3 +1,4 @@
+// The bar above the rows holds 'Hide milestone details' (left) and the Legend (right, passed in as `legend`) on one row (row 1020).
 // The milestone list in the design system's rail form (#44a; FR-52): 5 rows, then "Show all N milestones" / "Show the first 5",
 // remembered for each place, under a "Hide milestone details" / "Show milestone details" toggle (also remembered for each place;
 // not in a published file, which shows the list as it is). Each row: a point on the rail, the date and how it compares, the name, the state and progress.
@@ -10,17 +11,22 @@ import { isChanged, WORD } from "../stores/changed.js";
 import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
+// The date is the first line of the row; its second line (Agreed, or Expected date and days later in red) is `Sub`, a small line under the
+// date and the name (row 1020).
 function When({ r }) {
-  if (r.state === "Achieved" && r.achieved) return <><b class="num">{showDate(r.achieved)}</b><small>{r.achievedNote || "Achieved"}</small></>;
-  if (r.state === "Achieved") return <><b class="num">&mdash;</b><small>Achieved, date not recorded</small></>;
-  const date = r.baseline || r.forecast;
-  if (r.state === "Forecast") return <><b class="num">{showDate(date)}</b><small>Forecast, not agreed</small></>;
-  return (
-    <>
-      <b class="num">{showDate(date)}</b>
-      <small class={r.slip ? "late" : ""}>{r.slip ? `Expected ${showDate(r.expected)} · ${r.slipText}` : r.baseline ? "Agreed" : "No agreed date"}</small>
-    </>
-  );
+  if (r.state === "Achieved" && r.achieved) return <b class="num">{showDate(r.achieved)}</b>;
+  if (r.state === "Achieved") return <b class="num">&mdash;</b>;
+  return <b class="num">{showDate(r.baseline || r.forecast)}</b>;
+}
+
+function Sub({ r }) {
+  let text = "", late = false;
+  if (r.state === "Achieved" && r.achieved) text = r.achievedNote || "Achieved";
+  else if (r.state === "Achieved") text = "Achieved, date not recorded";
+  else if (r.state === "Forecast") text = "Forecast, not agreed";
+  else if (r.slip) { text = `Expected ${showDate(r.expected)} · ${r.slipText}`; late = true; }
+  else text = r.baseline ? "Agreed" : "No agreed date";
+  return <small class={`msl-sub${late ? " late" : ""}`}>{text}</small>;
 }
 
 // Progress: a bar (its length is the share done) and the number as text, so it is never colour alone. The bar is a picture only; the
@@ -32,7 +38,7 @@ function Progress({ value }) {
   return <><span class="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span><span class="num"><span class="sr">Progress </span>{pct}%</span></>;
 }
 
-export function MsList({ rows, place, open, internalTag, Eye, left }) {
+export function MsList({ rows, place, open, internalTag, Eye, left, legend }) {
   const [all, setAll] = useState(() => !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const canFold = !!open;                    // a published file has nothing to open and remembers nothing: no toggle, the list as it is
@@ -41,11 +47,14 @@ export function MsList({ rows, place, open, internalTag, Eye, left }) {
   const toggle = () => { remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place}>
-      {canFold ? (
-        <button type="button" class="msl-det" data-msdet={place} aria-expanded={String(det)} aria-controls={`msl-${place}`} onClick={fold}>
-          <Icon name="chevdown" /><span>{det ? "Hide milestone details" : "Show milestone details"}</span>
-        </button>
-      ) : null}
+      <div class="msl-bar">
+        {canFold ? (
+          <button type="button" class="msl-det" data-msdet={place} aria-expanded={String(det)} aria-controls={`msl-${place}`} onClick={fold}>
+            <Icon name="chevdown" /><span>{det ? "Hide milestone details" : "Show milestone details"}</span>
+          </button>
+        ) : null}
+        {legend}
+      </div>
       <div id={`msl-${place}`} hidden={!det}>
       <ul class="msl">
         {shown.map((r) => {
@@ -59,6 +68,7 @@ export function MsList({ rows, place, open, internalTag, Eye, left }) {
               <span class="msl-name">{r.name}{isChanged(r.id) ? <> <span class="tag chg">{WORD}</span></> : null}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}{out ? <> <span class="tag hid" data-ms-left>Left out of the published page</span></> : null}</span>
               <span class={`mst c-${r.colour}`}><MsMark name={r.mark} />{r.word}</span>
               <span class="msl-prog" title="Progress"><Progress value={r.percent} /></span>
+              <Sub r={r} />
             </div>
             {Eye ? <Eye id={r.id} name={r.name} left={out} internal={!r.clientVisible} /> : null}
           </li>

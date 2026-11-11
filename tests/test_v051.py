@@ -21,8 +21,6 @@ VERSION = "0.5.1"
 COVERED = [
     ("#492", "A published page keeps its saved filters when the Work items tab is clicked after reopening",
      "test_client_page_filters::ClientPageFilters::test_a_click_on_the_work_items_tab_keeps_the_saved_choices"),
-    ("#192", "The client report shows no row ids, no Escalate line, no unbuilt template and no author instruction",
-     "test_client_report_file::Nothing::test_the_built_file_holds_no_code_that_draws_an_id_an_escalate_line_or_an_author_sentence"),
 ]
 
 # Not on main yet: (item, check, where it is being built). Move each to COVERED, with its test, when it lands.
@@ -111,8 +109,7 @@ class Notes(unittest.TestCase):
         self.assertNotIn("still called Client report", text)
         self.assertIn("Client Requested Report View", text)
         self.assertIn("Week ending date", text)
-        titles = (ROOT / "src" / "clark" / "page" / "src" / "stores" / "report.js").read_text(encoding="utf-8")
-        self.assertIn('"Client Requested Report View"', titles)
+        # row 1065: the tab itself is gone, so the code no longer carries its name; the 0.5.1 notes stay as they were written.
 
 
 def _skips():

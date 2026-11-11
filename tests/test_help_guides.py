@@ -116,7 +116,7 @@ class ShippedSource(unittest.TestCase):
 
     def test_the_nine_guides_are_shipped_and_hold_the_shape(self):
         """#642 guides A, B and C together: the pictures its steps draw are checked in test_help_guide_pictures."""
-        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data"])
+        self.assertEqual([g["id"] for g in RAW["guides"]], ["add-a-section-from-a-template", "arrange-the-report", "bring-in-an-excel-workbook", "send-the-workbook-out", "publish-to-the-client", "hand-an-item-over", "save-a-view", "see-the-dashboard-as-at-a-day", "back-up-and-restore-your-data", "the-brand-kit-guide"])
         self.assertEqual([len(g["steps"]) for g in RAW["guides"]][:5], [6, 7, 8, 7, 8])
         self.assertEqual(check_guides(RAW), [])
 
@@ -281,7 +281,7 @@ class ShippedGuides(unittest.TestCase):
 
     def test_the_shipped_index_holds_one_entry_for_each_guide(self):
         r = run_node(RAW, "(() => ({ guides: HL.guides().map((g) => g.id), idx: HL.buildIndex().filter((e) => e.id.startsWith('guide-')).length }))()")
-        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "idx": 9})
+        self.assertEqual(r, {"guides": [g["id"] for g in RAW["guides"]], "idx": 10})
 
 
 def page_values(content):
@@ -351,8 +351,8 @@ class PageKey(unittest.TestCase):
 # The Settings cards on the page, by the part that draws each (components/Views.jsx, Settings): the visible title of the card.
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
-SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "PublishedReports": "Published reports", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands"}
+SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Publishing", "Personal": "Personal", "ReviewDays": "Freshness", "GanttSetting": "Gantt",
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Data", "Update": "Version and updates", "Brands": "Brands", "Quit": "Quit"}
 SETTINGS_LEFT_OUT = {"AskSettings"}
 PAGE_SRC = HELP.parent
 WORDS_NOT_USED = re.compile(r"\b(apply|applied|staged|proposal|sweep|tracker|vault|extract)\b", re.I)
@@ -404,7 +404,7 @@ class ContextText(unittest.TestCase):
                 self.assertNotIn("cards", c, page)
 
     def test_each_card_title_is_a_title_the_page_shows(self):
-        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx")
+        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Quit.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         for title in SETTINGS_PARTS.values():
@@ -427,7 +427,7 @@ class ContextText(unittest.TestCase):
             self.assertNotRegex(t, r"\d{4}-\d{2}-\d{2}")
 
     def test_context_text_reaches_the_peek_by_screen_and_never_targets_a_held_place(self):
-        pages = LIVE_SCREENS + ["settings#pubs", "publish", "", "nothing"]
+        pages = LIVE_SCREENS + ["settings#personal", "publish", "", "nothing"]
         probe = ("(() => { const o = {}; for (const p of %s) { const t = HL.contextText(p); o[p] = t && { title: t.title, full: t.full, "
                  "fullTitle: t.fullTitle, cards: t.cards.length, plain: t.lines.join(' ') }; } return o; })()") % json.dumps(pages)
         r = run_node(RAW, probe)
@@ -438,7 +438,7 @@ class ContextText(unittest.TestCase):
             self.assertNotIn("**", r[s]["plain"])
         self.assertEqual(r["settings"]["cards"], len(self.CTX["settings"]["cards"]))
         self.assertEqual(r["work"]["cards"], 0)
-        self.assertEqual(r["settings#pubs"]["title"], "Settings")
+        self.assertEqual(r["settings#personal"]["title"], "Settings")
         self.assertEqual((r["publish"], r[""], r["nothing"]), (None, None, None))
         # A place held later is never a target: the text then has no link rather than a link to a part that is not built.
         full = self.CTX["work"]["full"]

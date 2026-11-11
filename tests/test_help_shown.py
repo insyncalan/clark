@@ -26,7 +26,7 @@ SHOWN = shown_content()
 SECTION_DELETE = "Delete section"
 # Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
 # Row 810 (the owner: "Deleted, not archived"): the Save a view guide's step on the Delete entry of a saved view's menu, exactly.
-VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
 SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
@@ -122,7 +122,7 @@ class Held(unittest.TestCase):
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek",
                           "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
-        self.assertEqual(len(s["reference"]["keys"]), 34 - len(LATER["keys"]))
+        self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
         self.assertEqual(s["reference"]["groups"], ["Screens", "Working with items", "Milestones", "Publishing", "Settings and data", "Keys and icons"])
         self.assertEqual(len(LATER["howto"]) + len(s["howto"]["tasks"]), len(RAW["howto"]["tasks"]))
@@ -136,7 +136,7 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 34))   # 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 33))   # 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
 class AgainstThePage(unittest.TestCase):
@@ -261,7 +261,7 @@ COMPUTED = {
     "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
     "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
     "forecast Friday \u00b7 achieved yesterday \u00b7 done \u00b7 reopen": "words typed in Sneak peek, read by sneak.py (row 728)",
-    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 candidate \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
+    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 planned 2026 \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
     "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
     "Hand over 30 items to Priya?": "the Hand over question, built from the count and the name (logic/handOver.js)",
     "Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",

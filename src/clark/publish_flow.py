@@ -22,7 +22,6 @@ Standard library only, Python 3.9.
 """
 import getpass
 import hashlib
-import json
 import os
 import re
 import secrets
@@ -33,7 +32,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-from clark import changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
+from clark import brands, changes, milestones, page, past_files, platform, publish, publish_pdf, section_files, to_client
 from clark.store import Invalid, NumberTaken, open_store
 
 PROJECT_CODE = re.compile(r"[A-Z][A-Z0-9]{2,6}")
@@ -54,13 +53,14 @@ LINK_FORM = re.compile(r"(?i)[a-z][a-z0-9+.-]*://|(?:[a-z0-9-]+\.)+[a-z]{2,}(?::
 
 # What the route says, by stable `code`. The words are the product's (RULES.md): plain, "clark" in lower case. The messages of
 # to_client.MESSAGES (the catalogue of the spec) are used as they are for everything that module decides.
+SAME_FOLDER = "That is the client's folder. Save the local copy somewhere else."      # #619: the Word export ends it "Nothing was saved."
 MESSAGES = {
     "bad_project_code": "Give the project's code (3 to 7 capital letters or digits).",
     "project_not_found": "There is no project with that code.",
     "busy": "A publish is already running. Wait for it to finish, then try again.",
     "cancelled": to_client.MESSAGES["cancelled"],
     "dialog_failed": "{reason} Nothing was published.",
-    "same_folder": "That is the client's folder. Save the local copy somewhere else. Nothing was published.",
+    "same_folder": SAME_FOLDER + " Nothing was published.",
     "local_not_html": "The local copy's name must end in .html. Nothing was published.",
     "local_clark_files": "That place is where clark keeps its own files. Save the local copy somewhere else. Nothing was published.",
     "local_failed": "{name} could not be saved. Check you can edit that folder and that the disk has room, then try again. Nothing was published.",
@@ -126,6 +126,11 @@ def _text(value):
     return value if isinstance(value, str) else None
 
 
+def _same_words(text):
+    """The words of a text with its spacing made one: what a left-out text and a kept value are compared by (#619)."""
+    return " ".join(text.split())
+
+
 class Markers(list):
     """The texts that must be absent, with `where`: for each, the ID of the item it came from (to name it in a refusal)."""
     where = None
@@ -136,8 +141,8 @@ def markers_for(store, code, published, template=""):
     and main text of every row that was left out (archived, the client flag off, hidden, a Sensitive or other excluded label),
     and every row's internal note, Movement and working notes. Texts shorter than MIN_MARKER are not used (they would be found
     anywhere); an ID always is. A note that is also in `template` (the bare page, which every file holds whatever the data)
-    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text that is also part of something published (the same words in a kept
-    row) is not a marker, because it may rightly be in the file. check_copy looks for each in its plain, lower-case, HTML-escaped
+    is not a marker either: it cannot tell a leak from the page's own words. A left-out row's text, or a hidden section's body, that is exactly the whole of a kept value (the same words as a kept
+    row, nothing around them) is not a marker, because it may rightly be in the file; the same words inside other kept text are (#619). check_copy looks for each in its plain, lower-case, HTML-escaped
     and JSON-escaped spellings."""
     data = published["data"]
     kept_ids = {r["id"] for kind in publish.KINDS for r in data.get(kind, ()) if isinstance(r, dict) and "id" in r}
@@ -146,6 +151,7 @@ def markers_for(store, code, published, template=""):
                  for v in r.values() if isinstance(v, str)]
     kept_text += [s.get("body") or "" for s in published.get("sections", ()) if isinstance(s, dict)]
     kept_text += [v for r in data.get("documents", ()) if isinstance(r, dict) for v in r.values() if isinstance(v, str)]     # #74: the links the client may see
+    kept_whole = {_same_words(t) for t in kept_text}              # #619: only a kept value that IS the whole text excuses it; the words pasted inside other text do not
     found, where = [], {}
     bare = to_client._key(template)
 
@@ -162,29 +168,44 @@ def markers_for(store, code, published, template=""):
             add(row["id"], row["id"])
             for field in TEXT_FIELDS[kind]:
                 value = (_text(row.get(field)) or "").strip()
-                if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+                if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                     add(value, row["id"])
+    for sec in store.read("report_sections", project=code):      # #619: the body of a hidden section is absent, unless a kept value is exactly those words
+        body = (_text(sec.get("body")) or "").strip()
+        if sec.get("hidden") and len(body) >= MIN_MARKER and _same_words(body) not in kept_whole:
+            add(body, sec["id"])
     for row in store.read("documents", project=code):              # #74: a document's id, title and link are absent unless a kept document carries the same words (publish carries no id)
         add(row["id"], row["id"])
         for field in ("title", "url"):
             value = (_text(row.get(field)) or "").strip()
-            if len(value) >= MIN_MARKER and not any(value in text for text in kept_text):
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept_whole:
                 add(value, row["id"])
-    gantt_markers(store, code, published, add)
+    gantt_markers(store, code, published, add, kept_whole)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
 
 
-def gantt_markers(store, code, published, add):
+def gantt_markers(store, code, published, add, kept_whole):
     """Row 998: the Gantt markers are read from the RAW lines in the store, never from what publish.gantt_for_client produced, so a
     bug in its decision cannot blind the scan too. The policy is the same rules, read again here: the tab is in the file only when the
     project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1. A line that cannot be in the file
     (eye off, or no Gantt tab) is a marker by id, name and every column; a line that can be is a marker for each column the project's
-    hidden list (publish._gantt_hidden) takes out. A value that is also in the published data other than the Gantt copy (the same
-    words in a kept row) is not a marker, and neither is one shorter than MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
+    hidden list (publish._gantt_hidden) takes out. A value that is exactly the whole of a value in the published data other than the Gantt copy (a kept row with the same words and
+    nothing around them), or of a value a shown line may carry, is not a marker (#619: the same words inside longer kept text are), and neither is one shorter than
+    MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
     data = published["data"]
-    kept = json.dumps({k: v for k, v in data.items() if k != "gantt"}, ensure_ascii=False, default=str)
+    kept = set(kept_whole)                                               # the kept rows' values, whole (markers_for built them); the rest of the published data is added below
+
+    def leaves(node):
+        if isinstance(node, dict):
+            for v in node.values():
+                yield from leaves(v)
+        elif isinstance(node, (list, tuple)):
+            for v in node:
+                yield from leaves(v)
+        elif node is not None and not isinstance(node, bool):
+            yield node
     project = store.read("projects", ref=code) or {}
     tab = type(project.get("show_gantt_client")) is int and project["show_gantt_client"] == 1
     hidden = publish._gantt_hidden(project)
@@ -194,14 +215,39 @@ def gantt_markers(store, code, published, add):
         return v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else ""
     rows = [(r, tab and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
     shown = [r[f] for r, eyed in rows if eyed for f in ("id", "name") + columns if f in r and (f in ("id", "name") or f not in hidden)]
-    kept += "\n" + "\n".join(text(v) for v in shown)                      # what a line that can be in the file may legitimately show
+    kept |= {_same_words(text(v)) for v in leaves({k: v for k, v in data.items() if k != "gantt"})}
+    kept |= {_same_words(text(v)) for v in shown}                        # what a line that can be in the file may legitimately show
     for row, eyed in rows:
         if not eyed:
             add(row["id"], row["id"])
         for field in (tuple(f for f in columns if f in hidden) if eyed else ("name",) + columns):
             value = text(row.get(field))
-            if len(value) >= MIN_MARKER and value not in kept:
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept:
                 add(value, row["id"])
+
+
+def folder_inside(fs, a, b):
+    """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored). The one rule
+    the web publish (Publisher.inside_folder) and the Word export (#619, which passes no `fs`: the real disk) share."""
+    if not a or not b:                                      # an empty (unsaved) folder is nowhere, so contains and is in nothing
+        return False
+    real = fs.realpath if fs else os.path.realpath         # no `fs`: the real disk, as RealFs.realpath is
+    try:
+        # ".." must not hide the folder as written; the link-following check keeps the raw text (a link before ".." matters)
+        return to_client._inside(os.path.normpath(a), os.path.normpath(b)) or to_client._inside(real(a), real(b))
+    except (OSError, ValueError):
+        return False
+
+
+def brand_of(store, code, root):
+    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/system/branding, or
+    page.NO_BRAND (a folder with nothing in it) for Generic, an unknown code, an unreadable row or a brand that was removed."""
+    try:
+        row = store.read("projects", ref=code) if isinstance(code, str) else None
+        folder = brands.folder(root, row["brand"] if isinstance(row, dict) and row.get("brand") else "generic")
+    except Exception:     # any unreadable row (a locked database included) is the plain page; KeyboardInterrupt and SystemExit pass
+        return page.NO_BRAND
+    return page.NO_BRAND if folder is brands.GENERIC else folder
 
 
 class Publisher:
@@ -211,7 +257,7 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
@@ -222,12 +268,19 @@ class Publisher:
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
+        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent.parent      # #944: the clark folder that holds system/branding
         self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
         self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
 
     def store(self):
         return open_store(self.db_path, onedrive_roots=self.onedrive_roots)
+
+    def project_brand(self, store, code):
+        """Row 999: the branding folder for this project's own brand, looked up at each call (page.NO_BRAND for Generic, an unknown code or
+        a removed brand), so no output of one project wears another's brand. A `branding` given when the Publisher was made wins."""
+        # NOTE: a Publisher-wide `branding` defeats per-project isolation (every project gets this one folder); production does not pass it.
+        return self.branding if self.branding is not None else brand_of(store, code, self.brand_root)
 
     # ----- publish -----
     def publish(self, body):
@@ -276,7 +329,7 @@ class Publisher:
         today = str(self.today())
         last = store.last_publish_folder(code)
         try:       # item 713: the earlier reports are read from the folder last used here; the Save window's own folder is read again below
-            built = publish.build(store, code, today, self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK,
+            built = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), workbook=CLIENT_WORKBOOK,
                                   past_reports=past_files.listing(last, code) if last else None)
         except publish.PublishError as e:
             return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -306,7 +359,7 @@ class Publisher:
         if past != built["past_reports"]:
             try:
                 keep = built["number"] if store.next_publication(code) == built["number"] else None
-                built = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                built = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
                                       past_reports=past)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -317,7 +370,7 @@ class Publisher:
             try:
                 # #120: the same number while it is still the next one; else the file is made again with the new next number
                 keep = built["number"] if store.next_publication(code) == built["number"] else None
-                again = publish.build(store, code, today, self.branding, body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
+                again = publish.build(store, code, today, self.project_brand(store, code), body.get("section_style"), keep, workbook=CLIENT_WORKBOOK,
                                        past_reports=past)
             except publish.PublishError as e:
                 return 409, self.fail("not_made", MESSAGES["not_made"].format(reason=made_words(e)))
@@ -414,7 +467,7 @@ class Publisher:
                 choice=body.get("on_clash"), new_name=body.get("new_name"), at=today)
             return self.reply(got), None, None, []
         self.folder_warning = pre.get("warning")
-        markers = markers_for(store, code, built["published"], page.page_html(self.branding, view=True))
+        markers = markers_for(store, code, built["published"], page.page_html(self.project_brand(store, code), view=True))
         problems = to_client.check_copy(body_bytes, markers=markers, folder=saved)
         if problems:
             held = to_client.MESSAGES["held_back"].format(what=to_client.held_words(problems))
@@ -441,10 +494,7 @@ class Publisher:
 
     def inside_folder(self, a, b):
         """Whether folder `a` is `b` or below it (as written and with links followed; case and accent form ignored)."""
-        try:
-            return to_client._inside(a, b) or to_client._inside(self.fs.realpath(a), self.fs.realpath(b))
-        except (OSError, ValueError):
-            return False
+        return folder_inside(self.fs, a, b)
 
     def write_local(self, dest, data, digest):
         """Write the Local file and read it back; None when it is good, else the failure to send."""
@@ -660,7 +710,7 @@ class Publisher:
             if store.read("projects", ref=code) is None:
                 return 404, self.fail("project_not_found")
             try:
-                built = publish.build(store, code, str(self.today()), self.branding, body.get("section_style"), workbook=CLIENT_WORKBOOK)
+                built = publish.build(store, code, str(self.today()), self.project_brand(store, code), body.get("section_style"), workbook=CLIENT_WORKBOOK)
             except publish.PublishError as e:
                 return 409, self.fail("preview_not_made", MESSAGES["preview_not_made"].format(reason=made_words(e)))
         finally:
@@ -705,7 +755,7 @@ class Publisher:
                 # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
-                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.branding,
+                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
                                        exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)

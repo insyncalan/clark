@@ -57,8 +57,11 @@ def fill_unworded(store):
                                 "needed_by": "2026-11-04", "status": "Pending", "source": "demo"})
 
 
-ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => r.dataset.id + '|' + r.querySelector('.pill').textContent"
-        " + '|' + r.querySelector('.wl-title').textContent + '|' + r.querySelector('.wl-meta').textContent)")
+# Row 1021: the status pill is gone; the icon says the status (its aria-label 'Action, Overdue', or in Edit the button's tooltip, or in a file the small word).
+# A row reads id|status word|title|owner date priority (the kind letter is checked in test_item_one_line).
+ROWS = ("[...document.querySelectorAll('[data-type=%s] .wl-row')].map(r => { const i = r.querySelector('.ico'), b = r.querySelector('[data-tip]');"
+        " const st = (r.querySelector('.ico-w') || {}).textContent || (i && i.getAttribute('aria-label') || '').split(', ')[1] || (b && b.dataset.tip || '').split(' · ')[1];"
+        " return r.dataset.id + '|' + st + '|' + r.querySelector('.wl-title').textContent.trim() + '|' + ['.c-owner', '.c-date', '.c-prio'].map(c => r.querySelector(c).textContent.trim()).join(' ') + '|' + r.dataset.kind; })")
 
 
 class ItemRows(unittest.TestCase):
@@ -73,14 +76,14 @@ class ItemRows(unittest.TestCase):
         self.assertEqual(len(actions), 2, f"{where}: two open client-visible actions (closed and hidden ones left out): {actions}")
         self.assertIn("Cut-over plan to be agreed", actions[0], where)
         self.assertIn("Sara Khan", actions[0], where)
-        self.assertIn("Due 20-10-2026", actions[0], "dates read DD-MM-YYYY")
+        self.assertIn("20-10-2026", actions[0], "dates read DD-MM-YYYY")
         self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and "Risk" in raid[0] and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and "Supplier delivery may slip" in raid[0], raid[0])
         self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
-        self.assertIn("Review by 01-11-2026", raid[0])
-        self.assertTrue(raid[1].split("|")[1] == "Green" and "Issue" in raid[1] and "Low" in raid[1].split("|")[3], raid[1])
+        self.assertIn("01-11-2026", raid[0])
+        self.assertTrue(raid[1].split("|")[1] == "Green" and raid[1].endswith("|issue") and "Low" in raid[1].split("|")[3], raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
@@ -88,7 +91,7 @@ class ItemRows(unittest.TestCase):
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
         self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
-        self.assertIn(actions[1].split("|")[1], ("Overdue", "Due soon", "Open"), f"{where}: the other action reads Overdue, Due soon or Open, by the date it is read on (its date is near the real today and passes)")
+        self.assertIn(actions[1].split("|")[1], ("Overdue", "Due soon", "On track"), f"{where}: the other action reads Overdue, Due soon or On track (was Open), by the date it is read on (its date is near the real today and passes)")
         self.assertEqual(decisions[0].split("|")[1], "Pending", f"{where}: a pending decision reads Pending")
 
     def test_the_served_page_draws_the_rows_in_view_and_in_edit_and_the_file_draws_them_alone(self):
@@ -118,7 +121,7 @@ class ItemRows(unittest.TestCase):
             self.check_rows(lambda e: cdp.js(e, sid), "the file")
             self.assertEqual(cdp.js("document.querySelectorAll('.wl-id').length", sid), 0, "a file draws no item number")
             first = cdp.js(ROWS % "actions", sid)[0]
-            self.assertIn("Due 20-10-2026", first)
+            self.assertIn("20-10-2026", first)
             self.assertNotRegex(first, r"days? late|Today|Tomorrow|Yesterday|In \d+ days?", "a file shows the date only: it is read later, not on the publish date")
             self.assertEqual(cdp.js("document.querySelectorAll('[contenteditable],input,button.eye').length", sid), 0)
 
@@ -320,9 +323,9 @@ class EditRows(unittest.TestCase):
                              "status, owner, date and priority change in place (a risk's priority through its impact and likelihood, item 210)")
             self.assertEqual(p.js(f"document.querySelectorAll({row!r} + ' [data-fixed$=\":priority\"]').length"), 0,
                              "a risk's priority is no longer a fixed cell: its rating picker sets the impact and likelihood it is worked out from")
-            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').textContent"), "Red", "the pill is Red, Amber or Green on a risk")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Risk · Red · Urgent · Overdue", "the icon says Red, Amber or Green on a risk, and Urgent (and Overdue) on an Urgent one (row 1021: the pill is gone)")
             act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
-            self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').textContent"), "Overdue")
+            self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Action · Overdue")
             # the client's wording, in place
             self.type_into(p, row + " [data-f=title]", "Supplier delivery may slip by a week")
             mine = self.stored("raid", "client_message", "Supplier delivery may slip by a week")
@@ -358,6 +361,18 @@ class EditRows(unittest.TestCase):
             p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 2", "the new decision is drawn")
             p.js("document.querySelector('.toast [data-undo]').click()")
             p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
+
+    def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
+        gone = id_of(self.store, "Supplier delivery may slip")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.click(p, f"document.querySelector('[data-id={gone}] [data-eye]').click()", f"!document.querySelector('[data-item-rows=raid] [data-id={gone}]')", "the row left the page")
+            p.js("document.querySelector('[data-addfrom=raid]').click()")
+            p.until("!!document.querySelector('.picker')", "the picker opened")
+            p.until("!!document.activeElement && !!document.activeElement.closest('.picker')", "the search box has the focus")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.picker')", "the picker closed")
+            p.until("document.activeElement && document.activeElement.getAttribute('data-addfrom') === 'raid'", "the focus is on the Add from button")
 
     def test_the_eye_takes_a_row_off_and_add_from_your_project_record_puts_it_back(self):
         gone = id_of(self.store, "Supplier delivery may slip")
@@ -409,9 +424,9 @@ class EditRows(unittest.TestCase):
         or more on what is behind it, and its colour is the dark token it is drawn with (not a light value left over)."""
         token = "(n) => { const e = document.createElement('span'); e.style.color = `var(${n})`; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; }"
         parts = {
-            "view": [("[data-type=raid] .wl-row .wl-state .pill", None), ("[data-type=raid] .wl-row .wl-title", "--text"),
-                     ("[data-type=raid] .wl-row .wl-meta .num", None), ("[data-type=raid] .wl-row .idl", "--status-blue-text")],
-            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .pill", None), ("[data-item-rows=raid] .wl-row [data-f=title]", "--text"),
+            "view": [("[data-type=raid] .wl-row .c-ico .ico", None), ("[data-type=raid] .wl-row .wl-title", "--text"),
+                     ("[data-type=raid] .wl-row .c-date", None), ("[data-type=raid] .wl-row .idl", "--status-blue-text")],
+            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .ico", None), ("[data-item-rows=raid] .wl-row [data-f=title]", "--text"),
                      ("[data-item-rows=raid] .wl-row [data-cell$=':owner']", None), ("[data-item-rows=raid] .wl-row [data-eye]", None),
                      ("[data-item-rows=raid] .wl-row .idl", "--status-blue-text"), ("[data-item-rows=raid] [data-showing]", "--text-muted")],
         }

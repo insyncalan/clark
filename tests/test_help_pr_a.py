@@ -135,21 +135,21 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking"])
+        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", ""])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People and Asking, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
-        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', views)
-        self.assertIn("Publishing, Freshness and Gantt need an open project. Published reports also needs one and has a card but no link.", self.TEXT)
-        self.assertIn("A list of links down the left of the cards takes you to a card (in a window 900 px wide or narrower it is a row of chips under the title)", self.TEXT)
+        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
+        self.assertIn("Publishing, Freshness and Gantt need an open project.", self.TEXT)
+        self.assertIn("A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title)", self.TEXT)
         self.assertIn("The link of the card you are reading is marked.", self.TEXT)
 
-    def test_published_reports_has_no_chip(self):
+    def test_published_reports_is_no_longer_a_settings_card(self):      # row 1087: it is a page of its own, reached from the profile circle
         views = code("components", "Views.jsx")
-        self.assertNotIn('"PublishedReports", "', re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1))
-        self.assertIn("{PublishedReports ? <PublishedReports /> : null}", views)
+        self.assertNotIn("PublishedReports", views)
+        self.assertNotIn("Published reports", self.TEXT)
 
     def test_ai_is_drawn_straight_after_asking_and_has_no_chip(self):
         ask = code("edit", "AskSettings.jsx")
@@ -178,7 +178,7 @@ class SettingsChips(unittest.TestCase):
     def test_published_reports_row(self):
         self.assertIn('data-pubopen={r.number}', code("edit", "PublishedReports.jsx"))
         self.assertIn('open: "Open"', code("logic", "pastReports.js"))
-        self.assertIn("The numbered copies you have published, each with **Open** to see it as it was.", self.TEXT)
+        self.assertNotIn("The numbered copies you have published", self.TEXT, "the Settings card is gone; the page's own Help entry says it")
 
 
 class AskOff(unittest.TestCase):
