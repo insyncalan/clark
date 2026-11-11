@@ -348,6 +348,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
+.fline:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }   /* the box has a 2 px ring while the input has the focus */
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -459,6 +460,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
 .ddmenu .lab { padding: 6px 14px; font-size: var(--size-small); color: var(--text-muted, var(--text)); }
 .ddmenu [role="menuitem"]:hover, .ddmenu [role="menuitem"]:focus-visible { background: var(--brand-blue-tint); color: var(--status-blue-text); }
+.ddmenu [role="menuitem"]:focus-visible, .ddmenu [role="menuitemradio"]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }   /* a menu item by Tab shows a ring, not only a pale fill */
 @media (prefers-reduced-motion: reduce) { .newb, .newb .w { transition: none; } }
 @media (max-width: 900px) { .head { align-items: flex-start; } }
 

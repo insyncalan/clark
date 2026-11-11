@@ -304,7 +304,7 @@ export function Help() {
     if (el) el.focus({ preventScroll: true });
   }, [helpLand.value]);
   useEffect(() => { if (helpFocusSearch.value && search.current) { search.current.focus(); search.current.select(); } }, [helpFocusSearch.value]);
-  useEffect(() => { if (box.current) box.current.focus({ preventScroll: true }); }, []);
+  useEffect(() => { const el = search.current || box.current; if (el) el.focus({ preventScroll: true }); }, []);      // full Help opens on the search box, so typing goes in at once
   const onTabKey = (e) => {
     const ks = TABS.map((t) => t.key), i = ks.indexOf(tab);
     const j = e.key === "ArrowRight" ? (i + 1) % ks.length : e.key === "ArrowLeft" ? (i + ks.length - 1) % ks.length : e.key === "Home" ? 0 : e.key === "End" ? ks.length - 1 : -1;

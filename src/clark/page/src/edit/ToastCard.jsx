@@ -11,11 +11,14 @@ export const ToastBar = ({ kind }) => kind === "problem" ? null : <span class="t
 /** Holds `clock` at once if the pointer is already over the message when it appears (no pointerenter comes then). */
 export const startHeld = (clock) => (el) => { if (el && el.matches && el.matches(":hover")) clock.hold("pointer"); };
 
+/** The focus goes to a toast's Undo as the button is drawn, when the toast asks (`focusUndo`): no timer, and nothing to find in the page by selector. */
+const focusOnDraw = (el) => { if (el && el.focus) el.focus(); };
+
 export function ToastCard({ t }) {
   return (
     <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined} ref={startHeld(toastTimer)} {...holdOn(toastTimer)}>
       <span class="toast-text">{t.text}</span>
-      {t.undo || t.local ? <button type="button" class="toast-btn" data-undo onClick={() => { dismiss(); if (t.local) t.local(); else undo(t.undo, t.code); }}>Undo</button> : null}
+      {t.undo || t.local ? <button type="button" class="toast-btn" data-undo ref={t.focusUndo ? focusOnDraw : undefined} onClick={() => { dismiss(); if (t.local) t.local(); else undo(t.undo, t.code); }}>Undo</button> : null}
       <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
       <ToastBar kind={t.kind} />
     </div>
