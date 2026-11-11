@@ -731,7 +731,7 @@
      "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open** and **Edit**, and a menu button (the three dots, **More for** the project’s name) that holds **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "To set this project’s folders, open **Settings**, then **Folder**. The folders ask clark may read are in **Settings**, then **Claude and AI**, under **Folders asking may read**.",
+     "To set this project’s folders, open **Settings**, then **Folder**. The folders asking may read are in **Settings**, then **Claude and AI**, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items."
     ],
     "page": [
@@ -1867,7 +1867,7 @@
        ],
        [
         "Asking (on Claude and AI)",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI (on Claude and AI)",
