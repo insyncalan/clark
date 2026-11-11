@@ -65,6 +65,33 @@ class BuildAppFailures(unittest.TestCase):
                 self.assertEqual(self.leftovers(), [])
                 self.assertEqual(self.scratch_requests(), [])
 
+    def run_bounded(self, *args):
+        # a hang is a failure, not a stuck suite: the script gets 10 seconds
+        try:
+            return self.run_script_timeout(*args)
+        except subprocess.TimeoutExpired:
+            self.fail(f"build_app.sh hung on {args}")
+
+    def run_script_timeout(self, *args):
+        env = dict(os.environ, PATH=f"{self.bin}:/usr/bin:/bin", TMPDIR=str(self.tmp))
+        return subprocess.run(["/bin/bash", str(SCRIPT), *args], capture_output=True, text=True, env=env, timeout=10)
+
+    def test_a_switch_with_no_value_is_refused_not_a_hang(self):
+        for args in (["--test-port"], ["--test-data"], [str(self.out), "--test-port"], ["--test-port", "8765", "--test-data"]):
+            with self.subTest(args=args):
+                r = self.run_bounded(*args)
+                self.assertEqual(r.returncode, 1)
+                self.assertIn("needs a value", r.stderr)
+                self.assertFalse(self.out.exists())
+                self.assertEqual(self.scratch_requests(), [])
+
+    def test_a_test_port_without_test_data_is_refused(self):
+        r = self.run_bounded("--test-port", "8765", str(self.out))
+        self.assertEqual(r.returncode, 1)
+        self.assertIn("--test-data", r.stderr)
+        self.assertFalse(self.out.exists())
+        self.assertEqual(self.scratch_requests(), [])
+
     def test_off_a_mac_or_without_osacompile_makes_nothing(self):
         # build_app.sh's check for a Mac and osacompile (test_build_app asserts the message; here: no folder, no scratch source)
         fake(self.bin, "uname", "echo Linux")

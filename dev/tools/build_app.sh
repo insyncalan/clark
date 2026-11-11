@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# build_app.sh: build clark.app, a small applet that starts clark with no Terminal window (#836, Phase 1). Run BY HAND on a Mac; it
+# build_app.sh: build clark.app, a small applet that starts clark with no Terminal window (item 836, Phase 1). Run BY HAND on a Mac; it
 # installs nothing, writes only into the folder you name, and the .app is never committed.
 #
 #   dev/tools/build_app.sh [OUTPUT_FOLDER]          builds OUTPUT_FOLDER/clark.app (default: a new scratch folder, printed)
@@ -19,8 +19,10 @@ set -u
 out="" test_data="" test_port="" port_given=""
 while [ $# -gt 0 ]; do
   case "$1" in
-    --test-data) test_data="${2:-}"; shift 2 ;;
-    --test-port) test_port="${2:-}"; port_given=1; shift 2 ;;
+    --test-data|--test-port)
+      if [ $# -lt 2 ]; then echo "build_app.sh: $1 needs a value." >&2; exit 1; fi
+      if [ "$1" = "--test-data" ]; then test_data="$2"; else test_port="$2"; port_given=1; fi
+      shift 2 ;;
     -*) echo "build_app.sh: unknown option $1" >&2; exit 1 ;;
     *) out="$1"; shift ;;
   esac
@@ -35,6 +37,10 @@ fi
 case "$test_data" in
   *'"'*|*'\'*|*$'\n'*|*$'\r'*) echo "build_app.sh: --test-data must not contain a double quote, a backslash or a line break." >&2; exit 1 ;;
 esac
+if [ -n "$port_given" ] && [ -z "$test_data" ]; then
+  echo "build_app.sh: --test-port needs --test-data too (a test build bakes in both)." >&2
+  exit 1
+fi
 if [ "$(uname -s)" != "Darwin" ] || ! command -v osacompile >/dev/null 2>&1; then
   echo "build_app.sh: osacompile (macOS) is needed." >&2
   exit 1
