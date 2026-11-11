@@ -265,12 +265,13 @@ def host_name(host):
     return host.split(":")[0]
 
 
-HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|\[::1\])(?::([0-9]{1,5}))?")
+HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|clark\.localhost|\[::1\])(?::([0-9]{1,5}))?")
 
 
 def host_allowed(host):
-    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost or [::1], with an
-    optional port of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
+    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost, clark.localhost (row
+    1076: the address the launcher opens; Chrome resolves *.localhost to this computer) or [::1], with an optional port
+    of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
     m = HOST_HEADER.fullmatch(host or "")
     return bool(m) and (m.group(2) is None or 1 <= int(m.group(2)) <= 65535)
 
@@ -334,7 +335,7 @@ CSP_END = {"script": re.compile(r"</script[\s/>]", re.I), "style": re.compile(r"
 CSP_TYPE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]*)""", re.I)
 CSP_JS_TYPES = ("", "module", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript")
 CSP_KINDS = ("inline", "eval", "wasm-eval", "trusted-types-policy", "trusted-types-sink")
-CSP_LOOPBACK = ("127.0.0.1", "localhost", "::1")
+CSP_LOOPBACK = ("127.0.0.1", "localhost", "clark.localhost", "::1")
 
 
 def csp_sha(text):
@@ -978,7 +979,7 @@ def page_load_is_ours(headers, port):
     if site is not None and site.strip().lower() not in ("none", "same-origin"):      # an empty value is not a browser's
         return False
     origin = headers.get("Origin")
-    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://clark.localhost:{port}")
 
 
 def here_route(handler, req):

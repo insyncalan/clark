@@ -211,14 +211,33 @@ class HostHeader(ServerTest):
     def test_another_host_gets_403_everywhere(self):
         for host in ("evil.example", "127.0.0.1.evil.example", "localhost.evil.example", "LOCALHOST", "", None,
                      "127.0.0.2", "[::2]:80", "0.0.0.0", "127.0.0.1:abc", "localhost:80@evil",
-                     "[::1]x", "127.0.0.1:99999", "127.0.0.1:0", "localhost:", "127.0.0.1:80:80"):
+                     "[::1]x", "127.0.0.1:99999", "127.0.0.1:0", "localhost:", "127.0.0.1:80:80",
+                     "clark.localhost.evil.example", "evil.clark.localhost", "other.localhost", "clark.localhost:", "clark.localhost:99999", "CLARK.LOCALHOST"):
             for path in ("/", "/health", "/api/data?project=DEMO"):
                 status, _, _ = self.s.ask("GET", path, {sv.TOKEN_HEADER: sv.TOKEN}, host=host)
                 self.assertEqual(status, 403, f"{host!r} {path}")
 
     def test_this_machine_passes(self):
-        for host in (f"localhost:{self.s.port}", f"127.0.0.1:{self.s.port}", f"[::1]:{self.s.port}", "localhost"):
+        for host in (f"localhost:{self.s.port}", f"127.0.0.1:{self.s.port}", f"[::1]:{self.s.port}", "localhost", f"clark.localhost:{self.s.port}", "clark.localhost"):
             self.assertEqual(self.s.ask("GET", "/health", host=host)[0], 200, host)
+
+
+class ClarkLocalhostOrigin(unittest.TestCase):
+    """Row 1076: a page opened at clark.localhost counts as a window of ours; a foreign site does not."""
+
+    def test_the_origin_of_the_address_clark_opens_is_ours(self):
+        for origin in ("http://clark.localhost:8766", "http://127.0.0.1:8766", "http://localhost:8766", None):
+            self.assertTrue(sv.page_load_is_ours({"Origin": origin} if origin else {}, 8766), origin)
+        for origin in ("http://clark.localhost:8767", "http://evil.clark.localhost:8766", "http://clark.localhost.evil.example:8766"):
+            self.assertFalse(sv.page_load_is_ours({"Origin": origin}, 8766), origin)
+
+    def test_the_csp_treats_clark_localhost_as_this_machine(self):
+        self.assertIn("clark.localhost", sv.CSP_LOOPBACK)
+
+    def test_a_report_naming_clark_localhost_is_classed_self_and_a_lookalike_external(self):
+        self.assertEqual(sv.csp_kind("http://clark.localhost:8766/x.js"), "self")
+        self.assertEqual(sv.csp_kind("http://evil.clark.localhost.example/x.js"), "external")
+        self.assertEqual(sv.csp_kind("http://127.0.0.1:8766/x.js"), "self")
 
 
 class Token(ServerTest):
