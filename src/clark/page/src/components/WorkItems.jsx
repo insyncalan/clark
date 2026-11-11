@@ -186,15 +186,15 @@ const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
 function Heads({ eye, hand }) {
   return (
     <>
-      {hand ? <th class="c-pick"><span class="sr">Hand over</span></th> : null}
-      <th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-prio">Priority</th><th class="c-status">Status</th>
-      {eye ? <th class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
+      {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
+      <th scope="col" class="c-item">Item</th><th scope="col" class="c-owner">Owner</th><th scope="col" class="c-due">Due</th><th scope="col" class="c-prio">Priority</th><th scope="col" class="c-status">Status</th>
+      {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );
 }
 function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
 
-const opened = (key) => (e) => { if (justOpened === key) justOpened = ""; e.currentTarget.classList.remove("opening"); };
+const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove("opening"); if (justOpened === key && !(el.parentNode && el.parentNode.querySelector(".opening"))) justOpened = ""; };   // the group is done once its thead and its tbody have both finished
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
 function Table({ rows, today, type, Cell, Eye }) {
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
