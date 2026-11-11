@@ -651,6 +651,31 @@ class SavedViews(Line):
         self.assertEqual([x["name"] for x in again["views"]][1:4], ["Actions", "Actions copy 2", "Actions copy"])
         self.assertFalse(self.v(f"duplicateView({lit(base)}, 'zzz')")["ok"])
 
+    def test_mutation_proof_reorder_refuses_a_list_that_names_a_view_twice(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        got = self.v(f"reorderViews({lit(base)}, ['core-all', 'core-all'])")
+        self.assertFalse(got["ok"], "one view twice would put it in two places")
+
+    def test_mutation_proof_duplicate_is_refused_when_the_person_already_keeps_the_most(self):
+        full = [{"id": f"v{n}", "name": f"View {n}", "line": ""} for n in range(20)]
+        got = self.v(f"duplicateView({lit(full)}, 'v3')")
+        self.assertFalse(got["ok"])
+        self.assertEqual(got["message"], "You can keep 20 saved views. Delete one to make room.")
+
+    def test_mutation_proof_the_starting_order_stores_nothing_and_going_back_to_it_clears_the_stored_order(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        out = self.val("(function(){ var s = %s; var v = T.fl.viewsGet(s, 'ABC'); T.fl.viewsPut(s, 'ABC', v);"
+                       " var a = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " var ids = v.map(function (x) { return x.id; }); ids[0] = v[1].id; ids[1] = v[0].id;"
+                       " T.fl.viewsPut(s, 'ABC', T.fl.reorderViews(v, ids.slice(0, 2)).views);"
+                       " var b = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " T.fl.viewsPut(s, 'ABC', v);"
+                       " var c = JSON.parse(s.getItem('clark.forder') || '{}');"
+                       " return [a, b, c]; })()" % fake)
+        self.assertNotIn("ABC", out[0], "the order a project starts with is not stored")
+        self.assertIn("ABC", out[1], "a changed order is stored")
+        self.assertNotIn("ABC", out[2], "putting it back to the start clears what was stored")
+
     def test_a_deleted_view_is_gone_and_there_is_no_way_back(self):
         base = self.v("DEFAULT_VIEWS")
         gone = self.v(f"deleteView({lit(base)}, 'client')")

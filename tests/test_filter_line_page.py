@@ -1130,6 +1130,61 @@ class Line(unittest.TestCase):
                 self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None, "nothing is kept")
                 cdp.js("localStorage.clear()", sid)
 
+    def test_mutation_proof_undo_by_the_keys_takes_the_delete_message_away(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-undo]')", sid)))
+                cdp.js("document.activeElement && document.activeElement.blur()", sid)
+                cdp.js("document.dispatchEvent(new KeyboardEvent('keydown', {key: 'z', code: 'KeyZ', ctrlKey: true, bubbles: true, cancelable: true}))", sid)
+                self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == start))
+                time.sleep(0.4)
+                self.assertFalse(cdp.js("!!document.querySelector('[data-undo]')", sid), "the message with Undo goes once the keys have used it")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_mutation_proof_after_deleting_a_copy_the_tab_is_chosen_by_its_line_not_by_the_deleted_id(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                click_tab(cdp, sid, ".vtab[data-view-id=core-risks]")
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=duplicate]")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.vtab[aria-pressed=true] span').textContent", sid) == "Risks and issues copy"))
+                click(cdp, sid, "#viewTabMenu")
+                click(cdp, sid, "#viewTabMenuList [data-kind=delete]")
+                self.assertTrue(wait(lambda: not any("copy" in n for n in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid))))
+                time.sleep(0.4)
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.vtab[aria-pressed=true]')].map(e => e.dataset.viewId)", sid), ["core-risks"], "the original has the same line, so it shows as chosen")
+                cdp.js("localStorage.clear()", sid)
+
+    def test_mutation_proof_a_touch_press_and_move_does_not_drag_a_tab(self):
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width)
+                cdp.js("localStorage.clear()", sid)
+                start = self.tab_ids(cdp, sid)
+                x0, y0 = self.centre(cdp, sid, ".vtab[data-view-id=core-actions]")
+                x1, y1 = self.centre(cdp, sid, ".vtab[data-view-id=core-decisions]")
+                cdp.js("""(() => {
+                  const ev = (t, x, tgt) => tgt.dispatchEvent(new PointerEvent(t, {bubbles: true, cancelable: true, button: 0, pointerType: 'touch', clientX: x, clientY: %s}));
+                  ev('pointerdown', %s, document.querySelector('.vtab[data-view-id=core-actions]'));
+                  ev('pointermove', %s, document); ev('pointermove', %s, document);
+                  ev('pointerup', %s, document);
+                })()""" % (y0, x0, (x0 + x1) / 2, x1 + 40, x1 + 40), sid)
+                time.sleep(0.4)
+                self.assertEqual(self.tab_ids(cdp, sid), start, "touch scrolls the row, it does not move a tab")
+                self.assertEqual(cdp.js("localStorage.getItem('clark.forder')", sid), None)
+                cdp.js("localStorage.clear()", sid)
+
     def over_own_tab(self, cdp, sid):
         """Press on a tab, shake it a little (past the 5 px), and let go over its own place."""
         x, y = self.centre(cdp, sid, ".vtab[data-view-id=overdue]")
