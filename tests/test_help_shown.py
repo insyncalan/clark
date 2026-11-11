@@ -120,7 +120,7 @@ class Held(unittest.TestCase):
         s = SHOWN
         self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "connect-claude-or-chatgpt", "undo-a-mistake", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
         self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek",
-                          "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
+                          "milestone-states", "publishing", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 33 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
