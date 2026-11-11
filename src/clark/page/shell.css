@@ -1037,6 +1037,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
+.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
