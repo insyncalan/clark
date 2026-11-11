@@ -283,9 +283,9 @@ export function withCounts(options, chips, rows, ctx, extra) {
   });
 }
 
-/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+/** The word a chip's remove button names: the field's name, or the whole chip for is, has and no (two is: chips must not both be "the is filter"). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];
   if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
-  return String(chip).replace(/^-/, "").split(":")[0];
+  return String(chip);
 }

@@ -276,7 +276,7 @@ function SavedViews({ board }) {
           return (
             <span class="vt" key={v.id} data-lifted={draft && drag.current && drag.current.id === v.id ? "" : undefined}>
               <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} data-moving={moving === v.id ? "" : undefined} onClick={(e) => click(e, v)} onPointerDown={(e) => pressTab(e, v)}
-                aria-label={`${v.name}, ${count} items${dot ? ", the line has changes you have not saved" : ""}`}>
+                aria-label={`${v.name}, ${count} ${count === 1 ? "item" : "items"}${dot ? ", the line has changes you have not saved" : ""}`}>
                 <span>{v.name}</span><em class="num">{count}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
               </button>{arrow}
             </span>
