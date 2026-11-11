@@ -4,6 +4,7 @@
 import { data } from "../../stores/report.js";
 import { change } from "../../stores/changes.js";
 import { RichField } from "../RichField.jsx";
+import { TOO_LONG } from "../RichText.jsx";
 import { legacyToHtml } from "../../logic/richOrPlain.js";
 import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
@@ -58,7 +59,7 @@ export function RaidEdit({ section, size }) {
     const commit = (html) => {
       const text = plainLine(html);
       if (text === card.own) return true;
-      if (Array.from(text).length > OWN_MAX) return false;
+      if (Array.from(text).length > OWN_MAX) return TOO_LONG;      // the field stays open and says so, in the words every too-long field uses
       return put(i, { ...card, own: text }, "Card text changed.");
     };
     const missing = card && !found;
@@ -81,7 +82,7 @@ export function RaidEdit({ section, size }) {
                 {SOURCES.filter(([v]) => v !== "latest" || isAction).map(([v, w]) => <option key={v} value={v}>{w}</option>)}
               </select></label>
             {card.source === "own" ? (
-              <div class="rce-f"><span id={`rce-own-${i}`}>Own words</span>
+              <div class="rce-f rce-own"><span id={`rce-own-${i}`}>Own words</span>
                 <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} /></div>
             ) : null}
             {found ? <p class="quiet rce-what">{`${kindWords(found.row, found.kind)}: ${cut(titleOf(found.row, found.kind), 100)}`}</p> : null}
