@@ -7,13 +7,14 @@ colours against its backgrounds from the committed tokens, light and dark (4.5:1
 and 900 px: in Edit the Activity tab shows who, how and when, newest first, by mouse and by keys; View has no tabs.
 """
 import json
+import os
 import re
-import shutil
 import subprocess
 import time
 import unittest
 
 from _paths import ROOT
+from test_publish_style import need_node  # noqa: E402
 from _new_page import reload_to_new_page_cdp
 
 from clark import activity_read, page  # noqa: E402
@@ -40,9 +41,7 @@ class MissingItem(unittest.TestCase):
 
 class FollowRule(unittest.TestCase):
     def run_js(self, body):
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("no node")
+        node = need_node(self)
         code = f'import {{ peekFollowsSelection as F }} from "{(SRC / "peek" / "follow.js").as_uri()}"; {body}'
         done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr)
@@ -188,6 +187,20 @@ class ActivityBrowser(unittest.TestCase):
                     reload_to_new_page_cdp(cdp, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek')", sid)))
                     self.peek_stays(cdp, sid, ids[0], rows=False)
+
+
+class NodeIsRequiredInCi(unittest.TestCase):
+    def test_a_missing_node_fails_where_ci_is_set_and_skips_elsewhere(self):
+        from unittest import mock
+        probe = FollowRule("run_js")
+        with mock.patch("shutil.which", return_value=None):
+            with mock.patch.dict(os.environ, {"CI": "true"}):
+                with self.assertRaises(self.failureException):
+                    probe.run_js("")
+            env = {k: v for k, v in os.environ.items() if k != "CI"}
+            with mock.patch.dict(os.environ, env, clear=True):
+                with self.assertRaises(unittest.SkipTest):
+                    probe.run_js("")
 
 
 if __name__ == "__main__":
