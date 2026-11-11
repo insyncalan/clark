@@ -76,7 +76,7 @@ def expect(rows, mode="open", type_="all", filters=None, nots=()):
 
 # ---- real mouse and keys over the pipe ----
 KEYS = {"Enter": (13, "\r"), " ": (32, " "), "Escape": (27, ""), "ArrowDown": (40, ""), "ArrowUp": (38, ""), "Home": (36, ""),
-        "End": (35, ""), "Tab": (9, ""), "Backspace": (8, ""), "Delete": (46, "")}
+        "End": (35, ""), "Tab": (9, ""), "Backspace": (8, ""), "Delete": (46, ""), "ArrowLeft": (37, ""), "ArrowRight": (39, "")}
 
 
 def key(cdp, sid, name):

@@ -163,6 +163,13 @@ def pill_of(row, today):
     return {"text": "Open", "class": "b"}
 
 
+def client_pill(row, today):
+    """The status word a client reads on a report row: pill_of, except that an action neither late, delayed nor due soon reads
+    "On track" (green) instead of "Open". The page, the published file and the Word copy all say this word. (sectionRows.js clientPill)"""
+    p = pill_of(row, today)
+    return {"text": "On track", "class": "g"} if row.get("kind") == "action" and p["text"] == "Open" else p
+
+
 _CLASS_COLOUR = {"r": "red", "a": "amber", "g": "green"}
 
 
@@ -222,7 +229,7 @@ def use_case_items(kept, use_case_id):
 def health_pill(health):
     """The pill's words and colour. The colour is always named in `label`, so it is never the only signal. A project with no
     health yet reads 'Not set'."""
-    colour = HEALTH_COLOUR.get(health)
+    colour = HEALTH_COLOUR.get(health) if isinstance(health, str) else None      # row 1035: a stored list or dict has no colour
     words = health if colour else "Not set"
     return {"health": health if colour else None, "words": words, "colour": colour, "class": COLOUR_CLASS[colour],
             "label": f"Project health: {words}" + (f", {colour}" if colour else "")}
@@ -426,7 +433,7 @@ def use_case_strip(use_cases, work_rows_, today, for_client=False, kept=None):
         late = [w for w in open_ if is_overdue(w, today)]
         steps = [w for w in open_ if w["kind"] == "action"]
         status = u.get("status")
-        colour = USE_CASE_COLOUR.get(status)
+        colour = USE_CASE_COLOUR.get(status) if isinstance(status, str) else None      # row 1035
         words = ("No linked work items" if not mine else "No open work items" if not open_
                  else f"{len(open_)} open" + (f", {len(late)} overdue" if late else ""))
         row = {"id": u["id"], "ref": u.get("ref") or "", "title": u.get("title") or "", "headline": u.get("headline") or "",
