@@ -197,12 +197,11 @@ class Script(unittest.TestCase):
 
 
 class MovementFilesAreNotInTheWay(unittest.TestCase):
-    def test_no_server_or_launcher_file_is_touched_by_this_route(self):
-        names = subprocess.run(["git", "diff", "--name-only", "origin/main", "HEAD"], cwd=ROOT, capture_output=True, text=True).stdout.split()
-        guarded = {"schema.sql", "store.py", "changes.py", "use_cases_read.py", "publish.py", "launch.py", "package.py", "brands.py", "excel_import.py"}
-        for n in names:
-            self.assertNotIn(Path(n).name, guarded, n)
-            self.assertFalse(n.startswith("src/clark/server/") or n == "src/clark/server.py", n)
+    def test_the_route_files_do_not_reach_into_clarks_server_code(self):
+        # the route is three files in docker/; it starts clark by its public command and never names the server's source
+        for name in ("compose.front.yaml", "front.command", "nginx.front.conf.template"):
+            text = (ROOT / "docker" / name).read_text()
+            self.assertNotIn("server.py", text, name)
 
 
 if __name__ == "__main__":

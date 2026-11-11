@@ -15,7 +15,7 @@ class EmptyMenu(unittest.TestCase):
         self.assertIsNotNone(m)
         body = m.group(1)
         self.assertLess(body.index('"__settings"'), body.index("setProject(id)"))
-        self.assertIn('location.hash = "#settings"', body)
+        self.assertIn('navigate({ view: "settings", project: project.value })', body)
         self.assertIn("return;", body.split("setProject(id)")[0])
 
 
