@@ -10,6 +10,8 @@ import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
 import { changeMilestone, say } from "../stores/changes.js";
 import { DuePick } from "./cells/DuePick.jsx";
+import { MenuPick } from "./cells/MenuPick.jsx";
+import { fieldIcon } from "../menuIcons.js";
 import { quickDates } from "./itemEdit.js";
 import { showDate, todayIso, ownerOf } from "../workItems.js";
 import { leftOutIds } from "../logic/picker.js";
@@ -136,15 +138,24 @@ function States({ m }) {
 }
 
 function Workstream({ m }) {
+  const [open, setOpen] = useState(false);
+  const button = useRef(null);
   const names = ((data.value && data.value.workstreams) || []).filter((w) => !w.archived && w.status !== "Closed").map((w) => w.name).filter(Boolean);
   const value = m.workstream || "";
   const options = value && !names.includes(value) ? [value, ...names] : names;
+  const choices = options.map((w) => ({ value: w, text: w, ...fieldIcon("workstream") })).concat([{ value: "", text: "No workstream", ...fieldIcon("workstream", true) }]);
+  const close = (back) => { setOpen(false); if (back && button.current) button.current.focus(); };
+  const pick = (v) => {
+    close(true);
+    const c = textChange("workstream", value, v);
+    if (c) save(m, c, said(m, "Workstream", c.workstream));
+  };
   return (
-    <select class="pk-ms-select" data-ms-field="workstream" aria-label={`Workstream of ${m.id}`} value={value}
-      onChange={(e) => { const v = e.currentTarget.value; const c = textChange("workstream", value, v); if (c) save(m, c, said(m, "Workstream", c.workstream)); }}>
-      <option value="">{DASH}</option>
-      {options.map((w) => <option key={w} value={w}>{w}</option>)}
-    </select>
+    <>
+      <button type="button" class="pk-pick" ref={button} data-ms-field="workstream" aria-haspopup="menu" aria-expanded={open ? "true" : "false"}
+        aria-label={`Workstream of ${m.id}: ${value || DASH}. Change`} onClick={() => setOpen(!open)}>{value || DASH}</button>
+      {open ? <MenuPick anchor={button} label={`Workstream of ${m.id}`} current={value} choices={choices} onPick={pick} onClose={close} /> : null}
+    </>
   );
 }
 

@@ -32,7 +32,7 @@ CONTRACT = frozenset("""--brand-blue --brand-navy --brand-ink --brand-cyan --gre
 --data-1 --data-2 --data-3 --data-4 --data-5 --data-6 --size-body --size-caption --size-small --size-h3 --size-h2 --size-h1
 --size-display --leading --weight-light --weight-regular --weight-medium --weight-semibold --tracking-caps --space-1 --space-2
 --space-3 --space-4 --space-5 --space-6 --space-7 --space-8 --max-width --radius-pill --stagger --ease-out --ease-enter
---ease-exit --ease-toggle --dur-instant --dur-view --dur-state --dur-layout --dur-enter --image-cover --image-logo --image-fade --profile-bg --profile-fg --profile-ring --profile-size
+--ease-exit --ease-toggle --ease-linear --dur-toast --dur-instant --dur-view --dur-state --dur-layout --dur-enter --image-cover --image-logo --image-fade --profile-bg --profile-fg --profile-ring --profile-size
 --pill-bg --pill-color --pill-fg --pill-glow --pill-glow-hover --bar-end --accent-line --font-head --font-label --font-office --font-email --art-home --art-home-height""".split())
 TOKEN_NAME = re.compile(r"(--[a-z0-9-]+)\s*:")
 
@@ -204,13 +204,14 @@ class Layering(unittest.TestCase):
 def navigate(cdp, port, hash_="", section_style="slim"):
     """Open the page. The layout tests were written when Slim gaps was the standard section style; row 667 made One card the standard, so
     a test that measures a layout opens the page with Slim gaps remembered (as a person who chose it would have), unless it says
-    section_style=None to see the standard (test_section_style_cards, test_section_card_look)."""
+    section_style=None to see the standard (test_section_style_cards, test_section_card_look). Item 1025: the remembered choice is now the
+    one Spacing key; "slim" stands for Comfortable (the bridge in stores/density.js), anything else for Compact."""
     tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
     sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
     if section_style:
         cdp.call("Page.enable", {}, sid)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.section-style')) localStorage.setItem('clark.section-style', %r); } catch (e) {}" % section_style}, sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.density')) localStorage.setItem('clark.density', %r); } catch (e) {}" % ("comfortable" if section_style == "slim" else "compact")}, sid)
     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
     return sid
 

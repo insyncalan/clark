@@ -299,6 +299,15 @@ class Compose(unittest.TestCase):
     def test_the_container_setting_is_set_in_the_compose_file(self):
         self.assertRegex(self.service(), r'(?m)^      CLARK_CONTAINER: "1"$')
 
+    def test_the_service_comes_back_after_docker_or_the_computer_restarts_unless_it_was_stopped(self):
+        """item 1080: restart "no" left clark stopped after a Docker Desktop quit, update or Mac restart. unless-stopped brings it
+        back with Docker, while docker compose down or stop still stop it for good."""
+        text = self.service()
+        block = text.split("services:\n  clark:\n", 1)[1]
+        self.assertRegex(block, r"(?m)^    restart: unless-stopped$")
+        self.assertNotRegex(block, r'(?m)^    restart: "?no"?$')
+        self.assertNotRegex(block, r"(?m)^    restart: always$", "always would restart a container someone stopped on purpose")
+
 
 class ComposeIsLanSafe(unittest.TestCase):
     """The compose file's 127.0.0.1 prefix is the whole defence against the LAN, so the file may say nothing that sidesteps it (item 427)."""
