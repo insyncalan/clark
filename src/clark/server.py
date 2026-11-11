@@ -1319,6 +1319,8 @@ class BrandLibrary:
             return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
         except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
             return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
+        except importlib.import_module("clark.platform").NotBuiltYet as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault
+            return 409, {"ok": False, "code": "needs_mac", "message": str(e)}
 
     def listing(self):
         return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data)})
@@ -1517,6 +1519,9 @@ class Handler(BaseHTTPRequestHandler):
             return route(self, *args)
         except CLIENT_LEFT:
             return None
+        except importlib.import_module("clark.platform").NotBuiltYet as e:    # item 1100: a Mac-only step no route caught: the same words, never a fault
+            LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
+            return self.send(409, {"ok": False, "code": "needs_mac", "message": str(e)})
         except Exception:  # noqa: BLE001  the server answers whatever a route does
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
