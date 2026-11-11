@@ -21,7 +21,7 @@ export function Switches({ children, L }) {
   const setT = (v) => (L ? L.pickType(v) : setFilterState(setType(filterState.value, v))), setM = (v) => (L ? L.pickMode(v) : setFilterState(setMode(filterState.value, v)));
   if (L && !children) return null;                       // row 1059: with the pills gone the app's bar holds nothing of its own
   return (
-    <div class={L ? "wbar keep" : "wbar"}>      {/* the Show archived pill arrives after the page draws; the row keeps its height so the list does not drop when it does */}
+    <div class="wbar">
       {L ? null : <>
       <div class="seg" role="group" aria-label="Type">
         {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setT(v)}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}

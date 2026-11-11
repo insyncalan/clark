@@ -1,0 +1,9 @@
+/tmp/ag-r042-banner/tests/test_work_board_page.py:737: SyntaxWarning: invalid escape sequence '\.'
+  self.until(cdp, sid, "/^Column width reset\.$/.test(document.querySelector('#work-live').textContent)", "the reset said to a screen reader")
+test_no_pill_and_no_show_archived_words_on_work_items (test_work_archived_filter.ArchivedFilter.test_no_pill_and_no_show_archived_words_on_work_items) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 2.043s
+
+OK
+rc=0

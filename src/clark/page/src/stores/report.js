@@ -98,7 +98,7 @@ export const me = signal("");
 export const filterCtx = () => {
   const d = data.value;
   return {
-    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value), archivedReady: !fromFile.value,
     workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
     milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
   };
