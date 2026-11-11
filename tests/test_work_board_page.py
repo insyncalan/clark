@@ -873,7 +873,7 @@ class FullScreen(Base):
 
     def test_board_view_pins_only_the_column_headings_under_the_top_bar(self):
         """#134: the toolbar rows scroll away and the column headings stay at the foot of the top bar; back at 0 the rows return."""
-        rows = "['.head', '.wbar', '.fline-wrap', '.factive', '.lanebar']"
+        rows = "['.head', '.fline-wrap', '.factive', '.lanebar']"   # item 1067: the type and mode pills are gone, so the app has no .wbar row
         for width in (1400, 900):
             for full in (False, True):
                 with self.subTest(width=width, full=full), shared.page() as cdp:
@@ -895,12 +895,12 @@ class FullScreen(Base):
                         f" const rows = {rows}.map(s => document.querySelector(s)).filter(e => e && e.getBoundingClientRect().height > 0);"
                         " const h = document.querySelector('.col-h').getBoundingClientRect().top;"
                         " return {bar, h, rows: rows.map(e => Math.round(e.getBoundingClientRect().bottom)), n: rows.length}; })()", sid)
-                    self.assertGreaterEqual(got["n"], 3, got)
+                    self.assertGreaterEqual(got["n"], 2, got)
                     self.assertTrue(all(b <= got["bar"] + 1 for b in got["rows"]), f"the toolbar rows are above the top bar's foot: {got}")
                     self.assertLessEqual(abs(got["h"] - got["bar"]), 2, f"the column headings sit at the top bar's foot: {got}")
                     cdp.js(f"{scroller}.scrollTop = 0", sid)
                     self.until(cdp, sid, f"{scroller}.scrollTop === 0", "back at the top")
-                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
+                    self.assertTrue(cdp.js("['.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
 
     def test_pinned_headings_dark_wheel_no_overlap_and_focus(self):
         """#134 (more): in light and dark, at 1400 and 900 px, the toolbar's top moves away with the page, the headings pin at the top
@@ -911,7 +911,7 @@ class FullScreen(Base):
                     sid = self.visit(cdp, width=width, height=700)
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     self.board(cdp, sid, "status")
-                    top0 = cdp.js("document.querySelector('.wbar').getBoundingClientRect().top", sid)
+                    top0 = cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().top", sid)
                     cdp.js("window.scrollTo(0, 0)", sid)
                     # the wheel over the board moves the page first, up to the gap, and never past it
                     cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 700, "y": 400, "deltaX": 0, "deltaY": 120}, sid)
@@ -922,7 +922,7 @@ class FullScreen(Base):
                         "(() => { const bar = document.querySelector('.top').getBoundingClientRect().bottom, r = s => document.querySelector(s).getBoundingClientRect();"
                         " const h = [...document.querySelectorAll('.col-h')].map(e => e.getBoundingClientRect()), hb = Math.max(...h.map(x => x.bottom));"
                         " const box = r('.boardbox');"
-                        " return {bar, wbar: r('.wbar').bottom, ht: Math.min(...h.map(x => x.top)), hb, box: box.top}; })()", sid)
+                        " return {bar, wbar: r('.fline-wrap').bottom, ht: Math.min(...h.map(x => x.top)), hb, box: box.top}; })()", sid)
                     self.assertLessEqual(got["wbar"], got["bar"] + 1, got)
                     self.assertLessEqual(abs(got["ht"] - got["bar"]), 2, got)
                     self.assertLessEqual(abs(got["box"] - got["bar"]), 2, got)

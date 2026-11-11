@@ -154,6 +154,7 @@ class PageKeys(Base):
             p.until("!!document.querySelector('#help-peek')", "? opened the peek")
             p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
             p.until("!!document.querySelector('#help')", "? still opens Help when off")
+            p.js("document.activeElement.blur()")                                  # full Help opens on its search box (row 1054); leave it first
             p.key("/", code="Slash", vk=191)
             time.sleep(0.2)
             self.assertNotEqual(p.js("document.activeElement.id"), "hpQ", "'/' does not go to the search box when off")
