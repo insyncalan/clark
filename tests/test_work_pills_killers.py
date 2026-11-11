@@ -28,7 +28,7 @@ class PublishedPills(_pub.ClientPageFilters):
 
 for _name in dir(_pub.ClientPageFilters):
     if _name.startswith("test_") and _name not in PublishedPills.__dict__:
-        setattr(PublishedPills, _name, None)
+        setattr(PublishedPills, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class AppBar(_line.Line):
@@ -46,7 +46,7 @@ class AppBar(_line.Line):
 
 for _name in dir(_line.Line):
     if _name.startswith("test_") and _name not in AppBar.__dict__:
-        setattr(AppBar, _name, None)
+        setattr(AppBar, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class HelpWords(unittest.TestCase):

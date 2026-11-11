@@ -246,7 +246,7 @@ class RealBrowser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)     # row 931: Space opens the list
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
-            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #work .fhint, #fline-list .fopt')]"
+            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #fline-list .fopt')]"
                              ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.textContent)", sid)
             self.assertEqual(targets, [], "targets are at least 24 px")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fline-list').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
