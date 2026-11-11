@@ -162,6 +162,10 @@ def shown_port(port):
     return port
 
 
+HOST_NETWORK_WARNING = ("Warning: this container shares the computer's network, so clark listens on every address of this computer, "
+                        "not only this one. Start it with docker/compose.yaml, which publishes the port to this computer only.")
+
+
 def start_line(address):
     if platform.container_mode():      # #696: in Docker there is no window to leave open, and Ctrl+C is not how it is stopped
         return f"Open {address} to use clark. Stop it with: docker compose -f docker/compose.yaml down"
@@ -183,6 +187,8 @@ class ServerOutput:
         self.done = True
         address = address_for(shown_port(int(found.group(1))), self.code)
         self.out.write(start_line(address))
+        if platform.container_on_host_network():      # #575: a 0.0.0.0 bind on the host's own network is reachable from the LAN
+            print(HOST_NETWORK_WARNING, file=self.err, flush=True)
         if self.opener:
             try:
                 self.opener(address)
