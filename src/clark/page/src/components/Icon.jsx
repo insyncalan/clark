@@ -20,7 +20,6 @@ const ICONS = {
   pencil: '<path d="M4 20h4L19 9l-4-4L4 16v4zM13 7l4 4"/>',
   filter: '<path d="M3 5h18l-7 8v6l-4-2v-4z"/>',
   table: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/>',
-  group: '<rect x="3" y="4" width="18" height="5" rx="1"/><path d="M8 14h13M8 19h13"/><circle cx="4.5" cy="14" r="1"/><circle cx="4.5" cy="19" r="1"/>',
   board: '<rect x="3" y="4" width="5" height="16" rx="1"/><rect x="10" y="4" width="5" height="10" rx="1"/><rect x="17" y="4" width="4" height="13" rx="1"/>',
   group: '<rect x="3" y="4" width="18" height="6" rx="1.5"/><rect x="3" y="14" width="18" height="6" rx="1.5"/>',
   expand: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',

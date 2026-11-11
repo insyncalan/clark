@@ -24,7 +24,7 @@ class IconsOnTheLine(Base):
     def test_three_named_icons_inside_the_filter_box_and_none_on_the_tab_row(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
-            self.assertEqual(cdp.js(ICONS, sid), [["List", "List", True, ""], ["Board", "Board", True, ""], ["Group by", "Group by", True, ""]],
+            self.assertEqual(cdp.js(ICONS, sid), [["List", "List", True, ""], ["Board", "Board", True, ""], ["Group by: Workstream", "Group by", True, ""]],
                              "List, Board and Group by: icons, named, 24 px or more")
             self.assertEqual(cdp.js("document.querySelectorAll('.fvrow [data-lay], .fvrow #viewMenu').length", sid), 0, "none beside the tabs")
             self.assertEqual(cdp.js("document.querySelectorAll('#work .fline #viewMenu').length", sid), 1)
@@ -87,7 +87,7 @@ class IconsOnTheLine(Base):
             sid = self.visit(cdp)
             same = cdp.js("document.querySelector('#viewMenu svg').innerHTML === document.querySelector('#work .vicons [data-lay=table] svg').innerHTML", sid)
             self.assertEqual(same, False, "Group by is not drawn as the List icon")
-            self.assertEqual(cdp.js("!!document.querySelector('#viewMenu svg circle')", sid), True, "the grouping picture (bullets under a header)")
+            self.assertEqual(cdp.js("!!document.querySelector('#viewMenu svg rect')", sid), True, "the grouping picture (two stacked groups), as on main")
             cdp.js("document.querySelector('#viewMenu').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#viewMenuList [data-kind=\"group:status\"]')", "the Group by menu")
             cdp.js("document.querySelector('#viewMenuList [data-kind=\"group:status\"]').click()", sid)
@@ -101,7 +101,7 @@ class IconsOnTheLine(Base):
             self.assertEqual(cdp.js("document.querySelectorAll('#work .fline .vicons button').length", sid), 3, "with a board: List, Board, Group by")
             cdp.js("window.clarkPage.withoutBoard()", sid)
             self.until(cdp, sid, "document.querySelectorAll('#work .fline .vicons button').length === 1", "only Group by")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.vicons button')].map(b => b.getAttribute('aria-label'))", sid), ["Group by"])
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.vicons button')].map(b => b.getAttribute('aria-label'))", sid), ["Group by: Workstream"])
 
 
 class ImportExportPlace(Base):

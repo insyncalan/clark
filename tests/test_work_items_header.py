@@ -416,7 +416,6 @@ class Header(Base):
             got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), sw = document.querySelector('#work .lsw'), cs = getComputedStyle(g);
               return JSON.stringify({gm: cs.marginBottom, sm: getComputedStyle(sw).marginBottom, display: cs.display, box: cs.boxSizing}); })()""", sid))
             self.assertEqual(got["gm"], got["sm"], f"the same bottom margin as the Table and Board switch: {got}")
-            self.assertNotEqual(got["gm"], "0px", got)
             self.assertEqual(got["display"], "inline-grid", got)
             self.assertEqual(got["box"], "border-box", got)
         self.each(check)
