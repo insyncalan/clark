@@ -149,8 +149,9 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
     elif own not in {m.group(0).lower() for m in DIGEST.finditer(body)}:
         out.append(f"{tag}: the SHA-256 in the release text is not the zip's. GitHub says the zip {want} is {own}. Edit the "
                    f"release text on GitHub and put that line in place of the wrong one (dev/RELEASING.md step 9).")
-    attached = max((a.get("created_at") or "" for a in r.get("assets", []) if a.get("name") == want), default="")
-    if isinstance(r.get("published_at"), str) and r["published_at"] and attached > r["published_at"]:     # a time that is not text cannot be compared: no crash
+    published, attached = _utc(r.get("published_at")), [_utc(a.get("created_at")) for a in r.get("assets", []) if a.get("name") == want]
+    attached = max((t for t in attached if t is not None), default=None)
+    if published is not None and attached is not None and attached > published:     # compared as UTC moments; a time that does not parse is skipped: no crash
         out.append(f"{tag}: the zip was attached after the release was published. The zip must be attached to the draft and "
                    f"launched for real first, then the release published (dev/RELEASING.md steps 8 to 19). Do not publish "
                    f"the next release until you have followed them in that order.")

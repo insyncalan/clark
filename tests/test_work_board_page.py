@@ -228,7 +228,7 @@ class Switch(Base):
             sid = self.visit(cdp)
             self.assertEqual([x for x in self.view_items(cdp, sid) if x[0].startswith("layout:")], [], "row 812: the View menu no longer holds the layout")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work [data-lay]')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent])", sid),
-                             [["table", "Table", "Table", "true", ""], ["board", "Board", "Board", "false", ""]], "two icons, no words, named for a screen reader")
+                             [["table", "List", "List", "true", ""], ["board", "Board", "Board", "false", ""]], "two icons, no words, named for a screen reader")
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "a table to start")
             self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
