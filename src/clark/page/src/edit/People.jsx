@@ -39,6 +39,8 @@ export function People() {
 
   const toggle = () => { const on = !open; setOpen(on); setMsg(""); if (on) setTimeout(() => box.current && box.current.focus(), 0); };
 
+  const closeBox = () => { setOpen(false); setMsg(""); setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0); };      // Esc in the box: it folds away (what was typed is kept) and the focus goes back to Paste from Excel
+
   const add = async () => {
     if (busy) return;
     if (!text.trim()) { setMsg(NONE_TO_ADD); return; }
@@ -80,7 +82,7 @@ export function People() {
       <div class="pp-paste" id="ppPaste" hidden={!open}>
         <label for="ppText">Rows from Excel: name, email, organisation, role, separated by tabs</label>
         <textarea id="ppText" class="grow" ref={box} rows={3} value={text} placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"
-          aria-describedby="ppPlan" onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
+          aria-describedby="ppPlan" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeBox(); } }} onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
         <div id="ppPlan" role="status" aria-live="polite">
           {read ? (
             <>

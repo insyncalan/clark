@@ -113,6 +113,35 @@ class Page(InBrowser):
         self.click("[data-remove-confirm]")
         self.assertEqual(self.val("T.calls.slice(-2)[0]"), ["remove", "example-brand"])
 
+    def test_keys_cancel_and_escape_hand_the_focus_back(self):
+        """Item keys-settings: Cancel (or Esc) on Remove's question, and on the review panel, took the focus with it; it now goes back to the
+        button that opened them (that brand's Remove; Review or Choose)."""
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how, what="remove"):
+                self.mount()
+                self.js("document.querySelector('#brands-list [data-remove]').focus()")
+                self.click("#brands-list [data-remove]")
+                self.assertTrue(self.present("[data-remove-confirm]"))
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                if how == "cancel":
+                    self.click("[data-remove-confirm] + button")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("[data-remove-confirm]"), "the question closed")
+                self.assertEqual(self.focused(), "button[data-remove]", "the focus is back on that brand's Remove")
+            for opener in ("data-review", "data-choose"):
+                with self.subTest(how=how, what=opener):
+                    self.mount()
+                    self.js(f"document.querySelector('[{opener}]').focus()")
+                    self.click(f"[{opener}]")
+                    self.assertTrue(self.present("#brands-panel"))
+                    if how == "cancel":
+                        self.click("#brands-panel [data-cancel]")
+                    else:
+                        self.press("Escape", 27)
+                    self.assertFalse(self.present("#brands-panel"), "the panel closed")
+                    self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()
