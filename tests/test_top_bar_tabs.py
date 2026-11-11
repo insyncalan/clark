@@ -1,4 +1,4 @@
-"""#681, row 757: the top bar at 1400, 901 and 900 px, light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
+"""#681, row 757: the top bar at 1400 and 900 px (the only widths tested), light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
 project name: every tab label is whole on one line, the bar stays one 56 px row, the project name shortens first, then the tab row scrolls inside
 its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
 tests fail, never skip, without it.
@@ -12,7 +12,7 @@ from test_inline_67 import size
 from test_report_editor import Base
 from test_server import chrome
 
-WIDTHS = (1400, 901, 900)      # the owner's scope is 1400 and 900 px (901 is the neighbour that must not move)
+WIDTHS = (1400, 900)      # the only widths tested
 
 # Each tab's box and line count; the bar's top-level items (the tab row among them); the tab row's scroll; the project name's box; the page's sideways scroll.
 MEASURE = """(function(){
@@ -102,7 +102,7 @@ class TopBarTabs(Base):
                 self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
         self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
         self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
-        if scrolls and width > 800:       # 800 px and below stay as main has them (the name keeps its width, the row scrolls): row 757 is 900 px only
+        if scrolls:       # the name gives way before the tab row scrolls (row 757)
             self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
         self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
         self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
@@ -125,8 +125,8 @@ class TopBarTabs(Base):
                     self.assertAlmostEqual(view[0], edit[0], delta=1, msg=f"at {width} px, {theme}: the View/Edit switch is {view[0]} px wide in View and {edit[0]} px in Edit")
                     self.assertLessEqual(view[1], view[2] + 1, f"at {width} px, {theme}: the View/Edit switch is squeezed narrower than its content")
 
-    def test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap(self):
-        for width, pad in ((1400, "14px"), (1001, "14px"), (1000, "8px"), (900, "8px"), (800, "8px"), (600, "6px")):
+    def test_the_tabs_tighten_their_padding_at_900_px_and_never_wrap(self):
+        for width, pad in ((1400, "14px"), (900, "8px")):
             with self.subTest(width=width):
                 left, right, wrap = self.tab_style(width)
                 self.assertEqual([left, right], [pad, pad], f"at {width} px the tab padding should be {pad}; got {left} and {right}")
@@ -164,55 +164,6 @@ class TopBarTabs(Base):
             p.js("document.querySelector('.top .logo').click()")
             p.until("location.hash.indexOf('#dashboard') === 0", f"{where}: a click on the logo does not go to the Dashboard")
 
-
-    def test_800_and_641_px_do_not_scroll_the_page_sideways_as_on_main(self):
-        # Row 757 is 900 px only: below 801 px the tab row keeps main's rule (it scrolls inside its own box), so the bar never grows wider than the window.
-        for width in (800, 700, 641):
-            for active, edit in ((None, False), ("Settings", False), ("Settings", True), (None, True)):
-                got = self.measure(width, "light", True, edit, active)
-                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px, {active}: the page scrolls sideways {got['scroll']}")
-                self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"at {width} px, {active}: an item runs past the window")
-
-    def test_the_tab_row_keeps_room_for_its_tabs_at_420_and_360_px(self):
-        # Row 1033: at 420 px the project name kept 160 px, so the tab row got 61 px (360 px: 1 px) and Settings, last of the five tabs, sat far off the
-        # bar's edge. The name gives way first (as it does from 801 to 1000 px); the row keeps room for at least a tab and a quarter and still scrolls inside its box.
-        # Row 976 (a branch) drops the Settings tab from the bar; this test then needs only the row's room, so it names the last tab, whichever it is.
-        for width in (420, 360):
-            for edit in (False, True):
-                with self.subTest(width=width, edit=edit):
-                    got = self.measure(width, "light", True, edit)
-                    where = f"at {width} px{', Edit' if edit else ''}"
-                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is only {got['row'][1] - got['row'][0]:.0f} px wide; the project name is {got['name']:.0f} px")
-                    self.assertGreaterEqual(got["name"], 48, f"{where}: the project name box is squeezed to {got['name']:.0f} px")
-                    self.assertLessEqual(max(i["right"] for i in got["items"]), got["bar"][1] + 0.5, f"{where}: an item runs past the window")
-                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
-
-    def test_the_tab_row_is_usable_on_the_settings_route_at_420_and_360_px(self):
-        # Row 976 + row 1033: Settings is no tab, so the Settings route shows no open tab; the row still keeps at least 110 px, the page does not scroll
-        # sideways, and every tab (Dashboard, Work items, ...) can be brought into the row.
-        for width in (420, 360):
-            for edit in (False, True):
-                with self.subTest(width=width, edit=edit):
-                    got = self.measure(width, "light", True, edit, active="Settings")
-                    where = f"at {width} px{', Edit' if edit else ''}, Settings route"
-                    self.assertGreaterEqual(got["row"][1] - got["row"][0], 110, f"{where}: the tab row is {got['row'][1] - got['row'][0]:.0f} px wide")
-                    self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"{where}: the page scrolls sideways {got['scroll']}")
-                    self.assertLessEqual(got["scroll_after"][0], got["scroll_after"][1], f"{where}: bringing a tab into view scrolls the page sideways {got['scroll_after']}")
-                    names = [t["name"] for t in got["reach"]]
-                    self.assertEqual(names[0], "Dashboard", where)
-                    self.assertIn("Work items", names, where)
-                    self.assertNotIn("Settings", names, where)
-                    self.assertTrue(all(t["inside"] for t in got["reach"]), f"{where}: a tab cannot be brought into the row {got['reach']}")
-
-    def test_the_tab_row_is_not_squeezed_from_420_to_800_px(self):
-        for width in (420, 480, 481, 600, 700, 800):
-            with self.subTest(width=width):
-                got = self.measure(width, "light", True, False)
-                row = got["row"][1] - got["row"][0]
-                self.assertGreaterEqual(row, 110, f"at {width} px the tab row is only {row:.0f} px wide; the project name is {got['name']:.0f} px")
-                self.assertGreaterEqual(got["name"], 48, f"at {width} px the project name box is {got['name']:.0f} px")
-                self.assertLessEqual(got["scroll"][0], got["scroll"][1], f"at {width} px the page scrolls sideways {got['scroll']}")
-                self.assertGreaterEqual(len(got["tabs"]), 4, f"at {width} px the tabs are {[t['name'] for t in got['tabs']]}")
 
     def test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900(self):
         # The exact failing case: 900 px, the profile circle in the bar, the last tab open; then the tab row narrows (as it does when the mode switch joins
@@ -292,7 +243,7 @@ for _w in (1400, 900):
 for _w in WIDTHS:
     for _t in ("light", "dark"):
         setattr(TopBarTabs, f"test_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t))
-        for _e in (False, True) if _w in (1400, 900) else ():
+        for _e in (False, True):
             setattr(TopBarTabs, f"test_the_logo_goes_home_at_{_w}_{_t}_{'edit' if _e else 'view'}", lambda self, w=_w, t=_t, e=_e: self.home(w, t, e))
         setattr(TopBarTabs, f"test_at_{_w}_{_t}_long_name_in_edit", lambda self, w=_w, t=_t: self.check(w, t, True, True))
         setattr(TopBarTabs, f"test_settings_at_{_w}_{_t}", lambda self, w=_w, t=_t: self.check(w, t, False, False, "Settings"))

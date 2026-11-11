@@ -6,7 +6,7 @@ import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, 
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
 export function TopBar({ tools }) {
-  const tabs = { value: allTabs.value.filter((v) => v !== "settings") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
+  const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
   const name = data.value && data.value.project.name;
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
@@ -38,7 +38,7 @@ export function TopBar({ tools }) {
         ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
         : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
       <span class="divider"></span>
-      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj" id="project-name">{name || project.value || "No project open"}</span>}
+      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
       <nav class="tabs" ref={row} role="tablist" aria-label="Views">
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
           ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
