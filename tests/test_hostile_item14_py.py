@@ -67,8 +67,7 @@ class MilestonesHostile(unittest.TestCase):
         for s in milestones.STATES:
             self.assertTrue(milestones.client_word(s))
         for bad in ("Overdue ", "overdue", "", "<b>", "x" * 10000, None):
-            with self.assertRaises(KeyError):
-                milestones.client_word(bad)      # a state that is not one of the seven is refused, never passed to a client as is
+            self.assertEqual(milestones.client_word(bad), "")      # a state that is not one of the seven gives no word, never one passed to a client as is
 
     def test_original_date_skips_undone_undo_and_hostile_rows(self):
         log = [{"tbl": "milestones", "item_id": "M-1", "field": "baseline_date", "op": "undo", "new_value": "2026-01-01"},
