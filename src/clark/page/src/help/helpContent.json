@@ -1159,7 +1159,7 @@
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:quiet** or **is:incomplete** in the filter line, or save either as a view.",
+       "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:** in the filter line and pick it from the list, or save either as a view.",
        "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],
@@ -1427,7 +1427,7 @@
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],

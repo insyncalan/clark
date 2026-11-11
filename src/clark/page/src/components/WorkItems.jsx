@@ -26,6 +26,7 @@ import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isO
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
+import { ImportExport } from "./ImportExport.jsx";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
@@ -344,8 +345,7 @@ export function WorkItems({ tools }) {
         </div>
         {tools ? (
           <div class="hacts">
-            {tools.ImportBtn && !fromFile.value ? <tools.ImportBtn /> : null}   {/* item 454: Import from Excel, the same box as Settings; never in a published file */}
-            {tools.ExportBtn ? <tools.ExportBtn /> : null}   {/* the workbook download: always on this page (row 824), and never in a published file */}
+            {!(FilterLine && allRows.value.length) ? <ImportExport tools={tools} /> : null}   {/* row 1084: on the filter line when there is one; with no line (no work items yet) they stay here so an import can start the list */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>
@@ -365,7 +365,7 @@ export function WorkItems({ tools }) {
                 </>
               : <>
                   <Switches L={L}>{Pill ? <Pill /> : null}</Switches>   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
-                  <FilterLine board={!!Board} />
+                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
                   <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />
                 </>}
           </>}

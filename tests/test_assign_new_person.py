@@ -365,6 +365,7 @@ class Clearing(Base):
         self.assertTrue(line and all("no one yet" not in str(e) for e in line))
         self.assertEqual(self.s.read("raid", ref=self.r)["owner"], "TBC")
 
+
 class Lows(Base):
     def test_any_case_accent_or_space_variant_of_the_clear_entry_is_refused(self):
         """Row 986 follow-up: the clear entry is matched by the people key, not by exact text. Mutation: compare name == CLEAR_ENTRY."""

@@ -306,6 +306,7 @@ class WordingRound(unittest.TestCase):
     def test_no_results_does_not_offer_ask_clark_yet(self):                                  # MEDIUM
         self.assertNotRegex(re.search(r"export const noResults.*?\}\);", LOGIC, re.S).group(0), r'hint: "[^"]*ask clark')
 
+
 class UseCaseStatuses(unittest.TestCase):
     """#412: Help names the four use case statuses the store allows, in its order, in both places it lists them."""
 
@@ -492,6 +493,15 @@ class NeededFromTheClientWords(unittest.TestCase):
         self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
         peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+
+
+class PeekSourceWords(unittest.TestCase):
+    def test_help_says_source_is_drawn_in_view_and_in_a_published_file_not_only_in_edit(self):
+        """Row 1077: the peek draws Source in Edit, in View and in a published file (the name only there); Help must not say it is in Edit only."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Source** (in Edit, in View and in a published file)", text)
+        self.assertNotIn("**Source** (in Edit)", text)
+        self.assertIn("a published file shows only the name", text)
 
 
 class ProfileCircleWords(unittest.TestCase):
