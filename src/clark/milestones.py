@@ -46,8 +46,9 @@ def milestone_state(row, on=None):
     """The state shown: Achieved when Done, the user's when they set one (At risk, or clark's Forecast), else the dates' suggestion."""
     if row.get("status") == "Done":
         return "Achieved"
-    if row.get("state_set") and row.get("state"):
-        return row["state"]
+    state = row.get("state")
+    if row.get("state_set") and isinstance(state, str) and state in CLIENT_WORD:      # a stored list, dict or stray word is no state
+        return state
     return suggested_state(row, on)
 
 
@@ -62,7 +63,7 @@ def needs_reason(row, on=None):
 
 def client_word(state):
     """What a client reads for `state`: creaite's words, so Slipped is "Expected later" and Overdue is "Late"."""
-    return CLIENT_WORD[state]
+    return CLIENT_WORD[state] if isinstance(state, str) and state in CLIENT_WORD else ""
 
 
 def slip_days(row, on=None):

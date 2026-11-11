@@ -686,3 +686,6 @@ test_spacing_work_items.py 1.0
 test_store_planned_2026_migration.py 1.0
 test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
+test_gantt_markers_hostile.py 30.0
+test_publish_hidden_section_markers.py 30.0
+test_hostile_milestone_state_outline.py 30.0
