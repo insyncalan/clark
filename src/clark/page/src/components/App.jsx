@@ -60,7 +60,8 @@ export function App({ tools: given }) {
   const past = !!rebuilt.value && !fromFile.value;
   const tools = past ? null : given;
   const own = (shownTabs.value.includes(view.value) && PAGES[view.value]) || Dashboard;   // a view the file or editor does not offer falls back to the dashboard
-  const Page = view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
+  const Published = view.value === "published" && !fromFile.value && tools && tools.PublishedPage;      // row 1087: the Published reports page is the editor's; a published file never has it
+  const Page = Published ? Published : view.value !== "usecases" ? own : fromFile.value ? UseCasesTab : (tools && tools.UseCasesPage) || Dashboard;   // the Use cases page is the editor's; a published file has its own view-only tab
   const DemoBanner = !fromFile.value && tools && tools.DemoBanner;         // #731: the demo data line (Edit only); a published file has none, nor has any page drawn from one
   const Toast = tools && tools.Toast;
   const RowMenu = tools && tools.RowMenu;               // the right-click menu on a work item (#97); a published file has none
