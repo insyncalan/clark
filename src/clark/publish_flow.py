@@ -26,7 +26,6 @@ import os
 import re
 import secrets
 import shutil
-import sqlite3
 import tempfile
 import threading
 import time
@@ -243,7 +242,7 @@ def brand_of(store, code, root):
     try:
         row = store.read("projects", ref=code) if isinstance(code, str) else None
         folder = brands.folder(root, row["brand"] if isinstance(row, dict) and row.get("brand") else "generic")
-    except (Invalid, OSError, ValueError, KeyError, TypeError, sqlite3.Error):
+    except Exception:     # any unreadable row (a locked database included) is the plain page; KeyboardInterrupt and SystemExit pass
         return page.NO_BRAND
     return page.NO_BRAND if folder is brands.GENERIC else folder
 
