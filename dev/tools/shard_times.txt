@@ -688,6 +688,5 @@ test_spacing_work_items.py 1.0
 test_store_planned_2026_migration.py 1.0
 test_work_pills_killers.py 1.0
 test_work_pills_removed.py 1.0
-test_client_workbook_palette.py 30.0
+test_mutants_excel_docx.py 30.0
 test_setup_mode.py 30.0
-test_sneak_commit_words_edges.py 30.0
