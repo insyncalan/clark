@@ -26,6 +26,7 @@ case "$1" in
   server)
     # clark's own server on this Mac: it listens on 127.0.0.1 only. A refusal (newer data, data folder in use) ends it; it is never restarted.
     [ -d .app ] && PYTHONPATH="$PWD/.app${PYTHONPATH:+:$PYTHONPATH}" && export PYTHONPATH
+    unset CLARK_CONTAINER    # that setting is for the inside of the Docker image only; here the server must keep to 127.0.0.1
     export CLARK_PUBLISHED_PORT="$port" CLARK_TYPED="bash docker/front.command server"
     exec python3 -m clark --data "$data" --port "$sport"
     ;;
@@ -35,7 +36,7 @@ case "$1" in
   "")
     command -v docker >/dev/null 2>&1 || { say "Docker is not installed or not on this Mac's path. Use the Terminal route instead: bash clark.command"; exit 1; }
     # The Mac's server must already answer, so a front never starts alone and shows only a "not running" page.
-    if ! curl -fsS --max-time 3 "http://127.0.0.1:$sport/health" 2>/dev/null | grep -q '"ok"'; then
+    if ! curl -fsS --max-time 3 "http://127.0.0.1:$sport/health" 2>/dev/null | grep -Eq '"ok": ?true'; then
       say "clark is not running on this Mac yet (nothing answers on 127.0.0.1:$sport)."
       say "Open another Terminal window in this folder and type: bash docker/front.command server"
       say "When it says it is running, type bash docker/front.command here again."
