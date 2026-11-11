@@ -56,6 +56,13 @@ class Uncaught(Base):
         status, got = self.rig.call("POST", "/api/providers/connect", {"provider": "claude"})
         self.assertEqual((status, got["code"]), (500, "server_error"))
 
+    def test_the_needs_mac_name_is_bound_at_import_so_a_failed_import_cannot_hide_the_first_error(self):
+        # an except clause that imports its class lazily raises the import error in place of the one being handled
+        src = open(sv.__file__, encoding="utf-8").read()
+        self.assertIn("from clark.platform import NotBuiltYet", src)
+        self.assertNotIn('except importlib.import_module', src)
+        self.assertIs(sv.NotBuiltYet, pl.NotBuiltYet)
+
 
 if __name__ == "__main__":
     unittest.main()
