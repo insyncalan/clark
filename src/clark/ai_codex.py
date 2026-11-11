@@ -164,9 +164,12 @@ class CodexCommand(ask_claude.ClaudeCommand):
 
     def command(self):
         if self.walled and home_problem(own_home()):
+            self.failed = "odd_home"
             return None, ODD_HOME
         got, why = super().command()
         if got is None:
+            if self.untested and self.failed == "version_flags":
+                self.failed = "untested"
             return None, {ask_claude.NOT_INSTALLED: NOT_INSTALLED, ask_claude.NOT_NATIVE: NOT_NATIVE,
                           ask_claude.CANT_USE: UNTESTED if self.untested else CANT_USE}.get(why, why)
         return got, None
@@ -187,6 +190,11 @@ class CodexCommand(ask_claude.ClaudeCommand):
         return set(NEEDED_FLAGS) <= ask_claude.listed_flags(out.decode("utf-8", "replace"))
 
     def login_problem(self, path):
+        why = self._login_problem(path)
+        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why == NOT_SIGNED_IN else "login_unreadable")
+        return why
+
+    def _login_problem(self, path):
         status, out, code = platform.run_stoppable([str(path), "login", "status"], b"", self.env, self.check_limit, ask_claude.MAX_AUTH,
                                                     prefix=PREFIX, tmp_names=TMP_NAMES, merge_err=True)     # it says this on standard error
         if status not in ("ok", "failed") or code is None:

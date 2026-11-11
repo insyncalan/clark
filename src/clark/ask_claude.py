@@ -187,21 +187,22 @@ def _ancestor_problem(folder):
     return False
 
 
-def native_problem(real, roots):
+def native_reason(real, roots):
     """None when `real` (a resolved absolute path) is a Mac program this user owns that nobody else can change, inside `roots`,
-    in a folder nobody else can write to, below folders nobody else can use to swap the path; otherwise True. Reads the first
-    four bytes only."""
+    in a folder nobody else can write to, below folders nobody else can use to swap the path. Otherwise which check failed, as a
+    short code: "unreadable", "owner" (wrong owner, not a plain runnable file, writable by others, outside the allowed folders)
+    or "not_mac" (the first four bytes are not a Mac program's). Reads the first four bytes only."""
     try:
         st = os.stat(str(real), follow_symlinks=False)
         folder = os.stat(str(real.parent))
     except OSError:
-        return True
+        return "unreadable"
     if not stat.S_ISREG(st.st_mode) or not (st.st_mode & stat.S_IXUSR) or st.st_uid != os.getuid():
-        return True
+        return "owner"
     if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) or folder.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
-        return True
+        return "owner"
     if not _inside(real, roots) or _ancestor_problem(real.parent):
-        return True
+        return "owner"
     try:
         fd = os.open(str(real), os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0))
         try:
@@ -209,12 +210,23 @@ def native_problem(real, roots):
         finally:
             os.close(fd)
     except OSError:
-        return True
-    return None if head in MACH_O else True
+        return "unreadable"
+    return None if head in MACH_O else "not_mac"
+
+
+def native_problem(real, roots):
+    """None when `real` passes every check of native_reason, otherwise True."""
+    return None if native_reason(real, roots) is None else True
 
 
 def find_command(places=PLACES, roots=None):
     """(the resolved absolute Path of the command, None), or (None, plain reason). The first place that holds anything decides."""
+    path, why, _code = find_checked(places, roots)
+    return path, why
+
+
+def find_checked(places=PLACES, roots=None):
+    """find_command with a third item: the short code of the check that failed (None when it was found)."""
     roots = roots_for() if roots is None else tuple(roots)
     for place in places:
         p = Path(os.path.expanduser(place))
@@ -223,11 +235,11 @@ def find_command(places=PLACES, roots=None):
         try:
             real = p.resolve(strict=True)
         except (OSError, RuntimeError):
-            return None, NOT_NATIVE
+            return None, NOT_NATIVE, "unreadable"
         if native_problem(real, roots):
-            return None, NOT_NATIVE
-        return real, None
-    return None, NOT_INSTALLED
+            return None, NOT_NATIVE, native_reason(real, roots) or "owner"
+        return real, None, None
+    return None, NOT_INSTALLED, "not_found"
 
 
 def listed_flags(text):
@@ -354,23 +366,30 @@ class ClaudeCommand(ask.Provider):
         self.owner = None                      # who asked for the run now going (ask.Request.owner), set and cleared under the guard
         self.model_listed = False              # #54: whether the checked command's --help lists MODEL_FLAG
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
+        self.failed = None                     # the short code of the check that last failed (see command and login_problem), None when none did
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
     def command(self):
         """(path, None) when the command is found, native and passes the version and flag check, else (None, plain reason)."""
+        self.failed = None
         if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's
+            self.failed = "container" if platform.container_mode() else "not_mac_os"
             return None, MAC_ONLY
-        path, why = find_command(self.places, self.roots)
+        path, why, code = find_checked(self.places, self.roots)
         if path is None:
+            self.failed = code
             return None, why
         try:
             st = path.stat()
             key = (str(path), st.st_size, st.st_mtime_ns, st.st_ino, st.st_dev)
         except OSError:
+            self.failed = "not_found"
             return None, NOT_INSTALLED
         if key not in self.checked:
             self.checked = {key: self._flags_ok(path)}
+        if not self.checked[key]:
+            self.failed = "version_flags"
         return (path, None) if self.checked[key] else (None, CANT_USE)
 
     def _flags_ok(self, path):
@@ -385,7 +404,13 @@ class ClaudeCommand(ask.Provider):
         return set(NEEDED_FLAGS) <= listed
 
     def login_problem(self, path):
-        """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question."""
+        """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question.
+        The check that failed is kept in `failed`."""
+        why = self._login_problem(path)
+        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why in (NOT_SIGNED_IN, OTHER_LOGIN) else "login_unreadable")
+        return why
+
+    def _login_problem(self, path):
         status, out, code = run([str(path), *AUTH_ARGS], b"", self.env, self.check_limit, MAX_AUTH)
         if status not in ("ok", "failed") or code is None:
             return CANT_USE
