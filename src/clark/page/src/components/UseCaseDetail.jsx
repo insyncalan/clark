@@ -21,6 +21,7 @@ import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
+import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -257,7 +258,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
                     <li key={r.id}>
                       <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
                         <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${pill.class}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );

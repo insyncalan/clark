@@ -93,7 +93,12 @@ class LauncherScript(unittest.TestCase):
         text = self.command.read_text(encoding="utf-8")
         self.assertIn('export CLARK_TYPED="bash clark.command"\n', text)
         self.assertLess(text.index("export CLARK_TYPED"), text.index("case \"$1\" in"))
-        self.assertEqual(0o755, stat.S_IMODE(self.command.stat().st_mode))
+        # git checks the file out as 0777 minus the caller's umask, so the on-disk group/other bits vary
+        # (775 under umask 002, 755 under 022). What the product sets is the committed mode, and the owner bits.
+        self.assertEqual(0o700, stat.S_IMODE(self.command.stat().st_mode) & 0o700)
+        tracked = subprocess.run(["git", "ls-files", "-s", "clark.command"], cwd=str(ROOT), capture_output=True, text=True)
+        if tracked.returncode == 0 and tracked.stdout:
+            self.assertEqual("100755", tracked.stdout.split()[0])
         self.assertEqual(0, subprocess.run(["bash", "-n", str(self.command)], capture_output=True).returncode)
 
     def test_the_commands_it_forwards_say_bash_clark_command(self):
