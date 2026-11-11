@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_docx_graphics
 The pictures come from src/clark/png_draw.py (a PNG writer in zlib and struct) and src/clark/docx_graphics.py (shapes and design-token
-colours only, and from #1036 the lane names and month labels drawn as pixels with a built-in 5x7 font). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
+colours, and the words of a lane name or a month drawn as pixels with a built-in 5x7 font). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
 exactly the right size); the pixels are the token colours (Achieved green, Late red, a progress bar's done part, the Health segment,
 the Today line where its date is); the .docx holds the picture as a media part with a relationship, a content type and an inline
 drawing, read with the zip and an XML parser only; alt text is made of words the report already shows; hostile rows (none, garbage
@@ -327,7 +327,7 @@ class Labels(unittest.TestCase):
         w, h, palette, rows = read_png(png)
         self.assertEqual(self.ink(png, 0, g.LABEL_W, 0, g.TOP), 0)                       # the month band holds no lane name
         self.assertLessEqual(max(x for y in range(g.TOP, g.TOP + 3 * g.LANE) for x in range(g.LABEL_W)
-                                 if palette[rows[y][x]] == tok()["text"]), g.PAD + g.LABEL_MAX * 12)
+                                 if palette[rows[y][x]] == tok()["text"]), g.PAD + g.text_width("W" * g.LABEL_MAX))
 
     def test_hostile_names_are_only_pixels_and_never_stop_the_picture(self):
         for name in ('"/><w:p>INJECTED</w:p>', "\u05e9\u05dc\u05d5\u05dd \u202e abc", "\x00\x1b[31m", "&amp; <b>", "\U0001f600" * 50, "a\nb\tc"):

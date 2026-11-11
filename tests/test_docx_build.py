@@ -122,6 +122,22 @@ class HostileHealthAndStatus(unittest.TestCase):
                 self.assertEqual([r["colour"] for r in rows], [None] * len(rows))      # no colour at all, not a grey one
 
 
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
+
+
 class Repeatable(unittest.TestCase):
     def test_the_same_rows_give_the_same_bytes(self):
         a = docx_build.build(published())
