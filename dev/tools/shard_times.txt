@@ -76,7 +76,7 @@ test_blank_lines.py 1.4
 test_board.py 10.8
 test_board_columns.py 45.9
 test_brand.py 0.6
-test_brand_backdrop.py 30.0
+test_brand_backdrop.py 212.0
 test_brand_circle.py 7.1
 test_brand_follow_e2e.py 25.5
 test_brand_page.py 14.7
