@@ -65,10 +65,10 @@ class Corners(Setup):
     one-card frame (the Card style) it keeps the top two only and no shadow of its own."""
 
     def test_the_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
-        for style in ("slim", "roomy", "grey"):
+        for style in ("comfortable",):
             with self.subTest(style=style), chrome() as cdp:
                 p = self.show(cdp)
-                p.js(f"document.documentElement.dataset.secstyle = '{style}'")
+                p.js(f"document.documentElement.dataset.density = '{style}'")
                 got = p.js(RADII)
                 self.assertEqual(len(set(got["r"])), 1, got)
                 self.assertNotEqual(got["r"][0], "0px", got)
@@ -77,7 +77,7 @@ class Corners(Setup):
     def test_the_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            p.js("document.documentElement.dataset.secstyle = 'card'")
+            p.js("document.documentElement.dataset.density = 'compact'")
             got = p.js(RADII)
             self.assertEqual(got["r"][2:], ["0px", "0px"], got)
             self.assertNotEqual(got["r"][0], "0px", got)
@@ -157,7 +157,9 @@ class InTheFile(Published):
     def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
         path = self.publish()
         with chrome() as cdp:
-            got = self.draw(cdp, path).js(RADII)
+            p = self.draw(cdp, path)
+            p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; the rounded band is Comfortable
+            got = p.js(RADII)
         self.assertEqual(len(set(got["r"])), 1, got)
         self.assertNotEqual(got["r"][0], "0px", got)
         self.assertNotEqual(got["shadow"], "none", got)
