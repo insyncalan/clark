@@ -201,6 +201,18 @@ class Layering(unittest.TestCase):
             stray.unlink()
 
 
+OLD_SECTION_WORDS = {"slim": "comfortable", "roomy": "comfortable", "grey": "compact", "card": "compact"}
+
+
+def density_for(section_style):
+    """Item 1025: the four old section words onto the two densities (the page's bridge sends roomy for Comfortable and card for Compact).
+    A word that is none of the four is a mistake in the test, not Compact: it raises instead of quietly meaning something else."""
+    try:
+        return OLD_SECTION_WORDS[section_style]
+    except KeyError:
+        raise ValueError("unknown section style %r; use one of %s or None" % (section_style, sorted(OLD_SECTION_WORDS))) from None
+
+
 def navigate(cdp, port, hash_="", section_style="slim"):
     """Open the page. The layout tests were written when Slim gaps was the standard section style; row 667 made One card the standard, so
     a test that measures a layout opens the page with Slim gaps remembered (as a person who chose it would have), unless it says
@@ -211,7 +223,7 @@ def navigate(cdp, port, hash_="", section_style="slim"):
     cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
     if section_style:
         cdp.call("Page.enable", {}, sid)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.density')) localStorage.setItem('clark.density', %r); } catch (e) {}" % ("comfortable" if section_style == "slim" else "compact")}, sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { if (!localStorage.getItem('clark.density')) localStorage.setItem('clark.density', %r); } catch (e) {}" % density_for(section_style)}, sid)
     cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
     return sid
 
@@ -221,6 +233,15 @@ DATA = {"ABC": {"project": {"code": "ABC", "name": "Example Programme", "health"
                 "milestones": [{"id": "ABC-M-001", "name": "Pilot live"}], "workstreams": [], "use_cases": [], "links": [],
                 "actions": [{"id": "ABC-A-001", "description": "Agree the cut-over plan"}], "raid": [], "decisions": [],
                 "labels": {}}}
+
+
+class SectionWordBridge(unittest.TestCase):
+    def test_each_old_section_word_maps_and_an_unknown_one_raises(self):
+        self.assertEqual({w: density_for(w) for w in ("slim", "roomy", "grey", "card")},
+                         {"slim": "comfortable", "roomy": "comfortable", "grey": "compact", "card": "compact"})
+        for bad in ("cards", "Slim", "bogus", "one card"):
+            with self.assertRaises(ValueError):
+                density_for(bad)
 
 
 class RealBrowser(unittest.TestCase):
