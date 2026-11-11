@@ -70,7 +70,7 @@ class Mutants(Base):
             self.motion(cdp, p, "no-preference")
             self.make_toast(p)
             p.js("document.querySelector('.toast [data-undo]').focus()")
-            time.sleep(0.5)
+            p.until("document.activeElement === document.querySelector('.toast [data-undo]')", "focus is on Undo", 5)
             w1 = p.js(f"document.querySelector('{BAR}').getBoundingClientRect().width")
             time.sleep(1.0)
             w2 = p.js(f"document.querySelector('{BAR}').getBoundingClientRect().width")

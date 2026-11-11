@@ -24,8 +24,9 @@ CARDS = [
 
 PROBE = """((headId, sels) => {
   const h = document.getElementById(headId);
-  const card = (h && h.closest('section')) || h;
-  if (!card) return null;
+  if (!h) return null;
+  const card = h.closest('section');
+  if (!card) return {noSection: true};
   card.scrollIntoView({block: 'start'});
   const root = document.documentElement, cr = card.getBoundingClientRect();
   const out = {doc_over: root.scrollWidth - root.clientWidth, card_over: card.scrollWidth - card.clientWidth, card_right: cr.right, win: root.clientWidth,
@@ -56,6 +57,7 @@ class CardsWidths(Base):
                     with self.subTest(width=w, card=name):
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
                         self.assertIsNotNone(got, name + ": the card is on the Settings page")
+                        self.assertNotIn("noSection", got, name + ": the heading is inside a section (a card)")
                         self.assertLessEqual(got["doc_over"], 0, name + ": the page scrolls sideways")
                         self.assertLessEqual(got["card_over"], 1, name + ": the card scrolls sideways")
                         self.assertEqual(got["wide"], [], name + ": something sticks out past the card's right edge")
