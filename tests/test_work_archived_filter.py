@@ -101,6 +101,38 @@ class ArchivedFilter(Base):
             self.until(cdp, sid, "!document.querySelector('#peek-archived')", "the peek shut")
             self.until(cdp, sid, f"document.activeElement && document.activeElement.dataset.archId === '{self.gone[1]}'", "the focus on the row")
 
+    def test_is_archived_not_and_with_a_search_word(self):
+        from test_server import chrome
+        for width in WIDTHS:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.show(cdp, sid)
+                set_line(cdp, sid, "-is:archived")
+                self.until(cdp, sid, "!document.querySelector('#archived-list') && !!document.querySelector('#work-list tr[data-id]')", "the live list for -is:archived")
+                for ref in self.gone:
+                    self.assertFalse(cdp.js("!!document.querySelector('#work-list tr[data-id=\"%s\"]')" % ref, sid), "no archived row in the live list")
+                set_line(cdp, sid, "is:archived supplier")
+                self.until(cdp, sid, "document.querySelectorAll('#archived-list tr.arch-row').length === 1", "only the archived row that has the word")
+                self.assertEqual(cdp.js("document.querySelector('#archived-list tr.arch-row').dataset.archId", sid), self.gone[1])
+                set_line(cdp, sid, "is:archived zzzznomatch")
+                self.until(cdp, sid, "document.querySelectorAll('#archived-list tr.arch-row').length === 0 && !!document.querySelector('#archived-list')", "no archived row matches")
+
+    def test_known_limit_a_project_with_every_item_archived_has_no_filter_line_so_no_way_to_type_is_archived(self):
+        """Pins today's behaviour (a known limit, reported to the owner): the filter line is drawn only when the project has a live work
+        item, so a project whose items are ALL archived shows the empty-project sentence and no box to type is:archived into."""
+        from test_server import chrome
+        with self.store.step("dashboard", USER) as st:
+            for t in ("actions", "raid", "decisions"):
+                for r in self.data[t]:
+                    if r["id"] not in self.gone:
+                        st.archive("actions" if "-A-" in r["id"] else ("decisions" if "-D-" in r["id"] else "raid"), r["id"])
+        for width in WIDTHS:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width, wait_for="#work")
+                self.until(cdp, sid, "/no work items yet/.test(document.querySelector('#work').textContent)", "the empty-project sentence")
+                self.assertFalse(cdp.js("!!document.querySelector('#fline-input')", sid), "known limit: no filter line to type is:archived into")
+                self.assertFalse(cdp.js("!!document.querySelector('#archived-list')", sid))
+
     def test_a_published_file_has_no_archived_row_no_pill_and_no_archived_peek(self):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
         out = Path(publish.publish(self.store, "ABC", folder, by_user=USER, now="2026-10-29", branding=tempfile.mkdtemp())["path"])
