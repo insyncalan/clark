@@ -2694,7 +2694,7 @@
      "pic": "publish-menu"
     },
     {
-     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link, Settings, Publishing, takes you to Settings to set one.",
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link, Settings, Folder, takes you to Settings to set one.",
      "pic": "publish-dialog"
     },
     {
