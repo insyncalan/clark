@@ -308,6 +308,7 @@ class WordingRound(unittest.TestCase):
     def test_no_results_does_not_offer_ask_clark_yet(self):                                  # MEDIUM
         self.assertNotRegex(re.search(r"export const noResults.*?\}\);", LOGIC, re.S).group(0), r'hint: "[^"]*ask clark')
 
+
 class UseCaseStatuses(unittest.TestCase):
     """#412: Help names the four use case statuses the store allows, in its order, in both places it lists them."""
 

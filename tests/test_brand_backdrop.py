@@ -20,13 +20,13 @@ import _backdrop_pics as pics
 import _testpage as testpage
 from _paths import SRC
 from _publish import PublishedFile
-from test_glance_page import Setup
+from test_glance_page import plant
 from test_report_editor import Base, Pg
 from test_server import chrome, wait
 
 import shutil
 
-from _demo import USER
+from _demo import USER, DemoStore
 from clark import page, publish as pm
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
@@ -330,11 +330,16 @@ def data_tokens(png):
     return ':root { --image-cover: url("data:image/png;base64,%s"); }' % base64.b64encode(png).decode()
 
 
-class Pub(PublishedFile, Setup):
+class Pub(PublishedFile, unittest.TestCase):
     """A real file published from a real store, with a brand folder that is ours to change, opened from file://."""
 
     def setUp(self):
-        super().setUp()
+        # a store and the rows, nothing more: the file is opened from file:// and no test here asks a server for anything, so none is
+        # started (one that stalls on starting or on closing took a test that never touches it past 700 s)
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        plant(self)
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.brand_dir = Path(tmp.name)

@@ -1162,7 +1162,7 @@
        "**Raised**: when the item came in, from its first change in the history. Raised and Last reviewed are in the peek of an open action, risk, issue or decision.",
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
-       "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:quiet** or **is:incomplete** in the filter line, or save either as a view.",
+       "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:** in the filter line and pick it from the list, or save either as a view.",
        "14 days is the default. To change it for this project, open **Settings**, then **Reports**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],

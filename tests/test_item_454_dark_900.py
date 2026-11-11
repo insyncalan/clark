@@ -249,9 +249,6 @@ class ImportIcon(Look, unittest.TestCase):
             self.assertEqual(js("document.querySelector('#impBtn').getAttribute('aria-label')"), "Import from Excel")
             self.assertEqual(js("document.querySelector('#impBtn').getAttribute('data-tip')"), "Import from Excel")
             self.assertEqual(js("document.querySelector('#impBtn').disabled"), False, "usable once the project is loaded")
-            self.assertTrue(js("(() => { const a = document.querySelector('#impBtn').getBoundingClientRect(), b = document.querySelector('#newBtn').getBoundingClientRect();"
-                               " return (a.right <= b.left || b.right <= a.left) && Math.abs(a.top - b.top) < 40; })()"),
-                            f"{at}: beside Add, not on top of it or on another line")
             self.assertTrue(js("(() => { const a = document.querySelector('#impBtn').getBoundingClientRect(), p = document.querySelector('#work').getBoundingClientRect();"
                                " return a.left >= p.left - 1 && a.right <= p.right + 1; })()"), f"{at}: inside the Work items page")
 

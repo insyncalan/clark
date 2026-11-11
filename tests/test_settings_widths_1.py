@@ -20,7 +20,9 @@ CARDS = [("Asking", "claude-ai", "ask-settings-h", 1), ("Backups", "backups", "s
 LOOK = """((id) => {
   const e = document.getElementById(id);
   if (!e) return null;
-  const card = e.closest('section') || e, r = card.getBoundingClientRect();
+  const card = e.closest('section');
+  if (!card) return {noSection: true};
+  const r = card.getBoundingClientRect();
   const seen = [...card.querySelectorAll('button, input:not([type=hidden]), select, textarea, a[href]')].filter(c => {
     const b = c.getBoundingClientRect(), s = getComputedStyle(c);
     return b.width > 0 && b.height > 0 && s.visibility !== 'hidden' && s.display !== 'none';
@@ -43,6 +45,7 @@ class SettingsWidthsOne(Base):
                         self.open_settings(p, w, page)
                         look = p.js(LOOK % ident)
                         self.assertIsNotNone(look, f"{name}: the card is on the Settings page at {w}")
+                        self.assertNotIn("noSection", look, f"{name}: the id is inside a section (a card), not a bare heading at {w}")
                         self.assertLessEqual(look["page"], 0, f"{name}: the page does not scroll sideways at {w}")
                         self.assertLessEqual(look["inner"], 0, f"{name}: the card does not scroll sideways inside itself at {w}")
                         self.assertGreaterEqual(look["left"], 0, f"{name}: the card starts inside the window at {w}")
