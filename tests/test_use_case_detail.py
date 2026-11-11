@@ -412,7 +412,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('.lab')].map(e => e.textContent.trim())"), ["Commitment"])
                     self.assertEqual(js(f"{menu}.firstElementChild.querySelector('.lab') !== null || {menu}.firstElementChild.classList.contains('lab')"), True, "the heading is first")
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('[role=menuitemradio]')].map(e => e.textContent.replace('\u2713', '').trim())"),
-                                     ["Candidate", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
+                                     ["Planned 2026", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
                     self.assertEqual(js(f"{menu}.querySelector('[aria-checked=true]').textContent.replace('\u2713', '').trim()"), "Committed")
                     shots = os.environ.get("CLARK_SHOTS")
                     if shots:
@@ -501,12 +501,12 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
             type_words("done")
             self.until(cdp, sid, "!!document.querySelector('[data-sneak-confirm]')", "Done asks first, again")
-            type_words("high risk, candidate, headline: Vendor is late")
+            type_words("high risk, planned 2026, headline: Vendor is late")
             self.until(cdp, sid, "document.querySelectorAll('.sn-list li').length === 3", "three lines")
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "applied")
             row = self.row()
-            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Candidate", "Vendor is late", before + 1))
+            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Planned 2026", "Vendor is late", before + 1))
             self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "Enter closes the box")
             self.undo(cdp, sid)
             row = self.row()
