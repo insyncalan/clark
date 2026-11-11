@@ -54,8 +54,8 @@ class Pg:
         self.t, self.cdp, self.sid = test, cdp, sid
 
     @classmethod
-    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", section_style="slim"):
-        return cls(test, cdp, navigate(cdp, port, for_project(hash_), section_style=section_style))
+    def at(cls, test, cdp, port, hash_="#dashboard&p=ABC", density="comfortable"):
+        return cls(test, cdp, navigate(cdp, port, for_project(hash_), density=density))
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)

@@ -46,7 +46,7 @@ class Setup(Base):
         plant(self)
 
     def show(self, cdp, width=1400, dark=False, hash_="#dashboard&p=ABC", settings=False, standard=False):
-        p = Pg.at(self, cdp, self.s.port, hash_, section_style=None if standard else "slim")      # standard=True: the style a person who chose nothing sees (row 667)
+        p = Pg.at(self, cdp, self.s.port, hash_, density=None if standard else "comfortable")      # standard=True: the style a person who chose nothing sees (row 667)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused, so blur() fires nothing
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         if dark:

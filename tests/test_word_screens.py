@@ -82,7 +82,7 @@ class Screens(unittest.TestCase):
 
     # ---- the browser ----
     def page(self, cdp, width=1400, scheme="light", edit=False, standard=False):
-        sid = navigate(cdp, self.rig.httpd.server_port, "#dashboard&p=PUB", section_style=None if standard else "slim")      # standard=True: nothing is remembered, as for a person who chose nothing (row 667)
+        sid = navigate(cdp, self.rig.httpd.server_port, "#dashboard&p=PUB", density=None if standard else "comfortable")      # standard=True: nothing is remembered, as for a person who chose nothing (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         p.width(width)
