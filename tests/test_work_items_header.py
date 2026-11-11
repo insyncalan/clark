@@ -409,6 +409,22 @@ class Header(Base):
             self.assertGreaterEqual(got["ratio"], 3.0, f"icon contrast (non-text 3:1): {got}")
         self.each(check)
 
+    def test_row_1072_mut_group_by_has_the_switch_margin_and_box(self):
+        def check(cdp, sid, width):
+            got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), sw = document.querySelector('#work .lsw'), cs = getComputedStyle(g);
+              return JSON.stringify({gm: cs.marginBottom, sm: getComputedStyle(sw).marginBottom, display: cs.display, box: cs.boxSizing}); })()""", sid))
+            self.assertEqual(got["gm"], got["sm"], f"the same bottom margin as the Table and Board switch: {got}")
+            self.assertNotEqual(got["gm"], "0px", got)
+            self.assertEqual(got["display"], "inline-grid", got)
+            self.assertEqual(got["box"], "border-box", got)
+        self.each(check)
+
+    def test_row_1072_mut_help_never_names_the_view_menu_in_any_case(self):
+        import pathlib, re
+        txt = (pathlib.Path(__file__).resolve().parent.parent / "src/clark/page/src/help/helpContent.json").read_text(encoding="utf-8")
+        hits = re.findall(r"\bView\*{0,2} menu", txt, flags=re.I)
+        self.assertEqual(hits, [], "help still names the removed View menu")
+
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
