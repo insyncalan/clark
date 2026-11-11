@@ -377,7 +377,7 @@ class ClaudeCommand(ask.Provider):
             self.failed = "container"
             return None, platform.needs_mac_words()
         if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's
-            self.failed = "container" if platform.container_mode() else "not_mac_os"
+            self.failed = "not_mac_os"      # the container case returned above, so this is a non-Mac computer
             return None, MAC_ONLY
         path, why, code = find_checked(self.places, self.roots)
         if path is None:

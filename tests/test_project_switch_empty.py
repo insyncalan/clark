@@ -1,22 +1,29 @@
-"""Row 1092 read fix: the project button's menu is never empty. With no project listed and none open it has one row that opens Settings (source pins, no browser)."""
-import re
+"""Row 1092 read fix: with no project listed and none open the project button's menu holds only the list, so with nothing to list the button opens no menu and says no extra words (no row, no Settings link) (in a real browser at 1400 and 900; the old source-only pins are gone).
+
+Run: python3 dev/run_tests.py test_project_switch_empty
+"""
 import unittest
-from pathlib import Path
 
-SRC = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "edit" / "ProjectSwitch.jsx").read_text(encoding="utf-8")
+from test_publish_dialog import Base, WIDTHS
+from test_server import chrome, wait
 
 
-class EmptyMenu(unittest.TestCase):
-    def test_an_empty_list_gets_one_row_that_says_where_a_project_is_added(self):
-        self.assertRegex(SRC, r'none \? \[\{ id: "__settings", name: "No project yet\. Open Settings to add one\." \}\]')
-
-    def test_that_row_opens_settings_and_never_calls_setProject(self):
-        m = re.search(r"const pick = \(id\) => \{(.*?)\n  \};", SRC, re.S)
-        self.assertIsNotNone(m)
-        body = m.group(1)
-        self.assertLess(body.index('"__settings"'), body.index("setProject(id)"))
-        self.assertIn('navigate({ view: "settings", project: project.value })', body)
-        self.assertIn("return;", body.split("setProject(id)")[0])
+class EmptyMenu(Base):
+    def test_C_an_empty_project_list_shows_nothing_but_the_list(self):
+        self.rig.httpd.projects = lambda archived=False: []
+        with chrome() as cdp:
+            p = self.page(cdp, "#settings")
+            p.until("document.querySelector('#project-name') && document.querySelector('#project-name').tagName === 'BUTTON'", "the menu button")
+            self.assertEqual(tuple(WIDTHS), (1400, 900))
+            for w in WIDTHS:
+                p.width(w)
+                p.js("document.querySelector('#project-name').click()")
+                wait(lambda: False, 1)                      # a second for a menu that would wrongly open
+                self.assertEqual(p.js("!!document.querySelector('#project-menu')"), False, "nothing opens: the menu holds only the list, and the list is empty")
+                self.assertEqual(p.js("document.querySelector('#project-name').getAttribute('aria-expanded') === 'true'"), False)
+                body = p.js("document.body.textContent")
+                self.assertNotIn("No project yet", body)
+                self.assertNotIn("Open Settings to add one", body)
 
 
 if __name__ == "__main__":

@@ -726,3 +726,4 @@ test_project_switch_empty.py 30.0
 test_settings_advanced.py 30.0
 test_settings_keys_900.py 30.0
 test_sizes_panels.py 30.0
+test_ask_claude_failed_codes.py 30.0
