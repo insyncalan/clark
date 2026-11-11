@@ -71,7 +71,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "20")
+            self.assertEqual(version(path), "21")
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 0)     # a migration is not a step: no Undo
             s.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-009', 'gantt', 'Gantt', 9)")
@@ -143,7 +143,7 @@ class Migrating(unittest.TestCase):
                 open_store(path, onedrive_roots=[])
         self.assertEqual(dump(path), was)
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), "20")
+        self.assertEqual(version(path), "21")
 
     def test_a_layout_17_file_is_brought_to_19_with_the_copy_first_every_row_kept_idempotent_and_refused_by_an_older_clark(self):
         """In-clark update across both Gantt steps (18 then 19) in one open."""
@@ -159,7 +159,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "20")
+            self.assertEqual(version(path), "21")
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM gantt_lines").fetchone()[0], 0)
             self.assertEqual(s.read("projects", ref="ABC")["gantt_tab_name"], "Gantt")
