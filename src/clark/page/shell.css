@@ -380,10 +380,6 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .fopt .c { margin-left: auto; font-size: var(--size-small); color: var(--text-muted); }
 .fgloss { flex-basis: 100%; font-size: var(--size-small); color: var(--text); }   /* row 845: the plain meaning of the chip the pointer or focus is on */
 .fgloss[hidden] { display: none; }
-.fhl { font-size: var(--size-small); color: var(--text-muted); }
-.fhint { all: unset; box-sizing: border-box; padding: 2px 10px; min-height: 24px; display: inline-flex; align-items: center; border: 1px solid var(--border); border-radius: var(--radius-pill); cursor: pointer; font-size: var(--size-small); color: var(--text-muted); background: var(--surface); }
-.fhint:hover { background: var(--grey-100); color: var(--text); }
-.fhint:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fmsg { margin: 6px 0 0; font-size: var(--size-small); color: var(--status-amber-text); }
 .fmsg:empty { display: none; }
 .fline.bad, .fline.bad:focus-within { border-color: var(--status-red); box-shadow: 0 0 0 1px var(--status-red); }   /* row 846: a word the line cannot use turns the box red */
@@ -2049,7 +2045,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .fvacts { display: flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }   /* row 844: Save view and Discard changes beside the tabs while the dot shows */
 .vnew:hover { color: var(--text); }
 .vnew:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; border-radius: var(--radius-sm); }
-.lsw { flex: none; margin-bottom: var(--space-1); }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
+.lsw { flex: none; }   /* row 812: the Table and Board two-icon switch, a .seg of two icon buttons */
 .lsw button { display: inline-grid; place-items: center; min-width: 40px; padding: var(--space-1) var(--space-3); }
 .lsw .i { width: 18px; height: 18px; }
 .btn.gbtn { box-sizing: border-box; display: inline-grid; place-items: center; min-width: 40px; min-height: 32px; padding: var(--space-1) calc(var(--space-3) - 1px); margin-bottom: var(--space-1); }   /* row 1072: Group by, one icon button the size of Table and Board */
@@ -2352,3 +2348,11 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @media (prefers-reduced-motion: reduce) and (min-width: 901px) {
   .toc-card, .toc.open .toc-card { transform: translate(0, -50%); }      /* the rail's card stays centred on the rail (only the slide is dropped) */
 }
+
+/* Row 1084: List, Board and Group by are icon buttons at the right end of the filter box line, each 28 px or more across. */
+.vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; padding-left: var(--space-2); }
+.fio { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
+.fio + .vicons { margin-left: 0; }
+.vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
+.btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
+.vgb .i { width: 18px; height: 18px; }
