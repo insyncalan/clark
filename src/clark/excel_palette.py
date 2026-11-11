@@ -21,12 +21,15 @@ from clark import look
 
 MIN_CONTRAST = 4.5
 MAX_FONT_NAME = 31      # Excel's limit for a font name
+# NOTE (row 1021): the status cells read the --tone-* tokens. A brand file that only sets the older --status-* names no longer restyles them
+# (it is ignored silently, as any name the export does not read); it sets --tone-red-text, --tone-red-tint ... to restyle the status cells.
 # (fill token, text token, what it draws), each checked at 4.5:1. The status pairs come from excel_colours.COLOURS.
 EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
+    ("tone-urgent", "white", "the Urgent tile's white letter"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
-    ("white", "status-red-text", "a late date"),
+    ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
     ("brand-navy", "grey-100", "the cover's subtitle"),
     ("grey-50", "brand-ink", "the cover's tiles"),
@@ -69,7 +72,7 @@ class Palette:
 
     @property
     def late_text(self):
-        return self.tokens["status-red-text"]
+        return self.tokens["tone-red-text"]
 
     def hexes(self, name):
         """(fill hex, text hex) for a colour name, as excel_colours.hexes."""

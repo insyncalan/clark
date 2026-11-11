@@ -172,9 +172,8 @@ function SettingsHead({ cards }) {
 }
 
 export function Settings({ tools }) {
-  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
-  const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
@@ -185,7 +184,7 @@ export function Settings({ tools }) {
   const Brands = tools && tools.Brands;                  // Brands (#944); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
-  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"];
+  const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
   const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
   const Feedback = tools && tools.Feedback;              // Feedback (#1069): a form that opens the user's mail app; Edit's page only
@@ -198,7 +197,6 @@ export function Settings({ tools }) {
       <div class="set-cards">
       {Profile ? <Profile /> : null}
       {ClientFolder ? <ClientFolder /> : null}
-      {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
       {ReviewDays ? <ReviewDays /> : null}
       {GanttSetting ? <GanttSetting /> : null}
