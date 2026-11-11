@@ -28,7 +28,7 @@ WANTED = {
     "peek.latest_update": "current", "milestone.description": "current",      # row 1005: the two peek fields that are the one rich editor now
     "textimage.text": "current",      # row 1005: the Text and picture section's text is the one rich editor now
     "movement.internal_note": "current", "glance.health_reason": "current", "linkcard.text": "current", "onedoc.text": "current", "callout.text": "current",      # row 1005: the Movement note and the At a glance Reason are the one rich editor now
-    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email",
+    "peek.item_text": "plain", "peek.risk_wording": "plain", "milestone.client_wording": "client_message", "email.draft": "email", "picture.caption": "plain",      # row 1005: a picture caption is the one editor, one plain line
 }
 RICH = ("section.body", "current.state", "usecase.standing", "notes.section", "peek.latest_update", "milestone.description", "textimage.text", "movement.internal_note", "glance.health_reason", "linkcard.text", "onedoc.text", "callout.text")
 # The section title is a one-line plain field and stays out of the AI.

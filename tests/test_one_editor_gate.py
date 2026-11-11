@@ -89,7 +89,8 @@ class Source(unittest.TestCase):
 
 # Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
 # of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
-MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason")}
+MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason"),
+         "edit/MilestonePeek.jsx": ("RichField", "the milestone Client wording and Description"), "edit/templates/pictureEdit.jsx": ("RichField", "the picture captions")}
 
 
 class MovedFields(unittest.TestCase):
@@ -104,6 +105,16 @@ class MovedFields(unittest.TestCase):
     def test_a_moved_field_reads_what_is_stored_through_the_page_twin_never_raw(self):
         for rel in MOVED:
             self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+
+    def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
+        """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
+        for rel in ("edit/MilestonePeek.jsx", "edit/templates/pictureEdit.jsx"):
+            self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertIn('<CaptionField section={section} field="caption"', text, rel)
+            self.assertNotIn('<LineField section={section} field="caption"', text, rel)
+        self.assertIn("CaptionField", (PAGE_SRC / "edit" / "templates" / "Gallery.jsx").read_text(encoding="utf-8"))
 
     def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
         glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
@@ -386,7 +397,7 @@ class PageGate(unittest.TestCase):
             sel = f"[data-id='{ref}']"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} [data-rich]\")"), 10), "the words are a rich field")
             self.assertEqual(js(f"document.querySelectorAll(\"{sel} textarea\").length"), 0, "no plain box for the words")
-            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich] p\")].map(function(e){{ return e.textContent; }})"),
+            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich=textimage] p\")].map(function(e){{ return e.textContent; }})"),
                              ["Old a < b & c", 'He said "yes"'])
             js(f"document.querySelector(\"{sel} [data-rich]\").click()")
             self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} .ProseMirror\")"), 10))

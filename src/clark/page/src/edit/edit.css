@@ -559,7 +559,7 @@ textarea.tpl-field { resize: vertical; }
    .tpl-edit is the typed notes block's (the same column); the picture fields and slots have their own names, apart from Key figures' slots. */
 .tpl-hint { margin: 0; }
 .tpl-pic-field { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
-.tpl-pic-field label, .tpl-side legend { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
+.tpl-pic-field label, .tpl-pic-lbl, .tpl-side legend { font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .tpl-pic-field input, .tpl-pic-field textarea { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .tpl-pic-field textarea { resize: vertical; line-height: var(--leading); }
 .tpl-pic-field input:focus-visible, .tpl-pic-field textarea:focus-visible, .tpl-side input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
