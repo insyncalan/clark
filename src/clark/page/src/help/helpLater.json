@@ -6,7 +6,6 @@
  },
  "howto": {
   "find-work-items": "work item filters",
-  "change-an-item-in-the-peek": "the peek",
   "choose-what-the-client-sees": "the client view",
   "import-and-export": "Import and Export",
   "use-the-tiles": "At a glance tiles",
@@ -27,7 +26,6 @@
  "reference": {
   "top-bar": "the project menu and profile circle",
   "dashboard": "the peek, Week ending and On this page",
-  "peek": "the peek",
   "picker": "the picker (nothing opens it yet)",
   "milestone-peek": "the milestone peek",
   "timeline-calendar": "timeline and calendar",
@@ -72,11 +70,6 @@
    "at": 16,
    "keys": "[[Mod+Z]]",
    "waits_for": "the editor"
-  },
-  {
-   "at": 17,
-   "keys": "Double-click",
-   "waits_for": "the peek"
   }
  ],
  "missing": {
