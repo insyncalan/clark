@@ -286,7 +286,7 @@
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
      "If clark refuses a file it says why in plain words and names the file. Choose the same file again once you have fixed it: **Read the file** comes on again."
     ],
-    "n": "The use case table in the Word report has a Commitment column.",
+    "n": "A brand's Word letterhead goes in its branding folder as word/template.docx; the report takes its page, header and footer.",
     "page": [
      "dashboard+edit"
     ]
