@@ -8,6 +8,7 @@ Run: python3 dev/run_tests.py test_publish_route
 import hashlib
 import http.client
 import json
+import os
 import tempfile
 import threading
 import unittest
@@ -312,6 +313,132 @@ class LocalNeverLandsInTheClientFolder(Base):
         sub.mkdir(parents=True)
         self.check(sub / "mine.html", to_client=False)
         self.check(sub / "mine.html", to_client=True)
+
+
+    def test_local_through_a_link_to_the_client_folder_is_refused(self):
+        """#1047: a link (as the folder, as a parent of it, or as the saved client folder) that leads into the client folder."""
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-client").symlink_to(self.rig.client, target_is_directory=True)
+        (self.rig.client / "Drafts").mkdir()
+        (links / "to-drafts-parent").symlink_to(self.rig.client, target_is_directory=True)
+        self.check(links / "to-client" / "mine.html", to_client=False)
+        self.check(links / "to-client" / "mine.html")
+        self.check(links / "to-drafts-parent" / "Drafts" / "mine.html")
+        # the client folder saved by its link, the Local file in the real folder
+        self.rig.set_folder(str(links / "to-client"))
+        self.check(self.rig.client / "mine.html", to_client=False)
+        self.check(self.rig.client / "Drafts" / "mine.html")
+
+    def test_a_link_to_somewhere_else_is_not_the_client_folder(self):
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-local").symlink_to(self.rig.local, target_is_directory=True)
+        self.rig.save_to = links / "to-local" / "mine.html"
+        status, got = self.rig.publish(to_client=False)
+        self.assertEqual((status, got["ok"]), (200, True), got)
+
+    def test_local_through_a_link_into_clarks_own_data_is_refused(self):
+        links = self.rig.root / "links"
+        links.mkdir()
+        (links / "to-data").symlink_to(self.rig.data_dir, target_is_directory=True)
+        self.rig.save_to = links / "to-data" / "mine.html"
+        before = self.rig.everything_written()
+        status, got = self.rig.publish(to_client=False)
+        self.assertNotEqual(status, 200, got)
+        self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before, []))
+
+
+    def test_a_link_inside_the_client_folder_that_leads_out_is_still_inside_as_written(self):
+        """#1047: the as-written check stands apart from the links-followed one."""
+        elsewhere = self.rig.root / "elsewhere"
+        elsewhere.mkdir()
+        (self.rig.client / "out").symlink_to(elsewhere, target_is_directory=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(self.rig.client / "out"), str(self.rig.client)))
+        self.assertFalse(publish_flow.folder_inside(None, str(elsewhere), str(self.rig.client)))
+
+    def test_a_disk_that_cannot_resolve_a_link_is_not_inside(self):
+        class Broken:
+            def realpath(self, path):
+                raise OSError("no disk")
+        self.assertFalse(publish_flow.folder_inside(Broken(), "/a/b", "/c"))
+        self.assertTrue(publish_flow.folder_inside(Broken(), "/c/b", "/c"))
+
+
+class HostileFolderInside(unittest.TestCase):
+    """#1047 hostile pass: folder_inside on edge inputs (empty, unicode, huge, NUL, loops, whole-name compare)."""
+
+    def setUp(self):
+        self.tmp = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, self.tmp, True)
+
+    def test_a_sibling_sharing_a_name_prefix_is_not_inside(self):
+        client = self.tmp / "Client"
+        (self.tmp / "Client-old").mkdir()
+        client.mkdir()
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "Client-old"), str(client)))
+        (self.tmp / "ClientLink").symlink_to(self.tmp / "Client-old", target_is_directory=True)
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "ClientLink"), str(client)))
+
+    def test_an_empty_client_folder_contains_nothing(self):
+        """A client folder that is not saved ('') must not make every Local folder count as inside it."""
+        self.assertFalse(publish_flow.folder_inside(None, str(self.tmp), ""))
+        self.assertFalse(publish_flow.folder_inside(None, "", str(self.tmp)))
+
+    def test_dotdot_and_trailing_slash_do_not_hide_the_client_folder(self):
+        client = self.tmp / "Client"
+        (client / "Sub").mkdir(parents=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(client / "Sub" / ".." / "Sub") + "/", str(client)))
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "x" / ".." / "Client" / "Sub"), str(client) + "/"))
+        self.assertFalse(publish_flow.folder_inside(None, str(client / ".." / "Other"), str(client)))
+
+    def test_unicode_hostile_huge_and_nul_paths_answer_false_never_raise(self):
+        client = self.tmp / "Cl\u00e9ment"
+        client.mkdir()
+        nfd = str(self.tmp / "Cle\u0301ment" / "x")                      # same name, other accent form
+        self.assertTrue(publish_flow.folder_inside(None, nfd, str(client)))
+        for bad in ("a\x00b", "\u202e" * 50, "/" + "d/" * 3000, "\ud800", "$(rm -rf ~)", "-rf", "\n"):
+            self.assertIn(publish_flow.folder_inside(None, bad, str(client)), (True, False), bad)
+            self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "none") + bad, str(client)), bad)
+
+    def test_a_link_loop_and_a_dangling_link_are_not_inside_and_do_not_hang(self):
+        client = self.tmp / "Client"
+        client.mkdir()
+        (self.tmp / "a").symlink_to(self.tmp / "b")
+        (self.tmp / "b").symlink_to(self.tmp / "a")
+        (self.tmp / "dangling").symlink_to(self.tmp / "nowhere")
+        for p in (self.tmp / "a" / "x", self.tmp / "dangling" / "x"):
+            self.assertFalse(publish_flow.folder_inside(None, str(p), str(client)), p)
+
+    def test_an_empty_folder_is_not_inside_the_working_directory(self):
+        """'' resolves to the working directory on the real disk; it must still be nowhere."""
+        self.assertFalse(publish_flow.folder_inside(None, "", os.getcwd()))
+
+    def test_dotdot_after_a_link_is_judged_both_as_written_and_with_links_followed(self):
+        deep = self.tmp / "deep"
+        (deep / "e").mkdir(parents=True)
+        (deep / "Client").mkdir()
+        (self.tmp / "Client").mkdir()
+        (self.tmp / "link").symlink_to(deep / "e", target_is_directory=True)
+        # as written (".." folded) the folder is the Client beside link; with the link followed it is deep/Client
+        written = self.tmp / "link" / ".." / "Client"
+        self.assertTrue(publish_flow.folder_inside(None, str(written), str(self.tmp / "Client")))
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "Client" / "x"), str(written)))
+        self.assertTrue(publish_flow.folder_inside(None, str(written), str(deep / "Client")))
+
+    def test_the_given_disk_resolves_links_not_the_real_one(self):
+        class Fake:
+            def realpath(self, path):
+                return path.replace("/virtual", "/c")
+        self.assertTrue(publish_flow.folder_inside(Fake(), "/virtual/b", "/c"))
+
+    def test_a_link_chain_two_deep_into_the_client_folder_is_inside(self):
+        client = self.tmp / "Client"
+        (client / "Deep").mkdir(parents=True)
+        (self.tmp / "l1").symlink_to(self.tmp / "l2", target_is_directory=True)
+        (self.tmp / "l2").symlink_to(client, target_is_directory=True)
+        self.assertTrue(publish_flow.folder_inside(None, str(self.tmp / "l1" / "Deep"), str(client)))
+        self.assertTrue(publish_flow.folder_inside(None, str(client / "Deep"), str(self.tmp / "l1")))
 
 
 class LocalNeverOverwritesClarksOwnFiles(Base):
