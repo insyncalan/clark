@@ -184,7 +184,7 @@ class Pure(Browser):
             R.format({view:'work', project:'PDF', s:'people'}), R.format({view:'settings', project:'PDF', s:'claude-ai'}),
             R.format(R.parse('#settings&p=PDF&s=backups'))])""")
         pages, people, bogus, other, twice, projects, escaped, upper, f1, f2, f3, f4, f5, round_trip = json.loads(got)
-        self.assertEqual(pages, ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"])
+        self.assertEqual(pages, ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "feedback", "version"])
         self.assertEqual([x["s"] for x in (people, bogus, other, twice, projects, escaped, upper)], ["people", "", "", "people", "", "people", ""],
                          "a known page is kept; an unknown one, another page's, Projects (plain) and another case are dropped; the first of a repeated key wins")
         self.assertEqual((f1, f2, f3, f4, f5, round_trip), ("#settings&p=PDF&s=people", "#settings&p=PDF", "#settings", "#work&p=PDF", "#settings&p=PDF&s=claude-ai",

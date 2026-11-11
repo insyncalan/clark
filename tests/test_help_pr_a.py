@@ -139,12 +139,12 @@ class SettingsChips(unittest.TestCase):
         names = re.findall(r'\["([a-z-]+)", "([^"]+)", \[[^\]]*\], "[\w-]+"\]', groups)
         self.assertEqual(names, [("projects", "Projects"), ("people", "People"), ("published", "Published reports"), ("profile", "Profile"), ("folder", "Folder"), ("brand", "Brand"),
                                  ("appearance", "Appearance"), ("reports", "Reports"), ("backups", "Backups"), ("export", "Export and import"), ("claude-ai", "Claude and AI"),
-                                 ("logs", "Logs and diagnostics"), ("version", "Version and updates")])
+                                 ("logs", "Logs and diagnostics"), ("feedback", "Feedback"), ("version", "Version and updates")])
         self.assertEqual(re.findall(r'^  \["([^"]+)", \[', groups, re.M), ["Everyday", "Publishing", "Look and feel", "Data and safety", "Advanced"])
         self.assertNotIn('""', "".join(n for _, n in names), "no page without a name")
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
         self.assertIn("Update", re.search(r'"version", "Version and updates", \["(\w+)", "Quit"\]', pages).group(1))
-        self.assertIn("Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced.", self.TEXT)
+        self.assertIn("Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics, Feedback and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced.", self.TEXT)
         self.assertIn('<nav class="set-menu"', views)
         self.assertNotIn("set-chip", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertNotIn("set-bar", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))

@@ -3,7 +3,7 @@
 still the row of buttons under the title; a later step turns that into one dropdown line; that is not tested here). Run: python3 dev/run_tests.py test_settings_head
 
 What is asserted: the title and the help line; an entry for each page (Projects, People, Published reports, Profile, Folder, Brand,
-Appearance, Reports, Backups, Export and import, Claude and AI, Logs and diagnostics, Version and updates) in five groups, and none for
+Appearance, Reports, Backups, Export and import, Claude and AI, Logs and diagnostics, Feedback, Version and updates) in five groups, and none for
 an old name; exactly one page is drawn and the other pages' headings are not; a click shows the page, puts the address on
 #settings&s=<page> and moves focus to the page's heading; Back and Forward step between pages; the keyboard does the same (arrows, Enter);
 the list stands at the left of the page at 1400 and 900 px, the page never
@@ -31,7 +31,7 @@ HELP = "Where reports are published, how clark looks for you, when an item count
 PAGES = [("Projects", "projects", "projects-h", "Projects"), ("People", "people", "people-h", "People"), ("Published reports", "published", "pubs-h", None),
          ("Profile", "profile", "profile-h", "Profile"), ("Folder", "folder", "client-folder-h", "Publishing"), ("Brand", "brand", "brands-h", "Brands"),
          ("Appearance", "appearance", "personal-h", "Personal"), ("Reports", "reports", "review-days-h", "Freshness"), ("Backups", "backups", "safety-h", "Backups"),
-         ("Export and import", "export", "data-card-h", "Data"), ("Claude and AI", "claude-ai", "ask-settings-h", "Claude and AI"), ("Logs and diagnostics", "logs", "diagnostics-h", "Logs and diagnostics"),
+         ("Export and import", "export", "data-card-h", "Data"), ("Claude and AI", "claude-ai", "ask-settings-h", "Claude and AI"), ("Logs and diagnostics", "logs", "diagnostics-h", "Logs and diagnostics"), ("Feedback", "feedback", "feedback-h", "Feedback"),
          ("Version and updates", "version", "update-h", "Version and updates")]
 RETIRED = ["Asking", "Personal", "Freshness", "Gantt", "Brands", "Client folder", "Publishing", "Data", "AI"]      # old chip names that are no entry now
 

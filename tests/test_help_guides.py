@@ -353,7 +353,7 @@ class PageKey(unittest.TestCase):
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 # item 1024d: the help line for each Settings page is titled by the page's name in the menu (Reports holds Freshness and Gantt together)
 SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Folder", "Personal": "Appearance", "ReviewDays": "Reports", "GanttSetting": "Reports",
-                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Export and import", "Update": "Version and updates", "Brands": "Brand", "Quit": "Quit",
+                  "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Export and import", "Update": "Version and updates", "Brands": "Brand", "Quit": "Quit", "Feedback": "Feedback",
                   "AskSettings": "Claude and AI"}
 SETTINGS_LEFT_OUT = {"PublishedPage"}      # the Published reports entry opens the page of its own (row 1087); it is not a Settings card
 PAGE_SRC = HELP.parent
@@ -407,7 +407,7 @@ class ContextText(unittest.TestCase):
                 self.assertNotIn("cards", c, page)
 
     def test_each_card_title_is_a_title_the_page_shows(self):
-        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Quit.jsx")
+        names = ("ClientFolder.jsx", "Personal.jsx", "ReviewDays.jsx", "GanttSetting.jsx", "Diagnostics.jsx", "People.jsx", "Safety.jsx", "PublishedReports.jsx", "Projects.jsx", "Data.jsx", "Brands.jsx", "Feedback.jsx", "Feedback.jsx", "Quit.jsx")
         code = " ".join((PAGE_SRC / "edit" / f).read_text(encoding="utf-8") for f in names)
         code += " " + (PAGE_SRC / "logic" / "safety.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "update.js").read_text(encoding="utf-8") + (PAGE_SRC / "logic" / "pastReports.js").read_text(encoding="utf-8")
         code += " " + (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")      # item 1024: the menu (edit/settingsPages.js) names the pages (Folder, Appearance, Reports, Export and import, Brand, Claude and AI)

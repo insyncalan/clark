@@ -1816,7 +1816,7 @@
     "b": [
      [
       "p",
-      "A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title): Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced. The page you are on is marked in the menu. Settings opens on Projects. Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project."
+      "A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title): Projects, People, Published reports and Profile; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics, Feedback and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced. The page you are on is marked in the menu. Settings opens on Projects. Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project."
      ],
      [
       "tbl",
@@ -1882,6 +1882,10 @@
         "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
        ],
        [
+        "Feedback",
+        "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
+       ],
+       [
         "Quit",
         "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it. It asks first: “Quit clark now? Nothing is left running. To start it again, open clark the way you did before.” Press **Quit clark** to confirm or **Cancel** to stay. After it stops, the page says how to start clark again."
        ]
@@ -1942,6 +1946,26 @@
        "The log holds only counts, times, item IDs and which part of clark was used. It never holds report text, names, email addresses or notes, and nothing is sent anywhere. Each day has its own file, 5 MB at most; today and the six days before it are kept. **Open folder** shows them.",
        "**Copy diagnostics** puts a plain-text report on the clipboard: the version, the system, the log level, a few safe settings, counts, the errors of the last 7 days and the last 200 log lines. It never holds a name, email address, project name or report text, so it can go in a message.",
        "**Errors in the last 7 days** lists what went wrong, how many times and when last, or says None."
+      ]
+     ]
+    ],
+    "page": [
+     "settings"
+    ]
+   },
+   {
+    "id": "feedback",
+    "g": "Settings and data",
+    "t": "Feedback",
+    "w": "Settings › Feedback",
+    "b": [
+     [
+      "ul",
+      [
+       "Write what is wrong or what you would suggest. Add a way to reach you if you like; it is optional.",
+       "The card lists the lines it adds to the email: the version of clark and your system. Nothing from your reports is added.",
+       "**Open in your mail app** opens a new email to the clark team in the mail app your computer uses, with your words and those lines in it. You press send. Nothing is sent by clark itself, and it cannot choose Outlook for you.",
+       "When the text is too long for a mail link, the link is not shown. Use **Copy as text**, which copies the address, the subject and the message, and paste it into an email."
       ]
      ]
     ],
@@ -2532,6 +2556,11 @@
      "card": "update",
      "title": "Version and updates",
      "line": "The installed version of clark."
+    },
+    {
+     "card": "feedback",
+     "title": "Feedback",
+     "line": "Write what is wrong or what you would suggest, then send it by email."
     },
     {
      "card": "quit",
