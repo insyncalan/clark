@@ -1379,14 +1379,17 @@ class ProtectedTest(Base):
     def test_check_app_folder_and_plan_refuse_a_record_that_names_system(self):
         app = install_to(Path(self.tmp) / "app", "0.3.0")
         record = json.loads((app / updates.INSTALLED_RECORD).read_text(encoding="utf-8"))
-        record["files"]["branding/logo.png"] = record["files"]["README.md"]
-        (app / updates.INSTALLED_RECORD).write_text(json.dumps(record), encoding="utf-8")
-        with self.assertRaises(UpdateError) as said:
-            updates.check_app_folder(app)
-        self.assertEqual("unsafe", said.exception.key)
-        with self.assertRaises(UpdateError) as said:
-            updates.plan(self.read(make_zip(self.fresh())), app)
-        self.assertEqual("unsafe", said.exception.key)
+        for rel in ("branding/logo.png", "system/branding/logo.png"):
+            with self.subTest(rel=rel):
+                record["files"][rel] = record["files"]["README.md"]
+                (app / updates.INSTALLED_RECORD).write_text(json.dumps(record), encoding="utf-8")
+                with self.assertRaises(UpdateError) as said:
+                    updates.check_app_folder(app)
+                self.assertEqual("unsafe", said.exception.key)
+                with self.assertRaises(UpdateError) as said:
+                    updates.plan(self.read(make_zip(self.fresh())), app)
+                self.assertEqual("unsafe", said.exception.key)
+                del record["files"][rel]
 
 
 class StartFileNameTest(Base):
