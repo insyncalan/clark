@@ -155,7 +155,8 @@ class HelpLinksExist(unittest.TestCase):
         self.assertEqual(sorted(h for h in HEADS if not re.search(r'id[=:]\s*"%s"' % re.escape(h), page)), [])
 
     def test_the_published_reports_view_exists_when_help_names_it(self):
-        text = json.dumps(RAW["helpContent.json"])
+        text = json.dumps(RAW["helpContent.json"], ensure_ascii=False)
+        self.assertIn("Profile circle › Published reports", text, "the check below is only worth anything while Help names the view")
         if "Profile circle › Published reports" in text:
             self.assertIn("published", VIEWS, "Help says the profile circle opens Published reports, but router.VIEWS has no such view")
 
