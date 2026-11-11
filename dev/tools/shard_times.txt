@@ -597,7 +597,6 @@ test_tracker_page.py 57.1
 test_tracker_published_caveats.py 1.3
 test_tracker_route.py 7.3
 test_typed.py 14.4
-test_empty_words.py 60.0
 test_uc_dashboard_edit.py 115.5
 test_uc_row_parity.py 59.1
 test_undo_added_section_page.py 11.5
