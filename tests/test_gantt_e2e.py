@@ -39,7 +39,7 @@ class Browser:
         cdp.call("Page.enable", {}, self.sid)
         cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)
         self.width(1400)
-        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { localStorage.setItem('clark.section-style', 'slim'); } catch (e) {}"}, self.sid)
+        cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "try { localStorage.setItem('clark.density', 'comfortable'); } catch (e) {}"}, self.sid)
 
     def js(self, expr):
         return self.cdp.js(expr, self.sid)

@@ -30,7 +30,7 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Claude and AI', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history'])
+CHECKED_BY_HAND = set(['Claude and AI', 'Comfortable', 'Personal › Spacing', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history'])
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -296,7 +296,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_report_layout_choice_is_mentioned(self):                                     # MEDIUM
         self.assertNotRegex(self.ALL, r"(?i)report layout|layout and section style|Cover-led|Editing the layout|one layout")
-        self.assertIn("the report in the section style you chose", self.ALL)
+        self.assertIn("the report in the Spacing you chose", self.ALL)
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
@@ -355,20 +355,19 @@ class LowWordsRound(unittest.TestCase):
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
         self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
-        self.assertNotIn("sections in cards", self.ALL)       # the One card style is not cards
+        self.assertNotIn("sections in cards", self.ALL)       # Compact is not cards
 
     def test_no_line_starts_with_ask_clark(self):
         self.assertNotIn("The check in ask clark warns you when", self.ALL)       # ask clark has no such check on the page: the line was taken out of the health steps
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
     def test_the_section_style_lines_are_the_ones_settings_shows(self):
-        """Help and Settings > Personal give the same four lines for the four styles, and they are the prototype's Settings words."""
+        """Help and Settings › Personal give the same two lines for Compact and Comfortable (item 1025). The prototype predates the Spacing
+        setting, so these lines are checked against Settings only."""
         table = next(b for sec in SECTIONS if sec["id"] == "layouts" for b in sec["b"] if b[0] == "tbl")
-        proto = (PROTO / "views.js").read_text(encoding="utf-8")
         card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        self.assertEqual(len(table[2]), 4)
+        self.assertEqual([n for n, _ in table[2]], ["Compact", "Comfortable"])
         for name, line in table[2]:
-            self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
     def test_use_case_help_says_what_the_page_says(self):

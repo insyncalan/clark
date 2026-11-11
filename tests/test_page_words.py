@@ -193,13 +193,6 @@ class Words(unittest.TestCase):
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again"
                 ],
-                "published": ["Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
-                                  "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
-                                  "The published reports could not be read. Reload the page and try again. Try again",
-                                  "Dashboard as at a day",      # #349: under the list
-                                  "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.",
-                                  "Day", "Show",      # the box's label is read by a screen reader only
-                ],
                 "profile": ["Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -217,10 +210,9 @@ class Words(unittest.TestCase):
                                   "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
                 ],
                 "appearance": ["Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
-                                  "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
-                                  "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
-                                  "One card", "All the sections in one long card.",
+                                  "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
+                                  "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
+                                  "Comfortable", "Each Dashboard section is its own card, with room between them.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
@@ -264,7 +256,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 104, "no line of the old list was lost in the split: 2 head + 13 chip words + 100 card lines before")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 93, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):

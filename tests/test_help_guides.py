@@ -352,7 +352,7 @@ class PageKey(unittest.TestCase):
 # A part the page adds that is not here fails the rule below, so the new card's line is written with it.
 # Asking is left out on purpose: it is the ask clark switch, and Help holds every entry about ask clark (helpLater.json).
 # item 1024d: the help line for each Settings page is titled by the page's name in the menu (Reports holds Freshness and Gantt together)
-SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Folder", "PublishedReports": "Published reports", "Personal": "Appearance", "ReviewDays": "Reports", "GanttSetting": "Reports",
+SETTINGS_PARTS = {"Profile": "Profile", "ClientFolder": "Folder", "PublishedPage": "Published reports", "Personal": "Appearance", "ReviewDays": "Reports", "GanttSetting": "Reports",
                   "Diagnostics": "Logs and diagnostics", "Safety": "Backups", "People": "People", "Projects": "Projects", "Data": "Export and import", "Update": "Version and updates", "Brands": "Brand", "Quit": "Quit",
                   "AskSettings": "Claude and AI"}
 SETTINGS_LEFT_OUT = set()
@@ -431,7 +431,7 @@ class ContextText(unittest.TestCase):
             self.assertNotRegex(t, r"\d{4}-\d{2}-\d{2}")
 
     def test_context_text_reaches_the_peek_by_screen_and_never_targets_a_held_place(self):
-        pages = LIVE_SCREENS + ["settings#pubs", "publish", "", "nothing"]
+        pages = LIVE_SCREENS + ["settings#personal", "publish", "", "nothing"]
         probe = ("(() => { const o = {}; for (const p of %s) { const t = HL.contextText(p); o[p] = t && { title: t.title, full: t.full, "
                  "fullTitle: t.fullTitle, cards: t.cards.length, plain: t.lines.join(' ') }; } return o; })()") % json.dumps(pages)
         r = run_node(RAW, probe)
@@ -442,7 +442,7 @@ class ContextText(unittest.TestCase):
             self.assertNotIn("**", r[s]["plain"])
         self.assertEqual(r["settings"]["cards"], len(self.CTX["settings"]["cards"]))
         self.assertEqual(r["work"]["cards"], 0)
-        self.assertEqual(r["settings#pubs"]["title"], "Settings")
+        self.assertEqual(r["settings#personal"]["title"], "Settings")
         self.assertEqual((r["publish"], r[""], r["nothing"]), (None, None, None))
         # A place held later is never a target: the text then has no link rather than a link to a part that is not built.
         full = self.CTX["work"]["full"]

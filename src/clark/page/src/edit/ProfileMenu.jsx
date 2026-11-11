@@ -82,8 +82,8 @@ export function ProfileMenu() {
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
   const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
     { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
-  if (open && tabs.value.includes("settings")) items.push({ id: "published", name: "Published reports" });
-  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // #443: Published reports opens Settings at its card, so it comes with Settings; after Export, as in the prototype; no short word, so the tooltip is as it was
+  if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports" });
+  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", tip: "Settings" });      // after Export, as in the prototype; Published reports (row 1087) is a page of its own, no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.

@@ -149,16 +149,18 @@ class SettingsChips(unittest.TestCase):
         self.assertNotIn("set-chip", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertNotIn("set-bar", views + (PAGE.parent / "shell.css").read_text(encoding="utf-8"))
         self.assertIn('aria-current={here === slug ? "page" : undefined}', views)
-        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"]', pages)
-        self.assertIn("Folder, Published reports and Reports need an open project.", self.TEXT)
+        self.assertIn('NEEDS_PROJECT = ["ClientFolder", "PublishedPage", "ReviewDays", "GanttSetting"]', pages)
+        self.assertIn("Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project.", self.TEXT)
         self.assertIn("A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title)", self.TEXT)
         self.assertIn("The page you are on is marked in the menu. Settings opens on Projects.", self.TEXT)
 
-    def test_published_reports_is_a_menu_page(self):      # was: has no chip. Every page is in the menu now, so the pin is positive
+    def test_published_reports_is_a_menu_entry_that_opens_its_own_page(self):      # row 1087 and item 1024: a menu entry, not a Settings page
         pages = code("edit", "settingsPages.js")
-        self.assertIn('["published", "Published reports", ["PublishedReports"], "pubs-h"]', pages)
+        self.assertIn('["published", "Published reports", ["PublishedPage"], "pubs-h"]', pages)
         self.assertIn("NEEDS_PROJECT", pages)
-        self.assertIn('id="pubs-h"', code("edit", "PublishedReports.jsx"))
+        self.assertIn('s === "published" ? show("published")', code("components", "Views.jsx"))
+        self.assertNotIn('"published"', re.search(r"SETTINGS_PAGES = \[(.*?)\]", code("", "router.js"), re.S).group(1), "no address key s=published")
+        self.assertIn('id="pubs-page"', code("edit", "PublishedPage.jsx"))
 
     def test_ai_is_drawn_straight_after_asking_on_the_same_page(self):      # item 1024c: Asking and AI are one card now, the AI part last inside it
         ask = code("edit", "AskSettings.jsx")
@@ -190,7 +192,7 @@ class SettingsChips(unittest.TestCase):
     def test_published_reports_row(self):
         self.assertIn('data-pubopen={r.number}', code("edit", "PublishedReports.jsx"))
         self.assertIn('open: "Open"', code("logic", "pastReports.js"))
-        self.assertIn("The numbered copies you have published, each with **Open** to see it as it was.", self.TEXT)
+        self.assertNotIn("The numbered copies you have published", self.TEXT, "the Settings card is gone; the page's own Help entry says it")
 
 
 class AskOff(unittest.TestCase):

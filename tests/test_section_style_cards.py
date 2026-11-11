@@ -1,12 +1,13 @@
-"""Settings › Personal › Dashboard sections: the four picture cards (a drawing, the name, one line), in a real browser at 1400 and
-900 px, light and dark. Run: python3 dev/run_tests.py test_section_style_cards
+"""Settings › Personal › Spacing (item 1025, PR 1 of 8): the two picture cards, Compact and Comfortable (a drawing, the name, one line), in a
+real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_section_style_cards
 
-What is asserted: four cards, each with a drawing and one real radio, in a radio group named Dashboard sections; the arrow keys move
-the choice, which applies to the page at once and survives a reload; the chosen card shows a 2 px edge in the brand blue and a tick,
-and no other card does; the keyboard focus ring is 2 px in the brand blue; the card text is at least 13 px and 4.5:1, the card edge and
-the ring 3:1; the drawing is made of the tokens and can be seen in light and dark; the four cards sit in one row at 1400 and wrap at
-900 with no sideways scroll; and the note under Personal says only what is true: the file a publish makes carries the style (a word in
-its data block), but nothing yet gives it the choice made here (it is kept in the browser), so the published page is Slim gaps.
+What is asserted: two cards, each with a drawing and one real radio, in a radio group named Spacing; the arrow keys move the choice, which
+applies to the page at once (html[data-density]) and survives a reload under the one key clark.density; Compact is the default for a
+person who has chosen nothing, and an unknown stored word is as no choice; the old key clark.section-style is never read or written;
+the chosen card shows a 2 px edge in the brand blue and a tick, and no other card does; the focus ring is 2 px in the brand blue; the
+card text is at least 13 px and 4.5:1, the edge and ring 3:1; the two cards sit in one row at both widths with no sideways scroll; and
+the bridge to the guarded publish code (which still speaks the old section words, see the plan on item 1025): Compact publishes as
+"card" and Comfortable as "roomy", and a file carrying "roomy" opens Comfortable while any other word opens Compact.
 Chrome is required: these tests fail, never skip, without it.
 """
 import json
@@ -15,17 +16,14 @@ import time
 import unittest
 
 from _paths import SRC
-from test_glance import ON, RULES, data, sections
 from test_publish_dialog import Base
 from test_server import chrome
 
-from clark import publish
-
 WIDTHS = (1400, 900)
 LOOKS = ("light", "dark")
-NAMES = ["Slim gaps", "Roomy gaps", "Grey headers", "One card"]
-IDS = ["slim", "roomy", "grey", "card"]
-NOTE = "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone."
+NAMES = ["Compact", "Comfortable"]
+IDS = ["compact", "comfortable"]
+NOTE = "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone."
 
 # Colour maths, in the page: a computed colour is rgb(...) or rgba(...); a clear one is looked through to what is behind it.
 JS_HELPERS = """
@@ -35,8 +33,8 @@ window.__ratio = (a, b) => { const x = __lum(a), y = __lum(b); return (Math.max(
 window.__behind = (el) => { for (let e = el; e; e = e.parentElement) { const c = getComputedStyle(e).backgroundColor; if (!/rgba\\(.*, 0\\)|transparent/.test(c)) return c; } return 'rgb(255, 255, 255)'; };
 window.__token = (name) => { const s = document.createElement('i'); s.style.color = 'var(' + name + ')'; document.body.appendChild(s); const c = getComputedStyle(s).color; s.remove(); return c; };
 """
-GROUP = "document.querySelector('#personal [data-secstyles]')"
-CARDS = "[...document.querySelectorAll('#personal [data-secstyles] .secpick')]"
+GROUP = "document.querySelector('#personal [data-density-pick]')"
+CARDS = "[...document.querySelectorAll('#personal [data-density-pick] .secpick')]"
 
 
 def stable(p, expr, seconds=2.0, every=0.05):
@@ -96,38 +94,35 @@ class Cards(Base):
                     check(p, w, look)
 
     def chosen(self, p):
-        return p.js("[...document.querySelectorAll('input[name=secstyle]')].filter(i => i.checked).map(i => i.value)")
+        return p.js("[...document.querySelectorAll('input[name=density]')].filter(i => i.checked).map(i => i.value)")
 
-    def test_C_four_cards_each_with_a_drawing_and_one_real_radio_in_a_named_group(self):
+    def test_C_two_cards_each_with_a_drawing_and_one_real_radio_in_a_named_group(self):
         def check(p, w, look):
             self.assertEqual(p.js(f"{GROUP}.getAttribute('role')"), "radiogroup")
-            self.assertEqual(p.js(f"{GROUP}.querySelector('legend').textContent"), "Dashboard sections", "the group's name")
-            self.assertEqual(p.js(f"{CARDS}.length"), 4)
+            self.assertEqual(p.js(f"{GROUP}.querySelector('legend').textContent"), "Spacing", "the group's name")
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('b').textContent)"), NAMES)
-            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelectorAll('input[type=radio]').length)"), [1, 1, 1, 1], "one real radio per card")
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelectorAll('input[type=radio]').length)"), [1, 1], "one real radio per card")
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').value)"), IDS)
-            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').name)"), ["secstyle"] * 4, "one group of radios")
-            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent.length > 10)"), [True] * 4, "a line each")
-            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('.secpick-pic').getAttribute('aria-hidden'))"), ["true"] * 4, "the drawing is not read out")
-            self.assertEqual(p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].filter(i => i.getBoundingClientRect().height > 4).length)"),
-                             [3, 3, 3, 3], "each drawing shows three parts")
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').name)"), ["density"] * 2, "one group of radios")
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent.length > 10)"), [True] * 2, "a line each")
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('.secpick-pic').getAttribute('aria-hidden'))"), ["true"] * 2, "the drawing is not read out")
+            self.assertEqual(p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].filter(i => i.getBoundingClientRect().height > 4).length)"), [3, 3], "each drawing shows three parts")
             self.assertEqual(p.js("document.querySelectorAll('#personal img, #personal [src], #personal [style*=url]').length"), 0, "no picture files")
-            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').getBoundingClientRect().height >= 24)"), [True] * 4, "targets are at least 24 px")
-            self.assertEqual(self.chosen(p), ["card"], "One card is the default for a person who has chosen nothing")
-            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card")
-            self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), None, "the default is not written down as a choice")
+            self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('input').getBoundingClientRect().height >= 24)"), [True] * 2, "targets are at least 24 px")
+            self.assertEqual(self.chosen(p), ["compact"], "Compact is the default for a person who has chosen nothing")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "compact")
+            self.assertEqual(p.js("localStorage.getItem('clark.density')"), None, "the default is not written down as a choice")
 
         self.each_look(check)
 
-    def test_C_a_stored_choice_is_kept_and_only_a_missing_one_gets_one_card(self):
-        # row 667: no stored choice -> One card; a stored choice stays; a stored word the page does not know is as no choice
-        for stored, want in (("slim", "slim"), ("card", "card"), ("roomy", "roomy"), ("grey", "grey"), ("wide", "card"), (None, "card")):
+    def test_C_a_stored_choice_is_kept_and_a_missing_or_unknown_one_gets_compact(self):
+        for stored, want in (("comfortable", "comfortable"), ("compact", "compact"), ("card", "compact"), ("slim", "compact"), ("wide", "compact"), (None, "compact")):
             with self.subTest(stored=stored), chrome() as cdp:
                 p = self.page(cdp)
-                p.js("localStorage.removeItem('clark.section-style')" if stored is None else f"localStorage.setItem('clark.section-style', '{stored}')")
+                p.js("localStorage.removeItem('clark.density')" if stored is None else f"localStorage.setItem('clark.density', '{stored}')")
                 p.js("window.__before = 1; location.reload()")
                 settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
-                settled(p, f"document.documentElement.dataset.secstyle === '{want}'", f"the page is {want}")
+                settled(p, f"document.documentElement.dataset.density === '{want}'", f"the page is {want}")
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu')", "the menu opened")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")      # with no name or email typed the top line is the Settings link (row 787)
@@ -135,31 +130,27 @@ class Cards(Base):
                 p.js("[...document.querySelectorAll('.set-menu .set-item')].find(b => b.textContent.trim() === 'Appearance').click()")      # item 1024: Personal is on the Appearance page
                 p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
                 self.assertEqual(self.chosen(p), [want], "the card marked is the one in force")
-                self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), stored, "a stored choice is not changed by opening the page")
+                self.assertEqual(p.js("localStorage.getItem('clark.density')"), stored, "a stored choice is not changed by opening the page")
 
-    def test_C_the_drawings_differ_and_can_be_seen(self):
+    def test_C_the_old_key_is_neither_read_nor_written(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.js("localStorage.setItem('clark.section-style', 'slim')")
+            p.js("window.__before = 1; location.reload()")
+            settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "compact", "the old key does not choose")
+            self.open_settings(p)
+            p.js("document.querySelector('input[name=density][value=comfortable]').closest('label').click()")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "chosen")
+            self.assertEqual(p.js("localStorage.getItem('clark.section-style')"), "slim", "the old key is left as it was")
+        src = SRC / "clark" / "page" / "src"
+        self.assertEqual([f.name for f in sorted(src.rglob("*.js*")) if "clark.section-style" in f.read_text(encoding="utf-8")], [], "no source names the old key")
+        self.assertEqual([f.name for f in sorted(src.rglob("*.js*")) if "clark.density" in f.read_text(encoding="utf-8")], ["density.js"],
+                         "the choice is kept in the browser only, under one key")
+
+    def test_C_layout_one_row_with_no_sideways_scroll(self):
         def check(p, w, look):
-            shapes = p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => {{ const r = i.getBoundingClientRect(), t = c.querySelector('.secpick-pic').getBoundingClientRect().top; const s = getComputedStyle(i); return [Math.round(r.top - t), Math.round(r.height), s.backgroundImage !== 'none']; }}).join('|'))")
-            self.assertEqual(len(set(shapes)), 4, "four different drawings")
-            # the drawing's header bar and its block edges stand out from the picture they sit on (3:1)
-            seen = p.js(f"{CARDS}.map(c => {{ const pic = c.querySelector('.secpick-pic'), bg = getComputedStyle(pic).backgroundColor, is = pic.querySelectorAll('i'); "
-                        "return [__ratio(getComputedStyle(is[0]).backgroundColor, bg), __ratio(getComputedStyle(is[1]).borderTopColor, bg)]; })")
-            for bar, edge in seen:
-                self.assertGreaterEqual(bar, 3, "the header bar reads on the picture")
-                self.assertGreaterEqual(edge, 3, "the block edges read on the picture")
-            self.assertEqual(p.js(f"{CARDS}.map(c => [...c.querySelectorAll('.secpick-pic i')].map(i => i.style.cssText).join(''))"), [""] * 4, "tokens in the sheet only")
-
-        self.each_look(check)
-
-    def test_C_layout_one_row_at_1400_and_wraps_at_900_with_no_sideways_scroll(self):
-        def check(p, w, look):
-            rows = p.js(f"new Set({CARDS}.map(c => Math.round(c.getBoundingClientRect().top))).size")
-            if w == 1400:
-                self.assertEqual(rows, 1, "four across")
-            else:
-                self.assertGreater(rows, 1, "wrapped")
-                tops = p.js(f"{CARDS}.map(c => Math.round(c.getBoundingClientRect().top))")
-                self.assertEqual([tops.count(t) for t in sorted(set(tops))], [2, 2], "two and two")
+            self.assertEqual(p.js(f"new Set({CARDS}.map(c => Math.round(c.getBoundingClientRect().top))).size"), 1, "two across")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
             self.assertTrue(p.js(f"{CARDS}.every(c => {{ const r = c.getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; }})"), "every card is on the screen")
 
@@ -167,20 +158,16 @@ class Cards(Base):
 
     def test_C_arrows_move_the_choice_it_applies_at_once_and_survives_a_reload(self):
         def check(p, w, look):
-            p.js("document.querySelector('input[name=secstyle][value=slim]').closest('label').click()")       # the default is One card (row 667): start the walk from Slim gaps
-            p.until("document.documentElement.dataset.secstyle === 'slim'", 'slim chosen')
-            p.js("document.querySelector('input[name=secstyle]:checked').focus()")
-            for key, want in (("ArrowRight", "roomy"), ("ArrowRight", "grey"), ("ArrowRight", "card"), ("ArrowLeft", "grey")):
+            p.js("document.querySelector('input[name=density]:checked').focus()")
+            for key, want in (("ArrowRight", "comfortable"), ("ArrowLeft", "compact"), ("ArrowRight", "comfortable")):
                 p.key(key, code=key, vk=39 if key == "ArrowRight" else 37)
-                p.until(f"document.documentElement.dataset.secstyle === '{want}'", f"{key} chose {want}, applied at once")
+                p.until(f"document.documentElement.dataset.density === '{want}'", f"{key} chose {want}, applied at once")
                 self.assertEqual(self.chosen(p), [want], "one choice")
                 self.assertEqual(p.js("document.activeElement.value"), want, "focus went with it")
-            p.js("document.querySelector('input[name=secstyle][value=card]').closest('label').click()")
-            p.until("document.documentElement.dataset.secstyle === 'card'", "a click on the card chooses it")
-            self.assertEqual(self.chosen(p), ["card"])
+            self.assertEqual(p.js("localStorage.getItem('clark.density')"), "comfortable")
             p.js("window.__before = 1; location.reload()")
             settled(p, "window.__before === undefined && !!document.querySelector('#profile-btn')", "reloaded")
-            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", "kept for the page")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "comfortable", "kept for the page")
             p.js("document.querySelector('#profile-btn').click()")
             p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
             p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
@@ -192,16 +179,18 @@ class Cards(Base):
         self.each_look(check)
 
     def test_C_the_choice_shows_on_the_dashboard(self):
+        # Chosen in Settings with the real cards, then read on the Dashboard: Compact runs the sections on in one flat page (no shadow, square),
+        # Comfortable makes each section its own card (a shadow, round corners), which is what the Settings and Help lines say.
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            gap = []
-            for value in ("slim", "roomy"):
-                p.js(f"document.querySelector('input[name=secstyle][value={value}]').closest('label').click()")
-                p.until(f"document.documentElement.dataset.secstyle === '{value}'", value)
+            look = {}
+            for value in ("comfortable", "compact"):
+                p.js(f"document.querySelector('input[name=density][value={value}]').closest('label').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", value)
                 p.js("location.hash = '#dashboard&p=PUB'")
-                p.until("!!document.querySelector('.secs')", "dashboard")
-                gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
+                p.until("!!document.querySelector('.secs .sec')", "dashboard")
+                look[value] = p.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [s.boxShadow === 'none', s.backgroundColor, s.borderTopLeftRadius]; })()")
                 p.js("document.querySelector('#profile-btn').click()")
                 p.until("!!document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]')", "menu")
                 p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
@@ -213,12 +202,12 @@ class Cards(Base):
     def test_C_selected_is_an_edge_and_a_tick_not_colour_alone(self):
         def check(p, w, look):
             for pick in IDS:
-                p.js(f"document.querySelector('input[name=secstyle][value={pick}]').closest('label').click()")
-                p.until(f"document.querySelector('input[name=secstyle][value={pick}]').checked && document.documentElement.dataset.secstyle === '{pick}'", f"{pick} chosen")
+                p.js(f"document.querySelector('input[name=density][value={pick}]').closest('label').click()")
+                p.until(f"document.querySelector('input[name=density][value={pick}]').checked && document.documentElement.dataset.density === '{pick}'", f"{pick} chosen")
                 # the edge eases from one colour to the other, so it is read once it has arrived
                 p.until(f"{CARDS}.every(c => (getComputedStyle(c.querySelector('.secpick-card')).borderTopColor === __token('--brand-blue')) === c.querySelector('input').checked && (getComputedStyle(c.querySelector('.secpick-card')).boxShadow === 'none') === !c.querySelector('input').checked && (!c.querySelector('input').checked || getComputedStyle(c.querySelector('.secpick-card')).boxShadow.includes(__token('--brand-blue'))))", "the edges settled")
                 got = stable(p, f"{CARDS}.map(c => {{ const k = c.querySelector('.secpick-card'), s = getComputedStyle(k), t = getComputedStyle(c.querySelector('.secpick-tick')), r = c.querySelector('.secpick-tick').getBoundingClientRect(); "
-                           "return {on: c.querySelector('input').checked, edge: s.borderTopColor, edgeW: parseFloat(s.borderTopWidth), ring: s.boxShadow, tick: t.display !== 'none' && r.width > 10 && r.height > 10, "
+                           "return {on: c.querySelector('input').checked, edge: s.borderTopColor, ring: s.boxShadow, tick: t.display !== 'none' && r.width > 10 && r.height > 10, "
                            "tickBg: t.backgroundColor, tickFg: t.color, blue: __token('--brand-blue')}; })")
                 self.assertEqual([g["on"] for g in got], [i == pick for i in IDS])
                 for g in got:
@@ -235,25 +224,38 @@ class Cards(Base):
 
         self.each_look(check)
 
-    def test_C_hover_changes_the_edge_and_focus_has_a_two_pixel_blue_ring(self):
+    def test_C_focus_has_a_two_pixel_blue_ring(self):
         def check(p, w, look):
-            p.js("document.querySelector('input[name=secstyle][value=slim]').closest('label').click()")       # the default is One card (row 667): start the walk from Slim gaps
-            p.until("document.documentElement.dataset.secstyle === 'slim'", 'slim chosen')
-            p.js("document.querySelector('input[name=secstyle]:checked').focus()")
+            p.js("document.querySelector('input[name=density]:checked').focus()")
             p.key("ArrowRight", code="ArrowRight", vk=39)           # a key makes the focus show as a keyboard one
-            p.until("document.documentElement.dataset.secstyle === 'roomy'", "moved")
-            ringed = 'document.querySelector("input[name=secstyle]:focus-visible + .secpick-card")'
+            p.until("document.documentElement.dataset.density === 'comfortable'", "moved")
+            ringed = 'document.querySelector("input[name=density]:focus-visible + .secpick-card")'
             p.until(f"{ringed} !== null && getComputedStyle({ringed}).outlineStyle === 'solid'", "the focused card shows a ring")      # a bounded wait on the focus state, not one read
-            ring = p.js("(() => { const k = document.querySelector('input[name=secstyle]:focus-visible + .secpick-card'); if (!k) return null; const s = getComputedStyle(k); "
+            ring = p.js("(() => { const k = document.querySelector('input[name=density]:focus-visible + .secpick-card'); if (!k) return null; const s = getComputedStyle(k); "
                         "return {w: parseFloat(s.outlineWidth), style: s.outlineStyle, c: s.outlineColor, blue: __token('--brand-blue'), bg: __behind(k.parentElement)}; })()")
             self.assertIsNotNone(ring, "the focused card shows a ring")
             self.assertEqual((ring["w"], ring["style"], ring["c"]), (2.0, "solid", ring["blue"]))
             self.assertGreaterEqual(p.js(f"__ratio({json.dumps(ring['c'])}, {json.dumps(ring['bg'])})"), 3, "the ring is 3:1 on the page")
-            p.js("document.activeElement.blur()")
-            before = p.js(f"getComputedStyle({CARDS}[2].querySelector('.secpick-card')).borderTopColor")
-            box = p.js(f"(() => {{ const r = {CARDS}[2].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
-            p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, p.sid)
-            p.until(f"getComputedStyle({CARDS}[2].querySelector('.secpick-card')).borderTopColor !== {json.dumps(before)}", "hover changed the edge")
+
+        self.each_look(check)
+
+    def test_C_hover_changes_the_edge(self):
+        def check(p, w, look):
+            # the cards sit below the first screen and the page can still move a little after it is drawn: aim again at where the card is now until the pointer is over it
+            before = p.js(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor")
+
+            def hovered():
+                p.js(f"{CARDS}[1].scrollIntoView({{block: 'center', behavior: 'instant'}})")
+                box = p.js(f"(() => {{ const r = {CARDS}[1].getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")
+                p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": box[0], "y": box[1]}, p.sid)
+                return p.js(f"getComputedStyle({CARDS}[1].querySelector('.secpick-card')).borderTopColor") != before
+
+            for _ in range(40):
+                if hovered():
+                    break
+                time.sleep(0.2)
+            else:
+                self.fail("hover changed the edge")
 
         self.each_look(check)
 
@@ -261,66 +263,85 @@ class Cards(Base):
         def check(p, w, look):
             got = p.js(f"{CARDS}.map(c => {{ const k = c.querySelector('.secpick-card'), bg = getComputedStyle(k).backgroundColor, b = c.querySelector('b'), s = c.querySelector('small'); "
                        "return {name: __ratio(getComputedStyle(b).color, bg), line: __ratio(getComputedStyle(s).color, bg), nameSize: parseFloat(getComputedStyle(b).fontSize), lineSize: parseFloat(getComputedStyle(s).fontSize), "
-                       "edge: __ratio(getComputedStyle(k).borderTopColor, __behind(c)), row: Math.round(c.getBoundingClientRect().top), h: Math.round(k.getBoundingClientRect().height)}; })")
+                       "edge: __ratio(getComputedStyle(k).borderTopColor, __behind(c))}; })")
             for g in got:
                 self.assertGreaterEqual(g["name"], 4.5, "the name is 4.5:1")
                 self.assertGreaterEqual(g["line"], 4.5, "the line is 4.5:1")
                 self.assertGreaterEqual(g["nameSize"], 13)
                 self.assertGreaterEqual(g["lineSize"], 13)
                 self.assertGreaterEqual(g["edge"], 3, "the card's edge is 3:1 on the page")
-            for row in {g["row"] for g in got}:
-                self.assertEqual(len({g["h"] for g in got if g["row"] == row}), 1, "the cards in a row are one height")
-            page_light = p.js("__lum(__behind(document.querySelector('.secpick'))) > 0.5")
-            self.assertEqual(page_light, look == "light", "the page is really in the look asked for")
+            self.assertEqual(p.js("__lum(__behind(document.querySelector('.secpick'))) > 0.5"), look == "light", "the page is really in the look asked for")
 
         self.each_look(check)
 
-    def test_C_the_note_and_the_order_match_the_prototype(self):
+    def test_C_the_note_the_order_and_the_words(self):
         def check(p, w, look):
             self.assertEqual(p.js("document.querySelector('#personal > p.muted').textContent"), NOTE)
 
         self.each_look(check)
-        # The group comes first, before Appearance, and its lines are the prototype's.
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_settings(p)
-            self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"),
-                             ["Dashboard sections", "Appearance", "Keys"])      # row 950: About you moved to the Profile card
+            self.assertEqual(p.js("[...document.querySelectorAll('#personal > fieldset legend')].map(l => l.textContent).slice(0, 3)"), ["Spacing", "Appearance", "Keys"])
             self.assertEqual(p.js(f"{CARDS}.map(c => c.querySelector('small').textContent)"), [
-                "Each section is its own card, with a slim gap that shows the page picture.", "The same, with more space between the sections.",
-                "Slim gaps, and each section title in a grey band, like the Work items groups.", "All the sections in one long card."])
-        # What the note claims: the file carries a style word (its data block), slim unless one of the four is given.
-        for name in publish.STYLES:
-            self.assertEqual(self.block({"section_style": name})["style"], name, "the file can carry any of the four")
-        self.assertEqual(self.block({})["style"], "slim", "with no style given, the file is Slim gaps")
-        self.assertEqual(self.block({"section_style": "wide"})["style"], "slim")
-        kept = [f.name for f in sorted((SRC / "clark" / "page" / "src").rglob("*.js*")) if "clark.section-style" in f.read_text(encoding="utf-8")]
-        self.assertEqual(kept, ["style.js"], "the choice is kept in the browser only")
+                "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.", "Each Dashboard section is its own card, with room between them."])
 
-    def test_C_the_chosen_card_is_in_the_published_file_and_the_preview(self):
-        # The page sends the chosen style with Publish; the file's own data block carries it (the published page has no route and no Settings).
-        for pick in IDS:
+    def test_C_the_choice_goes_to_publish_as_the_word_the_guarded_code_knows(self):
+        # The bridge: Compact is "card", Comfortable is "roomy" (publish.STYLES). Nothing else is ever sent.
+        for pick, word in (("compact", "card"), ("comfortable", "roomy")):
             with self.subTest(pick=pick), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p)
-                p.js(f"document.querySelector('#personal input[name=secstyle][value={pick}]').click()")
-                p.until(f"document.documentElement.dataset.secstyle === '{pick}'", "the choice applied")
+                p.js(f"document.querySelector('#personal input[name=density][value={pick}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{pick}'", "the choice applied")
+                self.assertEqual(p.js("document.documentElement.dataset.secstyle"), None, "the old attribute is gone: the rules key on data-density")
                 self.rig.save_to = self.rig.local / f"{pick}.html"
                 p.open_publish()
                 p.go()
                 p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
                 text = (self.rig.local / f"{pick}.html").read_text(encoding="utf-8")
                 got = json.loads(re.search(r'id="clark-data">(.*?)</script>', text, re.S).group(1))
-                self.assertEqual(got["style"], pick)
+                self.assertEqual(got["style"], word)
                 p.js("document.querySelector('[data-go]').click()")
-        status, got = self.rig.publish(section_style="roomy")
-        self.assertEqual((status, got["ok"]), (200, True))
-        status, got = self.rig.call("POST", "/api/preview", {"project": "PUB", "section_style": "grey"})
-        self.assertEqual(status, 200)
-        shown = self.rig.call("GET", got["url"])[1]
-        self.assertIn(b'"style":"grey"', shown)
 
-    def test_a_word_that_is_not_a_style_is_refused_and_none_publishes_slim(self):
+    def test_C_a_file_published_at_comfortable_draws_comfortable_and_one_at_compact_draws_compact(self):
+        # Behaviour, not words: pick the density in Settings, publish through the dialog, open the finished file from file://. Comfortable
+        # goes out as the word "roomy" (the bridge) and the file must still draw the looser Comfortable spacing, not the Compact one.
+        drawn = {}
+        for pick in ("compact", "comfortable"):
+            with chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p)
+                p.js(f"document.querySelector('#personal input[name=density][value={pick}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{pick}'", "the choice applied")
+                self.rig.save_to = self.rig.local / f"seen-{pick}.html"
+                p.open_publish()
+                p.go()
+                p.until("document.querySelector('[data-go]').classList.contains('ok')", "published")
+                p.js("document.querySelector('[data-go]').click()")
+            path = self.rig.local / f"seen-{pick}.html"
+            with chrome() as cdp:
+                tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+                sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+                f = type(p)(self, cdp, sid)
+                f.until("document.documentElement.dataset.ready === '1' && !!document.querySelector('.secs .sec')", "the file drew")
+                drawn[pick] = f.js("(() => { const s = getComputedStyle(document.querySelector('.secs .sec')); return [document.documentElement.dataset.density,"
+                                   " parseFloat(s.paddingTop) + parseFloat(s.paddingBottom), s.boxShadow === 'none']; })()")
+                drawn[pick + "-stored"] = f.js("localStorage.getItem('clark.density')")
+        self.assertEqual(drawn["compact"][0], "compact")
+        self.assertEqual(drawn["comfortable"][0], "comfortable", "a file published at Comfortable opens Comfortable, though it carries the word roomy")
+        self.assertGreater(drawn["comfortable"][1], drawn["compact"][1], "its sections have more room above and below")
+        self.assertEqual((drawn["compact-stored"], drawn["comfortable-stored"]), (None, None), "a published file never remembers its density as a reader's choice")
+        self.assertEqual((drawn["compact"][2], drawn["comfortable"][2]), (True, False), "Compact sections run on flat, Comfortable ones are cards")
+
+    def test_the_reading_of_a_files_word_is_roomy_for_comfortable_and_compact_for_the_rest(self):
+        src = (SRC / "clark" / "page" / "src" / "stores" / "density.js").read_text(encoding="utf-8")
+        self.assertIn('densityOfWord = (w) => (w === "roomy" ? "comfortable" : DEFAULT_DENSITY)', src)
+        self.assertIn('sectionWord = (d) => (d === "comfortable" ? "roomy" : "card")', src)
+
+    def test_the_guarded_code_is_unchanged_it_refuses_a_word_it_does_not_know_and_defaults_to_slim(self):
         for body in ({"section_style": "wide"}, {"section_style": 3}):
             self.rig.save_to = self.rig.local / "x.html"
             if self.rig.save_to.exists():
@@ -332,12 +353,6 @@ class Cards(Base):
         status, got = self.rig.publish()
         self.assertEqual((status, got["ok"]), (200, True))
         self.assertIn('"style":"slim"', self.rig.save_to.read_text(encoding="utf-8"))
-
-    def block(self, extra):
-        d = data()
-        i = {"data": d, "hidden": [], "sections": sections(), "label_rules": RULES, "as_at": ON, "glance_tiles": [], **extra}
-        text = publish.data_block(publish.add_glance(publish.select(i), i), ON)
-        return json.loads(re.search(r">(.*)</script>", text, re.S).group(1))
 
 
 if __name__ == "__main__":
