@@ -210,6 +210,7 @@ class Panel(Base):
                 self.assertEqual(p.js("document.querySelector('#help').classList.contains('frame')"), False, "Help is not drawn as one bordered panel")
                 self.assertEqual(p.js("getComputedStyle(document.querySelector('#help')).borderTopWidth"), "0px")
                 self.assertEqual(p.js("!!document.querySelector('.hp-search > svg[data-icn=search]')"), True, "the search icon")
+                p.js("document.querySelector('#hpQ').blur()")      # full Help opens with the focus in the box; the chip shows once it is left
                 self.assertEqual(p.js("(function(){var k=document.querySelector('#hpQk');return [k.textContent,k.getAttribute('aria-label'),getComputedStyle(k).display]})()"),
                                  ["/", "Press slash to search", "block"], "the key chip shows while the box is empty and not in use")
                 p.js("document.querySelector('#hpTab-reference').click()")
