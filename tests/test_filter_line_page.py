@@ -268,9 +268,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').getAttribute('aria-activedescendant')", sid) == "fo-0"), "the first option is active")
                     key(cdp, sid, "Enter")                                           # a field: goes into the box, then its values are listed
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "status:"))
-                    self.no_list(cdp, sid, "row 931: a choice closes the list")
-                    self.arm(cdp, sid)
-                    self.assertTrue(wait(lambda: "status:Open" in self.listed(cdp, sid)), "the list offers status:Open")
+                    self.assertTrue(wait(lambda: "status:Open" in self.listed(cdp, sid)), "row 1058: choosing a key shows its values at once, with no Space")
                     options = self.listed(cdp, sid)
                     key(cdp, sid, "ArrowUp")                                         # the arrows wrap round
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').getAttribute('aria-activedescendant')", sid) == f"fo-{len(options) - 1}"), "the last option is active")
@@ -1130,9 +1128,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "type:"))
-                    self.no_list(cdp, sid, "row 931: a choice closes the list")
-                    self.arm(cdp, sid)
-                    self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4))
+                    self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4), "row 1058: choosing a key lists its values at once")
                     opts = self.listed(cdp, sid)
                     self.assertEqual(opts[:3], ["no:type", "has:type", "-type:"], "led by No, Has and Exclude")
                     self.assertEqual(cdp.js("[...document.querySelectorAll('#fline-list .fl1')].slice(0, 3).map(e => e.textContent)", sid), ["No Type", "Has Type", "Exclude Type"])
@@ -1197,8 +1193,11 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)))
             key(cdp, sid, "ArrowDown")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "Arrow Down opens it")
-            key(cdp, sid, "Enter")                                                # Enter takes the first row, which closes the list
-            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a row closes it")
+            key(cdp, sid, "Enter")                                                # Enter takes the first row, a key: row 1058, its values follow at once
+            self.assertTrue(wait(lambda: any(o.startswith("is:") and o != "is:" for o in self.listed(cdp, sid))), "choosing a key lists its values")
+            key(cdp, sid, "ArrowDown")
+            key(cdp, sid, "Enter")                                                # a value ends the word, which closes the list
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a value closes it")
             cdp.js("document.querySelector('#fline-input').blur()", sid)
             self.focus(cdp, sid)
             self.no_list(cdp, sid, "entering the box again opens no list")

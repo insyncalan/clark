@@ -342,7 +342,7 @@ export function FilterLine({ board }) {
   const listed = focused && armed && options.length > 0;
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(false);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(!o.close);        // row 1058: a key (status:) leaves the list open, now with that key's values; a finished value closes it
     if (input.current) input.current.focus();
   };
   const clear = () => {
