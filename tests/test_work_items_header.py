@@ -194,6 +194,25 @@ class Header(Base):
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
         self.each(check)
 
+    def test_row_1032_discard_changes_does_not_overlap_new_view_after_group_by(self):
+        """Issue 1032: after Group by the line is changed; the tabs, + New view, Save view and Discard changes each keep their own room."""
+        probe = """(() => { const q = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom]; };
+          return JSON.stringify({vnew: q('#viewNew'), rev: q('#fvRevert'), save: q('#fvSave'), grp: q('#viewMenu'), tabs: q('.vtabs'), row: q('.fvrow'), sw: document.documentElement.scrollWidth, iw: innerWidth}); })()"""
+
+        def check(cdp, sid, width):
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList [data-kind=\"group:type\"]')", "the Group by menu")
+            click(cdp, sid, "#viewMenuList [data-kind=\"group:type\"]")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fvRevert')", "Discard changes shows")
+            got = json.loads(cdp.js(probe, sid))
+            a, b, t = got["vnew"], got["rev"], got["tabs"]
+            self.assertGreaterEqual(a[0], t[1] - 3.5, "+ New view sits beside the tabs, not inside the scrolling row: %s" % got)
+            self.assertTrue(a[1] <= b[0] + 0.5 or b[1] <= a[0] + 0.5 or a[3] <= b[2] or b[3] <= a[2], "Discard changes overlaps + New view: %s" % got)
+        self.each(check)
+
     def test_row_844_the_saved_view_menu_opens_under_its_arrow_not_at_the_page_edge(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
         probe = ("(() => { const a = document.querySelector('#viewTabMenu').getBoundingClientRect(), m = document.querySelector('#viewTabMenuList').getBoundingClientRect();"
