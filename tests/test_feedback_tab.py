@@ -198,6 +198,42 @@ class Card(InBrowser):
         self.assertEqual(self.text("#feedback-note"), "The browser did not copy it. Press ⌘C to copy the selected text.")
         self.assertIn("Hello", self.js("document.querySelector('#feedback-shown').value"))
 
+    def test_typing_after_a_copy_clears_the_copied_note(self):
+        self.mount()
+        self.type("#feedback-message", "Hello")
+        self.click("button[data-feedback-copy]")
+        self.assertEqual(self.text("#feedback-note"), "Copied")
+        self.type("#feedback-contact", "me")
+        self.assertNotEqual(self.text("#feedback-note"), "Copied")
+
+    def test_a_refused_copy_text_is_selected_and_goes_away_when_you_type(self):
+        self.mount()
+        self.js("T.refuse = true")
+        self.type("#feedback-message", "Hello")
+        self.click("button[data-feedback-copy]")
+        sel = self.val("(function(){ var e = document.querySelector('#feedback-shown'); return [e.selectionStart, e.selectionEnd, e.value.length]; })()")
+        self.assertEqual(sel[0], 0)
+        self.assertEqual(sel[1], sel[2])
+        self.assertGreater(sel[2], 0)
+        self.type("#feedback-message", "Hello again")
+        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), False)
+        self.assertNotIn("did not copy", self.text("#feedback-note"))
+
+    def test_a_copy_that_works_after_a_refused_one_hides_the_shown_text(self):
+        self.mount()
+        self.js("T.refuse = true")
+        self.type("#feedback-message", "Hello")
+        self.click("button[data-feedback-copy]")
+        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), True)
+        self.js("T.refuse = false")
+        self.click("button[data-feedback-copy]")
+        self.assertEqual(self.js("!!document.querySelector('#feedback-shown')"), False)
+        self.assertEqual(self.text("#feedback-note"), "Copied")
+
+    def test_the_contact_box_is_at_least_32_px_tall(self):
+        self.mount()
+        self.assertGreaterEqual(self.js("document.querySelector('#feedback-contact').getBoundingClientRect().height"), 32)
+
     def test_the_version_is_asked_for_once_and_nothing_is_sent_by_the_card(self):
         self.mount()
         self.assertEqual(self.val("T.asked"), 1)

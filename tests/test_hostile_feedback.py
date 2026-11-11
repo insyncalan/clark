@@ -38,6 +38,12 @@ class Hostile(tft.InBrowser):
             r = self.val(f"T.logic.mail({form}, {{}})")
             self.assertIn("message", r, form)
 
+    def test_a_lone_surrogate_becomes_the_replacement_character_in_the_link(self):
+        high = self.val("T.logic.mail({message: 'half \\ud83d emoji', contact: ''}, {})")
+        self.assertIn("half%20%EF%BF%BD%20emoji", high["href"])
+        low = self.val("T.logic.mail({message: 'ok', contact: 'x\\udc00'}, {})")
+        self.assertIn("x%EF%BF%BD", low["href"])
+
     def test_odd_characters_stay_one_header_and_one_body(self):
         msg = "a&subject=evil&body=x#frag %0d%0aBcc: z <b>\u202e\u2028 \U0001F600 \x00"
         r = self.val(f"T.logic.mail({{message: {json.dumps(msg)}, contact: 'c\\u2028Bcc: q\\r\\n'}}, {{version: 'v\\nBcc: z', platform: 'p\\u0085'}})")
