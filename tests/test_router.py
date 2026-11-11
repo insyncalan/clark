@@ -141,6 +141,23 @@ class Pure(Browser):
                                            e("dashboard", "PDF"), e("work", "PDF", "A-12"), e("settings", "PDF"), e("work", "", "A-1"),
                                            e("work")])
 
+    def test_item_11_two_use_cases_of_one_project_keep_their_own_places(self):
+        """Mutation sweep of row 1019: the screen key holds the use case, so two use case pages are two screens."""
+        with chrome() as cdp:
+            self.cdp = cdp
+            self.sid = opened(cdp, self.file.as_uri())
+            self.assertTrue(wait(lambda: cdp.js("typeof R", self.sid) == "object"))
+            y = lambda: self.ev("Math.round(window.scrollY)")
+            self.ev("document.body.style.minHeight = '5000px'; R.navigate({view: 'usecases', project: 'PDF', uc: '1.1'}); true")
+            self.ev("dispatchEvent(new WheelEvent('wheel')); window.scrollTo(0, 600)")
+            self.assertTrue(wait(lambda: y() == 600), "scrolled the first use case")
+            self.ev("R.navigate({view: 'usecases', project: 'PDF', uc: '1.2'}); true")
+            self.assertTrue(wait(lambda: y() == 0), f"a use case not seen before starts at the top: {y()}")
+            self.ev("dispatchEvent(new WheelEvent('wheel')); window.scrollTo(0, 200)")
+            self.assertTrue(wait(lambda: y() == 200))
+            self.ev("R.navigate({view: 'usecases', project: 'PDF', uc: '1.1'}); true")
+            self.assertTrue(wait(lambda: y() == 600), f"the first use case came back to its own place: {y()}")
+
     def test_format_gives_one_hash_only_form(self):
         got = self.run_in_page("""JSON.stringify([R.format({view:'work',project:'PDF',item:'A-12'}),
             R.format({view:'milestones',project:'PDF',ms:'M-3'}), R.format({view:'settings'}), R.format({}),
@@ -907,6 +924,18 @@ class BuiltPage(Browser):
             self.until("document.querySelector('.tab[aria-selected=true]').dataset.view", "work", "forward")
             self.assertTrue(wait(lambda: self.scroll_y() == 250), f"Forward put Work items where it was: {self.scroll_y()}")
             self.no_errors()
+
+    def test_item_11_a_finished_restore_gives_the_browsers_scroll_anchoring_back(self):
+        """Mutation sweep of row 1019: the restore turns scroll anchoring off while it works and must turn it on again when it ends."""
+        with chrome() as cdp:
+            self.draw(cdp, "#dashboard&p=PDF")
+            self.tall()
+            self.scroll_to(700)
+            self.click_tab("work")
+            self.assertTrue(wait(lambda: self.scroll_y() == 0))
+            self.click_tab("dashboard")
+            self.assertTrue(wait(lambda: self.scroll_y() == 700))
+            self.assertTrue(wait(lambda: self.ev("document.documentElement.style.overflowAnchor") == "", 15), "scroll anchoring is back once the restore is over")
 
     def test_item_1019_a_peek_does_not_move_the_page_and_a_fresh_load_starts_at_the_top(self):
         with chrome() as cdp:
