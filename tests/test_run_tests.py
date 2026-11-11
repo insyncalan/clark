@@ -134,7 +134,7 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
             self.assertGreaterEqual(weights[heavy], 250, heavy)
 
     def test_the_refreshed_heavy_weights_stay_near_what_was_measured(self):
-        """The refresh set these five files to the mean of the old weight and the macOS median x 0.93. A weight that drifts far
+        """The refresh set these five files to the mean of the old weight and the macOS median x 0.93 (test_publish_public.py's 277.8 is (79.7 + 476) / 2: its median was taken as measured). A weight that drifts far
         either way (too small leaves a shard slow, too large starves the others) is caught, within 10 percent of each."""
         weights = run_tests.shard_weights()
         refreshed = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,

@@ -387,24 +387,31 @@ class Page(Base):
                 self.assertIsNone(self.store.read("actions", ref=ref))
                 self.assertNotIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "one Undo took the hiding back too")
 
+    def open_note(self, p, inside):
+        """Click the note to open its editor, again if the click came before the page had hooked it up (a busy runner)."""
+        for _ in range(6):
+            p.js("var v = document.querySelector('#mvNote .rt-view'); if (v) v.click()")
+            if wait(lambda: p.js(inside), 3):
+                return
+        self.fail("the editor opened")
+
     def test_the_internal_note_is_the_one_rich_editor_saves_when_left_undoes_and_follows_the_row(self):          # item 1005: it was a plain textarea
         IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
+            p.until("!!document.querySelector('#mvNote .rt-view')", "the note box drew")
             self.assertEqual(p.js("document.querySelector('#mvNote').previousElementSibling.textContent"), "Internal note")
             self.assertEqual(p.js("document.querySelector('#mvNote-help').textContent"), "Saves when you leave the box. Never published.")
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').textContent"), INTERNAL, "an old plain note reads as the words the milestone holds")
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').getAttribute('aria-label')"), "Edit internal note")
             before = len(self.sent)
-            p.js("document.querySelector('#mvNote .rt-view').click()")
-            p.until(IN, "the editor opened")
+            self.open_note(p, IN)
             self.assertEqual(p.js("document.querySelectorAll('#mvNote .rt-bar, #mvNote .ProseMirror').length"), 2, "the toolbar and the editor, as everywhere")
             p.key("Escape", 0, "Escape", 27)          # a key, not blur(): a page with no input event yet has no focus, and the editor ignores a blur then
             p.until("!document.querySelector('#mvNote .ProseMirror')", "the editor closed")
             self.assertEqual(len(self.sent), before, "closing the box with no change sends nothing")
-            p.js("document.querySelector('#mvNote .rt-view').click()")
-            p.until(IN, "the editor opened again")
+            self.open_note(p, IN)
             p.js("document.execCommand('selectAll')")
             p.type("Waiting for the vendor")
             p.key("Enter", 0, "Enter", 13)
