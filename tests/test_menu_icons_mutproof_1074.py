@@ -9,7 +9,6 @@ milestone peek's workstream menu, and that the icon is drawn (shown, 16 px, befo
 import json
 import shutil
 import subprocess
-import time
 import unittest
 
 from _paths import ROOT
@@ -244,7 +243,7 @@ class MilestoneButton(Shown, MoveBase):
                 self.click(p, button)
                 p.until("!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
                 p.until("!!document.activeElement.closest('[data-pop]')", "the focus went into the menu")
-                time.sleep(0.5)
+                p.until("document.getAnimations().length === 0", "the menu stopped moving")
                 self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
                 self.saved(p, "workstream", "Build")
                 p.until("document.querySelectorAll('[data-pop]').length === 0", "a pick closes the menu")

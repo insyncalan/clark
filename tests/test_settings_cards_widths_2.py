@@ -3,6 +3,7 @@ loaded in a real browser at 1400 and 900 px (and only those), the page and the c
 its right edge, and the card's main controls are drawn, have a box and are inside the window. Run: python3 dev/run_tests.py test_settings_cards_widths_2
 Chrome is required: these tests fail, never skip, without it."""
 import json
+import os
 import unittest
 
 import test_settings_head
@@ -22,6 +23,14 @@ CARDS = [
     ("Quit", "quit-h", ["button.btn"]),
     ("Update", "update-h", ["button.btn"]),
 ]
+
+OPTIONAL = ("Published reports", "Update")      # cards a developer's rig may lack; CI has them, so there a missing one fails
+
+
+def may_skip(name, got, env=None):
+    """True only for an optional card that is not on the page, and never in CI (the header says these tests fail, never skip)."""
+    return got is None and name in OPTIONAL and not (os.environ if env is None else env).get("CI")
+
 
 PROBE = """((headId, sels) => {
   const h = document.getElementById(headId);
@@ -56,7 +65,7 @@ class CardsWidths(Base):
                 for name, head, sels in CARDS:
                     with self.subTest(width=w, card=name):
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
-                        if got is None and name in ("Published reports", "Update"):
+                        if may_skip(name, got):
                             self.skipTest(name + " is not on the test rig's Settings page")
                         self.assertIsNotNone(got, name + ": the card is on the Settings page")
                         self.assertLessEqual(got["doc_over"], 0, name + ": the page scrolls sideways")
