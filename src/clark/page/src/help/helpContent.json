@@ -2424,7 +2424,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **List** and **Board** icons before the **Group by** button, at the right end of the filter line, switch between a list and a board; the **Group by** button holds the grouping."
+    "The **List** and **Board** icons, at the right end of the filter line, switch between a list and a board; **Group by** holds the grouping."
    ],
    "full": "ref-work-items"
   },

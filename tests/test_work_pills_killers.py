@@ -50,7 +50,7 @@ class HelpWords(unittest.TestCase):
         text = HELP.read_text(encoding="utf-8")
         for need in ("On the filter line, write type: to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
                      "Type is:open or is:closed on the filter line to say which items to list.",
-                     "From the top: the saved views with the **Table** and **Board** icons"):
+                     "From the top: the saved views, then the filter line."):
             self.assertIn(need, text)
         for gone in ("The first switch picks the type", "The second picks **Open**", "Choose **Open**, **Closed** or **All**",
                      "the type switch; **Open**", "the type switch;"):

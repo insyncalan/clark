@@ -63,7 +63,7 @@ class Keys(unittest.TestCase):
         finally:
             st.close()
 
-    def open(self, cdp, width):
+    def open_page(self, cdp, width):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
@@ -91,7 +91,7 @@ class Keys(unittest.TestCase):
         with chrome() as cdp:
             for width in (1400, 900):
                 where = f"{width} px"
-                sid = self.open(cdp, width)
+                sid = self.open_page(cdp, width)
                 stops = json.loads(cdp.js(STOPS, sid))
                 self.assertTrue(stops, where)
                 for s in stops:
@@ -128,7 +128,7 @@ class Keys(unittest.TestCase):
         with chrome() as cdp:
             for width in (1400, 900):
                 where = f"{width} px"
-                sid = self.open(cdp, width)
+                sid = self.open_page(cdp, width)
                 cdp.js("document.querySelector('#fline-input').focus()", sid)
                 self.press(cdp, sid, "Tab", shift=True)
                 self.press(cdp, sid, "Tab")
@@ -145,7 +145,7 @@ class Keys(unittest.TestCase):
         with chrome() as cdp:
             for width in (1400, 900):
                 where = f"{width} px"
-                sid = self.open(cdp, width)
+                sid = self.open_page(cdp, width)
                 cdp.js("document.querySelector('.vtab').focus()", sid)
                 self.press(cdp, sid, "Tab", shift=True)
                 self.press(cdp, sid, "Tab")
@@ -159,7 +159,7 @@ class Keys(unittest.TestCase):
         with chrome() as cdp:
             for width in (1400, 900):
                 where = f"{width} px"
-                sid = self.open(cdp, width)
+                sid = self.open_page(cdp, width)
                 names_dom = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.vtabs button, #fline-input, .fline button, .vicons button')].filter(e => e.getClientRects().length).map(e => e.getAttribute('aria-label') || e.textContent.trim()))", sid))
                 cdp.js("document.querySelector('.vtab').focus()", sid)
                 self.press(cdp, sid, "Tab", shift=True)
