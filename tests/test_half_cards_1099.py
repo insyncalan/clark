@@ -65,6 +65,22 @@ class HalfCards(Base):
                     p.edit()
                 self.assertEqual(p.js(every), [], f"{mode}: parts outside their half card")
 
+    def test_view_shows_the_description_on_one_line_where_the_title_is_and_a_click_opens_the_peek(self):
+        titles = "[...document.querySelectorAll('.sec[data-type=%s] .irows .wl-title')].map(e => e.textContent.trim())"
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.served().port)
+            p.ready()
+            p.js(PAIR)
+            for w in (1400, 900):
+                width(cdp, p.sid, w)
+                actions = p.js(titles % "actions")
+                self.assertIn("Agree the cut-over plan", actions, f"{w}: the description, not the client wording")
+                self.assertNotIn("Cut-over plan to be agreed", actions)
+                self.assertIn("Supplier may deliver late", p.js(titles % "raid"))
+                self.assertIn("title", p.js("document.querySelector('.sec[data-type=actions] .irows .wl-title').getAttributeNames()"))
+            p.js("[...document.querySelectorAll('.sec[data-type=actions] .wl-row')].find(r => r.textContent.includes('Agree the cut-over')).click()")
+            self.assertTrue(wait(lambda: p.js("location.hash.includes('item=')")), "a click opens the peek")
+
 
 if __name__ == "__main__":
     unittest.main()
