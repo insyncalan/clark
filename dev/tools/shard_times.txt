@@ -703,3 +703,4 @@ test_help_wording_107_b.py 30.0
 test_hostile_item14_py.py 30.0
 test_projects_wrap_960.py 30.0
 test_milestones_mutants.py 30.0
+test_mutation_past_reports_doctor.py 30.0
