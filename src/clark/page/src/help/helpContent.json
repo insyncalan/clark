@@ -2774,10 +2774,10 @@
      "d": "If you change the filter line while a view is open, a small dot shows on its tab, and **Save view** and **Discard changes** appear beside the tabs. Press **Save view** to keep the new filters under the same name, and a message at the foot of the page says View saved with the name. Press **Discard changes** to put the filter line back to what the view had. The small arrow beside the open tab’s name has the same **Save changes**, and **Save as a new view…** keeps the new filters as another view. The five tabs that every project has cannot be saved over, so they have no **Save view**. Use **Save as a new view…** for them. **Discard changes** is there on them too."
     },
     {
-     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename…**. Type the new name in the box labelled **New name for this view** and press **Save**."
+     "d": "To rename a view, open it, press the small arrow beside its name and choose **Rename view**. Type the new name in the box labelled **New name for this view** and press **Save**. To move a view, pick its tab up with the mouse and drag it left or right, then let go. Or open it, press the small arrow and choose **Move view**: the tab gets a ring, the Left and Right arrows move it, and Enter or Esc finishes. The order is kept in your browser, for this project. To copy a view, open it, press the small arrow and choose **Duplicate view**. The copy is called the same with copy after it, and sits beside it."
     },
     {
-     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
+     "d": "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
     }
    ],
    "result": "Your view is a tab on Work items with its item count. Pressing it sets the filter line to your saved filters, and a dot on the tab tells you when the line has changes you have not saved.",
