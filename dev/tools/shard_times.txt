@@ -660,8 +660,6 @@ test_word_store.py 1.1
 test_word_template.py 0.9
 test_wording_small_fixes.py 0.6
 test_work_add_item.py 19.3
-test_work_archived_page.py 43.6
-test_work_archived_peek.py 31.2
 test_work_board_page.py 172.8
 test_work_export_button.py 12.6
 test_work_filters.py 20.0
