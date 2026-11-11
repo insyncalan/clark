@@ -1629,7 +1629,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**. A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line, and its label reads, for example, 3 days later, then Expected and the date.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."

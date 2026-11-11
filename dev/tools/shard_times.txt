@@ -693,3 +693,4 @@ test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
 test_help_settings_facts.py 30.0
 test_help_rev_milestone_peek.py 30.0
+test_help_timeline_calendar.py 30.0
