@@ -1,7 +1,7 @@
-"""Settings, second half of the cards alphabetically (People, Personal, Profile, Projects, Published reports, Publishing, Quit, Update): each card is
+"""Settings, second half of the cards alphabetically (People, Personal, Profile, Projects, Publishing, Quit, Update): each card is
 loaded in a real browser at 1400 and 900 px (and only those), the page and the card do not scroll sideways, nothing in the card sticks out past
 its right edge, and the card's main controls are drawn, have a box and are inside the window. Run: python3 dev/run_tests.py test_settings_cards_widths_2
-Chrome is required: these tests fail, never skip, without it."""
+Chrome is required, and a card that is not on the page fails the test: nothing here skips. (Published reports is its own page, not a Settings card.)"""
 import json
 import unittest
 
@@ -25,8 +25,9 @@ CARDS = [
 
 PROBE = """((headId, sels) => {
   const h = document.getElementById(headId);
-  const card = h ? h.closest('section') : document.getElementById(headId);
-  if (!card) return null;
+  if (!h) return null;
+  const card = h.closest('section');
+  if (!card) return {noSection: true};
   card.scrollIntoView({block: 'start'});
   const root = document.documentElement, cr = card.getBoundingClientRect();
   const out = {doc_over: root.scrollWidth - root.clientWidth, card_over: card.scrollWidth - card.clientWidth, card_right: cr.right, win: root.clientWidth,
@@ -58,9 +59,8 @@ class CardsWidths(Base):
                             self.skipTest(name + " opens a page of its own, not a Settings page (row 1087)")
                         self.open_settings(p, w, page=page)      # one page at a time (item 1024): the card's own page
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
-                        if got is None and name in ("Published reports", "Update"):
-                            self.skipTest(name + " is not on the test rig's Settings page")
                         self.assertIsNotNone(got, name + ": the card is on the Settings page")
+                        self.assertNotIn("noSection", got, name + ": the heading is inside a section (a card)")
                         self.assertLessEqual(got["doc_over"], 0, name + ": the page scrolls sideways")
                         self.assertLessEqual(got["card_over"], 1, name + ": the card scrolls sideways")
                         self.assertEqual(got["wide"], [], name + ": something sticks out past the card's right edge")

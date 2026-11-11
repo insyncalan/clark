@@ -128,7 +128,7 @@ function entry(it, close, onPick) {
 
 // items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
-export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked, attrs }) {
+export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked, attrs }) {
   const [open, setOpen] = useMenuState();
   const [, redraw] = useState(0);
   const btn = useRef(null);
@@ -151,7 +151,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, id, 
   return (
     <span class="dd">
       <button type="button" class={btnCls || "btn"} id={id} ref={btn} aria-haspopup={menu ? "menu" : undefined} aria-expanded={menu ? (open ? "true" : "false") : undefined}
-        aria-label={ariaLabel} title={tip} data-tip={tip} {...attrs} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
+        aria-label={ariaLabel} aria-description={ariaDescription} title={tip} data-tip={tip} {...attrs} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
       {(open || leaving) && menu ? (
