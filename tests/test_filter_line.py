@@ -741,6 +741,48 @@ class SavedViews(Line):
         base = self.v("DEFAULT_VIEWS")
         self.assertEqual(self.val(f"(function(){{ var v = {lit(base)}; T.fl.addView(v, 'A', ''); T.fl.deleteView(v, 'mine'); T.fl.renameView(v, 'mine', 'Z'); return v; }})()"), base)
 
+    def test_hostile_view_names_never_throw_and_never_store_more_than_the_limit(self):
+        """Hostile input on the saved-view name path (add, rename, duplicate): empty, huge, unicode, control characters, quotes, markup."""
+        names = ["", "   ", "\n\t ", "x" * 41, "x" * 100000, "caf\u00e9 \u202e rtl \U0001F600", "a\u0000b", "a\nb\tc  d", "'; DROP TABLE v; --",
+                 '"quoted"', "<img src=x onerror=alert(1)>", "</script><b>", "{{x}}", "${1+1}"]
+        for n in names:
+            got = self.v(f"addView([], {lit(n)}, '')")
+            clean = " ".join(n.split())
+            if not clean or len(clean) > 40:
+                self.assertFalse(got["ok"], repr(n[:20]))
+                self.assertTrue(got["message"], repr(n[:20]))
+            else:
+                self.assertTrue(got["ok"], repr(n))
+                self.assertEqual(got["views"][0]["name"], clean, "white space (newlines, tabs) is folded to single spaces; the text is kept as typed")
+            base = [{"id": "a1", "name": "Alpha", "line": ""}]
+            r = self.v(f"renameView({lit(base)}, 'a1', {lit(n)})")
+            self.assertEqual(r["ok"], bool(clean) and len(clean) <= 40, repr(n[:20]))
+        dup = self.v(f"duplicateView({lit([{'id': 'a1', 'name': 'x' * 40, 'line': ''}])}, 'a1')")
+        self.assertTrue(dup["ok"])
+        self.assertLessEqual(len(dup["views"][1]["name"]), 40, "a copy of a name at the limit still fits the limit")
+
+    def test_hostile_insert_places_and_views_never_throw(self):
+        """Undo of a delete with a bad place or a bad view: the place is clamped, a missing or nameless view is refused."""
+        base = [{"id": "a1", "name": "Alpha", "line": ""}, {"id": "b1", "name": "Beta", "line": ""}]
+        gone = {"id": "c1", "name": "Gamma", "line": ""}
+        for at, want in [(-5, 0), (0, 0), (1, 1), (99, 2), ("x", 0), (None, 0), (1.9, 1), (float("inf"), 2)]:
+            lit_at = "Infinity" if at == float("inf") else lit(at)
+            got = self.v(f"insertView({lit(base)}, {lit(gone)}, {lit_at})")
+            self.assertTrue(got["ok"], at)
+            self.assertEqual([x["id"] for x in got["views"]].index("c1"), want, at)
+        for bad in ["null", "{}", "{id: 'z', name: ''}", "{id: 'z', name: '" + "x" * 5000 + "'}"]:
+            self.assertFalse(self.v(f"insertView({lit(base)}, {bad}, 0)")["ok"], bad[:30])
+        self.assertTrue(self.v(f"insertView(null, {lit(gone)}, 0)")["ok"])
+
+    def test_hostile_line_words_for_archived_are_read_without_throwing(self):
+        """The line words that the archived list now depends on: markup, quotes, control characters and a huge line never throw."""
+        for line in ["is:archived", "is:archived " + "x" * 50000, "is:archived \u0000 \n\t", "is:\"archived\"", "is:<b>archived</b>", "-is:archived", "is:archived is:archived", "\U0001F600 is:archived"]:
+            p = self.val(f"T.fl.parse({lit(line)}, {lit(ROWS)}, {lit(dict(CTX, archivedReady=True))})")
+            self.assertIn("errors", p, line[:20])
+        ok = self.parse("is:archived", dict(OFF, archivedReady=True))
+        self.assertEqual(ok["errors"], [], "the Edit page answers is:archived")
+        self.assertTrue(self.parse("is:archived", OFF)["errors"], "a page that cannot answer it says so, never silently matches")
+
 
 class Memory(Line):
     """Storage is passed in. Here a plain object stands in for it; a broken one stands in for a private window."""
