@@ -429,11 +429,11 @@
     "w": "Work items · the peek · Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, it is the eye at the top.",
+     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, Shown to client (in Details) says Yes or No; change it with the eye in the row.",
      "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
      "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
-     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, under **Client view**."
+     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
     ],
     "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
     "page": [
@@ -622,11 +622,11 @@
     "s": [
      "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
-     "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
-     "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons. Overdue follows the dates and can’t be picked.",
+     "**Dates**: the **Agreed date** is shown and not changed here; change the **Forecast date** as things move.",
      "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Client view**: **Visible to client**, and the **Client wording** used on the page in place of the name.",
-     "**Linked work items** lists the items tied to it. Link one from the item’s peek, under Details, Milestone."
+     "**Visible to client** (Yes or No), and the **Client wording** used on the page in place of the name.",
+     "Link an item to a milestone from the item’s peek, under Details, Milestone."
     ],
     "page": [
      "milestones"
@@ -1616,7 +1616,7 @@
        "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons. Overdue is set by clark and cannot be picked.",
        "**Progress**: a slider and a number from 0 to 100, set by hand.",
        "**Description** and **Workstream**.",
-       "**Client view**: **Visible to client** (Yes or No) and **Client wording**."
+       "**Visible to client** (Yes or No) and **Client wording**."
       ]
      ]
     ]
