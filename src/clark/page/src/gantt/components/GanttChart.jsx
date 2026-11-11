@@ -44,12 +44,10 @@ const Glyph = ({ name }) => (
     dangerouslySetInnerHTML={{ __html: G[name] }} />
 );
 
-// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again) per project; a different project key clears it.
+// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again), one Set per project for the session.
 const grown = new Map();
-let grownKey = null;
 function grownFor(key) {
   const k = key || "";
-  if (grownKey !== k) { grown.clear(); grownKey = k; }
   if (!grown.has(k)) grown.set(k, new Set());
   return grown.get(k);
 }
@@ -80,7 +78,7 @@ export function GanttChart({
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
-  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened or the project changed (not per mount)
+  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened (not per mount)
   const born = useRef(new Map());                      // line id to true while its first-draw grow may still run
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
