@@ -398,6 +398,15 @@ class Labels(unittest.TestCase):
         self.assertLessEqual(len(g.label("abcdefgh", 1)), 1)
         self.assertLessEqual(len(g.label("abcdefgh", 0)), 0)
 
+    def test_label_tiny_limits_say_what_is_kept_not_only_how_long(self):
+        """Mutation sweep: a limit of 1 keeps one dot, 2 keeps two dots, 3 keeps one letter and two dots; a limit below 0 is empty."""
+        self.assertEqual(g.label("abcdefgh", 1), ".")
+        self.assertEqual(g.label("abcdefgh", 2), "..")
+        self.assertEqual(g.label("abcdefgh", 3), "A..")
+        self.assertEqual(g.label("abcdefgh", 0), "")
+        self.assertEqual(g.label("abcdefgh", -1), "")
+        self.assertEqual(g.label("abcdefgh", -5), "")
+
     def test_a_name_made_of_only_dots_and_the_ellipsis_cannot_widen_the_column(self):
         text = g.label("." * 500)
         self.assertLessEqual(g.text_width(text), g.LABEL_W - g.PAD)
