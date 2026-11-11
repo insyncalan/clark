@@ -726,3 +726,4 @@ test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
 test_section_hint_phone.py 30.0
+test_plain_words_hostile_1005.py 10.0
