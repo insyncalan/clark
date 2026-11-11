@@ -23,6 +23,7 @@ class PublishedPills(_pub.ClientPageFilters):
                     return [b.dataset.type || b.dataset.show, r.width > 0 && r.height > 0]; })""", sid)
                 self.assertEqual([k for k, _ in seen], ["all", "action", "risk", "decision", "open", "closed", "all"])
                 self.assertTrue(all(v for _, v in seen), f"all drawn: {seen}")
+                self.assertEqual(cdp.js("[...document.querySelectorAll('.wbar .seg')].map(g => g.getAttribute('aria-label'))", sid), ["Type", "Open or closed"])
 
 
 for _name in dir(_pub.ClientPageFilters):
@@ -39,6 +40,7 @@ class AppBar(_line.Line):
                 self.assertEqual(cdp.js("document.querySelectorAll('.wbar').length", sid), 1)
                 self.assertEqual(cdp.js("document.querySelectorAll('.wbar.keep').length", sid), 1)
                 self.assertEqual(cdp.js("document.querySelectorAll('.wbar .seg').length", sid), 0)
+                self.assertEqual(cdp.js("document.querySelectorAll('.wbar > .vctl').length", sid), 1)
                 self.assertGreaterEqual(cdp.js("parseFloat(getComputedStyle(document.querySelector('.wbar')).minHeight)", sid), 32)
 
 
