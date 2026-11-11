@@ -268,7 +268,7 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').getAttribute('aria-activedescendant')", sid) == "fo-0"), "the first option is active")
                     key(cdp, sid, "Enter")                                           # a field: goes into the box, then its values are listed
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "status:"))
-                    self.no_list(cdp, sid, "row 931: a choice closes the list")
+                    self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4 and self.listed(cdp, sid) != self.FIELDS_ALL), "item 1058: a key leaves the list open, now on its values")
                     self.arm(cdp, sid)
                     self.assertTrue(wait(lambda: "status:Open" in self.listed(cdp, sid)), "the list offers status:Open")
                     options = self.listed(cdp, sid)
@@ -1130,7 +1130,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Enter")
                     self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "type:"))
-                    self.no_list(cdp, sid, "row 931: a choice closes the list")
+                    self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4 and self.listed(cdp, sid) != self.FIELDS_ALL), "item 1058: a key leaves the list open, now on its values")
                     self.arm(cdp, sid)
                     self.assertTrue(wait(lambda: len(self.listed(cdp, sid)) > 4))
                     opts = self.listed(cdp, sid)
@@ -1197,8 +1197,10 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)))
             key(cdp, sid, "ArrowDown")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "Arrow Down opens it")
-            key(cdp, sid, "Enter")                                                # Enter takes the first row, which closes the list
-            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a row closes it")
+            key(cdp, sid, "Enter")                                                # Enter takes the first row, a key: the list stays open on its values (item 1058)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a key keeps the list open")
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "Esc closes it")
             cdp.js("document.querySelector('#fline-input').blur()", sid)
             self.focus(cdp, sid)
             self.no_list(cdp, sid, "entering the box again opens no list")
@@ -1268,6 +1270,26 @@ class Line(unittest.TestCase):
             click(cdp, sid, "#fline-list [data-ins='status:Closed']")
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:High no:owner status:Closed"))
             self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
+
+    def test_choosing_a_key_shows_its_values_at_once(self):
+        """Item 1058: choosing a key (here with a click, then with Tab) writes it and the list stays open on that key's values, with no second Space."""
+        s = self.serve()
+        for width in SIZES:
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.load(cdp, s.port, width=width)
+                self.put(cdp, sid, "")
+                self.arm(cdp, sid)
+                self.assertTrue(wait(lambda: "priority:" in self.listed(cdp, sid)))
+                click(cdp, sid, "#fline-list [data-ins='priority:']")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('#fline-input').value", sid) == "priority:"))
+                self.assertTrue(wait(lambda: "priority:Urgent" in self.listed(cdp, sid)), "the values of priority show without another Space")
+                self.assertEqual(cdp.js("document.activeElement.id", sid), "fline-input")
+                self.type(cdp, sid, "hi")
+                self.assertTrue(wait(lambda: self.listed(cdp, sid) == ["priority:High"]))
+                key(cdp, sid, "ArrowDown")
+                key(cdp, sid, "Tab")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == "priority:High"))
+                self.no_list(cdp, sid, "choosing a value closes the list")
 
     def test_single_select_values_show_their_colour_and_other_values_do_not(self):
         s = self.serve()

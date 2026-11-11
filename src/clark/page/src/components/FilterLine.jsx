@@ -302,7 +302,7 @@ export function FilterLine({ board }) {
   const [focused, setFocused] = useState(false);
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
-  const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice and Esc close it
+  const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice that ends the word and Esc close it
   const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
   const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
@@ -342,7 +342,7 @@ export function FilterLine({ board }) {
   const listed = focused && armed && options.length > 0;
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(false);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(!o.close);   // item 1058: a key (no close) keeps the list open, now on its values
     if (input.current) input.current.focus();
   };
   const clear = () => {
