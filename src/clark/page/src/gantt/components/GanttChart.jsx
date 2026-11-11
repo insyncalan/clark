@@ -45,14 +45,14 @@ const Glyph = ({ name }) => (
     dangerouslySetInnerHTML={{ __html: G[name] }} />
 );
 
-// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again) per project; a different project key clears it.
-const grown = new Map();
+// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again); a different project key clears it.
+// Ultrareview 105 #10: one Set and its key (the old Map never held more than one entry). #8: the Dashboard's Gantt passes the same key as the Gantt page.
+let grown = new Set();
 let grownKey = null;
 function grownFor(key) {
   const k = key || "";
-  if (grownKey !== k) { grown.clear(); grownKey = k; }
-  if (!grown.has(k)) grown.set(k, new Set());
-  return grown.get(k);
+  if (grownKey !== k) { grown = new Set(); grownKey = k; }
+  return grown;
 }
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));

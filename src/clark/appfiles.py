@@ -132,9 +132,12 @@ def data_mark(folder):
 
 
 def code_mark():
-    """Row 975: the same mark, of the folder these program files are in (two levels above this file: the checkout, or .app in a
-    download). A server and a launcher from one folder agree; a renamed or moved folder is another mark."""
-    return data_mark(Path(__file__).resolve().parents[2])
+    """Row 975: a mark of the folder these program files are in (two levels above this file: the checkout, or .app in a download).
+    Ultrareview 105 #7: it hashes the folder's file identity (device and inode), not its spelling, so ~/Downloads/clark and
+    ~/downloads/clark on a case-insensitive macOS volume give one mark. A server and a launcher from one folder agree; a moved
+    folder on the same volume keeps its inode and so its mark (the point is to tell different program folders apart)."""
+    st = os.stat(Path(__file__).resolve().parents[2])
+    return hashlib.sha256(f"{st.st_dev}:{st.st_ino}".encode("utf-8")).hexdigest()[:16]
 
 
 def health_answer(asked, mark):

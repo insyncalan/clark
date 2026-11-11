@@ -220,7 +220,36 @@ class Identity(unittest.TestCase):
             self.assertNotIn("folder", server.health_answer("m"))
 
     def test_the_launcher_and_the_server_work_out_one_mark(self):
-        self.assertEqual(appfiles.code_mark(), appfiles.data_mark(Path(launch.__file__).resolve().parents[2]))
+        self.assertEqual(appfiles.code_mark(), appfiles.code_mark())
+        self.assertRegex(appfiles.code_mark(), r"^[0-9a-f]{16}$")
+
+    def test_ultrareview_105_7_two_spellings_of_one_folder_give_one_mark(self):
+        """A case-insensitive file system names one folder two ways; the mark follows the folder, not the spelling."""
+        with tempfile.TemporaryDirectory() as t:
+            real = Path(t).resolve() / "Clark"
+            (real / "src" / "clark").mkdir(parents=True)
+            other = Path(t).resolve() / "clark"
+            if other.exists() is False:
+                self.skipTest("a case-sensitive file system: one folder has one spelling")
+            fake = real / "src" / "clark" / "appfiles.py"
+            alt = other / "src" / "clark" / "appfiles.py"
+            with mock.patch.object(appfiles, "__file__", str(fake)):
+                a = appfiles.code_mark()
+            with mock.patch.object(appfiles, "__file__", str(alt)):
+                b = appfiles.code_mark()
+            self.assertEqual(a, b)
+
+    def test_ultrareview_105_7_the_mark_is_not_the_hash_of_the_path(self):
+        self.assertNotEqual(appfiles.code_mark(), appfiles.data_mark(Path(launch.__file__).resolve().parents[2]))
+
+    def test_ultrareview_105_7_two_different_folders_give_two_marks(self):
+        with tempfile.TemporaryDirectory() as t:
+            marks = set()
+            for n in ("a", "b"):
+                (Path(t) / n / "src" / "clark").mkdir(parents=True)
+                with mock.patch.object(appfiles, "__file__", str(Path(t) / n / "src" / "clark" / "appfiles.py")):
+                    marks.add(appfiles.code_mark())
+            self.assertEqual(len(marks), 2)
 
     def test_an_update_restart_does_not_go_through_the_launcher_check(self):
         text = (SRC / "clark" / "update_helper.py").read_text(encoding="utf-8")
@@ -230,3 +259,21 @@ class Identity(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class UltrareviewNitsSource(unittest.TestCase):
+    """Ultrareview 105 #8, #9, #10: source checks (the grown set, the Dashboard's project key, the unused constant)."""
+    PAGE = SRC / "clark" / "page" / "src"
+
+    def test_the_grown_memory_is_one_set_not_a_map_of_one_entry(self):
+        text = (self.PAGE / "gantt" / "components" / "GanttChart.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("new Map()", text.split("function grownFor")[0].split("row 971")[-1])
+        self.assertIn("let grown = new Set()", text)
+
+    def test_the_dashboard_gantt_passes_the_project_key_like_the_gantt_page(self):
+        text = (self.PAGE / "components" / "GanttSection.jsx").read_text(encoding="utf-8")
+        self.assertIn("projectKey=", text)
+
+    def test_gantt_secret_fields_is_gone(self):
+        for path in (SRC / "clark").glob("*.py"):
+            self.assertNotIn("GANTT_SECRET_FIELDS", path.read_text(encoding="utf-8"), path.name)
