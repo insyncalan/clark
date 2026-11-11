@@ -1145,7 +1145,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
 .mv-lab b { display: inline; margin-right: var(--space-1); font-weight: var(--weight-medium); color: var(--text); }   /* row 1020: one line a label, 'name date' */ .mv-lab:hover { background: var(--grey-100); }
 .mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
-.mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); } .mv-lab.gl { color: var(--status-red-text); }
+.mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }
 .msl { list-style: none; margin: var(--d-msl-top) 0 0; padding: 0 0 0 var(--space-1); }

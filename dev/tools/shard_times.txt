@@ -691,3 +691,4 @@ test_setup_mode.py 30.0
 test_gantt_today_reduced.py 30.0
 test_view_icons_filter_line.py 30.0
 test_help_wording_107_b.py 30.0
+test_milestones_dead_ghost_label.py 30.0
