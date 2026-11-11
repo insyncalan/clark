@@ -21,17 +21,17 @@ class Cards(g.Setup):
         for width, dark in ((1400, False), (900, False), (1400, True)):
             with chrome() as cdp:
                 p = self.show(cdp, width=width, dark=dark)
-                for style in ("slim", "roomy", "grey", "card"):
-                    p.js(f"document.documentElement.dataset.secstyle = '{style}'")
+                for style in ("comfortable", "compact"):
+                    p.js(f"document.documentElement.dataset.density = '{style}'")
                     w, h, bg, border, radius, sec_bg, _ = p.js(SQUARE)
                     self.assertEqual((w, h), ("10px", "10px"), f"{style} {width}: the square is drawn")
                     self.assertNotEqual(bg, "rgba(0, 0, 0, 0)", style)
-                    if style == "card":
+                    if style == "compact":
                         self.assertEqual(sec_bg, "rgba(0, 0, 0, 0)", "One card: the sections are flat")
                     else:
                         self.assertEqual(border, "1px", f"{style}: a card has one border")
                         self.assertNotEqual(radius, "0px", style)
-                p.js("document.documentElement.dataset.secstyle = 'slim'")
+                p.js("document.documentElement.dataset.density = 'comfortable'")
                 gap = p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)")
                 self.assertLessEqual(gap, 16, "a slim gap between cards")
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, f"no sideways scroll at {width}")
@@ -71,7 +71,7 @@ class OneCard(g.Setup):
             for dark in (False, True):
                 with chrome() as cdp:
                     p = self.show(cdp, width=width, dark=dark)
-                    p.js("document.documentElement.dataset.secstyle = 'card'")
+                    p.js("document.documentElement.dataset.density = 'compact'")
                     for mode in ("view", "edit"):
                         if mode == "edit":
                             p.edit()
@@ -87,7 +87,7 @@ class OneCard(g.Setup):
     def test_a_pair_has_one_unbroken_line_above_it_and_the_first_row_has_none(self):
         with chrome() as cdp:
             p = self.show(cdp, width=1400)
-            p.js("document.documentElement.dataset.secstyle = 'card'")
+            p.js("document.documentElement.dataset.density = 'compact'")
             for mode in ("view", "edit"):
                 if mode == "edit":
                     p.edit()
@@ -108,7 +108,7 @@ class OneCard(g.Setup):
     def test_at_900_the_pair_stacks_and_each_section_keeps_the_same_line(self):
         with chrome() as cdp:
             p = self.show(cdp, width=900)
-            p.js("document.documentElement.dataset.secstyle = 'card'")
+            p.js("document.documentElement.dataset.density = 'compact'")
             got = self.look(p)
             self.assertEqual((got["left"]["w"], got["right"]["w"]), ("1px", "1px"))
             self.assertEqual(got["left"]["colour"], got["right"]["colour"])
@@ -126,7 +126,7 @@ class DefaultOneCard(g.Setup):
                         if mode == "edit":
                             p.edit()
                         where = f"{width} {'dark' if dark else 'light'} {mode}"
-                        self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "card", where)
+                        self.assertEqual(p.js("document.documentElement.dataset.density"), "compact", where)
                         got = p.js("(() => { const secs = document.querySelector('#report .secs'), q = [...secs.querySelectorAll(':scope > .sec')], c = (e) => getComputedStyle(e);"
                                    " const sr = secs.getBoundingClientRect(); const full = q.filter(e => !e.classList.contains('slot-left') && !e.classList.contains('slot-right'));"
                                    " return {n: q.length, bg: q.map(e => c(e).backgroundColor), radius: q.map(e => c(e).borderTopLeftRadius), shadow: q.map(e => c(e).boxShadow),"
@@ -150,6 +150,7 @@ class PublishedCards(g.Setup):
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
+            p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; cards are Comfortable
             w, h, bg, border, radius, _, _ = p.js(SQUARE)
             self.assertEqual((w, h, border), ("10px", "10px", "1px"))
 

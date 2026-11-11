@@ -81,8 +81,8 @@ class ThePicture(unittest.TestCase):
         (self.png, self.w, self.h), self.run = self.made["pictures"][0]
         self.t = g.tokens(TOKENS)
         self.first, self.last = self.made["start"], self.made["end"]
-        ppd = (g.WIDTH - 2 * g.PAD) / ((self.last - self.first).days + 1)
-        self.x = lambda d: g.PAD + round((date.fromisoformat(d) - self.first).days * ppd)
+        ppd = (g.X1 - g.X0) / ((self.last - self.first).days + 1)
+        self.x = lambda d: g.X0 + round((date.fromisoformat(d) - self.first).days * ppd)
         self.cy = lambda i: g.G_TOP + i * g.G_LANE + g.G_LANE // 2
 
     def test_the_time_line_is_the_pages_whole_months_and_at_least_half_a_year(self):
@@ -290,6 +290,28 @@ class WhenTheGraphicsFail(unittest.TestCase):
         text = words(docx_build.build(p))
         self.assertIn("Alpha", text)
         self.assertIn("Beta", text)
+
+
+class Labels(unittest.TestCase):
+    """#1036: the line names and the axis dates are in the Gantt picture."""
+    setUp = ThePicture.setUp
+
+    def ink(self, x0, x1, y0, y1, png=None):
+        w, h, palette, rows = read_png(png or self.png)
+        return sum(1 for y in range(y0, min(y1, h)) for x in range(x0, min(x1, w)) if palette[rows[y][x]] == self.t["text"])
+
+    def test_each_named_line_has_ink_in_the_name_column_and_the_dates_are_in_the_band(self):
+        for i in range(len(self.run)):
+            self.assertGreater(self.ink(0, g.LABEL_W, g.G_TOP + i * g.G_LANE, g.G_TOP + (i + 1) * g.G_LANE), 10, i)
+        self.assertGreater(self.ink(g.X0, g.WIDTH, 0, g.G_TOP), 40)
+        self.assertEqual(self.ink(0, g.X0 - 4, 0, g.G_TOP), 0)
+
+    def test_an_unnamed_line_has_none_and_a_hostile_one_is_only_pixels(self):
+        lines = [dict(self.lines[0], name=""), dict(self.lines[1], name='"/><w:p>x</w:p> \u05e9\u05dc\u05d5\u05dd ' * 20)]
+        png = g.gantt(lines, TODAY, TOKENS)["pictures"][0][0][0]
+        self.assertEqual(self.ink(0, g.LABEL_W, g.G_TOP, g.G_TOP + g.G_LANE, png), 0)
+        self.assertGreater(self.ink(0, g.LABEL_W, g.G_TOP + g.G_LANE, g.G_TOP + 2 * g.G_LANE, png), 10)
+        self.assertEqual(self.ink(g.LABEL_W, g.X0 - 2, g.G_TOP, g.G_TOP + 2 * g.G_LANE, png), 0)
 
 
 if __name__ == "__main__":

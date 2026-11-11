@@ -42,7 +42,7 @@ EXPECTED = {
     "Decisions": {"Project": (["ABC"], False), "Status": (["Pending", "Made", "Withdrawn"], False),
                   "Client-visible": (YES_NO, False), "Use case": (UC, True)},
     "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk", "Done"], False),
-                  "Commitment": (["Candidate", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
+                  "Commitment": (["Planned 2026", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
                   "Client-visible": (YES_NO, False)},
 }
 # Free text on purpose: people (until the people table, #115), names, notes and dates. Priority on RAID is worked out (locked).

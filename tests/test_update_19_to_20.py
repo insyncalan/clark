@@ -36,7 +36,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 20      # the data layout of this build (schema step 20, projects.brand); the test pins the number on purpose
+NEW_LAYOUT = 21      # the data layout of this build (schema step 21, row 1061); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
