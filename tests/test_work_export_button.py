@@ -62,7 +62,7 @@ class ExportButton(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('aria-label')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelector('#expBtn').getAttribute('data-tip')", sid), "Export to Excel")
                 self.assertEqual(cdp.js("document.querySelectorAll('#newBtn').length", sid), 1, "Add is still there")
-                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1, "the Import icon is beside Add")
+                self.assertEqual(cdp.js("document.querySelectorAll('#impBtn').length", sid), 1, "the Import icon is on the filter line")
                 self.assertEqual(cdp.js("document.querySelector('#impBtn').getAttribute('data-tip')", sid), "Import from Excel")
                 cdp.js("window.__asked = []; const f = window.fetch; window.fetch = (u, o) => { window.__asked.push(String(u)); return f(u, o); }", sid)
                 cdp.js("document.querySelector('#expBtn').click()", sid)

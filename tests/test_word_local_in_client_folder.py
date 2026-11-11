@@ -10,8 +10,8 @@ from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import publish_flow, word_route
 from test_word_client_held_back import TODAY, USER, Setup
 
-WEB = publish_flow.MESSAGES["same_folder"]
-WORD = WEB.replace("Nothing was published.", "Nothing was saved.")
+WEB = "That is the client's folder. Save the local copy somewhere else. Nothing was published."       # literals: not read back from the code
+WORD = "That is the client's folder. Save the local copy somewhere else. Nothing was saved."
 
 
 class Cases(Setup, unittest.TestCase):

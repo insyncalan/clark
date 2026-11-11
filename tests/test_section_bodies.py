@@ -22,6 +22,8 @@ def check(kind, body):
 
 
 PURE_LIBRARY = ("base64", "binascii", "re")      # #96: standard library parts that read no file and no database
+
+
 class Generic(unittest.TestCase):
     """The tests of the generic layer (shape, limits, canonical text) hand a type's content in whatever form they like, so the
     needs checker (its own tests are in test_needs_content.py) is put aside for them: it takes any content that passed the generic check."""
