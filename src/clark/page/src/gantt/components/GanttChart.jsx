@@ -153,7 +153,7 @@ export function GanttChart({
 
   const goToday = () => {
     const el = gx.current;
-    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: "smooth" });
+    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: reduced() ? "auto" : "smooth" });       // row 1039: reduced motion = an instant jump
   };
   const rowsAt = (n) => {
     if (full) return;
@@ -394,7 +394,8 @@ export function GanttChart({
                 );
               }
               const w = q.x2 - q.x1, out = labelOut(l, w);
-              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
+              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }
+              else if (reduced() && born.current.get(l.id)) born.current.set(l.id, false);       // row 1039: reduced motion switched on with bars still marked: clear the mark       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
               if (drag && drag.id === l.id) born.current.set(l.id, false);       // a grabbed bar never grows, nor does it start when let go
               const label = `${l.name}, ${formatDate(l.start)} to ${formatDate(l.end)}, ${l.pct} percent, ${statusWord(st)}`;
               return (
