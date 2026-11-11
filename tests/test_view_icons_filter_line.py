@@ -91,6 +91,24 @@ class IconsOnTheLine(Base):
                     self.assertTrue(g[1] - g[0] >= 24 and g[3] - g[2] >= 24, f"{q} is 24 px or more: {g}")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True)
 
+    def test_the_same_seven_parts_fit_the_filter_line_at_360_and_390(self):
+        # The row 1084 LOW asks for these two widths by name (the standing review widths are 1400 and 900). A test only: the product CSS is unchanged.
+        parts = ["#fline-count", "#fline-x", "#impBtn", "#expBtn", "#work .vicons [data-lay=table]", "#work .vicons [data-lay=board]", "#viewMenu"]
+        for width in (360, 390):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                got = cdp.js("(() => { const f = document.querySelector('#work .fline').getBoundingClientRect(); return %s.map(q => { const e = document.querySelector(q);"
+                             " if (!e) return null; const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom, f.left, f.right, f.top, f.bottom]; }); })()" % json.dumps(parts), sid)
+                self.assertNotIn(None, got, f"all seven parts are on the line at {width}")
+                for q, g in zip(parts, got):
+                    self.assertTrue(g[0] >= g[4] - 0.5 and g[1] <= g[5] + 0.5 and g[2] >= g[6] - 0.5 and g[3] <= g[7] + 0.5, f"{q} is inside the box at {width}: {g}")
+                    self.assertGreater(g[1] - g[0], 0, f"{q} has a width at {width}")
+                for i, (a, ga) in enumerate(zip(parts, got)):       # the line may wrap to a second row here, so no two parts may overlap, whatever the row
+                    for b, gb in list(zip(parts, got))[i + 1:]:
+                        apart = ga[1] <= gb[0] + 0.5 or gb[1] <= ga[0] + 0.5 or ga[3] <= gb[2] + 0.5 or gb[3] <= ga[2] + 0.5
+                        self.assertTrue(apart, f"{a} and {b} overlap at {width}: {ga[:4]} {gb[:4]}")
+                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), True, f"no sideways scroll at {width}")
+
     def test_the_icons_still_work_and_the_tabs_keep_their_counts(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
