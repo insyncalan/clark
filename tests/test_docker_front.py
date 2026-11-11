@@ -278,7 +278,7 @@ class MovementFilesAreNotInTheWay(unittest.TestCase):
     def test_the_route_files_do_not_reach_into_clarks_server_code(self):
         # the route is three files in docker/; it starts clark by its public command and never names the server's source
         for name in ("compose.front.yaml", "front.command", "nginx.front.conf.template"):
-            text = (ROOT / "docker" / name).read_text()
+            text = (ROOT / "docker" / name).read_text(encoding="utf-8")
             self.assertNotIn("server.py", text, name)
 
 

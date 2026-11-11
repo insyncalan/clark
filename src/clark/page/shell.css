@@ -947,7 +947,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp kbd, .hp-keyline kbd { display: inline-block; min-width: 1.6em; text-align: center; font: var(--weight-regular) var(--size-small)/1 var(--font); border: 1px solid var(--grey-300); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 3px 5px; background: var(--surface); color: var(--text); white-space: nowrap; }
 .hp code { font: var(--weight-regular) var(--size-small)/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--grey-100); border-radius: var(--radius-sm); padding: 1px 5px; }
 .hp mark { background: var(--flash); color: inherit; border-radius: 2px; padding: 0 1px; }
-.hp a[href] { display: inline-block; min-height: 24px; line-height: 24px; }      /* a link in Help is a target of 24 px, in a sentence or on its own */
+.hp a[href]:not(.hp-job) { display: inline-block; min-height: 24px; line-height: 24px; }      /* a link in Help is a target of 24 px, in a sentence or on its own */
 .hp a.hp-a, .hp .hp-go, .hp .hp-jgo, .hp .hp-jt, .hp .hp-wt[href] { color: var(--status-blue-text); text-decoration: none; cursor: pointer; }
 .hp a.hp-a:hover, .hp .hp-go:hover, .hp .hp-jgo:hover, .hp .hp-jt:hover, .hp .hp-wt[href]:hover { text-decoration: underline; text-underline-offset: 2px; }
 .hp a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
