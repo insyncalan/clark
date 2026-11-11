@@ -95,8 +95,8 @@ def needs_mac_words():
 
 def refusal_words(error, fallback):
     """The words a person sees for a PlatformError `error`: the needs-the-Mac sentence when this system's branch is not there
-    (NotBuiltYet), else `fallback`. Never a class name, and never the system's own text."""
-    return str(error) if isinstance(error, NotBuiltYet) else fallback
+    (NotBuiltYet carrying exactly that sentence), else `fallback`. Never a class name, a path or the system's own text."""
+    return needs_mac_words() if isinstance(error, NotBuiltYet) and str(error) == needs_mac_words() else fallback
 
 
 def _only_mac(what, on=None):

@@ -196,6 +196,84 @@ class Script(unittest.TestCase):
         self.assertEqual(self.calls(), [])
 
 
+class HostileSecondAngle(Script):
+    """Second hostile pass: the whole of every route file, and a fake server and a fake docker that lie or fail."""
+
+    def test_no_all_addresses_name_in_any_route_file(self):
+        for name in ("nginx.front.conf.template", "compose.front.yaml", "front.command"):
+            text = (DOCKER / name).read_text(encoding="utf-8")
+            self.assertNotIn("0.0.0.0", text, name)
+            self.assertNotRegex(text, r"(?i)\[::\]|::0|\ball interfaces\b", name)
+
+    def test_the_template_names_exactly_two_loopback_names_and_one_outside_name(self):
+        for name in ("clark_host", "clark_origin"):
+            rows = read_map(name)
+            self.assertEqual(sorted(k for k in rows if k != "default"),
+                             sorted(["127.0.0.1:8766", "localhost:8766"] if name == "clark_host"
+                                    else ["http://127.0.0.1:8766", "http://localhost:8766"]), name)
+        hosts = set(re.findall(r"(?:https?://)?((?:[A-Za-z0-9-]+\.)+[A-Za-z]+|localhost|127\.\d+\.\d+\.\d+)(?=[:\"; /]|$)",
+                               "\n".join(l for l in TEMPLATE.splitlines() if not l.lstrip().startswith("#")).split("location @down")[0]))
+        self.assertEqual(hosts, {"127.0.0.1", "localhost", "host.docker.internal"})
+
+    def test_the_proxy_listens_on_the_one_inside_port_and_the_mac_port_is_never_published(self):
+        code = "\n".join(l for l in TEMPLATE.splitlines() if not l.lstrip().startswith("#"))
+        self.assertEqual(re.findall(r"^\s*listen\s+([^;]+);", code, re.M), ["8080"])
+        self.assertNotIn("CLARK_SERVER_PORT:", "\n".join(re.findall(r'^\s*-\s*"[^"]*:\d+"', COMPOSE, re.M)))
+        self.assertEqual(len(re.findall(r'^\s*-\s*"\d+:\d+"', COMPOSE, re.M)), 0)
+
+    def test_every_non_error_request_goes_to_the_mac_and_the_down_page_is_a_502(self):
+        code = "\n".join(l for l in TEMPLATE.splitlines() if not l.lstrip().startswith("#"))
+        self.assertEqual(len(re.findall(r"proxy_pass ", code)), 1)
+        self.assertIn("proxy_intercept_errors off;", code)
+        self.assertRegex(code, r"location @down \{[^}]*return 502 \"")
+        self.assertNotRegex(code, r"error_page\s+(?!502 503 504 @down)")
+        self.assertNotIn("proxy_next_upstream", code)
+
+    def test_the_mac_server_is_started_without_a_listen_address_or_container_setting(self):
+        r = self.run_script("server", CLARK_CONTAINER="1")
+        self.assertEqual(r.returncode, 0, r.stderr)
+        call = self.calls()[-1]
+        self.assertNotIn("--host", call)
+        self.assertNotIn("0.0.0.0", call)
+        self.stub("python3", f'if [ "$1" = "-m" ]; then echo "container=[$CLARK_CONTAINER]" >> "$CALLS"; exit 0; fi; exec {shutil.which("python3", path="/usr/bin:/bin")} "$@"')
+        self.log.unlink()
+        self.run_script("server", CLARK_CONTAINER="1")
+        self.assertEqual(self.calls(), ["container=[]"])
+
+    def test_a_server_that_answers_but_is_not_clark_does_not_count_as_running(self):
+        for body in ('{"ok": false}', '<html>"ok"</html>', '{"error": "ok"}', "", "ok"):
+            self.stub("curl", f'echo "curl $@" >> "$CALLS"; echo \'{body}\'; exit 0')
+            r = self.run_script()
+            self.assertEqual(r.returncode, 1, body)
+            self.assertIn("clark is not running on this Mac yet", r.stderr, body)
+            self.assertEqual([c for c in self.calls() if c.startswith("docker")], [], body)
+            if self.log.exists():
+                self.log.unlink()
+
+    def test_a_dead_server_in_any_way_shows_the_plain_message_and_never_starts_docker(self):
+        for exit_code in (6, 7, 22, 28, 52, 56):
+            self.stub("curl", f"echo curl >> \"$CALLS\"; exit {exit_code}")
+            r = self.run_script()
+            self.assertEqual(r.returncode, 1, exit_code)
+            self.assertIn("nothing answers on 127.0.0.1:8767", r.stderr)
+            self.assertIn("bash docker/front.command server", r.stderr)
+            self.assertNotIn("Traceback", r.stderr)
+            self.assertEqual([c for c in self.calls() if c.startswith("docker")], [])
+            self.log.unlink()
+
+    def test_two_spellings_of_one_port_are_refused_not_taken_for_two_ports(self):
+        for port, sport in (("8766", "08766"), ("08766", "8766"), ("08766", "08767")):
+            r = self.run_script(CLARK_PORT=port, CLARK_SERVER_PORT=sport)
+            self.assertEqual(r.returncode, 1, (port, sport))
+            self.assertEqual(self.calls(), [], (port, sport))
+
+    def test_hostile_ports_never_reach_the_proxy_settings_or_the_compose_call(self):
+        for bad in ("8766\n8767", "8766 ", " 8766", "8766,8767", "８７６６", "8766}", "1e4"):
+            r = self.run_script(CLARK_PORT=bad)
+            self.assertEqual(r.returncode, 1, repr(bad))
+            self.assertEqual(self.calls(), [], repr(bad))
+
+
 class MovementFilesAreNotInTheWay(unittest.TestCase):
     def test_the_route_files_do_not_reach_into_clarks_server_code(self):
         # the route is three files in docker/; it starts clark by its public command and never names the server's source

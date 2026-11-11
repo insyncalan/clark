@@ -17,6 +17,11 @@ export function Brands({ api = REAL }) {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);
   const heading = useRef(null);
+  const opener = useRef("[data-review]");      // the button that opened the panel: the focus goes back to it when the panel closes
+  const back = (sel) => requestAnimationFrame(() => { const b = document.querySelector(`#brands ${sel}`); if (b) b.focus(); });
+  const closeAsk = () => { const id = armed; setArmed(null); back(`li[data-brand="${id}"] [data-remove]`); };      // Cancel or Esc on Remove's question
+  const closePanel = () => { setPanel(null); back(opener.current); };
+  const escape = (close) => (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
 
   async function load() {
     const r = await api.list();
@@ -27,6 +32,7 @@ export function Brands({ api = REAL }) {
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
   async function review(from) {
+    opener.current = from === "file" ? "[data-choose]" : "[data-review]";
     setBusy(true);
     setMsg(null);
     setPanel(null);
@@ -74,9 +80,9 @@ export function Brands({ api = REAL }) {
             </ul>
           ) : <p class="muted" id="brands-list">{L.EMPTY}</p>}
           {armed ? (
-            <div class="row">
+            <div class="row" onKeyDown={escape(closeAsk)}>
               <button type="button" class="btn pri" data-remove-confirm disabled={busy} onClick={remove}>{L.CONFIRM_REMOVE}</button>
-              <button type="button" class="btn quiet" disabled={busy} onClick={() => setArmed(null)}>{L.LABELS.cancel}</button>
+              <button type="button" class="btn quiet" disabled={busy} onClick={closeAsk}>{L.LABELS.cancel}</button>
             </div>
           ) : null}
           <div class="row">
@@ -88,7 +94,7 @@ export function Brands({ api = REAL }) {
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="brands-panel" role="region" aria-labelledby="brands-panel-h">
+        <div class="backup-panel" id="brands-panel" role="region" aria-labelledby="brands-panel-h" onKeyDown={escape(closePanel)}>
           <p id="brands-panel-h" tabIndex={-1} ref={heading}><b>{panel.view.name}</b> {panel.view.version}</p>
           {panel.view.lists.map(([label, names]) => names.length ? (
             <div key={label}>
@@ -98,7 +104,7 @@ export function Brands({ api = REAL }) {
           ) : null)}
           <div class="row">
             <button type="button" class="btn pri" data-install disabled={busy} onClick={install}>{panel.view.replace ? L.LABELS.replace : L.LABELS.install}</button>
-            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={closePanel}>{L.LABELS.cancel}</button>
           </div>
         </div>
       ) : null}

@@ -54,7 +54,7 @@ PROBE = """(() => {
   r.none = H.noResults("  <b>x</b> ");
   r.keys = H.keysList(false); r.keysMac = H.keysList(true);
   r.icons = H.iconLegend(); r.marks = H.milestoneMarks();
-  r.links = H.linksIn(); r.go = [H.goLabel("work"), H.goLabel("settings#personal"), H.goLabel("nowhere")];
+  r.links = H.linksIn(); r.go = [H.goLabel("work"), H.goLabel("settings#profile"), H.goLabel("nowhere")];
   r.plain = [H.plain("Press **Keep** or [[Mod+Enter]], then `x` in [Help](#ref-keys) or [Work](go:work)"), H.plain("[[Alt+Left]] [[Esc]] [[?]]", true), H.plain(null), H.plain("[[Mod+Enter]]", true)];
   r.jobs = H.jobs(); r.first = H.firstTen().length; r.loop = H.loopSteps().length;
   const one = (title, q) => H.search([{ tab: "howto", id: "t", title, tw: H.wordsOf(title), lw: [] }], q).length;

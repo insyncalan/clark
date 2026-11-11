@@ -731,7 +731,7 @@
      "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open** and **Edit**, and a menu button (the three dots, **More for** the project’s name) that holds **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "To set this project’s folders, open **Settings**, then **Folder**. The folders ask clark may read are in **Settings**, then **Claude and AI**, under **Folders asking may read**.",
+     "To set this project’s folders, open **Settings**, then **Folder**. The folders asking may read are in **Settings**, then **Claude and AI**, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items."
     ],
     "page": [
@@ -1359,7 +1359,7 @@
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details."
      ]
     ]
    },
@@ -1867,7 +1867,7 @@
        ],
        [
         "Asking (on Claude and AI)",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI (on Claude and AI)",
@@ -1883,7 +1883,7 @@
        ],
        [
         "Quit",
-        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it. It asks first: “Quit clark now? Nothing is left running. To start it again, open clark the way you did before.” Press **Quit clark** to confirm or **Cancel** to stay. After it stops, the page says how to start clark again."
        ]
       ]
      ]
