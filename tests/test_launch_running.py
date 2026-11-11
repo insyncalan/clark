@@ -18,8 +18,9 @@ from _paths import ROOT, SRC  # noqa: F401
 from clark import __version__, appfiles, launch, platform as pl, server
 
 THIS = (__version__, appfiles.code_mark())
-STOP = ("clark is already running, but not from this folder or not this version. Nothing was changed. "
-        "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
+STOP = ("clark is already running, but it is not the copy you are trying to start (it may be from another folder, or an older "
+        "version). Close the clark that is already open, then start clark again. "
+        "If you can't find it, restart your computer.")
 PORTS = __import__("itertools").cycle(range(8791, 8796))
 
 
@@ -149,6 +150,25 @@ class Running(unittest.TestCase):
                 s = self.stub(version=THIS[0], folder=THIS[1], page=status)
                 self.stopped(launch.BROKEN_PAGE)
                 s.close()
+
+    def test_row_1030_the_words_do_not_send_anyone_to_a_terminal_window(self):
+        for words in (launch.NOT_THIS_ONE, launch.BROKEN_PAGE):
+            self.assertNotIn("Ctrl", words)
+            self.assertNotIn("Terminal", words)
+            self.assertIn("restart your computer", words)
+
+    def test_row_1030_ours_problem_is_none_for_this_clark_and_a_word_for_the_rest(self):
+        ok = lambda p, m: THIS
+        self.assertIsNone(launch.ours_problem(1, "m", identity=ok, page=lambda p: 200))
+        self.assertIsNone(launch.ours_problem(1, "m", identity=ok, page=lambda p: 404))
+        self.assertEqual(launch.ours_problem(1, "m", identity=lambda p, m: ("0.0.1", THIS[1]), page=lambda p: 200), launch.NOT_THIS_ONE)
+        self.assertEqual(launch.ours_problem(1, "m", identity=lambda p, m: (None, None), page=lambda p: 200), launch.NOT_THIS_ONE)
+        self.assertEqual(launch.ours_problem(1, "m", identity=ok, page=lambda p: 500), launch.BROKEN_PAGE)
+        self.assertEqual(launch.ours_problem(1, "m", identity=ok, page=lambda p: None), launch.BROKEN_PAGE)
+
+    def test_row_1030_a_404_page_on_this_clark_is_no_problem_through_the_real_default_asks(self):
+        self.stub(version=THIS[0], folder=THIS[1], page=404)
+        self.assertIsNone(launch.ours_problem(self.port, self.mark))
 
     def test_nothing_running_starts_as_today(self):
         started = []

@@ -95,10 +95,22 @@ def ask_page(port, timeout=ASK_TIMEOUT * 5, connect=http.client.HTTPConnection):
         conn.close()
 
 
-NOT_THIS_ONE = ("clark is already running, but not from this folder or not this version. Nothing was changed. "
-                "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
-BROKEN_PAGE = ("clark is already running, but its page answers with an error. Nothing was opened or changed. "
-               "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
+# Row 1030: no Terminal window is promised (the other clark may have been started without one), so the words say to close it
+# and, if it can't be found, to restart the computer.
+NOT_THIS_ONE = ("clark is already running, but it is not the copy you are trying to start (it may be from another folder, or "
+                "an older version). Close the clark that is already open, then start clark again. "
+                "If you can't find it, restart your computer.")
+BROKEN_PAGE = ("clark is already running, but its page shows an error. "
+               "Close the clark that is already open, then start clark again. If you can't find it, restart your computer.")
+
+
+def ours_problem(port, mark, identity=ask_identity, page=ask_page):
+    """Row 1030: None if the clark on `port` (which answered as ours) is this folder's and this version's and its page works;
+    else the plain line saying why not. The launcher and the doctor both ask this, so they never disagree."""
+    if identity(port, mark) != (__version__, appfiles.code_mark()):
+        return NOT_THIS_ONE
+    status = page(port)
+    return BROKEN_PAGE if status is None or status >= 500 else None
 
 
 def address(port):
@@ -212,12 +224,8 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         say(report(seen, port, folder, free))
         return 1
     if seen == OURS:
-        if identity(port, mark) != (__version__, appfiles.code_mark()):     # row 975: this data, but not this folder's clark or not this version
-            say(NOT_THIS_ONE)
-            return 1
-        status = page(port)
-        if status is None or status >= 500:         # it answers /health but not its own page: no window is opened on it
-            say(BROKEN_PAGE)
+        if (problem := ours_problem(port, mark, identity, page)):     # rows 975, 1030: this data, but not this clark, or its page is broken
+            say(problem)
             return 1
         say("It is already running. Opening its window.")
     elif (refusal := lock_refusal(folder)):     # clark is open on this folder (on another port), or that can't be checked: none is started
