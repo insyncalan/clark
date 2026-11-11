@@ -696,3 +696,4 @@ test_publish_run_marker_limits.py 30.0
 test_client_workbook_palette.py 30.0
 test_mutants_excel_docx.py 30.0
 test_sneak_commit_words_edges.py 30.0
+test_needs_reason_guard.py 30.0
