@@ -594,8 +594,11 @@ class Menu(board.Base):
     def search_box(self, cdp, sid):
         self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", "the search box in the owner list")
 
-    HOLD_PEOPLE = """(() => { const real = window.fetch.bind(window); let go; const held = new Promise((r) => { go = r; }); window.__peopleGo = go;
-        window.fetch = (u, ...a) => String(u).indexOf('/api/people') === 0 && !(a[0] && a[0].method && a[0].method !== 'GET') ? held.then(() => real(u, ...a)) : real(u, ...a); })()"""
+    # The menu reads the people before it opens, so the first read fails here (the menu opens with no list); the owner list then reads again, and that read is held.
+    HOLD_PEOPLE = """(() => { const real = window.fetch.bind(window); let go, first = true; const held = new Promise((r) => { go = r; }); window.__peopleGo = go;
+        window.fetch = (u, ...a) => { const get = String(u).indexOf('/api/people') === 0 && !(a[0] && a[0].method && a[0].method !== 'GET');
+          if (get && first) { first = false; return Promise.resolve(new Response('{}', { status: 500 })); }
+          return get ? held.then(() => real(u, ...a)) : real(u, ...a); }; })()"""
 
     def people_loaded(self, cdp, sid):
         """Item 1070: the owner list has read the people (the list marks itself while it has not)."""
