@@ -13,8 +13,8 @@ import { OWN_MAX, SOURCES, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, t
 const GROUPS = [["raid", "Risks and issues"], ["actions", "Actions"], ["decisions", "Decisions"]];
 const cut = (s, n) => { const c = Array.from(s); return c.length > n ? `${c.slice(0, n - 1).join("").trimEnd()}…` : s; };
 
-function save(section, cards, words) {
-  return change({ op: "update", id: section.id, changes: { body: bodyOf(cards) }, place: "report" }, words);
+function save(section, cards, words, named = null) {
+  return change({ op: "update", id: section.id, changes: { body: bodyOf(cards) }, place: "report" }, words, named);
 }
 
 export function RaidEdit({ section, size }) {
@@ -22,11 +22,11 @@ export function RaidEdit({ section, size }) {
   const cards = parse(section.body).slice(0, size);
   const rules = rulesOf(d);
   const slots = Math.min(size, cards.length + 1);
-  const put = (i, card, words) => {
+  const put = (i, card, words, named = null) => {
     const now = ((data.value && data.value.report_sections) || []).find((s) => s.id === section.id);      // the body as the page has it now, not as it was drawn
     const next = parse(now ? now.body : section.body).slice(0, size);
     if (card) next[i] = card; else next.splice(i, 1);
-    return save(section, next, words);
+    return save(section, next, words, named);
   };
   const options = (current) => {
     const out = [];
@@ -60,7 +60,7 @@ export function RaidEdit({ section, size }) {
       const text = plainLine(html);
       if (text === card.own) return true;
       if (Array.from(text).length > OWN_MAX) return TOO_LONG;      // the field stays open and says so, in the words every too-long field uses
-      return put(i, { ...card, own: text }, "Card text changed.");
+      return put(i, { ...card, own: text }, "Card text changed.", { inline: true });      // a refusal (hidden text) is said in the editor too
     };
     const missing = card && !found;
     const note = !card ? "" : missing ? "This item is not in the record any more. Choose another item or remove the card."

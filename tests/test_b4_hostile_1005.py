@@ -31,7 +31,6 @@ class Logic(unittest.TestCase):
     pl = plh.PlainLine.pl
     setUpClass = classmethod(plh.PlainLine.setUpClass.__func__)
     tearDownClass = classmethod(plh.PlainLine.tearDownClass.__func__)
-    @unittest.expectedFailure      # defect: plainLine.js splits on \s, which is not U+0085
     def test_a_next_line_character_is_not_left_inside_one_line(self):
         for s in ("<p>a%sb</p>" % NEL, "a%sb" % NEL, "<p>a</p><p>%sb</p>" % NEL):
             got = self.pl(s)
@@ -44,7 +43,6 @@ class Logic(unittest.TestCase):
     def test_ten_thousand_characters_keep_every_one(self):
         self.assertEqual(len(self.pl("<p>" + "x" * 10000 + "</p>")), 10000)
 
-    @unittest.expectedFailure      # defect: plainLine.js, U+0085 alone is kept as text
     def test_whitespace_only_in_every_flavour_is_nothing(self):
         self.assertEqual(self.pl("<p>  %s\t%s</p>" % (LS, "　")), "")
         self.assertEqual(self.pl("<p>%s</p>" % NEL), "")
@@ -138,7 +136,6 @@ class Raid(PageBase):
             for ch in (LS, NEL, PS, "\n"):
                 self.assertNotIn(ch, got, repr(got))
 
-    @unittest.expectedFailure      # defect (low): the editor drops U+0085, so two words typed either side of it are glued (plainFromEditor makes it a space)
     def test_a_next_line_character_between_words_is_a_space_not_nothing(self):
         for p, view, box in self.each():
             self.edit_open(p, view, box)
@@ -155,7 +152,6 @@ class Raid(PageBase):
             p.key("Enter", modifiers=2, code="Enter", vk=13)
             self.assertTrue(self.wait_for(lambda: self.stored() == words), repr(self.stored()))
 
-    @unittest.expectedFailure      # defect: refused only by a short toast; the editor stays open with no message in it
     def test_a_joined_emoji_or_a_direction_mark_is_refused_and_the_editor_says_so_in_the_editor(self):
         """The store refuses hidden characters. The refusal must not leave the editor open with only a toast that is gone in seconds."""
         for p, view, box in self.each():
@@ -237,7 +233,6 @@ class Movement(tmp.Base):
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
 
-    @unittest.expectedFailure      # defect: the Who editor closes on mouse down, the Move button jumps up 93 px and the click is lost
     def test_a_real_click_on_move_right_after_typing_sends_what_was_typed(self, width=1400, theme="light"):
         if True:
             with chrome() as cdp:

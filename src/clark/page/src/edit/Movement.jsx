@@ -188,6 +188,16 @@ function FormRow({ k, children }) {
   );
 }
 
+// Item 1005: pressing Move while Who, Reason or Source is open must not close that editor on the mouse down (the form would shrink under the
+// pointer and the release would miss the button). The press keeps the focus where it is; the click then leaves the open editor, which keeps
+// what was typed, and sends once that is kept.
+function holdEditor(e) { if (document.activeElement && document.activeElement.closest && document.activeElement.closest(".mvm-form .ProseMirror")) e.preventDefault(); }
+function sendAfterEditor(r) {
+  const at = document.activeElement;
+  if (at && at.closest && at.closest(".mvm-form .ProseMirror")) { at.blur(); setTimeout(() => move(r), 80); return; }
+  move(r);
+}
+
 function MoveForm({ r }) {
   const f = form.value;
   const set = (k) => (e) => { form.value = { ...form.value, [k]: e.currentTarget.value, errors: [] }; };
@@ -196,7 +206,7 @@ function MoveForm({ r }) {
   const confirm = W.fill(W.CONFIRM, r.name, showDate(r.agreed), ready ? showDate(iso) : f.to.trim() || "…", r.original_text);
   useEffect(() => { const el = document.getElementById("mv-to"); if (el) el.focus(); }, []);
   return (
-    <form class="mvm-form" aria-labelledby="mv-form-h" onSubmit={(e) => { e.preventDefault(); if (!f.busy) move(r); }}
+    <form class="mvm-form" aria-labelledby="mv-form-h" onSubmit={(e) => { e.preventDefault(); if (!f.busy) sendAfterEditor(r); }}
       onKeyDown={(e) => { if (e.key === "Escape" && !e.target.closest(".ProseMirror")) { e.stopPropagation(); cancel(); } }}>
       <h4 id="mv-form-h">{W.MOVE_LABEL}</h4>
       <label class="mvm-f" for="mv-to"><span>{W.FIELDS.to}</span><input id="mv-to" type="text" inputmode="numeric" autocomplete="off" value={f.to} onInput={set("to")} /></label>
@@ -212,7 +222,7 @@ function MoveForm({ r }) {
       <p class="mvm-confirm" id="mvm-confirm">{confirm}</p>
       <div class="mvm-problems" role="alert">{f.errors.map((e) => <p key={e}>{e}</p>)}</div>
       <div class="mvm-actions">
-        <button type="submit" class="again" id="mv-go" disabled={f.busy} aria-describedby="mvm-confirm">{W.MOVE_LABEL}</button>
+        <button type="submit" class="again" id="mv-go" disabled={f.busy} aria-describedby="mvm-confirm" onMouseDown={holdEditor}>{W.MOVE_LABEL}</button>
         <button type="button" class="btn" id="mv-keep" onClick={cancel}>{W.KEEP_LABEL}</button>
       </div>
     </form>

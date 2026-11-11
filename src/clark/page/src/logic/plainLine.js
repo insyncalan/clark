@@ -4,5 +4,5 @@
 import { richWords } from "./richWords.js";
 
 export function plainLine(html) {
-  return richWords(html).replace(/\s+/g, " ").trim();
+  return richWords(html).replace(/[\s\u0085]+/g, " ").trim();
 }
