@@ -725,6 +725,7 @@ test_help_settings_facts.py 30.0
 test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
+test_section_hint_phone.py 30.0
 test_ai_menu_mutants.py 1.0
 test_excel_colours_mutants.py 1.0
 test_excel_import_mut.py 1.0
