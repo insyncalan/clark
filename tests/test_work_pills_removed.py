@@ -33,7 +33,7 @@ class PillsRemoved(_base.Line):
 
 for _name in dir(_base.Line):             # only the two tests above run here; the others belong to test_filter_line_page
     if _name.startswith("test_") and _name not in PillsRemoved.__dict__:
-        setattr(PillsRemoved, _name, None)
+        setattr(PillsRemoved, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 if __name__ == "__main__":
