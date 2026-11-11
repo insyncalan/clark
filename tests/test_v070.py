@@ -71,7 +71,7 @@ COVERED = [
      "test_help_panel::Panel::test_help_is_a_page_of_cards_with_a_search_icon_and_a_key_chip"),
     ("#459", "A search result marks the word that matched", "test_help_panel::Panel::test_a_result_marks_the_matched_word"),
     ("#459", "With no client folder, To client links to the Publishing card in Settings",
-     "test_publish_dialog::NoFolder::test_C_set_it_in_settings_publishing_is_a_link_to_the_publishing_card"),
+     "test_publish_dialog::NoFolder::test_C_set_it_in_settings_publishing_is_a_link_to_the_folder_page"),
     ("#459", "A preview address opened a second time shows a plain page, not a bare message",
      "test_preview_export_route::Preview::test_a_second_visit_shows_a_plain_page_not_a_bare_message"),
     ("#72", "Without the AI route the Settings card says AI suggestions come in a later version",
