@@ -65,6 +65,8 @@ class Pg:
     def show(self):
         self.palette_key()
         self.until("!!document.querySelector('#palette[open]')", "the palette opened")
+        # opening reads the project list (GET /api/projects), and the Project rows join the list when it arrives, so wait for them
+        self.until("!!document.querySelector('#palette .pal-row[data-kind=\"Project\"]')", "the project list arrived")
 
     def type(self, text):
         self.cdp.call("Input.insertText", {"text": text}, self.sid)
