@@ -145,5 +145,22 @@ class PublishedPillIsBlue(unittest.TestCase):
                     self.assertEqual(py["class"], "b")
 
 
+class OwnStatusAndCancelled(unittest.TestCase):
+    def test_a_cancelled_urgent_row_is_not_maroon(self):
+        ctx = docx_build._Ctx(docx_build.palette(None), "2026-10-28")
+        _, plain = docx_build._status_cell({"status": "Cancelled", "priority": "Medium", "due_date": None}, "action", ctx)
+        _, urgent = docx_build._status_cell({"status": "Cancelled", "priority": "Urgent", "due_date": None}, "action", ctx)
+        self.assertEqual(urgent, plain)
+
+    def test_the_tooltip_of_an_own_status_names_it_and_overdue_only_where_it_is_the_status(self):
+        code = PageCompletedIsBlue.bundle()
+        late = "2026-10-01"
+        cases = [({"kind": "action", "status": "Blocked", "priority": "Medium", "due_date": late}, {"text": "Blocked", "class": "a"}),
+                 ({"kind": "action", "status": "Delayed", "priority": "Medium", "due_date": late}, {"text": "Delayed", "class": "r"}),
+                 ({"kind": "decision", "status": "Pending", "priority": None, "due_date": late}, {"text": "Pending", "class": "g"})]
+        got = node(code + ";console.log(JSON.stringify(%s.map(([r, p]) => IR.iconWords(r, p, %s).tip)))" % (json.dumps(cases), json.dumps(TODAY)))
+        self.assertEqual(got, ["Action \u00b7 Blocked \u00b7 Overdue", "Action \u00b7 Delayed", "Decision \u00b7 Pending"])
+
+
 if __name__ == "__main__":
     unittest.main()
