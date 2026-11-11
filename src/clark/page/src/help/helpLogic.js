@@ -259,7 +259,7 @@ export function articlesFor(page) {
  * The context text of a screen (#645 step 2), for the peek: { page, title, s (the sentences, with their markup), lines (the same,
  * plain), full (the place to open in the full Help, or null when that place is not shown: a held place is never a target), fullTitle,
  * cards }. `cards` is [{ card, title, line }] for Settings, the short line for each card, and [] for every other screen. A card
- * ("settings#pubs") gets its screen's text. A screen with no text gives null.
+ * ("settings#people") gets its screen's text. A screen with no text gives null.
  */
 export function contextText(page) {
   const screen = String(page == null ? "" : page).split("#")[0];

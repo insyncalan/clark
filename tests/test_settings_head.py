@@ -18,7 +18,7 @@ import re
 import unittest
 
 from test_appearance import scheme
-from test_publish_dialog import Base
+from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome, wait
 from _mouse import click_centre, menu_item_js
 from _new_page import reload_to_new_page_cdp
@@ -249,17 +249,12 @@ class Head(Base):
                 p.js("history.back()")
                 p.until("location.hash.indexOf('&s=people') > 0 && document.querySelector('.set-menu [aria-current]').textContent === 'People'", "Back shows the Settings page it came from")
 
-    def test_C_a_help_link_to_a_settings_page_opens_that_page(self):
-        """A Help link go:settings#pubs opens the Published reports page, not the first page (go:settings#update, #profile and #people are mapped the same way in helpStore.js)."""
-        for anchor, slug, head, place in (("pubs", "published", "pubs-h", "howto-update-clark"),):      # the How do I list holds the Open Settings link of the find-a-past-publication job
-            with self.subTest(anchor=anchor), chrome() as cdp:
-                p = self.page(cdp)
-                self.open_settings(p, 1400)
-                p.js("window.clarkPage.help.open(%s)" % json.dumps(place))
-                p.until("!!document.querySelector('[data-hgo=\"settings#%s\"]')" % anchor, "Help shows a link to settings#" + anchor)
-                p.js("document.querySelector('[data-hgo=\"settings#%s\"]').click()" % anchor)
-                p.until("!!document.getElementById('%s')" % head, "the %s page drew" % slug)
-                self.assertEqual(p.js("(location.hash.match(/&s=([^&]*)/) || [0, 'projects'])[1]"), slug, "the address names the page")
+    def test_C_published_reports_is_no_settings_anchor_for_help(self):
+        """Published reports is its own page (row 1087), so Help has no go:settings#pubs: SETTINGS_ANCHOR does not map it and the find-a-past-publication job goes to the Dashboard."""
+        store = (PAGE_SRC / "help" / "helpStore.js").read_text(encoding="utf-8")
+        self.assertNotIn("pubs", re.search(r"const SETTINGS_ANCHOR = \{(.*?)\};", store, re.S).group(1))
+        content = json.loads((PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        self.assertNotIn("settings#pubs", json.dumps(content))
 
     def test_C_every_help_anchor_for_settings_opens_its_own_page(self):
         """go:settings#update, #profile, #people and #folder each open the page that holds what they name (SETTINGS_ANCHOR in helpStore.js); an anchor that is not mapped opens Projects."""
