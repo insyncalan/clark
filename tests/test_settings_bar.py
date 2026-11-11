@@ -223,6 +223,12 @@ class SettingsBar(Base):
             p = self.page(cdp)
             self.open_settings(p, 1400)
             for name, slug, head_id, _ in PAGES:      # all 13 are reachable, each shows a heading and is marked when chosen
+                if slug == "published":      # row 1087: this entry opens the Published reports page of its own; Back returns to Settings
+                    self.entry(p, name)
+                    p.until("location.hash.indexOf('#published') === 0 && !!document.getElementById('pubs-page')", f"{name} is reachable (its page of its own)")
+                    p.js("history.back()")
+                    p.until("!!document.querySelector('.set-menu') && !!document.querySelector('.set-menu [aria-current]')", "back in Settings")
+                    continue
                 self.entry(p, name)
                 p.until(f"!!document.getElementById('{head_id}') && ({MARKED} || {{}}).textContent === '{name}'", f"{name} is reachable")
             p.js("location.hash = '#work&p=PUB'")

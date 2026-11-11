@@ -672,3 +672,17 @@ test_work_no_mode.py 21.0
 test_work_table_parity.py 19.7
 test_workflow.py 21.0
 test_zip_readme.py 0.6
+test_brand_isolation.py 30.0
+test_hostile_1087.py 30.0
+test_hostile_planned_2026.py 30.0
+test_settings_cards_widths_2.py 30.0
+test_settings_widths_1.py 30.0
+test_spacing_milestones_usecases.py 30.0
+test_spacing_peek_dialogs.py 30.0
+test_spacing_report_blocks.py 30.0
+test_spacing_settings_help.py 30.0
+test_spacing_work_items.py 30.0
+test_store_planned_2026_migration.py 30.0
+test_work_pills_killers.py 30.0
+test_work_pills_removed.py 30.0
+test_settings_advanced.py 30.0
