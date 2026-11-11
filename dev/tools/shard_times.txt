@@ -691,3 +691,6 @@ test_work_pills_removed.py 1.0
 test_help_wording_107_b.py 30.0
 test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
+test_hostile_1077.py 1.0
+test_peek_ruled_1077.py 1.0
+test_source_name.py 1.0
