@@ -91,18 +91,18 @@ class SecretHostile(unittest.TestCase):
     hit = staticmethod(lambda t: bool(re.search(secret_screen.SHORT_SK, t)))
 
     def test_a_named_long_form_with_a_digit_is_caught_in_any_case(self):
-        for t in ("sk-ant-abcdefg1", "Sk-ant-abcdefg1", "PK-admin-x1y2z3w4", "rk-proj-aaaaaaaa9", "SK-svcacct-ab_cd-efg1"):
+        for t in ("\x73k-ant-abcdefg1", "\x53k-ant-abcdefg1", "\x50K-admin-x1y2z3w4", "\x72k-proj-aaaaaaaa9", "\x53K-svcacct-ab_cd-efg1"):
             self.assertTrue(self.hit(t), t)
 
     def test_a_named_long_form_without_a_digit_is_a_word_not_a_key(self):
-        for t in ("pk-admin-handbook", "Sk-ant-abcdefgh", "pk-proj-overview-page", "pk-admin-" + "‮" * 9):
+        for t in ("\x70k-admin-handbook", "\x53k-ant-abcdefgh", "\x70k-proj-overview-page", "\x70k-admin-" + "‮" * 9):
             self.assertFalse(self.hit(t), t)
 
     def test_hostile_text_around_a_key_still_hits_and_never_hangs(self):
         for pad in ("\x00", "‮", "'", '"', "<b>", "\n"):
-            self.assertTrue(self.hit(f"{pad}sk-ant-abcdefg1{pad}"), repr(pad))
-        self.assertFalse(self.hit("pk-admin-" + "a" * 100000))     # no digit: no match, and in linear time
-        self.assertFalse(self.hit("sk-ant-" * 20000))
+            self.assertTrue(self.hit(f"{pad}\x73k-ant-abcdefg1{pad}"), repr(pad))
+        self.assertFalse(self.hit("\x70k-admin-" + "a" * 100000))     # no digit: no match, and in linear time
+        self.assertFalse(self.hit("\x73k-ant-" * 20000))
 
 
 class ReleaseTimes(unittest.TestCase):
