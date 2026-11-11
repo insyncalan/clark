@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_docx_graphics
 The pictures come from src/clark/png_draw.py (a PNG writer in zlib and struct) and src/clark/docx_graphics.py (shapes and design-token
-colours only, no text in a picture). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
+colours only, and from #1036 the lane names and month labels drawn as pixels with a built-in 5x7 font). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
 exactly the right size); the pixels are the token colours (Achieved green, Late red, a progress bar's done part, the Health segment,
 the Today line where its date is); the .docx holds the picture as a media part with a relationship, a content type and an inline
 drawing, read with the zip and an XML parser only; alt text is made of words the report already shows; hostile rows (none, garbage
@@ -646,9 +646,6 @@ class OverflowIsHandledWhereItHappens(unittest.TestCase):
             self.assertEqual(rows[0]["solid"], date(2026, 11, 20))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class LabelsExact(unittest.TestCase):
     """#1036 mutation proof: the exact numbers, glyph shapes and positions of the words in a picture."""
@@ -719,3 +716,7 @@ class LabelsExact(unittest.TestCase):
         with mock.patch.object(g, "month_labels", lambda c, months, x, col: (seen.append(len(months)), real(c, months, x, col))):
             g.plan([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")], "2026-11-08", TOKENS)
         self.assertTrue(seen and all(n <= g.MAX_TICKS for n in seen), seen)
+
+
+if __name__ == "__main__":
+    unittest.main()

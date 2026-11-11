@@ -119,7 +119,7 @@ class HostileHealthAndStatus(unittest.TestCase):
                 d = self.plant(bad)["data"]
                 rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
                 self.assertTrue(rows)
-                self.assertTrue(all(r["colour"] is None or r["colour"] == "grey" for r in rows))
+                self.assertEqual([r["colour"] for r in rows], [None] * len(rows))      # no colour at all, not a grey one
 
 
 class Repeatable(unittest.TestCase):
