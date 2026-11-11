@@ -218,6 +218,7 @@ test_gantt_grid.py 3.4
 test_gantt_hidden_hostile.py 1.2
 test_gantt_logic.py 2.3
 test_gantt_markers.py 24.8
+test_gantt_markers_hostile.py 5.0
 test_gantt_migration.py 3.7
 test_gantt_page.py 6.9
 test_gantt_print.py 19.6
@@ -438,6 +439,7 @@ test_publish_data_block_client_words.py 3.3
 test_publish_dialog.py 105.6
 test_publish_escape_run.py 1.7
 test_publish_glance.py 1.0
+test_publish_hidden_section_markers.py 5.0
 test_publish_in_menu.py 14.6
 test_publish_no_warnings.py 6.0
 test_publish_progress.py 37.2
@@ -504,6 +506,7 @@ test_section_card_look.py 0.6
 test_section_card_look_page.py 26.6
 test_section_file_route.py 7.1
 test_section_handle.py 12.5
+test_section_hint_phone.py 35.0
 test_section_registry.py 8.7
 test_section_style_cards.py 89.0
 test_sections_store.py 4.3

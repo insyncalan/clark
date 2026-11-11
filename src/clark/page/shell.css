@@ -1652,7 +1652,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 /* The first-time hint beside the section handle: plain words, there with or without the pulse. */
 .sec-ctl.hint { opacity: 1; z-index: 20; }
 .sec-hint { position: absolute; left: 30px; top: 0; white-space: nowrap; pointer-events: none; padding: var(--space-1) var(--space-2); border: 1px solid var(--grey-300); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow); color: var(--text); font-size: var(--size-small); }
-@media (max-width: 640px) { .sec-hint { white-space: normal; left: 0; top: auto; bottom: calc(100% + var(--space-2)); width: max-content; max-width: calc(100vw - 48px); } }      /* on a phone the heading starts under the handle's column, so the hint sits above the section, not beside it */
+@media (max-width: 640px) { .sec-hint { white-space: normal; left: 0; top: calc(100% + var(--space-2)); bottom: auto; width: max-content; max-width: calc(100vw - 48px); } }      /* on a phone the heading starts under the handle's column, so the hint sits under the handle, never above the section top */
 /* sweep c7: the People table keeps to the window, and the Settings chips and the menu rows are 44 px to tap */
 @media (max-width: 640px) {
   table.pp-table { table-layout: fixed; }
