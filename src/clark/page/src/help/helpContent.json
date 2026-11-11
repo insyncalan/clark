@@ -292,6 +292,21 @@
     ]
    },
    {
+    "id": "excel-file-layout",
+    "g": "Every week",
+    "t": "See how the Excel file is laid out",
+    "w": "Settings \u203a Data",
+    "go": "settings#data",
+    "s": [
+     "In **Settings**, on the **Data** card, press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
+     "The **Cover** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. **History** lists the changes made to the items."
+    ],
+    "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
+    "page": [
+     "settings#data"
+    ]
+   },
+   {
     "id": "find-a-past-publication",
     "g": "Every week",
     "t": "Find or open a past publication",
