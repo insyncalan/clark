@@ -31,7 +31,7 @@ class TheSettingsTable(unittest.TestCase):
 
     def test_the_intro_lists_the_same_cards(self):
         intro = SECTION["b"][0][1]
-        listed = intro.split("): ")[1].split(", in the order")[0].replace(", Asking and Quit", ", Asking, Quit").split(", ")
+        listed = intro.split("): ")[1].split(", in the order")[0].replace(", Feedback and Quit", ", Feedback, Quit").split(", ")
         self.assertEqual(listed, chips())
 
     def test_the_data_row_names_the_buttons_of_the_card(self):

@@ -613,6 +613,44 @@ class Scan(unittest.TestCase):
         self.assertIn("could not run", out.getvalue())
 
 
+class FeedbackAddressAllowlist(unittest.TestCase):
+    """Row 1069: the feedback recipient address is allowed in exactly two files and nowhere else (the narrowest allowlist)."""
+    ADDRESS = pp.reveal("nyna.znuba@vaprcgvba42.nv")
+    JS, PY = "src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py"
+
+    def scan(self, path, text):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write(path, text)
+        r.commit("add")
+        return r.scan()
+
+    def test_the_address_is_allowed_in_exactly_the_two_files(self):
+        self.assertEqual(pp.FEEDBACK_ADDRESS_PATHS, (self.JS, self.PY))
+        for path in (self.JS, self.PY):
+            rc, out = self.scan(path, 'ADDRESS = "%s"\n' % self.ADDRESS)
+            self.assertEqual(rc, 0, out)
+
+    def test_the_address_is_still_refused_in_any_other_file(self):
+        for path in ("src/clark/page/src/logic/other.js", "tests/test_other.py", "README2.md", "docs/a.md", "feedback.js"):
+            rc, out = self.scan(path, 'ADDRESS = "%s"\n' % self.ADDRESS)
+            self.assertEqual(rc, 1, path + out)
+            self.assertIn("a person's name", out)
+
+    def test_another_address_with_the_same_name_or_domain_is_refused_in_those_files(self):
+        local, domain = self.ADDRESS.split("@")
+        for path in (self.JS, self.PY):
+            for other in (local + "@example.com", "x" + local + "@" + domain, local + "@" + domain + ".evil.io", local + "@" + domain + "x"):
+                rc, out = self.scan(path, 'ADDRESS = "%s"\n' % other)
+                self.assertEqual(rc, 1, path + other)
+
+    def test_a_second_name_beside_the_address_is_refused_in_those_files(self):
+        rc, out = self.scan(self.JS, 'A = "%s"\n// %s\n' % (self.ADDRESS, LISTED))
+        self.assertEqual(rc, 1, out)
+        rc, out = self.scan(self.JS, 'A = "%s"\nB = "%s"\n' % (self.ADDRESS, self.ADDRESS.split("@")[0]))
+        self.assertEqual(rc, 1, out)
+
+
 class PinnedPublicFiles(unittest.TestCase):
     """Issue 722: the three files of the folder 'meet clark' are the only PDFs (and the only files in that folder) let through,
     and only byte for byte. The tests use tiny fake files and a fake table (the seam is ci_scan.ALLOWED_PUBLIC_FILES); the real
