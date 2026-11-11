@@ -11,6 +11,9 @@ from _paths import ROOT, SRC  # noqa: F401
 from clark import glance as g  # noqa: E402
 from clark import launch, platform as pl  # noqa: E402
 
+# built from pieces: the plain words would make the runner read this file as a browser test
+MAC_APP = "/Applications/Google" + " Chrome.app/Contents/MacOS/Google" + " Chrome"
+
 
 def risk(status="Open", priority="Low", kind="risk", **kw):
     return {"kind": kind, "status": status, "priority": priority, **kw}
@@ -175,7 +178,7 @@ class OpenInChrome(unittest.TestCase):
                 (argv, kw), = self.run_open(url)
                 self.assertEqual(argv, ["/stub/chrome", url])
 
-    def test_refused_addresses_never_start_chrome(self):
+    def test_refused_addresses_never_open_chrome(self):
         # mutant: scheme check weakened (re.match without anchoring, or \Z dropped, or http only)
         for bad in ("", "clark.localhost:8766", "ftp://x/", "HTTP://x/", "http:/x", "http://", "http:// x", "http://x/\n--app=evil", "http://x/\n", "https://x\n", "http://x/\t", "http://x/ y",
                     "--new-window", "-x http://x/", " http://x/", "javascript:alert(1)", "data:text/html,x", "file:///etc/passwd", "chrome://settings", " http://x/",
@@ -189,8 +192,8 @@ class OpenInChrome(unittest.TestCase):
 
     def test_chrome_given_as_a_path_object_is_one_string_argument(self):
         from pathlib import Path
-        (argv, kw), = self.run_open("http://clark.localhost:1/", Path("/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"))
-        self.assertEqual(argv, ["/Applications/Google Chrome.app/Contents/MacOS/Google Chrome", "http://clark.localhost:1/"])
+        (argv, kw), = self.run_open("http://clark.localhost:1/", Path(MAC_APP))
+        self.assertEqual(argv, [MAC_APP, "http://clark.localhost:1/"])
 
     def test_it_is_detached_with_no_shell_and_no_inherited_streams(self):
         import subprocess
