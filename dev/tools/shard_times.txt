@@ -691,3 +691,13 @@ test_work_pills_removed.py 1.0
 test_help_wording_107_b.py 30.0
 test_gantt_markers_hostile.py 30.0
 test_publish_hidden_section_markers.py 30.0
+test_cloud_folder.py 1.0
+test_launcher_setup.py 1.0
+test_platform_windows_paths.py 1.0
+test_server_setup.py 1.0
+test_setup_docker.py 1.0
+test_setup_entry.py 1.0
+test_setup_page_browser.py 1.0
+test_setup_page_gatekeeper.py 1.0
+test_setup_page_words.py 1.0
+test_setup_rows.py 1.0
