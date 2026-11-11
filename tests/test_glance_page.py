@@ -491,7 +491,7 @@ class Styles(Setup):
             p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
             flat = {}
             for value in ("comfortable", "compact"):
-                p.js("location.hash = '#settings&p=ABC'")
+                p.js("location.hash = '#settings&p=ABC&s=appearance'")
                 p.until(f"!!document.querySelector('input[name=density][value={value}]')", "Personal")
                 p.js(f"document.querySelector('input[name=density][value={value}]').click()")
                 p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
