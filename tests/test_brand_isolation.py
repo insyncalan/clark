@@ -172,6 +172,39 @@ class Word(Rig):
         self.assertNotIn(BRANDS["quokka"]["navy"].upper(), raw)
 
 
+class DefaultRoot(Rig):
+    """Built without brand_root, the flow and the route look in the clark folder that holds branding/: page.BRANDING.parent."""
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(page, "BRANDING", self.root / "branding")
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_the_publisher_defaults_to_the_folder_holding_branding(self):
+        pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: USER, data_dir=self.s.path.parent)
+        self.assertEqual(self.root, pub.brand_root)
+
+    def test_a_word_export_without_brand_root_takes_the_projects_brand(self):
+        self.set_brand("zebra")
+        out = Path(tempfile.mkdtemp(prefix="clark-iso-out-"))
+        self.addCleanup(shutil.rmtree, out, True)
+        seam = word_route.make_word_export(self.s.path, [], USER, today=lambda: "2026-10-29", choose_folder=lambda prompt: out)
+        status, body = seam({"project": "ABC"})
+        self.assertEqual(status, 200, body)
+        z = zipfile.ZipFile(next(out.rglob("*.docx")))
+        raw = "".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml")).upper()
+        self.assertIn(BRANDS["zebra"]["navy"].upper(), raw)
+
+    def test_the_export_step_without_brand_root_takes_the_projects_brand(self):
+        self.set_brand("zebra")
+        with mock.patch.object(publish_flow, "brand_of", wraps=publish_flow.brand_of) as spy:
+            try:
+                word_route._do_export(self.s, USER, {"project": "ABC"}, lambda: "2026-10-29", None, [])
+            except Exception:
+                pass          # saving needs a folder; only the brand lookup is under test
+        self.assertEqual(self.root, spy.call_args[0][2])
+
+
 class ClientWorkbook(Rig):
     def setUp(self):
         super().setUp()
