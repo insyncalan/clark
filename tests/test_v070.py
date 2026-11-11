@@ -97,7 +97,7 @@ COVERED = [
     ("#388", "A publish that loses the race for a number puts back a link it had replaced",
      "test_publication_numbers::ThroughThePublisher::test_overwrite_with_a_lost_race_puts_back_a_link_it_replaced"),
     ("#493", "A null character in the logo rule is turned away",
-     "test_publish_scan_gaps::BrandPictures::test_a_null_byte_in_the_logo_rule_is_refused"),
+     "test_publish_scan_brand::BrandPictures::test_a_null_byte_in_the_logo_rule_is_refused"),
     ("#400", "A release zip is not built from a tree that is not the tagged commit",
      "test_package::ReleaseFromTagTest::test_untagged_tree_is_refused_and_nothing_is_written"),
     ("#400", "A release zip is not built from a dirty tree",
@@ -274,8 +274,8 @@ COVERED = [
      "test_milestones_eye::Editor::test_a_press_takes_it_off_the_dashboard_with_one_change_and_one_undo_puts_it_back"),
     ("#436", "A published file has no eye, no mark and not the left-out milestone",
      "test_milestones_eye::Editor::test_the_published_file_has_no_eye_no_mark_and_not_the_left_out_milestone"),
-    ("#436", "A milestone row's second line is one line at 1400 px and stacks in two columns only at 800 px and below",
-     "test_milestones_oneline::Rows::test_the_cells_stack_in_two_columns_only_at_800_px_and_below"),
+    ("#436", "A milestone row's second line is one line at 1400 px and keeps four columns at 900 px",
+     "test_milestones_oneline::Rows::test_the_cells_sit_in_four_columns_at_1400_and_900_px"),
 ]
 
 # Not on main yet: (item, check, pull request, a file under src/clark and the text that is in it once the pull request has landed;

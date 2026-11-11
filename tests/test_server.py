@@ -91,7 +91,7 @@ class Running:
                                undo=undo, sneak=sneak, publisher=publisher, section_body=section_body)
         self.port = self.httpd.server_port
         self.httpd.handle_error = self._quiet_when_the_client_leaves(self.httpd.handle_error)
-        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+        threading.Thread(target=self.httpd.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()   # shutdown() waits one poll: 0.5 s by default, a test file stops a server per test
 
     @staticmethod
     def _quiet_when_the_client_leaves(handle_error):
@@ -240,6 +240,8 @@ class Token(ServerTest):
                         status, _, data = self.s.api(method, path, body, token=token)
                         self.assertEqual(status, 403, f"{method} {path} with {token!r}")
                     self.assertTrue(json.loads(data).get("stale"))
+                    if path == "/api/quit":      # #836: with the valid token it really stops this shared server; tests/test_quit.py covers it
+                        continue
                     status = self.s.api(method, path, body)[0]
                     if path == "/api/echo":
                         self.assertEqual(status, 200, f"{method} {path} with the token")
@@ -1395,11 +1397,18 @@ class _Collect(__import__("logging").Handler):
 
 
 def wait(check, seconds=15):
+    """True once check() is true, polling every 50 ms for up to `seconds`. A check that reads a page which is navigating at that
+    moment gets Chrome's "Inspected target navigated or closed": that poll counts as not yet (a page that never settles still
+    ends as False at the limit). Any other error is the test's and is raised."""
     t0 = time.time()
     while time.time() - t0 < seconds:
-        if check():
-            return True
-        time.sleep(0.2)
+        try:
+            if check():
+                return True
+        except RuntimeError as e:
+            if "navigated or closed" not in str(e):
+                raise
+        time.sleep(0.05)       # was 0.2: a condition that turns true a moment after the first look cost a fifth of a second
     return False
 
 
@@ -1420,6 +1429,36 @@ def wait_toast(read, seconds=10):
     return seen[-1]
 
 
+class WaitPolls(unittest.TestCase):
+    """wait needs no browser: it is given the function that reads the page."""
+
+    def test_a_poll_made_while_the_page_navigates_counts_as_not_yet(self):
+        reads = iter([RuntimeError({"code": -32000, "message": "Inspected target navigated or closed"}), False, True])
+
+        def check():
+            r = next(reads)
+            if isinstance(r, Exception):
+                raise r
+            return r
+        self.assertTrue(wait(check, 5))
+
+    def test_a_page_that_never_settles_ends_as_false_at_the_limit(self):
+        def check():
+            raise RuntimeError({"code": -32000, "message": "Inspected target navigated or closed"})
+        self.assertFalse(wait(check, 0.3))
+
+    def test_any_other_error_is_raised(self):
+        def check():
+            raise RuntimeError({"code": -32601, "message": "no such method"})
+        with self.assertRaisesRegex(RuntimeError, "no such method"):
+            wait(check, 5)
+
+    def test_it_looks_again_within_a_tenth_of_a_second(self):
+        t0, reads = time.time(), iter([False, True])
+        self.assertTrue(wait(lambda: next(reads), 5))
+        self.assertLess(time.time() - t0, 0.15)
+
+
 class WaitToast(unittest.TestCase):
     """wait_toast needs no browser: it is given the function that reads the toast."""
 
@@ -1437,8 +1476,28 @@ class _Pipe:
 
     def __init__(self, w, r):
         self.w, self.r, self.n, self.buf = w, r, 0, b""
+        self.events = []                       # every message that is not the answer to a call (page events), in order
+
+    NAVIGATING = -32000           # CDP: "Inspected target navigated or closed", answered to an evaluate the page's own reload cut off
+    NAVIGATION_WAIT = 30.0        # how long a poll waits out a page that is loading again (a slow runner loads twice, #1011)
 
     def call(self, method, params=None, session=None):
+        """One CDP call. A Runtime.evaluate that meets a page navigating (error -32000) is asked again until NAVIGATION_WAIT passes:
+        the page is between two loads, not wrong. Any other error, and any answer, comes straight back (an assertion in the page
+        is a result, not an error, so it is never retried away)."""
+        if method != "Runtime.evaluate":
+            return self._call_once(method, params, session)
+        end = time.monotonic() + self.NAVIGATION_WAIT
+        while True:
+            try:
+                return self._call_once(method, params, session)
+            except RuntimeError as e:
+                err = e.args[0] if e.args else None
+                if not (isinstance(err, dict) and err.get("code") == self.NAVIGATING) or time.monotonic() >= end:
+                    raise
+                time.sleep(0.05)
+
+    def _call_once(self, method, params=None, session=None):
         self.n += 1
         msg = {"id": self.n, "method": method, "params": params or {}}
         if session:
@@ -1456,6 +1515,8 @@ class _Pipe:
                 if "error" in m:
                     raise RuntimeError(m["error"])
                 return m["result"]
+            if "method" in m:
+                self.events.append(m)
 
     def js(self, expr, session):
         return self.call("Runtime.evaluate", {"expression": expr, "returnByValue": True}, session)["result"].get("value")

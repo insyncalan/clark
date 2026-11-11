@@ -81,7 +81,7 @@ class SegFocusRing(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def read(self, code):
+    def read(self, code, archived=None):
         st = open_store(self.path, onedrive_roots=[])
         try:
             return st.data_for(code)
@@ -129,7 +129,7 @@ class SegFocusRing(unittest.TestCase):
                                 self.assertGreaterEqual(ratio(ring, fill), 3.0, f"{label}: ring {ring} on fill {fill} is {ratio(ring, fill):.2f}:1")
                         if got["pill"]:
                             self.assertEqual(got["pill"]["offset"], 1, where + ": the View | Edit pill keeps its own outset ring")
-        self.assertTrue({"Appearance", "Type", "Milestones view", "Calendar scale", "Layout"} <= seen, f"the groups measured: {sorted(seen)}")
+        self.assertTrue({"Appearance", "Milestones view", "Calendar scale", "Layout"} <= seen, f"the groups measured: {sorted(seen)}")
 
 
 if __name__ == "__main__":

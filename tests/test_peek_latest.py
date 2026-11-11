@@ -339,6 +339,48 @@ class Browser(unittest.TestCase):
             self.assertEqual([r["changes"] for r in sent if "Typed" in json.dumps(r["changes"])], [], "the typed text was never saved")
             self.assertEqual(len(sent), 1, "one request: the draft")
 
+    def test_a_real_click_on_draft_with_the_box_open_keeps_the_caret_in_the_editor(self):
+        """Row 549 follow-up: Draft remounts the editor after the mouse is released; the focus must come back to the editor, not BODY."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                x, y = where(cdp, sid, "[data-pk-draft]")
+                for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15),
+                                "the editor holds the focus after Draft (not BODY): " + str(cdp.js("document.activeElement.tagName", sid)))
+                time.sleep(0.5)
+                self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "and it stays there")
+
+    def test_after_draft_with_the_box_open_the_box_shows_the_drafted_words_and_a_click_elsewhere_saves_nothing_more(self):
+        """Row 549, data loss: Draft remounted the editor from the not-yet-refreshed text, so the box showed the OLD update and the next
+        blur saved that stale text as a second change over the draft. The box must show the drafted words, keep them, and send one save."""
+        a = self.action(OVERDUE)
+        ms = next(m for m in self.data["milestones"] if m["id"] == a["milestone"])
+        name = ms["name"][0].lower() + ms["name"][1:]
+        d, y, m = ms["baseline_date"][8:], ms["baseline_date"][:4], ms["baseline_date"][5:7]
+        want = f"Overdue since 22-10-2026. {a['owner']} is working on it. Needed for {name} on {d}-{m}-{y}."
+        text = lambda cdp, sid: cdp.js("(e => e ? e.textContent : null)(document.querySelector('#peek .ProseMirror'))", sid)
+
+        def press(cdp, sid, x, y):
+            for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+        for dark in (False, True):
+            for width in (1400, 900):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, OVERDUE, dark=dark)
+                    self.open_box(cdp, sid)
+                    press(cdp, sid, *where(cdp, sid, "[data-pk-draft]"))
+                    self.assertTrue(wait(lambda: text(cdp, sid) == want, 15), "the box shows the drafted words, got " + repr(text(cdp, sid)))
+                    time.sleep(1)
+                    self.assertEqual(text(cdp, sid), want, "and still shows them a second later")
+                    press(cdp, sid, *where(cdp, sid, "#peek dt"))
+                    time.sleep(1)
+                    saves = [r["changes"] for r in sent if "latest_update" in r["changes"]]
+                    self.assertEqual(saves, [{"latest_update": want}], "exactly one save for the Latest update: the draft")
+
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -356,6 +398,34 @@ class Browser(unittest.TestCase):
                 self.assertEqual(len(sent), 1)
                 self.assertIn("Brand new words", sent[0]["changes"]["latest_update"])
                 self.assertTrue(sent[0]["changes"]["latest_update"].startswith("<p>"), "the editor's HTML is what is sent")
+
+    def test_leaving_the_box_saves_it_once_and_one_undo_puts_the_old_text_back(self):
+        """Item 1005 follow-up: the Latest update saves when the focus leaves it, like the At a glance Reason; Esc still saves nothing."""
+        a = self.action(OVERDUE)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Blur saved.")
+                # Settle on the editor's own state, not a sleep: the typed text is in the editor
+                # and the label we click has the same place in two frames running.
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent.includes('Blur saved.')", sid), 10), "the editor holds the typed text")
+                cdp.js("""window.__lab = null; (() => { const at = () => { const r = document.querySelector('#peek .pk-lab, #peek h2, #peek h3').getBoundingClientRect(); return r.x + ',' + r.y + ',' + r.height; }; let last = at(), n = 0; const tick = () => { const now = at(); n = now === last ? n + 1 : 0; last = now; if (n >= 2) { window.__lab = now; } else { requestAnimationFrame(tick); } }; requestAnimationFrame(tick); })(); true""", sid)
+                self.assertTrue(wait(lambda: cdp.js("window.__lab !== null", sid), 10), "the page has settled")
+                x, y = cdp.js("(() => { const r = document.querySelector('#peek .pk-lab, #peek h2, #peek h3').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()", sid)
+                for kind in ("mousePressed", "mouseReleased"):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid), 10), "leaving the box closed it")
+                self.assertTrue(wait(lambda: "Blur saved." in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)))
+                self.assertEqual(len(sent), 1, "one save, never two")
+                self.assertIn("Blur saved.", sent[0]["changes"]["latest_update"])
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.SHOWN)}).textContent", sid) == a["latest_update"]), "one Undo")
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Not kept.")
+                key(cdp, sid, "Escape")
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid)))
+                self.assertEqual(len(sent), 1, "Esc after the Undo saved nothing")
 
     def test_a_legacy_plain_update_opens_in_the_editor_as_paragraphs_and_is_not_saved_by_looking(self):
         with chrome() as cdp:
