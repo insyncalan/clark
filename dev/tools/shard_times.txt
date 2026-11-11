@@ -720,3 +720,5 @@ test_server_mut2.py 1.0
 test_setup_mode_mutants.py 1.0
 test_store_migration_mutants.py 1.0
 test_store_mut2.py 1.0
+test_publish_pdf_mut.py 1.0
+test_excel_import_mut.py 1.0
