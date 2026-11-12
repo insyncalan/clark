@@ -8,6 +8,7 @@ import unittest
 
 from _demo import USER, DemoStore
 from clark import changes, history
+from clark import store as store_module
 from clark.store import Invalid, REMOVED
 
 
@@ -199,6 +200,43 @@ class DeleteItem(unittest.TestCase):
                 self.assertIn("never deleted", str(e.exception))
                 self.assertEqual(self.count("change_log"), n)
                 self.assertIsNotNone(self.s.read(table, ref=ref))
+
+    def test_the_store_delete_item_itself_refuses_an_archived_item_and_writes_nothing(self):
+        with self.s.step("dashboard", USER) as st:
+            st.archive("actions", self.b)
+        n = self.count("change_log")
+        row = dict(self.s.read("actions", ref=self.b))
+        with self.assertRaises(Invalid) as e:
+            with self.s.step("dashboard", USER) as st:
+                store_module.delete_item(self.con, "actions", self.b, row, st)             # direct: not through write_item's own check
+        self.assertIn("is archived", str(e.exception))
+        with self.assertRaises(Invalid):
+            with self.s.step("dashboard", USER) as st:
+                st.delete("actions", self.b)
+        self.assertEqual(self.count("change_log"), n)
+        self.assertIsNotNone(self.s.read("actions", ref=self.b))
+
+    def test_the_store_delete_item_itself_refuses_an_item_a_decision_replaces(self):
+        with self.s.step("dashboard", USER) as st:
+            st.create("decisions", {"project": "ABC", "decision": "Newer", "date": "2026-10-02", "source": "demo", "replaces": self.dec})
+        n = self.count("change_log")
+        row = dict(self.s.read("decisions", ref=self.dec))
+        with self.assertRaises(Invalid) as e:
+            with self.s.step("dashboard", USER) as st:
+                store_module.delete_item(self.con, "decisions", self.dec, row, st)
+        self.assertIn("something refers to it", str(e.exception))
+        self.assertEqual(self.count("change_log"), n)
+        self.assertIsNotNone(self.s.read("decisions", ref=self.dec))
+
+    def test_an_item_whose_id_says_this_project_but_whose_row_says_another_is_refused(self):
+        self.con.execute("PRAGMA foreign_keys = OFF")
+        self.con.execute("UPDATE actions SET project = 'XYZ' WHERE id = ?", (self.b,))     # the id says ABC, the row says XYZ
+        self.con.commit()
+        n = self.count("change_log")
+        status, body = self.delete("actions", self.b)
+        self.assertEqual((status, body["ok"], body["message"]), (400, False, changes.ITEM_NOT_MINE))
+        self.assertEqual(self.count("change_log"), n)
+        self.assertIsNotNone(self.s.read("actions", ref=self.b))
 
 
 if __name__ == "__main__":
