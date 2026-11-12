@@ -189,7 +189,7 @@ def check_claude(seen):
 
 
 def check_docker(seen):
-    """#836: inside Docker, the Mac folder shared in as the data folder (CLARK_DATA_SOURCE) must not be in a synced folder. The names
+    """item 836: inside Docker, the Mac folder shared in as the data folder (CLARK_DATA_SOURCE) must not be in a synced folder. The names
     are read, not the disk (as platform.container_host_in_onedrive and cloud_folder do); the refusal is starter_check's own sentence.
     Not in CHECKS: the Terminal doctor never runs it; the setup service adds it inside a container."""
     host = seen.environ.get("CLARK_DATA_SOURCE")

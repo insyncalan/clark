@@ -1,4 +1,4 @@
-"""#836 step 5: the setup page (design-836-setup-mode.md; the words are the owner's approved table, logged on the row).
+"""item 836 step 5: the setup page (design-836-setup-mode.md; the words are the owner's approved table, logged on the row).
 
 One plain HTML page with one inline style and one inline script, drawn by the setup server instead of the stand-in. It shows the doctor's
 checks, a "Choose a folder" button (only when a folder check needs fixing) and "Check again". Its sentences are in WORDS and LABELS below
@@ -26,7 +26,7 @@ WORDS = {
     "unknown": ("Some checks can't run on this computer yet, so we can't say whether clark will start. Try starting it; if it won't, "
                 "tell the clark team."),
 }
-# PROPOSED, awaiting the owner's approval (comms/PLAN-106/836-gatekeeper-strings.md): clark.app is not signed or notarised, so a Mac asks once.
+# The Gatekeeper words are the owner's approved table (comms/PLAN-106/836-gatekeeper-strings.md): clark.app is not signed or notarised, so a Mac asks once.
 GATEKEEPER = {
     "head": "If your Mac won't open clark",
     "why": "Apple has not checked clark, so your Mac asks you to allow it the first time. This is expected.",

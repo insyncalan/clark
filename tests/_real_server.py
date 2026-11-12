@@ -58,7 +58,7 @@ def real_server(path, data_for, who=USER, roots=None, seam=None, choose_folder=N
 
 
 def real_setup_start(spawned):
-    """#836: the `start` seam of launch.start_setup made real: the argument list the launcher built is run as a process (the real
+    """item 836: the `start` seam of launch.start_setup made real: the argument list the launcher built is run as a process (the real
     `python3 -m clark.setup_mode`), its output added to the log the launcher named. Each process is put in `spawned` for the caller
     to stop. This is the only way a test starts setup mode for real."""
     def start(argv, env, log_path, cwd=None):

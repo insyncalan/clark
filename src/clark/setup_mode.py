@@ -17,7 +17,7 @@ from pathlib import Path
 from clark import cloud_folder, doctor, platform, setup_page
 
 POINTER_NAME = "clark-data-folder"          # one line, beside the default data folder (not in it)
-FOLDER_PROMPT = "Choose a folder for your clark data"      # the folder window's words (the owner's, #1017); the entry point gives it to Setup
+FOLDER_PROMPT = "Choose a folder for your clark data"      # the folder window's words (the owner's, item 1017); the entry point gives it to Setup
 MAX_PATH = 1000                             # the rule settings.set_backup_copy_folder applies to a typed folder
 
 # Sentences borrowed from the folder picker of asking (ask_folders.MESSAGES, same keys), carried here because that module opens
@@ -74,7 +74,7 @@ class Setup:
     def report(self, folder=None):
         """The checks for the folder now in use, as data for a page. `ready` follows the doctor's own rule."""
         seen = self.seen(folder)
-        container = platform.container_mode()           # #836: inside Docker the page also checks the Mac folder shared in, and cannot open a folder window
+        container = platform.container_mode()           # item 836: inside Docker the page also checks the Mac folder shared in, and cannot open a folder window
         results = doctor.run_checks(seen, tuple(self.checks) + ((doctor.Check("The Docker check", True, doctor.check_docker),) if container else ()))
         rows = [dict(row, required=check.required, page=setup_page.page_words(row["id"], row["status"], row["words"], seen))
                 for row, (check, _) in zip(doctor.as_data(results), results)]
@@ -86,7 +86,7 @@ class Setup:
         is kept (pointer file written) and the new report is returned. Raises Refused (the folder's own words; code "busy" if a
         window is already open; "cant_save" if the pointer file could not be written; "dialog_failed" inside Docker, where the window
         needs the Mac: platform's own sentence, no system call) or lets a PlatformError out (the window could not be opened)."""
-        if platform.container_mode():                       # #836: the page hides the button there; a direct POST meets the same answer here
+        if platform.container_mode():                       # item 836: the page hides the button there; a direct POST meets the same answer here
             raise Refused("dialog_failed", platform.mac_only_in_docker("The folder dialog"))
         if not self._dialog.acquire(blocking=False):
             raise Refused("busy", WORDS["busy"])
@@ -170,10 +170,13 @@ class Setup:
             text = Path(self.pointer()).read_text(encoding="utf-8")
         except (OSError, ValueError, platform.PlatformError, platform.NotBuiltYet):
             return None
-        try:
-            return self.accept(text.rstrip("\r\n"))       # only the line end: a folder's own edge spaces are part of its name
-        except Refused:
-            return None
+        line = text.rstrip("\r\n")                           # the line end only first: a folder's own edge spaces are part of its name
+        for tried in (line, line.strip()):                   # then the line with spaces around it ignored, as a hand-edited pointer may have
+            try:
+                return self.accept(tried)
+            except Refused:
+                continue
+        return None
 
     # What the server's setup routes ask for (server.py SetupHandler). Each answers (status, body); None means "not wired" (404).
     def api_checks(self):

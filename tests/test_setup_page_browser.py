@@ -1,4 +1,4 @@
-"""#836 step 5: the setup page as drawn, in headless Chrome (src/clark/setup_page.py). Run: python3 dev/run_tests.py test_setup_page_browser
+"""item 836 step 5: the setup page as drawn, in headless Chrome (src/clark/setup_page.py). Run: python3 dev/run_tests.py test_setup_page_browser
 One file at a time under the browser slot, with the stub osascript first on PATH (PATH=/tmp/nodialog:$PATH). A real setup server (SetupRunning, port 0)
 over temporary folders; the folder window is always a fake function. Every state: to fix with "Choose a folder", waiting for the folder window,
 a refused folder, Cancel, done (every check ready), a page from before a restart. At 360, 900 and 1400 px, light and dark, reduced motion pinned.

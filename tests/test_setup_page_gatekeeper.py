@@ -1,4 +1,4 @@
-"""#836: the Gatekeeper help on the setup page (clark.app is not signed or notarised, so a Mac asks the person to allow it once).
+"""item 836: the Gatekeeper help on the setup page (clark.app is not signed or notarised, so a Mac asks the person to allow it once).
 Run: python3 dev/run_tests.py test_setup_page_gatekeeper
 The words are PROPOSED and await the owner's approval (~/dev.env/comms/PLAN-106/836-gatekeeper-strings.md); this test pins them so a change is deliberate.
 Static: no browser, no server."""

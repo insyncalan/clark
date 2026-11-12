@@ -1,4 +1,4 @@
-"""#836 step 4b: the setup routes of the server (src/clark/server.py SetupHandler; guarded). Run: python3 dev/run_tests.py test_server_setup
+"""item 836 step 4b: the setup routes of the server (src/clark/server.py SetupHandler; guarded). Run: python3 dev/run_tests.py test_server_setup
 A real LocalServer on a free port with SetupHandler and a real setup_mode.Setup over temporary folders. The folder window is always a
 fake function. No store, no data folder, no browser."""
 import json

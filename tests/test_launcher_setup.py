@@ -1,4 +1,4 @@
-"""#836 step 4c: the launcher's hooks into setup mode (src/clark/launch.py).
+"""item 836 step 4c: the launcher's hooks into setup mode (src/clark/launch.py).
 
 Run: python3 dev/run_tests.py test_launcher_setup
 Nothing real is started or opened: every system call is a fake (as test_launcher.py). The setup seam is `setup(port, folder,

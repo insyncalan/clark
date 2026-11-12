@@ -1,4 +1,4 @@
-"""#836 Docker check on the setup page: when clark runs in Docker the page shows one more check, about the Mac folder the
+"""item 836 Docker check on the setup page: when clark runs in Docker the page shows one more check, about the Mac folder the
 container shares in as the data folder (CLARK_DATA_SOURCE), and hides "Choose a folder" (the folder window needs the Mac).
 Run: python3 dev/run_tests.py test_setup_docker
 

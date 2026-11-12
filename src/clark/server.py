@@ -18,7 +18,7 @@ Routes:
                          `section_image(req)`, from clark.changes (the picture's checks are there); its own body limit
 - POST /api/sneak/read  words about one work item as from → to changes (#42); read only, plain code (clark.sneak)
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
-- POST /api/quit         Quit (#836): answers, then stops this server (the Settings card "Quit clark"); nothing is read from the body
+- POST /api/quit         Quit (item 836): answers, then stops this server (the Settings card "Quit clark"); nothing is read from the body
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
@@ -1597,7 +1597,7 @@ class Handler(BaseHTTPRequestHandler):
         return self.run_route(api, req)
 
 
-# ===== Setup mode (#836 step 4b): a second, very small server the launcher starts instead of the normal one when a check fails =====
+# ===== Setup mode (item 836 step 4b): a second, very small server the launcher starts instead of the normal one when a check fails =====
 # It has no database and none of clark's data routes: only the routes below, a stand-in page, /health and the heartbeat. All the logic is
 # in `server.setup` (setup_mode.Setup); this server imports nothing from clark. design-836-setup-mode.md sections 1 to 4.
 def setup_route(method, needs_empty_body=True):
@@ -1718,7 +1718,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
-        self.setup = setup                    # setup_mode.Setup (#836): given only to a SetupHandler server; None: the normal server
+        self.setup = setup                    # setup_mode.Setup (item 836): given only to a SetupHandler server; None: the normal server
         self.brands = brands                  # BrandLibrary (#944), or any object with listing/review/install/remove/undo; None: those routes answer 503
         self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)

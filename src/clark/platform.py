@@ -93,7 +93,7 @@ def _only_mac(what, on=None):
 
 def mac_only_in_docker(what):
     """The words said inside the container for a step that needs the Mac (`what`: "The folder dialog"...): item 427's sentence, the one
-    _only_mac raises. The setup service (#836) says it before it would ask for a folder window, so no system call is made there."""
+    _only_mac raises. The setup service (item 836) says it before it would ask for a folder window, so no system call is made there."""
     return f"{what} needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with clark.command instead."
 
 
@@ -164,7 +164,7 @@ def onedrive_roots(home=None, on=None):
     return sorted(p for p in found if p.is_dir())
 
 
-# Windows' data folder (#836 slice 4): pure functions over text, so they are tested with made-up strings and need no Windows.
+# Windows' data folder (item 836 slice 4): pure functions over text, so they are tested with made-up strings and need no Windows.
 # They are not wired in: data_dir above still says "not built yet" on Windows. The answer is a problem code (for the page's words
 # to come later), never words, and never a disk or environment read: the caller passes the environment in.
 WINDOWS_ROOM_BELOW = 60                                 # characters left under the data folder for clark's own files and folders

@@ -1,4 +1,4 @@
-"""#836 step 5: the setup page's words and bytes (src/clark/setup_page.py), without a browser. Run: python3 dev/run_tests.py test_setup_page_words
+"""item 836 step 5: the setup page's words and bytes (src/clark/setup_page.py), without a browser. Run: python3 dev/run_tests.py test_setup_page_words
 The page versions of the doctor's lines (no Terminal instruction on a page, "choose Check again"), the labels, the page's own sentences,
 the page served by the setup server (token, policy, no outside address), and the page versions on the service's replies.
 The pages as drawn are in test_setup_page_browser. Temporary folders only; the folder window is always a fake."""

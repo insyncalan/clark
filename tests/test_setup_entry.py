@@ -1,4 +1,4 @@
-"""#836 step 4d: setup mode really comes up. The launcher's start_setup runs `python3 -m clark.setup_mode`; here that command is
+"""item 836 step 4d: setup mode really comes up. The launcher's start_setup runs `python3 -m clark.setup_mode`; here that command is
 run for real (the process through tests/_real_server.py real_setup_start), on a free port, over a temporary folder that does not
 exist. Run: python3 dev/run_tests.py test_setup_entry
 No window, no folder dialog and no real data folder is touched: the launcher's window seams are fakes and the folder route is

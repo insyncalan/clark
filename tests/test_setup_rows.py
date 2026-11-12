@@ -1,7 +1,7 @@
-"""#836 doctor rows 14, 16, 20, 22, 24 and 25: each row's text pinned in the Terminal doctor AND in the page data model.
+"""item 836 doctor rows 14, 16, 20, 22, 24 and 25: each row's text pinned in the Terminal doctor AND in the page data model.
 Run: python3 dev/run_tests.py test_setup_rows
 
-The rows are numbered as in the WORDS TABLE for #836 slice 2 (plan issue #1017). Slice 2 has no page yet; the page's data model is
+The rows are numbered as in the WORDS TABLE for item 836 slice 2 (plan issue item 1017). Slice 2 has no page yet; the page's data model is
 what the setup service hands it (setup_mode.Setup.report: [{id, status, words}], and the folder refusal's `message`). The Terminal
 doctor (doctor.doctor) and that data model must say the same words today, because the page only draws them. The table says several
 of these sentences are wrong on a page (Terminal steps, "run ... again") and recommends page versions. Those page versions are NOT

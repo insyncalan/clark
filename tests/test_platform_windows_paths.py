@@ -1,4 +1,4 @@
-"""#836 slice 4: where clark keeps its data on Windows, and which typed or chosen folders it takes there.
+"""item 836 slice 4: where clark keeps its data on Windows, and which typed or chosen folders it takes there.
 
 Run: python3 tests/test_platform_windows_paths.py
 Pure functions over text: no Windows, no disk, no program. Every path below is a made-up string. Nothing here changes
