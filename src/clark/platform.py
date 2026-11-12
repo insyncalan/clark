@@ -216,7 +216,7 @@ def _windows_dropbox_roots(environ):
             continue
         try:
             info = json.loads((Path(environ[var]) / "Dropbox" / "info.json").read_text(encoding="utf-8"))
-        except (OSError, ValueError):
+        except (OSError, ValueError, RecursionError):      # a file nested deeper than the parser allows is not a usable file
             continue
         for kind in (info.values() if isinstance(info, dict) else ()):
             where = kind.get("path") if isinstance(kind, dict) else None
@@ -376,7 +376,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
             hit = inside_synced(path, synced)
         except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse
             hit = None
-        except (ValueError, RuntimeError):                   # an unresolvable path is not a synced one
+        except (ValueError, RuntimeError, OSError):          # an unresolvable or unreadable path is not a synced one
             hit = None
         if hit is not None:
             raise PlatformError(_synced_refusal(shown(path), hit[0]))

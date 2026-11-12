@@ -118,6 +118,10 @@ class ContainerHost(unittest.TestCase):
         with a, b:
             self.assertEqual(pl.check_data_dir("/data", roots=[], synced=[]), Path("/data").resolve())
 
+    def test_unreadable_path_in_the_synced_check_fails_open(self):
+        with mock.patch.object(pl, "inside_synced", side_effect=PermissionError("denied")):
+            self.assertEqual(pl.check_data_dir("/data", roots=[], synced=[("Dropbox", Path("/x"))]), Path("/data").resolve())
+
     def test_backups_are_never_refused_by_a_synced_name(self):
         a, b = host("/Users/sam/Dropbox/clark")
         with a, b:
@@ -192,10 +196,14 @@ class WindowsInfoJson(Tmp):
         (d / "info.json").write_bytes(b"\xff\xfe\x00bad")
         self.assertEqual(self.roots({"APPDATA": str(self.home / "appdata")}), [])
 
-    @unittest.expectedFailure
-    def test_deeply_nested_json_refuses_nothing_REAL_BUG_recursion_error(self):
-        # REAL BUG: json.loads raises RecursionError (not OSError/ValueError), so the doctor and check_data_dir crash.
+    def test_deeply_nested_json_refuses_nothing(self):
+        # On some Python versions json.loads raises RecursionError for this file; it must not crash the doctor or the data folder check.
         self.assertEqual(self.roots(self.env(None, raw='{"a": ' * 20000)), [])
+
+    def test_recursion_error_from_the_parser_is_caught(self):
+        # The parser's behaviour differs between Python versions, so force the error to keep this covered on all of them.
+        with mock.patch("json.loads", side_effect=RecursionError):
+            self.assertEqual(self.roots(self.env(None, raw="{}")), [])
 
     def test_info_json_a_directory_does_not_crash(self):
         d = self.home / "appdata" / "Dropbox" / "info.json"
