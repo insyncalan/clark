@@ -11,7 +11,7 @@ from datetime import date
 
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 
-from clark import excel_colours, glance
+from clark import client_filters, excel_colours, glance
 from test_completed_blue import node
 from test_work_items import bundled
 
@@ -54,6 +54,47 @@ class Parity(unittest.TestCase):
         for s in STATUSES + ("Pending",):
             row = {"status": s, "due_date": "2020-01-01"}
             self.assertEqual(excel_colours.is_late("actions", "due_date", row, date(2026, 10, 28)), s in ("Open", "Delayed"), s)
+
+    def test_every_other_rule_of_the_page_agrees_a_completed_past_due_action_is_not_late(self):
+        """One check per file that holds the rule: each fails if that one file goes back to main."""
+        P = lambda *a: PAGE.joinpath(*a)
+        today = TODAY
+        done = {"id": "A1", "kind": "action", "status": "Completed", "due_date": "2020-01-01", "title": "x"}
+        live = dict(done, id="A2", status="Open")
+        # minimap.js countOf: the Actions count of late items
+        mm = bundled(P("logic", "minimap.js"), "MM")
+        count = lambda rows: node(mm + ";console.log(JSON.stringify(MM.countOf({type:'actions'}, {actions: %s}, %s)))" % (json.dumps(rows), json.dumps(today)))
+        self.assertEqual(count([done]), {"text": "1", "hot": False})
+        self.assertEqual(count([done, live]), {"text": "1 late", "hot": True})
+        # iconColours.js dateTone
+        ic = bundled(P("iconColours.js"), "IC")
+        tone = lambda r: node(ic + ";console.log(JSON.stringify(IC.dateTone(%s, %s)))" % (json.dumps(r), json.dumps(today)))
+        self.assertEqual((tone(done), tone(live)), ("b", "r"))
+        # peekLatest.js warnFor
+        pl = bundled(P("edit", "peekLatest.js"), "PL")
+        warn = lambda r: node(pl + ";console.log(JSON.stringify(PL.warnFor(%s, %s)))" % (json.dumps(r), json.dumps(today)))
+        self.assertIsNone(warn(dict(done, due_date="2020-01-02")))      # a Thursday: no weekend bar either
+        self.assertEqual(warn(dict(live, due_date="2020-01-02"))["kind"], "overdue")
+        # filters.js dueBucket (published, as the client page) against client_filters.bucket_of
+        fl = bundled(P("filters.js"), "FL")
+        bucket = lambda r: node(fl + ";FL.setPublished(true);console.log(JSON.stringify(FL.dueBucket(%s, %s)))" % (json.dumps(r), json.dumps(today)))
+        for r in (done, live, dict(done, status="Closed"), dict(done, due_date="2030-01-01")):
+            self.assertEqual(bucket(r), client_filters.bucket_of(dict(r, due=r["due_date"]), today), r)
+        self.assertEqual(client_filters.bucket_of(dict(done, due="2020-01-01"), today), "past")
+        self.assertEqual(client_filters.bucket_of(dict(live, due="2020-01-01"), today), "overdue")
+        # filterLine.js due:overdue and is:overdue
+        fline = bundled(P("logic", "filterLine.js"), "FLN")
+        shown = lambda line: node(fline + ";console.log(JSON.stringify(FLN.apply(%s, %s, {today: %s}).map((r) => r.id)))" % (json.dumps([done, live]), json.dumps(line), json.dumps(today)))
+        self.assertEqual(shown("due:overdue"), ["A2"])
+        self.assertEqual(shown("is:overdue"), ["A2"])
+
+    def test_the_board_due_column_has_no_overdue_card_for_a_completed_action(self):
+        board = bundled(PAGE / "logic" / "board.js", "BD")
+        col = lambda r: node(board + ";console.log(JSON.stringify(BD.cellOf('due', %s, {today: %s})))" % (json.dumps(r), json.dumps(TODAY)))
+        done = {"id": "A1", "kind": "action", "table": "actions", "status": "Completed", "due_date": "2020-01-01"}
+        self.assertEqual(col(done), "__none")
+        self.assertEqual(col(dict(done, status="Open")), "overdue")
+        self.assertEqual(col(dict(done, due_date="2030-01-01")), "later")
 
 
 if __name__ == "__main__":
