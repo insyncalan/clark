@@ -85,7 +85,8 @@ class Dialogs(InDocker):
         folders = ask_folders.AskFolders(self.dir / "a.db", [], data_dir=self.dir)
         status, body = folders.choose(Store(), "ABC")
         self.assertEqual(409, status)
-        self.assertEqual(WORDS, body["message"])
+        self.assertEqual(ask_folders.MESSAGES["no_window_docker"], body["message"])
+        self.assertIn("The folder window needs the Mac, so it can't open when clark runs in Docker.", body["message"])
 
     def test_show_the_log_folder_in_finder(self):
         class Log:
