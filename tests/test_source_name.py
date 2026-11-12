@@ -18,7 +18,7 @@ import unittest
 from _paths import SRC  # noqa: F401
 
 from clark import source_name as sn
-from clark.source_name import source_name
+from clark.source_name import FILE_EXTENSIONS, source_name
 
 SEPARATORS = ["/", "\\", "\uff0f", "\uff3c", "\u2215", "\u2216", "\ufe68", "\u2571", "\u2572", "\u29f5", "\u29f8", "\u29f9", "\u27cb", "\u2afd", "\u2044",
               "%2F", "%5C", "%252F", "%2f", "%5c", "\uff05\uff12\uff26", "&#47;", "&#x2F;", "&sol;", "&bsol;", "%u002F", "%u005C", "%c0%af", "<", ">"]
@@ -199,6 +199,14 @@ class OnlyARealFileName(unittest.TestCase):
                              ("Raised by Jo. Confidential, plan.xlsx", "plan.xlsx"), ("See the note, notes.Salary, budget.csv", "budget.csv"),
                              ("Excel import, 2026-10-01, clark import template.xlsx", "clark import template.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_only_the_extensions_clark_imports_or_reads_are_published(self):
+        """Jarvis's list: xlsx xlsm xls csv docx doc pdf. The others (pptx txt msg eml md) are not published: a shorter list leaks less."""
+        for ext in ("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "XLSX", "Pdf"):
+            self.assertEqual(source_name(f"plan.{ext}", published=True), f"plan.{ext}", ext)
+        for ext in ("pptx", "txt", "msg", "eml", "md", "html", "zip", "json"):
+            self.assertEqual(source_name(f"plan.{ext}", published=True), "", ext)
+        self.assertEqual(sorted(FILE_EXTENSIONS), sorted(("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf")))
 
     def test_a_path_gives_the_name_only_and_only_when_it_is_a_real_file(self):
         self.assertEqual(source_name("C:\\x\\salary.xlsx", published=True), "salary.xlsx")

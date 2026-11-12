@@ -24,3 +24,10 @@ export function richOrPlain(value) {
   if (typeof value !== "string") return cleanHtml(value);
   return cleanHtml(HTML_START.test(value) ? value : legacyToHtml(value.replace(CONTROL, "")));
 }
+
+/** A value a field keeps as plain text, as the editor's HTML (item 1005): always escaped, never read as stored HTML, so typed text that
+ * looks like tags (`<p>use <b>x</b></p>`) comes back as the same text. "" for none or a value cleanHtml refuses. */
+export function plainToHtml(value) {
+  if (value == null || value === "") return "";
+  try { return cleanHtml(legacyToHtml(String(value).replace(CONTROL, ""))); } catch (e) { return ""; }
+}

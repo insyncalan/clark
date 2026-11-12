@@ -33,7 +33,7 @@ _ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
 _ENTITY = re.compile(r"&#|&[A-Za-z0-9]+;")
 _DRIVE = re.compile(r"[A-Za-z]:")
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
-FILE_EXTENSIONS = frozenset(("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "pptx", "txt", "msg", "eml", "md"))   # the importers write xlsx and docx; the rest are files a person may name by hand
+FILE_EXTENSIONS = frozenset(("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf"))   # the importers write xlsx and docx; the others are what clark can read or import (xlsm, xls, csv, doc, pdf): a shorter list leaks less
 _BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\]*$")                                              # a web address with a host and no path after it (a "?query" or "#fragment" is not a path)
 _COLON_PATH = re.compile(r":(?![\s\d]|$)")                                                                   # "Macintosh HD:Users:name:Folder:file": a colon with words right after it, not "Plan: v2" or "12:30"
 

@@ -16,7 +16,7 @@ import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Cell } from "./cells/Cell.jsx";
 import { RichField } from "./RichField.jsx";
-import { richOrPlain } from "../logic/richOrPlain.js";
+import { plainToHtml } from "../logic/richOrPlain.js";
 import { plainFromEditor } from "./plainWords.js";
 import { tableOf } from "./itemEdit.js";
 
@@ -55,7 +55,7 @@ function canShow(type, d, items) {
 // paragraph. Enter or a click away saves, Esc puts the old words back; one change, one Undo. A text too long is said in the field, which stays open.
 export function Words({ row, text, cls = "wl-words" }) {
   const was = text || "";
-  const html = (() => { try { return richOrPlain(was); } catch (e) { return ""; } })();
+  const html = plainToHtml(was);
   const put = async (value) => {
     const t = plainFromEditor(value, true);
     if (t === was) return true;

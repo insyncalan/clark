@@ -11,7 +11,7 @@ import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
 import { shrink, dataBytes, TYPES } from "./shrink.js";
 import { RichField } from "../RichField.jsx";
-import { richOrPlain } from "../../logic/richOrPlain.js";
+import { plainToHtml } from "../../logic/richOrPlain.js";
 import { plainFromEditor } from "../plainWords.js";
 
 export const PAGE_LIMIT = 5 * 1024 * 1024;         // publish.MAX_BYTES: a published page over this is refused
@@ -101,7 +101,7 @@ export function LineField({ section, field, label, value, max, hint, words, chec
 // Item 1005: a caption is on the one editor (RichField) but stays one line of plain text in the report, the page and the file: what the editor
 // gives is saved as one line, never markup. Same arguments as LineField. An older caption loads as one paragraph. Cmd or Ctrl with Enter saves.
 export function CaptionField({ section, field, label, value, max, words, save }) {
-  const html = (() => { try { return richOrPlain(value || ""); } catch (e) { return ""; } })();
+  const html = plainToHtml(value);
   const put = async (typed) => {
     const v = plainFromEditor(typed, true);
     if (v === (value || "")) return true;
