@@ -632,7 +632,9 @@ class FeedbackAddressAllowlist(unittest.TestCase):
             self.assertEqual(rc, 0, out)
 
     def test_the_address_is_still_refused_in_any_other_file(self):
-        for path in ("src/clark/page/src/logic/other.js", "tests/test_other.py", "README2.md", "docs/a.md", "feedback.js"):
+        for path in ("src/clark/page/src/logic/other.js", "tests/test_other.py", "README2.md", "docs/a.md", "feedback.js",
+                     # mutation hunt on row 1069: the contact-address files and the sibling tests must not borrow the feedback allowance
+                     "README.md", "LICENSE", "SECURITY.md", "docs/public/README.md", "tests/test_hostile_feedback.py"):
             rc, out = self.scan(path, 'ADDRESS = "%s"\n' % self.ADDRESS)
             self.assertEqual(rc, 1, path + out)
             self.assertIn("a person's name", out)
