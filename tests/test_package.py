@@ -750,11 +750,21 @@ class ImagePapersTest(unittest.TestCase):
         self.assertEqual(["Apache-2.0"], package.image_licences("see the Apache License, Version 2.0"))
         self.assertEqual([], package.image_licences(""))
 
+    def test_lgpl_text_naming_the_gpl_is_not_also_gpl(self):
+        text = "GNU Lesser General Public License ... you may also use the GNU General Public License"
+        self.assertEqual(["LGPL"], package.image_licences(text))
+        self.assertEqual(["GPL"], package.image_licences("GNU General Public License"))
+
+    def test_purl_percent_encodes_special_characters(self):
+        sbom = package.image_sbom([{"name": "g++", "version": "1:12.2@x y/z", "arch": "amd64"}], {}, [{"name": "A_b", "version": "1+local"}])
+        self.assertEqual("pkg:deb/debian/g%2B%2B@1%3A12.2%40x%20y%2Fz?arch=amd64", sbom["components"][0]["purl"])
+        self.assertEqual("pkg:pypi/a_b@1%2Blocal", sbom["components"][1]["purl"])
+
     def test_sbom_is_cyclonedx_with_every_package_and_purl(self):
         sbom = package.image_sbom(package.image_packages(STATUS), COPYRIGHTS, [{"name": "Pip", "version": "24.0"}], "python:3.12-slim")
         self.assertEqual(("CycloneDX", "1.5"), (sbom["bomFormat"], sbom["specVersion"]))
         self.assertEqual(["bash", "libssl3", "Pip"], [c["name"] for c in sbom["components"]])
-        self.assertEqual("pkg:deb/debian/bash@5.2.15-2+b7?arch=amd64", sbom["components"][0]["purl"])
+        self.assertEqual("pkg:deb/debian/bash@5.2.15-2%2Bb7?arch=amd64", sbom["components"][0]["purl"])
         self.assertEqual([{"license": {"name": "GPL-3+"}}], sbom["components"][0]["licenses"])
         self.assertEqual("pkg:pypi/pip@24.0", sbom["components"][-1]["purl"])
         json.dumps(sbom)
