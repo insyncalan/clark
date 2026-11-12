@@ -137,9 +137,9 @@ def due_field(row):
 
 
 def is_overdue(row, today):
-    """Open, and due before today. Due today is not overdue. (workItems.js dueCell: tone "late")"""
+    """Open, and due before today. Due today is not overdue, and a Completed item is finished work, never overdue. (workItems.js isLate)"""
     a, b = day_number(due_field(row)), day_number(today)
-    return a is not None and b is not None and is_open(row) and a < b
+    return a is not None and b is not None and is_open(row) and row.get("status") != "Completed" and a < b
 
 
 def pill_of(row, today):
@@ -155,7 +155,7 @@ def pill_of(row, today):
     if kind == "action":
         n, t = day_number(row.get("due_date")), day_number(today)
         if n is not None and t is not None and n < t:
-            return {"text": "Overdue", "class": "r"}
+            return {"text": "Open", "class": "b"} if s == "Completed" else {"text": "Overdue", "class": "r"}
         if s == "Delayed":
             return {"text": "Delayed", "class": "a"}
         if n is not None and t is not None and n - t <= SOON_DAYS:
