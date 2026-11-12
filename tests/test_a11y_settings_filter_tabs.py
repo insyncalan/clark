@@ -22,7 +22,7 @@ RING = r"""(() => { const a = document.activeElement; if (!a || a === document.b
   return JSON.stringify({ name: a.getAttribute('aria-label') || a.textContent.trim().slice(0, 30), id: a.id || '', visible: a.matches(':focus-visible'), inLine: !!a.closest('.fviews, .fline-wrap'),
     ring: (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== '') }); })()"""
 UNNAMED = r"""(() => { const out = [];
-  for (const e of document.querySelectorAll('.fviews button, .fline button, .fline input, .vicons button, .set-bar button, .ddmenu [role^=menuitem]')) {
+  for (const e of document.querySelectorAll('.fviews button, .fline button, .fline input, .vicons button, .set-menu button, .ddmenu [role^=menuitem]')) {
     if (!e.getClientRects().length) continue;
     const name = (e.getAttribute('aria-label') || e.textContent || '').trim();
     if (!name) out.push(e.outerHTML.slice(0, 80));
@@ -158,7 +158,7 @@ class A11y(unittest.TestCase):
                     self.pick(cdp, sid, "Delete view", where)
                     self.assertTrue(wait(lambda: len(json.loads(cdp.js(VIEWS, sid))) == n), where + ": the extra tab is gone")
 
-    def test_the_settings_menu_has_a_name_reaches_every_chip_by_tab_with_a_ring_and_keeps_the_focus(self):
+    def test_the_settings_menu_has_a_name_reaches_every_entry_by_tab_with_a_ring_and_keeps_the_focus(self):
         with chrome() as cdp:
             for width in (1400, 900):
                 for mode in THEMES:
@@ -166,14 +166,14 @@ class A11y(unittest.TestCase):
                     sid = self.open_page(cdp, width)
                     self.theme(cdp, sid, mode)
                     cdp.js("location.hash = '#settings'", sid)
-                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.set-chip').length > 2", sid)), where + ": Settings drew")
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.set-item').length > 2", sid)), where + ": Settings drew")
                     self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)))
-                    self.assertTrue(cdp.js("!!document.querySelector('.set-bar').getAttribute('aria-label')", sid), where + ": the menu is named")
+                    self.assertTrue(cdp.js("!!document.querySelector('.set-menu').getAttribute('aria-label')", sid), where + ": the menu is named")
                     self.assertEqual(json.loads(cdp.js(UNNAMED, sid)), [], where)
-                    names = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-chip')].filter(e => e.getClientRects().length).map(e => e.textContent.trim()))", sid))
-                    cdp.js("document.querySelector('.set-chip').focus()", sid)
+                    names = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-item')].filter(e => e.getClientRects().length).map(e => e.textContent.trim()))", sid))
+                    cdp.js("document.querySelector('.set-item').focus()", sid)
                     self.keyboard_mode(cdp, sid)
-                    cdp.js("document.querySelector('.set-chip').focus()", sid)
+                    cdp.js("document.querySelector('.set-item').focus()", sid)
                     seen = []
                     for _ in range(len(names) + 1):
                         r = self.ring(cdp, sid)
@@ -183,7 +183,7 @@ class A11y(unittest.TestCase):
                         seen.append(r["name"])
                         self.press(cdp, sid, "Tab")
                     self.assertEqual(seen, names, f"{where}: Tab reaches every entry in the drawn order")
-                    cdp.js("document.querySelector('.set-chip').focus()", sid)
+                    cdp.js("document.querySelector('.set-item').focus()", sid)
                     self.press(cdp, sid, "Enter")
                     self.assert_focus_kept(cdp, sid, where + " (a Settings entry chosen with Enter)")
 
