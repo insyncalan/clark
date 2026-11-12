@@ -174,10 +174,11 @@ class DownloadsPick(Base):
         os.utime(old, (100, 100))
         for i in range(brands.LOOK_AT):
             other = zip_with(self.scratch / ("other%d.zip" % i), {"readme.txt": "not a brand"})
-            os.utime(other, (500 + i, 500 + i))
+            os.utime(other, (501 + i, 501 + i))
         self.assertIsNone(brands.newest_brand_zip(self.scratch))
+        (self.scratch / "other0.zip").unlink()       # now only LOOK_AT-1 zips are newer than the brand zip
         newer = zip_with(self.scratch / "edge.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
-        os.utime(newer, (500, 500))                   # the LOOK_AT-th newest: still looked into
+        os.utime(newer, (500, 500))                   # the LOOK_AT-th newest, no two zips share a time: still looked into
         self.assertEqual(brands.newest_brand_zip(self.scratch), newer)
 
     def test_a_zip_over_the_size_cap_is_not_looked_into(self):
