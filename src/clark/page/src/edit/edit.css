@@ -1191,3 +1191,19 @@ th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }
 .cgrip::after { content: ""; position: absolute; top: 3px; bottom: 3px; right: 4px; width: 2px; border-radius: 1px; background: var(--grey-300); opacity: 0; }
 .cgrip:hover::after { opacity: 1; background: var(--brand-blue); }
 th[data-cw-head]:focus-visible, .ucl-hd > [data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
+
+/* Row 1104: the Milestones list's heading row and its chosen widths (edit/colWidths.jsx). It lines up with the cells of a row: the rail's 2px, the cells' 22px. Wide layouts only; the narrow stacked layout has no columns. */
+.msl-hd { display: none; }
+@media (min-width: 801px) {
+  .msl-hd { display: block; margin: var(--d-msl-top) 0 0 var(--space-1); border-left: 2px solid transparent; border-bottom: 1px solid var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+  .msl-hc { display: grid; grid-template-columns: minmax(150px, 190px) minmax(160px, 1fr) 150px 130px; column-gap: var(--space-4); align-items: center; padding: 6px var(--space-2) 6px 22px; }
+  .msl-hc > span { position: relative; min-width: 0; }
+  .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
+  .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
+  .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols); }
+}
+@media (min-width: 1201px) {
+  .msl-hc { grid-template-columns: minmax(240px, 17rem) minmax(160px, 1fr) 150px 130px; }
+  .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols-w); }
+}
+.msl-hc > span:has(> .cgrip) { position: relative; }
