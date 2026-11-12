@@ -103,7 +103,9 @@ export function tabList(tab) {
     // The parts of Start here, and after the jobs part the jobs it shows (each opens its entry under How do I…).
     const out = [], T = CONTENT.start.text;
     for (const p of CONTENT.start.parts) {
-      out.push({ group: p === "jobs" ? T.jobs_head : "Start here", entries: [{ id: p, title: startTitle(p), place: PREFIX.start + p }] });
+      const head = p === "jobs" ? T.jobs_head : "Start here", entry = { id: p, title: startTitle(p), place: PREFIX.start + p }, last = out[out.length - 1];
+      if (last && last.group === head) last.entries.push(entry);   // parts in a row under one heading are one group, headed once
+      else out.push({ group: head, entries: [entry] });
       if (p === "jobs") {
         const js = jobs(), ids = new Set(js.filter((j) => j.place.startsWith(PREFIX.howto)).map((j) => j.id));   // a job that opens a guide leaves its how-to entry under "Also under How do I..."
         out.push({ group: T.jobs_title, entries: js.map((j) => ({ id: j.id, title: j.title, place: j.place })) });
