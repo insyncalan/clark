@@ -22,12 +22,13 @@ Every system call is in platform.py; `main`'s seams let the tests run it with fa
 """
 import argparse
 import os
+import re
 import sys
 import tempfile
 from collections import namedtuple
 from pathlib import Path
 
-from clark import platform, typed
+from clark import cloud_folder, platform, typed
 
 try:
     import sqlite3
@@ -188,6 +189,24 @@ def check_claude(seen):
         return Line(READY, "Claude Code is installed, so you can ask clark for help.")
     return Line(ADVICE, "Claude Code wasn't found, so ask clark can't run. The rest of clark works without it. To use ask "
                         "clark, install Claude Code, then start clark again.")
+
+
+def check_docker(seen):
+    """item 836: inside Docker, the Mac folder shared in as the data folder (CLARK_DATA_SOURCE) must not be in a synced folder. The names
+    are read, not the disk (as platform.container_host_in_onedrive and cloud_folder do); the refusal is starter_check's own sentence.
+    Not in CHECKS: the Terminal doctor never runs it; the setup service adds it inside a container."""
+    host = seen.environ.get("CLARK_DATA_SOURCE")
+    if not host:                                # nothing says which Mac folder is shared in, so nothing was checked: never Ready
+        return Line(NOT_CHECKED, f"The Docker check couldn't finish. Run {typed.doctor()} again.")
+    name = next((part for part in re.split(r"[\\/]+", host) if part.casefold().startswith("onedrive")), None)
+    if name is not None:
+        return Line(FIX, f"Your data can't be kept in {host} because it is inside OneDrive ({name}). OneDrive copies files while "
+                         "they are being written, which damages the database. Choose a folder on this computer that OneDrive "
+                         "doesn't sync.")
+    warning = cloud_folder.cloud_warning(host)
+    if warning:
+        return Line(FIX, warning)
+    return Line(READY, f"clark is running in Docker, and your data is kept in {host}.")
 
 
 CHECKS = (
