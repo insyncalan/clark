@@ -757,6 +757,67 @@ def shown(path):
     return str(path)
 
 
+# ---- Image papers (item 637): THIRD-PARTY-IMAGE.txt and an SBOM for the stock container image. Generators only; the build does not call them.
+
+def image_packages(status):
+    """The installed packages in a dpkg status file: [{name, version, arch}], sorted by name."""
+    found = []
+    for block in re.split(r"\n\s*\n", status.strip()):
+        fields = {}
+        for line in block.splitlines():
+            if line[:1] in (" ", "\t") or ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            fields[key.strip().lower()] = value.strip()
+        if "package" in fields and fields.get("status", "").split()[-1:] == ["installed"]:
+            found.append({"name": fields["package"], "version": fields.get("version", ""), "arch": fields.get("architecture", "")})
+    return sorted(found, key=lambda p: p["name"])
+
+
+def image_licences(copyright_text):
+    """The licence names a copyright file states: its 'License:' lines, or well-known names found in free text."""
+    names = set()
+    for m in re.finditer(r"^License:\s*(.+)$", copyright_text or "", re.M):
+        names.update(part.strip() for part in re.split(r"\s+(?:and|or)\s+|,", m.group(1)) if part.strip())
+    if not names and copyright_text:
+        for label, rx in (("LGPL", r"GNU (?:Lesser|Library) General Public"), ("GPL", r"GNU General Public"),
+                          ("Apache-2.0", r"Apache License"), ("MIT", r"\bMIT\b|Expat"), ("BSD", r"\bBSD\b"),
+                          ("PSF-2.0", r"Python Software Foundation"), ("public-domain", r"public[- ]domain")):
+            if re.search(rx, copyright_text, re.I):
+                names.add(label)
+    return sorted(names)
+
+
+def image_sbom(packages, copyrights, pip=(), base=""):
+    """A CycloneDX 1.5 document (a dict): the Debian packages, the pip packages and the base image."""
+    components = []
+    for p in packages:
+        comp = {"type": "library", "name": p["name"], "version": p["version"],
+                "purl": f"pkg:deb/debian/{p['name']}@{p['version']}?arch={p['arch']}"}
+        lic = image_licences(copyrights.get(p["name"], ""))
+        if lic:
+            comp["licenses"] = [{"license": {"name": name}} for name in lic]
+        components.append(comp)
+    for item in pip:
+        components.append({"type": "library", "name": item["name"], "version": item["version"],
+                           "purl": f"pkg:pypi/{item['name'].lower()}@{item['version']}"})
+    return {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+            "metadata": {"component": {"type": "container", "name": base or "image", "version": ""}}, "components": components}
+
+
+def image_third_party(packages, copyrights, pip=(), base=""):
+    """THIRD-PARTY-IMAGE.txt as one string: every package with its version and licences."""
+    lines = ["Third-party software in the container image", "",
+             f"Base image: {base or 'not named'}. Each package keeps its own licence, which applies to that package and not to clark's own code.",
+             "", f"Debian packages ({len(packages)}): name, version, licences", ""]
+    for p in packages:
+        lic = ", ".join(image_licences(copyrights.get(p["name"], ""))) or f"see /usr/share/doc/{p['name']}/copyright in the image"
+        lines.append(f"  {p['name']} {p['version']}: {lic}")
+    if pip:
+        lines += ["", f"Python packages ({len(pip)}):", ""] + [f"  {i['name']} {i['version']}" for i in pip]
+    return "\n".join(lines) + "\n"
+
+
 def build_both(args, notes):
     """(zip, bundle) for --app. All or nothing: the zip is built in a part folder and moved over an earlier one only when the
     bundle is built too, so a run that fails leaves what an earlier run made exactly as it was."""
