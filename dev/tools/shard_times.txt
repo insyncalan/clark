@@ -755,4 +755,3 @@ test_changes_use_case_owner.py 10.0
 test_people_rename_merge.py 10.0
 test_store_use_case_owner_migration.py 10.0
 test_use_case_owner_never_published.py 10.0
-test_tools_perf_baseline.py 1.0
