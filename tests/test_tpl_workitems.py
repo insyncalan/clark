@@ -581,6 +581,36 @@ class InThePage(PageBase):
                 self.assertEqual(self.demo.last_step(), steps + 1, "clearing is one step")
                 p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "no chips left")
 
+    def test_the_filter_line_saves_nothing_when_unchanged_gives_the_text_back_on_escape_and_is_named_for_a_reader(self):
+        for width in (1400, 900):
+            ref = self.add({"status": ["Open"], "kinds": ["risk"]}, title=f"Quiet {width}")
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+                self.assertEqual(p.js(f"document.querySelector({json.dumps(line)}).value"), "type:risk status:Open")
+                # the hint is the box's description, and each chip's x says which choice it takes off
+                self.assertEqual(p.js(f"(el => document.getElementById(el.getAttribute('aria-describedby')).textContent)(document.querySelector({json.dumps(line)}))"),
+                                 "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.")
+                self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip button')].map(b => b.getAttribute('aria-label'))"),
+                                 ["Take off Type: Risks", "Take off Status: Open"])
+                # the same line (even with spaces round it) is no change: no step
+                steps = self.demo.last_step()
+                for same in ("type:risk status:Open", "  type:risk status:Open  "):
+                    p.clear_toast()
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(same)}; }})(document.querySelector({json.dumps(line)}))")
+                    p.key("Enter", code="Enter", vk=13)
+                    p.js("new Promise(r => setTimeout(r, 400))")
+                    self.assertFalse(p.js("!!document.querySelector('.toast-text')"), f"{same!r}: no 'changed' message for no change")
+                    self.assertEqual(self.demo.last_step(), steps, f"{same!r} is what is saved: nothing to save")
+                # Escape puts the saved line back and saves nothing
+                p.js(f"(el => {{ el.focus(); el.value = 'type:issue'; }})(document.querySelector({json.dumps(line)}))")
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"document.querySelector({json.dumps(line)}).value === 'type:risk status:Open'", "Escape gave the saved line back")
+                self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
+                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+
     def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
         ref = self.add({}, title="Form")
         with chrome() as cdp:
