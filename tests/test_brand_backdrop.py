@@ -22,12 +22,29 @@ from _paths import SRC
 from _publish import PublishedFile
 from test_glance_page import plant
 from test_report_editor import Base, Pg
-from test_server import chrome, wait
+from _shared_chrome import SharedChrome
+from test_server import wait
 
 import shutil
 
 from _demo import USER, DemoStore
 from clark import page, publish as pm
+
+SHARED = SharedChrome()            # one browser for the whole file; every use is a new, clean browser context (_shared_chrome.py)
+
+
+def setUpModule():
+    SHARED.start()
+
+
+def tearDownModule():
+    SHARED.stop()
+
+
+class Browser:
+    def chrome(self):
+        return SHARED.page()
+
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
 PAGES = (("Dashboard", "#dashboard&p=ABC", ".glance"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),
@@ -90,7 +107,7 @@ def branded(root):
     return page.layer_brand(testpage.html(), page.local_tokens(root))
 
 
-class Rig(Base):
+class Rig(Browser, Base):
     """The served page with a brand folder that is ours to change; hits counts the requests the server got for a brand picture."""
 
     def setUp(self):
@@ -143,7 +160,7 @@ class Backdrop(Rig):
         self.brand()
         for name, hash_, ready in PAGES:
             for width in (1400, 900):
-                with self.subTest(page=name, width=width), chrome() as cdp:
+                with self.subTest(page=name, width=width), self.chrome() as cdp:
                     p = self.load_app(cdp, hash_, ready, width)
                     p.until(REQUESTS + " > 0", "the picture was asked for")
                     got = p.js(BACKDROP)
@@ -157,7 +174,7 @@ class Backdrop(Rig):
     def test_help_has_it_too(self):
         self.brand()
         from test_help_panel import full_help_from_menu
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             full_help_from_menu(p)
             self.assertIn("assets/cover.png", p.js(BACKDROP)["image"])
@@ -165,7 +182,7 @@ class Backdrop(Rig):
     def test_it_costs_no_layout(self):
         self.brand()
         for name, hash_, ready in PAGES:
-            with self.subTest(page=name), chrome() as cdp:
+            with self.subTest(page=name), self.chrome() as cdp:
                 p = self.load_app(cdp, hash_, ready)
                 p.until(REQUESTS + " > 0", "the picture was asked for")
                 steady(p)
@@ -176,7 +193,7 @@ class Backdrop(Rig):
 
     def test_the_ask_panel_gets_the_wash_at_its_foot_and_keeps_the_head_strip(self):
         self.brand()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             p.js("document.querySelector('#ask-btn').click()")
             p.until("!!document.querySelector('#ask-panel')", "the panel opened")
@@ -207,7 +224,7 @@ class Generic(Rig):
 
     def test_without_a_picture_nothing_is_drawn_and_nothing_is_asked_for(self):
         for name, hash_, ready in PAGES:
-            with self.subTest(page=name), chrome() as cdp:
+            with self.subTest(page=name), self.chrome() as cdp:
                 p = self.load_app(cdp, hash_, ready)
                 got = p.js(BACKDROP)
                 self.assertEqual(got["image"], "none", "no background image on the pseudo-element")
@@ -219,7 +236,7 @@ class Generic(Rig):
         self.assertEqual(self.hits, [], "the server was never asked for a brand picture")
 
     def test_no_brand_is_a_pixel_identical_page(self):
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             p.until("document.getAnimations().every(a => a.playState === 'finished')", "settled")
             shot = lambda: cdp.call("Page.captureScreenshot", {"format": "png"}, p.sid)["data"]       # noqa: E731
@@ -229,12 +246,12 @@ class Generic(Rig):
 
     def test_removing_the_brand_returns_the_plain_page(self):
         self.brand()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             self.assertIn("assets/cover.png", p.js(BACKDROP)["image"])
         self.unbrand()
         self.hits.clear()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             self.assertEqual(p.js(BACKDROP)["image"], "none")
         self.assertEqual(self.hits, [])
@@ -243,8 +260,10 @@ class Generic(Rig):
 class Guards(Rig):
     def test_reduced_motion_has_no_fade_in_animation(self):
         self.brand()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned: a machine that asks for less motion (a CI Mac) must not decide it")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
@@ -256,7 +275,7 @@ class Guards(Rig):
 
     def test_print_and_pdf_have_no_backdrop(self):
         self.brand()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             self.assertNotEqual(p.js(BACKDROP)["display"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
@@ -312,7 +331,7 @@ class AppContrast(Measure, Rig):
                 self.brand(data)
                 for width in (1400, 900):
                     for name, hash_, ready in PAGES:
-                        with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), chrome() as cdp:
+                        with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), self.chrome() as cdp:
                             p = self.load_app(cdp, hash_, ready, width, scheme)
                             self.verdict(cdp, p, f"app {name} {scheme} {width} {pic_name}")
 
@@ -322,7 +341,7 @@ class AppContrast(Measure, Rig):
             for width in (1400, 900):
                 for _ in range(3):
                     self.demo.action(owner="Sam Lee", client_visible=1)
-                with self.subTest(scheme=scheme, width=width), chrome() as cdp:
+                with self.subTest(scheme=scheme, width=width), self.chrome() as cdp:
                     p = self.load_app(cdp, "#work&p=ABC", "#fline-input", width, scheme)
                     p.js("document.querySelector('#fline-input').focus()")
                     cdp.call("Input.insertText", {"text": "status is Open"}, p.sid)
@@ -343,7 +362,7 @@ def data_tokens(png):
     return ':root { --image-cover: url("data:image/png;base64,%s"); }' % base64.b64encode(png).decode()
 
 
-class Pub(PublishedFile, unittest.TestCase):
+class Pub(Browser, PublishedFile, unittest.TestCase):
     """A real file published from a real store, with a brand folder that is ours to change, opened from file://."""
 
     def setUp(self):
@@ -387,7 +406,7 @@ class Published(Measure, Pub):
         path = self.publish_with(data_tokens(pics.swirl()))
         for name, hash_ in PUBLISHED_PAGES:
             for width in (1400, 900):
-                with self.subTest(page=name, width=width), chrome() as cdp:
+                with self.subTest(page=name, width=width), self.chrome() as cdp:
                     p = self.draw_as(cdp, path, width, "light", hash_)
                     got = p.js(BACKDROP)
                     self.assertIn("data:image/png", got["image"])
@@ -420,15 +439,17 @@ class Published(Measure, Pub):
 
     def test_nothing_is_drawn_without_a_picture(self):
         path = self.publish_with(None)
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.draw_as(cdp, path, 1400, "light")
             self.assertEqual(p.js(BACKDROP)["image"], "none")
             self.assertEqual(p.js("performance.getEntriesByType('resource').length"), 0, "no request")
 
     def test_reduced_motion_and_print(self):
         path = self.publish_with(data_tokens(pics.swirl()))
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.draw_as(cdp, path, 1400, "light")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned, whatever the machine asks")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
@@ -446,7 +467,7 @@ class Published(Measure, Pub):
                 path = self.publish_with(data_tokens(png))
                 for width in (1400, 900):
                     for name, hash_ in PUBLISHED_PAGES:
-                        with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), chrome() as cdp:
+                        with self.subTest(page=name, scheme=scheme, width=width, picture=pic_name), self.chrome() as cdp:
                             p = self.draw_as(cdp, path, width, scheme, hash_)
                             self.verdict(cdp, p, f"published {name} {scheme} {width} {pic_name}", need=False)      # the published page seats its text on its own cards: what sits bare on the page is checked, and may be nothing
 

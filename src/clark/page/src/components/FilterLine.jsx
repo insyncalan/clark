@@ -110,6 +110,7 @@ function SavedViews({ board }) {
     return () => window.removeEventListener("resize", show);
   }, [active && active.id, shown.length, dirty]);      // dirty: Save view and Discard changes take room beside the tabs, so the open tab is brought into view again
   const act = (id) => {
+    const fromNew = !!document.activeElement && document.activeElement.id === "viewNew";      // the + New view button keeps the focus; a menu arrow's focus goes with its list
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
     else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
@@ -118,6 +119,7 @@ function SavedViews({ board }) {
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views);
       chosen.value = { ...chosen.value, [code]: r.id };
+      setTimeout(() => { if (!fromNew) focusTab(r.id); }, 0);      // the arrow that had the focus goes with the old open tab: the new tab takes it; + New view keeps its own focus
     }
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
     else if (id === "move" && active) { setMoving(active.id); announce.value = `Moving ${active.name}. Press Left or Right arrow to move it, Enter to finish.`; setTimeout(() => focusTab(active.id), 60); }
@@ -126,6 +128,7 @@ function SavedViews({ board }) {
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: r.id };
       announce.value = `Duplicated as ${r.views.find((v) => v.id === r.id).name}.`;
+      setTimeout(() => focusTab(r.id), 0);      // the arrow that had the focus goes with the old open tab: the copy's tab takes it
     } else if (id === "delete" && active) {
       // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
       const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
