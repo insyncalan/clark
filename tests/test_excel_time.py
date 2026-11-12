@@ -149,12 +149,14 @@ class ExcelTimeTests(unittest.TestCase):
         for tz in ZONES:
             ws = load_workbook(self.export(tz, now=late)[2])["Actions"]
             head = [c.value for c in ws[1]]
-            due = get_column_letter(head.index("Due") + 1)       # row 1021 adds the same kind of rule on the Status cell
-            found = [r.formula for cf in ws.conditional_formatting if str(cf.sqref).startswith(due + "2:")
-                     for r in cf.rules if r.type == "expression"]
-            self.assertEqual(len(found), 1, tz)
-            self.assertIn("TODAY()", found[0][0])
+            found = [r.formula for cf in ws.conditional_formatting for r in cf.rules if r.type == "expression"]
+            # Row 1021: the Due cell's red rule and the Status cell's overdue rule (stop if true) are both live TODAY() formulas.
+            self.assertEqual(len(found), 2, tz)
+            for formula in found:
+                self.assertIn("TODAY()", formula[0])
             rules[tz] = found
+            due = get_column_letter(head.index("Due") + 1)
+            self.assertEqual(len([cf for cf in ws.conditional_formatting if str(cf.sqref).startswith(due + "2:")]), 1, tz)   # one of them is on Due
             font = ws.cell(row=2, column=head.index("Due") + 1).font
             self.assertFalse(font.color is not None and str(font.color.rgb)[-6:] == colours.LATE_TEXT, tz)   # no static red
         self.assertEqual(len({str(v) for v in rules.values()}), 1)

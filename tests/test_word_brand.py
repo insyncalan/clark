@@ -160,6 +160,15 @@ class Find(unittest.TestCase):
             os.symlink(Path(d) / "outside.docx", base / "word" / "template.docx")
             self.assertIsNone(word_brand.find(base))
 
+    def test_a_linked_word_folder_is_not_followed(self):
+        with tempfile.TemporaryDirectory() as d:
+            base = Path(d) / "brand"
+            base.mkdir()
+            (Path(d) / "elsewhere" / "").mkdir()
+            (Path(d) / "elsewhere" / "template.docx").write_bytes(b"x")
+            os.symlink(Path(d) / "elsewhere", base / "word")
+            self.assertIsNone(word_brand.find(base))
+
 
 class Route(Setup, unittest.TestCase):
     """The export through the route: the brand folder's template is used, a bad one stops the export, none leaves it as it was."""

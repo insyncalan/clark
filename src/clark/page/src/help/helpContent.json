@@ -285,7 +285,7 @@
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
     ],
-    "n": "A brand's Word letterhead goes in its branding folder as word/template.docx; the report takes its page, header and footer.",
+    "n": "The use case table in the Word report has a Commitment column. A brand's Word letterhead goes in its branding folder as word/template.docx; the report takes its page, header and footer.",
     "page": [
      "dashboard+edit"
     ]
