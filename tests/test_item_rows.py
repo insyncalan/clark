@@ -71,23 +71,27 @@ class ItemRows(unittest.TestCase):
         self.store = self.demo.store
         fill(self.store)
 
-    def check_rows(self, js, where):
+    def check_rows(self, js, where, own=False):
+        """own: View reads each item's own description (row 1099); Edit and the file read the client's wording."""
+        W = {"Cut-over plan to be agreed": "Agree the cut-over plan", "Training room booked for November": "Book the training room",
+             "Supplier delivery may slip": "Supplier may deliver late", "Hosting region to be chosen": "Choose the hosting region"} if own else {}
+        w = lambda t: W.get(t, t)
         actions = js(ROWS % "actions")
         self.assertEqual(len(actions), 2, f"{where}: two open client-visible actions (closed and hidden ones left out): {actions}")
-        self.assertIn("Cut-over plan to be agreed", actions[0], where)
+        self.assertIn(w("Cut-over plan to be agreed"), actions[0], where)
         self.assertIn("Sara Khan", actions[0], where)
         self.assertIn("20-10-2026", actions[0], "dates read DD-MM-YYYY")
-        self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
+        self.assertIn(w("Training room booked for November"), actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
         self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
         self.assertIn("01-11-2026", raid[0])
         self.assertTrue(raid[1].split("|")[1] == "Green" and raid[1].endswith("|issue") and "Low" in raid[1].split("|")[3], raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
-        self.assertIn("Hosting region to be chosen", decisions[0], where)
+        self.assertIn(w("Hosting region to be chosen"), decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
         self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
@@ -102,7 +106,7 @@ class ItemRows(unittest.TestCase):
             p.ready()
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.check_rows(p.js, f"View at {w}")
+                self.check_rows(p.js, f"View at {w}", own=True)
                 self.assertGreater(p.js("document.querySelectorAll('.wl-id').length"), 0, "the team's View keeps the item number")
                 fits = "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 self.assertTrue(wait(lambda: p.js(fits)), f"nothing pushes the page sideways at {w}")
