@@ -751,7 +751,7 @@ test_server_mut2.py 1.0
 test_setup_mode_mutants.py 1.0
 test_store_migration_mutants.py 1.0
 test_store_mut2.py 1.0
-test_completed_blue.py 2.0
+test_completed_blue.py 1.0
 test_hostile_h1293.py 1.0
 test_word_brand.py 1.0
 test_changes_use_case_owner.py 10.0
