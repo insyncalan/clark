@@ -17,9 +17,9 @@ ROWMENU = (SRC / "edit" / "RowMenu.jsx").read_text(encoding="utf-8")
 
 class HelpUi1332(unittest.TestCase):
     def test_quit_help_names_the_question_and_both_buttons(self):
-        self.assertIn("Quit clark now? Nothing is left running.", QUIT)
+        self.assertIn("Quit clark now? To start it again,", QUIT)
         self.assertIn(">Cancel</button>", QUIT)
-        self.assertIn("Quit clark now? Nothing is left running. To start it again, open clark the way you did before.", HELP_TEXT)
+        self.assertIn("Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.", HELP_TEXT)
         self.assertIn("**Quit clark** to confirm or **Cancel**", HELP_TEXT)
 
     def test_change_owner_help_names_the_search_box_and_the_add_entry(self):
