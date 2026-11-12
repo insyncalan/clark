@@ -144,10 +144,10 @@ export function change(req, done, named = null) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendChange(code, req);
-    if (!r.ok) { say("problem", r.message); return null; }
+    if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
-    if (r.reply.apply_id && named) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
+    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
     if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
     return r.reply;
   });

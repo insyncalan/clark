@@ -1,7 +1,7 @@
 // Text and image (#96), store type "textimage": its Edit part, filled in place. The words, the picture, its caption and its
 // description, and which side the picture sits on; each saved on its own (one change, one step, one Undo, place "report"); the
 // picture through POST /api/section-image (pictureEdit.jsx). Given { section, tools }. Limits are textimage.py's.
-import { LineField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
+import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
 import { RichField } from "../RichField.jsx";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 
@@ -29,7 +29,7 @@ export function Edit({ section }) {
         </div>
         <div class="tpl-ti-pic">
           <PictureSlot section={section} slot="image" image={image} label="Picture" words={WORDS} />
-          <LineField section={section} field="caption" label="Caption" value={v.caption} max={300} words="Caption saved." />
+          <CaptionField section={section} field="caption" label="Caption" value={v.caption} max={300} words="Caption saved." />
           <LineField section={section} field="alt" label="Describe the picture for someone who can't see it" value={v.alt} max={300} words="Description saved." />
           <fieldset class="tpl-side">
             <legend>Picture on the</legend>
