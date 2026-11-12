@@ -1323,7 +1323,7 @@ class BrandLibrary:
             if type(e).__name__ != "NotBuiltYet":
                 raise
             plat = importlib.import_module("clark.platform")
-            return 409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.needs_mac_words())}
+            return 409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())}
 
     def listing(self):
         return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data),
@@ -1518,7 +1518,7 @@ class Handler(BaseHTTPRequestHandler):
             if type(e).__name__ == "NotBuiltYet":    # item 1100: a Mac-only step no route caught: the same words, never a fault (found by the class name, so no top-level import of clark is needed)
                 LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
                 plat = importlib.import_module("clark.platform")
-                return self.send(409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.needs_mac_words())})
+                return self.send(409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())})
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
         finally:

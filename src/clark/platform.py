@@ -93,6 +93,15 @@ def needs_mac_words():
     return f"This needs clark to run on the Mac itself; start it from Terminal: {TERMINAL_COMMAND}"
 
 
+NOT_BUILT_WORDS = "This step is not built for your system yet."
+
+
+def not_built_words():
+    """What a refused Mac-only step says when it did not meet the Docker sentence (item 1100): the Mac sentence in Docker, else the plain
+    not-built line, so a Windows or plain Linux run is never told to start from the Mac's Terminal."""
+    return needs_mac_words() if container_mode() else NOT_BUILT_WORDS
+
+
 def refusal_words(error, fallback):
     """The words a person sees for a PlatformError `error`: the needs-the-Mac sentence when this system's branch is not there
     (NotBuiltYet carrying exactly that sentence), else `fallback`. Never a class name, a path or the system's own text."""

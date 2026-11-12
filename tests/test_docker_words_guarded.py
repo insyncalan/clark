@@ -85,3 +85,23 @@ class Uncaught(Base):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NotInDocker(unittest.TestCase):
+    """Item 1100 follow-up: outside Docker a refused step never tells the person to start from the Mac's Terminal."""
+    def setUp(self):
+        for patch in (mock.patch.object(sys, "platform", "win32"), mock.patch.object(pl, "container_mode", return_value=False)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.root, self.data, self.scratch = make_dirs(self)
+        self.rig = Rig(self, library=False)
+
+    def test_a_not_built_refusal_outside_docker_says_the_plain_line(self):
+        class Service:
+            def connect(self, body):
+                raise pl.NotBuiltYet("Open dialog on Windows is not built yet: clark runs on macOS for now")
+        self.rig.httpd.ai_connect = Service()
+        status, got = self.rig.call("POST", "/api/providers/connect", {"provider": "claude"})
+        self.assertEqual((status, got["message"]), (409, "This step is not built for your system yet."), got)
+        self.assertNotIn("Terminal", repr(got))
+        self.assertNotIn("clark.command", repr(got))
