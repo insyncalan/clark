@@ -1013,6 +1013,50 @@ class Live(unittest.TestCase):
             landed = wait(lambda: cdp.js(ON_PAGE, sid), 10)
             self.assertTrue(landed, f"focus carried on to the next control, not the body (focus is on: {cdp.js(WHERE, sid)})")
 
+    def tab_eaten_from_the_date(self, shift, replace_cell):
+        """Open the date panel of TUL-A-001's due date, make the page eat the browser's own Tab step (focus dropped to nothing), press Tab (or
+        Shift+Tab); return what the carry-on landed on: [it is the control the first tabbable neighbour of the date cell, what is focused]."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cell = "[data-cell='TUL-A-001:due']"
+            cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "Enter opens the date panel")
+            # Mark the control that should get focus: the nearest tabbable one after (before, for Shift+Tab) the date cell, outside the panel.
+            marked = cdp.js("""(function (cell, back) {
+                const from = document.querySelector(cell);
+                const all = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]")]
+                    .filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length && !n.closest("[data-pop]") && !from.contains(n) && !n.contains(from));
+                const before = all.filter((n) => from.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING);
+                const after = all.filter((n) => from.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING);
+                const want = back ? before[before.length - 1] : after[0];
+                if (!want) return false;
+                want.setAttribute("data-want-focus", "1");
+                return true;
+            })(%s, %s)""" % (json.dumps(cell), "true" if shift else "false"), sid)
+            self.assertTrue(marked, "something tabbable lies on that side of the date")
+            cdp.js("""document.addEventListener('keydown', function f(e) {
+                if (e.key !== 'Tab') return;
+                document.removeEventListener('keydown', f);
+                e.preventDefault();
+                document.activeElement.blur();
+                if (%s) { const c = document.querySelector(%s); c.replaceWith(c.cloneNode(true)); }
+            });""" % ("true" if replace_cell else "false", json.dumps(cell)), sid)
+            common = {"key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9, **({"modifiers": 8} if shift else {})}
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closes the panel")
+            right = wait(lambda: cdp.js("!!document.activeElement && document.activeElement.hasAttribute('data-want-focus')", sid), 10)
+            return right, cdp.js(WHERE, sid)
+
+    def test_date_tab_carries_focus_to_the_next_control_by_hand(self):
+        right, where = self.tab_eaten_from_the_date(shift=False, replace_cell=False)
+        self.assertTrue(right, f"Tab lands on the control after the date, not another (focus is on: {where})")
+
+    def test_date_shift_tab_carries_focus_back_to_the_control_before(self):
+        right, where = self.tab_eaten_from_the_date(shift=True, replace_cell=False)
+        self.assertTrue(right, f"Shift+Tab lands on the control before the date (focus is on: {where})")
+
     def test_every_inline_date_closes_on_one_esc_a_click_away_or_tab_and_changes_nothing(self):
         # #91: an action's due date, a pending decision's needed-by date and a made decision's date. Each is one panel of clark's
         # own (no browser calendar opens over it), so one Esc closes it; a click away and Tab close it too, and none of them sends
