@@ -507,16 +507,40 @@ class Styles(Setup):
 
 
 class Published(PublishedFile, Setup):
+    def plant_more_work(self):
+        """Two more of each kind the tiles count: one that is left out of the file (client-off, or taken off the report), so the file holds fewer than the project."""
+        with self.store.step("dashboard", USER) as st:
+            risk = {"project": "ABC", "type": "Risk", "raised": "2026-10-01", "source": "demo", "impact": "High", "likelihood": "High", "owner": "Pat Demo"}
+            st.create("raid", {**risk, "description": "ZQ-second risk"})
+            st.create("raid", {**risk, "description": "ZQ-client-off risk", "client_visible": 0})
+            hidden = st.create("raid", {**risk, "description": "ZQ-hidden risk"})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ second decision", "source": "demo", "status": "Pending", "needed_by": "2020-03-01"})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-client-off decision", "source": "demo", "status": "Pending", "client_visible": 0})
+            gone = st.create("decisions", {"project": "ABC", "decision": "ZQ-hidden decision", "source": "demo", "status": "Pending"})
+            st.update("glance_tiles", "decisions", {"hidden": 0})
+        for item in (hidden, gone):
+            self.store.con.execute("INSERT INTO report_hidden (project, item_id) VALUES ('ABC', ?)", (item,))
+        self.store.con.commit()
+
     def test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts(self):
+        self.plant_more_work()
         path = self.publish()
-        with chrome() as cdp:
-            p = self.draw(cdp, path, 1400)
-            self.assertEqual(p.js("document.querySelector('[data-fig=overdue]').tagName"), "BUTTON", "a published tile is a button")
-            self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
-            p.js("document.querySelector('[data-fig=overdue]').click()")
-            p.until("location.hash.startsWith('#work')", "the file's Work items opened")
-            p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
-            self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, "the one overdue action the file holds")
+        text = path.read_text(encoding="utf-8")
+        for planted in ("ZQ-client-off risk", "ZQ-hidden risk", "ZQ-client-off decision", "ZQ-hidden decision"):
+            self.assertNotIn(planted, text, "a left-out item is not in the file")
+        for tile in ("overdue", "risks", "decisions"):
+            for width in (1400, 900):
+                with self.subTest(tile=tile, width=width), chrome() as cdp:
+                    p = self.draw(cdp, path, width)
+                    self.assertEqual(p.js(f"document.querySelector('[data-fig={tile}]').tagName"), "BUTTON", "a published tile is a button")
+                    self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
+                    shown = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
+                    self.assertEqual(shown, {"overdue": 1, "risks": 2, "decisions": 2}[tile], "the file's own figure, not the project's")
+                    p.js(f"document.querySelector('[data-fig={tile}]').click()")
+                    p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                    p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+                    self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), shown, "the Work row count is the tile's value")
+                    self.assertNotIn("ZQ-", p.js("document.querySelector('#work').textContent"), "no left-out item shows")
 
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
