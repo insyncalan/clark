@@ -67,9 +67,9 @@ export function AskPanel() {
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
-    let t = null, last = nextQuip("");
+    let t = null; const deck = []; let last = nextQuip(deck, "");
     setQuip(last);
-    const tick = () => { t = setTimeout(() => { last = nextQuip(last); setQuip(last); tick(); }, quipDelay()); };
+    const tick = () => { t = setTimeout(() => { last = nextQuip(deck, last); setQuip(last); tick(); }, quipDelay()); };
     tick();
     return () => clearTimeout(t);
   }, [busy]);
