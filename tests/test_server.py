@@ -1590,6 +1590,38 @@ class PipeFocus(unittest.TestCase):
         p.call("Page.enable", {}, "S1")
         self.assertEqual(p.sent, [("Page.enable", "S1")])
 
+    # mutation hunt (item 1211): the tests above pinned the method and the session, never the switch's value, the answer, or the odd answers
+    def test_the_emulation_is_switched_on_not_off_and_the_attach_answer_comes_back(self):
+        p = self.pipe()
+        seen = []
+        once = p._call_once
+
+        def spy(method, params=None, session=None):
+            seen.append((method, params))
+            return once(method, params, session)
+        p._call_once = spy
+        got = p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(got, {"sessionId": "S1"})
+        self.assertEqual(seen[-1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
+
+    def test_an_attach_answer_with_no_session_gets_no_emulation_call(self):
+        for answer in ({}, None, "S1", {"sessionId": ""}):
+            with self.subTest(answer=answer):
+                p = self.pipe()
+                p._call_once = lambda method, params=None, session=None, a=answer: p.sent.append((method, session)) or a
+                self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), answer)
+                self.assertEqual(p.sent, [("Target.attachToTarget", None)])
+
+    def test_a_target_without_the_emulation_domain_still_attaches(self):
+        p = self.pipe()
+
+        def once(method, params=None, session=None):
+            if method == "Emulation.setFocusEmulationEnabled":
+                raise RuntimeError({"code": -32601, "message": "not found"})
+            return {"sessionId": "S1"}
+        p._call_once = once
+        self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
+
 
 if __name__ == "__main__":
     unittest.main()
