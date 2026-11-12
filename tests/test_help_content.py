@@ -372,7 +372,7 @@ class LowWordsRound(unittest.TestCase):
         """The page's button reads "See all N work items for <ref>" (every linked item, as the prototype's views.js) and a use case has four statuses, Done included (UseCases.jsx; #412)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
         self.assertIn('`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`', page)
-        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case's reference") + self.ALL.count("which reads “See all N work items” and the use case's reference"), 2)
+        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case’s reference") + self.ALL.count("which reads “See all N work items” and the use case’s reference"), 2)
         self.assertNotIn("See all work items", self.ALL)
         self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
         self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)

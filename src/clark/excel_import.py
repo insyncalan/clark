@@ -565,6 +565,11 @@ def _title_key(v):
     return " ".join(str(v or "").split()).casefold()
 
 
+def _six_digit_fraction(text):
+    """Python 3.9's fromisoformat takes a fraction of exactly 3 or 6 digits (3.11 takes any): pad or cut the fraction to 6."""
+    return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
     hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
@@ -573,12 +578,12 @@ def _moved(cell, stored):
     else:
         text = str(cell).strip().replace("T", " ")
         try:
-            then = datetime.fromisoformat(text)
+            then = datetime.fromisoformat(_six_digit_fraction(text))
         except ValueError:
             return False
         slack = 0.002 if "." in text else 1.0
     try:
-        now = datetime.fromisoformat(str(stored).strip().replace("T", " "))
+        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
     except ValueError:
         return False
     return abs((now - then).total_seconds()) > slack
@@ -1239,9 +1244,8 @@ def list_sheets(path, store=None, project=None):
 
 MAX_CELL_TEXT = 32767                                # the most characters Excel itself keeps in a cell: a longer text is not from Excel
 _SCAN_CHUNK = 65536
-_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
+_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c|t)(?![\w:.-])")   # one tag (cut out by _scan_member), matched by local name: <row>, <x:row>, <ns:c>, <x:t>
 _ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
-_TEXT = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>([^<]*)</(?:[A-Za-z_][\w.-]*:)?t>")   # by local name too: <x:t>
 _SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
 _REL_TAG = re.compile(rb"<Relationship\b[^>]*>")
 
@@ -1283,29 +1287,50 @@ def _scan_member(z, member, title):
     with the words the loaded sheet would get, when it reaches past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS or holds more
     cells than the limits allow at all; raises _TextTooLong for a text longer than Excel can keep. Memory is one chunk and one
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
-    max_row = max_col = cells = row = col = read = 0
+    max_row = max_col = cells = row = col = read = tags = 0
     buf = b""
+    text = None                                          # the bytes of a <t> node read so far (it can run over a chunk cut), else None
     opener = z.open                                      # a zip member is read as bytes, never as text
     with opener(member) as f:
         while True:
             chunk = f.read(_SCAN_CHUNK)
             read += len(chunk)
             buf += chunk
-            cut = len(buf) if (not chunk or buf.endswith(b">")) else max(buf.rfind(b"<"), 0)
-            head, buf = buf[:cut], buf[cut:]
-            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag or a text node this long is not a cell
-                raise _TextTooLong()
-            for t in _TEXT.finditer(head):
-                if len(t.group(1)) > MAX_CELL_TEXT and len(unescape(t.group(1).decode("utf-8", "replace"))) > MAX_CELL_TEXT:
-                    raise _TextTooLong()
-            for m in _TAG.finditer(head):
-                tag = m.group(0)
+            pos = 0
+            while True:                                  # one pass over buf: each byte is looked at a bounded number of times
+                if text is not None:                     # inside a text node: it ends at the next '<', which may be in a later chunk
+                    lt = buf.find(b"<", pos)
+                    text += buf[pos:] if lt < 0 else buf[pos:lt]
+                    if len(text) > 8 * MAX_CELL_TEXT:    # a text node this long is not a cell
+                        raise _TextTooLong()
+                    if lt < 0:
+                        pos = len(buf)
+                        break
+                    if len(text) > MAX_CELL_TEXT and len(unescape(text.decode("utf-8", "replace"))) > MAX_CELL_TEXT:
+                        raise _TextTooLong()
+                    text, pos = None, lt
+                lt = buf.find(b"<", pos)
+                if lt < 0:
+                    pos = len(buf)
+                    break
+                gt = buf.find(b">", lt)
+                if gt < 0:                               # the tag goes on in the next chunk: keep it from its '<'
+                    pos = lt
+                    break
+                tag, pos = buf[lt:gt + 1], gt + 1
+                m = _TAG.match(tag)
+                if m is None:
+                    continue
+                if m.group(1) == b"t":
+                    if not tag.endswith(b"/>"):
+                        text = b""
+                    continue
                 at = _ATTR_R.search(tag)
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
-                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
-                    if max_row > MAX_SHEET_ROWS:
+                    tags += 1                                    # an empty row does not move max_row (its number is only where the next cell
+                    if tags > MAX_SHEET_ROWS:                    # without an r lands), but row tags are still counted, so a flood of them is refused
                         raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
                                       "clark will import in one go. Check this is the right file. Nothing was changed.")
                     continue
@@ -1320,6 +1345,9 @@ def _scan_member(z, member, title):
                                   "clark will import in one go. Check this is the right file. Nothing was changed.")
                 if cells > MAX_SHEET_ROWS * MAX_SHEET_COLUMNS:
                     raise Invalid(_too_large(title, max_row, max_col))
+            buf = buf[pos:]
+            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag this long is not a cell
+                raise _TextTooLong()
             if not chunk or read > excel.MAX_MEMBER_BYTES:
                 return max_row, max_col
 

@@ -370,7 +370,7 @@
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
      "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
      "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
-     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case’s reference), opens Work items already filtered to what it counts."
     ],
     "page": [
      "work"
@@ -569,7 +569,7 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
@@ -591,7 +591,7 @@
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
      "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with the column names **Ref**, **Status** and **Work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
      "dashboard+edit"
@@ -860,11 +860,11 @@
     "w": "Terminal · Docker Desktop",
     "go": "",
     "s": [
-     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark's own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
+     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark’s web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark’s own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
      "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
-     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
+     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
@@ -1359,6 +1359,7 @@
      [
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "Archived work is not in the list. To see it, type is:archived on the filter line.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ],
      [
@@ -1371,7 +1372,7 @@
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ]
     ]
    },
@@ -1766,7 +1767,7 @@
       [
        [
         "No.",
-        "The publication's number for this project, counting up from 1"
+        "The publication’s number for this project, counting up from 1"
        ],
        [
         "Week ending",
@@ -1792,7 +1793,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark’s own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1878,7 +1879,7 @@
        ],
        [
         "Brands",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check."
        ],
        [
         "People",
@@ -2064,6 +2065,7 @@
       "ul",
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
+    "Help opens with the cursor in the search box.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
        "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
@@ -2916,7 +2918,7 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
     },
     {
      "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
@@ -2937,7 +2939,7 @@
      "d": "To go back, press **Undo** to put back what the last install, replace or remove changed, or press **Remove** on the brand to return to the default look."
     }
    ],
-   "result": "The brand's colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
+   "result": "The brand’s colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
    "next": [
     "howto-undo-a-mistake",
     "ref-profile-circle"
