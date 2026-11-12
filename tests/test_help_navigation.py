@@ -86,15 +86,14 @@ class TheFiveJobs(unittest.TestCase):
 
     def test_the_contents_list_of_start_here_has_the_three_groups(self):
         r = run_node(RAW, "HL.tabList('start').map((g) => [g.group, g.entries.map((e) => e.place)])")
-        self.assertEqual(r[:3], [["Start here", ["start-top"]], ["Start here", ["start-loop"]], ["Start here", ["start-jobs"]]], "the hero card and the loop come first (row 903)")
-        r = r[2:]
+        self.assertEqual(r[0], ["Start here", ["start-top", "start-loop", "start-jobs"]], "the hero card and the loop come first (row 903), under one heading")
         self.assertEqual(r[1], ["The five jobs", [JOB_PLACES[i] for i in JOBS]])
         self.assertEqual(r[2][0], "Also under How do I...")
         # the two jobs that open a guide leave their how-to entries here, so those stay reachable
         others = [t["id"] for t in shown_content()["howto"]["tasks"] if t["id"] not in JOBS or t["id"] in GUIDE_JOBS]
         self.assertEqual(r[2][1], ["howto-" + i for i in others], "the other shown how-to entries, in the source's order")
-        self.assertEqual(r[3:], [["Start here", ["start-where"]], ["Start here", ["start-rules"]]], "where and rules are released with ask clark and Sneak peek (#721)")
-        self.assertEqual(len(r), 5)
+        self.assertEqual(r[3:], [["Start here", ["start-where", "start-rules"]]], "where and rules are released with ask clark and Sneak peek (#721)")
+        self.assertEqual(len(r), 4)
 
     def test_the_jobs_part_is_searchable_by_its_words(self):
         r = run_node(RAW, "(() => HL.search(HL.buildIndex(), 'ready-made').map((x) => x.id))()")

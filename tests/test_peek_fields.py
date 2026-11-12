@@ -275,6 +275,18 @@ class Archive(Fields):
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "one Undo brings it back")
 
+    def test_undo_after_archive_in_the_peek_puts_the_focus_on_the_restored_row_with_real_keys(self):
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.calm(cdp, sid)
+                click(cdp, sid, "#peek [data-pk-archive]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
+                key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Enter on Undo brings it back")
+                row = json.dumps(ACTION)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not the page body")
+
     def test_the_button_is_edit_only(self):
         self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))
         self.assertNotIn("data-pk-archive", (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8"))
