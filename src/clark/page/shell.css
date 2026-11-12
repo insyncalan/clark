@@ -985,6 +985,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-steps li:last-child { border-right: 0; }
 .hp-steps li:not(:last-child)::after { content: "→"; position: absolute; right: -8px; top: 34px; width: 16px; text-align: center; background: var(--surface); color: var(--status-blue-text); font-size: var(--size-small); }
 .hp-steps li.gate { background: var(--status-amber-tint); border-radius: var(--radius); border-right: 0; }
+@media (max-width: 1180px) { .hp-steps { grid-template-columns: minmax(0, 1fr); } .hp-steps li { border-right: 0; border-bottom: 1px dashed var(--grey-300); } .hp-steps li:last-child { border-bottom: 0; } .hp-steps li:not(:last-child)::after { display: none; } }      /* in the narrower Help column the five cards were about 108 px wide and split the step labels and headings; they stack from here down */
 .hp-n { font: var(--weight-regular) var(--size-small)/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
 .hp-steps li.gate .hp-n, .hp-gate { color: var(--status-amber-text); }
 .hp-st { display: flex; align-items: center; gap: 7px; margin: 6px 0 var(--space-1); color: var(--heading); }
