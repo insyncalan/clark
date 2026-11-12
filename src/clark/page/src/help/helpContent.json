@@ -2050,6 +2050,7 @@
       "ul",
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
+    "Help opens with the cursor in the search box.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
        "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
