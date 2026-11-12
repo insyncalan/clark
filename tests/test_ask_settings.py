@@ -46,6 +46,7 @@ window.fetch = function (url, opts) {
     window.__ask.choices = window.__ask.choices || ['/Example/Programme files'];
     const next = window.__ask.choices.shift();
     if (next === '/bad') { status = 409; out = {ok: false, code: 'closed_place', message: 'Asking can not read that folder, because it holds your passwords.'}; }
+    else if (next === '/nowin') { status = 409; out = {ok: false, code: 'no_window', message: 'The folder window needs the Mac. Type the folder location below.'}; }
     else if (next === '/gone') { status = 500; out = null; }
     else { if (f.indexOf(next) < 0) f.push(next); out = {ok: true, folders: f, message: 'Added.'}; }
   } else if (body && body.action === 'add') {
@@ -314,6 +315,27 @@ class Settings(unittest.TestCase):
             js("document.querySelector('[data-ask-remove]').click()")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertEqual(js("window.__ask.calls.map(c => c && c.action).filter(Boolean)"), ["choose", "choose", "choose", "remove"])
+
+    def test_when_no_window_can_open_a_box_to_type_the_location_appears(self):
+        for scheme, width in [(a, b) for a in ("light", "dark") for b in WIDTHS]:
+            with chrome() as cdp:
+                js = self.show_page(cdp, fake=True)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+                msg = "(document.querySelector('#ask-settings .pub-msg') || {}).innerText"
+                js("window.__ask.choices = ['/nowin']")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: "Type the folder location" in (js(msg) or ""), 10))
+                self.assertTrue(js("!!document.querySelector('#ask-folder-path')"))
+                self.assertTrue(js("document.querySelector('[data-ask-add]').disabled"), "nothing to add yet")
+                js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = '/Example/typed'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').click()")
+                self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+                self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed")
+                self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
+                self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
 
     def test_the_sources_hold_no_sentence_that_starts_with_the_product_name_and_the_published_page_has_none_of_it(self):
         text = "\n".join((PAGE_SRC / "edit" / n).read_text(encoding="utf-8") for n in ("AskSettings.jsx", "askState.js"))
