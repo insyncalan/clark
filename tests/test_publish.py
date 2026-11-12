@@ -1146,7 +1146,7 @@ class RealBrowser(unittest.TestCase):
             allow = "[data-msvb], [data-mv], [data-cal], [data-scale-b], [data-goto], [data-msall], [data-zreset], .mlg-b"
             found = cdp.js("({fields: document.querySelectorAll('input, textarea, select, form, [contenteditable]').length, "
                            "design: document.designMode, editable: document.body.isContentEditable, "
-                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap')).length, "
+                           "buttons: [...document.querySelectorAll('button')].filter(b => !b.classList.contains('tab') && !b.closest('.msv') && !b.closest('.toc') && !b.closest('.cm-wrap') && !b.closest('.glance')).length, "
                            f"unlisted: [...document.querySelectorAll('.msv button')].filter(b => !b.matches({json.dumps(allow)})).map(b => b.className + ' ' + b.textContent).length, "
                            "settings: !!document.querySelector('[data-view=settings]'), mode: document.documentElement.dataset.mode})", sid)
             logo = cdp.js("(function(){ var l = document.querySelector('.top .logo'); return l ? l.tagName : null; })()", sid)

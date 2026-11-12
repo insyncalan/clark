@@ -556,6 +556,17 @@ textarea.tpl-field { resize: vertical; }
 
 /* #96 G3 Work items list (workitems): the Edit part (the filter and the live preview). Tokens only. */
 .wil-form { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 10px; padding: var(--space-3) 14px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--grey-50); }
+.wil-form > .wil-more { grid-column: 1 / -1; }   /* row 1113: the tick boxes fold inside the one form block; Sort by, Most rows, Columns and Caption stay in it where they were */
+.wil-form-in { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px var(--space-4); margin: var(--space-1) 0 0; }
+.wil-line { display: grid; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); }
+.wil-linef input { width: 100%; box-sizing: border-box; }
+.wil-line p { margin: 0; }
+.wil-chips { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); margin: 0; padding: 0; list-style: none; }
+.wil-chip { display: inline-flex; align-items: center; gap: var(--space-1); min-height: 28px; padding: 0 0 0 10px; border: 1px solid var(--grey-300); border-radius: 14px; background: var(--grey-50); color: var(--text); font-size: var(--size-small); }
+.wil-chip button { min-width: 28px; min-height: 28px; border: 0; border-radius: 14px; background: transparent; color: var(--text); font: inherit; cursor: pointer; }
+.wil-chip button:hover { background: var(--grey-100); }
+.wil-chip button:focus-visible, .wil-more summary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.wil-more summary { min-height: 28px; display: flex; align-items: center; cursor: pointer; color: var(--text); font-size: var(--size-small); }
 .wil-f { min-width: 0; margin: 0; padding: 0; border: 0; }
 .wil-f legend { padding: 0; margin-bottom: var(--space-1); font-size: var(--size-caption); color: var(--text-muted); font-weight: var(--weight-medium); }
 .wil-opts { display: flex; flex-wrap: wrap; gap: 2px var(--space-3); }

@@ -507,6 +507,17 @@ class Styles(Setup):
 
 
 class Published(PublishedFile, Setup):
+    def test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts(self):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            self.assertEqual(p.js("document.querySelector('[data-fig=overdue]').tagName"), "BUTTON", "a published tile is a button")
+            self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
+            p.js("document.querySelector('[data-fig=overdue]').click()")
+            p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+            p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+            self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, "the one overdue action the file holds")
+
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
@@ -514,7 +525,7 @@ class Published(PublishedFile, Setup):
                 p = self.draw(cdp, path, width, dark)
                 self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue", "risks"])
                 self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the client counts only what the file holds")
-                self.assertEqual(p.js("document.querySelectorAll('.glance button, .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
+                self.assertEqual(p.js("document.querySelectorAll('.glance button:not(.fig), .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
                 self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill').length"), 0)
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
