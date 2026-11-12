@@ -269,5 +269,70 @@ class RawMarkers(Base):
         self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
 
 
+class WithATableSection(Base):
+    """Row 1068: a shown Gantt table section (type gantttable) puts the eye-on lines in the file without the tab (publish.select), so the
+    marker rule mirrors it: a line may be in the file when the tab is on, or when its eye is on and a table section is shown. An eye-off
+    line, a hidden column, a hidden table section and no table section at all are as before: markers."""
+
+    def table_section(self, hidden=0):
+        self.sql("INSERT INTO report_sections (project, id, type, title, body, beside, hidden, sort_order) VALUES ('ABC', 'ABC-S-090', 'gantttable', 'Table', '', 0, ?, 9000)", (hidden,))
+
+    def test_switch_off_with_a_shown_table_section_lets_the_eye_on_line_through_and_the_publish_is_not_held(self):
+        on = self.line("ZQ-SHOWN-LINE")
+        off = self.line("ZQ-EYE-OFF-LINE", owner="ZQ-OFF-OWNER", note="ZQ-OFF-NOTE-X", show=0)
+        self.project(show=0)
+        self.table_section()
+        built, got = self.got()
+        text = built["body"].decode("utf-8")
+        self.assertIn("ZQ-SHOWN-LINE", text, msg="the table section carries the eye-on line with the switch off")
+        self.assertNotIn("gantt", built["published"]["tabs"])
+        for m in (on, "ZQ-SHOWN-LINE"):
+            self.assertNotIn(m, got, msg=f"{m!r} may be in the file, so it is not a marker")
+        for m in ("ZQ-OWNER-ONE", "ZQ-NOTE-ONE-X", "424242.5", "765432.5", "2031-05-06", "2031-05-07"):
+            self.assertIn(m, got, msg=f"{m!r}: a hidden column of the eye-on line is still a marker")
+        for m in (off, "ZQ-EYE-OFF-LINE", "ZQ-OFF-OWNER", "ZQ-OFF-NOTE-X"):
+            self.assertIn(m, got, msg=f"{m!r}: the eye-off line is still a marker")
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [], msg="the file as built is not held back")
+
+    def test_switch_off_with_a_hidden_table_section_or_none_keeps_every_line_a_marker(self):
+        ref = self.line("ZQ-SHOWN-LINE")
+        self.project(show=0)
+        built, got = self.got()
+        for m in (ref, "ZQ-SHOWN-LINE"):
+            self.assertIn(m, got, msg=f"{m!r}: no table section and no tab, so the line may not be in the file")
+        self.assertNotIn("ZQ-SHOWN-LINE", built["body"].decode("utf-8"))
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
+        self.table_section(hidden=1)
+        built, got = self.got()
+        for m in (ref, "ZQ-SHOWN-LINE"):
+            self.assertIn(m, got, msg=f"{m!r}: a hidden table section brings nothing into the file")
+        self.assertNotIn("ZQ-SHOWN-LINE", built["body"].decode("utf-8"))
+        self.assertEqual(to_client.check_copy(built["body"], markers=got, folder=None), [])
+
+    def test_the_pdf_check_gets_the_same_markers_with_a_table_section(self):
+        ref = self.line("ZQ-SHOWN-LINE")
+        self.project(show=0)
+        self.table_section()
+        built, _ = self.got()
+        seen = []
+
+        def spy(data, markers, folder=None, body=None):
+            seen.append(list(markers))
+            return ["stop"]
+        pub = mock.Mock()
+        pub.branding = None
+        pub.project_brand.return_value = None          # row 999: the Publisher says which folder the project's brand is in
+        step = publish_pdf.Step({"on": True, "choice": None, "new_name": None, "confirmed": False, "error": None}, pub)
+        built = dict(built, number=1)
+        with mock.patch.object(pdf, "find_chrome", return_value="chrome"), mock.patch.object(publish_pdf, "make", return_value=b"%PDF"), \
+                mock.patch.object(publish_pdf, "problems", spy), mock.patch.object(publish_pdf.Path, "exists", return_value=False):
+            step.prepare(pub, "/tmp/x.html", built, "2031-06-15", self.s, "ABC", None, None)
+        self.assertEqual(len(seen), 1, msg="the PDF was checked")
+        for m in (ref, "ZQ-SHOWN-LINE"):
+            self.assertNotIn(m, seen[0], msg=f"{m!r} is in the file by the table section, so the PDF check does not look for it")
+        for m in ("ZQ-OWNER-ONE", "ZQ-NOTE-ONE-X", "2031-05-06"):
+            self.assertIn(m, seen[0], msg=f"{m!r} is a marker for the PDF as well")
+
+
 if __name__ == "__main__":
     unittest.main()

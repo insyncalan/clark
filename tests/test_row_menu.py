@@ -1112,6 +1112,17 @@ class Menu(board.Base):
         self.s.httpd.people_list = slow
         return gate, done
 
+    def test_row_1048_when_the_people_list_cannot_be_read_the_menu_still_opens_and_the_draft_entry_gives_no_reason(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.s.httpd.people_list = lambda *req: (500, {"ok": False})
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                by = {e[0]: e for e in self.entries(cdp, sid)}
+                self.assertFalse(by["draft"][2], f"{width}: the entry can still be used")
+                self.assertEqual(by["draft"][3], "", f"{width}: no reason is given while there is no People list to judge by")
+
     def test_a_dismiss_before_the_people_read_resolves_cancels_the_open(self):
         for how in ("escape", "outside"):
             with self.subTest(how=how), chrome() as cdp:
