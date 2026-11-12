@@ -255,3 +255,25 @@ class Source(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class PrintLight(Appearance):
+    def test_1050_printing_is_light_in_dark_and_the_look_comes_back(self):
+        for w in WIDTHS:
+            for pick in ("dark", "system"):
+                with self.subTest(width=w, pick=pick), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    scheme(p, "dark")
+                    self.open_settings(p)
+                    p.js(f"document.querySelector('#personal [data-theme-pick={pick}]').click()")
+                    p.until("document.documentElement.dataset.theme", "the dark look is on")
+                    self.assertLess(self.lightness(p), 100, "dark on screen")
+                    chosen = p.js("document.documentElement.dataset.theme")
+                    p.js("window.dispatchEvent(new Event('beforeprint'))")
+                    self.assertIsNone(p.js("document.documentElement.dataset.theme || null"), "printing draws no dark attribute")
+                    self.assertGreater(self.lightness(p), 200, "white paper while printing")
+                    p.js("window.dispatchEvent(new Event('afterprint'))")
+                    self.assertEqual(p.js("document.documentElement.dataset.theme"), chosen, "the chosen look comes back")
+                    self.assertLess(self.lightness(p), 100)
