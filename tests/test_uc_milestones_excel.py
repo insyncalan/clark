@@ -25,8 +25,8 @@ class Carry(unittest.TestCase):
         with self.s.step("dashboard", USER) as st:
             self.ms2 = st.create("milestones", {"project": "ABC", "name": "Go live, then some", "baseline_date": "2030-06-01", "source": "demo"})
             self.uc2 = st.create("use_cases", {"project": "ABC", "title": "Payments", "status": "On track", "source": "demo"})
-            sm.link_use_case_milestone(st.con, self.uc, self.ms, USER)
-            sm.link_use_case_milestone(st.con, self.uc, self.ms2, USER)
+            sm.link_use_case_milestone(st, self.uc, self.ms)
+            sm.link_use_case_milestone(st, self.uc, self.ms2)
         self.dir = Path(tempfile.mkdtemp(prefix="clark-uc-ms-"))
         self.addCleanup(shutil.rmtree, self.dir, True)
         self.path, self.state = self.dir / "ABC work items.xlsx", self.dir / "state.json"
@@ -107,6 +107,15 @@ class Carry(unittest.TestCase):
         plan.accept_all()
         res = xi.apply_import(self.s, plan, USER, state_path=self.state)
         self.assertFalse(res.applied)
+        self.assertEqual(sm.use_case_milestone_ids(self.s.con, self.uc2), [])
+
+    def test_undoing_the_import_takes_the_links_back_both_ways(self):
+        self.edit(self.uc, f"{self.ms}: Pilot live")                       # ends one link
+        self.edit(self.uc2, self.ms2)                                      # adds one
+        res = self.apply(self.read())
+        out = self.s.undo(res.step_id, USER)
+        self.assertEqual(out["skipped"], [])
+        self.assertEqual(sm.use_case_milestone_ids(self.s.con, self.uc), sorted([self.ms, self.ms2]))
         self.assertEqual(sm.use_case_milestone_ids(self.s.con, self.uc2), [])
 
     def test_a_workbook_without_the_column_leaves_the_links_alone(self):

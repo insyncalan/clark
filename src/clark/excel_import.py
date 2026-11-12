@@ -1623,9 +1623,9 @@ def _write_milestone_links(st, use_case, wanted):
     want = set(wanted.split(", ")) if wanted else set()
     have = set(writer.use_case_milestone_ids(st.con, use_case))
     for m in sorted(want - have):
-        writer.link_use_case_milestone(st.con, use_case, m, st.by_user)
+        writer.link_use_case_milestone(st, use_case, m)
     for m in sorted(have - want):
-        writer.unlink_use_case_milestone(st.con, use_case, m, st.by_user)
+        writer.unlink_use_case_milestone(st, use_case, m)
 
 
 def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):

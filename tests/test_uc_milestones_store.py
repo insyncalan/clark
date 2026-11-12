@@ -33,12 +33,12 @@ class Links(unittest.TestCase):
             self.ms2 = st.create("milestones", {"project": "ABC", "name": "Go live", "baseline_date": "2030-06-01", "source": "demo"})
 
     def link(self, uc=None, ms=None, who="Sam"):
-        with self.s.step("dashboard", USER):
-            return sm.link_use_case_milestone(self.s.con, uc or self.uc, ms or self.ms, who)
+        with self.s.step("dashboard", who) as st:
+            return sm.link_use_case_milestone(st, uc or self.uc, ms or self.ms)
 
     def unlink(self, ms=None, who="Sam"):
-        with self.s.step("dashboard", USER):
-            return sm.unlink_use_case_milestone(self.s.con, self.uc, ms or self.ms, who)
+        with self.s.step("dashboard", who) as st:
+            return sm.unlink_use_case_milestone(st, self.uc, ms or self.ms)
 
     def test_link_lists_both_ways_and_a_second_link_is_not_made(self):
         self.assertTrue(self.link())
@@ -90,8 +90,7 @@ class Links(unittest.TestCase):
         self.assertEqual(d["uc_milestones"], [{"use_case": self.uc, "milestone": self.ms}])
         self.assertEqual(self.s.read("actions", ref=a)["milestone"], self.ms2)
 
-    def test_the_helpers_are_not_in_the_generic_writer_and_the_check_still_holds(self):
-        self.assertNotIn("use_case_milestones", sm.TABLES)
+    def test_the_foreign_key_check_still_holds(self):
         self.assertEqual(self.s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
 
 
