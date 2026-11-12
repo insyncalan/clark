@@ -1,4 +1,4 @@
-"""Item 660, editors throughout: every plain text box opens at three lines, grows as it is typed in with one blank line always under the
+"""Item 660, editors throughout (the Ask clark box is one line since row 1096): every plain text box opens at three lines, grows as it is typed in with one blank line always under the
 last, shrinks as text goes (down to three lines), has a corner handle, and keeps a height the person pulled by hand. The rich editor and
 the Draft email body have the handle and the three-line floor from CSS. Edit only: the published page has no textarea and no useGrow.
 Run: python3 dev/run_tests.py test_item_660_editors
@@ -56,9 +56,13 @@ class Ask(Panel):
                     def put(text):
                         p.js(f"(e => {{ e.focus(); e.value = {json.dumps(text)}; e.dispatchEvent(new Event('input', {{bubbles: true}})); }})({sel})")
                     put("")
-                    Rules.check(self, lambda: p.js(SIZE % sel), put, lambda: put(""),
-                                lambda: p.js(f"(e => {{ e.style.height = (e.offsetHeight + 20) + 'px'; e.dispatchEvent(new Event('pointerup')); }})({sel})"),
-                                width, f"ask {width} {theme}")
+                    one = p.js(SIZE % sel)
+                    self.assertLess(one["h"], 2 * one["line"] + 16, f"ask {width} {theme}: one line high at rest (row 1096)")
+                    put(MANY)
+                    many = p.js(SIZE % sel)
+                    self.assertAlmostEqual(many["h"], one["h"], delta=2, msg=f"ask {width} {theme}: stays one line, scrolls (row 1096)")
+                    self.assertLessEqual(many["ow"], 20, f"ask {width} {theme}: no sideways scroll")
+                    put("")
                     p.until("document.querySelector('#ask-panel').getAnimations().length === 0", "the panel has finished rising (row 885)")
                     panel = p.js("(r => ({b: r.bottom, h: innerHeight}))(document.querySelector('#ask-panel').getBoundingClientRect())")
                     self.assertLessEqual(panel["b"], panel["h"] + 1, "the panel stays inside the window")

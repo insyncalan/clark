@@ -47,6 +47,8 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
   push:
     branches: [main]
+  merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
+    types: [checks_requested]
 
 name: Tests
 # A hand-started run of named files is named "Tests (files)", so it can be told from a full run.
@@ -91,8 +93,9 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FULL=""; MACOS=""; WIDE=""
+          FULL=""; MACOS=""; WIDE=""; NTESTS=0
           case "$EVENT" in
+            merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
             push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
           esac
@@ -124,14 +127,19 @@ jobs:
                   clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher (clark/launch.py is what clark.command runs) and the package: Mac-specific too
                   .github/*) FULL=1 ;;
                   *.css|src/clark/brand/*|src/clark/page/*|src/clark/templates/*) WIDE=1 ;;      # reaches many test files: keep six shards
+                  tests/test_*.py) NTESTS=$((NTESTS + 1)) ;;      # counted below: 8 or more test files is WIDE too
                 esac
               done <<< "$CHANGED"
+              # A pull request that changes 8 or more tests/test_*.py files is WIDE: six shards, not three. Three shards carry about 6800 s of
+              # weighted test time each, and a tests-only bundle (PR 1339) timed out three times at the 30-minute cap on three shards;
+              # six shards carry about 3400 s each, which is what a full run takes.
+              if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi
             else
               echo "could not list the changed files: full (fail safe)"
               FULL=1; MACOS=1
             fi
           fi
-          # The Ubuntu 3.x job runs every file on the full path: six shards, so each stays near ten minutes and well under its 30-minute cap
+          # The Ubuntu 3.x job runs every file on the full path: four shards (was six, 12-11), each well under its 30-minute cap
           # (one shard hit the cap on PR 440, twice). The cheap path (--push) is sharded the same way: a change to shell.css or another
           # shared file reaches every test file, and as one shard that hit the cap too (PRs 445 and 447). A pull request that reaches few
           # files leaves most shards nearly empty: they finish in the time it takes to set up, and the minutes are free.
@@ -140,10 +148,15 @@ jobs:
           PY39=""
           case "$EVENT" in workflow_dispatch) PY39=1 ;; esac
           if [ -n "$MACOS" ]; then PY39=1; fi
-          # Ubuntu 3.x shards: six on the full path (every file) and for a pull request that touches a stylesheet or the page (it reaches
+          # Ubuntu 3.x shards: four on the full path (every file, see below), six for a pull request that touches a stylesheet or the page (it reaches
           # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
           # costs a runner slot, a checkout and a setup). Fewer jobs per push means the queue clears sooner (#908 grew it from three).
+          # Full path (a guarded change, a push to main, the merge queue): FOUR shards, 12-11 (fewer runner slots, less repeated setup). A WIDE
+          # change that is not full (a stylesheet, the page, 8 or more test files) keeps SIX: a tests-only bundle once timed out three
+          # times at the 30-minute cap on three shards, and four carry about three quarters of that load. Measure the slowest full-path shard
+          # at four before trusting the 15 to 20 minute estimate; if one hits the cap, set COUNT back to 6 here.
           SHARDS='[1,2,3,4,5,6]'; COUNT=6
+          if [ -n "$FULL" ]; then SHARDS='[1,2,3,4]'; COUNT=4; fi
           if [ -z "$FULL" ] && [ -z "$WIDE" ]; then SHARDS='[1,2,3]'; COUNT=3; fi
           SHARDS39='[1,2,3]'; COUNT39=3      # Python 3.9, quick tier only (full path)
           echo "full=$FULL" >> "$GITHUB_OUTPUT"

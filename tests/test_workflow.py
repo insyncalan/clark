@@ -147,11 +147,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}", py39)
         self.assertIn("SHARDS39='[1,2,3]'; COUNT39=3", self.jobs["plan"])
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards39) }}", py39)
-        # six shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
+        # four shards on the full path, six on a wide change, three on the cheap path (as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])
+        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])      # wide, not full: six
+        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3,4]'; COUNT=4; fi", self.jobs["plan"])      # full: four
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)
@@ -281,7 +282,9 @@ class Workflow(unittest.TestCase):
                   "clark.command", "clark/__main__.py", "clark/launch.py", "clark/doctor.py", "src/clark/launch.py", "src/clark/doctor.py",
                   "src/clark/release_files.py", "dev/tools/package.py",
                   # the WIDE patterns (a stylesheet or the page reaches nearly every test file: six Ubuntu shards, not three), not guarded files
-                  "*.css", "src/clark/brand/*", "src/clark/page/*", "src/clark/templates/*"}
+                  "*.css", "src/clark/brand/*", "src/clark/page/*", "src/clark/templates/*",
+                  # a changed test file is only counted: eight or more make the pull request WIDE
+                  "tests/test_*.py"}
         self.assertTrue(sources, "no source file found in run_tests.GUARDED")
         self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
         missing = sorted(sources - listed)
@@ -295,6 +298,34 @@ class Workflow(unittest.TestCase):
         for ln in self.text.splitlines():
             if "github.event.inputs" in ln or "github.head_ref" in ln or "github.base_ref" in ln:
                 self.assertRegex(ln.strip(), r"^(if:|[A-Z_]+:|run-name:|group:|cancel-in-progress:)", ln)
+
+
+class WideByTestFiles(unittest.TestCase):
+    """A pull request that changes 8 or more tests/test_*.py files runs six Ubuntu shards, not three (PR 1339 timed out three times at
+    30 minutes on three). The plan step's own lines are run in bash on a made-up file list."""
+
+    def _wide(self, changed):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        a = text.index("while IFS= read -r F; do")
+        b = text.index('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi') + len('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi')
+        script = 'FULL=""; MACOS=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
+        out = subprocess.run(["bash", "-c", script], input="", capture_output=True, text=True, check=True,
+                             env={"PATH": "/usr/bin:/bin", "CHANGED": changed}).stdout
+        return out.strip()
+
+    def test_eight_test_files_are_wide_and_seven_are_not(self):
+        eight = "\n".join(f"tests/test_x{i}.py" for i in range(8))
+        seven = "\n".join(f"tests/test_x{i}.py" for i in range(7))
+        self.assertEqual(self._wide(eight), "WIDE=1 FULL=")
+        self.assertEqual(self._wide(seven), "WIDE= FULL=")
+
+    def test_other_files_do_not_count_and_the_old_rules_still_hold(self):
+        many = "\n".join(f"docs/n{i}.md" for i in range(20))
+        self.assertEqual(self._wide(many), "WIDE= FULL=")
+        self.assertEqual(self._wide("src/clark/page/x.jsx"), "WIDE=1 FULL=")
+        self.assertEqual(self._wide("src/clark/server.py"), "WIDE= FULL=1")
+        mixed = "\n".join(f"tests/helper{i}.py" for i in range(9))      # not test_*.py
+        self.assertEqual(self._wide(mixed), "WIDE= FULL=")
 
 
 if __name__ == "__main__":

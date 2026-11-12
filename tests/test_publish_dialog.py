@@ -141,7 +141,7 @@ class Dialog(Base):
                 self.assertFalse(p.js("document.querySelector('#pub-pdf').closest('label').classList.contains('off')"))
                 self.assertNotIn("Chrome", p.dialog_text())
                 self.assertEqual(p.js("document.querySelector('#pub-pdf').closest('label').innerText.replace(/\\s+/g, ' ')"),
-                                 "Also a PDF The page as it prints: the tabs one after another, no controls, with the publication number in the foot")
+                                 "Also a PDF The page as it prints: the tabs one after another, no controls, with the publication number in the foot.")
                 p.js("document.querySelector('[data-cancel]').click()")
                 p.until("!document.querySelector('#publish-dialog')", "closed")
 

@@ -11,7 +11,7 @@ from clark.publish import LEGACY_RICH, RICH
 from clark.sanitise import SanitiseError, plain_text, rich_plain_text
 from clark.store import BATCH_UNDO, EMAIL_NOTE_KEY, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
-JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
+JOINED = ("links", "item_labels", "use_case_milestones")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
 
 def touches(r, item_id):
@@ -19,7 +19,7 @@ def touches(r, item_id):
     if r["tbl"] not in JOINED:
         return True
     parts = str(r["item_id"]).split("|")
-    return item_id in (parts[:2] if r["tbl"] == "links" else parts[:1])
+    return item_id in (parts[:2] if r["tbl"] in ("links", "use_case_milestones") else parts[:1])
 
 
 ROW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
@@ -320,6 +320,7 @@ FIELD_NAMES = {
     "use_cases": {"title": "Title"},
     "links": {"kind": "Link type"},
     "item_labels": {"item_id": "Item", "label": "Label"},
+    "use_case_milestones": {"removed_at": "Milestone link ended", "removed_by": "Link ended by", "use_case": "Use case", "milestone": "Milestone"},   # row 1107
     "updates": {"health": "Health", "summary": "Summary", "key_changes": "Key changes"},
 }
 REMOVED_NAME = "Removed"
@@ -327,7 +328,8 @@ CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a n
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
-         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line"}      # what a Created or Removed row is about
+         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line",
+         "use_case_milestones": "Milestone link"}      # what a Created or Removed row is about
 
 
 def field_name(table, field):
@@ -479,7 +481,7 @@ class _Titles:
 def _ends(tbl, item_id):
     """The item IDs a change_log key is about: both ends of a link, the item of a label, else the key (a project's own code too)."""
     parts = str(item_id).split("|")
-    if tbl == "links":
+    if tbl in ("links", "use_case_milestones"):
         return parts[:2]
     if tbl in ("item_labels", "report_hidden", "documents", "glance_tiles", "saved_views", "report_sections"):
         return parts[:1] if tbl != "report_hidden" else parts[1:2]
@@ -591,6 +593,8 @@ def _display(con, rows, keep):
             row["to"] = f"{a['id']} {vals.get('kind') or 'blocks'} {b['id']}".strip()
         elif row["table"] == "item_labels":
             row["to"] = vals.get("label") or ""
+        elif row["table"] == "use_case_milestones":
+            row["to"] = vals.get("milestone") or ""
         elif col:
             row["to"] = vals.get(col) or row["title"]
         else:

@@ -236,7 +236,7 @@ CREATE INDEX IF NOT EXISTS change_log_item ON change_log(item_id);
 
 -- ===== clark's own tables (creaite has none of these) =====
 
--- #709: use_cases.commitment is NULL (no flag) or one of store.COMMITMENTS; no CHECK, so a fourth word is no layout step. The last column, as step 16 adds it
+-- #709: use_cases.commitment is NULL (no flag) or one of store.COMMITMENTS; no CHECK, so a fourth word is no layout step. The last columns, as steps 16 and 22 add them (row 875: owner is free text as milestones.owner; owner_id links the people list)
 CREATE TABLE IF NOT EXISTS use_cases (
   id            TEXT PRIMARY KEY CHECK (id GLOB '[A-Z]*-U-[0-9][0-9][0-9]' AND length(id) BETWEEN 9 AND 13 AND substr(id, 1, length(id) - 6) NOT GLOB '*[^A-Z0-9]*'),
   project       TEXT NOT NULL REFERENCES projects(code),
@@ -250,15 +250,33 @@ CREATE TABLE IF NOT EXISTS use_cases (
   source        TEXT NOT NULL,
   archived      INTEGER NOT NULL DEFAULT 0 CHECK (archived IN (0,1)),
   updated_at    TEXT NOT NULL DEFAULT (datetime('now')),
-  commitment    TEXT
+  commitment    TEXT,
+  owner         TEXT,
+  owner_id      TEXT REFERENCES people(id)
 );
+
+-- clark: row 1107, step 24. A use case linked straight to a milestone, besides the way through its work items (actions.milestone,
+-- raid.milestone). One row per link made. Removing a link never deletes the row: removed_at and removed_by are set, so its history stays,
+-- and linking again adds a new row. At most one live row (removed_at NULL) per pair, so a pair is never linked twice at once.
+-- The same statements are store.UC_MILESTONES_TABLE and store.UC_MILESTONES_INDEXES, which migrate_use_case_milestones runs on an older file (a test pins them together).
+CREATE TABLE IF NOT EXISTS use_case_milestones (
+  link_id    INTEGER PRIMARY KEY,
+  use_case   TEXT NOT NULL REFERENCES use_cases(id),
+  milestone  TEXT NOT NULL REFERENCES milestones(id),
+  created_at TEXT NOT NULL,
+  created_by TEXT NOT NULL DEFAULT '',
+  removed_at TEXT,
+  removed_by TEXT
+);
+CREATE UNIQUE INDEX IF NOT EXISTS use_case_milestones_live ON use_case_milestones(use_case, milestone) WHERE removed_at IS NULL;
+CREATE INDEX IF NOT EXISTS use_case_milestones_milestone ON use_case_milestones(milestone);
 
 CREATE TABLE IF NOT EXISTS report_sections (
   project TEXT NOT NULL REFERENCES projects(code) ON DELETE CASCADE,
   id      TEXT NOT NULL,
   type    TEXT NOT NULL CHECK (type IN ('current','glance','usecases','milestones','text','raid','actions','decisions','docs','needs','tracker',
                                          'textimage','headline','figures4','figures3','gallery','table','doclinks','linkcard','raid3','raid4',
-                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc','gantt')),
+                                         'workitems','callout','imagecap','quote','contacts','checklist','keydates','onedoc','gantt','gantttable')),
   title   TEXT NOT NULL,
   body    TEXT NOT NULL DEFAULT '',
   beside  INTEGER NOT NULL DEFAULT 0 CHECK (beside IN (0,1)),

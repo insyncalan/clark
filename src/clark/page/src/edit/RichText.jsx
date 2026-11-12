@@ -1,6 +1,6 @@
 // A rich field being edited (#66): clarkEditor with its toolbar, the bubble over a selection, the "/" menu and the link box.
 // The only coupling to the rest of the page is two callbacks: onSave(html) (returns a promise: the reply, or null when the save
-// failed, and then the field stays open) and onClose(back). `back` is true when the person closed it from the keyboard (Esc, or
+// failed, and then the field stays open; a text instead says why in the field, and it stays open) and onClose(back). `back` is true when the person closed it from the keyboard (Esc, or
 // Cmd or Ctrl + Enter), so the field's view takes the focus again (#188); it is false when the focus went elsewhere on its own.
 // Cmd or Ctrl + Enter saves, so does leaving the field; Esc puts the old text back. Every button is a real button with a plain-words name. Text is never drawn as markup here: the editor owns its own
 // document.
@@ -18,7 +18,7 @@ const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S"
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
   ["checklist", "Checklist"], ["quote", "Quote"], ["rule", "Divider"]];
-const TOO_LONG = "That is too long to save. Shorten it and try again.";
+export const TOO_LONG = "That is too long to save. Shorten it and try again.";
 const BAD_LINK = "That address can't be used. Start it with https://, http:// or mailto:";
 
 // Where to draw a floating box so that it stays inside the window.
@@ -30,7 +30,7 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose }) {
+export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -52,8 +52,8 @@ export function RichText({ value, label, onSave, onClose }) {
     busy.current = true;
     const r = await props.current.onSave(html);
     busy.current = false;
-    if (r !== null && r !== false) leave(back);
-    else setProblem("");
+    if (r !== null && r !== false && typeof r !== "string") leave(back);
+    else setProblem(typeof r === "string" ? r : "");
   };
   const finishRef = useRef(finish); finishRef.current = finish;
 
@@ -79,7 +79,10 @@ export function RichText({ value, label, onSave, onClose }) {
   useLayoutEffect(() => {
     const keyHook = (e) => {
       const s = slashRef.current;
-      if (!s) return false;
+      if (!s) {                                                // a one-line field (item 1005): Enter saves, as in a plain box; Shift+Enter is not a line break either
+        if (oneLine && e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); finishRef.current(true); return true; }
+        return false;
+      }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : s.items.length - 1)) % s.items.length });

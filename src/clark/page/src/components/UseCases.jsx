@@ -10,6 +10,8 @@ import { isOn, liveOf } from "../logic/useCasesList.js";
 import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
+import { RAIL, railRows } from "../logic/milestones.js";
+import { recall, remember } from "../logic/remember.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -43,7 +45,7 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 /** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
 export function StepLine({ r }) {
   const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
-  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span><b>{who}:</b> {r.client_message || r.title}</span></>;
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {r.client_message || r.title}</span></>;
 }
 
 function Row({ s, shown, toggle, ed }) {
@@ -76,7 +78,7 @@ function Row({ s, shown, toggle, ed }) {
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => {
                 const see = () => openPeek(r.id, "item");
-                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
+                return <li key={r.id} data-step onClick={(e) => { if (!e.target.closest("[data-stepid]") && !window.getSelection().toString()) see(); }}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>
@@ -96,13 +98,18 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
+// Row 1108: the summary shows the first 5 use cases, then "Show all N use cases" / "Show the first 5" (as the Milestones list does), kept for this browser.
+export const allWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} use cases`);
+
 export function UseCases({ tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
+  const [all, setAll] = useState(() => !!recall("ucAll", false));
+  const toggleAll = () => { remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
-    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); ed.added.value = ""; }
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= RAIL) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
@@ -118,7 +125,8 @@ export function UseCases({ tools }) {
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
       </div>
-      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      <ul class="ucrows plain">{railRows(list, all).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall aria-expanded={String(all)} onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>

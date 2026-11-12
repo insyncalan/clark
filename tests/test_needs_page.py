@@ -622,6 +622,7 @@ class Page(Base):
             while self.steps() < before + 1 and time.time() < deadline:
                 time.sleep(0.05)
             self.assertEqual(self.steps(), before + 1)
+            p.saved()   # the section goes at once, its "Section deleted." message (with Undo) only after the reply: a click before it finds no button
             p.until("!!document.querySelector('.toast [data-undo]')", "the toast offers Undo")
             p.js("document.querySelector('[data-undo]').click()")
             p.until("!!document.querySelector('[data-id=" + ref + "]')", "Undo put it back")

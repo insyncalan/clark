@@ -71,14 +71,14 @@ def schema_types():
     return tuple(re.findall(r"'([a-z0-9]+)'", statement.split("CHECK (type IN (")[1].split("))")[0]))
 
 
-PAGE_FIRST = ("gantt",)      # row 926: a template type with a page part but no registry module (no content of its own); the store takes it since layout 19
+PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
 
 
 class PythonSide(unittest.TestCase):
     def test_the_store_the_schema_and_the_registry_name_the_same_eighteen_types(self):
         self.assertEqual(len(section_kinds.TYPES), 18)
         self.assertEqual(len(set(section_kinds.TYPES)), 18)
-        self.assertEqual(store_module.SECTION_TYPES, BUILT_IN + section_kinds.TYPES + ("gantt",), "the store lists them in the registry's order, then the Gantt (row 926: no content, no registry module)")
+        self.assertEqual(store_module.SECTION_TYPES, BUILT_IN + section_kinds.TYPES + PAGE_FIRST, "the store lists them in the registry's order, then the Gantt and the Gantt table (rows 926, 1068: no content, no registry module)")
         self.assertEqual(schema_types(), store_module.SECTION_TYPES)
         self.assertEqual(store_module.ALLOWED[("report_sections", "type")], store_module.SECTION_TYPES)
 
@@ -356,7 +356,7 @@ class PageSide(unittest.TestCase):
         """Replaces the first slice's 'the store refuses every type but text': the store now takes every template type, and only
         the catalogue's ready flag (switched on by the lead once a template is built) makes one placeable."""
         accepts = self.val("T.templates.ACCEPTS.types")
-        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES) + ["gantt"])      # row 926: + gantt; needs: the section that carries content (#121)
+        self.assertEqual(accepts, ["text", "needs"] + list(section_kinds.TYPES) + list(changes.BUILT_IN_TYPES) + list(PAGE_FIRST))      # row 926: + gantt; row 1068: + gantttable; needs: the section that carries content (#121)
         self.assertLessEqual(set(accepts), set(changes.NEW_SECTION_TYPES), "the page's ACCEPTS is all taken by the change route")
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.val("T.templates.CATALOGUE"):

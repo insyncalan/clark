@@ -15,7 +15,7 @@ What it does, and does not:
   does ALL its work under one lock: for an undo, the check that the step is the report's and the undo itself are one
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
-- A section may be added as text, needs, tracker, a template or gantt (NEW_SECTION_TYPES, an allow-list; a gantt section has no body, row 926). An update may write `body` only for a
+- A section may be added as text, needs, tracker, a template, gantt or gantttable (NEW_SECTION_TYPES, an allow-list; a gantt or gantttable section has no body, rows 926 and 1068). An update may write `body` only for a
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
   through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
   section may be deleted like a text one (Undo-able, kept in
@@ -50,6 +50,7 @@ from clark.store import Invalid
 # "update" or "delete" string anywhere in src/ as SQL (its check is case-blind until #39's case-sensitive version merges), and
 # these are not SQL: no op here is ever put in a statement.
 NEW, UPDATE, MOVE, DELETE, ARCHIVE, RESTORE, PICK, BULK, HAND_OVER, LINK = "new update move delete archive restore pick bulk handover link".split()
+MS_ADD, MS_REMOVE = "msadd", "msremove"     # row 1107: link a use case straight to milestones, and take such links off
 
 # The allow-list: kind -> op -> the fields a request may give (`values` for new, `changes` for update). A field must also
 # be a column of the table (tests/test_changes.py asserts it for each). sort_order, project, id and type (after creation)
@@ -82,7 +83,7 @@ CHANGE_KINDS = {
                             "name", "owner", "workstream", "percent_complete", "description")},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -93,7 +94,7 @@ KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")},
                 "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
-KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline", "new_person")     # #136: a milestone's agreed date moves with a `rebaseline`; row 986: and an owner may be a new person
 for _k in ("actions", "raid", "decisions"):
     KIND_OP_KEYS[_k][UPDATE] = ("id", "changes", "new_person")     # row 986: the owner update alone takes `new_person` (no other op, no other kind)
@@ -114,7 +115,7 @@ UNDOABLE = {"report_sections": None, "actions": None, "raid": None, "decisions":
             "milestones": ("archived", "baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                            "client_message", "movement", "internal_note",
                            "name", "owner", "owner_id", "workstream", "percent_complete", "description"),     # row 828: the peek's fields (owner_id: the link that goes with an owner edit, never asked for); #136: a Movement step; its decision is a work item's row (see _movement_step); #458: + the internal note
-            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
+            "use_cases": ("archived", "title", "headline", "status", "standing", "client_visible", "commitment", "owner", "owner_id"), "documents": ("archived",) + DOC_FIELDS, "workstreams": ("archived",)}
 UNDO_ALSO = ("updated_at", "note")
 CHANGE_KINDS["actions"][NEW] = ("description", "client_message", "client_visible", "owner", "priority", "due_date", "workstream", "milestone", "latest_update", "use_case")      # #485: a next step added from a use case's row names it; #67: a row added in the report: no id,
 CHANGE_KINDS["raid"][NEW] = ("type", "description", "client_message", "owner", "impact", "likelihood", "due_date", "workstream", "milestone", "client_visible")   # raised, status or source
@@ -148,7 +149,7 @@ FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a stri
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
            ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"), HAND_OVER: ("ids", "to", "confirm"),
-           LINK: ("id", "ids")}
+           LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
 BULK_CONFIRM_ABOVE = 25                   # #196: more items than this need the request's `confirm`, counting every id sent
@@ -190,6 +191,8 @@ ALREADY_HIDDEN = "That is hidden from the report already."
 NOT_HIDDEN = "That isn't hidden from the report."
 PICK_NOTHING = "Choose at least one item to add."
 LINK_NOTHING = "Choose at least one work item to link."
+MS_NOTHING = "Choose at least one milestone."
+MS_NOT_MINE = "That milestone isn't in this project."
 PICK_TOO_MANY = f"Choose at most {MAX_PICK} items at a time."
 PICK_NOT_HIDDEN = "One of those is already on the page. Reload the page and try again."
 PICK_SENSITIVE = "A Sensitive item is never published, so it can't be added to the report."
@@ -274,13 +277,14 @@ UC_NAME_WORDS = f"A use case needs a name of 1 to {UC_NAME_LIMIT} characters, wi
 UC_HEADLINE_WORDS = f"A headline can be at most {UC_HEADLINE_LIMIT} characters, with no line breaks or hidden characters."
 UC_STATUS_WORDS = "A use case's status can be On track, Flag, High risk or Done."
 UC_COMMITMENTS = clark_store.COMMITMENTS                 # #709: the flag's words, defined once in the store (its writers and the page read it too)
+UC_OWNER_LIMIT = 200                                     # row 875: a use case's owner, in characters (as a milestone's)
 UC_COMMITMENT_WORDS = "A use case's commitment can be " + ", ".join(UC_COMMITMENTS[:-1]) + " or " + UC_COMMITMENTS[-1] + ", or none."
 UC_STANDING_WORDS = "That text can't be saved. It may be too long, or not text."
 UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with no line breaks or hidden characters."
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt",)         # what a new section may be: an allow-list, never the request's own spelling
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt", "gantttable")         # what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
@@ -1195,6 +1199,8 @@ def _checked_milestone_changes(fields):
             out[k] = v
         elif k == "description":                                    # row 828: several lines; row 1005: the rich editor's HTML, stored cleaned (plain text from an older caller is escaped into paragraphs)
             out[k] = _rich_field(v, MILESTONE_DESCRIPTION_MAX, MILESTONE_DESCRIPTION_LONG_WORDS, NOTE_TEXT_WORDS)
+        elif k == "client_message" and isinstance(v, str) and sanitise.HTML_START.match(v):     # row 1078 (ruled): the editor's rich wording, stored cleaned as the description is, its words held to the limit the field always had; plain text from any other caller is checked below as it always was
+            out[k] = _rich_field(v, MILESTONE_TEXT[k], ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
         else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
@@ -1398,6 +1404,15 @@ def _checked_use_case_changes(fields):
                 raise Refused(UC_COMMITMENT_WORDS)
             else:
                 out[k] = v
+        elif k == "owner":                                          # row 875: plain one-line text, 200 characters; blank or None clears it
+            if v is not None and not isinstance(v, str):
+                raise Refused(ITEM_VALUE_WORDS)
+            stored = unicodedata.normalize("NFC", v).strip() if isinstance(v, str) else ""      # the limit counts what is kept, not the spaces round it
+            if len(stored) > UC_OWNER_LIMIT:
+                raise Refused(ITEM_VALUE_WORDS)
+            if isinstance(v, str) and not _plain_text(v):
+                raise Refused(ITEM_TEXT_WORDS)
+            out[k] = stored or None
         elif k == "standing":
             try:
                 out[k] = sanitise.clean_html(v)
@@ -1411,7 +1426,7 @@ def _checked_use_case_changes(fields):
 def _use_case_shown(row):
     """What a reply says of a use case: its own editable fields (the standing text is already clean)."""
     return {"id": row["id"], "title": row["title"], "headline": row["headline"], "status": row["status"],
-            "standing": row["standing"], "client_visible": row["client_visible"], "commitment": row["commitment"]}
+            "standing": row["standing"], "client_visible": row["client_visible"], "commitment": row["commitment"], "owner": row["owner"]}
 
 
 def _do_new_use_case(store, by_user, req, project, table, columns, place):
@@ -1462,6 +1477,8 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
         return _do_new_use_case(store, by_user, req, project, table, columns, place)
     if op == LINK:
         return _do_link_use_case(store, by_user, req, project, table, place)
+    if op in (MS_ADD, MS_REMOVE):
+        return _do_use_case_milestones(store, by_user, req, project, table, place, op)
     ref = req.get("id")
     changes = _checked_use_case_changes(_fields(req.get("changes"), table, UPDATE, columns, "the changes"))
     if not changes:
@@ -1472,6 +1489,9 @@ def _do_use_case_change(store, by_user, req, project, table, columns, place, op)
             raise Refused(UC_NOT_MINE)
         if row["archived"]:
             raise Refused(ARCHIVED_USE_CASE)
+        if "owner" in changes:                                      # row 875: the link follows the owner text (the one live person it names, else none), in this one step
+            found = store.resolve_owner(changes["owner"] or "")
+            changes["owner_id"] = found["id"] if found["status"] == "one" else None
         try:
             st.update(table, ref, changes)
         except Invalid as e:                                        # a rule of the store, in fixed words
@@ -1522,6 +1542,51 @@ def _do_link_use_case(store, by_user, req, project, table, place):
             st.update(item_table, item, {"use_case": ref})
         apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
     return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref, "linked": [item for _, item in plan]}
+
+
+def _do_use_case_milestones(store, by_user, req, project, table, place, op):
+    """Row 1107: link ONE use case of THIS project straight to several of its milestones (msadd), or take such links off (msremove), in one
+    step with one Undo. The whole request is checked before anything is written: the use case must be this project's and live, every
+    milestone a live milestone of this project (a missing one, another project's and an archived one get the same words, never said back).
+    A milestone already linked (msadd) or not linked (msremove) is left as it is. The reply gives the Undo only when something changed."""
+    if clark_store.is_archived(store.con, project):
+        raise Refused(PROJECT_NOT_ACTIVE)
+    given = req.get("ids")
+    if not isinstance(given, list) or not given:
+        raise Refused(MS_NOTHING)
+    if len(given) > MAX_PICK:
+        raise Refused(PICK_TOO_MANY)
+    ids = []
+    for m in given:
+        if not (isinstance(m, str) and clark_store.ITEM_ID.fullmatch(m) and clark_store.item_table(m) == "milestones"):
+            raise Refused(MS_NOT_MINE)
+        if m not in ids:
+            ids.append(m)
+    ref = req.get("id")
+    changed = []
+    with store.step(VIA, by_user, place=place) as st:               # BEGIN IMMEDIATE: what is read next is what is changed
+        found = store.read(table, ref=ref) if isinstance(ref, str) else None
+        if found is None or found["project"] != project:
+            raise Refused(UC_NOT_MINE)
+        if found["archived"]:
+            raise Refused(ARCHIVED_USE_CASE)
+        for m in ids:
+            row = store.read("milestones", ref=m)
+            if row is None or row["project"] != project or (row["archived"] and op == MS_ADD):
+                raise Refused(MS_NOT_MINE)
+        for m in ids:
+            try:
+                done = (clark_store.link_use_case_milestone if op == MS_ADD else clark_store.unlink_use_case_milestone)(st, ref, m)
+            except Invalid as e:                                    # a rule of the store, in fixed words
+                words_ = _store_words(e)
+                if words_ is None:
+                    raise
+                raise Refused(words_) from None
+            if done:
+                changed.append(m)
+        apply_id = st.peek_apply_id()                               # None when nothing changed: the page shows no Undo
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref, "milestones": changed,
+                 "linked": clark_store.use_case_milestone_ids(store.con, ref)}
 
 
 HIDABLE = ("milestones", "actions", "raid", "decisions", "use_cases")      # what the eye can hide: the store's own list of items a report shows
@@ -2215,6 +2280,9 @@ def _row_is_ours(row, project, project_step, flagged):
 
 def _ours(store, step, rows, project):
     """_eligible, and #47e: an assistant-route step is ours only when ask clark made it. The one test for a single undo and a batch."""
+    if rows and any(r["table"] == "use_case_milestones" for r in rows):      # row 1107: a step of direct milestone links is one family, all of this project's use cases
+        mine = clark_store.use_case_link_ids(store.con, project)
+        return all(r["table"] == "use_case_milestones" and r["via"] == VIA and str(r["key"]).split("|")[-1] in mine for r in rows)
     return (_eligible(rows, project, _is_hand_over(store, step, rows)) and
             not (any(r["via"] == ASSISTANT for r in rows) and store.step_actors(step) != {ASK_ACTOR}))
 
@@ -2306,6 +2374,8 @@ def _eligible(rows, project, hand_over=False):
             return False
         fields = tuple(CHANGE_KINDS[r["table"]].get(UPDATE, ())) + tuple(CHANGE_KINDS[r["table"]].get(BULK, ())) + ("closed", "priority")   # #196: + a bulk change's
         if r.get("field") == "owner_id":                            # #199: a hand over's link to the person, in a hand over's step only (_is_hand_over), with or without the owner text beside it
+            if r["table"] == "use_cases":                           # row 875: the link beside a use case's owner text, in the same step (never a hand over)
+                return any(o["table"] == "use_cases" and str(o["key"]) == str(r["key"]) and o.get("field") == "owner" for o in rows)
             return r["table"] in HAND_OVER_FIELD and (hand_over or any(      # row 866: or the link a single owner edit (or an ask clark change) writes beside the owner text of the same item in the same step
                 o["table"] == r["table"] and str(o["key"]) == str(r["key"]) and o.get("field") == HAND_OVER_FIELD[r["table"]] for o in rows))
         return (r.get("op") == MADE_OP and r["table"] != "use_cases") or r.get("field") in fields
@@ -2347,7 +2417,7 @@ def _eligible(rows, project, hand_over=False):
                               and stamp_ok(r) and _row_is_ours(r, project, project_step, flagged) for r in rows)
 
 
-UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text", "commitment": "commitment"}
+UC_FIELD_NAMES = {"title": "name", "headline": "headline", "standing": "standing text", "commitment": "commitment", "owner": "owner"}
 ITEM_FIELD_NAMES = {"description": "title", "decision": "title", "status": "status", "workstream": "workstream", "owner": "owner", "priority": "priority",
                     "due_date": "due date", "milestone": "milestone", "made_by": "decider", "needed_by": "needed-by date",
                     "date": "decision date", "closed": "closing date", "use_case": "use case", "impact": "impact", "likelihood": "likelihood",
@@ -2410,6 +2480,8 @@ def _use_case_words(f, to, name):
         return f"the status of {name} is back to {to}" if to in clark_store.ALLOWED[("use_cases", "status")] else f"the status of {name}"
     if f == "commitment":                                           # #709: the word it was, or that it had none
         return f"the commitment of {name} is back to {to}" if to in UC_COMMITMENTS else f"the commitment of {name} is cleared again"
+    if f == "owner":                                                # row 875: the name it was, or that it had none
+        return f"the owner of {name} is back to {to}" if to else f"the owner of {name} is cleared again"
     return f"the {UC_FIELD_NAMES.get(f, 'details')} of {name}"
 
 
@@ -3252,8 +3324,8 @@ ASK_OFF = "Asking is off, so nothing was changed. Turn it on in Settings first."
 ASK_NOT_YET = "That change can't be made by asking yet. Nothing was changed. Make it yourself on the board."
 ASK_CHANGED = "That item has changed since the change was shown. Nothing was changed. Look at the change again."
 ASK_SHOWN = {t: ("id",) + tuple(f for f in dict.fromkeys(CHANGE_KINDS[t][NEW] + CHANGE_KINDS[t][UPDATE] + ("type", "status", "closed", "priority", "raised"))
-                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS)
-             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice)
+                                if f not in clark_store.NEVER_PUBLISH and f not in EXPLAIN_FIELDS and not (t == "use_cases" and f in ("owner", "owner_id")))
+             for t in ASK_KINDS}               # what a before or after says of a row (a field the table lacks is left out); #458: never an owner-only column (the internal note, the Movement choice); row 875: nor a use case's owner (internal, as no report carries it)
 
 
 class _Dry(Exception):

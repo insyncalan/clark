@@ -50,7 +50,7 @@ HEADERS = {
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
                   "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
     "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
-                  "Open work items", "Source", "Updated"],
+                  "Linked milestones", "Open work items", "Source", "Updated"],
 }
 
 
@@ -167,7 +167,7 @@ class ExcelTests(unittest.TestCase):
     def test_round_trip_gives_the_database_values(self):
         back = excel.read_workbook(self.d.path)
         for _, table, cols, _ in excel.SHEETS:
-            fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
+            fields = [f for _, f in cols if f not in excel.DERIVED and f not in ("labels", "milestones")]
             stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in self.d.store.read(table, "ABC")}
             got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
                    for r in back[table]}      # item 710: the cell reads ID: name

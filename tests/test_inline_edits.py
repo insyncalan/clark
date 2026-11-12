@@ -235,6 +235,12 @@ def key(cdp, sid, name, alt=False):
     cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
 
+ON_PAGE = "(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()"
+
+
+WHERE = "(() => { const a = document.activeElement; return a ? a.tagName + ' ' + (a.dataset.cell || a.id || a.className || '') + (a.isConnected ? '' : ' (not in the page)') : 'nothing'; })()"
+
+
 def colours(selector):
     """JS: [text, colour, background] for each element matched, the background the first solid one behind it (item 442, dark)."""
     return ("[...document.querySelectorAll(" + json.dumps(selector) + ")].filter(e => e.offsetWidth > 1).map(e => {"
@@ -1030,11 +1036,20 @@ class Live(unittest.TestCase):
                     key(cdp, sid, "Enter")
                     opened("Enter")
                     key(cdp, sid, "ArrowDown")
+                    # is anything tabbable after the date cell? Asked before the Tab: when nothing is, Tab leaves the page (the browser takes the
+                    # focus, or wraps to the first link, by its own rules) and the page cannot be asked to keep it; when something is, it must land there.
+                    onward = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
+                                    ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop]'));"
+                                    " return all.some(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING && !c.contains(e)); })()", sid)
                     key(cdp, sid, "Tab")
                     kept("Tab")
-                    self.until(cdp, sid, "(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", f"{ref}: focus settled on the page after Tab")
-                    self.assertTrue(cdp.js("(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", sid),
-                                    f"{ref}: after Tab, focus is on the page, not lost")
+                    if onward:
+                        landed = wait(lambda: cdp.js(ON_PAGE, sid), 10)
+                        self.assertTrue(landed, f"{ref}: focus settled on the page after Tab (focus is on: {cdp.js(WHERE, sid)}; something was tabbable after the date: {onward})")
+                        self.assertTrue(cdp.js(ON_PAGE, sid), f"{ref}: after Tab, focus is on the page, not lost")
+                    else:
+                        self.until(cdp, sid, "!document.querySelector('[data-pop]') && !(document.activeElement && document.activeElement.closest('[data-pop]'))",
+                                   f"{ref}: nothing follows the date, so Tab leaves the panel and the page without a stuck focus")
                     self.assertEqual(self.cell_text(cdp, sid, ref, "due")[:10], f"{was[8:10]}-{was[5:7]}-{was[:4]}", f"{ref}: the row still shows its date")
 
     def test_a_made_decisions_date_can_change_but_not_be_cleared(self):
