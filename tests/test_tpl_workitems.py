@@ -466,6 +466,7 @@ class InThePage(PageBase):
                     p.edit()
                     box = f"[data-id=\"{ref}\"] [data-field=kinds] input[value=action]"
                     p.until(f"!!document.querySelector({json.dumps(box)})", "the form drew")
+                    p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open = true")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     p.js(f"document.querySelector({json.dumps(box)}).focus()")
                     p.key("Tab", code="Tab", vk=9)
@@ -473,7 +474,7 @@ class InThePage(PageBase):
                     self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(box)})"), True)
                     self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineStyle"), "solid", "the focus ring shows")
                     legends = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-f legend, [data-id=\"{ref}\"] .wil-sel > span')].map(e => e.textContent)")
-                    self.assertEqual(legends, ["Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
+                    self.assertEqual(legends, ["Filter", "Kinds", "Show", "Due", "Status", "Priority", "Owner", "Workstream", "Use case", "Sort by",
                                                "Most rows", "Columns at full width", "Caption (optional)"])
 
     def test_rows_open_their_peek_in_edit_with_a_click_or_enter(self):
@@ -493,6 +494,103 @@ class InThePage(PageBase):
             p.js(f"document.querySelector({json.dumps(later)}).focus()")
             p.key("Enter", code="Enter", vk=13)
             p.until(f"location.hash.includes('item={self.a_later}')", "Enter opened its peek")
+
+    def test_the_filter_line_saves_what_is_typed_shows_chips_and_a_chip_x_takes_one_off(self):
+        for width in (1400, 900):
+            ref = self.add({}, title=f"Line {width}")
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+                self.assertFalse(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-more]').open"), "the tick boxes start folded")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                steps = self.demo.last_step()
+                p.js(f"document.querySelector({json.dumps(line)}).focus()")
+                p.type("type:risk,issue status:Open")
+                p.key("Enter", code="Enter", vk=13)
+                p.saved()
+                body = json.loads(self.store.read("report_sections", ref=ref)["body"])
+                self.assertEqual((body["kinds"], body["status"]), (["risk", "issue"], ["Open"]))
+                self.assertEqual(self.demo.last_step(), steps + 1, "one line, one step")
+                chips = f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip')]"
+                p.until(f"{chips}.length === 3", "three chips")
+                self.assertTrue(p.js(f"{chips}.every(c => c.querySelector('button').getBoundingClientRect().height >= 24)"), "24 px targets")
+                p.clear_toast()
+                p.js(f"{chips}.find(c => c.textContent.includes('Issues')).querySelector('button').click()")
+                p.saved()
+                self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+                p.clear_toast()
+                steps = self.demo.last_step()
+                p.js(f"(el => {{ el.focus(); el.value = 'colour:red'; }})(document.querySelector({json.dumps(line)}))")
+                p.key("Enter", code="Enter", vk=13)
+                p.until("document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('not a word the filter line knows')", "refused in words")
+                self.assertEqual(self.demo.last_step(), steps, "nothing saved")
+
+    def test_the_filter_line_clears_refuses_a_bad_value_and_finds_a_use_case_by_title_or_id(self):
+        for width in (1400, 900):
+            ref = self.add({"status": ["Open"], "kinds": ["risk"], "mode": "closed"}, title=f"Clear {width}")
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+
+                def enter(text):
+                    p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
+                    p.key("Enter", code="Enter", vk=13)
+
+                def body():
+                    return json.loads(self.store.read("report_sections", ref=ref)["body"])
+
+                def said(words):
+                    p.until(f"!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes({json.dumps(words)})", words)
+
+                # a bad value: named back in words, nothing saved, the old filter stays
+                steps = self.demo.last_step()
+                enter("status:Bogus")
+                said("is not a value status can take here")
+                self.assertEqual(self.demo.last_step(), steps, "nothing saved for status:Bogus")
+                self.assertEqual((body()["status"], body()["kinds"], body()["mode"]), (["Open"], ["risk"], "closed"))
+                p.clear_toast()
+                # a use case that is not there is refused the same way
+                enter("usecase:Nothing")
+                said("is not a value usecase can take here")
+                self.assertEqual(self.demo.last_step(), steps, "nothing saved for an unknown use case")
+                p.clear_toast()
+                # a use case by its title, then by its id: both save its id
+                enter('usecase:"Invoice matching"')
+                p.saved()
+                self.assertEqual(body()["use_case"], ["ABC-U-001"], "found by title")
+                p.clear_toast()
+                enter("status:Open")
+                p.saved()
+                self.assertEqual(body()["use_case"], [], "the use case came off with the line")
+                p.clear_toast()
+                enter("usecase:ABC-U-001 is:open")
+                p.saved()
+                self.assertEqual((body()["use_case"], body()["mode"]), (["ABC-U-001"], "open"), "found by id")
+                p.clear_toast()
+                # clearing the line empties every choice and goes back to open items only, in one step
+                steps = self.demo.last_step()
+                enter("")
+                p.saved()
+                got = body()
+                self.assertEqual([got[k] for k in ("kinds", "status", "due", "priority", "owner", "workstream", "use_case")], [[]] * 7)
+                self.assertEqual(got["mode"], "open")
+                self.assertEqual(self.demo.last_step(), steps + 1, "clearing is one step")
+                p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "no chips left")
+
+    def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
+        ref = self.add({}, title="Form")
+        with chrome() as cdp:
+            p = self.show(cdp, 1400)
+            p.edit()
+            p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-line]')", "the line drew")
+            forms = p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-form').length")
+            self.assertEqual(forms, 1, "one form block, as before the line was added")
+            self.assertTrue(p.js(f"(f => ['sort', 'max', 'caption'].every(n => f.querySelector('[name=' + n + '], [data-field=' + n + ']')))"
+                                 f"(document.querySelector('[data-id=\"{ref}\"] .wil-form'))"), "Sort by, Most rows and Caption sit in it")
 
     def test_two_ticks_made_before_the_first_reply_are_both_kept(self):
         ref = self.add({})
