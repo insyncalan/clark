@@ -53,10 +53,10 @@ class Plain(unittest.TestCase):
 
     def test_the_closed_list_covers_data_web_office_and_media_families_and_nothing_else(self):
         for name in ("data.json", "feed.xml", "page.html", "page.htm", "run.log", "invite.ics", "macro.docm", "book.xlsb", "doc.pages", "sheet.numbers",
-                     "deck.key", "clip.mp4", "clip.MOV", "song.mp3", "voice.m4a", "tone.wav"):
+                     "deck.key", "clip.mp4", "song.mp3", "voice.m4a", "tone.wav"):
             self.assertEqual(source_name(name, published=True), name, name)
             self.assertEqual(source_name("Import, 2026-11-11, " + name, published=True), name, name)
-        for name in ("script.sh", "tool.py", "site.example", "file.unknownext", "name.io"):          # unlisted stays refused: the list is closed, sh and py are country domains
+        for name in ("script.sh", "tool.py", "site.example", "file.unknownext", "name.io", "x.mov", "clip.MOV"):          # unlisted stays refused: the list is closed, sh and py are country domains
             self.assertEqual(source_name(name, published=True), "", name)
 
     def test_a_huge_value_is_cut_before_it_is_read_the_name_at_the_end_is_kept_when_published(self):

@@ -755,10 +755,20 @@ class ImagePapersTest(unittest.TestCase):
         self.assertEqual(["LGPL"], package.image_licences(text))
         self.assertEqual(["GPL"], package.image_licences("GNU General Public License"))
 
+    def test_dual_gpl_and_lgpl_wording_keeps_both(self):
+        for text in ("GNU Lesser General Public License, or the GNU General Public License",
+                     "under the GNU General Public License or the GNU Lesser General Public License",
+                     "either the GNU Lesser General Public License or, at your option, GPL-2",
+                     "GNU Lesser General Public License; see /usr/share/common-licenses/GPL-2"):
+            self.assertEqual(["GPL", "LGPL"], package.image_licences(text), text)
+        boiler = ("This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public "
+                  "License as published by the Free Software Foundation; either version 2.1 of the License. See /usr/share/common-licenses/LGPL-2.1")
+        self.assertEqual(["LGPL"], package.image_licences(boiler))
+
     def test_purl_percent_encodes_special_characters(self):
         sbom = package.image_sbom([{"name": "g++", "version": "1:12.2@x y/z", "arch": "amd64"}], {}, [{"name": "A_b", "version": "1+local"}])
-        self.assertEqual("pkg:deb/debian/g%2B%2B@1%3A12.2%40x%20y%2Fz?arch=amd64", sbom["components"][0]["purl"])
-        self.assertEqual("pkg:pypi/a_b@1%2Blocal", sbom["components"][1]["purl"])
+        self.assertEqual("pkg:deb/debian/g%2B%2B@1:12.2%40x%20y%2Fz?arch=amd64", sbom["components"][0]["purl"])
+        self.assertEqual("pkg:pypi/a-b@1%2Blocal", sbom["components"][1]["purl"])
 
     def test_sbom_is_cyclonedx_with_every_package_and_purl(self):
         sbom = package.image_sbom(package.image_packages(STATUS), COPYRIGHTS, [{"name": "Pip", "version": "24.0"}], "python:3.12-slim")

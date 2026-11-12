@@ -775,6 +775,10 @@ def image_packages(status):
     return sorted(found, key=lambda p: p["name"])
 
 
+_GPL_OPTION = re.compile(                                                                                       # a GPL that stands on its own beside LGPL text: a GPL-x token, or "or"/"either" wording joining the two
+    r"(?<![A-Za-z])GPL\b|(?<![/\w])(?:or|either)\s+(?:the\s+)?(?:GNU\s+)?General Public|Lesser General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?General Public|GNU General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?Lesser", re.I)
+
+
 def image_licences(copyright_text):
     """The licence names a copyright file states: its 'License:' lines, or well-known names found in free text."""
     names = set()
@@ -786,14 +790,16 @@ def image_licences(copyright_text):
                           ("PSF-2.0", r"Python Software Foundation"), ("public-domain", r"public[- ]domain")):
             if re.search(rx, copyright_text, re.I):
                 names.add(label)
-        if "LGPL" in names:
+        if "LGPL" in names and _GPL_OPTION.search(copyright_text):
+            names.add("GPL")
+        elif "LGPL" in names:
             names.discard("GPL")  # the LGPL text itself names the GPL; that alone does not make the package GPL
     return sorted(names)
 
 
-def _purl_part(text):
+def _purl_part(text, safe=""):
     """One package-URL segment, percent-encoded as the purl spec asks (+, @, spaces, slashes and so on)."""
-    return urllib.parse.quote(text or "", safe="")
+    return urllib.parse.quote(text or "", safe=safe)
 
 
 def image_sbom(packages, copyrights, pip=(), base=""):
@@ -801,14 +807,14 @@ def image_sbom(packages, copyrights, pip=(), base=""):
     components = []
     for p in packages:
         comp = {"type": "library", "name": p["name"], "version": p["version"],
-                "purl": f"pkg:deb/debian/{_purl_part(p['name'])}@{_purl_part(p['version'])}?arch={_purl_part(p['arch'])}"}
+                "purl": f"pkg:deb/debian/{_purl_part(p['name'])}@{_purl_part(p['version'], ':')}?arch={_purl_part(p['arch'])}"}
         lic = image_licences(copyrights.get(p["name"], ""))
         if lic:
             comp["licenses"] = [{"license": {"name": name}} for name in lic]
         components.append(comp)
     for item in pip:
         components.append({"type": "library", "name": item["name"], "version": item["version"],
-                           "purl": f"pkg:pypi/{_purl_part(item['name'].lower())}@{_purl_part(item['version'])}"})
+                           "purl": f"pkg:pypi/{_purl_part(item['name'].lower().replace('_', '-'))}@{_purl_part(item['version'])}"})
     return {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
             "metadata": {"component": {"type": "container", "name": base or "image", "version": ""}}, "components": components}
 
