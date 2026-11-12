@@ -61,7 +61,8 @@ class Routes(InDocker):
                     def read(self, *_a, **_k):
                         return []
                 status, body = folders.choose(Store(), "ABC")
-                self.assertEqual(ask_folders.MESSAGES["dialog_failed"], body["message"])
+                said = "no_window_docker" if kind is pl.NotBuiltYet else "dialog_failed"     # a window that can never open has its own typed-location words
+                self.assertEqual(ask_folders.MESSAGES[said], body["message"])
                 clean(self, repr(body))
 
                 service = updater.Updater(self.dir, self.dir / "a.db", 8765, app_dir=self.dir, system="mac", version="1.0.0", schema=2,

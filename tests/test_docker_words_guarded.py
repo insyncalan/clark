@@ -48,6 +48,23 @@ class Uncaught(Base):
         self.rig.httpd.ai_connect = Service()
         self.said(self.rig.call("POST", "/api/providers/connect", {"provider": "claude"}))
 
+    def test_a_refusal_carrying_a_path_says_the_plain_words_not_its_own_text(self):
+        leaky = "Open dialog failed at /Users/someone/Library/Secret Folder/clark.db"
+        class Service:
+            def connect(self, body):
+                raise pl.NotBuiltYet(leaky)
+        self.rig.httpd.ai_connect = Service()
+        got = self.rig.call("POST", "/api/providers/connect", {"provider": "claude"})
+        self.said(got)
+        self.assertNotIn("Secret", repr(got))
+        lib = self.rig.httpd.brands
+        def boom(*_a, **_k):
+            raise pl.NotBuiltYet(leaky)
+        lib.choose = boom
+        got = self.rig.call("POST", "/api/brands/review", {"from": "file"})
+        self.said(got)
+        self.assertNotIn("Secret", repr(got))
+
     def test_another_fault_is_still_the_generic_500(self):
         class Service:
             def connect(self, body):

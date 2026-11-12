@@ -145,6 +145,18 @@ class DownloadsPick(Base):
         os.utime(new, (900, 900))
         self.assertEqual(brands.newest_brand_zip(self.scratch), old)
 
+    def test_only_the_newest_few_zips_are_looked_into(self):
+        # the cutoff that keeps a Settings listing cheap: LOOK_AT zips are opened at most; a brand zip older than all of them is not found
+        old = zip_with(self.scratch / "old-brand.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
+        os.utime(old, (100, 100))
+        for i in range(brands.LOOK_AT):
+            other = zip_with(self.scratch / ("other%d.zip" % i), {"readme.txt": "not a brand"})
+            os.utime(other, (500 + i, 500 + i))
+        self.assertIsNone(brands.newest_brand_zip(self.scratch))
+        newer = zip_with(self.scratch / "edge.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
+        os.utime(newer, (500, 500))                   # the LOOK_AT-th newest: still looked into
+        self.assertEqual(brands.newest_brand_zip(self.scratch), newer)
+
     def test_a_zip_over_the_size_cap_is_not_looked_into(self):
         zip_with(self.scratch / "a.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
         with mock.patch.object(brands, "ZIP_CAP", 10):

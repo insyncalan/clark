@@ -1322,7 +1322,8 @@ class BrandLibrary:
         except Exception as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault; found by the class name, so no top-level import of clark is needed
             if type(e).__name__ != "NotBuiltYet":
                 raise
-            return 409, {"ok": False, "code": "needs_mac", "message": str(e)}
+            plat = importlib.import_module("clark.platform")
+            return 409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.needs_mac_words())}
 
     def listing(self):
         return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data),
@@ -1516,7 +1517,8 @@ class Handler(BaseHTTPRequestHandler):
         except Exception as e:  # noqa: BLE001  the server answers whatever a route does
             if type(e).__name__ == "NotBuiltYet":    # item 1100: a Mac-only step no route caught: the same words, never a fault (found by the class name, so no top-level import of clark is needed)
                 LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
-                return self.send(409, {"ok": False, "code": "needs_mac", "message": str(e)})
+                plat = importlib.import_module("clark.platform")
+                return self.send(409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.needs_mac_words())})
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
         finally:
