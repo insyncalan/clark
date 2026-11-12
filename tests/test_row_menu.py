@@ -311,7 +311,7 @@ class Menu(board.Base):
             control = cdp.js("(() => { const b = document.body.appendChild(document.createElement('b')); const w = getComputedStyle(b).fontWeight; b.remove(); return w; })()", sid)
             self.assertIn(control, ("700", "bold"), "the control: a plain <b> is bold, so a weight of 400 below is the rule's doing")
             got = cdp.js(weights % ".rowmenu [role=menuitem] .rm-t b", sid)
-            self.assertEqual(len(got), 10, "every entry of the menu was read")
+            self.assertEqual(len(got), 11, "every entry of the menu was read (Delete is the eleventh)")
             self.assertEqual(set(got), {"400"}, "the menu's entries are regular weight")
             cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
