@@ -19,7 +19,9 @@ services:
     # The same start as the Terminal route's: python3 -m clark checks the pages (and in a checkout would build them), then serves.
     # First the data check (#633): it reads the data's version, takes a pre-update copy when this clark is newer than the data, and refuses
     # (exit 2, "start from the newer clark folder. Nothing was changed.") when the data is newer than this clark. Only then the server.
-    command: ["sh", "-c", "python3 -m clark check-data --data /data && exec python3 -m clark --data /data --port 8766"]
+    # A refusal ends the container with exit 0 (a restart policy of on-failure does not restart that), so it neither loops nor takes a new
+    # pre-update copy on each loop; the words stay in "docker compose logs". The server itself exiting with an error is restarted.
+    command: ["sh", "-c", "python3 -m clark check-data --data /data || { echo 'clark did not start. The words above say why.' >&2; exit 0; }; exec python3 -m clark --data /data --port 8766"]
     ports:
       - "127.0.0.1:${CLARK_PORT:-8766}:8766"
     # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written. The data folder
@@ -64,5 +66,6 @@ services:
       - ALL
     security_opt:
       - no-new-privileges:true
-    # Comes back with Docker after a Docker Desktop quit, an update or a restart of the computer; docker compose down (or stop) still stops it.
-    restart: unless-stopped
+    # Restarted if the server stops with an error, and comes back with Docker after a restart of the computer while it was running;
+    # docker compose down (or stop) still stops it. A data check that refuses ends with exit 0, so it is not restarted.
+    restart: on-failure

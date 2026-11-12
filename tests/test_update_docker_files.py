@@ -22,7 +22,36 @@ class DockerUpdate(unittest.TestCase):
         self.assertIsNotNone(m, "the start is one sh -c line")
         line = m.group(1)
         self.assertLess(line.index("check-data --data /data"), line.index("--port 8766"))
-        self.assertIn("check-data --data /data && exec python3 -m clark --data /data", line, "&& so exit 2 stops the container")
+        self.assertIn("check-data --data /data ||", line, "a refusal is handled, not run through to the server")
+        self.assertIn("; exec python3 -m clark --data /data", line)
+
+    def run_start(self, code):
+        import os, subprocess, tempfile
+        line = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M).group(1).replace("\\\"", '"')
+        with tempfile.TemporaryDirectory() as d:
+            fake = Path(d) / "python3"
+            fake.write_text('#!/bin/sh\ncase "$*" in *check-data*) exit %d;; *) echo SERVER; exit 0;; esac\n' % code, encoding="utf-8")
+            fake.chmod(0o755)
+            env = dict(os.environ, PATH=d + os.pathsep + os.environ["PATH"])
+            return subprocess.run(["sh", "-c", line], capture_output=True, text=True, env=env)
+
+    def test_a_refused_check_ends_the_container_with_exit_0_and_never_starts_the_server(self):
+        for code in (1, 2):
+            done = self.run_start(code)
+            self.assertEqual(done.returncode, 0, "exit 0 is not restarted by on-failure, so no loop and no new copy")
+            self.assertNotIn("SERVER", done.stdout)
+            self.assertIn("clark did not start", done.stderr)
+
+    def test_a_passing_check_starts_the_server(self):
+        self.assertIn("SERVER", self.run_start(0).stdout)
+
+    def test_compose_restarts_only_on_failure(self):
+        self.assertRegex(COMPOSE, r"(?m)^    restart: on-failure$")
+        self.assertNotIn("unless-stopped", COMPOSE.replace("docker compose down (or stop) still stops it", ""))
+
+    def test_update_txt_names_the_backups_folder_for_the_copy(self):
+        self.assertIn("in the backups folder inside your data folder", UPDATE)
+        self.assertNotIn("in your data folder)", UPDATE)
 
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",

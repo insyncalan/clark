@@ -15,7 +15,7 @@ To update:
   5. Open http://localhost:8766 in Chrome.
 
 If the new clark has a newer data layout than your data, it first copies your
-data (a file whose name ends in -migrate.db, in your data folder) and then
+data (a file whose name ends in -migrate.db, in the backups folder inside your data folder) and then
 brings your data up to date. The last 3 of these copies are kept.
 
 If it will not start and the words are "start from the newer clark folder.
