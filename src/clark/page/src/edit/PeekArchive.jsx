@@ -16,7 +16,8 @@ export function PeekArchive({ row, milestone = false }) {      // row 867: the m
   }, 0);
   const run = () => { const next = nextId(); return changeRecord({ kind: milestone ? "milestones" : tableOf(row), op: "archive", id: row.id, place: "peek" },
     { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focusUndo: !(milestone && next),
-      focus: `tr[data-id="${CSS.escape(row.id)}"], article.bcard[data-id="${CSS.escape(row.id)}"] .bc-main` })      // after Undo the focus goes to the restored row, as the row menu does
+      // after Undo the focus goes to the restored row, as the row menu does
+      focus: `tr[data-id="${CSS.escape(row.id)}"], article.bcard[data-id="${CSS.escape(row.id)}"] .bc-main` })
     .then((r) => { if (r) { if (milestone) settle(next); closePeek(); } }); };
   return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;
 }

@@ -105,7 +105,7 @@ class PhaseBar(unittest.TestCase):
                     self.look(width, scheme)
                     self.mount(edit=False, lines=LINES)
                     c = self.val("(function(){ var s = function(sel, p){ return getComputedStyle(document.querySelector(sel))[p]; };"
-                                 "return {pb: s('.gt-b-phase', 'backgroundColor'), pr: s('.gt-rw.gt-phase', 'backgroundColor'), sw: s('.gt-sw-p', 'backgroundColor'), surface: s('.gt-rw.gt-phase', 'backgroundColor')}; })()")
+                                 "return {pb: s('.gt-b-phase', 'backgroundColor'), pr: s('.gt-rw.gt-phase', 'backgroundColor'), sw: s('.gt-sw-p', 'backgroundColor')}; })()")
                     self.assertGreaterEqual(contrast(rgb(c["pb"]), rgb(c["pr"])), 3, f"the fill alone stands off its row: {c}")
                     self.assertEqual(c["sw"], c["pb"], "the legend swatch is the bar's own fill")
                     if scheme == "light":
