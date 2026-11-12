@@ -130,12 +130,12 @@ class NoProject(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('#data-card .dc-note').length", sid), 5, "four why notes and the card's own note")
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no sideways scroll")
 
-    def test_all_four_buttons_agree_with_no_project(self):
+    def test_all_the_buttons_agree_with_no_project(self):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
             self.assertEqual(cdp.js("JSON.stringify([...document.querySelectorAll('#data-card button')].map(b => [b.id, b.disabled]))", sid),
-                             json.dumps([["export-workbook", True], ["import-workbook", True], ["word-export", True], ["word-import", True]], separators=(",", ":")))
+                             json.dumps([["export-workbook", True], ["import-workbook", True], ["excel-layout", False], ["word-export", True], ["word-import", True]], separators=(",", ":")))
 
 
 if __name__ == "__main__":
