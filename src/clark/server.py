@@ -18,7 +18,7 @@ Routes:
                          `section_image(req)`, from clark.changes (the picture's checks are there); its own body limit
 - POST /api/sneak/read  words about one work item as from → to changes (#42); read only, plain code (clark.sneak)
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
-- POST /api/quit         Quit (#836): answers, then stops this server (the Settings card "Quit clark"); nothing is read from the body
+- POST /api/quit         Quit (item 836): answers, then stops this server (the Settings card "Quit clark"); nothing is read from the body
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
@@ -1564,6 +1564,10 @@ class Handler(BaseHTTPRequestHandler):
                 return self.run_route(api)
         return self.send(404, error_body("not_found"))
 
+    def post_route(self, route):
+        """The function for a POST route, or None. /api/here has its own statement, outside POST_ROUTES. SetupHandler overrides this."""
+        return here_route if route == HERE_ROUTE else POST_ROUTES.get(route)
+
     def do_POST(self):
         """POST /csp-report (its own local checks: a browser's report carries no token), then every other POST: the token,
         JSON only (415), a Content-Length (411), the body (400), then the route (404 if none)."""
@@ -1587,10 +1591,88 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(400, sent)
         except ValueError:
             return self.send(400, error_body("bad_request"))
-        api = here_route if route == HERE_ROUTE else POST_ROUTES.get(route)      # /api/here has its own statement, outside POST_ROUTES
+        api = self.post_route(route)
         if not api:
             return self.send(404, error_body("not_found"))
         return self.run_route(api, req)
+
+
+# ===== Setup mode (item 836 step 4b): a second, very small server the launcher starts instead of the normal one when a check fails =====
+# It has no database and none of clark's data routes: only the routes below, a stand-in page, /health and the heartbeat. All the logic is
+# in `server.setup` (setup_mode.Setup); this server imports nothing from clark. design-836-setup-mode.md sections 1 to 4.
+def setup_route(method, needs_empty_body=True):
+    """A setup route: hands the request to the server's `setup` object, which answers (status, body), or None when that part is not
+    wired (404). Nothing is trusted from the request: a POST body must be exactly {} (so a route cannot be given a path, a command or
+    a setting). An answer that says "restart" stops this server once it is sent (as update_route does), and the launcher's ordinary
+    start takes over."""
+    def route(handler, *req):
+        if needs_empty_body and req != ({},):
+            return handler.send(400, error_body("bad_request"))
+        setup = getattr(handler.server, "setup", None)
+        answer = getattr(setup, method)() if setup is not None else None
+        if answer is None:
+            return handler.send(404, error_body("not_found"))
+        status, body = answer
+        try:
+            handler.send(status, body)
+        finally:           # setup's done is already true: the server stops even when the reply was dropped (else no window on the next start)
+            if status == 200 and body.get("restart") is True:
+                threading.Thread(target=handler.server.shutdown, daemon=True).start()
+        return None
+    return route
+
+
+SETUP_GET_ROUTES = {"/api/setup/checks": setup_route("api_checks", needs_empty_body=False)}
+SETUP_POST_ROUTES = {"/api/setup/folder": setup_route("api_folder"), "/api/setup/finish": setup_route("api_finish"),
+                     "/api/setup/done": setup_route("api_done")}
+SETUP_PAGES = ("/", "/setup")
+
+
+def setup_page_route(handler):
+    """GET / and GET /setup: the setup page with this run's token. It is the service's own (`setup.page_html()`); a service without one
+    gets the stand-in (the normal server's own, one inline style and script)."""
+    if page_load_is_ours(handler.headers, handler.server.server_port):
+        mark_here()
+    page = getattr(handler.server.setup, "page_html", None)
+    return handler.send(200, with_boot(page() if page else placeholder_html()), "text/html")
+
+
+class SetupHandler(Handler):
+    """Setup mode's requests: the same gates as Handler (Host, Origin, token, JSON, length, body), but its own two route tables.
+    It reads none of GET_ROUTES, POST_ROUTES, the page, preview, past, brand, open-file or report routes."""
+
+    def do_GET(self):
+        if not self.headers_ok():
+            return None
+        if not self.host_ok():
+            return self.send(403, error_body("not_allowed"))
+        if container_mode() and not local_peer(self.client_address[0]):
+            note_refused_peer(self.client_address[0])
+            return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
+        route = self.path.split("?")[0]
+        if route == "/health":
+            return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
+        if route in SETUP_PAGES:
+            return self.run_route(setup_page_route)
+        if route.startswith("/api/"):
+            if not self.authorised():
+                return None
+            api = SETUP_GET_ROUTES.get(route)
+            if api:
+                if self.headers.get("Content-Length") not in (None, "0") or self.headers.get("Transfer-Encoding"):
+                    return self.send(400, error_body("bad_request"))
+                return self.run_route(api)
+        return self.send(404, error_body("not_found"))
+
+    def do_POST(self):
+        if not self.headers_ok():                  # sends the one 400; Handler.do_POST checks again, which sends nothing when they are fine
+            return None
+        if self.path.split("?")[0] == CSP_REPORT_ROUTE:          # no report endpoint: no log is set up before a data folder
+            return self.send(404, error_body("not_found"))
+        return super().do_POST()
+
+    def post_route(self, route):
+        return here_route if route == HERE_ROUTE else SETUP_POST_ROUTES.get(route)
 
 
 class LocalServer(ThreadingHTTPServer):
@@ -1604,7 +1686,7 @@ class LocalServer(ThreadingHTTPServer):
     def __init__(self, server_address, handler=Handler, data_for=None, page_html=None, projects=None, change=None, undo=None,
                  publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
                  draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None):
+                 people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
         if server_address[0] != HOST and not (container_mode() and server_address[0] == CONTAINER_BIND):
             raise ValueError(f"The server listens on {HOST} only, not {server_address[0]}")
         self.data_for = data_for or (lambda code: None)
@@ -1636,6 +1718,7 @@ class LocalServer(ThreadingHTTPServer):
         self.ai = ai                          # ai_service.AiService (#72): AI suggestions, on the ask service's provider; None: 404
         self.past = past                      # past_reports.PastReports (#443): the Published reports list and Open; None: those routes answer 404
         self.publication_mark = publication_mark   # changes.make_publication_mark (#345): archive or restore one publication; None: saving off (503)
+        self.setup = setup                    # setup_mode.Setup (item 836): given only to a SetupHandler server; None: the normal server
         self.brands = brands                  # BrandLibrary (#944), or any object with listing/review/install/remove/undo; None: those routes answer 503
         self.as_at = as_at                    # as_at.AsAt (#349): the dashboard as at a day, rebuilt from the history, read only; None: 404
         super().__init__(server_address, handler)
@@ -1671,18 +1754,18 @@ def wait_for_jobs(limit=JOB_WAIT_LIMIT, sleep=time.sleep):
 def serve(port=None, data_for=None, page_html=None, projects=None, out=None, err=None, change=None, undo=None,
           publisher=None, movement=None, use_cases=None, safety=None, brand_picture=None, profile=None, logs=None, sneak=None, activity=None, word_import=None, word_export=None, excel_import=None, project_save=None,
           draft_email=None, draft_email_sent=None, milestones=None, ask_folders=None, app_settings=None, ask=None, ai=None, ai_connect=None, updater=None,
-          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None):
+          people=None, people_undo=None, people_list=None, section_image=None, section_body=None, past=None, as_at=None, publication_mark=None, demo=None, brands=None, setup=None):
     """Start the server on 127.0.0.1 (in the container, on its own addresses: see container_mode) and serve until stopped. A port in use is one plain line and exit code 1."""
     out, err = out or sys.stdout, err or sys.stderr
     if brands is None and BRAND_PATHS["root"] is not None:
         brands = BrandLibrary(BRAND_PATHS["root"], BRAND_PATHS["data"])      # #944: the real library, once the launcher has said where
     port = port_setting() if port is None else port
     try:
-        httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
+        httpd = LocalServer((CONTAINER_BIND if container_mode() else HOST, port), SetupHandler if setup is not None else Handler, data_for=data_for, page_html=page_html, projects=projects, change=change, undo=undo,
                             publisher=publisher, movement=movement, use_cases=use_cases, safety=safety, brand_picture=brand_picture, profile=profile, logs=logs, sneak=sneak, activity=activity,
                             word_import=word_import, word_export=word_export, excel_import=excel_import, project_save=project_save, draft_email=draft_email, draft_email_sent=draft_email_sent,
                             milestones=milestones, ask_folders=ask_folders, app_settings=app_settings, ask=ask, ai=ai, ai_connect=ai_connect, updater=updater,
-                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands)
+                            people=people, people_undo=people_undo, people_list=people_list, section_image=section_image, section_body=section_body, past=past, as_at=as_at, publication_mark=publication_mark, demo=demo, brands=brands, setup=setup)
     except OSError as e:
         if e.errno == errno.EADDRINUSE:
             print(PORT_TAKEN, file=err)
