@@ -98,7 +98,7 @@ class Migrating(unittest.TestCase):
             s.close()
         after = every_row(path, NEW_COLUMNS)
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
-        self.assertEqual(set(after), set(before))
+        self.assertEqual(set(after) - {"use_case_milestones"}, set(before))      # row 1107 (layout 24) adds that table
 
     def test_a_safety_copy_is_taken_before_the_step_runs_and_it_is_the_old_layout(self):
         path = make_at(self.dir, STEP - 1)

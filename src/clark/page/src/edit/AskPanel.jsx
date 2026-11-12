@@ -2,7 +2,7 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { project, show, token } from "../stores/report.js";
+import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
@@ -38,6 +38,15 @@ async function post(path, body) {
 }
 
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+// Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
+function pillsFor(list, page) {
+  const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
+  const said = asked ? asked.text.toLowerCase() : "";
+  const hit = W.PILLS_WORDS.find(([word]) => said.includes(word));
+  const subject = hit ? hit[1] : W.PILLS_PAGE[page];
+  return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
+}
 
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
@@ -221,7 +230,7 @@ export function AskPanel() {
         </p>
       ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
-          {W.SUGGESTIONS.map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
+          {pillsFor(list, view.value).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
         </div>
       ) : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>

@@ -28,7 +28,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, addableMilestones, milestoneStepValues, milestoneLinks } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, addableMilestones, milestoneStepValues, milestoneLinks, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 
@@ -245,6 +245,29 @@ export function MilestoneAdd({ u }) {
   );
 }
 
+/** Row 1107: "Link a milestone": a menu of the project's milestones this use case has no direct link to. A pick is ONE change (msadd) that links the
+ * use case itself to the milestone, with one Undo. */
+export function MilestoneLink({ u }) {
+  const items = linkableMilestones(data.value, u.id);
+  const pick = (id) => {
+    const m = items.find((x) => x.id === id);
+    if (m) change({ kind: "use_cases", op: "msadd", id: u.id, ids: [m.id], place: "report" }, `${m.name} linked to use case ${name(u)}.`);
+  };
+  return (
+    <span class="ucx-mslink" data-ms-link={u.id} data-edit-only>
+      <Menu label="Link a milestone" ariaLabel={`Link a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
+        items={items} onPick={pick} />
+    </span>
+  );
+}
+
+/** Row 1107: "Unlink" on a milestone the use case is linked to directly: ends that one link (msremove), one Undo; its work items are not touched. */
+export function MilestoneUnlink({ u, m }) {
+  const go = () => change({ kind: "use_cases", op: "msremove", id: u.id, ids: [m.id], place: "report" }, `${m.name} unlinked from use case ${name(u)}.`,
+    { focus: "[data-ms-link] button" });
+  return <button type="button" class="link ucx-msrm" data-ms-unlink={m.id} data-edit-only aria-label={`Unlink ${m.name} from use case ${name(u)}`} onClick={go}>Unlink</button>;
+}
+
 /** Row 1079: "Remove" on a milestone of the use case: the use case's work items stop naming it (the milestone itself is kept, on the Milestones page).
  * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), and the toast's one Undo takes both back (Cmd or Ctrl+Z goes one step at a time). */
 export function MilestoneRemove({ u, m }) {
@@ -346,4 +369,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneAdd, MilestoneRemove, Boxes, added };
+export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneAdd, MilestoneRemove, MilestoneLink, MilestoneUnlink, Boxes, added };

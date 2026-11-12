@@ -164,6 +164,30 @@ class Look(Base):
                         else:
                             self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "no suggestions while it is not set up")
 
+    def test_row_1093_the_suggestions_follow_the_page_and_the_last_question(self):
+        pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent).join('|')"
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    p = self.open_panel(cdp, width, theme)
+                    first = p.js(pills)
+                    p.js("location.hash = location.hash.replace(/^#[a-z]+/, '#milestones')")
+                    p.until("!document.querySelector('#ask-panel')", "a move to another page closes the panel")
+                    p.key("/", code="Slash", vk=191)
+                    p.until(SETTLE, "the panel is ready again")
+                    p.until(f"({pills}).indexOf('milestones are') > -1", f"{width} {theme}: milestone suggestions on the Milestones page")
+                    self.assertNotEqual(p.js(pills), first)
+                    p.js("location.hash = location.hash.replace(/^#[a-z]+/, '#work')")
+                    p.until("!document.querySelector('#ask-panel')", "a move to another page closes the panel")
+                    p.key("/", code="Slash", vk=191)
+                    p.until(SETTLE, "the panel is ready again")
+                    p.until(f"({pills}).indexOf('work items') > -1", f"{width} {theme}: work item suggestions on the Work items page")
+                    self.assertEqual(p.js("document.querySelectorAll('#ask-pills button').length"), 6)
+                    self.ask(p, "Which risks are red?")
+                    p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+                    p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
+                    self.check_measures(p, f"{width} {theme} page suggestions")
+
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
             for width in (1400, 900):
