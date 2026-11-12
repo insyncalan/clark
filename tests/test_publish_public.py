@@ -9,6 +9,7 @@ Your git settings are made hostile on purpose (a real-looking identity, signing 
 to show none of it reaches the published commit.
 """
 import base64
+import hashlib
 import io
 import os
 import re
@@ -21,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 import _paths  # noqa: F401  (puts dev/tools/ on the path)
+import ci_scan
 import publish_public as pp
 from _growth import assert_growth
 from test_no_real_names import FICTIONAL
@@ -2408,12 +2410,29 @@ class TheVendorLineAllowances(unittest.TestCase):
         self.assertTrue(all(len(v) == 1 for v in pp.VENDOR_LINE_ALLOWED.values()))
         self.assertFalse(any("*" in p or p.endswith("/") for p in self.PATHS))
 
-    def test_each_exact_line_passes_in_its_own_path(self):
+    def real(self, path):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, path), "rb") as f:
+            return f.read()
+
+    def test_the_real_vendored_file_passes_in_its_own_path(self):
         for path in self.PATHS:
-            line = pp.VENDOR_LINE_ALLOWED[path][0]
             with self.subTest(path):
-                self.assertEqual(self.kinds(path, "ok line\n%s\nok line\n" % line), set())
-                self.assertEqual(self.kinds(path, "%s\r\n" % line), set())
+                self.assertEqual(pp.guard_kinds(path, self.real(path)), set())
+
+    def test_the_pins_match_ci_scan_and_the_real_files(self):
+        self.assertEqual(pp.VENDOR_LINE_PINS, ci_scan.VENDORED_PINS)
+        for path in self.PATHS:
+            self.assertEqual(hashlib.sha256(self.real(path)).hexdigest(), pp.VENDOR_LINE_PINS[path])
+
+    def test_a_changed_byte_or_an_executable_file_gets_no_allowance(self):
+        for path in self.PATHS:
+            real = self.real(path)
+            with self.subTest(path):
+                self.assertEqual(pp.guard_kinds(path, real + b"\n"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real.replace(b"a", b"b", 1)), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real, "100755"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()), {"a person's name"})
 
     def test_the_same_line_in_another_path_is_refused(self):
         for path in self.PATHS:
