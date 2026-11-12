@@ -47,7 +47,7 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
   push:
     branches: [main]
-  merge_group:      # GitHub merge queue (Jarvis 12-11): the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
+  merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
     types: [checks_requested]
 
 name: Tests
