@@ -151,6 +151,11 @@ def bullets(notes):
     return out
 
 
+def bullets_are_final(found_version, env=None):
+    """True from the cut on: once the version says 1.0.7 every merged row needs its bullet. V107_FINAL=1 asks for it earlier."""
+    return found_version == VERSION or (os.environ.get("V107_FINAL") if env is None else env) == "1"
+
+
 def bullet_problems(found, covered, final):
     """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
     out = []
@@ -315,11 +320,11 @@ class Notes(unittest.TestCase):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
     def test_a_bullet_is_only_for_a_merged_visible_row_and_none_waits(self):
-        """A merged row may lack its bullet until the cut; V107_FINAL=1 (set at cut time) demands exactly one for each."""
+        """A merged row may lack its bullet until the cut; from the cut (version 1.0.7, which this class runs at) exactly one for each is demanded."""
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        self.assertEqual(bullet_problems(bullets(self.text), covered, os.environ.get("V107_FINAL") == "1"), [])
+        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version())), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
@@ -351,18 +356,15 @@ class BulletsFinalCheck(unittest.TestCase):
         self.assertTrue(bullet_problems(["- Alpha one", "- Alpha again"], self.ROWS, False))
         self.assertTrue(bullet_problems(["- Alpha one", "- Gamma"], self.ROWS, False))
 
-    def test_the_env_var_switches_the_real_check(self):
-        old = os.environ.get("V107_FINAL")
-        try:
-            os.environ["V107_FINAL"] = "1"
-            self.assertTrue(bullet_problems([], self.ROWS, os.environ.get("V107_FINAL") == "1"))
-            del os.environ["V107_FINAL"]
-            self.assertEqual(bullet_problems([], self.ROWS, os.environ.get("V107_FINAL") == "1"), [])
-        finally:
-            if old is None:
-                os.environ.pop("V107_FINAL", None)
-            else:
-                os.environ["V107_FINAL"] = old
+    def test_the_check_switches_on_by_itself_at_the_cut(self):
+        self.assertTrue(bullets_are_final(VERSION, env=""), "version 1.0.7 demands every bullet, with no env set")
+        self.assertFalse(bullets_are_final("1.0.6", env=""), "before the cut a missing bullet is tolerated")
+        self.assertTrue(bullets_are_final("1.0.6", env="1"), "V107_FINAL=1 asks for it early")
+
+    def test_dropping_a_bullet_fails_in_the_cut_state(self):
+        found = ["- Alpha one"]                      # Beta's bullet dropped
+        self.assertTrue(bullet_problems(found, self.ROWS, bullets_are_final(VERSION, env="")))
+        self.assertEqual(bullet_problems(found, self.ROWS, bullets_are_final("1.0.6", env="")), [])
 
 
 class Cut(unittest.TestCase):
