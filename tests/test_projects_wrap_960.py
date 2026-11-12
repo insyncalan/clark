@@ -30,7 +30,8 @@ class Source(unittest.TestCase):
         self.assertTrue(m, "edit.css holds a max-width 960px rule for the Projects buttons")
         body = m.group(1)
         self.assertRegex(body, r"\.projects table\.proj-table td\.acts \{ white-space: normal; \}")
-        self.assertRegex(body, r"\.projects table\.proj-table td\.acts \.btn \{ margin: 2px 0 2px 8px; \}")
+        self.assertRegex(body, r"\.projects table\.proj-table td\.acts > \.btn \{ margin: 2px 0 2px 8px; \}", "the row's own buttons wrap with a small vertical margin")
+        self.assertRegex(body, r"\.projects table\.proj-table td\.acts \.dd \.btn \{ margin: 0; \}", "the buttons inside the dots menu keep no margin")
         self.assertRegex(text, r"\.projects table\.proj-table td\.acts \{ text-align: right; white-space: nowrap; \}", "above 960 px the buttons stay on one line")
 
 
