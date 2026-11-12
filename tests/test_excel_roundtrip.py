@@ -228,7 +228,7 @@ class Reading(RoundTrip):
     def test_every_exported_label_reads_back_as_a_column_a_derived_field_or_labels(self):
         for table, labels in excel.COLUMN_OF.items():
             for label, f in labels.items():
-                self.assertTrue(f in columns(self.s.con, table) or f in excel.DERIVED or f == xi.LABELS, (table, label, f))
+                self.assertTrue(f in columns(self.s.con, table) or f in excel.DERIVED or f in (xi.LABELS, xi.UC_MILESTONES), (table, label, f))
         self.assertEqual({t: excel.SHEET_OF[t] for t in excel.TABLES},
                          {"milestones": "Milestones", "actions": "Actions", "raid": "Risks & Issues", "decisions": "Decisions",
                           "use_cases": "Use cases"})
