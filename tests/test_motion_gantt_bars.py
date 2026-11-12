@@ -295,6 +295,30 @@ class Bars(unittest.TestCase):
                 self.js(f"document.querySelector('{BARS}').click()")
                 self.assertEqual(self.grow(), 0)
 
+    def test_today_button_jumps_at_once_under_reduced_motion_and_scrolls_smoothly_otherwise_row_1039(self):
+        for motion, attr, instant in (("reduce", False, True), ("no-preference", True, True), ("no-preference", False, False)):
+            with self.subTest(motion=motion, attr=attr):
+                self.page(width=900, motion=motion, attr=attr)
+                self.js(f"mountGantt({lit(LINES)}, {lit({'edit': True, 'today': TODAY, 'width': 500})})")
+                self.until("document.querySelector('[data-g-bar]')", "bars are drawn")
+                got = self.val("(function(){ var g = document.querySelector('.gt-gx'); g.scrollLeft = g.scrollWidth; "
+                               "document.querySelector('[data-g-today-btn]').click(); return [g.scrollLeft, g.scrollWidth > g.clientWidth, g.scrollWidth, g.clientWidth]; })()")
+                self.assertTrue(got[1], f"the chart scrolls sideways {got}")
+                end = got[2] - got[3]
+                if instant:
+                    self.assertLess(got[0], end, f"reduced motion: scrollLeft is at the target in the same frame {got}")
+                else:
+                    self.assertEqual(got[0], end, f"no reduced motion: the jump is animated {got}")
+
+    def test_reduced_motion_switched_on_with_bars_drawn_clears_the_grow_mark_row_1039(self):
+        self.page(width=900)
+        self.mount()
+        self.assertGreater(self.val("document.querySelectorAll('.gt-grow').length"), 0)
+        self.js("document.documentElement.dataset.motion = 'reduce'")
+        self.js(f"document.querySelector('{BARS}').click()")
+        self.until(f"document.querySelector('{BARS}').classList.contains('sel')", "a redraw happened")
+        self.assertEqual(self.val("document.querySelectorAll('.gt-grow').length"), 0)
+
     def test_the_published_stylesheet_alone_runs_nothing(self):
         self.page()
         self.mount()
