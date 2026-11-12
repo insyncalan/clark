@@ -28,6 +28,7 @@ import build_page  # noqa: E402
 from clark import __main__ as launcher, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
+from test_undo_key import press_z  # noqa: E402
 from test_server import chrome, wait, wait_toast  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -38,6 +39,7 @@ import { boot } from "./boot.jsx";
 import { EDIT } from "./edit/index.js";
 import { startApp } from "./app.js";
 import { UseCaseDetail } from "./components/UseCaseDetail.jsx";
+import { UCEDIT } from "./edit/UseCasesEdit.jsx";
 
 boot(EDIT);
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startApp); else startApp();
@@ -49,7 +51,7 @@ window.clarkMountUc = (id) => {
     document.getElementById("main").style.display = "none";
     document.getElementById("main").after(host);
   }
-  render(<UseCaseDetail id={id} />, host);
+  render(<UseCaseDetail id={id} ed={UCEDIT} />, host);
 };
 """
 
@@ -839,6 +841,207 @@ class Detail(unittest.TestCase):
                         self.assertRegex(cdp.js(f"document.querySelector('{row}').textContent", sid), r"\d", "and the date")
                         self.assertEqual(cdp.js(f"document.querySelector('{row} [data-ms-open]').tagName", sid), "BUTTON", "the name is a control")
                         self.peek_round(cdp, sid, f"{row} [data-ms-open]", ms)
+
+    # ---- row 1079: add and remove milestones ----
+    def ms_ids(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms).sort()", sid)
+
+    def test_milestone_controls_show_for_the_editor_at_1400_and_900_px_light_and_dark_row_1079(self):
+        for width in (1400, 915):          # 915 px of window is 900 px of page on this box (15 px scrollbar)
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-add]').length", sid), 1, "one Add a milestone control")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms] [data-ms-remove]').length", sid), 1, "one Remove for the one milestone")
+                    size = cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms-add] button, [data-ucd] [data-ms-remove]')].map(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; })", sid)
+                    for w, h in size:
+                        self.assertGreaterEqual(min(w, h), 24, "a control is at least 24 px")
+                    self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid), 0, "no sideways scroll")
+
+    def test_add_a_milestone_is_one_change_with_one_undo_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before, ids = self.steps(), self.ms_ids(cdp, sid)
+            self.assertEqual(ids, ["TUL-M-005"])
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu of milestones opened")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] [role^=menuitem]').length", sid), 5, "the five milestones it does not have")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the milestone is listed")
+            self.assertEqual(self.steps(), before + 1, "one step")
+            st = open_store(self.path, onedrive_roots=[])
+            try:
+                made = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-002"]
+            finally:
+                st.close()
+            self.assertEqual(len(made), 1)
+            self.assertIn("Pilot office live", self.toast(cdp, sid))
+            self.undo(cdp, sid)
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the undo took it away")
+
+    def test_remove_a_milestone_clears_the_link_and_undo_puts_it_back_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before = self.steps()
+            linked_before = [r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+            self.assertGreaterEqual(len(linked_before), 2, "the fixture links an action and a risk or issue")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the milestone left the list")
+            self.assertEqual(self.steps(), before + 2, "its action and its risk, a step for each kind")
+            d = self.read("TUL")
+            self.assertEqual([r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone")], [])
+            self.assertEqual(len(d["milestones"]), 6, "the milestone itself is not deleted")
+            self.assertTrue(re.search(r"removed from use case", self.toast(cdp, sid)), "the one toast says the milestone was removed")
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the one Undo put the risk back")
+            self.until(cdp, sid, "document.querySelectorAll('[data-ucd] [data-ms=TUL-M-005]').length === 1", "listed once")
+            self.assertTrue(wait(lambda: len([r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]) == len(linked_before)), "the second step is undone too")
+            back = [r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+            self.assertEqual(len(back), len(linked_before), "BOTH steps were undone: the action as well as the risk, none is lost")
+            self.until(cdp, sid, "/Undone/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the toast says it was undone")
+            self.assertTrue(wait(lambda: self.steps() == before + 4), "one undo for each of its two steps")
+
+    def test_two_actions_in_a_row_can_both_be_undone_row_1079(self):
+        """Add a milestone, then remove another: the toast holds only the last message, but the first step is still undone by Cmd or Ctrl+Z."""
+        def linked():
+            d = self.read("TUL")
+            return sorted(r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone"))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            start = linked()
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the milestone was added")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the other milestone was removed")
+            self.until(cdp, sid, "!!document.querySelector('.toast-text') && /removed/.test(document.querySelector('.toast-text').textContent)", "the toast of the removal")
+            click(cdp, sid, "[data-undo]")      # the removal's one Undo takes back both of its steps
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the removal was undone")
+            self.assertTrue(wait(lambda: len(linked()) == len(start) + 1), "both steps of the removal are undone")
+            self.assertEqual(len(linked()), len(start) + 1, "the removed links are back; the added step is still there")
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            press_z(cdp, sid, 2)                # the first action has no toast now: Ctrl+Z undoes it
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the first action was undone too")
+            self.assertEqual(linked(), start, "both actions are undone, nothing is lost")
+
+    def test_no_milestone_controls_when_archived_or_in_the_file_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-add], [data-ucd] [data-ms-remove]').length", sid), 0)
+        view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for word in ("data-ms-add", "data-ms-remove"):
+            self.assertNotIn(word, view, word)
+
+    # ---- row 1079: hostile pass ----
+    def sql(self, q, args=()):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            st.con.execute(q, args)
+            st.con.commit()
+        finally:
+            st.close()
+
+    def test_hostile_milestone_name_is_text_only_and_the_step_keeps_it_row_1079(self):
+        evil = "<img src=x onerror=window.__pwn=1>\u202e\U0001F600 " + "W" * 600
+        self.sql("UPDATE milestones SET name = ? WHERE id = 'TUL-M-002'", (evil,))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] img').length", sid), 0, "the name is text in the menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "listed; toast: " + self.toast(cdp, sid))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] img').length + (window.__pwn ? 1 : 0)", sid), 0, "nothing ran")
+            self.assertEqual(cdp.js("document.querySelector('[data-ms=TUL-M-002] [data-ms-remove]').getAttribute('aria-label').length > 20", sid), True)
+            self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid), 0, "a huge name causes no sideways scroll")
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            made = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-002"]
+        finally:
+            st.close()
+        self.assertEqual(len(made), 1, "the next step was made even for a 600-character milestone name")
+
+    def test_remove_clears_a_closed_linked_work_item_too_row_1079(self):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            linked = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+        finally:
+            st.close()
+        self.assertTrue(linked)
+        self.sql("UPDATE actions SET status = 'Closed' WHERE id = ?", (linked[0]["id"],))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "the milestone left the list")
+        d = self.read("TUL", archived="show")
+        left = [r["id"] for k in ("actions", "raid") for r in d[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+        self.assertEqual(left, [], "a closed item still names the milestone: it comes back when the item is reopened")
+
+    def test_remove_by_keyboard_once_even_pressed_twice_and_focus_moves_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before = self.steps()
+            cdp.js("document.querySelector('[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]').focus()", sid)
+            key(cdp, sid, "Enter")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "removed")
+            time.sleep(1)
+            self.assertEqual(self.steps(), before + 2, "a second press does not make more steps")
+            self.until(cdp, sid, "!!document.activeElement.closest('[data-ms-add]')", "focus is on Add a milestone")
+
+    def test_add_then_remove_the_same_milestone_leaves_no_link_dark_900_row_1079(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, width=915, scheme="dark", edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "listed")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-002] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "removed again")
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu again")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] [role^=menuitem]').length", sid), 5, "it can be added again")
+            self.assertEqual(cdp.js(CONTRAST, sid), [], "contrast in dark")
+
+    def test_added_step_words_and_due_date_and_remove_spares_other_use_cases_row_1079(self):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            ms = [m for m in st.data_for("TUL")["milestones"] if m["id"] == "TUL-M-002"][0]
+            other = [r for r in st.data_for("TUL")["actions"] if r.get("use_case") and r.get("use_case") != UC][0]["id"]
+        finally:
+            st.close()
+        self.sql("UPDATE actions SET milestone = 'TUL-M-005' WHERE id = ?", (other,))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "listed")
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-remove]")
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-005]')", "removed")
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            acts = st.data_for("TUL")["actions"]
+        finally:
+            st.close()
+        made = [r for r in acts if r.get("use_case") == UC and r.get("milestone") == "TUL-M-002"][0]
+        self.assertEqual(made["description"], "Reach " + ms["name"], "the step's words")
+        self.assertEqual(made.get("due_date"), ms.get("baseline_date") or ms.get("forecast_date"), "due on the milestone's date")
+        self.assertEqual([r["milestone"] for r in acts if r["id"] == other], ["TUL-M-005"], "another use case's link is not cleared")
+
+    def test_an_archived_milestone_is_neither_listed_nor_offered_row_1079(self):
+        self.sql("UPDATE milestones SET archived = 1 WHERE id IN ('TUL-M-005', 'TUL-M-003')")
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            self.assertEqual(self.ms_ids(cdp, sid), [])
+            click(cdp, sid, "[data-ucd] [data-ms-add] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            ids = cdp.js("[...document.querySelectorAll('[role=menu] [data-kind]')].map(e => e.dataset.kind)", sid)
+            self.assertNotIn("TUL-M-003", ids)
+            self.assertNotIn("TUL-M-005", ids)
 
     # ---- the published file ----
     def test_the_published_file_has_none_of_the_component(self):

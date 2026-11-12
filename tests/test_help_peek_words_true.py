@@ -34,8 +34,8 @@ def find(rows, start):
 
 class ItemPeek(unittest.TestCase):
     def test_top_bar_is_the_real_bar(self):
-        bar = find(ITEM, "**The top bar**")
-        for word in ("Previous", "Next", "ID", "Duplicate", "Archive", "Across the whole screen", "Close"):
+        bar = find(ITEM, "At the top:")          # merged with main: the buttons are named as the page names them (Peek.jsx aria-labels)
+        for word in ("Previous item", "Next item", "ID", "Duplicate", "Archive", "Make this panel fill the screen", "Close this panel"):
             self.assertIn(word, bar)
         for gone in ("eye", "Copy link", "⋯"):
             self.assertNotIn(gone, bar)
@@ -62,7 +62,7 @@ class ItemPeek(unittest.TestCase):
     def test_arrows_are_previous_and_next_buttons(self):
         step = find(HOWTO, "With the peek open")
         self.assertNotIn("up and down arrows at the top", step)
-        self.assertIn("**Previous** and **Next**", step)
+        self.assertIn("**Previous item** and **Next item**", step)
         self.assertIn("[[Up]] and [[Down]]", step)
         self.assertIn("only when focus is on one of the peek’s own buttons", step)      # Peek.jsx peekOwnsArrow: BUTTON inside #peek only
         code = (PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8")
@@ -73,8 +73,8 @@ class MilestonePeek(unittest.TestCase):
     def test_top_bar_has_no_eye(self):
         bar = find(MS, "**The top bar**")
         self.assertNotIn("eye", bar)
-        self.assertIn("archive picture", bar)
-        self.assertIn("Previous", bar)
+        self.assertIn("Archive", bar)          # PeekArchive.jsx: the button is named Archive
+        self.assertIn("Previous item", bar)
 
     def test_dates_have_no_rebaseline(self):
         d = find(MS, "**Dates**")
@@ -89,7 +89,7 @@ class MilestonePeek(unittest.TestCase):
 
     def test_no_linked_items_or_history(self):
         self.assertEqual([r for r in MS if r.startswith("**Linked work items**")], [])
-        self.assertFalse([r for r in MS if "history" in r])
+        self.assertEqual([r for r in MS if "history" in r], [r for r in MS if r.startswith("**Tabs**")])      # the only history is the Activity tab the peek has in Edit (PeekTabs)
 
     def test_state_has_no_why(self):
         st = find(MS, "**State**")
