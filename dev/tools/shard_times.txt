@@ -76,7 +76,7 @@ test_blank_lines.py 1.4
 test_board.py 10.8
 test_board_columns.py 45.9
 test_brand.py 0.6
-test_brand_backdrop.py 30.0
+test_brand_backdrop.py 212.0
 test_brand_circle.py 7.1
 test_brand_follow_e2e.py 25.5
 test_brand_page.py 14.7
@@ -200,7 +200,7 @@ test_filter_line.py 22.1
 test_filter_line_client.py 3.2
 test_filter_line_not_published.py 11.1
 test_filter_line_page.py 270.6
-test_filter_line_page_900.py 109.8
+test_filter_line_page_900.py 136
 test_filter_list_error.py 40.2
 test_filter_query.py 14.2
 test_filter_query_ui.py 7.2
@@ -410,6 +410,7 @@ test_people_store.py 2.9
 test_picker_minimap.py 25.0
 test_pill_focus_ring.py 18.3
 test_placement.py 4.6
+test_plain_line_hostile.py 1.0
 test_platform.py 1.0
 test_platform_container.py 1.6
 test_platform_source.py 17.0
@@ -491,6 +492,7 @@ test_rich_reason_note.py 2.9
 test_router.py 123.0
 test_row_ids_no_wrap.py 4.5
 test_row_menu.py 186.7
+test_row_words_1005.py 1.0
 test_run_tests.py 40.8
 test_runner_osascript_guard.py 3.7
 test_safety.py 29.2
@@ -731,6 +733,9 @@ test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
 test_section_hint_phone.py 30.0
+test_plain_words_hostile_1005.py 1.0
+test_p1005b_eye.py 1.0
+test_b4_hostile_1005.py 1.0
 test_ai_menu_mutants.py 1.0
 test_excel_colours_mutants.py 1.0
 test_excel_import_mut.py 1.0
@@ -749,3 +754,7 @@ test_store_mut2.py 1.0
 test_completed_blue.py 2.0
 test_hostile_h1293.py 1.0
 test_word_brand.py 1.0
+test_changes_use_case_owner.py 10.0
+test_people_rename_merge.py 10.0
+test_store_use_case_owner_migration.py 10.0
+test_use_case_owner_never_published.py 10.0
