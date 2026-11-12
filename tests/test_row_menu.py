@@ -159,6 +159,15 @@ class Rules(unittest.TestCase):
         good = json.dumps([{"id": "P-001", "name": "Ada", "email": "ada@example.com"}])
         self.assertEqual(self.js(f"RM.recipientOf({good}, 'P-001')")["email"], "ada@example.com")
 
+    def test_the_address_length_limit_is_the_servers_exactly_254_in_255_out(self):
+        """Both sides of the limit: the page must not drop an address the server takes, nor send one it refuses."""
+        for n, want in ((254, True), (255, False)):
+            addr = "x" * (n - 5) + "@a.co"
+            ppl = json.dumps([{"id": "P-001", "name": "Ada", "email": addr}])
+            got = self.js(f"RM.recipientOf({ppl}, 'P-001')")
+            self.assertEqual(got is not None, want, n)
+            self.assertEqual(len(addr) <= draft_email_feed.MAX_EMAIL, want, n)
+
     @staticmethod
     def server_takes(addr):
         """True when draft_email_feed's address rule lets the address through (the rule in make(): one_line, ADDRESS, no Cf, Co, Cs)."""
