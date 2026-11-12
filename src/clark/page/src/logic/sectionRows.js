@@ -35,14 +35,22 @@ export function dateWord(row) {
 // The same words as the Work items list (workItems.pillOf), so a row says one thing wherever it is read.
 // Row 1021: on the report's rows an action that is neither late, delayed nor due soon reads "On track" (green), the word the icon says;
 // the Work items list keeps "Open" (workItems.pillOf is not changed).
+// Row 1021, option B: an open action, risk or issue whose own status is not plain (Blocked, In progress, ...) keeps that word, in its colour
+// (amber, green, blue, else grey); Delayed and the closed statuses read as pillOf reads them.
+export const PLAIN_STATUS = [null, undefined, "", "Open", "Planned"];
+export const OWN_STATUS_CLASS = { Blocked: "a", "In progress": "g", Completed: "b" };
 export function clientPill(row, today) {
+  const s = row.status;
+  if (["action", "risk", "issue"].includes(row.kind) && typeof s === "string" && !PLAIN_STATUS.includes(s) && !["Closed", "Cancelled", "Made", "Withdrawn", "Delayed"].includes(s)) {
+    return { text: s, class: OWN_STATUS_CLASS[s] || "n" };
+  }
   const p = pillOf(row, today);
   return row.kind === "action" && p.text === "Open" ? { text: "On track", class: "g" } : p;
 }
 
 // "3 d late" for an open action whose date has passed; nothing otherwise (a decision, a risk, an action not late).
 export function lateWord(row, today) {
-  if (row.kind !== "action" || !isOpen(row)) return "";
+  if (row.kind !== "action" || !isOpen(row) || row.status === "Completed") return "";
   const a = dayNumber(dueField(row)), b = dayNumber(today);
   return a !== null && b !== null && a < b ? `${b - a} d late` : "";
 }

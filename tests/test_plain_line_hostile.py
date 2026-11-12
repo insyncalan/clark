@@ -241,7 +241,7 @@ class RaidHostile(ReportBase):
     def stored(self, sec):
         return json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]
 
-    def own(self, p, sec, html, ctrl_enter=True):
+    def own(self, p, sec, html, ctrl_enter=True, closes=False):
         box = f"[data-id={json.dumps(sec)}] .rce-f .ProseMirror"
         view = f"[data-id={json.dumps(sec)}] .rce-f .rt-view"
         p.until(f"!!document.querySelector({json.dumps(view)}) || !!document.querySelector({json.dumps(box)})", "own words field")
@@ -250,6 +250,10 @@ class RaidHostile(ReportBase):
             p.until(f"!!document.querySelector({json.dumps(box)})", "the editor opened")
         p.js(f"(function(){{ const b = document.querySelector({json.dumps(box)}); b.focus(); b.cxed.editor.commands.setContent({json.dumps(html)}); }})()")
         p.key("Enter", modifiers=2, code="Enter", vk=13)
+        if closes:
+            # The store has the words before the editor closes (it closes when the reply arrives). The next step must open a new editor,
+            # not type into this closing one, whose Ctrl+Enter is ignored: that dropped the words and failed the later wait_for.
+            p.until(f"!document.querySelector({json.dumps(box)}) && !!document.querySelector({json.dumps(view)})", "the editor closed after saving")
 
     def test_own_words_limit_script_whitespace_and_joins(self):
         # tests/test_tpl_raid3.py drives the same page the same way
@@ -265,7 +269,7 @@ class RaidHostile(ReportBase):
                 p.edit()
                 p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words drawn")
                 # 400 characters in two paragraphs, joined by one space: exactly the limit, saved
-                self.own(p, sec, "<p>" + "a" * 199 + "</p><p>" + "b" * 200 + "</p>")
+                self.own(p, sec, "<p>" + "a" * 199 + "</p><p>" + "b" * 200 + "</p>", closes=True)
                 want = "a" * 199 + " " + "b" * 200
                 self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == want), "400 characters are saved")
                 n = len([s for s in self.sent if s[0] == "change"])
@@ -275,12 +279,12 @@ class RaidHostile(ReportBase):
                 self.assertEqual(self.stored(sec)[0].get("own"), want, "401 characters are not saved")
                 self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n, "and nothing is sent")
                 # a script tag typed as words is stored as text and drawn as text
-                self.own(p, sec, "<p>&lt;script&gt;window.__r=1&lt;/script&gt; \U0001F680</p>")
+                self.own(p, sec, "<p>&lt;script&gt;window.__r=1&lt;/script&gt; \U0001F680</p>", closes=True)
                 self.assertTrue(self.wait_for(lambda: self.stored(sec)[0].get("own") == "<script>window.__r=1</script> \U0001F680"))
                 self.assertEqual(p.js("!!window.__r || document.querySelectorAll('[data-id=%s] script').length" % json.dumps(sec)), 0)
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True)
                 # only spaces: saved as empty
-                self.own(p, sec, "<p> </p><p>&nbsp;</p>")
+                self.own(p, sec, "<p> </p><p>&nbsp;</p>", closes=True)
                 self.assertTrue(self.wait_for(lambda: self.stored(sec) == [{"id": ids["risk"], "source": "own"}]), "only spaces are saved as no words (the store leaves an empty one out)")
                 for card in self.stored(sec):
                     self.assertNotIn("\n", card.get("own", ""))

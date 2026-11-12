@@ -171,6 +171,18 @@ export function startTicks(items) {
   return t;
 }
 
+// The sheets to tick when "What to import" opens (#1106): the ones ticked last time on this computer (`saved`, a list of table names);
+// a remembered sheet the new workbook lacks is simply not there, never ticked or mentioned. With nothing remembered, or none of it in this
+// workbook, every sheet is ticked as before.
+export const SHEETS_KEY = "clark.import.sheets";
+export function startSheets(sheets, saved) {
+  const mine = Array.isArray(saved) ? saved.filter((n) => typeof n === "string") : [];
+  const any = sheets.some((s) => mine.includes(s.table));
+  const t = {};
+  for (const s of sheets) t[s.table] = any ? mine.includes(s.table) : true;
+  return t;
+}
+
 export const KIND_WORD = { new: "New", changed: "Changed", removed: "Not in the workbook" };
 
 // Base64 of bytes in pieces, so a large workbook does not overflow the call stack.
