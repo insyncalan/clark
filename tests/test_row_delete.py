@@ -8,15 +8,14 @@ Cancel, and the toast "<ID> deleted." with Undo.
 import json
 import unittest
 
-from _paths import SRC
+from _demo import USER
 
 from test_server import chrome  # noqa: E402
 from test_row_menu import right_click  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, set_line  # noqa: E402
 import test_work_board_page as board  # noqa: E402
 import test_multi_select as ms  # noqa: E402
 
-PAGE_SRC = SRC / "clark" / "page" / "src"
 QUESTION = "Delete %s? This removes it from your project record. It cannot be brought back."
 ROW = "tr[data-id='%s']"
 
@@ -84,17 +83,30 @@ class DeleteItem(board.Base):
         a = self.id_of("Order the laptops")
         with chrome() as cdp:
             sid = self.visit(cdp)
+            before = self.steps()
             self.open_menu(cdp, sid, a)
             click(cdp, sid, "[data-rm=peek]")
             self.until(cdp, sid, f"!!document.querySelector('#peek[data-peek=\"{a}\"] [data-pk-delete]')", "the peek")
             click(cdp, sid, "[data-pk-delete]")
-            self.assertEqual(self.dialog(cdp, sid)["q"], QUESTION % a)
+            d = self.dialog(cdp, sid)
+            self.assertEqual(d, {"q": QUESTION % a, "b": ["Delete", "Cancel"]})
+            click(cdp, sid, "[data-bask=no]")                                           # Cancel: nothing happens, the peek stays
+            self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question to close")
+            self.assertEqual((self.steps(), len(self.query("SELECT 1 FROM actions WHERE id = ?", a))), (before, 1))
+            self.assertTrue(cdp.js(f"!!document.querySelector('#peek[data-peek=\"{a}\"]')", sid))
+            click(cdp, sid, "[data-pk-delete]")
+            self.dialog(cdp, sid)
             click(cdp, sid, "[data-bask=yes]")
-            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"{a} deleted.")
+            t = self.wait_toast(cdp, sid, "done")
+            self.assertEqual((t["text"], t["undo"]), (f"{a} deleted.", True))
             self.until(cdp, sid, "!document.querySelector('#peek')", "the peek to close")
-            self.assertEqual(self.query("SELECT 1 FROM actions WHERE id = ?", a), [])
+            self.assertEqual((self.steps(), self.query("SELECT 1 FROM actions WHERE id = ?", a)), (before + 1, []))
+            click(cdp, sid, "[data-undo]")
+            self.until(cdp, sid, f"!!document.querySelector(\"{ROW % a}\")", "the row to come back")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"{a} is back.")
+            self.assertEqual(len(self.query("SELECT 1 FROM actions WHERE id = ?", a)), 1)
 
-    def test_delete_is_in_the_warning_colour_and_an_archived_item_has_no_delete(self):
+    def test_delete_is_in_the_warning_colour(self):
         a = self.id_of("Order the laptops")
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -104,9 +116,23 @@ class DeleteItem(board.Base):
             self.assertTrue(got[0])
             self.assertEqual(got[1], red)
             self.assertNotEqual(got[2], red)
-        src = (PAGE_SRC / "edit" / "ArchivedItems.jsx").read_text(encoding="utf-8")
-        self.assertNotIn("Delete", src.replace("nothing in it was deleted", ""))     # the archived peek offers Restore only, and its rows open no row menu (data-arch-id, not data-id)
-        self.assertIn("data-arch-id", src)
+
+    def test_an_archived_item_has_no_delete_in_its_row_or_its_peek(self):
+        a = self.id_of("Order the laptops")
+        with self.store.step("dashboard", USER) as st:
+            st.archive("actions", a)
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            set_line(cdp, sid, "is:archived")
+            self.until(cdp, sid, f"!!document.querySelector(\"#archived-list tr[data-arch-id='{a}']\")", "the archived row")
+            right_click(cdp, sid, f"#archived-list tr[data-arch-id='{a}']")             # its rows open no row menu
+            cdp.js("new Promise(r => setTimeout(r, 400))", sid)
+            self.assertFalse(cdp.js("!!document.querySelector('.rowmenu, [data-rm=delete]')", sid))
+            click(cdp, sid, f"#archived-list tr[data-arch-id='{a}']")
+            self.until(cdp, sid, f"document.querySelector('#peek-archived')?.dataset.peekArchived === '{a}'", "the archived peek")
+            self.assertTrue(cdp.js("[...document.querySelectorAll('#peek-archived button')].some(b => /Restore/.test(b.textContent))", sid))
+            self.assertFalse(cdp.js("!!document.querySelector('[data-pk-delete]') || [...document.querySelectorAll('#peek-archived button')].some(b => /Delete/i.test(b.textContent + (b.getAttribute('aria-label') || '') + (b.title || '')))", sid))
+
 
 if __name__ == "__main__":
     unittest.main()

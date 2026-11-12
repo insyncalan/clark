@@ -110,9 +110,15 @@ class DeleteItem(unittest.TestCase):
             self.assertEqual((status, body["ok"]), (400, False), kind)
 
     def test_cancel_of_an_item_still_closes_it_and_never_deletes(self):
+        n = self.count("actions")
         with self.s.step("dashboard", USER) as st:
             st.cancel("actions", self.b)
-        self.assertEqual(self.s.read("actions", ref=self.b)["status"], "Cancelled")
+        row = self.s.read("actions", ref=self.b)
+        self.assertIsNotNone(row)                                          # the row is still there, only closed
+        self.assertEqual(row["status"], "Cancelled")
+        self.assertEqual(self.count("actions"), n)
+        self.assertEqual(self.con.execute("SELECT count(*) FROM change_log WHERE field = ?", (REMOVED,)).fetchone()[0], 0)
+        self.assertEqual(self.links(), [(self.a, self.b, "blocks")])      # its link survives a cancel
 
     def test_undo_restores_the_hidden_row_too(self):
         _, body = self.delete("actions", self.a)
@@ -133,7 +139,9 @@ class DeleteItem(unittest.TestCase):
             self.assertTrue(published_copies.keep(Path(d), "ABC", 1, src, sha))
             self.delete("actions", self.a)
             self.assertEqual(published_copies.read(Path(d), "ABC", 1, sha), (published_copies.OK, page))
-            self.assertEqual(published_copies.read_data(Path(d), "ABC", 1, sha)[0], published_copies.OK)
+            status, data = published_copies.read_data(Path(d), "ABC", 1, sha)
+            self.assertEqual(status, published_copies.OK)
+            self.assertEqual(json.loads(data) if isinstance(data, (bytes, str)) else data, {"a": 1})
 
     def test_counts_and_pickers_drop_the_deleted_item(self):
         ids = lambda: {r["id"] for r in self.s.read("actions", project="ABC", archived=False)}
@@ -157,10 +165,12 @@ class DeleteItem(unittest.TestCase):
                 status, back = self.undo({"project": "ABC", "apply_id": one["apply_id"]})
                 self.assertEqual(status, 200, back)
                 self.assertEqual(self.links(), [])                         # the other end is still gone: no link yet
-                self.assertNotIn("section", back["words"])
-                self.assertIn(" is back", back["words"])
+                hid = f"Put back: {self.a} is back; {self.a} is hidden from the report again."       # a carried the hiding
+                plain = f"Put back: {self.b} is back."
+                self.assertEqual(back["words"], hid if first == "a" else plain)
                 status, back = self.undo({"project": "ABC", "apply_id": two["apply_id"]})
                 self.assertEqual((status, back["skipped"]), (200, []), back)
+                self.assertEqual(back["words"], plain if first == "a" else hid)
                 self.assertEqual(self.links(), [(self.a, self.b, "blocks")])
                 self.assertEqual(self.count("item_labels"), 1)
 
@@ -171,7 +181,7 @@ class DeleteItem(unittest.TestCase):
             status, out = self.change(body)
             self.assertEqual((status, out["ok"]), (200, True), body)
             self.assertEqual(out["left_out"], [{"id": self.b, "why": changes.BULK_GONE}], body)
-            self.assertNotIn(self.b, json.dumps(out.get("changed")), body)
+            self.assertEqual((out["changed"], out["unchanged"]), ([self.a], []) if body["op"] == "bulk" else ([], [self.a]), body)
         self.assertIsNone(self.s.read("actions", ref=self.b))
 
     def test_a_second_instance_editing_a_deleted_item_gets_a_clean_refusal_and_nothing_is_written(self):
@@ -182,7 +192,7 @@ class DeleteItem(unittest.TestCase):
                      {"project": "ABC", "kind": "actions", "op": "archive", "id": self.b}):
             status, out = self.change(body)
             self.assertEqual((status, out["ok"]), (400, False), body)
-            self.assertIn("isn't in this project", out["message"], body)
+            self.assertEqual(out["message"], "That isn't in this project. Reload the page and try again." if body["op"] == "archive" else "That item isn't in this project.", body)
         self.assertEqual(self.count("change_log"), n)
 
     def test_deleting_an_archived_item_says_restore_it_first(self):
