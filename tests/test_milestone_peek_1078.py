@@ -25,8 +25,8 @@ from test_server import chrome  # noqa: E402
 import test_publish as tp  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-EDITOR_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Visible to client", "Client wording"]
-CLIENT_ROWS = [r for r in EDITOR_ROWS if r != "Visible to client"]
+EDITOR_ROWS = ["Description", "Agreed date", "Forecast date", "Workstream", "Use cases", "Visible to client", "Client wording"]
+CLIENT_ROWS = [r for r in EDITOR_ROWS if r not in ("Visible to client", "Use cases")]      # row 1107: Use cases is the editor's row alone (a use case may be hidden from the client)
 EDIT_ONLY = ("Visible to client", "data-ms-edit", "pk-ms-states", "data-ms-states", '"data-ms-field"', "data-ms-in")     # words and hooks of the editor's module alone
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox], [role=button]"
 LABELS = "[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())"
@@ -42,7 +42,7 @@ class Sources(unittest.TestCase):
     def test_the_editor_draws_the_rows_in_the_ruled_order_with_the_name_as_the_title(self):
         src = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
         order = [m.group(1) for m in re.finditer(r'<Row name="([^"]+)"', src)]
-        self.assertEqual(order, ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Visible to client", "Client wording"])
+        self.assertEqual(order, ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Use cases", "Visible to client", "Client wording"])
         self.assertIn("export function MilestoneTitle", src, "the name is the title, edited in place")
         self.assertNotIn('<Row name="Name"', src)
         self.assertNotIn('<Row name="Milestone"', src, "no Milestone row: the title is the name (ruled)")
@@ -141,7 +141,7 @@ class Fields(Base):
             self.assertEqual(p.js(LABELS), EDITOR_ROWS)
             self.assertEqual(p.js("document.querySelectorAll('#peek h2.pk-title [data-ms-field=name]').length"), 1, "the name is the title, in place")
             self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.msRow)"),
-                             ["description", "baseline", "forecast", "workstream", "visible", "client_message"])
+                             ["description", "baseline", "forecast", "workstream", "use_cases", "visible", "client_message"])
             self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()"), "On track")
             self.assertEqual(p.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=owner]'))"), "Sam Example")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-field=actual_date]').length"), 0, "no Achieved on row until it is achieved")
@@ -154,7 +154,7 @@ class Fields(Base):
             p.until("/^Achieved on \\d\\d-\\d\\d-\\d{4}$/.test(document.querySelector('#peek [data-ms-head=state]').textContent.trim())", "the chip says Achieved with its date: "
                     + str(p.js("document.querySelector('#peek [data-ms-head=state]').textContent")))
             p.until("document.querySelector('#peek [data-ms-head=progress] [data-ms-num]').value === '100'", "the header shows 100")
-            self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Visible to client", "Client wording"], "the Achieved on row comes with the state")
+            self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Use cases", "Visible to client", "Client wording"], "the Achieved on row comes with the state")
             self.assertEqual(self.sent[-1][1]["changes"]["percent_complete"], 100)
 
     def test_client_wording_is_the_one_rich_editor_with_one_undo(self):
