@@ -90,7 +90,7 @@ class BrandLookup(bi.Rig):
             self.assertIs(publish_flow.brand_of(store, code, self.root), page.NO_BRAND, repr(code))
 
     def test_a_row_with_no_brand_is_generic_not_a_brand_called_x(self):
-        other = self.root / "system" / "branding" / "x"
+        other = self.root / "branding" / "x"
         shutil.copytree(self.zebra, other)
         (other / brands.MANIFEST).write_text(json.dumps({"id": "x", "name": "X Co", "version": "1.0.0"}), encoding="utf-8")
         for row in ({"brand": ""}, {"brand": None}, {}):
@@ -105,10 +105,10 @@ class BrandLookup(bi.Rig):
         pub = publish_flow.Publisher(self.s.path, [], branding=mine, data_dir=self.s.path.parent, brand_root=self.root)
         self.assertIs(pub.project_brand(self.s, "ABC"), mine)
 
-    def test_without_a_brand_root_the_clark_folder_that_holds_system_branding_is_used(self):
+    def test_without_a_brand_root_the_clark_folder_that_holds_branding_is_used(self):
         pub = publish_flow.Publisher(self.s.path, [], data_dir=self.s.path.parent)
-        self.assertEqual(pub.brand_root, Path(page.BRANDING).parent.parent)
-        self.assertEqual(pub.brand_root / "system" / "branding", Path(page.BRANDING))
+        self.assertEqual(pub.brand_root, Path(page.BRANDING).parent)
+        self.assertEqual(pub.brand_root / "branding", Path(page.BRANDING))
 
 
 class PictureText(unittest.TestCase):

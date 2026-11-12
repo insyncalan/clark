@@ -48,7 +48,7 @@ class Browser:
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
 PAGES = (("Dashboard", "#dashboard&p=ABC", ".glance"), ("Work items", "#work&p=ABC", "#work"), ("Milestones", "#milestones&p=ABC", ".msv"),
-         ("Settings", "#settings&p=ABC", ".set-head"))
+         ("Settings", "#settings&p=ABC", ".set-head"), ("Use cases", "#usecases&p=ABC", ".ucpage, #usecases"), ("Gantt", "#gantt&p=ABC", "#gantt-page"))      # row 1023: the Use cases and Gantt pages too
 MARKERS = ("body::before", "bg-in")          # what the new rules are made of: a file with no brand picture holds none of it
 
 BACKDROP = """(() => { const s = getComputedStyle(document.body, '::before'), r = document.body.getBoundingClientRect();
@@ -118,6 +118,8 @@ class Rig(Browser, Base):
         (self.root / "assets").mkdir()
         self.hits = []
         self.s.httpd.page_html = lambda: branded(self.root)
+        self.store.con.execute("UPDATE projects SET show_gantt_editor = 1 WHERE code = 'ABC'")      # row 1023: the Gantt tab is on, so its page can be drawn
+        self.store.con.commit()
 
         def picture(name):
             self.hits.append(name)
@@ -206,6 +208,17 @@ class Backdrop(Rig):
             self.assertEqual((got["pos"], got["height"], got["events"]), ("absolute", "340px", "none"))
             self.assertAlmostEqual(float(got["opacity"]), 0.2, delta=0.01)
             self.assertEqual(got["z"], "-1")
+
+    def test_the_ask_panel_wash_is_not_printed(self):
+        self.brand()
+        with self.chrome() as cdp:
+            p = self.load_app(cdp)
+            p.js("document.querySelector('#ask-btn').click()")
+            p.until("!!document.querySelector('#ask-panel')", "the panel opened")
+            wash = "getComputedStyle(document.querySelector('.ask-form'), '::before').display"
+            self.assertNotEqual(p.js(wash), "none")
+            cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            self.assertEqual(p.js(wash), "none", "paper and PDF: no wash at the panel's foot")
 
 
 class Generic(Rig):
@@ -361,6 +374,9 @@ class Pub(Browser, PublishedFile, unittest.TestCase):
         self.addCleanup(self.demo.close)
         self.store = self.demo.store
         plant(self)
+        self.store.con.execute("UPDATE projects SET show_gantt_client = 1 WHERE code = 'ABC'")
+        self.store.con.execute("INSERT INTO gantt_lines (project, id, type, name, start, end, pct, show, sort_order) VALUES ('ABC', 'ABC-GNT-001', 'task', 'Go live', '2026-11-01', '2026-11-20', 0, 1, 1024)")
+        self.store.con.commit()
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.brand_dir = Path(tmp.name)
@@ -385,7 +401,7 @@ class Pub(Browser, PublishedFile, unittest.TestCase):
         return p
 
 
-PUBLISHED_PAGES = (("Dashboard", "#dashboard&p=ABC"), ("Work items", "#work&p=ABC"), ("Milestones", "#milestones&p=ABC"), ("Use cases", "#usecases&p=ABC"))
+PUBLISHED_PAGES = (("Dashboard", "#dashboard&p=ABC"), ("Work items", "#work&p=ABC"), ("Milestones", "#milestones&p=ABC"), ("Use cases", "#usecases&p=ABC"), ("Gantt", "#gantt&p=ABC"))      # row 1023: the Gantt page of the file too (the Pub plant carries one shown line)
 
 
 class Published(Measure, Pub):

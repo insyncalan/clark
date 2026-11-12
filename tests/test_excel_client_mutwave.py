@@ -73,6 +73,18 @@ class Words(unittest.TestCase):
         self.assertEqual(excel_client.plain('<p onclick="x()">hi</p><script>ZQ-SCRIPT()</script>'), "hi")
         self.assertEqual(excel_client.plain(None), "")
 
+    def test_row_1060_a_milestones_client_wording_reaches_its_excel_cell_as_plain_words(self):
+        """Mutation tried: take ("milestones", "client_message") out of LEGACY_RICH: the cell then holds the tags."""
+        self.assertIn(("milestones", "client_message"), excel_client.LEGACY_RICH)
+        pub = published()
+        pub["data"]["milestones"] = [{"id": "M-1060", "name": "Go live", "status": "Open", "description": "<p>Own words</p>",
+                                      "client_message": "<p>We go live &amp; <strong>train</strong> users.</p><script>ZQ-SCRIPT()</script>"}]
+        ws = sheet_of(pub, "milestones")
+        cells = [c.value for row in ws.iter_rows() if row[0].value == "M-1060" for c in row if isinstance(c.value, str)]
+        self.assertIn("We go live & train users.", cells, "the cell holds plain words")
+        self.assertFalse([c for c in cells if "<" in c or "&amp;" in c or "ZQ-SCRIPT" in c], "no tag or script text in any cell: %r" % cells)
+        self.assertNotIn("Own words", cells, "the client wording stands in for the own text")
+
     def test_a_legacy_rich_field_is_shown_as_text(self):
         self.assertIn(("actions", "latest_update"), excel_client.LEGACY_RICH)
         self.assertEqual(excel_client.value_of("actions", {"latest_update": "<p>Hi &amp; there</p>"}, "latest_update"), "Hi & there")

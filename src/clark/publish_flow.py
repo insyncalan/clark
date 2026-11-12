@@ -251,8 +251,9 @@ def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
 def gantt_markers(store, code, published, add, kept_whole):
     """Row 998: the Gantt markers are read from the RAW lines in the store, never from what publish.gantt_for_client produced, so a
     bug in its decision cannot blind the scan too. The policy is the same rules, read again here: the tab is in the file only when the
-    project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1. A line that cannot be in the file
-    (eye off, or no Gantt tab) is a marker by id, name and every column; a line that can be is a marker for each column the project's
+    project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1, and only with the tab or (row 1068) a
+    Gantt table section that is not hidden, which carries the eye-on lines without the tab. A line that cannot be in the file
+    (eye off, or neither the Gantt tab nor a shown table section) is a marker by id, name and every column; a line that can be is a marker for each column the project's
     hidden list (publish._gantt_hidden) takes out. A value that is exactly the whole of a value in the published data other than the Gantt copy (a kept row with the same words and
     nothing around them), or of a value a shown line may carry, is not a marker (#619: the same words inside longer kept text are), and neither is one shorter than
     MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
@@ -270,12 +271,13 @@ def gantt_markers(store, code, published, add, kept_whole):
             yield node
     project = store.read("projects", ref=code) or {}
     tab = type(project.get("show_gantt_client")) is int and project["show_gantt_client"] == 1
+    table = any(s.get("type") == "gantttable" and not s.get("hidden") for s in store.read("report_sections", project=code))   # row 1068: read from the store, as the lines are
     hidden = publish._gantt_hidden(project)
     columns = publish.PUBLISH_FIELDS["gantt_lines"][2:]                  # every column a line may carry, after id and name
 
     def text(v):
         return v.strip() if isinstance(v, str) else str(v) if isinstance(v, (int, float)) and not isinstance(v, bool) else ""
-    rows = [(r, tab and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
+    rows = [(r, (tab or table) and type(r.get("show")) is int and r["show"] == 1) for r in store.read("gantt_lines", project=code)]
     shown = [r[f] for r, eyed in rows if eyed for f in ("id", "name") + columns if f in r and (f in ("id", "name") or f not in hidden)]
     kept |= {_same_words(text(v)) for v in leaves({k: v for k, v in data.items() if k != "gantt"})}
     kept |= {_same_words(text(v)) for v in shown}                        # what a line that can be in the file may legitimately show
@@ -302,7 +304,7 @@ def folder_inside(fs, a, b):
 
 
 def brand_of(store, code, root):
-    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/system/branding, or
+    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/branding, or
     page.NO_BRAND (a folder with nothing in it) for Generic, an unknown code, an unreadable row or a brand that was removed."""
     try:
         row = store.read("projects", ref=code) if isinstance(code, str) else None
@@ -330,7 +332,7 @@ class Publisher:
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
-        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent.parent      # #944: the clark folder that holds system/branding
+        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent      # #944: the clark folder that holds branding/
         self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
         self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only

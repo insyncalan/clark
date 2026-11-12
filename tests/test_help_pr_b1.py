@@ -34,7 +34,7 @@ def text(name):
 class SheetChoice(unittest.TestCase):
     def test_import_step_three(self):
         t = flat(TASKS["import-and-export"])
-        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**.", t)
+        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**.", t)
         self.assertNotIn("Excel or CSV", t)
         self.assertIn('accept=".xlsx,', (PAGE / "edit" / "ImportWorkbook.jsx").read_text(encoding="utf-8"))
         cards = (PAGE / "logic" / "dataCard.js").read_text(encoding="utf-8")
@@ -61,7 +61,9 @@ class Commitment(unittest.TestCase):
         self.assertIn("An empty Commitment cell on import leaves the flag as it is; it never clears it.", t)
         self.assertIn('COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")', text("store.py"))
         imp = text("excel_import.py")
-        self.assertIn("str(value).strip() in writer.COMMITMENTS", imp)
+        # the word is stripped once, an old Candidate is mapped to Planned 2026, then checked against the list
+        self.assertIn("word = str(value).strip()", imp)
+        self.assertIn("if word in writer.COMMITMENTS", imp)
         self.assertRegex(imp, r'if f == "commitment" and v is None:\s+continue')
         self.assertIn('("Commitment", "commitment")', text("excel.py"))
 

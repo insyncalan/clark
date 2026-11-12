@@ -688,7 +688,18 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
-.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of the peek, not a panel below the list (row 776) */
+/* Row 1078: the milestone peek's header line (Peek.jsx MsHead), the published page's too: the state, the owner and the progress on one flat line
+   under the title; the hairline under it is the first row's top edge. The editor puts its controls in the same places (edit.css sizes them). */
+.pk-ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); font-size: var(--size-small); color: var(--text); }
+.pk-ms-head .mst { font-size: var(--size-small); }
+.pk-ms-sep { color: var(--text-muted); }
+.pk-ms-owner { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.pk-ms-owner .av { width: auto; min-width: 24px; height: 24px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 12px; font-size: var(--size-caption); line-height: 1; }   /* the owner's initials at the 13 px floor: two letters widen the circle to a pill (as .cr-wl .wl-meta .av) */
+.pk-ms-head .msl-prog { flex: 1 1 120px; min-width: 120px; }
+.pk-row dd .pk-rich p:last-child { margin-bottom: 0; }   /* the read-only Description and Client wording (Peek.jsx Rich, class pk-rich, drawn in the published peek too): no space under the last paragraph, so a row is as tall as its words */
+.pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
+.pk-source-l { font-weight: var(--weight-medium); }
+.wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of its page (the use case page), not a panel below the list (row 776) */
 .sn-head { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 .sn-head .i { width: 16px; height: 16px; }
 .sn-in { width: 100%; box-sizing: border-box; margin-top: var(--space-2); min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
@@ -985,6 +996,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-steps li:last-child { border-right: 0; }
 .hp-steps li:not(:last-child)::after { content: "→"; position: absolute; right: -8px; top: 34px; width: 16px; text-align: center; background: var(--surface); color: var(--status-blue-text); font-size: var(--size-small); }
 .hp-steps li.gate { background: var(--status-amber-tint); border-radius: var(--radius); border-right: 0; }
+@media (max-width: 1180px) { .hp-steps { grid-template-columns: minmax(0, 1fr); } .hp-steps li { border-right: 0; border-bottom: 1px dashed var(--grey-300); } .hp-steps li:last-child { border-bottom: 0; } .hp-steps li:not(:last-child)::after { display: none; } }      /* in the narrower Help column the five cards were about 108 px wide and split the step labels and headings; they stack from here down */
 .hp-n { font: var(--weight-regular) var(--size-small)/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
 .hp-steps li.gate .hp-n, .hp-gate { color: var(--status-amber-text); }
 .hp-st { display: flex; align-items: center; gap: 7px; margin: 6px 0 var(--space-1); color: var(--heading); }
@@ -1172,6 +1184,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
+.ucall { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
 .msl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); margin: var(--d-msl-det-y) 0 2px; } .msl-bar .mlg { margin: 0; margin-left: auto; }   /* row 1020: 'Hide milestone details' at the left and the Legend at the right, one row */
 .msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 0; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
 .msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -1397,15 +1410,78 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .cchip.cc-committed { border-color: var(--text); background: var(--text); color: var(--surface); }
 .cchip.cc-planned-2027 { background: var(--grey-50); }
 .ucsteps { color: var(--text-muted); font-size: var(--size-small); }
+/* row 1111: the published file's own use case page (UseCaseFilePage) draws with these; they are the editor page's rules, kept apart so the file carries no editor class */
+.ucf { display: block; min-width: 0; }
+.ucf-crumb { margin: 0 0 6px; font-family: var(--font-label); font-weight: var(--weight-semibold); font-size: var(--size-caption); text-transform: uppercase; letter-spacing: .1em; color: var(--text-muted); }
+.ucf-crumb a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-decoration: none; }
+.ucf-crumb a:hover { text-decoration: underline; text-underline-offset: 2px; }
+.ucf-crumb a:focus-visible, .ucf-card .link:focus-visible, .ucf-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: 3px; }
+.ucf-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 12px 24px; margin: 0 0 16px; }
+.ucf-titles { flex: 1 1 420px; min-width: 0; }
+.ucf-h { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; margin: 0; font-size: var(--size-h1); line-height: 1.25; font-weight: var(--weight-medium); color: var(--heading); }
+.ucf-h:focus, .ucf-h:focus-visible { outline: none; }          /* the heading takes focus on arrival so the page is announced; it is not a control */
+.ucf-ref { white-space: nowrap; }
+.ucf-name { flex: 1 1 260px; min-width: 0; width: auto; }
+.ucf-name.ucf-ro { overflow-wrap: anywhere; }
+.ucf-headline { color: var(--text); font-size: var(--size-body); font-weight: var(--weight-light); }
+.ucf-line { margin: 4px 0 0; }
+.ucf-ro { display: block; overflow-wrap: anywhere; }
+.ucf-name.ucf-ro { display: inline; }
+.ucf-sub { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; margin: 8px 0 0; font-size: var(--size-body); color: var(--text-muted); }
+.ucf-word { display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px; border-radius: var(--radius-pill); background: var(--grey-100); color: var(--text); font-size: var(--size-caption); font-weight: var(--weight-medium); }
+.ucf-word.rag-g { background: var(--status-green-tint); color: var(--status-green-text); }
+.ucf-word.rag-a { background: var(--status-amber-tint); color: var(--status-amber-text); }
+.ucf-word.rag-r { background: var(--status-red-tint); color: var(--status-red-text); }
+.ucf-grid { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+.ucf-main, .ucf-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.ucf-card { padding: 16px 20px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
+.ucf-ch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin: 0 0 10px; font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
+.ucf-hint { font-size: var(--size-caption); font-weight: var(--weight-light); letter-spacing: 0; text-transform: none; }
+.ucf-card .link { display: inline-flex; align-items: center; min-height: 24px; letter-spacing: 0; text-transform: none; font-weight: var(--weight-light); }
+.ucf-card .rt-view { display: block; min-height: 32px; padding: 2px 4px; border-radius: var(--radius-sm); cursor: text; }
+.ucf-card .rt-view:hover { background: var(--grey-50); }
+.ucf-card .rt-view:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.ucf-card .rt-view .quiet { margin: 0; color: var(--text-muted); }
+.ucf-std { overflow-wrap: anywhere; }
+.ucf-items { margin: 0; padding: 0; }
+.ucf-items li { padding: 0; border-top: 1px solid var(--grey-100); }
+.ucf-items li:first-child { border-top: 0; }
+.ucf-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucf-item:hover { background: var(--grey-50); }
+.ucf-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
+/* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
+.ucf-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucf-item .pill.r::before { background: var(--tone-red-text); }
+.ucf-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucf-item .pill.a::before { background: var(--tone-amber-text); }
+.ucf-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucf-item .pill.g::before { background: var(--tone-green-text); }
+.ucf-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucf-item .pill.b::before { background: var(--tone-blue-text); }
+.ucf-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucf-item .pill.n::before { background: var(--tone-grey-text); }
+.ucf-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ucf-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ucf-foot { margin: 0; }
+.ucf-foot .link { font-size: var(--size-body); }
+.ucf-ms li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 12px; padding: 6px 0; }
+.ucf-ms .ucf-msname { font-size: var(--size-body); text-align: left; overflow-wrap: anywhere; }
+.ucf-msx { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px 12px; }
+.ucf-hw { overflow-wrap: anywhere; }
+.ucf-hm { font-size: var(--size-caption); color: var(--text-muted); }
+@media (max-width: 1100px) {
+  .ucf-grid { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 640px) {
+  .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .ucf-x { grid-column: 2 / -1; text-align: left; }
+}
 .ucdetail { padding: var(--space-1) var(--space-1) var(--d-uc-detail-b) 72px; }
 .ucdetail h3 { margin: var(--space-2) 0 2px; font-size: var(--size-small); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); font-weight: var(--weight-medium); }
 .ucdcols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--space-5); }
 @media (max-width: 600px) { .ucdcols { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); } }   /* row 1004: one column on a phone, so a next step has the whole line and its id stays whole */
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
-.ucdetail ul.ucstepl li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }   /* wraps, so an id longer than the rest of the line goes to a line of its own */
+.ucdetail ul.ucstepl li { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px 8px; cursor: pointer; }   /* row 1110: the icon, the text and the id sit on one line; the text takes at most two */
+.ucstepl .ucstept { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.ucstepl .av { flex: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
-.ucstepl [data-stepid] { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
+.ucstepl [data-stepid] { flex: none; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 @media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
@@ -1957,6 +2033,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
   html.print-all main { max-width: none; margin: 0; padding: 0; }
   html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
   html.print-all .frame.report .cover { margin: 0 0 16px; }      /* the printed frame has no padding, so the band is the frame's width in every spacing; Compact's side pull-out would run past the page */
@@ -1986,6 +2063,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .gt-tflag.gt-tflag { background: var(--status-red-tint); border: 1px solid var(--status-red); padding: 2px 10px; color: var(--status-red-text); }
   html.print-all .gt-mslab.gt-flip { --gt-room: none; max-width: var(--gt-room); overflow: hidden; text-overflow: ellipsis; }   /* a word placed left of its bar stays on one line inside the room left of it and ends in an ellipsis, never over the left columns (GanttChart.jsx sets --gt-room on the word itself, which wins over the `none` here; the left columns carry the full name) */
   html.print-all .gt-in { width: auto; min-width: 0; zoom: var(--gt-fit, 1); }   /* row 1038: the drawn chart is scaled to the page width (--gt-fit, set on .gt-gx by logic/printFit.js on beforeprint), so the last months and the last bars are on the paper; labels are in the canvas and scale with it */
+  html.print-all .gt-ln input.gt-li { display: block; border-color: transparent; background: transparent; pointer-events: none; }   /* Edit draws the left list as inputs, which the print block hides above; they are given back so the paper shows the names and the Start, End and Done values (no new words) */
   /* the .gt-gx box clips (above): the canvas keeps its drawn width (labels beside a bar are placed from its right edge); only the empty tail past the last day is clipped at the page edge */
   html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
   html.print-all .gt col { width: auto !important; }
@@ -2002,13 +2080,15 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ic-r { color: var(--icon-red); } .ic-a { color: var(--icon-amber); } .ic-g { color: var(--icon-green); }
 .ic-b { color: var(--icon-blue); } .ic-n { color: var(--icon-grey); }
 /* The peek's card (row 766): Status, Priority, Owner and Due are four cells above the other fields, as the prototype's property row.
-   Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes. */
+   Two by two in the usual width, four across once the panel body is wide enough. The rows and words are the same ones; only the look changes.
+   Row 1077 (the owner's ruling of 10-11-2026): the cells are FLAT, no tile edge, rounding or fill; the hairline under the row is the first
+   ordinary row's top edge (.pk-row). This is the published page's rule too: a client's peek is the editor's, read only. */
 .peek .pk-body { container-type: inline-size; }
 /* item 1057: the peek itself scrolls, so the body must not be a scroll box of its own; the words box is sticky and follows the nearest scroll box */
-.peek .pk-body { overflow: visible; }
+.peek .pk-body { overflow: visible; padding-inline: 0; }   /* the peek's own padding is the edge: the title, the tabs and the cards all start on it */
 .pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
 .pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
-.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--d-pk-card); margin-bottom: var(--d-pk-card-gap); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }
+.pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--d-pk-card-gap) 0; margin: calc(var(--d-pk-card) - var(--space-3)) 0 0; border: 0; }
 .pk-fields > .pk-row[data-row=status] { order: 1; }
 .pk-fields > .pk-row[data-row=priority] { order: 2; }
 .pk-fields > .pk-row[data-row=owner] { order: 3; }
@@ -2276,7 +2356,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 var(--space-2); white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
 .gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
 .gt-bt { position: relative; }
-.gt-b-phase { height: 12px; background: var(--brand-navy); border: 1px solid var(--grey-500); border-radius: 2px; }
+.gt-b-phase { height: 12px; background: var(--phase-bar, var(--brand-navy));   /* item 1327 look: dark sets --phase-bar so the fill is not the page's own dark */ border: 1px solid var(--grey-500); border-radius: 2px; }
 .gt-phlab { font-weight: var(--weight-semibold); }
 .gt-b.edit { cursor: grab; }
 .gt-b.drag { cursor: grabbing; box-shadow: var(--shadow); z-index: 5; }
@@ -2296,7 +2376,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
 .gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); margin-top: 6px; color: var(--text-muted); }
 .gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
-.gt-sw-p { background: var(--brand-navy); border: 1px solid var(--grey-500); box-sizing: border-box; }
+.gt-sw-p { background: var(--phase-bar, var(--brand-navy)); border: 1px solid var(--grey-500); box-sizing: border-box; }
 .gt-sw-t { background: var(--gt-task); }
 .gt-sw-m, .gt-sw-d { width: 10px; transform: rotate(45deg); }
 .gt-sw-m { background: var(--status-amber); border: 1px solid var(--status-amber-text); }

@@ -1,8 +1,11 @@
 // Row 828 (the spec's M4 and M5): the milestone peek's fields, editable in place. Each is one change with one Undo (changeMilestone) and
-// the data is read again after it. Text: click or Enter starts, Enter or leaving the box saves, Esc leaves it as it was (a description
-// takes Enter for a new line and Ctrl or Cmd with Enter to save). A date opens the Work items' date picker; the state is a row of
-// buttons; Visible to client is the eye (the page's own report_hidden step). Rows and words are the build's own (Help: The milestone
-// peek); the toasts use the Work items cell's sentences ("Owner of ABC-M-001 changed to ...").
+// the data is read again after it. Text: click or Enter starts, Enter or leaving the box saves, Esc leaves it as it was. A date opens the
+// Work items' date picker; the state is a row of buttons; Visible to client is the eye (the page's own report_hidden step). Rows and
+// words are the build's own (Help: The milestone peek); the toasts use the Work items cell's sentences ("Owner of ABC-M-001 changed to ...").
+// Row 1078 (the owner's rulings): the work item peek's format. The name is the title (MilestoneTitle, drawn in the h2 by Peek.jsx); under
+// it the shared header line (Peek.jsx MsHead: the state, the owner and the progress, here with their controls) and the state buttons; then
+// the rows Description, Agreed date, Forecast date, Achieved on (a Done milestone's alone), Workstream, Visible to client and Client
+// wording, plain rows (never the four property cells). Description and Client wording are on the one rich editor (item 1005).
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
 import { changeMilestone, say } from "../stores/changes.js";
@@ -13,14 +16,15 @@ import { quickDates } from "./itemEdit.js";
 import { showDate, todayIso, ownerOf } from "../workItems.js";
 import { leftOutIds } from "../logic/picker.js";
 import { setMsHidden } from "./actions.js";
+import { usecasesOfMilestone } from "../logic/ucRow.js";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
-import { plainFromEditor } from "./plainWords.js";
+import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
-const Row = ({ name, k, children }) => <div class="pk-row" data-row={k}><dt>{name}</dt><dd>{children}</dd></div>;
+const Row = ({ name, k, children }) => <div class="pk-row" data-ms-row={k}><dt>{name}</dt><dd>{children}</dd></div>;
 
 // Send one change and read the data again. A refusal is said in a toast (nothing changed); resolves to true when it was saved.
 async function save(m, changes, words) {
@@ -31,7 +35,7 @@ async function save(m, changes, words) {
 }
 const said = (m, field, now, text) => (now == null || now === "" ? `${field} of ${m.id} cleared.` : `${field} of ${m.id} changed to ${text === undefined ? now : text}.`);
 
-// A one-line text value you click to change (the several-line ones are on the one editor, below).
+// A text value you click to change (the name in the title, the owner in the header line): one line, Enter saves.
 function Text({ m, field, label, value, required = false, max = 200 }) {
   const [open, setOpen] = useState(false), [text, setText] = useState("");
   const box = useRef(null), settled = useRef(false), shown = useRef(null);
@@ -55,32 +59,23 @@ function Text({ m, field, label, value, required = false, max = 200 }) {
         onClick={() => { settled.current = false; setText(value || ""); setOpen(true); }}>{value || DASH}</button>
     );
   }
-  return (
-    <input type="text" class="pk-latest-in pk-ms-in" data-ms-in={field} aria-label={label} maxLength={max} value={text} ref={box} autocomplete="off" spellcheck={false}
-        onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />
-  );
+  return <input type="text" class="pk-latest-in pk-ms-in" data-ms-in={field} aria-label={label} maxLength={max} value={text} ref={box} autocomplete="off" spellcheck={false}
+    onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />;
 }
 
 // Item 1005: the description is on the one rich editor (RichField): the text drawn is cleanHtml of what is stored (the editor's HTML, or the plain
 // text an older clark stored), Cmd or Ctrl with Enter saves, Esc leaves it as it was. One change with one Undo; it stays open if clark refuses.
+// Row 1078 (ruled): the client wording is on the same editor, the same way.
+const asHtml = (value) => { try { return richOrPlain(value || ""); } catch (e) { return "<p>" + String(value || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } };
 function Description({ m }) {
-  const html = (() => { try { return richOrPlain(m.description || ""); } catch (e) { return "<p>" + String(m.description || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();
   const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
-  return <RichField field="description" id={m.id} value={html} label="Description" empty={DASH} save={put} />;
+  return <RichField field="description" id={m.id} value={asHtml(m.description)} label="Description" empty={DASH} save={put} />;
+}
+function ClientWording({ m }) {
+  const put = (value) => save(m, { client_message: value }, richWords(value).trim() ? `Client wording of ${m.id} changed.` : `Client wording of ${m.id} cleared.`);
+  return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client wording" empty={DASH} save={put} />;
 }
 
-// Item 1005: the client wording is on the one rich editor too, but it is stored and published as plain text: what the editor gives is saved as
-// one line, paragraphs joined by a space (clark refuses line breaks in client wording; never markup), and an older plain value loads as paragraphs. Cmd or Ctrl with Enter saves, Esc leaves it as it was.
-function ClientWording({ m }) {
-  const was = m.client_message || "";
-  const html = (() => { try { return richOrPlain(was); } catch (e) { return ""; } })();
-  const put = async (value) => {
-    const c = textChange("client_message", was, plainFromEditor(value, true));
-    if (!c) return true;
-    return save(m, c, said(m, "Client wording", c.client_message));
-  };
-  return <RichField field="client_message" id={m.id} value={html} label="Client wording" empty={DASH} save={put} />;
-}
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
 function DateField({ m, field, label }) {
@@ -121,7 +116,7 @@ function Progress({ m }) {
     <span class="pk-ms-progress">
       <input type="range" min="0" max="100" step="1" value={shown === "" ? 0 : Number(shown)} aria-label={`Progress of ${m.id}`} data-ms-range
         onInput={(e) => setTyped(e.currentTarget.value)} onChange={(e) => commit(e.currentTarget.value)} />
-      <input type="text" inputMode="numeric" class="pk-ms-num" key={again} value={shown} maxLength={3} aria-label={`Progress of ${m.id}, a number from 0 to 100`} data-ms-num
+      <input type="text" inputMode="numeric" class="pk-ms-num" key={again} value={shown} maxLength={3} placeholder={DASH} aria-label={`Progress of ${m.id}, a number from 0 to 100`} data-ms-num
         onInput={(e) => setTyped(e.currentTarget.value)} onBlur={(e) => commit(e.currentTarget.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(e.currentTarget.value); } else if (e.key === "Escape") { e.stopPropagation(); setTyped(null); } }} />
     </span>
@@ -135,7 +130,7 @@ function States({ m }) {
     return save(m, c, `State of ${m.id} changed to ${c.state || shownState({ ...m, ...c }, today)}.`);
   };
   return (
-    <span class="pk-ms-states" role="group" aria-label={`State of ${m.id}`}>
+    <span class="pk-ms-states" role="group" aria-label={`State of ${m.id}`} data-ms-states>
       {ALL_STATES.map((s) => (
         <button type="button" key={s} class="pk-ms-state" data-ms-state={s} aria-pressed={now === s ? "true" : "false"} disabled={!PICKABLE.includes(s)}
           onClick={() => pick(s)}>{s}</button>
@@ -176,20 +171,31 @@ function Visible({ m }) {
   );
 }
 
+// The title: the milestone's name, changed in place (Peek.jsx draws it in the h2 when the milestone is editable).
+export function MilestoneTitle({ m }) {
+  return <Text m={m} field="name" label="Name" value={m.name} required />;
+}
+
 export function MilestoneEdit({ m }) {
+  const owner = ownerOf(m.owner).text;
   return (
-    <dl class="pk-fields" data-ms-edit>
-      <Row name="Name" k="name"><Text m={m} field="name" label="Name" value={m.name} required /></Row>
-      <Row name="Owner" k="owner"><Text m={m} field="owner" label="Owner" value={ownerOf(m.owner).text === DASH ? "" : ownerOf(m.owner).text} /></Row>
-      <Row name="Agreed date" k="baseline">{showDate(m.baseline_date)}</Row>
-      <Row name="Forecast date" k="forecast"><DateField m={m} field="forecast_date" label="Forecast date" /></Row>
-      {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
-      <Row name="State" k="state"><States m={m} /></Row>
-      <Row name="Progress" k="progress"><Progress m={m} /></Row>
-      <Row name="Description" k="description"><Description m={m} /></Row>
-      <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
-      <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
-      <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
-    </dl>
+    <>
+      <MsHead>
+        <MsState m={m} /><MsSep />
+        <span class="pk-ms-owner" data-ms-head="owner"><Text m={m} field="owner" label="Owner" value={owner === DASH ? "" : owner} /></span><MsSep />
+        <span class="pk-ms-progress" data-ms-head="progress"><Progress m={m} /></span>
+      </MsHead>
+      <States m={m} />
+      <dl class="pk-fields" data-ms-edit>
+        <Row name="Description" k="description"><Description m={m} /></Row>
+        <Row name="Agreed date" k="baseline">{showDate(m.baseline_date)}</Row>
+        <Row name="Forecast date" k="forecast"><DateField m={m} field="forecast_date" label="Forecast date" /></Row>
+        {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
+        <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
+        <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it (the editor only; a use case is linked or unlinked on its own page) */}
+        <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
+        <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
+      </dl>
+    </>
   );
 }

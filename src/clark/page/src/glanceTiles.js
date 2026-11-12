@@ -97,6 +97,6 @@ export function fileTiles(glance, project) {
     const rag = String(t.colour || "").toLowerCase() || "n";
     return t.tile === "health"
       ? { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: HEALTH_WORDS[health] || rag, reason: (project && project.health_reason) || "", outline: t.outline || "", word: "" }
-      : { key: t.tile, label: t.label, value: t.value, detail: t.detail, rag, outline: t.outline || "", word: tileWord(t.tile, rag, t.outline || "") };
+      : { key: t.tile, label: t.label, value: t.value, detail: t.detail, rag, outline: t.outline || "", word: tileWord(t.tile, rag, t.outline || ""), filter: FILTERS[t.tile] || null };   // row 1112: a published tile opens the file's Work items with the filter it counts by
   });
 }

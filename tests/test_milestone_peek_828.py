@@ -1,6 +1,8 @@
 """Row 828 (M4, M5): the milestone peek's fields are editable in place on the Milestones page with no View mode: Name, Owner, Forecast date,
 Achieved on, State, Progress, Description, Workstream, Visible to client and Client wording. Each is one change with one Undo; a refusal
 changes nothing; the Dashboard's View and a published file keep the read-only peek. M6 (row 867, Archive in the peek) uses the work item peek's own words.
+Row 1078: the name is the title and the owner, state and progress are the header line (test_milestone_peek_1078 pins the layout); the rows
+below are plain rows (data-ms-row), and Client wording is on the rich editor like the description.
 
 Run: python3 dev/run_tests.py test_milestone_peek_828
 Without a browser: the pure rules (msPeek.js) are read from the source; the published build takes none of the new files.
@@ -23,7 +25,7 @@ from test_movement_page import GO_LIVE, PILOT, Base  # noqa: E402
 from test_server import chrome  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-ROWS = ("name", "owner", "baseline", "forecast", "state", "progress", "description", "workstream", "visible", "client_message")
+ROWS = ("description", "baseline", "forecast", "workstream", "use_cases", "visible", "client_message")      # row 1078: the name, owner, state and progress moved above the rows
 
 
 class NoBrowser(unittest.TestCase):
@@ -96,7 +98,9 @@ class Fields(Base):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.row)"), list(ROWS))
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.msRow)"), list(ROWS))
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek .pk-title [data-ms-field], #peek [data-ms-head] [data-ms-field], #peek [data-ms-head] [data-ms-num], #peek [data-ms-states]')].map((e) => e.dataset.msField || e.dataset.msNum !== undefined && 'progress' || 'states')"),
+                             ["name", "owner", "progress", "states"], "the name is the title; the owner, the progress and the state buttons are above the rows")
         with chrome() as cdp:
             p = self.visit_peek(cdp, view="dashboard")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit]').length"), 0, "the Dashboard's View peek stays read only")
@@ -235,14 +239,12 @@ class Fields(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-pop] [role=menuitemradio] svg.i').length"), p.js("document.querySelectorAll('[data-pop] [role=menuitemradio]').length"), "every choice has its icon (row 1074)")
             self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
             self.saved(p, "workstream", "Build")
-            self.click(p, "#peek [data-rich=client_message]")
-            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
-            self.assertEqual(p.js("document.querySelectorAll('#peek textarea[data-ms-in=client_message]').length"), 0, "not a plain box any more (item 1005)")
+            self.click(p, "#peek [data-ms-row=client_message] [data-rich=client_message]")           # row 1078: the one rich editor, as the description
+            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened with the focus")
             p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('On its way'); true")
-            p.key("Enter", code="Enter", vk=13)
-            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Second line'); true")
             p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
-            self.saved(p, "client_message", "On its way Second line")          # plain text on one line (the server refuses line breaks in client wording), never markup
+            self.saved(p, "client_message", "<p>On its way</p>")
+            p.until("!document.querySelector('#peek .ProseMirror')", "the editor closed after the save")
             self.assertEqual(p.js("document.querySelector('#peek [data-ms-visible]').getAttribute('aria-pressed')"), "true")
             self.click(p, "#peek [data-ms-visible]")
             self.assertTrue(self.until_store(lambda: GO_LIVE in {h["item_id"] if isinstance(h, dict) else h for h in self.store.data_for("ABC")["report_hidden"]}), "left out of the page")
@@ -307,7 +309,7 @@ class Fields(Base):
                     p = self.visit_peek(cdp, width=width, theme=theme)
                     seen = p.js("""(() => {
                       const peek = document.querySelector('#peek'), pr = peek.getBoundingClientRect();
-                      const els = [...peek.querySelectorAll('[data-ms-edit] button, [data-ms-edit] select, [data-ms-edit] input')];
+                      const els = [...peek.querySelectorAll('.pk-title [data-ms-field], [data-ms-head] button, [data-ms-head] input, [data-ms-states] button, [data-ms-edit] button, [data-ms-edit] select, [data-ms-edit] input')];
                       return {inside: els.every((e) => { const r = e.getBoundingClientRect(); return r.right <= pr.right + 1 && r.left >= pr.left - 1; }),
                               small: els.filter((e) => e.getBoundingClientRect().height < 24 && e.type !== 'range').map((e) => e.outerHTML.slice(0, 80)),
                               scroll: peek.scrollWidth <= peek.clientWidth + 1, n: els.length,

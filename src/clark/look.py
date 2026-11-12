@@ -9,7 +9,7 @@ Two tokens are for the files that cannot carry the page's fonts (Inter and Monts
 a mail app do not have them): --font-office is the one font Word and Excel use (a font Office has), and --font-email is the
 family list an email carries (Outlook's Word engine, so Calibri first). Both are in the look, so one place sets them.
 
-Reads only the committed look, not a person's own tokens.css in system/branding/ (the page layers that one over this).
+Reads only the committed look, not a person's own tokens.css in branding/ (the page layers that one over this).
 Standard library only, Python 3.9.
 """
 import re

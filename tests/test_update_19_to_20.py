@@ -9,7 +9,7 @@ SKIPS ITSELF while store.SCHEMA_VERSION is below 20 (layout 20 is not on this tr
 
 Covered: the backup set is made first (layout 19, every row); the new build migrates to layout 20 keeping every row, takes its own safety
 copy first, and projects.brand is 'generic' for every existing project; a second open changes nothing; Undo puts layout 19 back; the old
-build refuses layout 20 with its plain "newer" sentence; a layout-22 copy is refused by the new build, untouched.
+build refuses layout 20 with its plain "newer" sentence; a layout-23 copy is refused by the new build, untouched.
 No network, no browser, no window. Run: python3 dev/run_tests.py test_update_19_to_20
 """
 import hashlib
@@ -35,7 +35,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 22      # the data layout of this build (schema step 22, row 875); the test pins the number on purpose
+NEW_LAYOUT = 24      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
@@ -260,6 +260,7 @@ class Update19To20(Rig):
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
         after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id"))
+        self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24): the new table is there and empty")
         self.assertEqual(self.base, after, "every row of every table is kept (the new brand and owner columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)

@@ -319,6 +319,7 @@ class Panel(Base):
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")
+            p.js("document.querySelector('#ask-box').value = ''; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('[data-ask-settings]').click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
