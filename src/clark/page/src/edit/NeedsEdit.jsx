@@ -94,7 +94,7 @@ export function NeedsEdit({ section }) {
       {rows.length || at === NEW ? (
         <table class="needs">
           <thead>
-            <tr><th scope="col" class="n-what" style={cw.style("what")}>{WORDS.what}{cw.grip("what", WORDS.what)}</th><th scope="col" class="n-from" style={cw.style("from")}>{WORDS.from}{cw.grip("from", WORDS.from)}</th><th scope="col" class="n-by" style={cw.style("by")}>{WORDS.by}{cw.grip("by", WORDS.by)}</th></tr>
+            <tr><th scope="col" class="n-what" style={cw.style("what")} {...cw.head("what", WORDS.what)}>{WORDS.what}{cw.grip("what", WORDS.what)}</th><th scope="col" class="n-from" style={cw.style("from")} {...cw.head("from", WORDS.from)}>{WORDS.from}{cw.grip("from", WORDS.from)}</th><th scope="col" class="n-by" style={cw.style("by")} {...cw.head("by", WORDS.by)}>{WORDS.by}{cw.grip("by", WORDS.by)}</th></tr>
           </thead>
           <tbody>
             {rows.map((r, i) => {

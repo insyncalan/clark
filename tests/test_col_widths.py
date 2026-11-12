@@ -1,7 +1,7 @@
 """Row 1104: a column's width changes by dragging the right edge of its heading, in the Use cases list and the Work items table.
 
 Run: python3 dev/run_tests.py test_col_widths
-Drag the edge (wider), press Right and Left on it, double-click to reset, keep it after a reload, never below the minimum; the handle is 24 px
+Drag the edge (wider), press Alt+Right and Alt+Left on the heading cell or on a row (the handle is not a tab stop), double-click to reset, keep it after a reload, never below the minimum; the handle is 24 px
 tall and has plain words; the default widths stay when nothing was changed. At 1400 and 900 px, light and dark. A real page and server.
 """
 import json
@@ -13,6 +13,7 @@ from unittest import mock
 from _real_server import real_server
 from clark import __main__ as launcher, page, server as sv, use_cases_read
 from clark.store import open_store
+from _new_page import reload_to_new_page_cdp
 from test_inline_edits import EMPTY_BRANDING, key, need_chrome, tearDownModule  # noqa: F401
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
@@ -72,25 +73,40 @@ class Widths(unittest.TestCase):
         cell = f"document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect().width"
         box = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.width, b.height]; }})()")
         self.assertGreaterEqual(box[1], 24, "the hit area is 24 px tall")
-        self.assertIn("Width of the", js(f"document.querySelector({json.dumps(grip)}).getAttribute('aria-label')"))
+        hidden = name == "usecases"      # that heading row is hidden from a screen reader: no focus and no words on it
+        if not hidden:
+            self.assertIn("Width of the", js(f"document.querySelector({json.dumps(grip)}).parentElement.getAttribute('aria-description')"))
         first = js(cell)
         self.assertIsNone(js(f"localStorage.getItem('clark.cols.{name}')"), "nothing is stored until a width is changed")
         self.drag(cdp, sid, grip, 40)
         until(f"{cell} > {first} + 20", "dragging the edge to the right widens the column")
         wider = js(cell)
         self.assertIn(col, js(f"localStorage.getItem('clark.cols.{name}')"), "the width is kept on this computer")
-        js(f"document.querySelector({json.dumps(grip)}).focus()")
-        key(cdp, sid, "ArrowRight")
-        until(f"{cell} > {wider} + 4", "Right widens it")
-        key(cdp, sid, "ArrowLeft")
-        key(cdp, sid, "ArrowLeft")
-        until(f"{cell} < {wider}", "Left narrows it")
+        self.assertEqual(js(f"document.querySelector({json.dumps(grip)}).tabIndex"), -1, "the handle is not a tab stop")
+        if not hidden:
+            self.assertEqual(js(f"document.querySelector({json.dumps(grip)}).parentElement.tabIndex"), -1, "the heading cell holds the focus but is not a tab stop")
+            self.assertIn("Alt", js(f"document.querySelector({json.dumps(grip)}).parentElement.getAttribute('aria-description')"))
+        stops = f"[...document.querySelectorAll({json.dumps(head.split(' ')[0])} [tabindex], {json.dumps(head.split(' ')[0])} button, {json.dumps(head.split(' ')[0])} a, {json.dumps(head.split(' ')[0])} input)].filter(e => e.tabIndex >= 0 && e.closest('{head.split(' ')[0]}') && e.offsetWidth).length"
+        before = js(stops)
+        if not hidden:
+            js(f"document.querySelector({json.dumps(grip)}).parentElement.focus()")
+            key(cdp, sid, "ArrowRight", alt=True)
+            until(f"{cell} > {wider} + 4", "Alt+Right on the heading cell widens it")
+            key(cdp, sid, "ArrowLeft", alt=True)
+            key(cdp, sid, "ArrowLeft", alt=True)
+            until(f"{cell} < {wider}", "Alt+Left narrows it")
+            key(cdp, sid, "ArrowRight", alt=True)
+        js(f"""(() => {{ const h = document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect(), r = document.querySelector({json.dumps(ready)}).getBoundingClientRect();
+            let e = document.elementFromPoint(h.left + 6, r.top + r.height / 2); e.tabIndex = -1; e.focus(); }})()""")
+        now = js(cell)
+        key(cdp, sid, "ArrowRight", alt=True)
+        until(f"{cell} > {now} + 4", "Alt+Right with the focus on a row widens that heading's column")
+        self.assertEqual(js(stops), before, "changing a width adds no tab stop")
         for _ in range(40):
-            key(cdp, sid, "ArrowLeft")
+            key(cdp, sid, "ArrowLeft", alt=True)
         until(f"{cell} >= 47 && {cell} <= 60", "a column stops at its minimum and does not vanish")
         self.assertEqual(js("document.documentElement.scrollWidth <= innerWidth + 1"), True) if name == "usecases" else None
-        cdp.call("Page.reload", {}, sid)
-        until(f"!!document.querySelector({json.dumps(grip)}) && {cell} < 61", "the width is still there after a reload")
+        reload_to_new_page_cdp(cdp, sid, f"!!document.querySelector({json.dumps(grip)}) && {cell} < 61", "the width is still there after a reload")
         js(f"document.querySelector({json.dumps(grip)}).dispatchEvent(new MouseEvent('dblclick', {{bubbles: true}}))")
         until(f"Math.abs({cell} - {first}) < 2", "a double-click on the edge puts the column back")
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))

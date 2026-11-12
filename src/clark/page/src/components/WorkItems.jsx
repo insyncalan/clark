@@ -184,13 +184,13 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
 // A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
 // while it is drawn, else the first row drawn.
 const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
-const NO_WIDTHS = { style: () => undefined, grip: () => null };      // a published file: the default widths, no handles
+const NO_WIDTHS = { style: () => undefined, grip: () => null, head: () => ({}) };      // a published file: the default widths, no handles
 function Heads({ eye, hand, cw }) {
-  const g = (id, name) => cw.grip(id, name);
+  const g = (id, name) => cw.grip(id, name), h = (id, name) => cw.head(id, name);
   return (
     <>
       {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
-      <th scope="col" class="c-item">Item{g("item", "Item")}</th><th scope="col" class="c-owner">Owner{g("owner", "Owner")}</th><th scope="col" class="c-due">Due{g("due", "Due")}</th><th scope="col" class="c-prio">Priority{g("prio", "Priority")}</th><th scope="col" class="c-status">Status{g("status", "Status")}</th>
+      <th scope="col" class="c-item" {...h("item", "Item")}>Item{g("item", "Item")}</th><th scope="col" class="c-owner" {...h("owner", "Owner")}>Owner{g("owner", "Owner")}</th><th scope="col" class="c-due" {...h("due", "Due")}>Due{g("due", "Due")}</th><th scope="col" class="c-prio" {...h("prio", "Priority")}>Priority{g("prio", "Priority")}</th><th scope="col" class="c-status" {...h("status", "Status")}>Status{g("status", "Status")}</th>
       {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );

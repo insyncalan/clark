@@ -64,7 +64,7 @@ export function ArchivedItems({ narrow }) {
           <h2 class="arch-h">Archived <span class="muted">{`${n} item${n === 1 ? "" : "s"}`}</span></h2>
           {n === 0 ? <p class="muted">No archived work items.</p> : (
             <table class="items arch">
-              <thead><tr>{[["type", "Type"], ["item", "Item"], ["owner", "Owner"], ["due", "Due"], ["status", "Status"]].map(([id, w]) => <th key={id} class={`c-${id}`} style={cw.style(id)}>{w}{cw.grip(id, w)}</th>)}</tr></thead>
+              <thead><tr>{[["type", "Type"], ["item", "Item"], ["owner", "Owner"], ["due", "Due"], ["status", "Status"]].map(([id, w]) => <th key={id} class={`c-${id}`} style={cw.style(id)} {...cw.head(id, w)}>{w}{cw.grip(id, w)}</th>)}</tr></thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={r.id} data-arch-id={r.id} class={`arch-row${r.id === at ? " sel" : ""}`} tabIndex={i === 0 ? 0 : -1} aria-label={`Open ${r.id}, archived, read only`}

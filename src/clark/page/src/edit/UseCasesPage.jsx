@@ -206,7 +206,7 @@ function UseCasesList() {
           </div>
         ) : (
           <div class="ucl-box" ref={list} onKeyDown={keys} style={{ "--ucl-cols": gridTracks(WIDE, IDS, cw), "--ucl-cols-s": gridTracks(NARROW, NARROW_IDS, cw) }}>
-            <div class="ucl-row ucl-hd">{HEADS.map(([id, w, cls]) => <span key={id} class={cls}>{w}{id ? cw.grip(id, w) : null}</span>)}</div>
+            <div class="ucl-row ucl-hd" aria-hidden="true">{HEADS.map(([id, w, cls]) => <span key={id} class={cls} {...(id ? cw.head(id, w, true) : {})}>{w}{id ? cw.grip(id, w) : null}</span>)}</div>
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
