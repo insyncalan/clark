@@ -473,6 +473,9 @@ def resolve_ref(field, text):
     return text
 
 
+OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
+
+
 def from_cell(name, value, kind, label=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
@@ -488,8 +491,11 @@ def from_cell(name, value, kind, label=None):
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
     if name == "commitment":                                    # #709: the owner's words, case exact (spaces round the word are not part of it); never guessed
-        if str(value).strip() in writer.COMMITMENTS:
-            return str(value).strip(), None
+        word = str(value).strip()
+        if word == OLD_COMMITMENT:                              # row 1061: a workbook exported before the rename still says Candidate; it is Planned 2026 (exact word only)
+            word = writer.COMMITMENTS[0]
+        if word in writer.COMMITMENTS:
+            return word, None
         return None, f"{label} must be one of {', '.join(writer.COMMITMENTS[:-1])} or {writer.COMMITMENTS[-1]}, or left empty (got {_got(value)})"
     if name in FLAGS:
         s = str(value).strip().lower()

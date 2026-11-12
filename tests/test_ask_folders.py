@@ -412,6 +412,22 @@ class Choosing(Base):
         self.refused(got, 409, "dialog_failed")
         self.assertIn("Try Choose folder again", got[1]["message"])
 
+    def test_a_window_that_can_never_open_says_why_and_points_to_typing(self):
+        self.pick(ask_folders.platform.NotBuiltYet("needs the Mac"))
+        with mock.patch.object(ask_folders.platform, "container_mode", return_value=True):
+            got = self.choose()
+        self.refused(got, 409, "no_window")
+        self.assertIn("Docker", got[1]["message"])
+        self.assertIn("Type the folder's location", got[1]["message"])
+        self.assertNotIn("Try Choose folder again", got[1]["message"])
+        got = self.choose()
+        self.assertNotIn("Docker", got[1]["message"])
+        self.assertIn("Add folder", got[1]["message"])
+
+    def test_a_typed_location_is_added_when_no_window_can_open(self):
+        self.assertEqual(self.post({"project": "ABC", "action": "add", "path": str(self.docs)})[0], 200)
+        self.assertEqual(self.stored(), [str(self.docs)])
+
     def test_choose_takes_no_path(self):
         self.pick(self.docs)
         self.refused(self.post({"project": "ABC", "action": "choose", "path": str(self.docs)}), 400, "bad_request")

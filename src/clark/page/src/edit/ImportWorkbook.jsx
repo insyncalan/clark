@@ -18,6 +18,10 @@ const SHOWN = 300;                                       // the changes listed w
 const REAL = { sheets: listSheets, check: checkSheets, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
+// The sheets ticked last time are kept in this browser only (#1106): a convenience, so a private window just starts with all ticked.
+const recalled = () => { try { return JSON.parse(localStorage.getItem(L.SHEETS_KEY)); } catch (e) { return null; } };
+const remember = (tables) => { try { localStorage.setItem(L.SHEETS_KEY, JSON.stringify(tables)); } catch (e) { /* only a convenience */ } };
+
 export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
   const [step, setStep] = useState({ at: "pick" });           // pick | checking | sheets | plan | applying | done
   const [problem, setProblem] = useState("");
@@ -39,14 +43,13 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     const sheets = r.body.sheets || [];
     if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"]); return; }   // none of the five: the check says so
-    const all = {};
-    for (const s of sheets) all[s.table] = true;
-    setTicked(all);
+    setTicked(L.startSheets(sheets, recalled()));
     setStep({ at: "sheets", file: file.name, key: r.body.file, sheets });
   }
 
   // Check the import of the ticked sheets of the workbook the server is keeping.
   async function read_(key, tables) {
+    remember(tables);
     setProblem("");
     setStep({ at: "checking", file: key });
     const r = await api.check(project, key, tables);
