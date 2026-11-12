@@ -38,7 +38,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 23          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 24          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -2708,6 +2708,84 @@ def migrate_gantt_table_section_type(con):
     con.execute("ALTER TABLE report_sections_table RENAME TO report_sections")
 
 
+UC_MILESTONES_STEP = 24        # row 1107's step number, written once here and used by MIGRATIONS
+UC_MILESTONES_TABLE = """CREATE TABLE IF NOT EXISTS use_case_milestones (
+  link_id    INTEGER PRIMARY KEY,
+  use_case   TEXT NOT NULL REFERENCES use_cases(id),
+  milestone  TEXT NOT NULL REFERENCES milestones(id),
+  created_at TEXT NOT NULL,
+  created_by TEXT NOT NULL DEFAULT '',
+  removed_at TEXT,
+  removed_by TEXT
+)"""      # the same statement as schema.sql's (a test pins the two together)
+UC_MILESTONES_INDEXES = (
+    "CREATE UNIQUE INDEX IF NOT EXISTS use_case_milestones_live ON use_case_milestones(use_case, milestone) WHERE removed_at IS NULL",
+    "CREATE INDEX IF NOT EXISTS use_case_milestones_milestone ON use_case_milestones(milestone)")
+
+
+def migrate_use_case_milestones(con):
+    """Schema version 23 to 24 (row 1107): the `use_case_milestones` table, a use case linked straight to a milestone. The table is new
+    and empty, so no table is made again and no existing value changes (the work item to milestone links stay where they are). Skipped
+    when it is already there (a new database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the
+    caller's transaction and does not touch the version (the runner does). It is step 24 in MIGRATIONS."""
+    con.execute(UC_MILESTONES_TABLE)
+    for sql in UC_MILESTONES_INDEXES:
+        con.execute(sql)
+
+
+UC_MS_NO_USE_CASE, UC_MS_NO_MILESTONE = "There is no use case {}.", "There is no milestone {}."
+UC_MS_OTHER_PROJECT = "A use case can only be linked to a milestone of its own project."
+UC_MS_ARCHIVED = "An archived use case or milestone cannot be linked. Restore it first."
+
+
+def link_use_case_milestone(con, use_case, milestone, by_user=""):
+    """Link a use case straight to a milestone of its project (row 1107). True when a link was made, False when it was already live.
+    Writes in the caller's transaction (a store step, or the caller's own); it never commits. Linking again after a removal adds a new row."""
+    uc = con.execute("SELECT project, archived FROM use_cases WHERE id = ?", (use_case,)).fetchone()
+    if uc is None:
+        raise Invalid(UC_MS_NO_USE_CASE.format(str(use_case)[:40]))
+    ms = con.execute("SELECT project, archived FROM milestones WHERE id = ?", (milestone,)).fetchone()
+    if ms is None:
+        raise Invalid(UC_MS_NO_MILESTONE.format(str(milestone)[:40]))
+    if uc["project"] != ms["project"]:
+        raise Invalid(UC_MS_OTHER_PROJECT)
+    if uc["archived"] or ms["archived"]:
+        raise Invalid(UC_MS_ARCHIVED)
+    if con.execute("SELECT 1 FROM use_case_milestones WHERE use_case = ? AND milestone = ? AND removed_at IS NULL", (use_case, milestone)).fetchone():
+        return False
+    con.execute("INSERT INTO use_case_milestones (use_case, milestone, created_at, created_by) VALUES (?, ?, ?, ?)",
+                (use_case, milestone, now(), str(by_user or "")[:200]))
+    return True
+
+
+def unlink_use_case_milestone(con, use_case, milestone, by_user=""):
+    """End a direct link (row 1107): the row is kept with removed_at and removed_by set, never deleted. True when a live link was ended."""
+    cur = con.execute("UPDATE use_case_milestones SET removed_at = ?, removed_by = ? WHERE use_case = ? AND milestone = ? AND removed_at IS NULL",
+                      (now(), str(by_user or "")[:200], use_case, milestone))
+    return cur.rowcount > 0
+
+
+def use_case_milestone_ids(con, use_case):
+    """The milestone ids a use case is linked to directly (live links), sorted. Not the ones its work items reach."""
+    return [r[0] for r in con.execute("SELECT milestone FROM use_case_milestones WHERE use_case = ? AND removed_at IS NULL ORDER BY milestone", (use_case,))]
+
+
+def milestone_use_case_ids(con, milestone):
+    """The use case ids linked directly to a milestone (live links), sorted."""
+    return [r[0] for r in con.execute("SELECT use_case FROM use_case_milestones WHERE milestone = ? AND removed_at IS NULL ORDER BY use_case", (milestone,))]
+
+
+def use_case_milestone_history(con, use_case=None, milestone=None):
+    """Every link row ever made (ended ones too), oldest first, as dicts; narrowed to a use case and/or a milestone when given."""
+    where, args = [], []
+    for col, v in (("use_case", use_case), ("milestone", milestone)):
+        if v is not None:
+            where.append(col + " = ?")        # fixed column names
+            args.append(v)
+    sql = "SELECT * FROM use_case_milestones" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY link_id"
+    return [dict(r) for r in con.execute(sql, args)]
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2716,7 +2794,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (13, migrate_publication_shared_number),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
               (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand),
-              (21, migrate_commitment_planned_2026), (OWNER_STEP, migrate_use_case_owner), (GANTT_TABLE_STEP, migrate_gantt_table_section_type))
+              (21, migrate_commitment_planned_2026), (OWNER_STEP, migrate_use_case_owner), (GANTT_TABLE_STEP, migrate_gantt_table_section_type),
+              (UC_MILESTONES_STEP, migrate_use_case_milestones))
 
 
 def migration_plan(version, table=None):
@@ -3093,6 +3172,7 @@ class Store:
                     elif table == "item_labels":
                         con.execute("DELETE FROM item_labels WHERE item_id = ? AND label = ?", key.split("|"))
                 for sql in ("DELETE FROM actions WHERE project = ?", "DELETE FROM raid WHERE project = ?", "DELETE FROM decisions WHERE project = ?",
+                            "DELETE FROM use_case_milestones WHERE use_case IN (SELECT id FROM use_cases WHERE project = ?)",
                             "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
                             "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
                             "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM gantt_lines WHERE project = ?",
@@ -3194,6 +3274,9 @@ class Store:
                 if r["item_id"] in ids:
                     labels.setdefault(r["item_id"], []).append(r["label"])
             out["labels"] = labels
+            out["uc_milestones"] = [{"use_case": r["use_case"], "milestone": r["milestone"]} for r in con.execute(      # row 1107: the live direct links of this project's use cases
+                "SELECT use_case, milestone FROM use_case_milestones WHERE removed_at IS NULL AND use_case IN "
+                "(SELECT id FROM use_cases WHERE project = ?) ORDER BY use_case, milestone", (code,))]
             out["report_sections"] = [dict(r) for r in con.execute(           # #65: its own query; no archived column
                 "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                 "ORDER BY sort_order, id", (code,))]
