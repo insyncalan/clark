@@ -25,7 +25,7 @@ class TheSettingsTable(unittest.TestCase):
     def test_every_page_has_a_row_in_the_order_the_menu_draws_them(self):
         want = [n for n in chips() if n != "Claude and AI"]
         i = want.index("Logs and diagnostics")
-        want[i:i] = ["Asking (on Claude and AI)", "AI (on Claude and AI)"]      # the Claude and AI page holds the Asking card and then the AI card
+        want[i:i] = ["Brands", "AI (on Claude and AI)"]      # Help keeps a Brands row (the zip and Downloads review) after Export and import, and one AI row for the Claude and AI page
         self.assertEqual(list(ROWS), want)
 
     def test_the_intro_lists_the_same_pages(self):
