@@ -19,7 +19,7 @@ from test_server import chrome, wait
 
 EDGES = """(() => {
   const l = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().left * 10) / 10 : null; };
-  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields') };
+  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row], #peek .pk-fields > .pk-row[data-ms-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields') };
 })()"""
 
 
