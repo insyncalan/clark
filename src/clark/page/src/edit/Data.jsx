@@ -23,6 +23,9 @@ export function Data() {
             onClick={(e) => openBox("import", { opener: e.currentTarget, project: project.value, projectName: data.value.project.name, onDone: imported })}><Icon name="ul" />{L.DATA.import}</button>
           {data.value ? null : <p class="muted dc-note" id="import-why">{L.IMPORT_NEEDS_PROJECT}</p>}
         </div>
+        <div>
+          <button type="button" class="btn gb" id="excel-layout" data-excel-layout onClick={(e) => openBox("layout", { opener: e.currentTarget })}><Icon name="doc" />{L.DATA.layout}</button>
+        </div>
       </div>
       <p class="muted dc-note">{L.DATA.note}</p>
     </section>

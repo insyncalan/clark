@@ -34,7 +34,7 @@ class Static(unittest.TestCase):
         for ln in lines:
             for sel in ln.split("{")[0].split(","):
                 self.assertTrue(sel.strip().startswith("html.print-all "), f"only under html.print-all: {sel.strip()}")
-        for need in (".gt-bar", ".gp-tools", ".gt-pop", ".gt-gx", ".gt-full", ".gt-lhead", ".gt-b", "break-inside: avoid"):
+        for need in (".rbar", "--gt-fit", ".gt-bar", ".gp-tools", ".gt-pop", ".gt-gx", ".gt-full", ".gt-lhead", ".gt-b", "break-inside: avoid"):
             self.assertIn(need, block)
 
 
@@ -203,6 +203,43 @@ class Print(_PageRig):
                         self.assertTrue(got["long"] and got["long"][0], f"the long milestone word flips to the left {got}")
                     finally:
                         self.js("window.dispatchEvent(new Event('afterprint')); document.getElementById('host').style.width = ''; window.ResizeObserver = window.__RO")
+                        self.done()
+
+    def test_a_long_plan_is_scaled_to_the_page_and_nothing_is_cut(self):
+        # #1038: a plan wider than the paper lost every column past the page edge, and the View | Edit pill printed. beforeprint scales the chart to
+        # the page (--gt-fit); the last month label and the last bar lie inside the box, in the editor and in a published file, at 794 and 1400 px.
+        lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",
+                      end=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-20", pct=0, health="", depends=[], owner="", workstream="", priority="",
+                      baseline_start="", baseline_end="", effort="", budget="", deliverable="", show=0, note="", sort_order=i) for i in range(1, 39)]
+        lines.append(dict(lines[0], id="GNT-099", name="Phase 4 close", type="phase", start="2027-10-01", end="2027-12-20", sort_order=99, show=1))
+        for w in (794, 1400):
+            for from_file in (False, True):
+                with self.subTest(width=w, published=from_file):
+                    self.look(w, "light")
+                    self.mount(width=w - 60, lines=lines, fromFile=from_file)
+                    self.printing(w, "light")
+                    self.js("window.dispatchEvent(new Event('beforeprint'))")
+                    self.settle()
+                    try:
+                        got = json.loads(self.js("""(function () {
+                          var gx = document.querySelector('.gt-gx').getBoundingClientRect(), cv = document.querySelector('.gt-canvas').getBoundingClientRect();
+                          var last = [].slice.call(document.querySelectorAll('.gt-b')).pop().getBoundingClientRect();
+                          var heads = [].slice.call(document.querySelectorAll('.gt-hc')).filter(function (e) { return e.textContent.trim(); });
+                          var hr = heads[heads.length - 1].getBoundingClientRect();
+                          var pill = document.querySelector('.rbar');
+                          return JSON.stringify({ gxR: Math.round(gx.right), cvR: Math.round(cv.right), barR: Math.round(last.right), barW: Math.round(last.width),
+                            headR: Math.round(hr.right), fit: getComputedStyle(document.querySelector('.gt-gx')).getPropertyValue('--gt-fit').trim(),
+                            pill: pill ? getComputedStyle(pill).display : 'none', view: /\\bView\\b|\\bEdit\\b/.test(document.querySelector('.gt-gx').parentElement.innerText) }); })()"""))
+                        self.assertLessEqual(got["barR"], got["gxR"] + 1, f"the last bar is on the page {got}")
+                        self.assertGreater(got["barW"], 2, f"the last bar has width {got}")
+                        self.assertLessEqual(got["headR"], got["gxR"] + 1, f"the last month label is on the page {got}")
+                        self.assertEqual(got["pill"], "none", "the View | Edit pill does not print")
+                        self.assertGreaterEqual(float(got["fit"] or 1), 0.5, "the floor holds")
+                        if w == 794:
+                            self.assertTrue(got["fit"] and float(got["fit"]) < 1, f"a wide plan is scaled {got}")
+                        self.js("window.dispatchEvent(new Event('afterprint'))")
+                        self.assertEqual(self.js("document.querySelector('.gt-gx').style.getPropertyValue('--gt-fit')"), "", "afterprint clears the scale")
+                    finally:
                         self.done()
 
     def test_the_screen_is_the_same_with_the_class_on(self):

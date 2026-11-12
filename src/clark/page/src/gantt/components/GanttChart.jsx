@@ -18,6 +18,7 @@ import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
+import { fitCharts } from "../logic/printFit.js";
 import {
   WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
   chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
@@ -138,6 +139,13 @@ export function GanttChart({
     document.addEventListener("pointerdown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
   }, [box, menu, showOpen, full, sel]);
+
+  useEffect(() => {      // row 1038: the chart is scaled to the paper's width while the browser prints (logic/printFit.js, shell.css)
+    const on = () => fitCharts(document, true), off = () => fitCharts(document, false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); off(); };
+  }, []);
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, fitW - leftW), range);
@@ -285,7 +293,8 @@ export function GanttChart({
   const labelOut = (l, w) => l.type === "phase" || (l.name.length * 7.6 + 18 > w);
   // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
   const textW = (t) => Math.ceil(t.length * 8 + 6);
-  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
+  // Where the left has less room than the right (a long name on a bar near the left edge), it stays on the right rather than start behind the left columns.
+  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W && x1 - gap - 4 >= W - x2 - 6
     ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - gap - 4)}px` }}>{text}</span>
     : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
   const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W
@@ -407,7 +416,8 @@ export function GanttChart({
                 );
               }
               const w = q.x2 - q.x1, out = labelOut(l, w);
-              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
+              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }
+              else if (reduced() && born.current.get(l.id)) born.current.set(l.id, false);       // row 1039: reduced motion switched on with bars still marked: clear the mark       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
               if (drag && drag.id === l.id) born.current.set(l.id, false);       // a grabbed bar never grows, nor does it start when let go
               const label = `${l.name}, ${formatDate(l.start)} to ${formatDate(l.end)}, ${l.pct} percent, ${statusWord(st)}`;
               return (
