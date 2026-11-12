@@ -42,6 +42,20 @@ class UseCaseChanges(Base):
         row = self.row()
         self.assertEqual((row["status"], row["headline"], row["commitment"]), ("On track", "Matches invoices to orders", None))
 
+    def test_row_875_the_owner_of_a_use_case_is_neither_shown_to_the_model_nor_claimed_nor_changed_by_it(self):
+        with self.s.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc, {"owner": "ZQ-OWNER-ASK-6604 Placeholder"})
+        before = self.counts()
+        plan = self.planned({"op": "change", "id": self.uc, "status": "Flag"})
+        self.assertNotIn("ZQ-OWNER", repr(plan))
+        self.assertNotIn("owner", {k.lower() for k in plan["before"]} | {k.lower() for k in plan["after"]})
+        self.refused({"op": "change", "id": self.uc, "current_owner": "ZQ-OWNER-ASK-6604 Placeholder", "status": "Flag"}, "not_a_change")
+        self.refused({"op": "change", "id": self.uc, "current_owner": "Someone Else", "status": "Flag"}, "not_a_change")
+        self.refused({"op": "change", "id": self.uc, "owner": "Pat Placeholder"}, "field_not_allowed")
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.row()["owner"], "ZQ-OWNER-ASK-6604 Placeholder")
+        self.assertNotIn("ZQ-OWNER", repr(ask_data.project_data(self.s, "ABC", "who owns Invoice matching").passages))
+
     def test_a_word_that_is_not_allowed_is_refused_in_the_editors_words(self):
         for field, value, words in (("status", "Great", changes.UC_STATUS_WORDS), ("headline", "x" * 400, changes.UC_HEADLINE_WORDS)):
             with self.subTest(field=field, value=value[:12]):
