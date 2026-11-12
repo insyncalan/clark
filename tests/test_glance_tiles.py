@@ -106,8 +106,29 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("0", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('.glance [data-fig]').length > 0", sid), True, "the file drew its figures")
+            self.assertGreaterEqual(cdp.js("document.querySelectorAll('.glance [data-fig]').length", sid), 3, "the file drew its tiles")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.glance button')].filter(b => !b.classList.contains('fig')).length", sid), 0)
+
+    def test_the_risks_tile_is_red_with_its_word_when_a_high_risk_is_open_and_amber_when_only_other_risks_are(self):
+        s = self.serve()
+        code = next(iter(self.data))
+        base = self.data[code]
+        for name, high, cls, word in (("a high risk", True, "rag-r", "High"), ("only other risks", False, "rag-a", "Watch")):
+            d = copy.deepcopy(base)
+            for r in d["raid"]:
+                if r["status"] not in CLOSED:
+                    r["priority"] = "High" if high and r is next(x for x in d["raid"] if x["status"] not in CLOSED and str(x["type"]).lower() != "decision") else "Low"
+            self.data[code] = d
+            self.addCleanup(self.data.__setitem__, code, base)
+            opened = [r for r in d["raid"] if r["status"] not in CLOSED]
+            self.assertTrue(opened, "an open risk is there")
+            with self.subTest(case=name), chrome() as cdp:
+                sid = self.load(cdp, s.port, code)
+                self.assertEqual(expected(d)["risks"] > 0, high)
+                self.assertEqual(cdp.js("document.querySelector('[data-fig=risks]').classList.contains('%s')" % cls, sid), True, cls)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=risks].rag-r, [data-fig=risks].rag-a').length", sid), 1, "one colour only")
+                self.assertEqual(cdp.js("document.querySelector('[data-fig=risks] .tw').textContent", sid), word)
 
     def test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row(self):
         s = self.serve()
