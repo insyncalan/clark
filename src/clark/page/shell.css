@@ -2000,6 +2000,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .gt-tflag.gt-tflag { background: var(--status-red-tint); border: 1px solid var(--status-red); padding: 2px 10px; color: var(--status-red-text); }
   html.print-all .gt-mslab.gt-flip { --gt-room: none; max-width: var(--gt-room); overflow: hidden; text-overflow: ellipsis; }   /* a word placed left of its bar stays on one line inside the room left of it and ends in an ellipsis, never over the left columns (GanttChart.jsx sets --gt-room on the word itself, which wins over the `none` here; the left columns carry the full name) */
   html.print-all .gt-in { width: auto; min-width: 0; zoom: var(--gt-fit, 1); }   /* row 1038: the drawn chart is scaled to the page width (--gt-fit, set on .gt-gx by logic/printFit.js on beforeprint), so the last months and the last bars are on the paper; labels are in the canvas and scale with it */
+  html.print-all .gt-ln input.gt-li { display: block; border-color: transparent; background: transparent; pointer-events: none; }   /* Edit draws the left list as inputs, which the print block hides above; they are given back so the paper shows the names and the Start, End and Done values (no new words) */
   /* the .gt-gx box clips (above): the canvas keeps its drawn width (labels beside a bar are placed from its right edge); only the empty tail past the last day is clipped at the page edge */
   html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
   html.print-all .gt col { width: auto !important; }
@@ -2021,7 +2022,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
    ordinary row's top edge (.pk-row). This is the published page's rule too: a client's peek is the editor's, read only. */
 .peek .pk-body { container-type: inline-size; }
 /* item 1057: the peek itself scrolls, so the body must not be a scroll box of its own; the words box is sticky and follows the nearest scroll box */
-.peek .pk-body { overflow: visible; }
+.peek .pk-body { overflow: visible; padding-inline: 0; }   /* the peek's own padding is the edge: the title, the tabs and the cards all start on it */
 .pk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--space-2); }
 .pk-fields > .pk-row { grid-column: 1 / -1; order: 5; }
 .pk-fields > .pk-row[data-row] { grid-column: auto; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); align-content: start; padding: var(--d-pk-card-gap) 0; margin: calc(var(--d-pk-card) - var(--space-3)) 0 0; border: 0; }
@@ -2292,7 +2293,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-b { all: unset; box-sizing: border-box; position: absolute; height: 20px; line-height: 20px; border-radius: var(--radius-sm); background: var(--gt-task); color: var(--text-on-brand); padding: 0 var(--space-2); white-space: nowrap; overflow: hidden; cursor: pointer; user-select: none; touch-action: none; z-index: 1; }
 .gt-b > i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--white) 30%, transparent); pointer-events: none; }
 .gt-bt { position: relative; }
-.gt-b-phase { height: 12px; background: var(--brand-navy); border: 1px solid var(--grey-500); border-radius: 2px; }
+.gt-b-phase { height: 12px; background: var(--phase-bar, var(--brand-navy));   /* item 1327 look: dark sets --phase-bar so the fill is not the page's own dark */ border: 1px solid var(--grey-500); border-radius: 2px; }
 .gt-phlab { font-weight: var(--weight-semibold); }
 .gt-b.edit { cursor: grab; }
 .gt-b.drag { cursor: grabbing; box-shadow: var(--shadow); z-index: 5; }
@@ -2312,7 +2313,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-gl2 { position: absolute; right: 8px; top: -2px; padding: 1px var(--space-2); border-radius: var(--radius-pill); background: var(--brand-navy); color: var(--white); }
 .gt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-3); margin-top: 6px; color: var(--text-muted); }
 .gt-sw { display: inline-block; width: 14px; height: 10px; margin-right: 5px; border-radius: 2px; vertical-align: middle; }
-.gt-sw-p { background: var(--brand-navy); border: 1px solid var(--grey-500); box-sizing: border-box; }
+.gt-sw-p { background: var(--phase-bar, var(--brand-navy)); border: 1px solid var(--grey-500); box-sizing: border-box; }
 .gt-sw-t { background: var(--gt-task); }
 .gt-sw-m, .gt-sw-d { width: 10px; transform: rotate(45deg); }
 .gt-sw-m { background: var(--status-amber); border: 1px solid var(--status-amber-text); }
