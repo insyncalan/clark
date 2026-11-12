@@ -10,6 +10,16 @@ export const DATA = {
   export: "Export workbook",
   import: "Import workbook",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",
+  layout: "Excel file layout",
+};
+
+// Excel file layout (row 951): a read-only box that says what the exported file holds. It reads nothing and sends nothing.
+export const LAYOUT = {
+  title: "Excel file layout",
+  client: "This file is for you and your team. It holds internal notes, so do not send it to a client.",
+  cover: ["Cover", "The first sheet: the project, the date it was exported and who exported it, a caution that the file shows the data at that date, and where to send the file back."],
+  history: ["History", "The changes made to the items. The import leaves this sheet alone."],
+  close: "Close",
 };
 
 export const IMPORT = {

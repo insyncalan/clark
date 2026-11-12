@@ -1032,6 +1032,7 @@ class Live(unittest.TestCase):
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Tab")
                     kept("Tab")
+                    self.until(cdp, sid, "(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", f"{ref}: focus settled on the page after Tab")
                     self.assertTrue(cdp.js("(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", sid),
                                     f"{ref}: after Tab, focus is on the page, not lost")
                     self.assertEqual(self.cell_text(cdp, sid, ref, "due")[:10], f"{was[8:10]}-{was[5:7]}-{was[:4]}", f"{ref}: the row still shows its date")

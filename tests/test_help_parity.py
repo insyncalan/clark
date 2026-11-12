@@ -29,7 +29,6 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
 # prototype entries the owner dropped (#919): the prototype still draws them, the build will never have them
 DROPPED = {"howto-start-from-last-report", "ref-since-last-report"}
