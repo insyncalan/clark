@@ -571,6 +571,11 @@ def _title_key(v):
     return " ".join(str(v or "").split()).casefold()
 
 
+def _six_digit_fraction(text):
+    """Python 3.9's fromisoformat takes a fraction of exactly 3 or 6 digits (3.11 takes any): pad or cut the fraction to 6."""
+    return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
     hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
@@ -579,12 +584,12 @@ def _moved(cell, stored):
     else:
         text = str(cell).strip().replace("T", " ")
         try:
-            then = datetime.fromisoformat(text)
+            then = datetime.fromisoformat(_six_digit_fraction(text))
         except ValueError:
             return False
         slack = 0.002 if "." in text else 1.0
     try:
-        now = datetime.fromisoformat(str(stored).strip().replace("T", " "))
+        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
     except ValueError:
         return False
     return abs((now - then).total_seconds()) > slack
