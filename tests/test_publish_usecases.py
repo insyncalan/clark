@@ -194,6 +194,11 @@ class Present(unittest.TestCase):
             if re.search(r"\bUse Cases\b", text):
                 found.append(str(f.relative_to(ROOT)))
         self.assertEqual(found, [], "a user-facing 'Use Cases' (write 'Use cases')")
+        # the Word report's section titles are user-facing too, and no .py file is read above: pin the one that names the section
+        from clark import docx_build
+        self.assertEqual(docx_build.TITLES["usecases"], "Use cases")
+        py = [f for f in sorted((ROOT / "src/clark").glob("*.py")) if re.search(r"[\"']Use Cases[\"']", f.read_text(encoding="utf-8"))]
+        self.assertEqual(py, [], "a user-facing 'Use Cases' string in Python code (write 'Use cases')")
 
     def test_the_page_has_no_route(self):
         source = (ROOT / "src/clark/page/src/components/UseCasesTab.jsx").read_text(encoding="utf-8")
@@ -207,6 +212,7 @@ class Present(unittest.TestCase):
         publish.check_brand(text)                           # raises PublishError if the file names a brand it should not
         self.assertEqual(publish.outside_addresses(publish.without_data_block(text)), [])
         self.assertLess(len(text.encode("utf-8")), publish.MAX_BYTES)
+        self.assertEqual(publish.MAX_BYTES, 5 * 1024 * 1024, "the limit itself is pinned: the planted file is tiny, so any limit would pass above")
 
 
 class Hostile(unittest.TestCase):
