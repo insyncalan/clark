@@ -36,7 +36,7 @@
     "n": "Edit",
     "t": "Shape the report",
     "ic": "doc",
-    "d": "On the Dashboard, press **Edit**. Write the current state, set the health and choose what the client sees."
+    "d": "On the Dashboard, press **Edit**. Write the summary and the week, set the health and choose what the client sees."
    },
    {
     "n": "Check",
@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
+     "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
@@ -405,7 +405,7 @@
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
+     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
