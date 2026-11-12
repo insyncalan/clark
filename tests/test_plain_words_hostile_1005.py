@@ -3,7 +3,7 @@ text a milestone's Client wording and a picture's caption keep, and the save pat
 imagecap section body). Made-up data only.
 
 Run: python3 dev/run_tests.py test_plain_words_hostile_1005
-Quick tier: no browser. The module is bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
+Quick tier: no page. The module is bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
 Whatever the editor hands back, the result is text for a text node: no tag survives that the editor did not carry as words,
 the one-line form has no line break of any kind, and what it gives is accepted (or refused in plain words) by the server.
 """
