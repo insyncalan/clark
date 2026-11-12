@@ -178,7 +178,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Quit",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
                                   "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -212,7 +212,7 @@ class Words(unittest.TestCase):
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                                   "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout",      # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
@@ -237,6 +237,9 @@ class Words(unittest.TestCase):
                                   "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version.",
+                                  "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
+                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
         with chrome() as cdp:
@@ -338,7 +341,8 @@ class Words(unittest.TestCase):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
         for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("X.Y.Z", text, path.name)                                  # the placeholder, whatever the button is called
+            if path.suffix == ".js":
+                self.assertIn("X.Y.Z", text, path.name)                              # the prototype keeps the placeholder
             self.assertNotRegex(text, r"Review v?\d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):

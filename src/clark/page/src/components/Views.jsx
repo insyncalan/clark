@@ -112,7 +112,7 @@ export function Milestones({ tools }) {
 // The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
 const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
-  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Feedback", "Feedback", "feedback-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 
@@ -187,6 +187,7 @@ export function Settings({ tools }) {
   const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
   const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const Feedback = tools && tools.Feedback;              // Feedback (#1069): a form that opens the user's mail app; Edit's page only
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
   const Quit = tools && tools.Quit;                      // Quit clark (#836); Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
@@ -207,6 +208,7 @@ export function Settings({ tools }) {
       {Brands ? <Brands /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
+      {Feedback ? <Feedback /> : null}
       {Quit ? <Quit /> : null}
       </div>
     </div>
