@@ -108,6 +108,12 @@ def _only_mac(what, on=None):
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
 
 
+def mac_only_in_docker(what):
+    """The words said inside the container for a step that needs the Mac (`what`: "The folder dialog"...): item 427's sentence, the one
+    _only_mac raises. The setup service (item 836) says it before it would ask for a folder window, so no system call is made there."""
+    return f"{what} needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with clark.command instead."
+
+
 # Who
 
 def login_name():
@@ -173,6 +179,65 @@ def onedrive_roots(home=None, on=None):
     home = Path(home or Path.home())
     found = list((home / "Library" / "CloudStorage").glob("OneDrive*")) + list(home.glob("OneDrive*"))
     return sorted(p for p in found if p.is_dir())
+
+
+# Windows' data folder (item 836 slice 4): pure functions over text, so they are tested with made-up strings and need no Windows.
+# They are not wired in: data_dir above still says "not built yet" on Windows. The answer is a problem code (for the page's words
+# to come later), never words, and never a disk or environment read: the caller passes the environment in.
+WINDOWS_ROOM_BELOW = 60                                 # characters left under the data folder for clark's own files and folders
+WINDOWS_DATA_MAX = MAX_PATH - 1 - WINDOWS_ROOM_BELOW    # the longest data folder taken (199)
+WINDOWS_FOLDER_PROBLEMS = ("not_absolute", "network", "device", "drive_root", "bad_character", "reserved_name", "trailing",
+                           "dot_part", "empty_part", "onedrive", "too_long")
+_WIN_SEPS = "\\/"
+_WIN_BAD = re.compile(r'[<>"|?*\x00-\x1f\x7f]')         # a colon is let through here: it is checked after the drive letter
+
+
+def windows_folder_problem(text):
+    r"""None if `text` is a full Windows path (a drive letter, then a backslash or slash) that clark may keep its data in, else
+    the first problem found, one of WINDOWS_FOLDER_PROBLEMS. Text only: nothing is looked up on a disk, nothing is resolved.
+    Refused: a network share (a database needs a lock a share can't promise), the \\?\ and \\.\ prefixes, a drive on its own,
+    a character or device name Windows won't take, a part ending in a dot or space, a part that is only dots, an empty part,
+    a part named for OneDrive (as container_host_in_onedrive reads one), and a path too long to leave WINDOWS_ROOM_BELOW
+    characters below it."""
+    if not isinstance(text, str):
+        return "not_absolute"
+    if len(text) >= 2 and text[0] in _WIN_SEPS and text[1] in _WIN_SEPS:
+        return "device" if text[2:3] in ("?", ".") else "network"
+    if len(text) < 3 or text[1] != ":" or not (text[0].isascii() and text[0].isalpha()) or text[2] not in _WIN_SEPS:
+        return "not_absolute"
+    if _WIN_BAD.search(text) or ":" in text[2:]:
+        return "bad_character"
+    rest = text[3:]
+    if not rest.strip(_WIN_SEPS):
+        return "drive_root"
+    for part in re.split(r"[\\/]", rest[:-1] if rest[-1] in _WIN_SEPS else rest):
+        if not part:
+            return "empty_part"
+        if not part.strip("."):
+            return "dot_part"
+        if part[-1] in ". ":
+            return "trailing"
+        if part.split(".")[0].rstrip(" ").upper() in RESERVED_NAMES:
+            return "reserved_name"
+        if part.lower().startswith("onedrive"):
+            return "onedrive"
+    if len(text.rstrip(_WIN_SEPS)) > WINDOWS_DATA_MAX:
+        return "too_long"
+    return None
+
+
+def windows_data_default(environ):
+    r"""Where clark's data goes on Windows when nobody chose: <LOCALAPPDATA>\clark (on this computer, not synced, not the
+    roaming folder), else <USERPROFILE>\AppData\Local\clark. `environ` is a mapping the caller passes (never read here). A value
+    that is missing, is not a full path or fails windows_folder_problem is passed over; None if none is left, or if the folder
+    made from it fails the same rules. Not created, not checked on a disk."""
+    for name, tail in (("LOCALAPPDATA", ""), ("USERPROFILE", "\\AppData\\Local")):
+        base = environ.get(name)
+        base = base.rstrip(_WIN_SEPS) if isinstance(base, str) else ""
+        if base and windows_folder_problem(base + "\\x") is None:
+            folder = base + tail + "\\clark"
+            return folder if windows_folder_problem(folder) is None else None
+    return None
 
 
 # The places clark never reads, whatever the person saved (#47b). creaite's reach.py names them as rows of (base, pattern,
