@@ -174,7 +174,7 @@ class Commitment(unittest.TestCase):
 
 
     def test_an_old_workbook_saying_candidate_lands_as_planned_2026(self):
-        """Row 1061: a workbook from before the rename. Only the exact word is mapped; the row is changed, new rows too."""
+        """Row 1061: a workbook from before the rename. Only the exact word is mapped; the row is changed."""
         for old in ("Candidate", "  Candidate "):
             with self.subTest(old=old):
                 edit(self.path, self.uc, Commitment=old)
