@@ -45,12 +45,11 @@ THEMES = ("light", "dark")
 EMPTY_SAYS = lambda text: bool(re.search(r"No (open )?items match", text))
 
 
-def click_tab(cdp, sid, selector):
-    """Click a view tab. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen, so a tab is
-    not where it was measured while that slide runs and the click lands beside it. Wait until the row has stopped (the same offset on
-    four reads one frame apart, and no animation running), bring the tab into view, then click."""
+def wait_tabs_still(cdp, sid):
+    """Wait until the tab row has stopped sliding. At 900 px the tabs sit in a row that scrolls sideways, and the row slides to the tab just chosen
+    or moved, so a button is not where it was measured while that slide runs, and the scroll closes an open menu. Still = no animation running and
+    the same offset on four reads one frame apart (#912: frames, not four sleeps of 60 ms)."""
     def still():
-        """No animation is running and the offset is the same on four reads one frame apart (#912: frames, not four sleeps of 60 ms)."""
         if not cdp.js("document.getAnimations().length === 0", sid):
             return False
         reads = cdp.call("Runtime.evaluate", {"expression": "(async () => { const row = document.querySelector('.vtabs'); const r = []; for (let i = 0; i < 4; i++) { "
@@ -58,6 +57,11 @@ def click_tab(cdp, sid, selector):
                          "awaitPromise": True, "returnByValue": True}, sid)["result"].get("value") or []
         return len(reads) == 4 and len(set(reads)) == 1
     assert wait(still), "the tab row is still sliding"
+
+
+def click_tab(cdp, sid, selector):
+    """Click a view tab: wait until the row has stopped sliding, bring the tab into view, then click."""
+    wait_tabs_still(cdp, sid)
     cdp.js("document.querySelector(%s).scrollIntoView({inline: 'center', block: 'nearest', behavior: 'instant'})" % json.dumps(selector), sid)
     click(cdp, sid, selector)
 
@@ -983,6 +987,7 @@ class Line(unittest.TestCase):
                     key(cdp, sid, "ArrowRight")
                     self.assertEqual(self.tab_ids(cdp, sid)[:4], ["core-open", "core-risks", "core-actions", "core-decisions"], "and the arrows move nothing now")
                     # Esc also finishes (and keeps the place)
+                    wait_tabs_still(cdp, sid)      # the moved tab's row is still sliding to it at 900 px, and that scroll would close the menu just opened
                     click(cdp, sid, "#viewTabMenu")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=move]')", sid)))
                     cdp.js("document.querySelector('#viewTabMenuList [data-kind=move]').click()", sid)      # a script click: the mouse helper scrolls the item into view first, and a scroll closes the open menu
