@@ -544,7 +544,7 @@ def select(inputs):
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
             if k in SOURCED:                                      # row 1077: the source by name, never a path
-                c["source"] = source_name(c.get("source")) or None
+                c["source"] = source_name(c.get("source"), published=True) or None
             if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
                 for f in WORDLESS_DROPS.get(k, ()):
                     c[f] = None

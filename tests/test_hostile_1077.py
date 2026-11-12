@@ -230,6 +230,15 @@ class Imports(Hostile):
             self.assert_clean(where, data)
 
 
+class FreeText(Hostile):
+    def test_free_text_with_no_separator_reaches_no_file_but_the_file_name_does(self):
+        self.plant_rows((f"Word import, 2026-11-11, {KEEP}, under {WHO} is underperforming", f"Raised by {DIR} about {FOLDER}"))
+        web = self.publish_all(word=False)["web"].decode("utf-8")
+        self.assertIn(KEEP, web)
+        for where, data in self.publish_all().items():
+            self.assert_clean(where, data, (WHO, DIR, FOLDER))
+
+
 class AfterPublish(Hostile):
     def test_a_copy_of_an_item_and_a_rename_of_the_source_after_a_publish_leave_no_path_in_any_file(self):
         made = self.plant_rows((f"/Users/{WHO}/{DIR}/{KEEP}",))
@@ -285,14 +294,23 @@ class TheAllowList(unittest.TestCase):
 
     def test_no_marker_survives_source_name_whatever_the_shape(self):
         for stored in HOSTILE:
-            shown = source_name(stored)
+            shown = source_name(stored, published=True)
             for m in MARKERS:
                 self.assertNotIn(m.lower(), shown.lower(), (stored, shown))
             self.assertFalse(set(shown) & set("/\\<>@%~|"), (stored, shown))
 
-    def test_ordinary_words_are_still_shown_whole(self):
+    def test_ordinary_words_are_still_shown_whole_in_the_live_peek(self):
         for words in ("Steering minutes", "Plan: v2", "Excel import, 12:30, plan.xlsx", "R&D notes", "C# review", "Workshop (second)"):
             self.assertEqual(source_name(words), words)
+
+    def test_free_text_never_publishes_only_a_file_name_does(self):
+        """Ruling A of row 1077: the Source line in a file is the file name, free text dropped."""
+        for words in ("Steering minutes", "Plan: v2", "R&D notes", "Added by hand in clark", f"Raised by {WHO}, {NOTE} is underperforming"):
+            self.assertEqual(source_name(words, published=True), "", words)
+        self.assertEqual(source_name(f"Word import, 2026-11-11, {KEEP}, under {WHO} is underperforming", published=True), KEEP)
+        self.assertEqual(source_name(f"Word import, 2026-11-11, under {WHO} is underperforming", published=True), "")
+        self.assertEqual(source_name(f"Word import, 2026-11-11, {KEEP}", published=True), KEEP)
+        self.assertEqual(source_name(KEEP, published=True), KEEP)
 
 
 if __name__ == "__main__":

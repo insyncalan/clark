@@ -10,7 +10,12 @@ slashes that are not; fourth pass, privacy first):
   C. Any other character (a slash of any kind, < > @ % ~ and so on) makes the value NOT plain. It then publishes ONLY a final file name: the
      text after the last character that is not a letter, digit or one of NAME_EXTRA = space . - _ ( ) ' & + # , and only when it ends in an
      extension (a dot and 1 to 8 letters or digits) after a non-empty stem; otherwise NOTHING. A bare web address publishes nothing.
-  E. At most 120 characters, cut with an ellipsis.
+  D. PUBLISHED FILES (published=True): the owner's ruling A of row 1077, the Source line in a client file is the file name only, free text dropped.
+     Plain words are not published as they stand: only the last comma part that is wholly a file name (a stem, then an extension holding a letter)
+     goes out, so "Added by hand in clark" publishes nothing and "Word import, 2026-11-11, plan.docx, under a person's name" publishes "plan.docx".
+     The live peek (published=False) still shows the plain words to the people who work in clark.
+  E. At most 120 characters, cut with an ellipsis. Text longer than MAX_IN characters is cut before step A (the end for a published value, where the
+     name is, the start otherwise), so a huge value costs a bounded amount of work.
 Imports nothing from clark.
 """
 import html
@@ -19,6 +24,7 @@ import unicodedata
 from datetime import date
 
 CAP = 120
+MAX_IN = 2000
 PLAIN_EXTRA = " ,.-_():'&+#"
 NAME_EXTRA = " .-_()'&+#"
 _ISO_DAY = re.compile(r"(?<![\d-])(\d{4})-(\d{2})-(\d{2})(?![\d-])")
@@ -97,11 +103,26 @@ def _file_name(text):
     return name if ext and name[:ext.start()].strip() else ""
 
 
-def source_name(words):
-    """The words to show for a stored `source`, or "" when there is nothing to show."""
+def _listed_name(text):
+    """Plain words in a file (D): the last comma part that is wholly a file name (a stem and an extension holding a letter), or ""."""
+    for part in reversed(text.split(",")):
+        part = part.strip()
+        ext = _EXT.search(part)
+        if ext and part[:ext.start()].strip() and re.search(r"[A-Za-z]", ext.group(0)) and not _ISO_DAY.fullmatch(part):
+            return part
+    return ""
+
+
+def source_name(words, published=False):
+    """The words to show for a stored `source`, or "" when there is nothing to show. published=True: the file name only (D)."""
     if not isinstance(words, str):
         return ""
+    if len(words) > MAX_IN:
+        words = words[-MAX_IN:] if published else words[:MAX_IN]
     text = _normal(words)
-    out = text if _is_plain(text) else _file_name(text)
+    if not _is_plain(text):
+        out = _file_name(text)
+    else:
+        out = _listed_name(text) if published else text
     out = _ISO_DAY.sub(_day_as_shown, out).strip()
     return out if len(out) <= CAP else out[:CAP - 1].rstrip() + "\u2026"

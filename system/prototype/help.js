@@ -330,7 +330,7 @@
   const ic = n => `<span class="hp-ic">${C.icon(n)}</span>`;
   const MS_STATES = [['Achieved', 'Done, on the date it was achieved.'], ['On track', 'Expected on its agreed date.'], ['At risk', 'Marked at risk by hand.'], ['Slipped', 'Now expected after its agreed date. On the published page: Expected later.'], ['Overdue', 'Its agreed date has passed and it isn’t achieved. On the published page: Late.'], ['Forecast', 'A date not yet agreed.']];
   const SHORTCUTS = [
-    ['[[?]]', 'Help, from any page (when you aren’t typing in a box). It follows the **Single-key shortcuts** switch; with it off, use the Help button'],
+    ['[[?]]', 'Help, from any page (when you aren’t typing in a box). It follows the **Single-key shortcuts** switch; with it off, choose Help in the profile circle menu'],
     ['[[/]]', 'ask clark (when you aren’t typing in a box). On Work items it goes to the filter line, and in Help to the search box, instead'],
     ['[[Mod+J]]', 'Open or close ask clark'],
     ['[[/]] [[/]]', 'With a peek open: Sneak peek, change it in words. A single [[/]] opens ask clark after a moment'],

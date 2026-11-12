@@ -1,4 +1,4 @@
-// Sneak peek (#42b), headed "Ask clark to update for you" (row 1077, the owner's words): change one item, milestone or use case in words. Type, read the
+// Sneak peek (item 42b), headed "Ask clark to update for you" (row 1077, the owner's words): change one item, milestone or use case in words. Type, read the
 // from → to lines, press Enter (or Shift+Enter) to apply them as one step; the toast offers Undo. The reading is plain code on the server (POST /api/sneak/read): no model, and it writes nothing.
 // Row 776: phrase chips (the typed words, in typed order) above the lines; Not now closes like Esc, Make the change applies like Enter.
 // A reading that needs a confirm is never applied by Enter alone; the Make the change button counts as that OK (the chips and lines are on screen). Applying goes through the work-item change route (#68).

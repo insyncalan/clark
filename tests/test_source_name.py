@@ -37,6 +37,24 @@ class Plain(unittest.TestCase):
         for text in ("Ref 12345-67-89 from the PMO", "Ticket 2026-13-45 filed", "Batch 20261001 and 2026-10-1"):
             self.assertEqual(source_name(text), text, text)
 
+    def test_published_is_the_file_name_only_and_free_text_is_dropped(self):
+        """Ruling A of row 1077 (the Source line in a file): plain words are not published as they stand."""
+        for words in ("Added by hand in clark", "Plan: v2", "Steering notes", "Jan 5, 2026", "Word import, 2026-11-11, under a person's name"):
+            self.assertEqual(source_name(words, published=True), "", words)
+        for words, shown in (("Word import, 2026-11-11, plan.docx, under Risks", "plan.docx"), ("Excel import, 2026-10-01, plan.xlsx", "plan.xlsx"),
+                             ("plan.xlsx", "plan.xlsx"), ("/a/b/plan.xlsx", "plan.xlsx")):
+            self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_a_huge_value_is_cut_before_it_is_read_the_name_at_the_end_is_kept_when_published(self):
+        huge = "x " * 50000
+        self.assertEqual(source_name(huge + ", plan.xlsx", published=True), "plan.xlsx")
+        self.assertLessEqual(len(source_name(huge)), 120)
+
+    def test_a_left_over_numeric_entity_start_is_never_plain_words(self):
+        """The guard `not _ENTITY.search(text)` in _is_plain: these hold only allowed characters, so only that guard refuses them."""
+        for words in ("&#abc", "notes &# more", "a&#", "&#x", "&#xyz plan"):
+            self.assertEqual(source_name(words), "", words)
+
     def test_nothing_or_not_text_is_nothing(self):
         for v in (None, "", "   ", 7, [], "/", "\\", " / , / ", "C:\\", "C:", "https://intranet.example/", "https://intranet.example", "smb://h/Priv/"):
             self.assertEqual(source_name(v), "", repr(v))
