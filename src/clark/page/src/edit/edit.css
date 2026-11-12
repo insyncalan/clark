@@ -996,7 +996,7 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 /* row 962: the same for the filter suggestion list, a column's filter box, the Gantt Add menu, the template settings box and the Board's small date and decision boxes. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .gt-pop, .rt-slash, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
 }
 
 /* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */
