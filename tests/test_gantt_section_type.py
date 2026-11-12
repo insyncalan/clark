@@ -71,7 +71,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "22")      # the latest layout: 22 since row 1068 (the Gantt table section type)
+            self.assertEqual(version(path), "23")      # the latest layout: 23 since row 1068 (the Gantt table section type)
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM applies").fetchone()[0], 0)     # a migration is not a step: no Undo
             s.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-009', 'gantt', 'Gantt', 9)")
@@ -128,7 +128,7 @@ class Migrating(unittest.TestCase):
         def squash(text):
             return " ".join("\n".join(l.split("--")[0] for l in text.splitlines()).replace('"', "").replace("report_sections_gantt", "report_sections").replace("IF NOT EXISTS ", "").split())
         self.assertEqual(squash(sections_sql(path)), squash(sections_sql(new)))
-        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(sections_sql(new)).replace(",'gantttable'", "", 1))      # row 1068 (step 22) added 'gantttable' after this step's text was frozen: the table is otherwise this step's
+        self.assertEqual(squash(store_module.REPORT_SECTIONS_WITH_GANTT), squash(sections_sql(new)).replace(",'gantttable'", "", 1))      # row 1068 (step 23) added 'gantttable' after this step's text was frozen: the table is otherwise this step's
 
     def test_a_failure_after_the_rebuild_rolls_back_and_the_next_open_migrates(self):
         path = self.old_file()
@@ -143,7 +143,7 @@ class Migrating(unittest.TestCase):
                 open_store(path, onedrive_roots=[])
         self.assertEqual(dump(path), was)
         open_store(path, onedrive_roots=[]).close()
-        self.assertEqual(version(path), "22")      # the latest layout: 22 since row 1068 (the Gantt table section type)
+        self.assertEqual(version(path), "23")      # the latest layout: 23 since row 1068 (the Gantt table section type)
 
     def test_a_layout_17_file_is_brought_to_19_with_the_copy_first_every_row_kept_idempotent_and_refused_by_an_older_clark(self):
         """In-clark update across both Gantt steps (18 then 19) in one open."""
@@ -159,7 +159,7 @@ class Migrating(unittest.TestCase):
         before = section_rows(path)
         s = open_store(path, onedrive_roots=[])
         try:
-            self.assertEqual(version(path), "22")      # the latest layout: 22 since row 1068 (the Gantt table section type)
+            self.assertEqual(version(path), "23")      # the latest layout: 23 since row 1068 (the Gantt table section type)
             self.assertEqual(s.con.execute("PRAGMA foreign_key_check").fetchall(), [])
             self.assertEqual(s.con.execute("SELECT count(*) FROM gantt_lines").fetchone()[0], 0)
             self.assertEqual(s.read("projects", ref="ABC")["gantt_tab_name"], "Gantt")

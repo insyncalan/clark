@@ -1,11 +1,11 @@
-"""Row 1068: the table-only section type 'gantttable' (schema layout 22; store.py, schema.sql, changes.py, publish.py: guarded). Fictional data only.
+"""Row 1068: the table-only section type 'gantttable' (schema layout 23; store.py, schema.sql, changes.py, publish.py: guarded). Fictional data only.
 
 It is the Gantt section without the Gantt view: the same lines, the same eye (only eye-on lines), the same hidden columns, drawn as the
 Gantt table alone. It is a template section like the others (the owner's ruling, CMD 11-10-005): it does not ask the project's client
 switch show_gantt_client, so it is in the file with the eye-on lines whether or not the Gantt tab is; with no eye-on line there is
-nothing to draw and it is left out. Pinned here (the page part is pinned in tests/test_gantt_section.py): migration step 22 makes
+nothing to draw and it is left out. Pinned here (the page part is pinned in tests/test_gantt_section.py): migration step 23 makes
 report_sections again with 'gantttable' in its type CHECK (backup first, rows kept in order, a second run changes nothing, an older clark
-refuses layout 22, a new database equals a migrated one); the section is added, retitled, hidden, moved and deleted through the change
+refuses layout 23, a new database equals a migrated one); the section is added, retitled, hidden, moved and deleted through the change
 route with one Undo each, and takes no body; the published file carries the section (id, type, title, beside and nothing else) with the
 Gantt lines (data.gantt, without the tab when the switch is off) and no eye-off line reaches the file through it; a Gantt section and a
 table section live side by side; the Word and Excel paths leave it out.
@@ -28,7 +28,7 @@ from test_gantt_migration import dump
 from test_store_migration import version
 from test_store_use_case_done_migration import make_at
 
-STEP = 22
+STEP = 23
 KIND = "gantttable"
 SECRET = "ZQ-EYE-OFF-TABLE"
 
