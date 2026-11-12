@@ -121,7 +121,7 @@ class Look(Base):
         m = self.measure(p)
         self.assertLessEqual(m["docW"], m["vw"], f"{what}: the page scrolls sideways")
         self.assertLessEqual(m["panelW"], m["panelClient"] + 1, f"{what}: the panel scrolls sideways")
-        self.assertGreater(m["checked"], 3, f"{what}: the text was read")
+        self.assertGreater(m["checked"], 2, f"{what}: the text was read")   # the head buttons are icons now (row 1095)
         self.assertGreater(m["controls"], 3, f"{what}: the controls were read")
         self.assertEqual(m["short"], [], f"{what}: controls under 24 px")
         self.assertEqual(m["small"], [], f"{what}: text under 12 px")
