@@ -31,7 +31,8 @@ function Sub({ r }) {
 
 // Progress: a bar (its length is the share done) and the number as text, so it is never colour alone. The bar is a picture only; the
 // text carries the name for a screen reader. Anything that is not a number from 0 to 100 reads as not set and draws no bar.
-function Progress({ value }) {
+// The milestone peek's header line draws the same (Peek.jsx, row 1078).
+export function MsProgress({ value }) {
   const n = value === null || value === undefined || value === "" ? NaN : Number(value);
   if (!Number.isFinite(n)) return <span class="muted">Not set</span>;
   const pct = Math.max(0, Math.min(100, Math.round(n)));
@@ -67,7 +68,7 @@ export function MsList({ rows, place, open, internalTag, Eye, left, legend }) {
               <span class="msl-date"><When r={r} /></span>
               <span class="msl-name">{r.name}{isChanged(r.id) ? <> <span class="tag chg">{WORD}</span></> : null}{internalTag && !r.clientVisible ? <> <span class="tag">Internal only</span></> : null}{out ? <> <span class="tag hid" data-ms-left>Left out of the published page</span></> : null}</span>
               <span class={`mst c-${r.colour}`}><MsMark name={r.mark} />{r.word}</span>
-              <span class="msl-prog" title="Progress"><Progress value={r.percent} /></span>
+              <span class="msl-prog" title="Progress"><MsProgress value={r.percent} /></span>
               <Sub r={r} />
             </div>
             {Eye ? <Eye id={r.id} name={r.name} left={out} internal={!r.clientVisible} /> : null}

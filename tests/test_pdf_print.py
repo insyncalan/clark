@@ -31,7 +31,7 @@ PAGE_SRC = SRC / "src"
 TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
-TICK_WORDS = "The page as it prints: the tabs one after another, no controls, with the publication number in the foot"      # the prototype's (system/prototype/io.js:348)
+TICK_WORDS = "The page as it prints: the tabs one after another, no controls, with the publication number in the foot."      # the app's sentence (edit/Publish.jsx); the prototype (system/prototype/io.js:348) says "the four tabs" and has no full stop
 NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address."
 
 
