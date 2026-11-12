@@ -674,6 +674,7 @@ test_dev_marker.py 1.0
 test_brand_isolation.py 1.0
 test_gantt_markers_hostile.py 10.0
 test_hostile_1087.py 1.0
+test_hostile_h1293.py 1.0
 test_hostile_planned_2026.py 1.0
 test_publish_hidden_section_markers.py 10.0
 test_settings_cards_widths_2.py 1.0
@@ -727,3 +728,4 @@ test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
 test_section_hint_phone.py 30.0
 test_completed_blue.py 2.0
+test_word_brand.py 1.0
