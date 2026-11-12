@@ -585,6 +585,22 @@ class NpmAndNvmInstalls(NativeProgram):
         got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
         self.assertEqual(got, (new, None))
 
+    def _newest_of(self, older, newer):
+        old, new = self.program(folder=self.d / "a"), self.program(folder=self.d / "b")
+        self.link(old, f".nvm/versions/node/{older}/bin")
+        self.link(new, f".nvm/versions/node/{newer}/bin")
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (new, None))
+
+    def test_v20_is_newer_than_v9(self):
+        self._newest_of("v9.11.2", "v20.0.0")
+
+    def test_v10_is_newer_than_v9(self):
+        self._newest_of("v9.0.0", "v10.0.0")
+
+    def test_a_minor_of_two_digits_beats_one_digit(self):
+        self._newest_of("v20.9.0", "v20.10.0")
+
     def test_an_npm_script_is_still_refused(self):
         shim = self.program(name="cli.js", head=b"#!/usr/bin/env node\n")
         self.link(shim)

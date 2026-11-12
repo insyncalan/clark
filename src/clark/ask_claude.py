@@ -222,12 +222,18 @@ def native_problem(real, roots):
     return None if head in MACH_O else True
 
 
+def _version_key(path):
+    """Sort key by the numbers in a path (v20.1.0 -> 20, 1, 0), so v10 and v20 come after v9; a name with no number sorts lowest."""
+    nums = tuple(int(n) for n in re.findall(r"\d+", path))
+    return (1, nums) if nums else (0, ())
+
+
 def _expand(places):
     """Each place as an absolute path; a "*" in one is every match, the highest name first (the newest nvm node version)."""
     for place in places:
         p = os.path.expanduser(place)
         if "*" in p and os.path.isabs(p):
-            yield from sorted(glob.glob(p), reverse=True)
+            yield from sorted(glob.glob(p), key=_version_key, reverse=True)
         else:
             yield p
 
