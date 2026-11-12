@@ -355,6 +355,16 @@ class WhatIsInIt(unittest.TestCase):
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
 
+    def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
+        # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(client_message="<p>ZQ-RICH-WORDS <strong>bold</strong> &amp; more</p>")
+        text = every_text(docx_build.build(p))
+        self.assertIn("ZQ-RICH-WORDS", text)
+        self.assertIn("bold", text)
+        self.assertNotIn("&lt;p&gt;", text)
+        self.assertNotIn("&lt;strong&gt;", text)
+
     def test_dates_read_dd_mm_yyyy_and_are_never_stored_dates(self):
         both = parts(self.data)
         words = (both["word/document.xml"] + both["word/footer1.xml"]).decode("utf-8")

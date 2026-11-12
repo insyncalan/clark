@@ -1138,5 +1138,31 @@ class PlainWords(Base):
         self.assertEqual(self.seen(got), "The folder window could not be opened. Try again; if it keeps happening, restart clark. ")
 
 
+class ATableSectionWithTheSwitchOff(Base):
+    """Row 1068: a shown Gantt table section puts the eye-on lines in the file with the client switch off; the route's marker check
+    must not hold that back (publish_flow.gantt_markers mirrors publish.select). The eye-off line stays out."""
+
+    def setUp(self):
+        super().setUp()
+        change = changes.make_change(self.rig.db, [], USER)
+        base = {"type": "task", "start": "2026-10-05", "end": "2026-10-16", "health": "Green"}
+        for req in ({"kind": "report_sections", "op": "new", "values": {"type": "gantttable", "title": "Table"}},
+                    {"kind": "gantt_lines", "op": "new", "values": {**base, "name": "ZQ-TABLE-LINE-ON", "show": 1}},
+                    {"kind": "gantt_lines", "op": "new", "values": {**base, "name": "ZQ-TABLE-LINE-OFF", "show": 0}},
+                    {"kind": "projects", "op": "update", "changes": {"show_gantt_client": 0}}):
+            status, body = change({"project": "PUB", **req})
+            self.assertEqual(status, 200, body)
+
+    def test_the_publish_goes_through_and_the_copy_carries_the_eye_on_line_only(self):
+        status, got = self.rig.publish(to_client=True)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        copies = [p for p in self.rig.client.iterdir() if p.suffix == ".html"]
+        self.assertEqual(len(copies), 1, self.rig.listing(self.rig.client))
+        text = copies[0].read_text(encoding="utf-8")
+        self.assertIn("ZQ-TABLE-LINE-ON", text)
+        self.assertNotIn("ZQ-TABLE-LINE-OFF", text)
+        self.assertEqual(len(self.rig.rows()), 1)
+
+
 if __name__ == "__main__":
     unittest.main()
