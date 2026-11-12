@@ -135,10 +135,11 @@ class Logic(unittest.TestCase):
         """The seven parts in order; the jobs part is followed by the group of the five jobs (each opens its how-to entry) and the group of the other how-to entries."""
         groups = self.r["lists"]["start"]
         jobs = ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"]      # three jobs open a guide (#642 guides A and B)
-        self.assertEqual([g["group"] for g in groups], ["Start here", "Start here", "Start here", "Start here", "The five jobs", "Also under How do I...", "Start here", "Start here", "Start here"])
-        self.assertEqual([g["entries"][0]["place"] for g in groups if g["group"] == "Start here"], ["start-" + p for p in ("top", "loop", "first", "jobs", "where", "rules", "foot")])
-        self.assertEqual([e["place"] for e in groups[4]["entries"]], jobs)
-        self.assertEqual(sorted(e["place"] for e in groups[5]["entries"]), sorted("howto-" + x["id"] for x in TASKS if "howto-" + x["id"] not in jobs))      # the how-to entries of the guide jobs are here
+        self.assertEqual([g["group"] for g in groups], ["Start here", "The five jobs", "Also under How do I...", "Start here"], "parts in a row that share a heading are one group, headed once")
+        self.assertEqual([e["place"] for e in groups[0]["entries"]], ["start-" + p for p in ("top", "loop", "first", "jobs")])
+        self.assertEqual([e["place"] for e in groups[3]["entries"]], ["start-" + p for p in ("where", "rules", "foot")])
+        self.assertEqual([e["place"] for e in groups[1]["entries"]], jobs)
+        self.assertEqual(sorted(e["place"] for e in groups[2]["entries"]), sorted("howto-" + x["id"] for x in TASKS if "howto-" + x["id"] not in jobs))      # the how-to entries of the guide jobs are here
         self.assertEqual(self.r["noList"], [])
 
     def test_the_jobs_and_steps_of_start_here(self):
@@ -268,16 +269,18 @@ class Logic(unittest.TestCase):
 
     def test_keys_list(self):
         keys, mac = self.r["keys"], self.r["keysMac"]
-        self.assertEqual(len(keys), 33)      # #721: the Mod+J, Up and Alt+/ rows are gone (the page binds none of them)
-        self.assertEqual(len(mac), 33)
-        self.assertEqual([k for k in keys if k["keys"] in ("Ctrl+J", "Up") and ("ask clark" in k["does"] or "Sneak" in k["does"])], [])
+        self.assertEqual(len(keys), 34)      # the Up and Alt+/ rows are gone (the page binds neither); Mod+J is back (askPanelState.js binds it)
+        self.assertEqual(len(mac), 34)
+        self.assertEqual([k for k in keys if k["keys"] in ("Up",) and ("ask clark" in k["does"] or "Sneak" in k["does"])], [])
+        self.assertEqual([k["keys"] for k in keys if "ask clark" in k["does"] and "J" in k["keys"]], ["Ctrl+J"])
+        self.assertEqual([k["keys"] for k in mac if "ask clark" in k["does"] and "J" in k["keys"]], ["⌘+J"])
         self.assertTrue(all("[[" not in k["keys"] + k["does"] and "**" not in k["does"] for k in keys))
         self.assertTrue(any(k["keys"] == "?" for k in keys))
 
     def test_icon_legend(self):
         icons = self.r["icons"]
-        self.assertEqual(len(icons), 30)      # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
-        self.assertEqual(len({i["icon"] for i in icons}), 30)
+        self.assertEqual(len(icons), 29)      # row 1077: the Draft entry is out with the Draft chip; # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
+        self.assertEqual(len({i["icon"] for i in icons}), 29)
         self.assertTrue(all(i["title"] and i["does"] and i["where"] for i in icons))
         self.assertIn("eyeoff", [i["icon"] for i in icons])
 
@@ -332,7 +335,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["howto-change-an-item-in-the-peek", "howto-change-an-item-in-words", "ref-peek", "ref-sneak-peek", "howto-write-the-weekly-report", "howto-check-the-report", "howto-add-a-work-item", "howto-undo-a-mistake", "start-loop", "start-where", "ref-freshness", "ref-keys"])
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "start-top", "ref-publishing", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "howto-set-up-a-project", "howto-update-clark", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-loop", "start-jobs", "start-where", "start-rules", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-settings", "ref-updating-clark"],
+        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "start-top", "ref-publishing", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "howto-set-up-a-project", "howto-update-clark", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-loop", "start-jobs", "start-where", "start-rules", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-peek", "ref-status-words", "ref-milestone-states", "ref-settings", "ref-updating-clark"],      # ref-peek: its Source line says a published file draws the name
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "howto-change-the-layout-and-look", "howto-connect-claude-or-chatgpt", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates", "ref-ask-clark", "ref-settings", "ref-using-help"])
 

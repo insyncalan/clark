@@ -437,7 +437,7 @@ def section_milestones(published, ctx, title, sec):
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
-        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (m.get("client_message"), {}),
+        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (sanitise.rich_plain_text(m.get("client_message")), {}),     # row 1078: the client wording is rich too
                          (f"Reason: {m['state_reason']}" if m.get("state_reason") else "", {"color": ctx.tok["grey-700"]})):
             if line:
                 name += text_paras(line, ctx, **kw)
@@ -558,10 +558,10 @@ def _status_cell(row, kind, ctx):
         return word_cell(row.get("status"), ctx)
     pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
                               ctx.as_at)
+    if pill["text"] in ("Closed", "Made", "Completed"):
+        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
     if row.get("priority") == "Urgent" and glance.is_open(row):
-        return word_cell(pill["text"], ctx, colour="urgent")      # an Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
-    if pill["text"] in ("Closed", "Made"):
-        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page
+        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
     return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
 
 
@@ -592,7 +592,7 @@ def section_raid(published, ctx, title, sec):
                      word_cell(both, ctx), _due("raid", "due_date", r, ctx), _status_cell(r, str(r.get("type") or "").lower(), ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Type", "Item", "Owner", "Priority", "Impact / likelihood", "Due", "Status"],
+    return _heading(title) + table(ctx, ["Id", "Type", "Title", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"],      # the page's header words
                                    [1200, 1200, 1888, 1150, 950, 1050, 1100, 1100], rows)
 
 

@@ -1,6 +1,6 @@
-// The peek's Latest update, its Draft button, the 'Last updated' stamp and the warning bar above the title, as plain functions
-// with no DOM and no clock (the caller hands in today). The words and the rules follow the signed-off prototype (system/prototype/peek.js
-// `warn`, `C.draftUpdate`); the data is clark's: an action's `latest_update` and every item's `updated_at`.
+// The peek's 'Last updated' stamp and the warning bar above the title, as plain functions with no DOM and no clock (the caller hands
+// in today). The words and the rules follow the signed-off prototype (system/prototype/peek.js `warn`); the data is clark's: every
+// item's `updated_at`. (Row 1077: the Draft chip and the helper that wrote its words left; the owner's ruling removed it from every peek.)
 import { dayNumber, showDate, dueField, isOpen, plural } from "../workItems.js";
 import { addDays, quickDates } from "./itemEdit.js";
 
@@ -30,23 +30,6 @@ export function warnFor(row, today) {
   }
   return null;
 }
-
-const none = (owner) => { const o = String(owner == null ? "" : owner).trim(); return !o || o.toUpperCase() === "TBC"; };
-
-/**
- * A latest update written from the item's own fields, by rules and not by AI: when it is due or since when it is overdue, who has it
- * and whether they have started, and the milestone it is needed for. `milestone` is {name, agreed} or null.
- */
-export function draftFor({ due, status, owner, milestone }, today) {
-  const late = due && isOpen({ status }) && dayNumber(due) !== null && dayNumber(today) !== null && dayNumber(due) < dayNumber(today);
-  const parts = [late ? `Overdue since ${showDate(due)}.` : due ? `Due ${showDate(due)}.` : "",
-    none(owner) ? "Needs an owner." : `${String(owner).trim()} is ${status === "Open" ? "yet to start" : "working on it"}.`];
-  if (milestone && milestone.name) parts.push(`Needed for ${milestone.name.charAt(0).toLowerCase() + milestone.name.slice(1)}${milestone.agreed ? ` on ${showDate(milestone.agreed)}` : ""}.`);
-  return parts.filter(Boolean).join(" ");
-}
-
-/** A text with line ends as \n, trimmed (the draft is compared with the words of what is stored). */
-export const cleanLatest = (text) => String(text == null ? "" : text).replace(/\r\n?/g, "\n").trim();
 
 /** A stored time (UTC, "2026-10-28 09:00:00.483") as the time on this clock, "28-10-2026 13:00"; "" when it is not a time. */
 export function stampText(stamp) {
