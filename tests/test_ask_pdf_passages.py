@@ -138,6 +138,13 @@ class Outcomes(Fake):
         self.assertTrue(0 < len(got.pages) < 20)
         self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
 
+    def test_a_first_page_bigger_than_the_budget_is_still_read(self):
+        # The guard keeps at least one page: a lone page over the budget is returned, not dropped to an empty or failed result.
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 100):
+            got = self.read(pdf(["ZQ one " + "x" * 400, "ZQ two " + "x" * 400]))
+        self.assertEqual((got.status, got.reason), ("ok", ""))
+        self.assertEqual([n for n, _t in got.pages], [1])
+
     def test_the_child_sets_memory_and_cpu_limits(self):
         import importlib.util
         import resource
