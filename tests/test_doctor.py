@@ -152,14 +152,14 @@ class SharedInFromTheMac(DoctorCase):
         with mock.patch.object(pl, "container_mode", lambda: True):
             code, lines = self.run_doctor(environ=env)
         self.assertEqual(code, 1)
-        self.assertIn("To fix: Your clark data is shared in from a folder on your Mac that is inside Dropbox.",
-                      self.line(lines, "To fix: Your clark data is shared in"))
+        self.assertEqual(self.line(lines, "To fix: Your data can't be kept in"),
+                         "To fix: " + pl._synced_refusal(env["CLARK_DATA_SOURCE"], "Dropbox"))
 
     def test_a_container_data_source_outside_synced_folders_is_ready(self):
         env = {"CLARK_DATA_SOURCE": "/Users/someone/clark-data"}
         with mock.patch.object(pl, "container_mode", lambda: True):
             _, lines = self.run_doctor(environ=env)
-        self.assertNotIn("shared in from", "\n".join(lines))
+        self.assertNotIn("Your data can't be kept in", "\n".join(lines))
 
 
 class TypedCommands(DoctorCase):

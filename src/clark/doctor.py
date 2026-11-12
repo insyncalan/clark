@@ -142,9 +142,7 @@ def check_data_not_in_synced_folder(seen):
     and the refusal at start agree."""
     shared = platform.container_host_in_synced(seen.environ)
     if shared is not None:
-        return Line(FIX, f"Your clark data is shared in from a folder on your Mac that is inside {shared[0]}. {shared[0]} copies files "
-                         f"while they are being written, which damages the database. Choose a folder on your Mac that "
-                         f"{shared[0]} doesn't sync, then start clark again.")
+        return Line(FIX, platform._synced_refusal(seen.environ["CLARK_DATA_SOURCE"], shared[0]))
     folder = seen.folder()
     hit = platform.inside_synced(folder, list(seen.synced_roots()))
     if hit is None:
