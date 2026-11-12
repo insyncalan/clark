@@ -13,7 +13,10 @@ const FIELD = { type: "kinds", status: "status", owner: "owner", workstream: "wo
 const WORD = Object.fromEntries(Object.entries(FIELD).map(([w, k]) => [k, w]));      // the filter's key back to the word typed
 // The fields and states a client's file can answer: the section is read by the client, so it takes no more than that.
 const schema = () => { const s = schemaOf(); return { fields: s.fields.filter((f) => CLIENT_FIELDS.includes(f.key)), states: s.states.filter((x) => CLIENT_IS.includes(x)) }; };
-const quote = (v) => (/[\s,:"]/.test(v) ? `"${v}"` : v);
+// The filter line has no way to write a quote mark inside a value (the parser takes every quote as a bracket and drops it), so a
+// value with one is written without it; readLine gives the saved value back when the line names it, so nothing is lost.
+const bare = (s) => String(s == null ? "" : s).replace(/"/g, "");
+const quote = (v) => { const b = bare(v); return /[\s,:]/.test(b) ? `"${b}"` : b; };
 
 // The line a filter reads as: one word per field that has choices, then is:closed or is:all-open-and-closed as the mode says.
 export function lineOf(filter, nameOf = (f, v) => v) {
@@ -33,7 +36,7 @@ export function lineOf(filter, nameOf = (f, v) => v) {
   }
   for (const g of filter.has || []) out.push(`has:${g.join(",")}`);
   for (const g of filter.no || []) out.push(`no:${g.join(",")}`);
-  for (const w of filter.text || []) out.push(/[\s"]/.test(w) ? `"${w}"` : w);
+  for (const w of filter.text || []) out.push(/[\s"]/.test(w) ? `"${bare(w)}"` : bare(w));
   if (filter.mode === "closed") out.push("is:closed");
   else if (filter.mode === "all") out.push("is:open,closed");
   return out.join(" ");
@@ -63,7 +66,7 @@ export function readLine(line, base, known = []) {
   let open = false, closed = false, notOpen = false, notClosed = false;
   for (const t of parsed.tokens) {
     if (t.error) return { problem: `"${t.raw}" is not a word the filter line knows. Try type:, status:, owner:, workstream:, usecase:, priority:, due: or is:.` };
-    if (t.kind === "text") { if (!next.text.includes(t.text)) next.text.push(t.text); continue; }
+    if (t.kind === "text") { const w = (base.text || []).find((x) => bare(x) === t.text) || t.text; if (!next.text.includes(w)) next.text.push(w); continue; }
     if (t.kind === "presence") {
       const keys = t.fields.filter((k) => PRESENT.includes(k));
       if (keys.length !== t.fields.length) return { problem: `"${t.raw}" is not a choice this list has. Use type:, status:, owner:, workstream:, usecase:, priority:, due: or is:open.` };
@@ -98,8 +101,15 @@ export function readLine(line, base, known = []) {
       else if (key === "due") got = DUE_WORD[squash(v)];
       else if (v === "none") got = NONE;
       else if (raw === "@me") got = null;
-      else if (key === "use_case") { const u = known.find((k) => k.id === raw || k.names.some((n) => low(n) === v)); got = u ? u.id : null; }
-      else got = raw;
+      else if (key === "use_case") {
+        const saved = (t.negate ? (base.not || {}).use_case : base.use_case) || [];
+        const hits = known.filter((k) => k.id === raw || k.names.some((n) => low(bare(n)) === v));
+        const byId = hits.filter((k) => k.id === raw);
+        const ids = [...new Set((byId.length ? byId : hits).map((k) => k.id))];
+        if (ids.length > 1 && !ids.every((i) => saved.includes(i))) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling, or use the choices under Choose from lists.` };
+        if (ids.length) { for (const i of ids) if (!into[key].includes(i)) into[key].push(i); continue; }
+        got = saved.includes(raw) ? raw : null;      // a use case that is gone stays on the list as it was saved, and matches nothing
+      } else got = ((t.negate ? (base.not || {})[key] : base[key]) || []).find((x) => bare(x) === raw) || raw;
       if (!got) return { problem: `"${raw}" is not a value ${t.field} can take here. Check the spelling, or use the choices under Choose from lists.` };
       if (!into[key].includes(got)) into[key].push(got);
     }
