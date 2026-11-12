@@ -694,6 +694,33 @@ class SavedViews(Line):
         back = self.v(f"insertView({lit(gone)}, {lit(base[-1])}, {len(gone)})")
         self.assertEqual(back["views"], base)
 
+    def test_row_1071_reorder_refuses_a_repeated_or_empty_list_and_insert_stays_inside_the_list(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        self.assertFalse(self.v(f"reorderViews({lit(base)}, ['core-all', 'core-all'])")["ok"], "one view named twice")
+        self.assertFalse(self.v(f"reorderViews({lit(base)}, [])")["ok"], "nothing to place")
+        gone = self.v(f"deleteView({lit(base)}, 'core-risks')")["views"]
+        first = self.v(f"insertView({lit(gone)}, {lit(base[2])}, -5)")["views"]
+        self.assertEqual(first[0]["id"], "core-risks", "a place before the start is the start")
+        last = self.v(f"insertView({lit(gone)}, {lit(base[2])}, 99)")["views"]
+        self.assertEqual(last[-1]["id"], "core-risks", "a place past the end is the end")
+        self.assertEqual(len(last), len(base))
+
+    def test_row_1071_a_copy_of_a_long_name_still_fits_the_name_limit(self):
+        base = self.v("viewsGet(null, 'ABC')")
+        added = self.v(f"addView({lit(base)}, {lit('y' * 40)}, '')")["views"]
+        got = self.v(f"duplicateView({lit(added)}, {lit(added[-1]['id'])})")
+        self.assertTrue(got["ok"], got)
+        copy = got["views"][len(added)]
+        self.assertLessEqual(len(copy["name"]), 40)
+        self.assertTrue(copy["name"].endswith(" copy"))
+
+    def test_row_1071_the_starting_order_stores_nothing_extra(self):
+        fake = "{store: {}, getItem(k) { return k in this.store ? this.store[k] : null; }, setItem(k, v) { this.store[k] = String(v); }}"
+        out = self.val(f"(function(){{ var s = {fake}; var v = T.fl.viewsGet(s, 'ABC'); T.fl.viewsPut(s, 'ABC', T.fl.addView(v, 'Late', '').views);"
+                       " var a = JSON.parse(s.store['clark.forder'] || '{}'); T.fl.viewsPut(s, 'ABC', T.fl.reorderViews(T.fl.viewsGet(s, 'ABC'), ['mine', 'core-open']).views);"
+                       " return [a.ABC === undefined, JSON.parse(s.store['clark.forder']).ABC !== undefined]; })()")
+        self.assertEqual(out, [True, True], "the natural order (core first, then own) keeps no order; a changed one does")
+
     def test_a_deleted_views_id_is_never_given_to_a_new_view(self):
         """Row 1071: after Delete view, a new view must not take the id the deleted one had, or its Undo could not put it back."""
         three = [{"id": "v1", "name": "One", "line": ""}, {"id": "v2", "name": "Two", "line": ""}, {"id": "v3", "name": "Three", "line": ""}]

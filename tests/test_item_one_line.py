@@ -259,7 +259,7 @@ class StatusWordInTheFileThePdfAndWord(Base):
         blocks = t.blocks(docx_build.build(publish.select(publish.read_inputs(self.store, "ABC", AS_AT))))
         word = {}
         for b in blocks:
-            if b["kind"] == "table" and b["rows"] and b["rows"][0][0] == "ID" and b["rows"][0][-1] == "Status":
+            if b["kind"] == "table" and b["rows"] and b["rows"][0][0] in ("ID", "Id") and b["rows"][0][-1] == "Status":
                 word.update({r[0]: r[-1] for r in b["rows"][1:]})
         ids = {title: r["id"] for title, r in by_title.items()}
         for title, expected in EXPECT.items():
@@ -274,7 +274,7 @@ class WordCopyCarriesTheWord(unittest.TestCase):
         blocks = t.blocks(t.docx_build.build(t.published(plant)))
         tables = {tuple(b["rows"][0]): b["rows"][1:] for b in blocks if b["kind"] == "table" and b["rows"]}
         actions = next(v for k, v in tables.items() if k[:2] == ("ID", "Action"))
-        raid = next(v for k, v in tables.items() if k[:2] == ("ID", "Type"))
+        raid = next(v for k, v in tables.items() if k[:2] == ("Id", "Type"))
         self.assertTrue(actions and raid)
         for row in actions:
             self.assertTrue(row[-1].strip(), "an action's Status is a word in the Word copy")
