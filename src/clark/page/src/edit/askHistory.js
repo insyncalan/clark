@@ -1,4 +1,4 @@
-// Row 1095: the earlier Ask clark chats of one project, kept in this browser on this computer (a per-project store, like the page's other
+// Row 1095: the earlier chats in the ask clark panel of one project, kept in this browser on this computer (a per-project store, like the page's other
 // remembered things). Newest first, at most KEEP of them; the title is the first question. Every read and write can fail: then nothing is kept.
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
