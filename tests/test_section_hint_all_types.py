@@ -5,7 +5,6 @@ Run: python3 dev/run_tests.py test_section_hint_all_types
 In a real browser, Edit mode, the Dashboard: for each of the section types, that type alone is the top section, and the hint beside its
 handle is inside the window, at or below the top of its section, and not cut off by any box around it. No new words: the test reads no text.
 """
-import time
 import unittest
 
 from _paths import ROOT
@@ -58,7 +57,7 @@ class HintEverySection(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec-hint')", sid)), f"the hint shows, {kind} {width}")
                     for theme in ("light", "dark"):
                         cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
-                        time.sleep(0.2)
+                        self.settle(cdp, sid, f"{kind} {width} {theme}")
                         m = cdp.js(BOXES, sid)
                         where = f"{kind} {width} {theme}"
                         self.assertIsNotNone(m, where)
@@ -68,6 +67,17 @@ class HintEverySection(unittest.TestCase):
                         self.assertGreaterEqual(m["hint"][1], 0, f"the hint is above the window, {where}: {m['hint']}")
                         self.assertGreaterEqual(m["hint"][1], m["sec"][1] - 0.5, f"the hint is above its section top, {where}: {m['hint']} {m['sec']}")
                         self.assertEqual(m["clipped"], [], f"the hint is cut off by {m['clipped']}, {where}")
+
+    def settle(self, cdp, sid, where):
+        """Wait (up to 10 s) for the page to be still: no scroll anchoring, scrolled to the top, the hint at the same place on two reads."""
+        last = []
+
+        def still():
+            now = cdp.js("(document.documentElement.style.overflowAnchor === '' && scrollY === 0) ? JSON.stringify((() => { const h = document.querySelector('.sec-hint'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()) : null", sid)
+            same = now is not None and now != "null" and last[:1] == [now]
+            last[:] = [now]
+            return same
+        self.assertTrue(wait(still, 10), f"the page settled, {where}")
 
     def restore(self, saved):
         for i, t, b, be, hi in saved:
