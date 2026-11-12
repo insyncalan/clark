@@ -351,6 +351,18 @@ def shown(path, home=None):
         return str(path)
 
 
+_HOST_HOME = re.compile(r"^(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+)(?=[\\/]|$)")
+
+
+def host_shown(path):
+    """The Mac's data folder (CLARK_DATA_SOURCE, which only a container sees) as a person reads it in a message: the home folder is
+    written "~" and an account e-mail in a cloud folder's name (GoogleDrive-name@example.org) is dropped, so neither the user's name
+    nor the account is ever in a message that might be copied into a report or an email."""
+    text = str(path)
+    text = _HOST_HOME.sub("~", text, count=1)
+    return re.sub(r"(?<=[\\/])([A-Za-z]+)-[^\\/@]*@[^\\/]*", r"\1", text)
+
+
 def _synced_refusal(where, service):
     return (f"Your data can't be kept in {where} because it is inside {service}. {service} copies files while they are being "
             "written, which damages the database. Nothing has been changed. Move your clark data folder to a folder on this "
@@ -366,7 +378,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
     if root is None and what == "data":
         root = container_host_in_onedrive()                  # item 427: inside the container the Mac's OneDrive can't be seen, so the Mac's path is told
         if root is not None:
-            path = os.environ["CLARK_DATA_SOURCE"]           # and the Mac's folder is what the person must change, not the container's /data
+            path = host_shown(os.environ["CLARK_DATA_SOURCE"])   # (written without the user's name) and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
@@ -379,7 +391,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
                             "Backups › Copy my backups to): backups can still go to OneDrive.")
     if what == "data" and synced is None and container_host_in_synced() is not None:
         service, _ = container_host_in_synced()              # the Mac's folder is named, as for OneDrive above
-        raise PlatformError(_synced_refusal(os.environ["CLARK_DATA_SOURCE"], service))
+        raise PlatformError(_synced_refusal(host_shown(os.environ["CLARK_DATA_SOURCE"]), service))
     if what == "data":                                       # Dropbox, iCloud Drive and Google Drive, after OneDrive's check
         try:
             hit = inside_synced(path, synced)

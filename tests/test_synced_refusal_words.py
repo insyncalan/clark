@@ -47,15 +47,30 @@ class RefusalWords(unittest.TestCase):
                               ("iCloud Drive", "/Users/sam/Library/Mobile Documents/com~apple~CloudDocs/clark"),
                               ("Dropbox", "/Users/sam/dropbox (Personal)/clark")):
             with self.subTest(path=path):
+                shown = path.replace("/Users/sam", "~").replace("GoogleDrive-a@b.c", "GoogleDrive")      # the Mac's folder from "~", no user name, no account
                 with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": path}), \
                         mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
                     with self.assertRaises(pl.PlatformError) as caught:
                         pl.check_data_dir("/data")
+                self.assertNotIn("sam", str(caught.exception).replace("sam copies", ""))
+                self.assertNotIn("/Users", str(caught.exception))
+                self.assertNotIn("@", str(caught.exception))
                 self.assertEqual(
                     str(caught.exception),
-                    f"Your data can't be kept in {path} because it is inside {service}. {service} copies "
+                    f"Your data can't be kept in {shown} because it is inside {service}. {service} copies "
                     "files while they are being written, which damages the database. Nothing has been changed. Move your "
                     f"clark data folder to a folder on this computer that {service} doesn't sync, then start clark again.")
+
+    def test_the_raw_host_folder_never_appears_in_the_refusal(self):
+        raw = "/Users/sam.jones/Library/CloudStorage/GoogleDrive-sam.jones@example.org/My Drive/clark"
+        with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": raw}), \
+                mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
+            with self.assertRaises(pl.PlatformError) as caught:
+                pl.check_data_dir("/data")
+        said = str(caught.exception)
+        for leak in ("sam.jones", "example.org", "@", "/Users", raw):
+            self.assertNotIn(leak, said)
+        self.assertIn("~/Library/CloudStorage/GoogleDrive/My Drive/clark", said)
 
     def test_a_docker_host_folder_with_only_a_similar_name_is_let_through(self):
         for path in ("/Users/sam/Dropbox-old/clark", "/Users/sam/Documents/my-dropbox-notes/clark", "/Users/sam/clark"):

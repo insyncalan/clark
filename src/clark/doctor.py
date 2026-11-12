@@ -142,7 +142,7 @@ def check_data_not_in_synced_folder(seen):
     and the refusal at start agree."""
     shared = platform.container_host_in_synced(seen.environ)
     if shared is not None:
-        return Line(FIX, platform._synced_refusal(seen.environ["CLARK_DATA_SOURCE"], shared[0]))
+        return Line(FIX, platform._synced_refusal(platform.host_shown(seen.environ["CLARK_DATA_SOURCE"]), shared[0]))
     folder = seen.folder()
     hit = platform.inside_synced(folder, list(seen.synced_roots()))
     if hit is None:

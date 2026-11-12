@@ -153,7 +153,8 @@ class SharedInFromTheMac(DoctorCase):
             code, lines = self.run_doctor(environ=env)
         self.assertEqual(code, 1)
         self.assertEqual(self.line(lines, "To fix: Your data can't be kept in"),
-                         "To fix: " + pl._synced_refusal(env["CLARK_DATA_SOURCE"], "Dropbox"))
+                         "To fix: " + pl._synced_refusal("~/Dropbox/clark-data", "Dropbox"))
+        self.assertNotIn("/Users/someone", "\n".join(lines))                  # the Mac's user name is never printed (the refusal says it from "~")
 
     def test_a_container_data_source_outside_synced_folders_is_ready(self):
         env = {"CLARK_DATA_SOURCE": "/Users/someone/clark-data"}
