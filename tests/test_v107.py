@@ -50,6 +50,24 @@ COVERED = [
      'test_milestones_spacing::Spacing::test_the_live_page_at_1400_and_900_light_and_dark'),
     ('1089', 'Help has The brand kit guide with what a kit holds, the limits and how to install one.',
      'test_help_guide_brand_kit::TheBrandKitGuide::test_it_says_what_a_kit_holds'),
+    ('1106', 'The window that asks what to import opens with the sheets ticked last time ticked.',
+     'test_import_remembers_sheets::StartSheets::test_only_the_sheets_ticked_last_time_are_ticked'),
+    ('1108', 'The Use case summary shows the first 5 use cases, with Show all and Show the first 5.',
+     'test_uc_summary_five::FirstFive::test_with_more_the_first_five_show_and_the_control_expands_and_reduces_while_the_count_stays'),
+    ('1092', 'Settings is in the profile circle menu and the project menu lists only projects.',
+     'test_profile_menu::ProfileMenu::test_C_the_menu_has_a_separator_before_settings_and_the_appearance_group_below_it'),
+    ('1107', 'A use case page links the use case to a milestone with Link a milestone and Unlink takes it away, each with Undo.',
+     'test_uc_milestones_change::Change::test_remove_keeps_the_row_and_undo_puts_the_link_back'),
+    ('1109', 'When the folder window cannot open, a box to type the folder location appears with Add folder.',
+     'test_ask_settings::Settings::test_when_no_window_can_open_a_box_to_type_the_location_appears'),
+    ('1110', 'In an opened use case row each next step shows at most two lines and a click opens its peek.',
+     'test_next_clamp_1110::NextClamp::test_a_long_step_is_two_lines_with_icon_and_id_beside_it_and_a_click_opens_the_peek'),
+    ('1111', 'In a published file a use case opens its own read only page with its work items and milestones.',
+     'test_publish_uc_page::TheFilesUseCasePage::test_a_client_opens_the_page_and_sees_it_read_only'),
+    ('1112', 'In a published file a tile that counts work items opens the Work items page showing what it counts.',
+     'test_glance_page::Published::test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts'),
+    ('1114', 'In a published file a milestone row, mark or chip opens a read-only peek.',
+     'test_publish_ms_open::PublishedMilestonesOpen::test_a_row_a_mark_and_a_chip_open_the_read_only_peek'),
 ]
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -68,6 +86,15 @@ BULLET_STARTS = {
     '1082': 'In the peek of an action, "Show history" under Latest update lists the changes to that one field, newest first.',
     '1083': 'In the Milestones list, a light line and a little space separate each milestone from the next.',
     '1089': 'Help has a new guide, "The brand kit guide"',
+    '1106': 'The window that asks what to import opens with the sheets you ticked last time',
+    '1108': 'The Use case summary shows the first 5 use cases',
+    '1092': "Settings is in the profile circle's menu again",
+    '1107': "On a use case's page you can link the use case straight to a milestone",
+    '1109': 'When the folder window cannot open, Choose folder says so',
+    '1110': 'In an opened use case row, each next step shows at most two lines',
+    '1111': 'In a published file, a use case opens its own page',
+    '1112': 'In a published file, the At a glance tiles that count work items',
+    '1114': "In a published file, a milestone's row, mark or chip opens a read-only peek.",
 }
 
 # Merged rows with no visible change.
