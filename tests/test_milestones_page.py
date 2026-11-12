@@ -537,19 +537,13 @@ class Published(unittest.TestCase):
             self.assertIn("Milestone timeline;", cdp.js("document.querySelector('.mv-wrap').getAttribute('aria-label')", sid))
             self.assertEqual(cdp.js("document.querySelectorAll('input, textarea, select, [contenteditable]').length", sid), 0)
             self.assertGreater(cdp.js("document.querySelectorAll('.mv-mk, .mv-lab, .msl-row').length", sid), 0)
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.mv-mk, .mv-lab, .msl-row')].filter(e => e.tagName === 'BUTTON' || e.getAttribute('role') === 'button' || e.tabIndex >= 0 || getComputedStyle(e).cursor === 'pointer').length", sid), 0,
-                             "marks, labels and rail rows are plain text in a file: no button, no pointer")
-            before = cdp.js("location.href", sid)
-            cdp.js("document.querySelector('.mv-mk').click()", sid)
-            time.sleep(0.3)
-            self.assertEqual(cdp.js("location.href", sid), before, "a click in a file opens nothing")
+            # row 1114: marks, labels and rail rows open the file's read only peek (test_publish_ms_open)
             cdp.js("document.querySelector('[data-msvb=cal]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.cal')", sid)), "the Calendar switch works in the file")
             self.assertRegex(cdp.js("document.querySelector('.cal-d[aria-label]').getAttribute('aria-label')", sid), r"^(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday) \d")
             self.assertGreater(cdp.js("document.querySelectorAll('.cal-ms').length", sid), 0)
             self.assertRegex(cdp.js("document.querySelector('.cal-ms').title", sid), r"\d{2}-\d{2}-\d{4}", "a chip's tooltip carries its date")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.cal-ms')].filter(e => e.tagName === 'BUTTON' || getComputedStyle(e).cursor === 'pointer').length", sid), 0,
-                             "calendar chips are plain text in a file")
+            # row 1114: a chip opens the file's read only peek too
             cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
             self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('msv') >= 0)", sid), [], "a published file remembers nothing")
