@@ -237,6 +237,12 @@ class Nav(Base):
                 order.append(p.js("document.activeElement.closest('.hp-idx') ? 'rail' : (document.activeElement.dataset.k ? 'entry' : document.activeElement.id)"))
             self.assertEqual(order, ["hpTab-howto", "rail", "entry"], "Tab from the search box: the tabs, the contents list, then the entry")
 
+    def test_full_help_opens_with_the_focus_in_the_search_box(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            self.assertEqual(p.js("document.activeElement.id"), "hpQ", "the search box has the focus")
+
     def test_down_from_the_search_box_goes_to_the_contents_list(self):
         from test_server import chrome
         with chrome() as cdp:

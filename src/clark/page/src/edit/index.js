@@ -17,7 +17,7 @@ import { PeekArchive } from "./PeekArchive.jsx";
 import { Cell } from "./cells/Cell.jsx";
 import { Eye } from "./cells/Eye.jsx";
 import { Board } from "./Board.jsx";
-import { ArchivedItems, ArchivedPill } from "./ArchivedItems.jsx";
+import { ArchivedItems } from "./ArchivedItems.jsx";
 import { BulkActions, BulkLayer, installBulk } from "./Bulk.jsx";
 import { Publish } from "./Publish.jsx";
 import { ReportBar } from "./ReportBar.jsx";
@@ -37,7 +37,8 @@ import { ClientFolder } from "./ClientFolder.jsx";
 import { Movement } from "./Movement.jsx";
 import { MilestonesPage } from "./MilestonesPage.jsx";
 import { MsAdd } from "./MsAdd.jsx";
-import { MilestoneEdit } from "./MilestonePeek.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { MilestoneEdit, MilestoneTitle } from "./MilestonePeek.jsx";
 import { RichField } from "./RichField.jsx";
 import { NeedsEdit } from "./NeedsEdit.jsx";
 import { DocumentsEdit } from "./DocumentsEdit.jsx";
@@ -94,5 +95,7 @@ import { HAND_OVER } from "./HandOver.jsx";
 
 // Help (#82) is among them: a published file has no Help panel and no "?" key.
 // `clean` is the page's own cleaner for a saved body that View draws as text (Section.jsx); a body it refuses draws as nothing.
+// Row 1078: a milestone's rich words (description, client wording) for the read-only peek; "" when the cleaner refuses them.
+const richOf = (value) => { try { return richOrPlain(value || ""); } catch (e) { return ""; } };
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Profile, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ArchivedPill, ProjectSwitch, Add, Title, Toggle, Toast, Words, PeekTabs, PeekActivity, PeekSource, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedPage, exportExcel, ClientFolder, Safety, Update, Brands, Projects, Diagnostics, Feedback, Quit, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };
+export const EDIT = { clean, richOf, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Profile, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ProjectSwitch, Add, Title, Toggle, Toast, Words, PeekTabs, PeekActivity, PeekSource, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedPage, exportExcel, ClientFolder, Safety, Update, Brands, Projects, Diagnostics, Feedback, Quit, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MilestoneTitle, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };

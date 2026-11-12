@@ -34,7 +34,18 @@ const undoable = [];
 export const NOTHING_TO_UNDO = "Nothing to undo since this page was opened. Older changes are in Activity.";
 const MAX_KEPT = 50;
 
-export function say(kind, text, undo = null, code = project.value) {
+// A message whose Undo is a function on this page (a saved view put back, row 1071), not a step in the change log. It is in the same list as the steps, so
+// Cmd or Ctrl+Z undoes it in its turn and not an older change. The button and the key both end up in `fn`, once.
+export function sayLocalUndo(kind, text, fn, code = project.value) {
+  say(kind, text, null, code);
+  const entry = { step: null, code, local: null };
+  entry.local = () => { const at = undoable.indexOf(entry); if (at >= 0) undoable.splice(at, 1); fn(); };
+  undoable.push(entry);
+  if (undoable.length > MAX_KEPT) undoable.shift();
+  toast.value = { ...toast.value, local: entry.local };
+}
+
+export function say(kind, text, undo = null, code = project.value, focusUndo = false) {
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
@@ -43,7 +54,7 @@ export function say(kind, text, undo = null, code = project.value) {
   }
   if (kind === "problem") trouble.n++;
   const id = ++counter;
-  toast.value = { id, kind, text, undo, code };
+  toast.value = { id, kind, text, undo, code, focusUndo };
   if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
@@ -133,10 +144,10 @@ export function change(req, done, named = null) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendChange(code, req);
-    if (!r.ok) { say("problem", r.message); return null; }
+    if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
-    if (r.reply.apply_id && named) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
+    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
     if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
     return r.reply;
   });
@@ -170,7 +181,7 @@ export function changeRecord(req, done) {
     const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
     itemSteps.set(r.reply.apply_id, w.back || "");
     if (w.focus) focusSteps.set(r.reply.apply_id, w.focus);
-    say("done", w.text, r.reply.apply_id, code);
+    say("done", w.text, r.reply.apply_id, code, !!w.focusUndo);      // focusUndo: the toast puts the focus on its Undo as it is drawn
     return r.reply;
   });
 }
@@ -371,7 +382,12 @@ export function changeBulk(req, back) {
 export function undoLast(code = project.value) {
   for (let i = undoable.length - 1; i >= 0; i--) {
     if (undoable[i].code === code) {
-      const { step } = undoable[i];
+      const { step, local } = undoable[i];
+      if (local) {
+        if (toast.value && toast.value.local === local) dismiss();
+        local();
+        return Promise.resolve(null);
+      }
       if (toast.value && toast.value.undo === step) dismiss();
       return undo(step, code);
     }

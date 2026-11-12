@@ -11,6 +11,7 @@ Run: python3 dev/run_tests.py test_keep_published
 import hashlib
 import json
 import os
+import re
 import stat
 import tempfile
 import unittest
@@ -79,9 +80,11 @@ class KeepsTheDataToo(Base):
             for spelled in fx.spellings(marker):
                 with self.subTest(where=where):
                     self.assertNotIn(spelled, text)
-        for key in ("internal_note", "source", "publish_local", "publish_client", "file_sha256", "local_path", "clark-boot"):
+        for key in ("internal_note", "publish_local", "publish_client", "file_sha256", "local_path", "clark-boot"):
             self.assertNotIn(f'"{key}"', text)
         self.assertNotIn(str(self.root), text)
+        for value in re.findall(r'"source":"([^"]*)"', text):     # row 1077: a source is published by name only, never a path
+            self.assertNotRegex(value, r"[/\\:]", "a source in the data copy is a name, not a path")
 
     def test_a_second_publish_keeps_the_first_page_and_data_unchanged(self):
         first, _ = self.publish()

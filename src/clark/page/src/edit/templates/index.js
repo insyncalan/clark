@@ -20,12 +20,13 @@ import { Edit as checklist } from "./Checklist.jsx";
 import { Edit as keydates } from "./KeyDates.jsx";
 import { Edit as onedoc } from "./OneDoc.jsx";
 import { Edit as gantt } from "./GanttSection.jsx";
+import { Edit as gantttable } from "./GanttTableSection.jsx";
 
 const EDITS = { textimage, headline, figures4, figures3, gallery, table, doclinks, linkcard, raid3, raid4, workitems, callout, imagecap, quote, contacts, checklist, keydates, onedoc };
 export const TEMPLATE_EDITS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.map((t) => [t, EDITS[t]])));
 
 // The Edit parts of the types the page is ready for before the store takes them (types.js PENDING_TYPES).
-const PENDING = { gantt };
+const PENDING = { gantt, gantttable };
 export const PENDING_EDITS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, PENDING[t]])));
 
 // The Edit part for a section type, or null when it is not a template.

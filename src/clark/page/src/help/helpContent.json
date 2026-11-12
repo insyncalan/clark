@@ -291,6 +291,21 @@
     ]
    },
    {
+    "id": "excel-file-layout",
+    "g": "Every week",
+    "t": "See how the Excel file is laid out",
+    "w": "Settings \u203a Data",
+    "go": "settings#data",
+    "s": [
+     "In **Settings**, on the **Data** card, press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
+     "The **Cover** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. **History** lists the changes made to the items."
+    ],
+    "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
+    "page": [
+     "settings#data"
+    ]
+   },
+   {
     "id": "find-a-past-publication",
     "g": "Every week",
     "t": "Find or open a past publication",
@@ -355,7 +370,7 @@
      "A word it cannot use gets a red wavy underline and is not applied. A message under the line says why, such as There is no “x” filter. or Add a value after 'x:'. If you ask for owner:@me before your name is set, it says Set your name in Settings to see your actions.",
      "The count at the right reads, for example, 12 of 40. **Clear filter** (the **×**) empties the line. When nothing matches the words you typed, the list says, for example, No open items match \"crane\". and offers **Clear search**.",
      "A published file has no filter line. It has a **Search work items** box, which finds words in the ID, the description, the owner, the latest update, the client wording and the use case, and a **Filter by** row with Workstream, Status, Due, Owner, Priority, Use case and Milestone. Each opens a list with a count beside every value: tick the ones you want and choose **is any of** or **is not**. **Select all** and **Clear** are at the top. The filters that are on show as chips beside the count; **×** on a chip removes it, and **Clear all** removes the filters and the search but keeps the type and Open, Closed or All.",
-     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case's reference), opens Work items already filtered to what it counts."
+     "Your choices are kept for next time. A tile on the Dashboard, or the **See all** button on a use case (it reads “See all N work items” and the use case’s reference), opens Work items already filtered to what it counts."
     ],
     "page": [
      "work"
@@ -368,8 +383,8 @@
     "w": "Work items › Group by",
     "go": "work",
     "s": [
-     "The **Group by** button beside the saved views (the icon next to Table and Board) holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
-     "The two icons beside the **Group by** button, **Table** and **Board**, switch between the table and the board. The board’s columns follow Group by (Status when it is Nothing).",
+     "The **Group by** button, at the right end of the filter line (the icon after **List** and **Board**), holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
+     "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
      "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
      "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
@@ -389,17 +404,17 @@
     "go": "work",
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
-     "Click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "Under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
+     "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
+     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
-     "**Latest update**: click to write it. **Draft** writes one from the item’s own facts. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
-     "**Details** holds the description, type, workstream, milestone, use case and client wording. It stays open or closed as you last left it.",
+     "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
+     "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
      "In Edit, the **Activity** tab under the title shows the item’s history: who changed what, how and when, newest first. **Details** goes back to the fields.",
      "Under **Latest update**, **Show history** lists the changes to that one field; **Hide history** closes it.",
-     "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. The up and down arrows at the top step through the list."
+     "With the peek open, click another item anywhere on the page and the peek moves to it. A click elsewhere, or [[Esc]], closes it. **Previous item** and **Next item** at the top step through the list; [[Up]] and [[Down]] do the same only when focus is on one of the peek’s own buttons."
     ],
-    "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press the corners icon to take it across the whole screen. Your width is kept.",
+    "n": "Drag the peek’s left edge to make it wider (a double-click puts it back), or press **Make this panel fill the screen**. Your width is kept.",
     "page": [
      "work"
     ]
@@ -411,7 +426,7 @@
     "w": "A work item open in Edit › [[/]] [[/]]",
     "go": "work",
     "s": [
-     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box).",
+     "With a work item open in the peek in Edit, press [[/]] twice quickly (when you aren’t typing in a box). The **Ask clark to update for you** box opens.",
      "Type the change, for example “move to Friday, owner Jo, high priority”.",
      "Under the box, the words you typed are shown in the order you typed them, then a line for each field shows what it is now and what it will become.",
      "Press **Make the change** or [[Enter]] to make every change shown, in one step ([[Shift+Enter]] makes them and keeps the box open). **Not now** or [[Esc]] closes the box. The fields that changed flash for a moment, and the message has **Undo**.",
@@ -429,11 +444,11 @@
     "w": "Work items · the peek · Dashboard › Edit",
     "go": "dashboard+edit",
     "s": [
-     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, it is the eye at the top.",
+     "On Work items, the eye in each row’s last column turns client-visible on or off. In the peek, Shown to client (in Details) says Yes or No; change it with the eye in the row.",
      "On the Dashboard in Edit, the eye beside a row takes it off the page. The row greys while **Undo** is offered, then leaves.",
      "**+ Add from your project record** under a list brings items back. A picker opens: search, choose a kind, tick what you want (or **Select all shown**) and press **Add**.",
      "Milestones, use cases, supporting documents and tiles have their own eye and their own **Add back**. A whole section is left out from its options: **Leave out of the published page**.",
-     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, under **Client view**."
+     "An item’s **Client wording** (in the peek’s Details) is used on the page in place of its title. A milestone has the same, as **Client wording** in its peek."
     ],
     "n": "The report’s lists show only client-visible items. Everything else is left out of the published file altogether.",
     "page": [
@@ -444,7 +459,7 @@
     "id": "import-and-export",
     "g": "Work items",
     "t": "Import or export Excel",
-    "w": "Work items toolbar · Settings › Data · profile circle",
+    "w": "Work items filter line · Settings › Data · profile circle",
     "go": "work",
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
@@ -554,7 +569,7 @@
     "go": "dashboard",
     "s": [
      "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
-     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case's reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
+     "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
@@ -576,7 +591,7 @@
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
      "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
      "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
-     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History."
+     "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
      "dashboard+edit"
@@ -605,8 +620,8 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "**Personal › Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
-     "**Personal › Appearance** is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
@@ -622,11 +637,11 @@
     "s": [
      "On **Milestones**, press **+** (**Add milestone**). A new one, called New milestone and agreed 30 days out, opens in the peek. There is no **+** in a published file.",
      "Click any milestone to open it: its mark or label on the timeline, its chip on the calendar, or its row in the details.",
-     "**State**: Forecast, On track, At risk, Slipped or Achieved. Overdue follows the dates and can’t be picked. The line under it says why the milestone has that state.",
-     "**Dates**: the **Agreed** date is the baseline; change the **Forecast** date as things move. When they differ, **Rebaseline…** makes the forecast the new agreed date and keeps the original.",
+     "**State**: Forecast, On track, At risk, Slipped or Achieved are buttons under the header line. Overdue follows the dates and can’t be picked.",
+     "**Dates**: the **Agreed date** is shown and the peek does not change it; change the **Forecast date** as things move. A Done milestone also has an **Achieved on** date.",
      "**Progress** is set by hand with the slider or the number. Add a **Description**, the **Owner** and the **Workstream**.",
-     "**Client view**: **Visible to client**, and the **Client wording** used on the page in place of the name.",
-     "**Linked work items** lists the items tied to it. Link one from the item’s peek, under Details, Milestone."
+     "**Visible to client** (Yes or No), and the **Client wording** used on the page in place of the name.",
+     "To tie a work item to a milestone, open the item’s peek and, in Edit, pick the milestone under Details."
     ],
     "page": [
      "milestones"
@@ -728,7 +743,7 @@
     "w": "Settings › Projects · the project switcher",
     "go": "settings",
     "s": [
-     "In **Settings › Projects**, press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
+     "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
@@ -762,7 +777,7 @@
     "w": "Settings › Profile",
     "go": "settings#profile",
     "s": [
-     "Fill in your **Name**, **Alias**, **Email**, **Phone number** and **Organisation**.",
+     "Fill in **Your name**, **Alias** and **Your email**.",
      "Each saves when you leave the box (or press [[Enter]]), with **Undo**.",
      "Your full name goes on every change you make, in each item’s history."
     ],
@@ -815,7 +830,7 @@
     "go": "settings#update",
     "s": [
      "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
-     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows **Review X.Y.Z**; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
+     "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
      "To go back, press **Undo update** in the **Last update** row, then press it again within five seconds. More in [Updating clark](#ref-updating-clark)."
@@ -845,11 +860,11 @@
     "w": "Terminal · Docker Desktop",
     "go": "",
     "s": [
-     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark's web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark's own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
+     "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark’s web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark’s own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
      "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
-     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command's window before you start Docker. Neither route can always tell that the other is already using the folder.",
+     "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
@@ -1121,6 +1136,11 @@
         "Gantt",
         "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.",
         "Full"
+       ],
+       [
+        "Table",
+        "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
+        "Full or half"
        ]
       ]
      ]
@@ -1261,7 +1281,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views with the **Table** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes); then the filter line."
+      "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
       "tbl",
@@ -1344,6 +1364,7 @@
      [
       "p",
       "The filter line takes a plain word, which finds the items with it in the title or the ID, or field:value, such as status:Open or priority:High,Urgent. A comma means or, a space means and, a - in front means not, no:owner finds the items with no owner, has:owner the items with one, and owner:@me means you. The count at the right reads, for example, 12 of 40, and **Clear filter** (the **×**) empties the line. A published file has a **Search work items** box and a **Filter by** row instead, where each filter can be **is any of** or **is not**, and **Clear all** removes the chips.",
+      "Archived work is not in the list. To see it, type is:archived on the filter line.",
       "Group by: Workstream, Status, Due, Owner, Priority, Milestone, Type and Nothing. The board adds **Swimlanes** (Workstream or Type). See [Group work and use the board](#howto-use-the-board)."
      ],
      [
@@ -1356,7 +1377,7 @@
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ]
     ]
    },
@@ -1421,13 +1442,12 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, then the eye, Copy link and **⋯** (Duplicate, Archive).",
-       "**The line above the title**: the type, the ID, the project, and Client when it is shown to the client.",
-       "**A warning**, when an action is overdue or due on a weekend, with fixes.",
+       "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
+       "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday**.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
-       "**Latest update**, with **Draft**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
-       "**Details**: Description, Type, Workstream, Milestone, Use case and Client wording.",
-       "**Source** (in Edit): under the details, where the item came from, then by and the name of the person who added it. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
+       "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
+       "**Details** (in Edit a tab, with Activity; in View the same fields with no tab): Type, Owner, Due, Priority, Status, Workstream, Milestone, Use case, Shown to client and Client wording. An item’s description is its title.",
+       "**Source** (in Edit, in View and in a published file): under the details, where the item or milestone came from. In Edit and View it ends with by and the name of the person who added it; a published file shows only the name. An item brought in from a Word file reads Word import, then the date (DD-MM-YYYY), the file name and the heading it came under, then by and the name.",
        "**Activity** (in Edit): each change to the item, newest first: who, how and when. How reads, for example, In the peek, By Excel import (plans.xlsx) or By Word import (plan.docx). A change made by a file import also has a line under it, which reads Updated from, then the file name, the date (DD-MM-YYYY) and, after by, the name."
       ]
      ],
@@ -1609,15 +1629,16 @@
      [
       "ul",
       [
-       "**The top bar**: Close, Across the whole screen, Previous and Next, the eye and the archive picture (Archive milestone).",
-       "**Archive** (in Edit): the archive picture in the top bar archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
-       "**The chips**: the state, the agreed date, the forecast and the progress.",
-       "**State**: the six states as buttons, and why it has the one it has.",
-       "**Dates**: Agreed (the baseline) with **Rebaseline…** and the original date; Forecast, with how many days later than agreed. An achieved milestone shows its achieved date.",
-       "**Progress**: a slider and a number, set by hand.",
-       "**Description**: scope and needs, then Owner and Workstream.",
-       "**Client view**: Visible to client, and Client wording.",
-       "**Linked work items**, then the history."
+       "**The top bar**: Previous item and Next item, the milestone’s number, Archive (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
+       "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
+       "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
+       "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
+       "**The header line**: the state, the **Owner** and the progress. Achieved, with its date, appears only once the milestone is achieved; picking Achieved sets the progress to 100%.",
+       "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons under the header line. Overdue is shown but cannot be picked.",
+       "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, Forecast is a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
+       "**Progress**: a slider and a number in the header line, set by hand.",
+       "**The rows**: Description, Agreed date, Forecast date, Workstream, Visible to client and Client wording, label left and value right. Description and Client wording use the rich text editor.",
+       "**Visible to client** (Yes or No) and **Client wording**. A client sees the same peek, read only, without the Visible to client row."
       ]
      ]
     ]
@@ -1630,7 +1651,7 @@
      [
       "ul",
       [
-       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset**. A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line, and its label reads, for example, 3 days later, then Expected and the date.",
+       "**Timeline**: months along the top, a line for today, a mark per milestone with its name and date below. Earlier, Later and **Today**; drag the bottom edge to zoom (70% to 300%), **Reset** (shown once you have zoomed). A slipped milestone also has a faint mark on its expected date, joined to its agreed date by a dashed line; its label adds, for example, +3 days, and the list below gives the Expected date and how many days later.",
        "**Calendar**: **Week**, **Month** or **Quarter**; earlier, later and **Today**; weekends are muted and today is marked. A slipped milestone shows on its agreed date and again, faintly, as “Expected”. In Quarter, a month’s name opens that month.",
        "**Legend**: point at it or tab to it.",
        "**Milestone details**: a rail with the date, the name, the state, the progress and, for internal ones, “Internal only”. The first five, then **Show all**. **Hide milestone details** folds it away."
@@ -1752,7 +1773,7 @@
       [
        [
         "No.",
-        "The publication's number for this project, counting up from 1"
+        "The publication’s number for this project, counting up from 1"
        ],
        [
         "Week ending",
@@ -1778,7 +1799,7 @@
      ],
      [
       "p",
-      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark's own record of what it published, so other files in the folder are never shown."
+      "Each publish gets the next number for the project, and a copy of the page is kept. Every copy is kept; the page lists the latest ten. The list is clark’s own record of what it published, so other files in the folder are never shown."
      ]
     ]
    },
@@ -1824,15 +1845,51 @@
       [
        [
         "Profile",
-        "About you (your name, Alias and Email)."
+        "About you: **Your name**, **Alias** and **Your email**."
+       ],
+       [
+        "Publishing",
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Personal",
         "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
+        "Freshness",
+        "**Not reviewed after (days)**: a whole number from 1 to 365, 14 as standard. It sets when an open item in this project counts as not reviewed. Not in the published report."
+       ],
+       [
+        "Gantt",
+        "**Show the Gantt to me**, **Show the Gantt to the client** and the **Tab name**. The client sees a Gantt only when at least one line is shown to the client."
+       ],
+       [
+        "Logs and diagnostics",
+        "The log level (**Normal** or **Debug**), **Open folder** for the log folder, **Copy diagnostics** and the errors of the last 7 days. See [Diagnostics and logs](#ref-diagnostics)."
+       ],
+       [
         "Projects",
-        "Every project with its code, client, workstreams and item count; Open, Edit and Archive; **+** adds one."
+        "Every project with its name, code, client, workstreams and item count; **Open**, **Edit** and **Archive**; **+** adds one, and **Show archived** lists the archived ones, each with **Restore**."
+       ],
+       [
+        "Data",
+        "**Export workbook** and **Import workbook**. Both need an open project."
+       ],
+       [
+        "Backups",
+        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
+       ],
+       [
+        "Version and updates",
+        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check."
+       ],
+       [
+        "People",
+        "Everyone who owns a work item or a milestone, with email, organisation and role; **Paste from Excel** adds rows. See [People](#ref-people)."
        ],
        [
         "Asking",
@@ -1843,32 +1900,12 @@
         "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
        ],
        [
-        "Quit",
-        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
-       ],
-       [
-        "Publishing",
-        "The **Local folder**, where the Publish save window opens, and the **Client folder**, the client’s SharePoint folder. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
-       ],
-       [
-        "Data",
-        "Export to Excel, and Import from Excel."
-       ],
-       [
-        "Version and updates",
-        "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
-       ],
-       [
-        "Brands",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
-       ],
-       [
-        "Diagnostics",
-        "The log level (Normal or Debug), the log folder, **Copy diagnostics** and recent errors. See [Diagnostics and logs](#ref-diagnostics)."
-       ],
-       [
         "Feedback",
         "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
+       ],
+       [
+        "Quit",
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
        ]
       ]
      ]
@@ -1902,7 +1939,7 @@
      [
       "ul",
       [
-       "**Installed** is the version you have. **Update** says Up to date, or shows **Review X.Y.Z** when a newer update is in Downloads. There is no online check.",
+       "**Installed** is the version you have. **Update** says Up to date, or shows a **Review** button with the new version number when a newer update is in Downloads. There is no online check.",
        "**Choose zip…**, under **Install from a file**, takes an update you saved: the one attached to the release for your computer.",
        "**Review** shows the version change, the release notes (**Copy**), the files replaced, added and removed (**Show the files**), and that your projects, settings and published reports are kept.",
        "A copy of your data is made first, and if a step fails clark puts the old version back. An update is checked file by file against its list of checksums before anything changes.",
@@ -2034,6 +2071,7 @@
       "ul",
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
+    "Help opens with the cursor in the search box.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
        "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
@@ -2220,8 +2258,8 @@
    ],
    [
     "rows",
-    "Table",
-    "Work items as a table, in groups",
+    "List",
+    "Work items as a list, in groups",
     "Work items"
    ],
    [
@@ -2253,12 +2291,6 @@
     "Legend",
     "What each milestone mark means",
     "Under the milestones"
-   ],
-   [
-    "sparkle",
-    "Draft",
-    "Write the latest update from the item’s own facts",
-    "The peek, in Edit"
    ],
    [
     "close",
@@ -2448,7 +2480,7 @@
     "Work items lists the actions, risks, issues and decisions for the project in one place.",
     "Type is:open or is:closed on the filter line to say which items to list.",
     "Narrow the list by typing in the filter line, a word or a field such as status:Open. The **×** at its right empties it.",
-    "The **Table** and **Board** icons beside the **Group by** button switch between a table and a board; the **Group by** button holds the grouping."
+    "The **List** and **Board** icons, at the right end of the filter line, switch between a list and a board; **Group by** holds the grouping."
    ],
    "full": "ref-work-items"
   },
@@ -2663,7 +2695,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, press the **Export to Excel** icon in the page header, beside the add button.",
+     "d": "On **Work items**, press the **Export to Excel** icon at the right end of the filter line. With no work items yet there is no filter line, and the icon is in the page header, beside the add button.",
      "pic": "excel-out-icon"
     },
     {
@@ -2886,7 +2918,7 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand's name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
+     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
     },
     {
      "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
@@ -2907,7 +2939,7 @@
      "d": "To go back, press **Undo** to put back what the last install, replace or remove changed, or press **Remove** on the brand to return to the default look."
     }
    ],
-   "result": "The brand's colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
+   "result": "The brand’s colours, fonts and pictures are used, or a plain sentence says what the kit lacks and nothing was changed.",
    "next": [
     "howto-undo-a-mistake",
     "ref-profile-circle"
@@ -2949,7 +2981,7 @@
   },
   {
    "id": "excel-out-icon",
-   "alt": "The Export to Excel icon in the page header, ringed."
+   "alt": "The Export to Excel icon on the filter line, ringed."
   },
   {
    "id": "excel-out-menu",

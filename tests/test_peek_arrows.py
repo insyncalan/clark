@@ -189,9 +189,9 @@ class Arrows(unittest.TestCase):
                     key(cdp, sid, "/")
                     key(cdp, sid, "/")
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.wordsbox')", sid)))
-                    r = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.wordsbox')); return [c.position, c.boxShadow]; })()", sid)
+                    r = cdp.js("(() => { const c = getComputedStyle(document.querySelector('.wordsbox')); return [c.position, c.borderTopWidth, c.borderTopLeftRadius, c.boxShadow]; })()", sid)
                     self.assertEqual(r[0], "sticky", r)
-                    self.assertNotEqual(r[1], "none", r)
+                    self.assertEqual((r[1], r[2], r[3]), ("1px", "0px", "none"), "row 1077: a flat foot band with a hairline above, not a floating card: " + str(r))
 
     def test_row_776_the_words_box_has_chips_and_the_button_row_after_a_reading_in_light_and_dark(self):
         for theme in ("light", "dark"):

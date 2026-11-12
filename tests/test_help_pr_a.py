@@ -172,7 +172,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn("<legend>Appearance</legend>", per)
         self.assertLess(per.index('["system", "System"'), per.index('["light", "Light"'))
         self.assertIn("Appearance (System, Light or Dark) and Keys (Single-key shortcuts)", self.TEXT)
-        self.assertIn("About you (your name, Alias and Email).", self.TEXT)
+        self.assertIn("About you: **Your name**, **Alias** and **Your email**.", self.TEXT)      # the three boxes of the Profile card
         self.assertNotIn("Phone number", self.TEXT)
 
     def test_published_reports_row(self):
