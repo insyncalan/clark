@@ -195,7 +195,7 @@ class ReAdd(Base):
             self.refused(self.req("new", values={"type": t}), changes.NEW_TYPE_WORDS)
 
     def test_the_new_types_are_exactly_text_the_content_types_and_the_built_ins(self):
-        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), set(BUILT_INS) | {"gantt"})
+        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), set(BUILT_INS) | {"gantt", "gantttable"})
 
 
 if __name__ == "__main__":

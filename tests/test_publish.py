@@ -125,7 +125,10 @@ class Dropped(Plant):
         self.assertAbsent("internal_note", "source", "response_action", "reasoning", "options", "workstream_lead", "workstream_keywords",
                           "workstream_aliases", "comment", "change_log_old", "change_log_note")
         for m in self.pub["data"]["milestones"]:
-            self.assertFalse({"internal_note", "movement", "source", "client_visible", "archived", "state_set"} & set(m))
+            self.assertFalse({"internal_note", "movement", "client_visible", "archived", "state_set"} & set(m))
+            self.assertEqual(m["source"], "milestones.xlsx", "row 1077: the source by name, never its path (the plant's is ZQ-SOURCE-PATH/milestones.xlsx)")
+        for a in self.pub["data"]["actions"]:
+            self.assertEqual(a["source"], "actions.xlsx")
 
     def test_project_folders_absent(self):
         self.assertAbsent("publish_local", "publish_client")
@@ -203,7 +206,7 @@ class Dropped(Plant):
         payload = block(self.text)
         allowed = {t: set(f) for t, f in publish.PUBLISH_FIELDS.items()}
         allowed["milestones"] |= {"state", "state_word", "slip_days", "original_date"}
-        forbidden = {"internal_note", "movement", "source", "client_visible", "archived", "updated_at", "publish_local",
+        forbidden = {"internal_note", "movement", "client_visible", "archived", "updated_at", "publish_local",
                      "publish_client", "active", "lead", "keywords", "aliases", "comments", "applies", "change_log",
                      "item_events", "publications", "saved_views", "source_folders", "state_set", "reasoning", "options",
                      "response_action"}
@@ -776,8 +779,8 @@ class Making(unittest.TestCase):
 
     def test_the_store_refuses_to_read_what_no_report_carries(self):
         fields = {t: tuple(f) for t, f in publish.PUBLISH_FIELDS.items() if t != "links"}
-        for never in ("internal_note", "movement", "source", "reasoning", "options", "response_action", "publish_local"):
-            table = {"internal_note": "milestones", "movement": "milestones", "source": "actions", "reasoning": "decisions",
+        for never in ("internal_note", "movement", "reasoning", "options", "response_action", "publish_local"):
+            table = {"internal_note": "milestones", "movement": "milestones", "reasoning": "decisions",
                      "options": "decisions", "response_action": "raid", "publish_local": "projects"}[never]
             with self.subTest(never=never), self.assertRaisesRegex(store_module.Invalid, "never read for a published file"):
                 self.store.publish_inputs("PUB", {**fields, table: fields[table] + (never,)})
@@ -910,6 +913,10 @@ class Making(unittest.TestCase):
                         continue
                     if field in publish.RICH.get(table, ()):                                    # cleaned of script and handlers
                         continue
+                    if field == "source":                                                        # row 1077: the name of the stored words, never a path
+                        self.assertEqual(row[field], publish.source_name(have[row["id"]][field]) or None, f"{row['id']}.{field}")
+                        self.assertNotIn("ZQ-SOURCE-PATH", str(row[field]))
+                        continue
                     self.assertEqual(row[field], have[row["id"]][field], f"{row['id']}.{field}")
                     checked += 1
         self.assertGreater(checked, 50)
@@ -932,7 +939,7 @@ class Making(unittest.TestCase):
         asked = " ".join(sql)
         for column in ("internal_note", "movement", "reasoning", "options", "response_action", "publish_local", "keywords", "comments"):
             self.assertNotIn(column, asked, "a column the file never carries isn't even read")
-        self.assertNotRegex(asked, r"\bsource\b")
+        self.assertRegex(asked, r"\bsource\b", "row 1077: the source is read, to be published by name (select)")
         self.assertEqual(hashlib.sha256(self.db.read_bytes()).hexdigest(), before, "the database is not changed")
         ro = store_module.connect(self.db, readonly=True)
         with self.assertRaises(sqlite3.OperationalError):
