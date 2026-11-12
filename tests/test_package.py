@@ -310,7 +310,7 @@ class MacZipTest(unittest.TestCase):
         text = package.start_here("mac")
         flat = " ".join(text.split())
         self.assertIn("What is in this folder: README.md says what clark is. START-HERE.md is this page. Double-click clark.command to start clark. "
-                      "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
+                      "docker is for starting clark with Docker. branding holds your own logo and colours, if you add them. "
                       "The program files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
         self.assertIn("If an earlier Docker start kept your data in a data folder inside the clark folder, move that data folder out of the "
@@ -320,7 +320,7 @@ class MacZipTest(unittest.TestCase):
         self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
         steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
                  "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
-                 "system/branding folder from the old clark folder into the new one. An update never changes that folder, but replacing the "
+                 "branding folder (an older clark keeps it in system/branding) from the old clark folder into the new one. An update never changes that folder, but replacing the "
                  "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
                  "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
                  '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',
@@ -565,7 +565,7 @@ class PlacedLayoutTest(unittest.TestCase):
         self.assertEqual(len(repo), len(made))
         changed = [(a, b) for a, b in zip(repo, made) if a != b]
         self.assertEqual([("    working_dir: /clark", "    working_dir: /clark/.app")], changed)
-        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so system/branding is seen")
+        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so branding is seen")
         self.assertEqual("    working_dir: /clark", next(ln for ln in repo if "working_dir" in ln), "the repo's own file is untouched")
 
     def test_the_compose_change_is_refused_unless_the_line_is_found_exactly_once(self):
@@ -577,7 +577,7 @@ class PlacedLayoutTest(unittest.TestCase):
                 package.compose_for_zip(bad)
 
     def test_a_tracked_path_under_system_or_data_refuses_the_build(self):
-        for kept in ("system/branding/logo.png", "data/clark.db", "System/x.txt"):
+        for kept in ("branding/logo.png", "system/branding/logo.png", "data/clark.db", "System/x.txt"):
             with self.subTest(kept=kept):
                 root = ForClientTest.snapshot(self, {kept: "mine\n"})
                 out = Path(self.tmp) / ("refused " + kept.replace("/", "-"))

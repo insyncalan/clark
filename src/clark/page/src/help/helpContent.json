@@ -244,7 +244,7 @@
      "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
-     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
+     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**. The suggestions change with the page that is open (work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about.",
      "**New chat** at the top starts again. **Close**, [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider."
     ],
     "say": [
@@ -464,7 +464,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows the counts of new and updated rows, and the first few; press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, how many break a rule and how many are not in the workbook, with the first few; press **Import** (the button also says how many changes) to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -568,7 +568,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -1893,7 +1893,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -1905,7 +1905,7 @@
        ],
        [
         "Quit",
-        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it."
+        "Quit clark asks you to confirm, then stops clark. Nothing is left running, so you do not need a Terminal window to end it. To start it again, double-click clark.command in the clark folder (with Docker, start it the way you did before)."
        ]
       ]
      ]
