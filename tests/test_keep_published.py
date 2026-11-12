@@ -10,8 +10,8 @@ Run: python3 dev/run_tests.py test_keep_published
 """
 import hashlib
 import json
-import re
 import os
+import re
 import stat
 import tempfile
 import unittest

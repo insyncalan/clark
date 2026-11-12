@@ -62,7 +62,7 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -100,8 +100,8 @@ SOURCED = ("milestones", "actions", "raid", "decisions")
 # Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
 # the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
 WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description", "client_message")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
@@ -458,16 +458,18 @@ def _gantt_line(row, code):
     return c
 
 
-def gantt_for_client(d, code, project_name):
+def gantt_for_client(d, code, project_name, for_section=False):
     """The Gantt tab's data for the published file, or None when there is no tab: the project's show_gantt_client is not 1, or no
     line is left (the tab needs at least one line with its eye on). The ONE place a client's Gantt is decided, and it runs before
     anything is copied: only a line whose `show` is exactly 1 and which belongs to this project is read at all; a dependency on a
     line that is not in the copy is dropped; a parent that is not in the copy (or is not a phase) reads as no parent; a dependency that
     would close a circle is dropped. The columns in the project's gantt_hidden_columns are not in the copy at all (not hidden by a
     style): the copy holds the line's id and name and every column not on that list. Returns {"tab_name", "title", "columns",
-    "lines"}; `columns` names the columns a line carries."""
+    "lines"}; `columns` names the columns a line carries.
+    `for_section` (row 1068): the copy a Gantt table section draws, the same lines by the same eye and the same columns, asked without
+    the client switch: a template section is in the file by its own place (it still needs an eye-on line), the tab by the switch."""
     project = d.get("project") or {}
-    if type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1:      # exactly the whole number 1: True, 1.0 and "1" are not
+    if not for_section and (type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1):      # exactly the whole number 1: True, 1.0 and "1" are not
         return None
     eyed = [r for r in d.get("gantt_lines") or () if type(r.get("show")) is int and r["show"] == 1 and r.get("project", code) == code]
     eyed.sort(key=lambda r: (r["sort_order"] if type(r.get("sort_order")) is int else 0, str(r.get("id"))))
@@ -579,6 +581,7 @@ def select(inputs):
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     gantt = gantt_for_client(d, code, proj["name"])               # row 926: decided here, from the rows as read, before anything of it is copied
+    table = gantt or gantt_for_client(d, code, proj["name"], for_section=True)      # row 1068: a Gantt table section needs an eye-on line, not the tab's switch
     if gantt:
         out["gantt"] = gantt
         proj["gantt_tab_name"], proj["gantt_title"] = gantt["tab_name"], gantt["title"]       # row 926: the project block carries the tab's name and the page's title, only when the tab is in the file
@@ -588,6 +591,8 @@ def select(inputs):
     for_templates = {k: out[k] for k in KINDS}
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
                                 for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
+                                   for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
     ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
@@ -602,7 +607,8 @@ def select(inputs):
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
-                             or (x.get("type") == "gantt" and not gantt))                # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -619,6 +625,8 @@ def select(inputs):
         elif s["type"] in section_bodies.CHECKERS:
             c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
         shown.append(c)
+    if table and not gantt and any(s["type"] == "gantttable" for s in shown):
+        out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
     if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):

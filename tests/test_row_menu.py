@@ -159,6 +159,15 @@ class Rules(unittest.TestCase):
         good = json.dumps([{"id": "P-001", "name": "Ada", "email": "ada@example.com"}])
         self.assertEqual(self.js(f"RM.recipientOf({good}, 'P-001')")["email"], "ada@example.com")
 
+    def test_the_address_length_limit_is_the_servers_exactly_254_in_255_out(self):
+        """Both sides of the limit: the page must not drop an address the server takes, nor send one it refuses."""
+        for n, want in ((254, True), (255, False)):
+            addr = "x" * (n - 5) + "@a.co"
+            ppl = json.dumps([{"id": "P-001", "name": "Ada", "email": addr}])
+            got = self.js(f"RM.recipientOf({ppl}, 'P-001')")
+            self.assertEqual(got is not None, want, n)
+            self.assertEqual(len(addr) <= draft_email_feed.MAX_EMAIL, want, n)
+
     @staticmethod
     def server_takes(addr):
         """True when draft_email_feed's address rule lets the address through (the rule in make(): one_line, ADDRESS, no Cf, Co, Cs)."""
@@ -849,6 +858,17 @@ class Menu(board.Base):
                 done.set()
         self.s.httpd.people_list = slow
         return gate, done
+
+    def test_row_1048_when_the_people_list_cannot_be_read_the_menu_still_opens_and_the_draft_entry_gives_no_reason(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.s.httpd.people_list = lambda *req: (500, {"ok": False})
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                by = {e[0]: e for e in self.entries(cdp, sid)}
+                self.assertFalse(by["draft"][2], f"{width}: the entry can still be used")
+                self.assertEqual(by["draft"][3], "", f"{width}: no reason is given while there is no People list to judge by")
 
     def test_a_dismiss_before_the_people_read_resolves_cancels_the_open(self):
         for how in ("escape", "outside"):

@@ -9,7 +9,7 @@ SKIPS ITSELF while store.SCHEMA_VERSION is below 20 (layout 20 is not on this tr
 
 Covered: the backup set is made first (layout 19, every row); the new build migrates to layout 20 keeping every row, takes its own safety
 copy first, and projects.brand is 'generic' for every existing project; a second open changes nothing; Undo puts layout 19 back; the old
-build refuses layout 20 with its plain "newer" sentence; a layout-22 copy is refused by the new build, untouched.
+build refuses layout 20 with its plain "newer" sentence; a layout-23 copy is refused by the new build, untouched.
 No network, no browser, no window. Run: python3 dev/run_tests.py test_update_19_to_20
 """
 import hashlib
@@ -35,7 +35,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 22      # the data layout of this build (schema step 22, row 875); the test pins the number on purpose
+NEW_LAYOUT = 23      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''

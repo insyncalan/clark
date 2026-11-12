@@ -13,7 +13,7 @@ import { WORDS as NEEDS } from "./needs.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text, needs since the section that carries content (#121),
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
-export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19
+export const ACCEPTS = { types: ["text", "needs", ...TEMPLATE_TYPES, "current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs", ...PENDING_TYPES] };      // row 926: the Gantt section (no body, no registry module) is taken by the store at layout 19; row 1068: the Gantt table section at layout 21
 
 export const KINDS = [
   { id: "text", name: "Text and pictures" },
@@ -25,6 +25,10 @@ export const KINDS = [
 ];
 export const RECENT = "recent";
 export const RECENT_MAX = 3;
+
+// Row 1068: the card name and the starting title of the Gantt table template (type gantttable), the owner's word. The Notes grid
+// template (type table) is also called Table; the ONE place to change this one's word (Help's row carries the same word).
+export const GANTT_TABLE_NAME = "Table";
 
 // Words and parts are the prototype's (system/prototype/views.js, the same list Help's table draws from). `fit` puts the better width first.
 export const TEMPLATES = [
@@ -72,6 +76,8 @@ export const TEMPLATES = [
     holds: ["Heading", "Rich text: headings, lists, quote, links", "AI menu"] },
   { id: "gantt", name: "Gantt", kind: "dates", fit: ["full"], type: "gantt", title: "Gantt", body: "", ready: true,
     description: "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The Gantt chart"] },
+  { id: "gantt-table", name: GANTT_TABLE_NAME, kind: "dates", fit: ["full", "half"], type: "gantttable", title: GANTT_TABLE_NAME, body: "", ready: true,
+    description: "The plan as a table, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The plan table"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
 ];
@@ -133,6 +139,7 @@ export const SKETCHES = {
   "needs": ["grid-template-rows:repeat(3,1fr)", ["border-left:3px solid var(--status-amber)", "border-left:3px solid var(--status-amber);width:80%", "width:55%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
+  "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],

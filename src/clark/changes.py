@@ -15,7 +15,7 @@ What it does, and does not:
   does ALL its work under one lock: for an undo, the check that the step is the report's and the undo itself are one
   does not make an empty database, when clark.db isn't there.
 - The reply carries only what the page needs of each section: id, type, title, beside, hidden, sort_order. Never its body.
-- A section may be added as text, needs, tracker, a template or gantt (NEW_SECTION_TYPES, an allow-list; a gantt section has no body, row 926). An update may write `body` only for a
+- A section may be added as text, needs, tracker, a template, gantt or gantttable (NEW_SECTION_TYPES, an allow-list; a gantt or gantttable section has no body, rows 926 and 1068). An update may write `body` only for a
   needs or tracker section, through the checker registry section_bodies.CHECKERS keyed by the STORED type, or for a text section
   through sanitise.clean_html (_text_body); each save replaces the whole body in one step with one Undo. A needs or tracker
   section may be deleted like a text one (Undo-able, kept in
@@ -281,7 +281,7 @@ UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with 
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt",)         # what a new section may be: an allow-list, never the request's own spelling
+NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt", "gantttable")         # what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
@@ -1196,6 +1196,8 @@ def _checked_milestone_changes(fields):
             out[k] = v
         elif k == "description":                                    # row 828: several lines; row 1005: the rich editor's HTML, stored cleaned (plain text from an older caller is escaped into paragraphs)
             out[k] = _rich_field(v, MILESTONE_DESCRIPTION_MAX, MILESTONE_DESCRIPTION_LONG_WORDS, NOTE_TEXT_WORDS)
+        elif k == "client_message" and isinstance(v, str) and sanitise.HTML_START.match(v):     # row 1078 (ruled): the editor's rich wording, stored cleaned as the description is, its words held to the limit the field always had; plain text from any other caller is checked below as it always was
+            out[k] = _rich_field(v, MILESTONE_TEXT[k], ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
         else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)
