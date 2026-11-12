@@ -130,9 +130,10 @@ export function Edit({ section }) {
           ))}
         </ul>
       </div>
+      <div class="wil-form">
       <details class="wil-more" data-wil-more="">
       <summary>Choose from lists</summary>
-      <div class="wil-form">
+      <div class="wil-form-in">
         <Boxes id={id} legend="Kinds" field="kinds" values={KINDS} words={(v) => WORDS.kinds[v]} chosen={filter.kinds} onToggle={toggle} />
         <Choice id={id} label="Show" field="mode" values={MODES} words={WORDS.mode} value={filter.mode} onPick={pick} />
         <Boxes id={id} legend="Due" field="due" values={DUE} words={(v) => WORDS.due[v]} chosen={filter.due} onToggle={toggle} />
@@ -143,7 +144,6 @@ export function Edit({ section }) {
         <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
       </div>
       </details>
-      <div class="wil-form">
         <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
         <label class="wil-sel" data-field="max"><span>Most rows</span>
           <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
