@@ -392,8 +392,8 @@ class OtherBranchesDatabase(Base):
         con = sqlite3.connect(str(path), isolation_level=None)
         con.execute("UPDATE meta SET v = ? WHERE k = 'schema_version'", (str(STEP),))
         con.close()
-        # #96's later step (and row 926's step 19) makes the table again (which mends such a file), so this test runs with every step but those
-        without_rebuilds = tuple((n, (lambda con: None) if f in (store_module.migrate_section_templates, store_module.migrate_gantt_section_type) else f)     # same numbers: no gap
+        # #96's later step (and row 926's step 19, and row 1068's step 23) makes the table again (which mends such a file), so this test runs with every step but those
+        without_rebuilds = tuple((n, (lambda con: None) if f in (store_module.migrate_section_templates, store_module.migrate_gantt_section_type, store_module.migrate_gantt_table_section_type) else f)     # same numbers: no gap
                                  for n, f in store_module.MIGRATIONS)
         with mock.patch.object(store_module, "SCHEMA_VERSION", without_rebuilds[-1][0]), \
                 mock.patch.object(store_module, "MIGRATIONS", without_rebuilds):
