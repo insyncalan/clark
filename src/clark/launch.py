@@ -244,7 +244,7 @@ def start_setup(port, folder, reason, say, environ, start, health, wait, find_ch
         except (OSError, AttributeError):
             pass
         return False
-    return open_clark(address(port), say, environ, find_chrome, open_window, open_browser) == 0
+    return open_clark(port, say, environ, find_chrome, open_window, open_browser) == 0
 
 
 def real_setup(say, environ, start, health, wait, find_chrome, open_window, open_browser):
