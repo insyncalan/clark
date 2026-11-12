@@ -16,6 +16,7 @@ import { quickDates } from "./itemEdit.js";
 import { showDate, todayIso, ownerOf } from "../workItems.js";
 import { leftOutIds } from "../logic/picker.js";
 import { setMsHidden } from "./actions.js";
+import { usecasesOfMilestone } from "../logic/ucRow.js";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
@@ -191,6 +192,7 @@ export function MilestoneEdit({ m }) {
         <Row name="Forecast date" k="forecast"><DateField m={m} field="forecast_date" label="Forecast date" /></Row>
         {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
         <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
+        <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it (the editor only; a use case is linked or unlinked on its own page) */}
         <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
         <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
       </dl>

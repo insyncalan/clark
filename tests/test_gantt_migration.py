@@ -101,7 +101,7 @@ class Migrating(unittest.TestCase):
             s.close()
         after = every_row(path, NEW_COLUMNS + ("brand",))      # #944: layout 20 adds brand after these
         self.assertEqual({t: after[t] for t in before}, before, "no existing value changed")
-        self.assertEqual(set(after) - set(before), {"gantt_lines"})
+        self.assertEqual(set(after) - set(before) - {"use_case_milestones"}, {"gantt_lines"})      # row 1107 (layout 24) adds the other
         self.assertEqual(after["gantt_lines"], [])
 
     def test_a_safety_copy_is_taken_before_the_step_runs_and_it_is_the_old_layout(self):
