@@ -928,7 +928,7 @@
        "**Export to Excel**: the whole project as one workbook.",
        "**Export to Word**: the report saved as a Word file, without publishing the web page.",
        "**Published reports**: its own page for the open project: where the report is saved and every copy published.",
-       "**Settings**: opens Settings.",
+       "**Settings**: opens Settings. Until you add your name, the top line is a link to Settings too.",
        "**Appearance**: System, Light or Dark; the one in use has a tick.",
        "**Help**: opens Help for the page you are on, with a link to all of Help."
       ]
@@ -1417,7 +1417,7 @@
       "ul",
       [
        "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
-       "Type a question and press [[Enter]] to send ([[Shift+Enter]] for a new line). While it works, a short waiting line shows in place of the suggestions, and they come back with the answer.",
+       "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
        "Drag its left edge to make it wider."

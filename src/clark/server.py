@@ -90,8 +90,6 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, quote, urlsplit
 
-from clark.platform import NotBuiltYet      # bound here, at import, so a failing import later cannot hide the error a route raised (item 1100)
-
 LOG = logging.getLogger("clark.server")
 HOST = "127.0.0.1"                    # the address clark listens on, whatever any setting says (in the container: CONTAINER_BIND, below)
 DEFAULT_PORT = 8766
@@ -1321,7 +1319,9 @@ class BrandLibrary:
             return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
         except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
             return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
-        except NotBuiltYet as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault
+        except Exception as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault; found by the class name, so no top-level import of clark is needed
+            if type(e).__name__ != "NotBuiltYet":
+                raise
             return 409, {"ok": False, "code": "needs_mac", "message": str(e)}
 
     def listing(self):
@@ -1513,10 +1513,10 @@ class Handler(BaseHTTPRequestHandler):
             return route(self, *args)
         except CLIENT_LEFT:
             return None
-        except NotBuiltYet as e:    # item 1100: a Mac-only step no route caught: the same words, never a fault
-            LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
-            return self.send(409, {"ok": False, "code": "needs_mac", "message": str(e)})
-        except Exception:  # noqa: BLE001  the server answers whatever a route does
+        except Exception as e:  # noqa: BLE001  the server answers whatever a route does
+            if type(e).__name__ == "NotBuiltYet":    # item 1100: a Mac-only step no route caught: the same words, never a fault (found by the class name, so no top-level import of clark is needed)
+                LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
+                return self.send(409, {"ok": False, "code": "needs_mac", "message": str(e)})
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
         finally:

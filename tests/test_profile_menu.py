@@ -15,7 +15,7 @@ from test_server import chrome
 from clark import excel, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
-TIP = "Your menu: Publish, Preview, Export, Settings"                                                       # row 1092: Settings is always an entry, after Published reports
+TIP = "Your menu: Publish, Preview, Export"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
 NAME = "Your menu"
 ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
@@ -99,7 +99,7 @@ class ProfileMenu(Base):
             shown = self.labels(p)
             for word in tip[len(NAME) + 2:].split(", "):
                 self.assertTrue(any(l.startswith(word) for l in shown), word + " is an entry")
-            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Help"], "only the who line and Help have no word in the tip (Export to Word starts with the tip's Export)")
+            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Settings", "Help"], "only the who line, Settings and Help have no word in the tip (Export to Word starts with the tip's Export)")
 
     def toast(self, p):
         p.until("!!document.querySelector('.toast .toast-text')", "a message appeared")
@@ -184,14 +184,23 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
             p.until("!!document.querySelector('.hp-tabs')", "Help opened")
 
-    def test_C_settings_is_listed_once_the_link_or_the_entry(self):
-        """Row 1092: Settings is always an entry (after Published reports, before Appearance), with or without a name; with no name the top line is also a link."""
+    def test_C_settings_is_an_entry_after_published_reports_before_appearance(self):
+        """Row 1092: the Settings entry is there with no name typed too (the link at the top is a second way in), and opens Settings."""
         with chrome() as cdp:
             p = self.page(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                self.open_menu(p)
+                labels = self.labels(p)
+                self.assertEqual(labels.count("Settings"), 1)
+                self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group")
+                self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#profile-menu')", "Esc closed it")
             self.open_menu(p)
-            self.assertEqual(self.labels(p).count("Settings"), 1)
-            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=settings]').length"), 1)
-            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
+            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
 
     def test_C_the_settings_link_opens_settings(self):
         with chrome() as cdp:
