@@ -133,8 +133,8 @@ class Hostile(unittest.TestCase):
         t = parts(template())
         t["[Content_Types].xml"] = t["[Content_Types].xml"].replace(b'<Default Extension="png" ContentType="image/png"/>', b"")
         out = parts(word_brand.wrap(zip_of(list(t.items())), BUILT))
-        if any(n.startswith("word/media/clark-") for n in out):
-            self.assertEqual(out["[Content_Types].xml"].decode().count('Extension="png"'), 1)
+        self.assertTrue(any(n.startswith("word/media/clark-") for n in out))
+        self.assertEqual(out["[Content_Types].xml"].decode().count('Extension="png"'), 1)
 
     def test_template_sectpr_last_one_is_used_when_several(self):
         first = '<w:p><w:pPr><w:sectPr><w:pgSz w:w="1111" w:h="2222"/></w:sectPr></w:pPr></w:p>'
@@ -170,8 +170,11 @@ class Hostile(unittest.TestCase):
     def test_docprops_of_the_report_replace_template_only_when_both_exist(self):
         out = parts(word_brand.wrap(template(extra=[("docProps/app.xml", b"<Properties><Company>Other Co</Company></Properties>")]), BUILT))
         self.assertNotIn(b"Other Co", out["docProps/app.xml"])
-        out2 = parts(word_brand.wrap(template(), BUILT))
-        self.assertEqual(out2["docProps/core.xml"] if "docProps/core.xml" in out2 else b"", out2.get("docProps/core.xml", b""))
+        core = parts(word_brand.wrap(template(extra=[("docProps/core.xml", b"<cp>Other Author</cp>")]), BUILT))["docProps/core.xml"]
+        self.assertEqual(core, parts(BUILT)["docProps/core.xml"])
+        out2 = parts(word_brand.wrap(template(), BUILT))          # a template with no docProps: none is added
+        self.assertNotIn("docProps/core.xml", out2)
+        self.assertNotIn("docProps/app.xml", out2)
 
     def test_output_is_a_valid_zip_with_template_order_first_and_no_duplicates(self):
         data = word_brand.wrap(template(), BUILT)
