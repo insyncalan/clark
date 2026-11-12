@@ -1,4 +1,4 @@
-"""#575: in the Docker container on the host's own network (--network host) clark says, once, that it listens on every address.
+"""item 575: in the Docker container on the host's own network (--network host) clark says, once, that it listens on every address.
 Assumption (ruling held): host networking is told by interfaces other than lo and ethN in /sys/class/net; the warning goes to stderr beside the start line.
 Run: python3 dev/run_tests.py test_host_network_warning
 Reads a temporary folder only.
@@ -32,6 +32,11 @@ class HostNetwork(unittest.TestCase):
     def test_other_interfaces_mean_the_host_network(self):
         for extra in ("docker0", "wlan0", "en0", "br-1a2b", "enp3s0"):
             self.assertTrue(self.check(True, "lo", "eth0", extra), extra)
+
+    def test_tunnel_and_extra_pod_interfaces_are_not_the_host_network(self):
+        self.assertFalse(self.check(True, "lo", "eth0", "tunl0", "sit0", "ip6tnl0"))
+        self.assertFalse(self.check(True, "lo", "eth0", "net1", "net2"))
+        self.assertTrue(self.check(True, "lo", "eth0", "tunl0", "wlan0"))
 
     def test_never_outside_a_container(self):
         self.assertFalse(self.check(False, "lo", "docker0"))

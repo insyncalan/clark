@@ -64,8 +64,16 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+_POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0")       # tunnel devices the kernel makes in every network, not a physical one
+
+
+def _extra_pod_interface(name):
+    """net1, net2...: the extra interfaces a cluster adds to a pod (not the host's)."""
+    return name.startswith("net") and name[3:].isdigit()
+
+
 def container_on_host_network(net_dir="/sys/class/net"):
-    """#575: True when this container seems to share the host's network (docker run --network host). A container on Docker's own
+    """item 575: True when this container seems to share the host's network (docker run --network host). A container on Docker's own
     bridge sees only its loopback and its ethN; the host's network shows its other interfaces too (wlan0, en0, docker0, br-...).
     Read from the kernel's list of interfaces, never a name from a request; False when the list can't be read or not in a container."""
     if not container_mode():
@@ -74,7 +82,8 @@ def container_on_host_network(net_dir="/sys/class/net"):
         names = os.listdir(net_dir)
     except OSError:
         return False
-    return any(n != "lo" and not (n.startswith("eth") and n[3:].isdigit()) for n in names)
+    return any(n != "lo" and not (n.startswith("eth") and n[3:].isdigit()) and n not in _POD_INTERFACES and not _extra_pod_interface(n)
+               for n in names)
 
 
 def container_host_in_onedrive(environ=None):
@@ -244,7 +253,7 @@ def _icloud_desktop_documents(home):
 
 
 def synced_roots(home=None, on=None, environ=None):
-    """NEW (step 6). The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
+    """The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
     only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox, ~/Dropbox (...), ~/Dropbox - ... and
     ~/Library/CloudStorage/Dropbox*; iCloud Drive in ~/Library/Mobile Documents (which holds com~apple~CloudDocs and every
     app's iCloud folder), plus ~/Desktop and ~/Documents when they are the iCloud ones; Google Drive in
@@ -268,7 +277,7 @@ def synced_roots(home=None, on=None, environ=None):
 
 
 def inside_synced(path, roots=None):
-    """NEW (step 6). The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
+    """The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
     OneDrive is not here: inside_onedrive is its own check."""
     try:
         path = Path(path).expanduser().resolve()
@@ -371,7 +380,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
     if what == "data" and synced is None and container_host_in_synced() is not None:
         service, _ = container_host_in_synced()              # the Mac's folder is named, as for OneDrive above
         raise PlatformError(_synced_refusal(os.environ["CLARK_DATA_SOURCE"], service))
-    if what == "data":                                       # NEW (step 6): Dropbox, iCloud Drive and Google Drive, after OneDrive's check
+    if what == "data":                                       # Dropbox, iCloud Drive and Google Drive, after OneDrive's check
         try:
             hit = inside_synced(path, synced)
         except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse

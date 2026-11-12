@@ -1,4 +1,4 @@
-"""Row 836 step 6, hardening: the whole refusal for a data folder inside Dropbox, iCloud Drive or Google Drive, word for word.
+"""Hardening: the whole refusal for a data folder inside Dropbox, iCloud Drive or Google Drive, word for word.
 
 Run: python3 dev/run_tests.py test_synced_refusal_words
 The refusal says the service by name twice (where it is, and which one will not sync) and shows the folder from "~" so a

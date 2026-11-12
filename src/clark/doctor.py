@@ -56,7 +56,7 @@ class Seen:
         self.sqlite_version = (sqlite3.sqlite_version if sqlite3 else "") if sqlite_version is None else sqlite_version
         self.data_dir = data_dir or (lambda: platform.data_dir(self.home, on=self.on))
         self.onedrive_roots = onedrive_roots or (lambda: platform.onedrive_roots(self.home, on=self.on))
-        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on, environ=self.environ))     # NEW (step 6)
+        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on, environ=self.environ))
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
         self.health, self.free = health, free
@@ -137,11 +137,18 @@ def check_data_not_in_onedrive(seen):
 
 
 def check_data_not_in_synced_folder(seen):
-    """NEW (step 6): the data folder isn't inside Dropbox, iCloud Drive or Google Drive (OneDrive has its own check above)."""
+    """The data folder isn't inside Dropbox, iCloud Drive or Google Drive (OneDrive has its own check above). Inside the container
+    the folder is the one shared in from the Mac (CLARK_DATA_SOURCE), read by name the way check_data_dir reads it, so this check
+    and the refusal at start agree."""
+    shared = platform.container_host_in_synced(seen.environ)
+    if shared is not None:
+        return Line(FIX, f"Your clark data is shared in from a folder on your Mac that is inside {shared[0]}. {shared[0]} copies files "
+                         f"while they are being written, which damages the database. Choose a folder on your Mac that "
+                         f"{shared[0]} doesn't sync, then start clark again.")
     folder = seen.folder()
     hit = platform.inside_synced(folder, list(seen.synced_roots()))
     if hit is None:
-        return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")     # NEW words
+        return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")
     return Line(FIX, f"Your clark data is in {seen.tilde(folder)}, which is inside {hit[0]}. {hit[0]} copies files while they are "
                      f"being written, which damages the database. Move your clark data folder to a folder on this computer that "
                      f"{hit[0]} doesn't sync, then start clark again.")
@@ -204,7 +211,7 @@ CHECKS = (
     Check("The Python check", True, check_python),
     Check("The data folder check", True, check_data_folder),
     Check("The OneDrive check for your data", True, check_data_not_in_onedrive),
-    Check("The Dropbox, iCloud Drive and Google Drive check for your data", True, check_data_not_in_synced_folder),     # NEW name
+    Check("The Dropbox, iCloud Drive and Google Drive check for your data", True, check_data_not_in_synced_folder),
     Check("The OneDrive check for the clark folder", False, check_app_folder),
     Check("The browser check", False, check_browser),
     Check("The check that nothing is in the way", True, check_port),

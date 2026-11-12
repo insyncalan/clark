@@ -146,6 +146,22 @@ class DataFolder(DoctorCase):
         self.assertNotIn("(OneDrive-Fictional Ltd)", "\n".join(lines), "the OneDrive folder's own name isn't said")
 
 
+class SharedInFromTheMac(DoctorCase):
+    def test_a_container_data_source_inside_dropbox_is_a_fix(self):
+        env = {"CLARK_DATA_SOURCE": "/Users/someone/Dropbox/clark-data"}
+        with mock.patch.object(pl, "container_mode", lambda: True):
+            code, lines = self.run_doctor(environ=env)
+        self.assertEqual(code, 1)
+        self.assertIn("To fix: Your clark data is shared in from a folder on your Mac that is inside Dropbox.",
+                      self.line(lines, "To fix: Your clark data is shared in"))
+
+    def test_a_container_data_source_outside_synced_folders_is_ready(self):
+        env = {"CLARK_DATA_SOURCE": "/Users/someone/clark-data"}
+        with mock.patch.object(pl, "container_mode", lambda: True):
+            _, lines = self.run_doctor(environ=env)
+        self.assertNotIn("shared in from", "\n".join(lines))
+
+
 class TypedCommands(DoctorCase):
     """issue 694: in a download (clark.command sets CLARK_TYPED) the doctor says bash clark.command; in a checkout, python3 -m."""
 

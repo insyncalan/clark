@@ -124,7 +124,7 @@ def port_number(text, where):
 
 
 def port_free(port):
-    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (#575) the
+    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (item 575) the
     container's own bind address, so a listener on any of the container's addresses counts."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if os.name == "posix":
@@ -187,7 +187,7 @@ class ServerOutput:
         self.done = True
         address = address_for(shown_port(int(found.group(1))), self.code)
         self.out.write(start_line(address))
-        if platform.container_on_host_network():      # #575: a 0.0.0.0 bind on the host's own network is reachable from the LAN
+        if platform.container_on_host_network():      # item 575: a 0.0.0.0 bind on the host's own network is reachable from the LAN
             print(HOST_NETWORK_WARNING, file=self.err, flush=True)
         if self.opener:
             try:
