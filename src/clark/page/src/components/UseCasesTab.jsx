@@ -1,6 +1,8 @@
 // The Use Cases tab of a published file: view only. It reads what the published file holds (data.use_case_pages names,
 // for each use case the client may see, the next steps and milestones to show) and draws it. It changes nothing and asks for nothing.
-import { data } from "../stores/report.js";
+import { data, uc, project } from "../stores/report.js";
+import { ucFor, ucKey } from "../logic/useCasesList.js";
+import { UseCaseFilePage } from "./UseCaseFilePage.jsx";
 import { printing } from "../stores/print.js";
 import { CommitChip } from "./CommitChip.jsx";
 
@@ -9,6 +11,8 @@ export function UseCasesTab() {
   const pages = d.use_case_pages || [];
   const by = (rows) => Object.fromEntries((rows || []).map((r) => [r.id, r]));
   const cases = by(d.use_cases), steps = by(d.actions), marks = by(d.milestones);
+  const open = uc.value ? ucFor(d, uc.value) : null;                       // row 1111: one use case page, read only
+  if (open && pages.some((p) => p.id === open.id)) return <UseCaseFilePage id={open.id} />;
   return (
     <section class="frame ucpage" id="usecases-file">
       <p class="crumbs">{d.project.name}</p>
@@ -22,6 +26,7 @@ export function UseCasesTab() {
           <details class="ucp" key={u.id} open={printing.value}>
             <summary><span class="num">{u.ref}</span> <span class="ucp-title">{u.title}</span> <span class="muted">{u.status}</span><CommitChip u={u} />{u.headline ? <span class="ucp-headline">{u.headline}</span> : null}</summary>
             <div class="ucp-body">
+              <p><a class="link" data-uc-page href={`#usecases&p=${project.value}&uc=${encodeURIComponent(ucKey(d, u))}`}>Open the page</a></p>
               {u.standing ? <div class="prose" dangerouslySetInnerHTML={{ __html: u.standing }} /> : null}
               <h2>Next steps</h2>
               {mine.length ? <ul class="plain">{mine.map((a) => <li key={a.id}>{a.client_message || a.description}</li>)}</ul> : <p class="muted ucp-none">No next steps are shared for this use case.</p>}
