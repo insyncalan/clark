@@ -30,7 +30,7 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose }) {
+export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -79,7 +79,10 @@ export function RichText({ value, label, onSave, onClose }) {
   useLayoutEffect(() => {
     const keyHook = (e) => {
       const s = slashRef.current;
-      if (!s) return false;
+      if (!s) {                                                // a one-line field (item 1005): Enter saves, as in a plain box; Shift+Enter is not a line break either
+        if (oneLine && e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); finishRef.current(true); return true; }
+        return false;
+      }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : s.items.length - 1)) % s.items.length });

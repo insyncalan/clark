@@ -492,6 +492,7 @@ test_rich_reason_note.py 2.9
 test_router.py 123.0
 test_row_ids_no_wrap.py 4.5
 test_row_menu.py 186.7
+test_row_words_1005.py 12.0
 test_run_tests.py 40.8
 test_runner_osascript_guard.py 3.7
 test_safety.py 29.2

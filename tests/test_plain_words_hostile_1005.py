@@ -190,6 +190,23 @@ class SavePath(unittest.TestCase):
         self.assertEqual(self.send(out)[0], 200)
         self.assertEqual(self.stored(), out)
 
+    def test_a_row_wording_saves_as_one_plain_line_on_each_work_item_table(self):
+        """Row 1005: a report row's and the peek's Client wording (actions, raid, decisions) take what the editor gives as one plain line."""
+        out = plain('<p>Go <script>x()</script>live</p><ul><li>one</li><li>two</li></ul>', True)
+        for kind in ("actions", "raid", "decisions"):
+            row = self.s.read(kind, "ABC")
+            if not row:
+                continue
+            status, body = self.change({"project": "ABC", "kind": kind, "op": "update", "id": row[0]["id"], "changes": {"client_message": out}, "place": "report"})
+            self.assertEqual(status, 200, (kind, body))
+            self.assertEqual(next(r for r in self.s.read(kind, "ABC") if r["id"] == row[0]["id"])["client_message"], out, kind)
+            for br in LINE_BREAKS:
+                self.assertNotIn(br, out)
+
+    def test_the_row_words_source_flattens_with_plainFromEditor_one_line(self):
+        text = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
+        self.assertRegex(text, r"plainFromEditor\([^)]*true\)")
+
     def test_caption_one_line_passes_the_picture_section_check(self):
         cap = plain("<p>A &lt;b&gt; caption</p><p>second line</p>", True)
         body = imagecap.check({"v": 1, "caption": cap}, {})

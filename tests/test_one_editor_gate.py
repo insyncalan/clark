@@ -90,7 +90,8 @@ class Source(unittest.TestCase):
 # Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
 # of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
 MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason"),
-         "edit/MilestonePeek.jsx": ("RichField", "the milestone Client wording and Description"), "edit/templates/pictureEdit.jsx": ("RichField", "the picture captions")}
+         "edit/MilestonePeek.jsx": ("RichField", "the milestone Client wording and Description"), "edit/templates/pictureEdit.jsx": ("RichField", "the picture captions"),
+         "edit/ItemRowsEdit.jsx": ("RichField", "the report rows' Client wording and the work item peek's (PeekWording draws Words)")}
 
 
 class MovedFields(unittest.TestCase):
@@ -108,13 +109,23 @@ class MovedFields(unittest.TestCase):
 
     def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
         """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
-        for rel in ("edit/MilestonePeek.jsx", "edit/templates/pictureEdit.jsx"):
+        for rel in ("edit/MilestonePeek.jsx", "edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
             self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
         for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertIn('<CaptionField section={section} field="caption"', text, rel)
             self.assertNotIn('<LineField section={section} field="caption"', text, rel)
         self.assertIn("CaptionField", (PAGE_SRC / "edit" / "templates" / "Gallery.jsx").read_text(encoding="utf-8"))
+
+    def test_the_row_and_peek_client_wording_have_no_plain_box_of_their_own(self):
+        """Row 1005: Words (a report row's Client wording, also the work item peek's) is the RichField with one-line plain storage, not plainBox."""
+        rows = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("plainBox", rows)
+        self.assertIn("oneLine", rows)
+        self.assertIn("changeCell(", rows, "still one change with one Undo")
+        peek = (PAGE_SRC / "edit" / "PeekWording.jsx").read_text(encoding="utf-8")
+        self.assertIn("Words", peek)
+        self.assertNotIn("contenteditable", peek.lower())
 
     def test_the_move_form_and_the_raid_own_words_draw_the_one_editor_and_store_plain_text(self):
         """Row 1005: Who agreed it, Reason and Source (Movement) and a RAID card's Own words are RichField. What is sent and stored stays

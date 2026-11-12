@@ -300,6 +300,13 @@ class EditRows(unittest.TestCase):
             p.key("Backspace", code="Backspace", vk=8)
         p.key(ending, code=ending, vk=13 if ending == "Enter" else 27)
 
+    def type_words(self, p, row, text):
+        """Item 1005: a row's wording is the one editor on one line: a click opens it, Enter saves."""
+        p.js(f"document.querySelector({row!r} + ' [data-rich=client_message]').click()")
+        p.until("document.activeElement.classList.contains('ProseMirror')", "the editor opens with the focus in it")
+        p.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); if ({json.dumps(text)}) e.commands.insertContent({json.dumps(text)}); else e.commands.deleteSelection(); }})()")
+        p.key("Enter", code="Enter", vk=13)
+
     def click(self, p, click, done, what):
         """Click, and wait for `done`; a click made in the first moments of a busy page may be lost to the page still starting, so
         it is made again (up to six times). A handler that is not there at all still fails."""
@@ -340,13 +347,13 @@ class EditRows(unittest.TestCase):
             act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
             self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Action · Overdue")
             # the client's wording, in place
-            self.type_into(p, row + " [data-f=title]", "Supplier delivery may slip by a week")
+            self.type_words(p, row, "Supplier delivery may slip by a week")
             mine = self.stored("raid", "client_message", "Supplier delivery may slip by a week")
             self.assertEqual(mine["description"], "Supplier may deliver late", "the team's own text is untouched")
             # the store has it before the page has read it again: wait for the row to draw what clark saved
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
-            self.type_into(p, row + " [data-f=title]", "", ending="Enter")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
+            p.until(f"document.querySelector({row!r} + ' [data-rich=client_message]').textContent.trim() === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
+            self.type_words(p, row, "")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
+            p.until(f"document.querySelector({row!r} + ' [data-rich=client_message]').textContent.trim() === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
             # the owner, through its own picker
             p.js(f"document.querySelector({act!r} + ' [data-cell$=\":owner\"]').click()")
             p.until("!!document.querySelector('.menu, .cp, [role=dialog]')", "the owner picker opened")
@@ -436,7 +443,7 @@ class EditRows(unittest.TestCase):
         parts = {
             "view": [("[data-type=raid] .wl-row .c-ico .ico", None), ("[data-type=raid] .wl-row .wl-title", "--text"),
                      ("[data-type=raid] .wl-row .c-date", None), ("[data-type=raid] .wl-row .idl", "--status-blue-text")],
-            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .ico", None), ("[data-item-rows=raid] .wl-row [data-f=title]", "--text"),
+            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .ico", None), ("[data-item-rows=raid] .wl-row [data-rich=client_message]", "--text"),
                      ("[data-item-rows=raid] .wl-row [data-cell$=':owner']", None), ("[data-item-rows=raid] .wl-row [data-eye]", None),
                      ("[data-item-rows=raid] .wl-row .idl", "--status-blue-text"), ("[data-item-rows=raid] [data-showing]", "--text-muted")],
         }

@@ -1087,6 +1087,24 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .item-rows-edit .wl:not(.irows) .wl-title .cell-ce { flex: 0 1 auto; min-width: 4ch; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-rows-edit .wl:not(.irows) .wl-title .cell-ce:focus { overflow: visible; text-overflow: clip; white-space: pre-wrap; overflow-wrap: anywhere; }
 
+/* Item 1005: a row's Client wording (and the peek's) is the one editor on one line: drawn as a line cut with an ellipsis, open as the editor with no toolbar (it is plain text in the report and the file, so there is nothing to format) and no drag handle. */
+.wl-words.rt-view { display: block; box-sizing: border-box; min-width: 4ch; cursor: text; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wl-words.rt-view .prose, .wl-words.rt-view .prose p, .wl-words.rt-view .quiet { display: inline; margin: 0; }
+.wl-words.rt-view:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.wl-words.rich { display: block; min-width: 0; }
+.wl-words.rich .rt { margin: 0; }
+.wl-words.rich .rt-bar, .wl-words.rich .rt-keys { display: none; }
+.wl-words.rich .rt-host { min-height: 0; padding: 0; resize: none; }
+.wl-words.rich .rt-host .ProseMirror p, .pk-ce.rich .rt-host .ProseMirror p { margin: 0; }
+.wl-words.rich .rt-host .ProseMirror { min-height: 1lh; padding: 2px var(--space-1); }
+.pk-ce.rt-view, .pk-ce.rich { white-space: normal; }
+.pk-ce.rich { padding: 0; border: 0; }
+.pk-ce.rich .rt { margin: 0; }
+.pk-ce.rich .rt-bar, .pk-ce.rich .rt-keys { display: none; }
+.pk-ce.rich .rt-host { min-height: 0; padding: 0; resize: none; }
+.pk-ce.rt-view .prose p, .pk-ce.rt-view .quiet { margin: 0; }
+.pk-ce.rich .rt-host .ProseMirror { padding: calc(var(--space-1) * 3 / 4) var(--space-2); }
+
 /* Row 1021: the status icon in Edit is the status control (a button around the tinted square): the caret and the tooltip share its ::after. */
 .irows .cell-pick[data-cell$=":status"]:not(:hover):not(:focus-visible)::after { content: none; }
 .irows .cell-pick[data-tip] { position: relative; }
