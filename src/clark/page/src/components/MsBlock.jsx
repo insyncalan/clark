@@ -27,7 +27,7 @@ export function MsBlock({ place, tools }) {
   const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
-  const open = client ? null : (id) => openPeek(id, "milestone");   // a published file has nothing to open: its marks, labels, chips and rows are plain text
+  const open = (id) => openPeek(id, "milestone");   // row 1114: a published file's marks, labels, chips and rows open the file's read only peek, as the editor's open theirs
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (
     <div class="msv" data-view={view} data-place={place}>
@@ -39,7 +39,7 @@ export function MsBlock({ place, tools }) {
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
       </div>
-      <MsList rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} left={left} legend={<MsLegend client={client} id={place} />} />
+      <MsList rows={rows} place={place} open={open} canFold={!client} internalTag={!client} Eye={Eye} left={left} legend={<MsLegend client={client} id={place} />} />
       {AddBack ? <AddBack /> : null}
     </div>
   );
