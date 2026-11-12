@@ -2281,8 +2281,7 @@ def _row_is_ours(row, project, project_step, flagged):
 def _ours(store, step, rows, project):
     """_eligible, and #47e: an assistant-route step is ours only when ask clark made it. The one test for a single undo and a batch."""
     if rows and any(r["table"] == "use_case_milestones" for r in rows):      # row 1107: a step of direct milestone links is one family, all of this project's use cases
-        mine = {str(k[0]) for k in store.con.execute(
-            "SELECT l.link_id FROM use_case_milestones l JOIN use_cases u ON u.id = l.use_case WHERE u.project = ?", (project,))}
+        mine = clark_store.use_case_link_ids(store.con, project)
         return all(r["table"] == "use_case_milestones" and r["via"] == VIA and str(r["key"]).split("|")[-1] in mine for r in rows)
     return (_eligible(rows, project, _is_hand_over(store, step, rows)) and
             not (any(r["via"] == ASSISTANT for r in rows) and store.step_actors(step) != {ASK_ACTOR}))

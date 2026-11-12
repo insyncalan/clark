@@ -2771,6 +2771,12 @@ def link_use_case_milestone(st, use_case, milestone):
     return True
 
 
+def use_case_link_ids(con, project):
+    """Row 1107: the link numbers (as text) of every direct use case to milestone link of THIS project's use cases, live or removed."""
+    return {str(r[0]) for r in con.execute(
+        "SELECT l.link_id FROM use_case_milestones l JOIN use_cases u ON u.id = l.use_case WHERE u.project = ?", (project,))}
+
+
 def unlink_use_case_milestone(st, use_case, milestone):
     """End a direct link (row 1107), in the step `st`: the row is kept with removed_at and removed_by set, never deleted, and the change
     is logged (Undo puts the link back). True when a live link was ended."""
