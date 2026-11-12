@@ -250,6 +250,48 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_the_printed_table_from_edit_leaves_out_the_hidden_columns_and_breaks_no_word(self):
+        # Edit draws every column; the hidden ones' header carried gt-hid but their cells carried nothing, so paper printed them all, and the
+        # rule that lets cells wrap broke words letter by letter.
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(mode="edit")
+                    self.click("[data-gp-layout=table]")
+                    self.until("document.querySelector('.gt table td')", "the table is drawn")
+                    self.printing(width, scheme)
+                    try:
+                        got = json.loads(self.js("""(function () {
+                          var hid = [].slice.call(document.querySelectorAll('.gt th.gt-hid')).map(function (t) { return t.dataset.k; });
+                          var shown = function (e) { return e.getClientRects().length > 0 && getComputedStyle(e).display !== 'none'; };
+                          var cells = [].slice.call(document.querySelectorAll('.gt td, .gt th'));
+                          var leaked = cells.filter(function (c) { return hid.indexOf(c.dataset.k) >= 0 && shown(c); }).length;
+                          var tagged = [].slice.call(document.querySelectorAll('.gt td')).filter(function (c) { return hid.indexOf(c.dataset.k) >= 0 && !c.classList.contains('gt-hid'); }).length;
+                          var broken = [], words = 0;
+                          cells.filter(shown).forEach(function (c) {
+                            var w = document.createTreeWalker(c, NodeFilter.SHOW_TEXT), n;
+                            while ((n = w.nextNode())) {
+                              if (!n.parentElement.getClientRects().length) continue;
+                              var re = /\\S+/g, m;
+                              while ((m = re.exec(n.data))) {
+                                var r = document.createRange(); r.setStart(n, m.index); r.setEnd(n, m.index + m[0].length);
+                                var tops = {}; [].forEach.call(r.getClientRects(), function (q) { tops[Math.round(q.top)] = 1; });
+                                words++; if (Object.keys(tops).length > 1) broken.push(m[0]);
+                              }
+                            }
+                          });
+                          return JSON.stringify({hid: hid, leaked: leaked, tagged: tagged, broken: broken, words: words, doc: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth});
+                        })()"""))
+                        self.assertGreaterEqual(len(got["hid"]), 3, f"Edit marks the hidden columns {got}")
+                        self.assertEqual(got["tagged"], 0, f"every hidden column's cells carry gt-hid {got}")
+                        self.assertEqual(got["leaked"], 0, f"no hidden column cell prints {got}")
+                        self.assertGreater(got["words"], 20)
+                        self.assertEqual(got["broken"], [], f"no word breaks mid-word {got}")
+                        self.assertLessEqual(got["doc"], got["cw"] + 1, f"no sideways scroll {got}")
+                    finally:
+                        self.done()
+
     def test_a_pdf_of_the_chart_page_is_made_at_a4_without_a_print_box(self):
         self.look(794, "light")
         self.mount(width=734)

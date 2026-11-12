@@ -321,7 +321,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
     const inSel = inRange(s, r, c);
     const act = r === s.fr && c === s.fc;
     const bad = col.key === "s" && clash[l.id];
-    const cls = ["gt-cell", col.type === "ro" ? "gt-ro" : "", c < 2 ? "gt-fz" : "", inSel && !act ? "gt-sel" : "", act ? "gt-act" : "", isEd ? "gt-ed" : "",
+    const cls = ["gt-cell", col.type === "ro" ? "gt-ro" : "", hidden.includes(col.key) && hideable(col) ? "gt-hid" : "", c < 2 ? "gt-fz" : "", inSel && !act ? "gt-sel" : "", act ? "gt-act" : "", isEd ? "gt-ed" : "",
       bad ? "gt-clash" : "", edit && r === range.r1 && c === range.c1 && !editing ? "gt-last" : ""].filter(Boolean).join(" ");
     let inner = val;
     if (isEd) {
