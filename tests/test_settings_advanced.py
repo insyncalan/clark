@@ -24,7 +24,7 @@ class Menu(H.Head):
                     self.assertEqual(p.js("[...document.querySelectorAll('.set-group-note')].map(n => n.textContent)"), [LINE])
                     self.assertEqual(p.js("document.querySelector('.set-group-note').closest('.set-group').classList.contains('set-advanced')"), True)
                     self.assertEqual(p.js("[...document.querySelectorAll('.set-advanced .set-item')].map(b => b.textContent)"),
-                                     ["Claude and AI", "Logs and diagnostics", "Version and updates"])
+                                     ["Claude and AI", "Logs and diagnostics", "Feedback", "Version and updates"])
                     color = p.js("getComputedStyle(document.querySelector('.set-group-note')).color")
                     ground = p.js("getComputedStyle(document.querySelector('.set-menu')).backgroundColor")
                     self.assertGreaterEqual(H.ratio(H.rgb(color), H.rgb(ground)), 4.5, "the line is readable")
