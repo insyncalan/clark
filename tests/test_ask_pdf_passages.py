@@ -124,6 +124,29 @@ class Outcomes(Fake):
         self.assertEqual(got.pages, ((1, "ZQ yyyyyyy"),))
 
 
+    def test_sixty_dense_pages_are_all_read(self):
+        got = self.read(pdf(["ZQ %d " % i + "é" * 2000 for i in range(60)]))
+        self.assertEqual((got.status, len(got.pages)), ("ok", 60))
+
+    def test_over_the_output_budget_keeps_the_leading_pages_not_a_crash(self):
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.read(pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        self.assertEqual(got.status, "ok")
+        self.assertTrue(0 < len(got.pages) < 20)
+        self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
+
+    def test_the_child_sets_memory_and_cpu_limits(self):
+        import importlib.util
+        import resource
+        spec = importlib.util.spec_from_file_location("pdf_child_under_test", pdf_reader.CHILD)
+        child = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(child)
+        with mock.patch.object(resource, "setrlimit") as setr:
+            child._limits()
+        got = {c.args[0]: c.args[1] for c in setr.call_args_list}
+        self.assertEqual(got[resource.RLIMIT_AS], (1024 ** 3, 1024 ** 3))
+        self.assertLessEqual(got[resource.RLIMIT_CPU][0], pdf_reader.SECONDS + 5)
+
 
 class SeparateProcess(Fake):
     def test_the_reader_is_another_process_started_without_the_servers_environment(self):
