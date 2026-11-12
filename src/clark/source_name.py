@@ -11,7 +11,7 @@ slashes that are not; fourth pass, privacy first):
      text after the last character that is not a letter, digit or one of NAME_EXTRA = space . - _ ( ) ' & + # , and only when it ends in an
      extension (a dot and 1 to 8 letters or digits) after a non-empty stem; otherwise NOTHING. A bare web address publishes nothing.
   D. PUBLISHED FILES (published=True): the owner's ruling A of row 1077, the Source line in a client file is the file name only, free text dropped.
-     Plain words are not published as they stand: only the last comma part that is wholly a file name (a stem, then an extension holding a letter)
+     Plain words are not published as they stand: only the last comma part that is wholly a file name (a stem, then a known file extension, FILE_EXTENSIONS, no space beside a dot)
      goes out, so "Added by hand in clark" publishes nothing and "Word import, 2026-11-11, plan.docx, under a person's name" publishes "plan.docx".
      The live peek (published=False) still shows the plain words to the people who work in clark.
   E. At most 120 characters, cut with an ellipsis. Text longer than MAX_IN characters is cut before step A (the end for a published value, where the
@@ -33,6 +33,7 @@ _ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
 _ENTITY = re.compile(r"&#|&[A-Za-z0-9]+;")
 _DRIVE = re.compile(r"[A-Za-z]:")
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
+FILE_EXTENSIONS = frozenset(("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "pptx", "txt", "msg", "eml", "md"))   # the importers write xlsx and docx; the rest are files a person may name by hand
 _BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\]*$")                                              # a web address with a host and no path after it (a "?query" or "#fragment" is not a path)
 _COLON_PATH = re.compile(r":(?![\s\d]|$)")                                                                   # "Macintosh HD:Users:name:Folder:file": a colon with words right after it, not "Plan: v2" or "12:30"
 
@@ -91,7 +92,13 @@ def _is_plain(text):
             and not _ENTITY.search(text) and not _COLON_PATH.search(text))                                  # "&#47" or "&amp;" left over is an entity, never words ("R&D", "C#" stay)
 
 
-def _file_name(text):
+def _real_name(name):
+    """For a client (D): a stem and a known extension at the end, with no space beside a dot ("Jo. Confidential.Salary" is a sentence, not a file)."""
+    ext = _EXT.search(name)
+    return bool(ext and name[:ext.start()].strip() and ext.group(0)[1:].lower() in FILE_EXTENSIONS and ". " not in name and " ." not in name)
+
+
+def _file_name(text, published=False):
     """The final file name, or "": after the last character outside letters, digits and NAME_EXTRA, with an extension after a stem."""
     if _BARE.match(text):
         return ""
@@ -100,6 +107,8 @@ def _file_name(text):
         return ""
     name = text[cut + 1:].strip()
     ext = _EXT.search(name)
+    if published and not _real_name(name):
+        return ""
     return name if ext and name[:ext.start()].strip() else ""
 
 
@@ -107,8 +116,7 @@ def _listed_name(text):
     """Plain words in a file (D): the last comma part that is wholly a file name (a stem and an extension holding a letter), or ""."""
     for part in reversed(text.split(",")):
         part = part.strip()
-        ext = _EXT.search(part)
-        if ext and part[:ext.start()].strip() and re.search(r"[A-Za-z]", ext.group(0)) and not _ISO_DAY.fullmatch(part):
+        if _real_name(part):
             return part
     return ""
 
@@ -121,7 +129,7 @@ def source_name(words, published=False):
         words = words[-MAX_IN:] if published else words[:MAX_IN]
     text = _normal(words)
     if not _is_plain(text):
-        out = _file_name(text)
+        out = _file_name(text, published)
     else:
         out = _listed_name(text) if published else text
     out = _ISO_DAY.sub(_day_as_shown, out).strip()

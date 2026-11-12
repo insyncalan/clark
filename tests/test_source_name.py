@@ -186,5 +186,28 @@ class Property(unittest.TestCase):
             self.assertEqual(source_name(words), words if len(words) <= 120 else source_name(words), words)
 
 
+class OnlyARealFileName(unittest.TestCase):
+    """Row 1077, hostile: a client's Source is a real file name (a known extension at the end, no space beside a dot); free text with a dot is not."""
+
+    def test_free_text_with_a_dot_is_not_published(self):
+        for words in ("Raised by Jo. Confidential.Salary", "Email re. layoffs.Re", "Call with Acme Corp, www.acme.com", "notes.Salary",
+                      "Raised by Jo. Confidential.xlsx", "Budget .xlsx", "a.b", "", "x" * 5000, "x" * 5000 + ".Salary", "Mr. X, said.Re"):
+            self.assertEqual(source_name(words, published=True), "", words[:40])
+
+    def test_a_real_file_name_is_published(self):
+        for words, shown in (("report.final.docx", "report.final.docx"), ("Plan.XLSX", "Plan.XLSX"), ("r\u00e9union \u4f1a.docx", "r\u00e9union \u4f1a.docx"),
+                             ("Raised by Jo. Confidential, plan.xlsx", "plan.xlsx"), ("See the note, notes.Salary, budget.csv", "budget.csv"),
+                             ("Excel import, 2026-10-01, clark import template.xlsx", "clark import template.xlsx")):
+            self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_a_path_gives_the_name_only_and_only_when_it_is_a_real_file(self):
+        self.assertEqual(source_name("C:\\x\\salary.xlsx", published=True), "salary.xlsx")
+        self.assertEqual(source_name("C:\\x\\salary.Salary", published=True), "")
+        self.assertEqual(source_name("/a/b/www.acme.com", published=True), "")
+
+    def test_the_live_peek_is_not_narrowed(self):
+        self.assertEqual(source_name("Call with Acme Corp, www.acme.com"), "Call with Acme Corp, www.acme.com")
+
+
 if __name__ == "__main__":
     unittest.main()
