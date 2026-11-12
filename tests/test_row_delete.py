@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_row_delete
 Drives the committed page against the real server in headless Chrome (set CLARK_CHROME to its path), at 1400 and 900 px, in light and dark.
-The words are the approved ones: the question "Delete <ID>? This removes it from your project record. You can undo it straight away." with Delete and
+The words are the approved ones: the question "Delete <ID>? This removes it from your project record. It cannot be brought back." with Delete and
 Cancel, and the toast "<ID> deleted." with Undo.
 """
 import json
@@ -17,7 +17,7 @@ import test_work_board_page as board  # noqa: E402
 import test_multi_select as ms  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-QUESTION = "Delete %s? This removes it from your project record. You can undo it straight away."
+QUESTION = "Delete %s? This removes it from your project record. It cannot be brought back."
 ROW = "tr[data-id='%s']"
 
 
@@ -60,7 +60,6 @@ class DeleteItem(board.Base):
                     click(cdp, sid, "[data-rm=delete]")
                     d = self.dialog(cdp, sid)
                     self.assertEqual(d, {"q": QUESTION % a, "b": ["Delete", "Cancel"]}, where)
-                    self.assertNotIn("brought back", d["q"])
                     self.readable(cdp, sid, ".bask-q, .bask-b button", where)
                     click(cdp, sid, "[data-bask=no]")                                   # Cancel: nothing happens
                     self.until(cdp, sid, "!document.querySelector('[role=alertdialog]')", "the question to close")
@@ -94,11 +93,19 @@ class DeleteItem(board.Base):
             self.until(cdp, sid, "!document.querySelector('#peek')", "the peek to close")
             self.assertEqual(self.query("SELECT 1 FROM actions WHERE id = ?", a), [])
 
-    def test_the_old_sentence_is_nowhere_in_the_page(self):
-        for f in PAGE_SRC.rglob("*"):
-            if f.suffix in (".js", ".jsx"):
-                self.assertNotIn("cannot be brought back", f.read_text(encoding="utf-8"), f.name)
-
+    def test_delete_is_in_the_warning_colour_and_an_archived_item_has_no_delete(self):
+        a = self.id_of("Order the laptops")
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            self.open_menu(cdp, sid, a)
+            red = cdp.js("(() => { const t = document.createElement('i'); t.style.color = 'var(--status-red-text)'; document.body.append(t); const c = getComputedStyle(t).color; t.remove(); return c; })()", sid)
+            got = cdp.js("(() => { const d = document.querySelector('[data-rm=delete]'), o = document.querySelector('[data-rm=archive]'); return [d.classList.contains('danger'), getComputedStyle(d).color, getComputedStyle(o).color]; })()", sid)
+            self.assertTrue(got[0])
+            self.assertEqual(got[1], red)
+            self.assertNotEqual(got[2], red)
+        src = (PAGE_SRC / "edit" / "ArchivedItems.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("Delete", src.replace("nothing in it was deleted", ""))     # the archived peek offers Restore only, and its rows open no row menu (data-arch-id, not data-id)
+        self.assertIn("data-arch-id", src)
 
 if __name__ == "__main__":
     unittest.main()

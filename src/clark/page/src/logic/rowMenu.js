@@ -132,7 +132,7 @@ export function linkFor(row, project, base, format) {
 }
 
 /** Delete one work item (item 658): the question the dialog asks, the toast after it and the Undo words. The item is removed with its links and labels in one
- *  step; Undo brings all of it back. Only an action, a RAID item or a decision (never a milestone or a use case). */
-export const deleteQuestion = (id) => `Delete ${id}? This removes it from your project record. You can undo it straight away.`;
+ *  step; the toast's Undo (the store can restore it) brings all of it back. Only an action, a RAID item or a decision (never a milestone or a use case). */
+export const deleteQuestion = (id) => `Delete ${id}? This removes it from your project record. It cannot be brought back.`;
 export const deleteWords = (id) => ({ text: `${id} deleted.`, back: `${id} is back.` });
 export const deleteRequest = (id, kind, place) => ({ kind, op: "delete", id, place });

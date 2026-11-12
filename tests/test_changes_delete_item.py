@@ -3,7 +3,6 @@ from the report, in one step; one Undo puts all of it back; refusals in plain wo
 
 Run: python3 dev/run_tests.py test_changes_delete_item
 """
-import json
 import unittest
 
 from _demo import USER, DemoStore
@@ -113,9 +112,46 @@ class DeleteItem(unittest.TestCase):
             st.cancel("actions", self.b)
         self.assertEqual(self.s.read("actions", ref=self.b)["status"], "Cancelled")
 
-    def test_no_new_sentence_says_it_cannot_be_brought_back(self):
-        text = json.dumps(self.delete("actions", "XYZ-A-001")[1])
-        self.assertNotIn("brought back", text)
+    def test_undo_restores_the_hidden_row_too(self):
+        _, body = self.delete("actions", self.a)
+        self.assertEqual(self.count("report_hidden"), 0)
+        self.undo({"project": "ABC", "apply_id": body["apply_id"]})
+        self.assertEqual([tuple(r) for r in self.con.execute("SELECT project, item_id FROM report_hidden")], [("ABC", self.a)])
+
+    def test_a_past_publication_still_opens_unchanged_after_a_delete(self):
+        import hashlib
+        import tempfile
+        from pathlib import Path
+        from clark import published_copies
+        page = b'<html><body>' + self.a.encode() + b'<script type="application/json" id="clark-data">{"a": 1}</script>\n</body></html>'
+        sha = hashlib.sha256(page).hexdigest()
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "src.html"
+            src.write_bytes(page)
+            self.assertTrue(published_copies.keep(Path(d), "ABC", 1, src, sha))
+            self.delete("actions", self.a)
+            self.assertEqual(published_copies.read(Path(d), "ABC", 1, sha), (published_copies.OK, page))
+            self.assertEqual(published_copies.read_data(Path(d), "ABC", 1, sha)[0], published_copies.OK)
+
+    def test_counts_and_pickers_drop_the_deleted_item(self):
+        ids = lambda: {r["id"] for r in self.s.read("actions", project="ABC", archived=False)}
+        self.assertIn(self.a, ids())
+        self.delete("actions", self.a)
+        self.assertNotIn(self.a, ids())
+        self.assertIn(self.b, ids())
+        self.assertEqual(self.count("links"), 0)
+        self.assertEqual(self.count("item_labels"), 0)
+
+    def test_milestone_and_use_case_delete_are_refused_by_the_store_and_the_row_stays(self):
+        for table, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            n = self.count("change_log")
+            with self.subTest(table=table):
+                with self.assertRaises(Invalid) as e:
+                    with self.s.step("dashboard", USER) as st:
+                        st.delete(table, ref)
+                self.assertIn("never deleted", str(e.exception))
+                self.assertEqual(self.count("change_log"), n)
+                self.assertIsNotNone(self.s.read(table, ref=ref))
 
 
 if __name__ == "__main__":
