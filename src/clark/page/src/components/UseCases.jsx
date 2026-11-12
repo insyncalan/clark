@@ -45,7 +45,7 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 /** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
 export function StepLine({ r }) {
   const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
-  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span><b>{who}:</b> {r.client_message || r.title}</span></>;
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {r.client_message || r.title}</span></>;
 }
 
 function Row({ s, shown, toggle, ed }) {
@@ -78,7 +78,7 @@ function Row({ s, shown, toggle, ed }) {
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => {
                 const see = () => openPeek(r.id, "item");
-                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
+                return <li key={r.id} data-step onClick={(e) => { if (!e.target.closest("[data-stepid]") && !window.getSelection().toString()) see(); }}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>
