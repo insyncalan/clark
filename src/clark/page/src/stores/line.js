@@ -82,4 +82,9 @@ function switches(rows_, ctx) {
 const pickMode = (v) => setLine(Q.withMode(lineText.value, v, rows.value, filterCtx()));
 const pickType = (v) => setLine(Q.withType(lineText.value, v, rows.value, filterCtx()));
 
-export const LINE_CORE = { empty: Q.EMPTY, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => Q.rowsFor(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };
+/** True while the line asks for archived work (is:archived, not negated): Work items then draws the archived list in place of the live one. */
+function wantsArchived(rows_, ctx) {
+  try { return Q.parseFor(lineText.value, rows_, ctx).terms.some((t) => t.kind === "state" && !t.negate && t.states.includes("archived")); } catch (e) { return false; }
+}
+
+export const LINE_CORE = { empty: Q.EMPTY, wantsArchived, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => Q.rowsFor(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };
