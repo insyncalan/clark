@@ -1,5 +1,6 @@
 """Row 1110: a next step in an opened use case row fills at most two lines (icon, text and id together), a long
 description ends in an ellipsis, and a click on the step opens the work item's peek. 1400 and 900 px, light and dark."""
+import time
 import unittest
 
 from _paths import SRC  # noqa: F401
@@ -38,6 +39,24 @@ class NextClamp(Setup):
                     self.assertFalse(p.js("!!clarkPage.peek()"))
                     p.js("document.querySelector('.ucstepl li[data-step] .ucstept').click()")
                     p.until("!!clarkPage.peek()", f"a click on the step opened the peek {tag}")
+
+    def test_selecting_the_words_does_not_open_the_peek_and_the_id_opens_it_once(self):
+        self.demo.action(description="Reconcile the supplier file", owner="Pat Demo", due_date="2020-01-01", use_case=self.demo.use_case)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                p = self.show(cdp, width=width)
+                p.js("document.querySelector('.ucrow .ucbar').click()")
+                p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
+                p.js("""[...document.querySelectorAll('.ucstepl li')].forEach(l => { if (!l.textContent.includes('Reconcile')) l.remove(); })""")
+                p.js("window.getSelection().selectAllChildren(document.querySelector('.ucstepl li[data-step] .ucstept'))")
+                self.assertTrue(p.js("window.getSelection().toString().length > 0"), "some words are selected")
+                p.js("document.querySelector('.ucstepl li[data-step] .ucstept').click()")
+                self.assertFalse(p.js("!!clarkPage.peek()"), f"{width}: a click that ends a selection does not open the peek")
+                p.js("window.getSelection().removeAllRanges()")
+                p.js("document.querySelector('.ucstepl li[data-step] [data-stepid]').click()")
+                p.until("!!clarkPage.peek()", f"{width}: the id opens the peek")
+                time.sleep(0.4)
+                self.assertTrue(p.js("!!clarkPage.peek()"), f"{width}: and it stays open (the step's own click does not run twice)")
 
 
 if __name__ == "__main__":

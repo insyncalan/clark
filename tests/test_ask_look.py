@@ -236,6 +236,23 @@ class Look(Base):
             p.js("(function(){var b=document.querySelector('#ask-box');b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
             p.until("!!document.querySelector('#ask-pills')", "suggestions back when the box is emptied")
 
+    def test_spaces_alone_are_not_typing_the_suggestions_stay_and_the_send_still_looks_empty(self):
+        """Row 1096: only real words hide the suggestions and light the arrow; a box holding just spaces is still an empty box."""
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("(function(){var b=document.querySelector('#ask-box');b.focus();b.value='   ';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+                p.until("document.querySelector('#ask-box').value === '   '", f"{width}: the spaces are in the box")
+                self.assertTrue(p.js("!!document.querySelector('#ask-pills')"), f"{width}: the suggestions stay for a box of spaces")
+                self.assertEqual(p.js("document.querySelector('#ask-send').getAttribute('data-empty')"), "true", f"{width}: marked empty")
+                self.assertLess(float(p.js("getComputedStyle(document.querySelector('#ask-send')).opacity")), 1, f"{width}: looks empty")
+                p.js("(function(){var b=document.querySelector('#ask-box');b.value=' a ';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+                p.until("!document.querySelector('#ask-pills')", f"{width}: a word hides them")
+                self.assertIsNone(p.js("document.querySelector('#ask-send').getAttribute('data-empty')"), f"{width}: no longer marked empty")
+                p.js("(function(){var b=document.querySelector('#ask-box');b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+                p.until("!!document.querySelector('#ask-pills')", f"{width}: emptied")
+
     def test_a_suggestion_asks_its_words_and_leaves_the_box_alone(self):
         with chrome() as cdp:
             p = self.open_panel(cdp)
