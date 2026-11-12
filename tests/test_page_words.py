@@ -320,6 +320,8 @@ class Words(unittest.TestCase):
                 for m in starts.finditer(line):
                     if line[m.start():].lstrip("`\"'>.!? ").startswith(headings):
                         continue
+                    if f.name == "Quit.jsx" and line.lstrip().startswith(("const SAVING = ", "const PUBLISHING = ")):
+                        continue                          # the owner approved these two Quit lines (Row 1041): "... clark stops in a moment."
                     self.fail(f"{f.name}:{n}: a sentence starts with the product name")
 
     def test_help_shows_no_real_looking_version_as_an_example(self):

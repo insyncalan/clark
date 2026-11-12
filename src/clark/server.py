@@ -941,6 +941,8 @@ def open_route(handler, route):
 HERE_ROUTE = "/api/here"
 IDLE = None
 BUSY = {"n": 0}
+BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; any other POST that is not the quit or the here call is "save"
+PUBLISH_PATHS = ("/api/publish",)
 BUSY_LOCK = threading.Lock()
 JOB_WAIT_LIMIT = 60.0                  # seconds the server waits for a running job once it has been told to stop
 
@@ -961,6 +963,14 @@ def busy():
     """Whether a POST route is running now (a later Publish or Import is covered by run_route, with no list to keep)."""
     with BUSY_LOCK:
         return BUSY["n"] > 0
+
+
+def running_kind():
+    """What the running job is, for the Quit card: "publish" while a Publish runs, else "save" while any other data job runs, else None."""
+    with BUSY_LOCK:
+        if BUSY_KINDS["publish"] > 0:
+            return "publish"
+        return "save" if BUSY_KINDS["save"] > 0 else None
 
 
 def others_busy():
@@ -1253,7 +1263,7 @@ def quit_route(handler, req):
     """POST /api/quit (#836): answer, then stop this server the way an update's restart does (serve() waits for a running job, closes
     the socket and ends; __main__ then lets go of the data folder). The token, the Host, the Origin, JSON only and the length are
     checked before this runs. Nothing is read from the body."""
-    handler.send(200, {"ok": True, "quit": True})
+    handler.send(200, {"ok": True, "quit": True, "finishing": running_kind()})   # "save", "publish" or None: the card says which job is finished first
     threading.Thread(target=handler.server.shutdown, daemon=True).start()
 
 
@@ -1508,9 +1518,14 @@ class Handler(BaseHTTPRequestHandler):
         """Run a route; a fault is a 500 in plain words (code server_error). The class, the text and the stack go to the log
         only: the text could name a path, and a person gets no technical word."""
         counted = self.command == "POST" and route is not here_route       # a POST mid-run keeps the idle stop waiting
+        kind = None
+        if counted and route is not quit_route:
+            kind = "publish" if self.path.split("?")[0] in PUBLISH_PATHS else "save"
         if counted:
             with BUSY_LOCK:
                 BUSY["n"] += 1
+                if kind:
+                    BUSY_KINDS[kind] += 1
         try:
             if counted and updating(self, self.path.split("?")[0]):   # the update's flag went up while this request was read
                 return None
@@ -1524,6 +1539,8 @@ class Handler(BaseHTTPRequestHandler):
             if counted:
                 with BUSY_LOCK:
                     BUSY["n"] -= 1
+                    if kind:
+                        BUSY_KINDS[kind] -= 1
 
     def do_OPTIONS(self):
         """Refuse every preflight: no cross-origin call is allowed. (creaite do_OPTIONS, BL-212)"""
