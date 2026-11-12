@@ -100,14 +100,15 @@ class Title(Fields):
 
 
 class Wording(Fields):
-    BOX = "#peek [data-ce]"
+    BOX = "#peek [data-ce]"            # item 1005: the wording drawn as text; a click opens the one editor (a ProseMirror) in its place, Enter saves
 
     def words(self, cdp, sid):
-        return cdp.js(f"(t => t ? t.textContent : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
+        return cdp.js(f"(t => t ? t.textContent.trim() : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
 
     def type_words(self, cdp, sid, text):
-        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).focus()", sid)
-        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent = {json.dumps(text)}", sid)
+        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
+        cdp.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()", sid)
 
     def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
         was = (self.action(ACTION).get("client_message") or "").strip()
@@ -136,8 +137,21 @@ class Wording(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_words(cdp, sid, "x" * 201)
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "200 characters at most" in self.toast(cdp, sid)))
-            self.assertEqual((sent, self.words(cdp, sid)), ([], was))
+            self.assertTrue(wait(lambda: "200 characters at most" in cdp.js("(document.querySelector('#peek .rt-problem') || {textContent: ''}).textContent", sid)), "the field says why")
+            self.assertEqual(sent, [])
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
+
+    def test_the_open_peek_wording_editor_shows_no_toolbar_and_no_keys_line(self):
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
+                shown = cdp.js("['#peek .rt-bar', '#peek .rt-keys'].map(q => { const e = document.querySelector(q); return e ? getComputedStyle(e).display : 'none'; })", sid)
+                self.assertEqual(shown, ["none", "none"], "a one-line plain field has no toolbar")
+                self.assertTrue(self.inside(cdp, sid, "#peek .pk-ce.rich"), "the open editor fits the peek")
+                key(cdp, sid, "Escape")
 
     def test_the_wording_box_is_edit_only(self):
         peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
