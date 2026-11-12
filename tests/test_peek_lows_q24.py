@@ -19,7 +19,7 @@ from test_server import chrome, wait
 
 EDGES = """(() => {
   const l = (s) => { const e = document.querySelector(s); return e ? Math.round(e.getBoundingClientRect().left * 10) / 10 : null; };
-  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields') };
+  return { title: l('#peek .pk-title'), tabs: l('#peek .pk-tabs'), card: Math.min(...[...document.querySelectorAll('#peek .pk-fields > .pk-row[data-row], #peek .pk-fields > .pk-row[data-ms-row]')].map((e) => Math.round(e.getBoundingClientRect().left * 10) / 10)), fields: l('#peek .pk-fields') };
 })()"""
 
 
@@ -63,7 +63,8 @@ class MilestoneEdges(Base):
                     p.until("!!document.querySelector('#peek .pk-fields')", "the fields")
                     e = json.loads(p.js(f"JSON.stringify({EDGES})"))
                     self.assertAlmostEqual(e["fields"], e["title"], delta=1, msg=str(e))
-                    self.assertAlmostEqual(e["card"], e["title"], delta=1, msg=str(e))
+                    if e["card"] is not None:   # a milestone's peek draws no field cards (item 1078: plain rows); the item peek below pins the cards strictly
+                        self.assertAlmostEqual(e["card"], e["title"], delta=1, msg=str(e))
                     if e["tabs"] is not None:
                         self.assertAlmostEqual(e["tabs"], e["title"], delta=1, msg=str(e))
 
