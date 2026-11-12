@@ -8,6 +8,8 @@ import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { Icon } from "../components/Icon.jsx";
+import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
@@ -44,6 +46,8 @@ export function AskPanel() {
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
+  const showHist = histOpen.value && !busy;
+  const saved = showHist ? (histTick.value, chats()) : [];
   const box = useRef(null), log = useRef(null);
   useGrow(box, open ? text : null);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
@@ -102,6 +106,7 @@ export function AskPanel() {
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      keepChat(turns.value);
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -127,6 +132,12 @@ export function AskPanel() {
       const m = r.status === 400 || r.status === 409 ? fixedLine(b && b.message, W.CHANGES_GONE_LINE) : W.CHANGES_GONE_LINE;
       turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
     }
+  }
+
+  function openChat(c) {
+    if (busy) return;
+    turns.value = c.turns.map((t) => ({ ...t }));
+    chatId.value = c.id; histOpen.value = false; setNote("");
   }
 
   async function stop() {
@@ -163,8 +174,9 @@ export function AskPanel() {
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">
-          <button type="button" class="btn sm" id="ask-new" disabled={busy} onClick={() => { setNote(""); newChat(); }}>{W.NEW_CHAT}</button>
-          <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
+          <button type="button" class="pkp-btn" id="ask-new" disabled={busy} title={W.NEW_CHAT} aria-label={W.NEW_CHAT} onClick={() => { setNote(""); newChat(); }}><Icon name="plus" /></button>
+          <button type="button" class="pkp-btn" id="ask-history" disabled={busy} title={W.HISTORY} aria-label={W.HISTORY} aria-pressed={showHist ? "true" : "false"} onClick={() => { histOpen.value = !histOpen.value; }}><Icon name="clock" /></button>
+          <button type="button" class="pkp-btn" id="ask-close" title={W.CLOSE} aria-label={W.CLOSE} onClick={closePanel}><Icon name="x" /></button>
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
@@ -176,7 +188,21 @@ export function AskPanel() {
       {state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
-      <div class="ask-log" id="ask-log" role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
+      {showHist ? (
+        <div class="ask-hist" id="ask-hist" role="region" aria-label={W.HISTORY_TITLE}>
+          <h3>{W.HISTORY_TITLE}</h3>
+          <p class="ask-hist-note">{W.HISTORY_NOTE}</p>
+          {saved.length ? (
+            <ul>{saved.map((c) => (
+              <li key={c.id} data-chat={c.id}>
+                <button type="button" class="ask-hist-open" title={W.HISTORY_OPEN(c.title)} aria-label={W.HISTORY_OPEN(c.title)} onClick={() => openChat(c)}><span class="ask-hist-title">{c.title}</span><span class="ask-hist-when">{when(c.at)}</span></button>
+                <button type="button" class="pkp-btn ask-hist-del" title={W.DELETE} aria-label={W.HISTORY_DELETE(c.title)} onClick={() => deleteChat(c.id)}><Icon name="trash" /></button>
+              </li>
+            ))}</ul>
+          ) : <p class="ask-hist-empty" id="ask-hist-empty">{W.HISTORY_EMPTY}</p>}
+        </div>
+      ) : null}
+      <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>

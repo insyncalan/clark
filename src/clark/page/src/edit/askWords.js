@@ -18,6 +18,14 @@ export const SEND = "Ask";
 export const STOP = "Stop";
 export const CLOSE = "Close";
 export const NEW_CHAT = "New chat";
+// Row 1095: History, the earlier chats of this project, kept on this computer.
+export const HISTORY = "History";
+export const HISTORY_TITLE = "Earlier chats";
+export const HISTORY_NOTE = "Kept on this computer, for this project only.";
+export const HISTORY_EMPTY = "No earlier chats yet. A chat is kept here once it has an answer.";
+export const HISTORY_OPEN = (title) => `Open the chat: ${title}`;
+export const HISTORY_DELETE = (title) => `Delete the chat: ${title}`;
+export const DELETE = "Delete";
 export const STOPPING_LINE = "Stopping. Your question and the earlier answers stay here.";
 export const NO_ANSWER_LINE = "No answer came back. Wait a moment and ask again.";
 export const NOT_REACHED_LINE = "The question did not reach clark. Check that its window is still open, then ask again.";

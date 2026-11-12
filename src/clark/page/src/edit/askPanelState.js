@@ -6,6 +6,7 @@ import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
+import { chatId, histOpen } from "./askHistory.js";
 import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
@@ -76,6 +77,7 @@ export function openPanel() {
 export function newChat() {
   if (pending.value) return;
   turns.value = [];
+  chatId.value = null; histOpen.value = false;
 }
 
 export function closePanel() {
@@ -118,6 +120,6 @@ export function installAskKeys() {
   let seen = view.value + "|" + project.value;
   effect(() => {
     const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; turns.value = []; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    if (now !== seen) { seen = now; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
   });
 }
