@@ -1437,6 +1437,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucf-card { padding: 16px 20px; border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); min-width: 0; }
 .ucf-ch { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; margin: 0 0 10px; font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .ucf-hint { font-size: var(--size-caption); font-weight: var(--weight-light); letter-spacing: 0; text-transform: none; }
+.ucf-kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 0; }
+.ucf-kv dt { color: var(--text-muted); }
+.ucf-kv dd { margin: 0; overflow-wrap: anywhere; }
 .ucf-card .link { display: inline-flex; align-items: center; min-height: 24px; letter-spacing: 0; text-transform: none; font-weight: var(--weight-light); }
 .ucf-card .rt-view { display: block; min-height: 32px; padding: 2px 4px; border-radius: var(--radius-sm); cursor: text; }
 .ucf-card .rt-view:hover { background: var(--grey-50); }
