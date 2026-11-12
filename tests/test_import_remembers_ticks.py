@@ -1,4 +1,4 @@
-"""The "What to import" window opens with the sheets ticked at the last confirmed import (clark-plan row 1106)."""
+"""The "What to import" window opens with the sheets ticked at the last confirmed import."""
 import json
 import unittest
 
