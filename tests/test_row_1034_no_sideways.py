@@ -28,7 +28,7 @@ MEASURE = r"""(() => {
 class Css(unittest.TestCase):
     def test_the_narrow_rules_are_in_the_style_sheet(self):
         self.assertRegex(CSS, r"\.tcell\.health \{[^}]*min-width: min\(292px, 100%\)")
-        self.assertRegex(CSS, r"\.mv, \.msv-swap \{ min-width: 0; max-width: 100%; \}")
+        self.assertRegex(CSS, r"\.mv\[data-place\], \.msv-swap \{ min-width: 0; max-width: 100%; \}")
         self.assertRegex(CSS, r"\.mv-wrap \{[^}]*max-width: 100%")
         self.assertRegex(CSS, r"@media \(max-width: 640px\) \{ \.ucbar \{ grid-template-columns: auto minmax\(0, 1fr\); \} \.ucbar > :nth-child\(n\+3\) \{ grid-column: 1 / -1;")
 
