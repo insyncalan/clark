@@ -124,6 +124,9 @@ class Undo(unittest.TestCase):
         with self.s.step("dashboard", USER) as st:
             sm.unlink_use_case_milestone(st, self.demo.use_case, m)
         self.assertIsNone(sm.referred_to(self.s.con, m))          # a link taken off is not a reference
+        out = self.s.undo(made, USER)
+        self.assertEqual(out["skipped"], [], out)
+        self.assertIsNone(self.s.read("milestones", ref=m))
 
     def test_a_new_label_still_on_an_item_is_skipped(self):
         with self.s.step("dashboard", USER) as st:

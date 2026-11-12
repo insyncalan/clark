@@ -1910,6 +1910,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
             return [], [entry(rows_[0], field=None, by_step=None,
                               why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
         current = fetch(con, table, key)
+        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+        elif table == "use_cases":
+            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
         con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
         log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
             undoes=made[0]["rowid"])
