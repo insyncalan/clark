@@ -410,6 +410,7 @@ test_people_store.py 2.9
 test_picker_minimap.py 25.0
 test_pill_focus_ring.py 18.3
 test_placement.py 4.6
+test_plain_line_hostile.py 1.0
 test_platform.py 1.0
 test_platform_container.py 1.6
 test_platform_source.py 17.0
@@ -491,6 +492,7 @@ test_rich_reason_note.py 2.9
 test_router.py 123.0
 test_row_ids_no_wrap.py 4.5
 test_row_menu.py 186.7
+test_row_words_1005.py 1.0
 test_run_tests.py 40.8
 test_runner_osascript_guard.py 3.7
 test_safety.py 29.2
@@ -731,6 +733,9 @@ test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
 test_section_hint_phone.py 30.0
+test_plain_words_hostile_1005.py 1.0
+test_p1005b_eye.py 1.0
+test_b4_hostile_1005.py 1.0
 test_ai_menu_mutants.py 1.0
 test_excel_colours_mutants.py 1.0
 test_excel_import_mut.py 1.0
