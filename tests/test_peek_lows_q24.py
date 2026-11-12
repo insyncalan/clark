@@ -37,6 +37,19 @@ class Progress(Base):
                     self.assertEqual(p.js("document.querySelector('#peek [data-ms-num]').placeholder"), "—", "the same dash the other empty fields draw")
                     self.assertGreaterEqual(p.js("document.querySelector('#peek [data-ms-num]').getBoundingClientRect().width"), 40)
 
+    def test_the_dash_is_drawn_in_the_muted_text_colour_not_the_browsers_default(self):
+        for width in (1400, 900):
+            for theme in ("light", "dark"):
+                with self.subTest(width=width, theme=theme), chrome() as cdp:
+                    p = self.visit_peek(cdp, width=width, theme=theme)
+                    p.until("!!document.querySelector('#peek [data-ms-num]')", "the number box")
+                    got = p.js("""(() => { const i = document.querySelector('#peek [data-ms-num]'); const probe = document.createElement('i');
+                      probe.style.color = 'var(--text-muted)'; document.body.appendChild(probe);
+                      const want = getComputedStyle(probe).color; probe.remove();
+                      return JSON.stringify({got: getComputedStyle(i, '::placeholder').color, want}); })()""")
+                    got = json.loads(got)
+                    self.assertEqual(got["got"], got["want"], "the placeholder rule sets the muted colour at full strength")
+
 
 class MilestoneEdges(Base):
     cur = GO_LIVE
@@ -97,6 +110,20 @@ class PhaseBar(unittest.TestCase):
                     self.assertEqual(c["sw"], c["pb"], "the legend swatch is the bar's own fill")
                     if scheme == "light":
                         self.assertEqual(c["pb"], "rgb(6, 47, 58)", "light keeps the navy")
+
+    def test_a_phase_bar_stands_off_its_row_when_the_page_follows_a_dark_computer(self):
+        # data-theme=auto reads the second copy of the dark tokens, inside the prefers-color-scheme block
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "auto")
+                self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "dark"}, {"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+                try:
+                    self.mount(edit=False, lines=LINES)
+                    c = self.val("(function(){ var s = function(sel, p){ return getComputedStyle(document.querySelector(sel))[p]; };"
+                                 "return {pb: s('.gt-b-phase', 'backgroundColor'), pr: s('.gt-rw.gt-phase', 'backgroundColor')}; })()")
+                    self.assertGreaterEqual(contrast(rgb(c["pb"]), rgb(c["pr"])), 3, f"the fill alone stands off its row: {c}")
+                finally:
+                    self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": ""}]}, self.sid)
 
 
 if __name__ == "__main__":
