@@ -941,6 +941,50 @@ class PdfDetailsAreNeutral(unittest.TestCase):
         no_info = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>"})
         self.assertEqual(set(info_of(pdf.scrub(no_info, "T"))), ALLOWED_INFO, "an Info dictionary is added when there was none")
 
+    def test_a_link_beside_the_report_does_not_carry_the_temporary_folder_of_this_computer(self):
+        """Chrome writes a link that is relative to the printed page as file:///<the folder the copy was printed from>/...; that folder
+        is on this computer (on Windows it sits under the user's name). The link keeps its relative address and nothing else."""
+        folder = b"file:///var/folders/ab/C0ffee/T/clark-pdf-x7y_z9/"
+        data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>",
+                          4: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (" + folder + b"Report%20files/plan.pdf)>>>>",
+                          5: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (" + folder + b"page.html)>>>>",
+                          6: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (https://example.com/ok?a=(b\\))>>>>"}, info=3)
+        out = pdf.scrub(data, "T")
+        for leak in (b"clark-pdf-", b"/var/folders", b"C0ffee", b"file:"):
+            self.assertNotIn(leak, out, leak)
+        self.assertIn(b"/URI (Report%20files/plan.pdf)", out)
+        self.assertIn(b"/URI (page.html)", out)
+        self.assertIn(b"/URI (https://example.com/ok?a=(b\\))", out, "a link to somewhere else is left as it was")
+        offsets = [int(m.group(1)) for m in re.finditer(rb"(\d{10}) 00000 n", out)]
+        for num, off in zip((1, 2, 3, 4, 5, 6), offsets):
+            self.assertTrue(out[off:].startswith(b"%d 0 obj" % num), num)
+
+    def test_real_chrome_pdf_of_a_page_with_a_file_link_has_no_temporary_folder(self):
+        chrome = chrome_path()
+        self.assertTrue(chrome, "Chrome is needed: set CLARK_CHROME or put google-chrome on the PATH")
+        page = ("<!doctype html><html><head><meta charset=utf-8><title>T</title></head><body><h1>Harbour plan</h1>"
+                "<p><a href='Report%20files/plan.pdf'>The plan</a> <a href='#'>top</a> <a href='mailto:a.b@clientco.example'>mail</a></p></body></html>")
+        with tempfile.TemporaryDirectory() as d:
+            src = Path(d) / "report.html"
+            src.write_text(page, encoding="utf-8")
+            data = pdf.make_pdf(src, Path(d) / "o.pdf", chrome=chrome).read_bytes()
+        self.assertIn(b"/URI (Report%20files/plan.pdf)", data, "the link is still there, relative")
+        for leak in (b"clark-pdf-", b"file:", b"/tmp", b"/var/folders"):
+            self.assertNotIn(leak, data, leak)
+
+    def test_a_pdf_with_the_temporary_folder_anywhere_else_is_not_made(self):
+        for hidden in (b"/Alt (see /tmp/clark-pdf-q1w2e3/x)", b"/Alt <" + b"clark-pdf-q1".hex().encode() + b">"):
+            data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>",
+                              4: b"<<" + hidden + b">>"}, info=3)
+            with mock.patch.object(pdf, "_print_over", return_value=data), mock.patch.object(pdf, "_start_piped", return_value=(mock.Mock(), (0, 1))), \
+                    mock.patch.object(pdf, "_Pipe"), mock.patch.object(pdf, "stop_child"), tempfile.TemporaryDirectory() as d:
+                src = Path(d) / "r.html"
+                src.write_text("<title>T</title>", encoding="utf-8")
+                with self.assertRaises(pdf.PdfError) as caught:
+                    pdf.make_pdf(src, Path(d) / "o.pdf", chrome="/x")
+                self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+                self.assertFalse((Path(d) / "o.pdf").exists())
+
     def test_a_file_of_an_unusual_shape_is_refused_in_plain_words(self):
         for bad in (b"%PDF-1.4\nnothing here", b"%PDF-1.7\nstartxref\n5\n%%EOF", b""):
             with self.assertRaises(pdf.PdfError) as caught:
