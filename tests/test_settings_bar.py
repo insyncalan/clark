@@ -102,6 +102,23 @@ class SettingsBar(Base):
                 self.assertEqual(self.marked(p), "Asking", "the last chip, near the foot of the page, stays marked")
                 self.assertTrue(self.clear_of_bar(p, "#ask-settings-h"))
 
+    def test_row_1041_scrolled_to_the_very_foot_of_settings_the_marked_chip_is_asking(self):
+        """Scrolled by hand (no chip chosen) to the very bottom. The cards of Feedback and Quit are too short to ever come up to the bar, so the
+        last chip that can be marked by scrolling is Asking (Views.jsx cardHere), which is what the row says. Mutation tried: make cardHere
+        return cards[0] when at the foot: the marked chip is then Profile."""
+        for w in WIDTHS:
+            for mode in MODES:
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode)
+                    self.assertEqual(self.marked(p), "Profile")
+                    self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Asking,Feedback,Quit")
+                    p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
+                    self.settle(p)
+                    self.assertTrue(p.js("window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2"), "the page is at its very foot")
+                    p.until(f"({MARKED} || {{}}).textContent === 'Asking'", "the foot of the page marks Asking")
+                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
+
     def test_C_the_marked_chip_can_be_read_in_light_and_dark(self):
         for w in WIDTHS:
             for mode in MODES:
