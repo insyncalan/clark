@@ -1284,6 +1284,10 @@
       "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
+      "p",
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The same works on the Use cases list and the Milestones list. The widths are kept on this computer, not in the project, and the published page keeps its own."
+     ],
+     [
       "tbl",
       [
        "Table column",
@@ -1393,6 +1397,10 @@
      [
       "p",
       "**Movement** is the switch next to **Plan** at the top: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+     ],
+     [
+      "p",
+      "In Edit, the list of milestones has a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**. Drag the right edge of a heading, or press [[Alt+Left]] or [[Alt+Right]] on it, to change that column’s width; double-click the edge to put it back. View and the published page have no heading row."
      ]
     ]
    },
@@ -1417,6 +1425,7 @@
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
+       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list.",
        "Drag its left edge to make it wider."
       ]
      ],
