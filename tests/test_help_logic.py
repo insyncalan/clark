@@ -277,8 +277,8 @@ class Logic(unittest.TestCase):
 
     def test_icon_legend(self):
         icons = self.r["icons"]
-        self.assertEqual(len(icons), 30)      # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
-        self.assertEqual(len({i["icon"] for i in icons}), 30)
+        self.assertEqual(len(icons), 29)      # row 1077: the Draft entry is out with the Draft chip; # #721: the top-bar "ask clark" chat row is out until the ask button is on the page
+        self.assertEqual(len({i["icon"] for i in icons}), 29)
         self.assertTrue(all(i["title"] and i["does"] and i["where"] for i in icons))
         self.assertIn("eyeoff", [i["icon"] for i in icons])
 
@@ -333,7 +333,7 @@ class Shown(unittest.TestCase):
         self.assertEqual(s["q"]["peek"], ["howto-change-an-item-in-the-peek", "howto-change-an-item-in-words", "ref-peek", "ref-sneak-peek", "howto-write-the-weekly-report", "howto-check-the-report", "howto-add-a-work-item", "howto-undo-a-mistake", "start-loop", "start-where", "ref-freshness", "ref-keys"])
         self.assertEqual(s["q"]["movement"][:2], ["ref-milestones-page", "howto-handle-a-slipped-milestone"], "a search for movement finds the Movement entries")
         self.assertEqual(s["q"]["diagnostics"][0], "ref-diagnostics", "a search for diagnostics finds the Diagnostics entry")
-        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "start-top", "ref-publishing", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "howto-set-up-a-project", "howto-update-clark", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-loop", "start-jobs", "start-where", "start-rules", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-status-words", "ref-milestone-states", "ref-settings", "ref-updating-clark"],
+        self.assertEqual(s["q"]["publish"], ["howto-publish-the-report", "guide-publish-to-the-client", "start-top", "ref-publishing", "ref-published-reports", "howto-word-in-and-out", "howto-find-a-past-publication", "howto-save-as-a-pdf", "howto-add-a-work-item", "howto-arrange-the-report", "howto-ask-for-what-you-need", "howto-handle-a-slipped-milestone", "howto-set-up-a-project", "howto-update-clark", "guide-arrange-the-report", "guide-send-the-workbook-out", "guide-see-the-dashboard-as-at-a-day", "start-loop", "start-jobs", "start-where", "start-rules", "ref-profile-circle", "ref-sections", "ref-needs-from-you", "ref-archive-restore", "ref-layouts", "ref-work-items", "ref-milestones-page", "ref-peek", "ref-status-words", "ref-milestone-states", "ref-settings", "ref-updating-clark"],
                          "the Published reports entries, then the entries that say what is or is not on the published page; only entries about Publish that are shown")
         self.assertEqual(s["q"]["keys"], ["ref-keys", "howto-use-the-board", "howto-change-the-layout-and-look", "howto-connect-claude-or-chatgpt", "guide-add-a-section-from-a-template", "guide-hand-an-item-over", "ref-section-templates", "ref-ask-clark", "ref-settings", "ref-using-help"])
 

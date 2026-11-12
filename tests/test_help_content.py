@@ -30,7 +30,9 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app'])  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
+# 'Ask clark to update for you' is the words box's heading (edit/SneakPeek.jsx, row 1077, the owner's words of 09-11-2026); the prototype still says Change an item with words.
+# 'Open in your mail app' is the Feedback entry's button (main, #1069).
+CHECKED_BY_HAND = set(['Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app', 'Ask clark to update for you'])  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -100,8 +102,8 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446), and Excel file layout (#951), and the Feedback entry (#1069)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 30))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # with the People entries (item 454), held, and the Word entry, Run clark with Docker, and the AI card task (item 446), and Excel file layout (item 951), and the Feedback entry (#1069)
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 29))   # icons 29: this branch drops one icon row that main still has, see its helpContent.json
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -492,6 +494,15 @@ class NeededFromTheClientWords(unittest.TestCase):
         self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
         peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
         self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+
+
+class PeekSourceWords(unittest.TestCase):
+    def test_help_says_source_is_drawn_in_view_and_in_a_published_file_not_only_in_edit(self):
+        """Row 1077: the peek draws Source in Edit, in View and in a published file (the name only there); Help must not say it is in Edit only."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Source** (in Edit, in View and in a published file)", text)
+        self.assertNotIn("**Source** (in Edit)", text)
+        self.assertIn("a published file shows only the name", text)
 
 
 class ProfileCircleWords(unittest.TestCase):

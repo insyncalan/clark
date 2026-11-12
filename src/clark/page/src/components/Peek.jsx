@@ -1,5 +1,5 @@
 // The peek (#42a): one work item's or milestone's fields beside the list. Read only on a Dashboard in View and in a published file: fields and
-// nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.PeekTabs` and
+// the Source line (row 1077) and nothing else (no history, no words box, no /api/ text). `tools.Words`, `tools.PeekTabs` and
 // `tools.PeekActivity` (Details and Activity, #42) are the editing part (every page but a Dashboard in View).
 // The address holds which item is open (router.js, #63); Previous and Next replace that entry, Esc and Close go through
 // closePeek(). The width is dragged from the left edge (keys too), double-click resets it.
@@ -77,9 +77,16 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
-      </> : null}
+      </> : row.raised_on ? <Row name="Raised">{showDate(row.raised_on)}</Row> : null}      {/* row 1077: a published file carries no history (no freshness, no Last reviewed) but it carries the date raised, so a client's peek keeps that row */}
     </dl>
   );
+}
+
+// The read-only Source line under the fields (row 1077, the owner's ruling): where the item or milestone came from, by name. On the live page
+// the Edit part reads it (tools.PeekSource, GET /api/activity, with " by <name>"); a published file draws the name its data carries (publish.select).
+// The text is drawn as text; nothing is drawn when there is none.
+export function SourceLine({ text }) {
+  return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
 }
 
 function MilestoneFields({ m }) {
@@ -122,7 +129,10 @@ export function Peek({ tools }) {
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
-  const Source = editing && forItem && tools.PeekSource;
+  // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
+  // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
+  const Source = !!tools && !fromFile.value && tools.PeekSource;
+  const FileSource = fromFile.value;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
@@ -259,7 +269,7 @@ export function Peek({ tools }) {
         : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
           {row ? <ItemFields row={row} editing={editing} Cell={editing && tools.Cell ? tools.Cell : null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} />}
           {Needed && row && row.kind !== "decision" ? <Needed key={`n-${row.id}`} row={row} /> : null}
-          {Source && row ? <Source key={`s-${row.id}`} row={row} /> : null}
+          {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
         </div>}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
