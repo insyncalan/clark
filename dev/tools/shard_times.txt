@@ -731,3 +731,4 @@ test_a11y_settings_filter_tabs.py 30.0
 test_help_loop_cards.py 6.0
 test_section_hint_all_types.py 60.0
 test_section_hint_phone.py 30.0
+test_help_r11_999.py 5.0
