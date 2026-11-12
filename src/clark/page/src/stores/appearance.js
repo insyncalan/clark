@@ -16,7 +16,7 @@ function remembered() {
 
 export const appearance = signal(remembered());
 
-let forPrint = false;                      // while the browser prints, the page is always light (#1050: "no to print dark")
+let forPrint = false;                      // while the browser prints, the page is always light (item 1050: "no to print dark")
 function paint(v) {
   try {
     if (forPrint) v = "light";
