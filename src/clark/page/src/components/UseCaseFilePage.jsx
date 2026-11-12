@@ -6,13 +6,11 @@ import { isOpen, pillOf, dueCell, ownerOf, todayIso, plural, showDate } from "..
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
-import { cleanHtml } from "../logic/cleanHtml.js";
 import { MsMark } from "./MsMark.jsx";
 import { toneOf } from "./ItemRows.jsx";
 import { CommitChip } from "./CommitChip.jsx";
 
 const rag = (status) => ({ "On track": "g", Flag: "a", "High risk": "r", Done: "n" })[status] || "n";
-const safe = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
 
 export function UseCaseFilePage({ id }) {
   const d = data.value;
@@ -27,7 +25,7 @@ export function UseCaseFilePage({ id }) {
   const open = work.filter(isOpen), label = u.ref ? `Use case ${u.ref}` : "";
   const name = refOf(u) || "Use case";
   const sub = work.length ? `${open.length} of ${plural(work.length, "work item")} open` : "No work items";
-  const std = safe(u.standing);
+  const std = u.standing || "";                    // cleaned at publish (publish.select), as the Use cases tab draws it
   return (
     <div class="ucd" data-ucd data-uc-id={u.id}>
       {crumb(name)}
