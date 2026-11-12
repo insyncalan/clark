@@ -76,7 +76,7 @@ test_blank_lines.py 1.4
 test_board.py 10.8
 test_board_columns.py 45.9
 test_brand.py 0.6
-test_brand_backdrop.py 30.0
+test_brand_backdrop.py 212.0
 test_brand_circle.py 7.1
 test_brand_follow_e2e.py 25.5
 test_brand_page.py 14.7
@@ -200,7 +200,7 @@ test_filter_line.py 22.1
 test_filter_line_client.py 3.2
 test_filter_line_not_published.py 11.1
 test_filter_line_page.py 270.6
-test_filter_line_page_900.py 109.8
+test_filter_line_page_900.py 136
 test_filter_list_error.py 40.2
 test_filter_query.py 14.2
 test_filter_query_ui.py 7.2
