@@ -5,7 +5,7 @@
 // Row 1078 (the owner's rulings): the work item peek's format. The name is the title (MilestoneTitle, drawn in the h2 by Peek.jsx); under
 // it the shared header line (Peek.jsx MsHead: the state, the owner and the progress, here with their controls) and the state buttons; then
 // the rows Description, Agreed date, Forecast date, Achieved on (a Done milestone's alone), Workstream, Visible to client and Client
-// wording, plain rows (never the four property cells). Description and Client wording are on the one rich editor (#1005).
+// wording, plain rows (never the four property cells). Description and Client wording are on the one rich editor (item 1005).
 import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, reread } from "../stores/report.js";
 import { changeMilestone, say } from "../stores/changes.js";
@@ -20,6 +20,7 @@ import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
+import { plainFromEditor } from "./plainWords.js";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -73,6 +74,19 @@ function Description({ m }) {
 function ClientWording({ m }) {
   const put = (value) => save(m, { client_message: value }, richWords(value).trim() ? `Client wording of ${m.id} changed.` : `Client wording of ${m.id} cleared.`);
   return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client wording" empty={DASH} save={put} />;
+}
+
+// Item 1005: the client wording is on the one rich editor too, but it is stored and published as plain text: what the editor gives is saved as
+// one line, paragraphs joined by a space (clark refuses line breaks in client wording; never markup), and an older plain value loads as paragraphs. Cmd or Ctrl with Enter saves, Esc leaves it as it was.
+function ClientWording({ m }) {
+  const was = m.client_message || "";
+  const html = (() => { try { return richOrPlain(was); } catch (e) { return ""; } })();
+  const put = async (value) => {
+    const c = textChange("client_message", was, plainFromEditor(value, true));
+    if (!c) return true;
+    return save(m, c, said(m, "Client wording", c.client_message));
+  };
+  return <RichField field="client_message" id={m.id} value={html} label="Client wording" empty={DASH} save={put} />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).

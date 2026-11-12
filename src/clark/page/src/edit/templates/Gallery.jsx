@@ -2,7 +2,7 @@
 // description; each saved on its own (one change, one step, one Undo, place "report"); a picture through POST /api/section-image
 // (pictureEdit.jsx), made smaller than in the one-picture templates so six fit one section. Taking a picture out takes its caption
 // with it. Given { section, tools }. Limits are gallery.py's.
-import { LineField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
+import { LineField, CaptionField, PictureSlot, PicturesTotal, saveWords, wordsOf } from "./pictureEdit.jsx";
 import { picturesOf, stored } from "../../templates/pictures.jsx";
 import { SLOTS } from "../../templates/Gallery.jsx";
 
@@ -16,8 +16,9 @@ function itemsOf(v) {
 
 // A caption or description of one picture: the items object saved whole, with that one field changed.
 function ItemField({ section, slot, field, label, value, words }) {
+  const Box = field === "caption" ? CaptionField : LineField;          // item 1005: a caption is on the one editor, a description stays one line
   return (
-    <LineField section={section} field={`${field}-${slot}`} label={label} value={value} max={300} words={words}
+    <Box section={section} field={`${field}-${slot}`} label={label} value={value} max={300} words={words}
       save={(v) => {
         const items = { ...itemsOf(wordsOf(section)) };
         const one = { ...(items[slot] || {}) };
