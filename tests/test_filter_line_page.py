@@ -927,6 +927,27 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: self.tab_ids(cdp, sid) == kept), "the order is there after a reload")
                     cdp.js("localStorage.clear()", sid)
 
+    def test_row_1071_the_tabs_have_no_drag_grip_and_the_tab_menu_chevron_stays_the_light_production_style(self):
+        """Mutations tried: add a span.vtab-grip (or a data-grip) inside a tab; give .vtabmenu a border and a fill. Either one fails this."""
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.vtab').length", sid) >= 3), "the tabs drew")
+                    grips = cdp.js("[...document.querySelectorAll('.vt, .vtab, .vtabs *')].filter(e => /grip|handle/i.test(e.className && e.className.baseVal !== undefined ? e.className.baseVal : String(e.className || '')) "
+                                   "|| e.hasAttribute('data-grip') || e.hasAttribute('data-handle') || /^[\\u2807\\u283f\\u22ee\\u2630\\u2261]+$/.test((e.textContent || '').trim())).length", sid)
+                    self.assertEqual(grips, 0, "no drag grip on the tabs: the whole tab is picked up")
+                    self.assertEqual(cdp.js("document.querySelectorAll('.vtab [draggable], .vt [draggable=true]').length", sid), 0, "no separate draggable handle")
+                    self.assertEqual(cdp.js("document.querySelectorAll('.vtabmenu').length", sid), 1, "one tab menu button, on the chosen tab")
+                    st = cdp.js("(() => { const s = getComputedStyle(document.querySelector('.vtabmenu')); "
+                                "return [s.backgroundColor, s.borderTopWidth, s.boxShadow, s.width, s.height, s.borderRadius, document.querySelectorAll('.vtabmenu svg').length]; })()", sid)
+                    self.assertIn(st[0], ("rgba(0, 0, 0, 0)", "transparent"), "the chevron has no fill at rest")
+                    self.assertEqual(st[1], "0px", "no box around the chevron")
+                    self.assertEqual(st[2], "none", "no shadow on the chevron")
+                    self.assertEqual((st[3], st[4]), ("24px", "24px"), "the quiet production size")
+                    self.assertEqual(st[6], 1, "one chevron drawn")
+
     def test_row_1071_a_click_without_movement_still_chooses_the_tab_and_a_drag_selects_no_text_and_esc_puts_it_back(self):
         s = self.serve()
         for width in SIZES:
