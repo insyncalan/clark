@@ -83,14 +83,12 @@ class Uncaught(Base):
         self.assertEqual(pl.NotBuiltYet.__name__, "NotBuiltYet")
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class NotInDocker(unittest.TestCase):
     """Item 1100 follow-up: outside Docker a refused step never tells the person to start from the Mac's Terminal."""
+    system = "win32"
+
     def setUp(self):
-        for patch in (mock.patch.object(sys, "platform", "win32"), mock.patch.object(pl, "container_mode", return_value=False)):
+        for patch in (mock.patch.object(sys, "platform", self.system), mock.patch.object(pl, "container_mode", return_value=False)):
             patch.start()
             self.addCleanup(patch.stop)
         self.root, self.data, self.scratch = make_dirs(self)
@@ -105,3 +103,11 @@ class NotInDocker(unittest.TestCase):
         self.assertEqual((status, got["message"]), (409, "This step is not built for your system yet."), got)
         self.assertNotIn("Terminal", repr(got))
         self.assertNotIn("clark.command", repr(got))
+
+
+class NotInDockerOnLinux(NotInDocker):
+    system = "linux"
+
+
+if __name__ == "__main__":
+    unittest.main()
