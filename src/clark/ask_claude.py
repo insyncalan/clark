@@ -41,10 +41,12 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
 - NO CONTENT IN LOGS OR ERRORS: no question, passage, reply, path or error text from the command is kept; failures are fixed
   sentences. The reply text is handed back to ask.ask_provider, which reads it with the reply reader and claims check.
 """
+import glob
 import json
 import os
 import pwd
 import re
+import shutil
 import stat
 import threading
 import time
@@ -54,7 +56,10 @@ from pathlib import Path
 from clark import ask, platform
 
 PROVIDER = "claude"
-PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
+# An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
+# it names, and that file must still be a Mac program (the native package's own binary); a script is refused as before.
+PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
@@ -113,6 +118,9 @@ MODEL_UNAVAILABLE = "Claude says that model can't be used with this sign-in. Cho
 LIMIT_REACHED = "Claude says the limit for this model has been reached, so nothing more was sent."
 LIMIT_OFFER = "You could ask again with {others}. clark doesn't switch unless you choose to."
 BUSY = "Another question is being answered. Wait for it, or press Stop."
+# Which words say "not found", by case. PROPOSED sentences for the cases are in the build report, awaiting approval; until they are
+# approved both cases keep the existing sentence. Swap the values here to change the words.
+NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_INSTALLED}
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
               "settings, so Claude may not answer here. If questions fail, ask whoever runs your network for a way to reach Claude "
@@ -213,11 +221,27 @@ def native_problem(real, roots):
     return None if head in MACH_O else True
 
 
+def _expand(places):
+    """Each place as an absolute path; a "*" in one is every match, the highest name first (the newest nvm node version)."""
+    for place in places:
+        p = os.path.expanduser(place)
+        if "*" in p and os.path.isabs(p):
+            yield from sorted(glob.glob(p), reverse=True)
+        else:
+            yield p
+
+
+def missing_case(name="claude"):
+    """"elsewhere" when the person's PATH holds a command of this name that is not in a place clark looks (it works in Terminal,
+    but clark never runs a command found by PATH), else "missing". Only looked up, never run."""
+    return "elsewhere" if shutil.which(name) else "missing"
+
+
 def find_command(places=PLACES, roots=None):
     """(the resolved absolute Path of the command, None), or (None, plain reason). The first place that holds anything decides."""
     roots = roots_for() if roots is None else tuple(roots)
-    for place in places:
-        p = Path(os.path.expanduser(place))
+    for place in _expand(places):
+        p = Path(place)
         if not p.is_absolute() or not os.path.lexists(str(p)):
             continue
         try:
@@ -343,6 +367,8 @@ class ClaudeCommand(ask.Provider):
     command); clark itself uses the defaults."""
     provider = PROVIDER
     models = MODELS                            # what `model` may be; a command for another provider has its own list
+    command_name = "claude"
+    not_found_words = NOT_FOUND_WORDS
 
     def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None):
         self.places, self.limit, self.max_out, self.check_limit = tuple(places), limit, max_out, check_limit
@@ -363,7 +389,7 @@ class ClaudeCommand(ask.Provider):
             return None, MAC_ONLY
         path, why = find_command(self.places, self.roots)
         if path is None:
-            return None, why
+            return None, (self.not_found_words[missing_case(self.command_name)] if why == NOT_INSTALLED else why)
         try:
             st = path.stat()
             key = (str(path), st.st_size, st.st_mtime_ns, st.st_ino, st.st_dev)

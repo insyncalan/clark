@@ -58,6 +58,12 @@ def system():
     return sys.platform
 
 
+def machine():
+    """The machine's architecture as the system names it: "arm64" (Apple silicon), "x86_64" (Intel), or another value."""
+    import platform as std
+    return std.machine()
+
+
 def container_mode():
     """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml) AND this really is a container (Docker's
     /.dockerenv or Podman's /run/.containerenv exists). Never true by the setting alone, or by a marker file alone."""

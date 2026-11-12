@@ -559,6 +559,54 @@ class NativeProgram(Fake):
         self.assertEqual(roots[1:], tuple(str(Path(r).resolve()) for r in ("/opt/homebrew", "/usr/local")))
 
 
+class NpmAndNvmInstalls(NativeProgram):
+    """An npm global or nvm install: its `claude` is a link, followed to the file it names, which must still be a Mac program."""
+
+    def link(self, target, where=".nvm/versions/node/v20.1.0/bin"):
+        folder = self.d / where
+        folder.mkdir(parents=True)
+        (folder / "claude").symlink_to(target)
+        return folder / "claude"
+
+    def test_the_npm_and_nvm_places_are_looked_in(self):
+        self.assertIn("~/.npm-global/bin/claude", ac.PLACES)
+        self.assertIn("~/.nvm/versions/node/*/bin/claude", ac.PLACES)
+
+    def test_an_nvm_link_to_a_mac_program_is_found(self):
+        real = self.program()
+        self.link(real)
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (real, None))
+
+    def test_the_newest_nvm_version_is_tried_first(self):
+        old, new = self.program(folder=self.d / "a"), self.program(folder=self.d / "b")
+        self.link(old, ".nvm/versions/node/v18.0.0/bin")
+        self.link(new, ".nvm/versions/node/v20.0.0/bin")
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (new, None))
+
+    def test_an_npm_script_is_still_refused(self):
+        shim = self.program(name="cli.js", head=b"#!/usr/bin/env node\n")
+        self.link(shim)
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (None, ac.NOT_NATIVE))
+
+    def test_a_command_only_on_the_path_is_told_apart_from_none(self):
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(ac.missing_case(), "elsewhere")
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(ac.missing_case(), "missing")
+
+    def test_each_not_found_case_has_its_own_words(self):
+        words = {"missing": "WORDS-MISSING", "elsewhere": "WORDS-ELSEWHERE"}
+        provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
+        provider.not_found_words = words
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(provider.command(), (None, "WORDS-ELSEWHERE"))
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(provider.command(), (None, "WORDS-MISSING"))
+
+
 class SignIn(Fake):
     def auth(self, method, logged_in=True, code=0):
         self.put("auth", json.dumps({"loggedIn": logged_in, "authMethod": method}))
