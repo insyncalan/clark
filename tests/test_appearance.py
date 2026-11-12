@@ -109,6 +109,7 @@ class Appearance(Base):
                 self.assertEqual(p.js("document.activeElement.dataset.themePick"), want, "focus follows")
                 at = want
             self.open_menu(p)
+            p.until("JSON.stringify([...document.querySelectorAll('#profile-menu [role=menuitemradio]')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.textContent.replace('✓', ''))) === '[\"Dark\"]'", "the menu shows Dark chosen")
             self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
 
     def test_C_chosen_appearance_segment_keeps_the_pill_look_row_902(self):
