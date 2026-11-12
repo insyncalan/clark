@@ -317,7 +317,6 @@ test_milestones_route.py 6.1
 test_milestones_spacing.py 30.0
 test_milestones_tight.py 24.6
 test_mixed_folder.py 19.6
-test_mixed_heal.py 2.4
 test_modal_layers.py 3.3
 test_mode_pill.py 21.2
 test_mode_switch_no_shift.py 48.7
