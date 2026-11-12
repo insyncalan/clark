@@ -1897,7 +1897,7 @@ def revert_plan(con, rows, step, undoing_a_revert):
 def _link_end_gone(con, old):
     """Item 658: whether either work item a removed link joined is not in the project now."""
     for end in (old.get("from_item"), old.get("to_item")):
-        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS + ("milestones", "use_cases")):
             return True
     return False
 
