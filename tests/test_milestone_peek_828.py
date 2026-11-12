@@ -25,7 +25,7 @@ from test_movement_page import GO_LIVE, PILOT, Base  # noqa: E402
 from test_server import chrome  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-ROWS = ("description", "baseline", "forecast", "workstream", "visible", "client_message")      # row 1078: the name, owner, state and progress moved above the rows
+ROWS = ("description", "baseline", "forecast", "workstream", "use_cases", "visible", "client_message")      # row 1078: the name, owner, state and progress moved above the rows
 
 
 class NoBrowser(unittest.TestCase):

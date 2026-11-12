@@ -464,7 +464,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new, updated or skipped, and the first few; press **Import** to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**. **Check the import** then shows the counts of new and updated rows, and the first few; press **Import** to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -1129,7 +1129,7 @@
        ],
        [
         "Plan summary",
-        "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+        "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
         "Full or half"
        ],
        [
@@ -2021,7 +2021,7 @@
        ],
        [
         "Use cases",
-        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible"
+        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
        ]
       ]
      ],
