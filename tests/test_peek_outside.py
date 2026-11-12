@@ -65,7 +65,7 @@ class OutsideBrowser(unittest.TestCase):
                             with self.subTest(where):
                                 if view == "dashboard":
                                     cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
-                                    time.sleep(0.5)
+                                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), f"{where}: the dashboard shows")
                                 else:
                                     cdp.js("document.querySelector('[data-view=work]').click()", sid)
                                     self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#work tbody tr[data-id]').length", sid) > 0))

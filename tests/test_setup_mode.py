@@ -799,5 +799,48 @@ class MutationSweep(Case):
         self.assertEqual(self.setup().remembered(), odd)
 
 
+    def test_an_empty_environment_is_the_one_the_doctor_sees(self):
+        env = {}
+        self.assertIs(self.setup(environ=env).seen().environ, env)         # an empty one is still the given one
+
+    def test_a_given_pointer_is_the_one_written_and_its_missing_folders_are_made(self):
+        where = self.home / "deep" / "er" / "ptr"
+        service = self.setup(str(self.good), pointer=lambda: where)
+        service.choose("Choose")
+        self.assertEqual(where.read_text(encoding="utf-8"), str(self.good) + "\n")
+        self.assertFalse(self.pointer().exists())
+        self.assertEqual(self.setup(pointer=lambda: where).remembered(), self.good)
+
+    def test_an_empty_list_of_checks_runs_none(self):
+        report = self.setup(checks=()).report()
+        self.assertEqual((report["checks"], report["ready"]), ([], True))
+
+    def test_the_report_says_ok_and_each_row_keeps_its_own_required_flag(self):
+        def fine(seen):
+            return doctor.Line(doctor.OK, "x")
+        fine.__name__ = "check_fine"
+        report = self.setup(checks=(doctor.Check("a", False, fine), doctor.Check("b", True, fine))).report()
+        self.assertIs(report["ok"], True)
+        self.assertEqual([r["required"] for r in report["checks"]], [False, True])
+
+    def test_the_cant_save_refusal_hides_the_lower_error(self):
+        self.default.parent.rmdir()
+        self.default.parent.write_text("in the way", encoding="utf-8")
+        with self.assertRaises(setup_mode.Refused) as caught:
+            self.setup(str(self.good)).choose("Choose")
+        self.assertIsNone(caught.exception.__cause__)
+        self.assertTrue(caught.exception.__suppress_context__)
+
+    def test_a_pointer_that_raises_a_platform_error_is_no_remembered_folder(self):
+        def broken():
+            raise pl.PlatformError("no")
+        self.assertIsNone(self.setup(pointer=broken).remembered())
+
+    def test_a_pointer_that_raises_a_value_error_is_no_remembered_folder(self):
+        def broken():
+            raise ValueError("embedded null byte")
+        self.assertIsNone(self.setup(pointer=broken).remembered())
+
+
 if __name__ == "__main__":
     unittest.main()

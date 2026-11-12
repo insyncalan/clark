@@ -50,9 +50,9 @@ class OneMenu(Base):
                              ["No lanes", "Workstream lanes", "Type lanes"], "the prototype's words")
 
     def only_the_archived_pill_in_the_bar(self, cdp, sid):
-        # item 450: the bar may hold one .vctl wrapper again, and it holds the Archived pill and nothing else
+        # item 1067: the Archived pill is gone (is:archived replaces it), so the bar holds no .vctl wrapper at all
         got = cdp.js("[...document.querySelectorAll('.wbar .vctl')].map(v => [...v.children].map(c => c.className))", sid)
-        self.assertEqual(got, [["arch-pill"]], "one wrapper, holding only the Archived pill")
+        self.assertEqual(got, [], "no wrapper: the Archived pill is gone and nothing else lives there")
         self.assertEqual(cdp.js("document.querySelectorAll('.wbar .vctl #group-by, .wbar .vctl [data-layout], .wbar .vctl [aria-label=Layout], .wbar .vctl [data-lay], .wbar .vctl #swimlanes, .wbar .vctl [aria-haspopup=menu]').length", sid), 0,
                          "no layout or group controls in it")
 
@@ -60,7 +60,7 @@ class OneMenu(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout]').length", sid), 0)
-            self.assertEqual(cdp.js("document.querySelectorAll('.fvrow [role=group][aria-label=Layout] [data-lay]').length", sid), 2, "row 812: the two-icon switch is beside the View menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('.fline .vicons [data-lay]').length", sid), 2, "row 812: the two-icon switch is on the filter box line")
             self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)

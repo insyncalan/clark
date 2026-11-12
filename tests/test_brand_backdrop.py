@@ -20,13 +20,13 @@ import _backdrop_pics as pics
 import _testpage as testpage
 from _paths import SRC
 from _publish import PublishedFile
-from test_glance_page import Setup
+from test_glance_page import plant
 from test_report_editor import Base, Pg
 from test_server import chrome, wait
 
 import shutil
 
-from _demo import USER
+from _demo import USER, DemoStore
 from clark import page, publish as pm
 
 TOKENS = ':root { --image-cover: url("assets/cover.png"); }'
@@ -234,11 +234,15 @@ class Guards(Rig):
         self.brand()
         with chrome() as cdp:
             p = self.load_app(cdp)
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned: a machine that asks for less motion (a CI Mac) must not decide it")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in", "motion allowed: the picture fades in once")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
             p.js("document.documentElement.dataset.motion = 'reduce'")
+            p.until(BACKDROP + '.anim === "none"', "the page's own reduce setting reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none", "the page's own reduce-motion setting too")
 
     def test_print_and_pdf_have_no_backdrop(self):
@@ -330,11 +334,16 @@ def data_tokens(png):
     return ':root { --image-cover: url("data:image/png;base64,%s"); }' % base64.b64encode(png).decode()
 
 
-class Pub(PublishedFile, Setup):
+class Pub(PublishedFile, unittest.TestCase):
     """A real file published from a real store, with a brand folder that is ours to change, opened from file://."""
 
     def setUp(self):
-        super().setUp()
+        # a store and the rows, nothing more: the file is opened from file:// and no test here asks a server for anything, so none is
+        # started (one that stalls on starting or on closing took a test that never touches it past 700 s)
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.store = self.demo.store
+        plant(self)
         tmp = tempfile.TemporaryDirectory()
         self.addCleanup(tmp.cleanup)
         self.brand_dir = Path(tmp.name)
@@ -411,12 +420,17 @@ class Published(Measure, Pub):
         path = self.publish_with(data_tokens(pics.swirl()))
         with chrome() as cdp:
             p = self.draw_as(cdp, path, 1400, "light")
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "bg-in"', "motion allowed is pinned, whatever the machine asks")
             self.assertEqual(p.js(BACKDROP)["anim"], "bg-in")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
+            p.until(BACKDROP + '.anim === "none"', "reduced motion reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["anim"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
+            p.until(BACKDROP + '.display !== "none"', "motion allowed again, the backdrop is drawn")
             self.assertNotEqual(p.js(BACKDROP)["display"], "none")
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+            p.until(BACKDROP + '.display === "none"', "print reached the backdrop")
             self.assertEqual(p.js(BACKDROP)["display"], "none", "paper and PDF: no backdrop")
 
     def test_published_text_keeps_4_5_to_1_over_the_picture(self):

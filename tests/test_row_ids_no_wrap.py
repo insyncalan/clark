@@ -103,7 +103,6 @@ def check(test, js, surface, where, width):
     test.assertEqual(bad, [], f"{where} at {width}: {bad}")
 
 
-TAG_SHRINK = "(function(){var t=document.querySelector('.item-rows-edit .wl-title .tag');if(!t)return null;var c=getComputedStyle(t);var r=t.getBoundingClientRect();return {shrink:c.flexShrink,grow:c.flexGrow,oneLine:r.height<=parseFloat(c.lineHeight||c.fontSize)*1.4+parseFloat(c.paddingTop)+parseFloat(c.paddingBottom)+4,fits:t.scrollWidth<=t.clientWidth+1,text:t.textContent};})()"
 
 
 class RowIds(unittest.TestCase):
@@ -138,12 +137,30 @@ class RowIds(unittest.TestCase):
                 p.until("document.querySelectorAll('.item-rows-edit .irows .wl-row').length > 0", "Edit rows")
                 check(self, p.js, ROWS, "Edit rows", w)
 
-    def tag_holds(self, js, w):
-        """The Risk or Issue tag in an Edit row's title keeps its width (flex: none in edit.css): it does not shrink, wrap or clip."""
-        got = js(TAG_SHRINK)
-        self.assertIsNotNone(got, f"Edit rows draw a tag in the title at {w}")
-        self.assertEqual((got["shrink"], got["grow"]), ("0", "0"), f"the tag does not flex at {w}: {got}")
-        self.assertTrue(got["oneLine"] and got["fits"], f"the tag keeps its whole word on one line at {w}: {got}")
+    def test_cards_columns_and_an_unassigned_owner_say_nothing(self):
+        """Mutation sweep (item 11) on plan 1022: four cards go two across up to 1400 px (three across above 1100 px) and an owner of TBC
+        is left out of the card's meta line."""
+        with self.store.step("dashboard", USER) as st:
+            tbc = st.create("actions", {"project": CODE, "description": "Unowned fictional action", "owner": "TBC", "due_date": "2026-11-24",
+                                        "raised": "2026-10-01", "client_message": "Unowned fictional action", "source": "demo"})
+            ref = st.create("report_sections", {"project": CODE, "type": "raid3", "title": "Fabrikam unowned", "sort_order": 995})
+            st.update("report_sections", ref, {"body": json.dumps({"v": 1, "cards": [{"id": tbc, "source": "client"}]})})
+        s = self.served()
+        cols = "Array.from(document.querySelectorAll('%s')).map(function (g) { return new Set(Array.from(g.querySelectorAll('.raid-card')).map(function (c) { return Math.round(c.getBoundingClientRect().left); })).size; })"
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, s.port, f"#dashboard&p={CODE}")
+            p.ready()
+            for w, n3, n4 in ((1400, 3, 2), (900, 2, 2)):
+                self.width(p, w)
+                p.until(f"document.documentElement.clientWidth <= {w}", "resized")
+                self.assertEqual(p.js(cols % ".raid-n4"), [n4], f"four cards: columns at {w}")
+                self.assertEqual(p.js(cols % ".raid-n3")[0], n3, f"three cards: columns at {w}")
+            metas = p.js("Array.from(document.querySelectorAll('.raid-card')).filter(function (c) { return c.textContent.indexOf('Unowned fictional action') >= 0; }).map(function (c) { return c.querySelector('.raid-meta').textContent; })")
+            self.assertTrue(metas, "the unowned card is drawn")
+            for m in metas:
+                self.assertNotIn("TBC", m)
+                self.assertNotIn("owner", m)
+                self.assertIn("due", m)
 
     def test_the_published_file(self):
         folder = tempfile.mkdtemp(prefix="clark-pub-")
