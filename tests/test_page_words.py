@@ -230,7 +230,7 @@ class Words(unittest.TestCase):
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
                 ],
                 "export": ["Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout",      # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ],
                 "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
