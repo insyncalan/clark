@@ -1285,7 +1285,7 @@
      ],
      [
       "p",
-      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a heading or a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
      ],
      [
       "tbl",
