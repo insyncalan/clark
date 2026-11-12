@@ -3,6 +3,7 @@
 import { signal } from "@preact/signals";
 import { project } from "../stores/report.js";
 import { recall, remember } from "../logic/remember.js";
+import { nowMs } from "../workItems.js";
 
 export const KEEP = 30;
 export const chatId = signal(null);      // the stored chat the panel is showing, or null for one not yet kept
@@ -19,7 +20,7 @@ export function chats() {
 const plain = (t) => ({ role: t.role, text: String(t.text), ...(t.kind ? { kind: t.kind } : {}), ...(t.sources && t.sources.length ? { sources: t.sources } : {}) });
 
 /** Keeps the chat as it stands: a new entry the first time, the same entry after. Only a chat that has an answer is kept. */
-export function keepChat(turns, now = Date.now()) {
+export function keepChat(turns, now = nowMs()) {
   const kept = turns.filter((t) => t && (t.role === "user" || t.role === "assistant") && (!t.kind || t.kind === "note") && typeof t.text === "string");
   const first = kept.find((t) => t.role === "user");
   if (!first || !kept.some((t) => t.role === "assistant" && !t.kind)) return;
