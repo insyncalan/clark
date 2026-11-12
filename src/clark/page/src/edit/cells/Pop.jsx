@@ -60,7 +60,12 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
   }, []);                                                 // eslint-disable-line react-hooks/exhaustive-deps
   const keys = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(true); }
-    else if (e.key === "Tab") onClose(true);
+    else if (e.key === "Tab") {
+      onClose(true);
+      // The panel sits right after its control in the page, and the redraw that removes it comes after this key: the browser's own Tab step would
+      // then land on a choice inside the closing panel, and the panel's removal would leave focus on nothing. Inert, it is skipped at once.
+      if (box.current) box.current.inert = true;
+    }
     else if (e.key === "Enter") e.stopPropagation();      // the row behind never takes an Enter meant for the panel
   };
   return (
