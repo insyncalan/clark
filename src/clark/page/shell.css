@@ -2072,6 +2072,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .gt col { width: auto !important; }
   html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: anywhere; overflow: visible; height: auto; padding-right: 4px; }
   html.print-all .gt tr { break-inside: avoid; }
+  /* row 1111: a use case's own page on paper: nothing is cut with an ellipsis (a long line wraps), nothing runs past the page, and the crumb back to the list is left off */
+  html.print-all .ucf-crumb { display: none; }
+  html.print-all .ucf-grid { grid-template-columns: minmax(0, 1fr); }
+  html.print-all .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  html.print-all .ucf-t, html.print-all .ucf-x { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  html.print-all .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
