@@ -14,7 +14,7 @@ from test_server import chrome, wait
 import test_publish as tp
 
 CONTROLS = "button, input, textarea, select, [role=textbox], [role=combobox]"
-PEEK_ID = "(document.querySelector('#peek') || {dataset: {}}).dataset.peek || ''"
+PEEK_ID = "((document.querySelector('#peek') || {dataset: {}}).dataset.peek || '')"
 
 
 class PublishedMilestonesOpen(unittest.TestCase):
