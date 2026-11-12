@@ -36,7 +36,7 @@ function refocus(k) {
   }, 0);
 }
 
-export function Cell({ row, field, said, keep, children, place }) {
+export function Cell({ row, field, said, keep, tip, children, place }) {
   const button = useRef(null);
   if (!canPick(row, field)) {
     const why = whyFixed(row, field);                       // a RAID item's priority: say why a click does nothing
@@ -81,7 +81,7 @@ export function Cell({ row, field, said, keep, children, place }) {
   };
   return (
     <>
-      <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
+      <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
       {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}

@@ -123,6 +123,33 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         self.assertFalse(listed - names, "shard_times.txt names a test file that doesn't exist")
         self.assertTrue(listed, "shard_times.txt is empty")
 
+    def test_every_test_file_has_a_time_and_the_heavy_ones_are_weighted_as_heavy(self):
+        """An unlisted file counts as 30 s; test_publish_public.py really takes 6 to 10 minutes on a macOS shard (median 476 s in
+        five full macOS runs) and was listed at 80 s, so the shards were uneven. Every file is listed, and the known heavy ones
+        weigh what they measured."""
+        names = {f.name for f in everything()}
+        weights = run_tests.shard_weights()
+        self.assertEqual(sorted(names - set(weights)), [], "test files with no time in shard_times.txt")
+        for heavy in ("test_publish_public.py", "test_publish_scan_time.py", "test_filter_line_page.py"):
+            self.assertGreaterEqual(weights[heavy], 250, heavy)
+
+    def test_the_refreshed_heavy_weights_stay_near_what_was_measured(self):
+        """The refresh set these five files to the mean of the old weight and the macOS median x 0.93 (test_publish_public.py's 277.8 is (79.7 + 476) / 2: its median was taken as measured). A weight that drifts far
+        either way (too small leaves a shard slow, too large starves the others) is caught, within 10 percent of each."""
+        weights = run_tests.shard_weights()
+        refreshed = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,
+                     "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 136}
+        for name, expected in refreshed.items():
+            with self.subTest(name=name):
+                self.assertAlmostEqual(weights[name] / expected, 1.0, delta=0.10, msg=name)
+
+    def test_every_listed_time_is_a_positive_number_on_its_own_line(self):
+        """A line that does not parse is dropped silently by shard_weights, so a typo would send a heavy file back to 30 s."""
+        lines = [ln for ln in (run_tests.SHARD_TIMES.read_text(encoding="utf-8").splitlines()) if ln and not ln.startswith("#")]
+        weights = run_tests.shard_weights()
+        self.assertEqual(len(lines), len(weights), "a line of shard_times.txt does not read as 'name seconds'")
+        self.assertTrue(all(w > 0 for w in weights.values()), "a listed file has no time")
+
 
 class ShardArgument(unittest.TestCase):
     def test_good_and_bad(self):
@@ -702,6 +729,27 @@ class SuiteSlots(unittest.TestCase):
         self.addCleanup(os.close, got)
         self.assertIsNotNone(got)
         self.assertFalse(old.exists())
+
+    def test_a_waiters_place_is_locked_while_it_waits(self):
+        import fcntl
+        q = Path(self.d.name) / "queue"
+        name, fd, path = run_tests.support._join(q)
+        self.addCleanup(os.close, fd)
+        other = os.open(path, os.O_RDWR)
+        self.addCleanup(os.close, other)
+        with self.assertRaises(OSError, msg="a waiting run's place must be locked, or another run clears it as a dead run's"):
+            fcntl.flock(other, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+    def test_a_file_in_the_queue_folder_that_is_not_a_ticket_is_left_alone(self):
+        q = Path(self.d.name) / "queue"
+        q.mkdir()
+        stray = q / "notes.txt"
+        stray.write_text("not a place in the line", encoding="utf-8")
+        os.utime(stray, (1, 1))
+        got, _ = self.take(max_wait=0.5)
+        self.addCleanup(os.close, got)
+        self.assertIsNotNone(got, "a stray file is not a run ahead")
+        self.assertTrue(stray.exists(), "only ticket-named places are cleared")
 
     def test_a_small_run_and_a_run_under_the_wrapper_need_no_slot(self):
         self.assertEqual(self.take(runs=run_tests.support.SMALL_RUN), (None, run_tests.support.BOX_JOBS))

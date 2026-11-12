@@ -19,7 +19,7 @@ from unittest import mock
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 
 import _publish_fixture as fx
-from clark import docx_build, docx_read, look, platform, publish
+from clark import docx_build, docx_read, glance, look, platform, publish
 from clark.docx_build import WordError
 
 SENSITIVE_WORDS = r"(?i)traceback|exception|\bxml\b|\bzip\b|errno|\bAPI\b"
@@ -53,6 +53,89 @@ def with_project(p, **fields):
     p = copy.deepcopy(p)
     p["data"]["project"].update(fields)
     return p
+
+
+class HostileValues(unittest.TestCase):
+    """A stored value that is not text (a list, a dict) in a field that picks a colour must not break the Word build (an unhashable
+    value in a dict or set lookup raised TypeError): it just has no colour. The risks are LINKED to a use case and open, so the
+    use-case strip (glance.use_case_strip, worst colour, pill_of, colour_of_priority) is reached as well as the table cells."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        for row in data["raid"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        for row in data["actions"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+        for row in data["decisions"]:
+            row["status"] = bad
+        return plant
+
+    def test_a_priority_or_status_that_is_not_text_builds_with_no_colour(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                data = docx_build.build(published(self.plant(bad)))
+                self.assertTrue(data.startswith(b"PK"))
+
+    def test_a_priority_that_is_not_text_is_not_rated_on_a_linked_risk(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = self.plant(bad)
+                d = plant["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                linked = [r for r in rows if r["id"] == plant["data"]["use_cases"][0]["id"]]
+                self.assertTrue(linked)
+                self.assertIsNone(linked[0]["worst"])
+                self.assertIsNone(glance.colour_of_priority(bad))
+
+
+class HostileHealthAndStatus(unittest.TestCase):
+    """Row 1035: a project's health or a use case's status that is a list or dict (an unhashable key in a colour lookup raised
+    TypeError) builds with no colour, with a use case linked to open work."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        data["project"]["health"] = bad
+        for uc in data["use_cases"]:
+            uc["status"] = bad
+        for row in data["raid"]:
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        return plant
+
+    def test_a_health_or_use_case_status_that_is_not_text_builds(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                self.assertTrue(docx_build.build(published(self.plant(bad))).startswith(b"PK"))
+
+    def test_the_pill_and_the_strip_give_no_colour(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                pill = glance.health_pill(bad)
+                self.assertIsNone(pill["colour"])
+                self.assertEqual(pill["words"], "Not set")
+                d = self.plant(bad)["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                self.assertTrue(rows)
+                self.assertTrue(all(r["colour"] is None for r in rows))
+
+
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
 
 
 class Repeatable(unittest.TestCase):
@@ -285,7 +368,7 @@ class WhatIsInIt(unittest.TestCase):
         self.assertIn("Project health: ", doc)
         self.assertIn("At risk", doc)
         self.assertIn("ZQ-HEALTH-REASON", doc)
-        self.assertIn(docx_build.TOKENS["status-amber-tint"], doc)
+        self.assertIn(docx_build.TOKENS["tone-amber-tint"], doc)
 
     def test_status_words_travel_with_their_colour(self):
         for b in self.blocks:

@@ -32,7 +32,7 @@
 # test reads the reuse record. Skipping the run for a document would let a real name merge unchecked. The suite
 # takes seconds, so nothing is saved by skipping it.
 #
-# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on both paths (three took 20 minutes; six keep the slowest near ten),
+# Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on the full path and for a pull request that touches a stylesheet or the page, and three on the cheap path otherwise (three took 20 minutes on a full run; six keep the slowest near ten),
 # Python 3.9 three (quick tier only; was one shard at 17 to 28 minutes). For Ubuntu (3.x and 3.9): add shards when the slowest job passes 10 minutes.
 # macOS three: measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
 # with a 60-minute timeout; if the first real gate run exceeds 50 min, move to 4 shards (one line in the matrix). Every test file is in exactly one shard
@@ -76,6 +76,7 @@ jobs:
       macos: ${{ steps.plan.outputs.macos }}
       shards: ${{ steps.plan.outputs.shards }}
       count: ${{ steps.plan.outputs.count }}
+      py39: ${{ steps.plan.outputs.py39 }}
       shards39: ${{ steps.plan.outputs.shards39 }}
       count39: ${{ steps.plan.outputs.count39 }}
     steps:
@@ -90,7 +91,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FULL=""; MACOS=""
+          FULL=""; MACOS=""; WIDE=""; NTESTS=0
           case "$EVENT" in
             push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
@@ -122,8 +123,14 @@ jobs:
                   src/clark/updates.py|src/clark/platform.py) FULL=1; MACOS=1 ;;      # Mac-specific code: tested on a Mac at the pull request
                   clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher (clark/launch.py is what clark.command runs) and the package: Mac-specific too
                   .github/*) FULL=1 ;;
+                  *.css|src/clark/brand/*|src/clark/page/*|src/clark/templates/*) WIDE=1 ;;      # reaches many test files: keep six shards
+                  tests/test_*.py) NTESTS=$((NTESTS + 1)) ;;      # counted below: 8 or more test files is WIDE too
                 esac
               done <<< "$CHANGED"
+              # A pull request that changes 8 or more tests/test_*.py files is WIDE: six shards, not three. Three shards carry about 6800 s of
+              # weighted test time each, and a tests-only bundle (PR 1339) timed out three times at the 30-minute cap on three shards;
+              # six shards carry about 3400 s each, which is what a full run takes.
+              if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi
             else
               echo "could not list the changed files: full (fail safe)"
               FULL=1; MACOS=1
@@ -133,11 +140,21 @@ jobs:
           # (one shard hit the cap on PR 440, twice). The cheap path (--push) is sharded the same way: a change to shell.css or another
           # shared file reaches every test file, and as one shard that hit the cap too (PRs 445 and 447). A pull request that reaches few
           # files leaves most shards nearly empty: they finish in the time it takes to set up, and the minutes are free.
+          # Python 3.9 (the oldest supported) runs by hand and wherever macOS runs (release line, label full-ci,
+          # Mac-specific files), NOT on a push to main (owner's order 08-11: Python 3.9 and macOS only on a release or a Mac-relevant PR); a guarded pull request that is not Mac-specific gets Ubuntu 3.x only (about 12 percent of the Ubuntu minutes).
+          PY39=""
+          case "$EVENT" in workflow_dispatch) PY39=1 ;; esac
+          if [ -n "$MACOS" ]; then PY39=1; fi
+          # Ubuntu 3.x shards: six on the full path (every file) and for a pull request that touches a stylesheet or the page (it reaches
+          # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
+          # costs a runner slot, a checkout and a setup). Fewer jobs per push means the queue clears sooner (#908 grew it from three).
           SHARDS='[1,2,3,4,5,6]'; COUNT=6
+          if [ -z "$FULL" ] && [ -z "$WIDE" ]; then SHARDS='[1,2,3]'; COUNT=3; fi
           SHARDS39='[1,2,3]'; COUNT39=3      # Python 3.9, quick tier only (full path)
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
           echo "macos=$MACOS" >> "$GITHUB_OUTPUT"
           echo "shards=$SHARDS" >> "$GITHUB_OUTPUT"
+          echo "py39=$PY39" >> "$GITHUB_OUTPUT"
           echo "count=$COUNT" >> "$GITHUB_OUTPUT"
           echo "shards39=$SHARDS39" >> "$GITHUB_OUTPUT"
           echo "count39=$COUNT39" >> "$GITHUB_OUTPUT"
@@ -197,8 +214,8 @@ jobs:
           python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES
 
   tests-py39:
-    # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Full path only.
-    if: ${{ needs.plan.outputs.full == '1' }}
+    # Python 3.9 (the oldest clark supports) on the quick tier (`--quick`: the files that never start Chrome). Only where the plan wants it (py39=1: by hand, release line, label full-ci, Mac-specific files).
+    if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}
     name: ubuntu-24.04 · Python 3.9 · shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}      # the gate reads needs.tests-py39.result (one value for the whole matrix), never this name
     needs: plan
     runs-on: ubuntu-24.04
@@ -290,7 +307,7 @@ jobs:
 
   passed:
     # The one result to wait for (and to require): green only if every required job is. The plan and the 3.x job must pass.
-    # Python 3.9 must pass when the plan wants the full matrix and must have been skipped when it doesn't; the same for macOS
+    # Python 3.9 must pass when the plan wants it (WANT_PY39) and must have been skipped when it doesn't; the same for macOS
     # with its own flag. So a FAILED or cancelled required job fails the gate, and a job skipped by the cheap path does not.
     # (A cancelled run posts no gate at all, see the header.)
     name: Tests passed
@@ -303,11 +320,11 @@ jobs:
           TESTS: ${{ needs.tests.result }}
           PY39: ${{ needs.tests-py39.result }}
           MACOS: ${{ needs.macos.result }}
-          WANT_FULL: ${{ needs.plan.outputs.full }}
+          WANT_PY39: ${{ needs.plan.outputs.py39 }}
           WANT_MACOS: ${{ needs.plan.outputs.macos }}
         run: |
-          echo "plan: $PLAN; Linux 3.x: $TESTS; Linux 3.9: $PY39 (required: ${WANT_FULL:-no}); macOS: $MACOS (required: ${WANT_MACOS:-no})"
+          echo "plan: $PLAN; Linux 3.x: $TESTS; Linux 3.9: $PY39 (required: ${WANT_PY39:-no}); macOS: $MACOS (required: ${WANT_MACOS:-no})"
           test "$PLAN" = "success"
           test "$TESTS" = "success"
-          if [ -n "$WANT_FULL" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
+          if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi
           if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi

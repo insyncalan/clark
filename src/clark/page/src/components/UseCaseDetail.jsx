@@ -21,6 +21,7 @@ import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
+import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -49,7 +50,7 @@ function linkedTo(d, id, all) {
 // The milestones its linked work items point at, in the order the project keeps them.
 function milestonesOf(d, id) {
   const named = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
-  return (d.milestones || []).filter((m) => named.has(m.id));
+  return (d.milestones || []).filter((m) => !m.archived && named.has(m.id));
 }
 
 // A stored UTC time (YYYY-MM-DD HH:MM:SS.sss) as the person's own time: DD-MM-YYYY and HH:MM.
@@ -225,7 +226,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
               items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
-              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} /></button>
+              onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
           </div>
         ) : null}
       </div>
@@ -257,7 +258,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
                     <li key={r.id}>
                       <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
                         <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${pill.class}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );
@@ -275,7 +276,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             <h2 id="ucd-h-det" class="ucd-ch">Details</h2>
             <dl class="ucd-kv">
               {u.owner ? <><dt>Owner</dt><dd>{u.owner}</dd></> : null}
-              <dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd>
+              {ro ? <><dt>Dashboard</dt><dd data-dash>{archived ? "Archived" : on ? EYE.on : EYE.off}</dd></> : null}
               <dt>Last change</dt><dd>{last || "No changes recorded"}</dd>
             </dl>
           </section>
@@ -284,9 +285,10 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => {
                 const st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
                 return <li key={m.id} data-ms={m.id}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed ? <ed.MilestoneRemove u={u} m={m} /> : null}</span></li>;
               })}</ul>
               : <p class="muted">No milestones: none of its work items is linked to one.</p>}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneAdd u={u} /></div> : null}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>

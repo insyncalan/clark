@@ -21,8 +21,9 @@ from _new_page import reload_to_new_page_cdp
 
 from clark import page, server as sv  # noqa: E402
 from test_board import make_data  # noqa: E402
-from test_server import chrome, wait  # noqa: E402
-from test_work_filters import click, dblclick, key, need_chrome, select_line, where  # noqa: E402
+from test_server import chrome, wait  # noqa: E402,F401  (chrome: the runner tells a browser file by this import)
+from _shared_chrome import SharedChrome  # noqa: E402
+from test_work_filters import click, dblclick, key, need_chrome, pause, select_line, where  # noqa: E402
 from test_work_items import page_target  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
@@ -30,6 +31,18 @@ TODAY = "2026-10-29"
 FIXED = ("(() => { const R = Date, F = new R(2026, 9, 29, 12, 0, 0).getTime();"
          " function D(...a) { return this instanceof D ? (a.length ? new R(...a) : new R(F)) : new R(F).toString(); }"
          " D.prototype = R.prototype; D.now = () => F; D.UTC = R.UTC; D.parse = R.parse; window.Date = D; })();")
+
+
+shared = SharedChrome()      # #918: one Chrome for the file, a new browser context for each use (the file opened one browser per test and subtest)
+
+
+def setUpModule():
+    need_chrome()
+    shared.start()
+
+
+def tearDownModule():
+    shared.stop()
 
 
 class Base(unittest.TestCase):
@@ -61,7 +74,7 @@ class Base(unittest.TestCase):
         select_line(cdp, sid)
         cdp.call("Input.insertText", {"text": text}, sid)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-fline]').dataset.line", sid) == text))
-        time.sleep(0.7)
+        pause(cdp, sid)         # was a fixed 0.7 s: too short on a loaded runner (the page's pause is about 400 ms), too long on a quick one
 
     # ---- the data ----
     def id_of(self, text):
@@ -211,11 +224,11 @@ class Base(unittest.TestCase):
 
 class Switch(Base):
     def test_layout_is_the_two_icon_switch_and_is_remembered(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.assertEqual([x for x in self.view_items(cdp, sid) if x[0].startswith("layout:")], [], "row 812: the View menu no longer holds the layout")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work [data-lay]')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent])", sid),
-                             [["table", "Table", "Table", "true", ""], ["board", "Board", "Board", "false", ""]], "two icons, no words, named for a screen reader")
+                             [["table", "List", "List", "true", ""], ["board", "Board", "Board", "false", ""]], "two icons, no words, named for a screen reader")
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "a table to start")
             self.view_pick(cdp, sid, "layout:board")
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
@@ -228,7 +241,7 @@ class Switch(Base):
             self.assertTrue(cdp.js("!!document.querySelector('table.items') && !document.querySelector('#work-board')", sid), "the table is remembered")
 
     def test_a_switch_adds_no_history_entry_and_nothing_in_the_address(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             before = cdp.js("[history.length, location.hash]", sid)
             self.view_pick(cdp, sid, "layout:board")
@@ -236,7 +249,7 @@ class Switch(Base):
             self.assertEqual(cdp.js("[history.length, location.hash]", sid), before)
 
     def test_a_browser_that_refuses_storage_still_switches(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = page_target(cdp)
             cdp.call("Page.enable", {}, sid)
             cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED + "Storage.prototype.setItem = function () { throw new Error('blocked'); };"}, sid)
@@ -255,15 +268,15 @@ class Switch(Base):
 
 class GroupBy(Base):
     def test_group_by_menu_and_the_table_groups(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.assertFalse(cdp.js("!!document.querySelector('#group-by')", sid), "no Group by button beside the line (#287)")
-            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "View: table, grouped by Workstream")
+            self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-label')", sid), "Group by: Workstream")
             self.assertEqual(cdp.js("document.querySelector('#viewMenu').getAttribute('aria-haspopup')", sid), "menu")
             names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertEqual(names, ["Workstream", "Status", "Due", "Owner", "Priority", "Milestone", "Type", "Nothing"])
             self.view_pick(cdp, sid, "group:status")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: table, grouped by Status'")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Status'")
             groups = cdp.js("[...document.querySelectorAll('tbody[data-group]')].map(t => [t.dataset.group, t.querySelectorAll('tr[data-id]').length, parseInt(t.closest('table').querySelector('.gc').textContent, 10)])", sid)
             self.assertTrue(groups and all(n == c for _, n, c in groups), groups)       # the heading says "N items" (#456); its number is the row count
             self.assertEqual(sum(n for _, n, _ in groups), cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid))
@@ -275,7 +288,7 @@ class GroupBy(Base):
             self.assertEqual(self.checked(cdp, sid, "group:"), ["group:nothing"], "remembered")
 
     def test_a_table_group_opens_and_shuts_and_is_remembered(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             n = cdp.js("document.querySelectorAll('#work tr[data-id]').length", sid)
             click(cdp, sid, "thead[data-group] .grp-b")
@@ -286,7 +299,7 @@ class GroupBy(Base):
             self.assertEqual(cdp.js("document.querySelector('thead[data-group] .grp-b').getAttribute('aria-expanded')", sid), "false")
 
     def test_the_board_columns_follow_group_by_and_nothing_is_not_offered(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             cols = cdp.js("[...document.querySelectorAll('#work-board section.col')].map(c => c.dataset.col)", sid)
@@ -294,7 +307,7 @@ class GroupBy(Base):
             names = [w.lstrip("\u2713") for k, w, _ in self.view_items(cdp, sid) if k.startswith("group:")]
             self.assertNotIn("Nothing", names)
             self.view_pick(cdp, sid, "group:owner")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Owner'")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Owner'")
             labels = cdp.js("[...document.querySelectorAll('#work-board .col-b .cl')].map(c => c.textContent)", sid)
             self.assertEqual(labels[-1], "No owner")
             self.assertIn("Priya Nair", labels)
@@ -304,7 +317,7 @@ class GroupBy(Base):
             self.assertRegex(cdp.js("document.querySelector('#work-count').textContent", sid), rf"^{total} (?:open )?items?$")
 
     def test_a_column_nothing_can_be_dropped_on_says_so(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "due")
             said = cdp.js("(() => { const c = document.querySelector(\"section.col[data-col='overdue']\"); const p = c.querySelector('.nd'); return [c.classList.contains('nodrop'), p ? p.textContent : null]; })()", sid)
@@ -312,7 +325,7 @@ class GroupBy(Base):
             self.assertFalse(cdp.js("!!document.querySelector(\"section.col[data-col='later'] .nd\")", sid), "a column that takes cards does not say it")
 
     def test_the_toast_area_is_a_polite_live_region_and_a_refusal_lands_in_it(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('.toasts'); return r ? [r.getAttribute('role'), r.getAttribute('aria-live')] : null; })()", sid), ["status", "polite"],
@@ -323,7 +336,7 @@ class GroupBy(Base):
             self.assertEqual(cdp.js("document.querySelectorAll('.toasts').length", sid), 1)
 
     def test_leaving_the_board_mid_drag_leaves_no_listener_behind(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             cdp.js("(() => { window.__open = 0; const a = document.addEventListener, r = document.removeEventListener, key = (t, c) => t === 'pointermove' && c === true;"
@@ -338,7 +351,7 @@ class GroupBy(Base):
             cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
 
     def test_workstream_is_a_filter_and_the_filters_narrow_the_board(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             all_ = cdp.js("document.querySelectorAll('#work-board .bcard').length", sid)
@@ -355,7 +368,7 @@ class GroupBy(Base):
 
 class Cards(Base):
     def test_a_card_shows_its_parts_and_a_client_eye_only_when_shown_to_the_client(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Send the invitations")
@@ -374,7 +387,7 @@ class Cards(Base):
         """Row 819: one click on the card's eye is one change, the list eye's, with its toast and one Undo, in View as in Edit."""
         a = self.id_of("Send the invitations")
         for edit in (True, False):
-            with self.subTest(edit=edit), chrome() as cdp:
+            with self.subTest(edit=edit), shared.page() as cdp:
                 sid = self.visit(cdp, edit=edit)
                 self.board(cdp, sid, "status")
                 eye = f"article[data-id='{a}'] button.weye"
@@ -394,7 +407,7 @@ class Cards(Base):
               " return {ratios: out, cards: document.querySelectorAll('.bcard').length, dots: document.querySelectorAll('.bcard .bc-move').length, h: Math.max(...[...document.querySelectorAll('.bcard')].map((c) => c.getBoundingClientRect().height))}; })()")
         for theme in ("light", "dark"):
             for width in (1400, 900):
-                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                with self.subTest(theme=theme, width=width), shared.page() as cdp:
                     sid = self.visit(cdp, width=width, height=700)
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     self.board(cdp, sid, "status")
@@ -410,7 +423,7 @@ class Cards(Base):
               " icon: document.querySelector('#board-full .i').dataset.icn}; })()")
         for theme in ("light", "dark"):
             for width in (1400, 900):
-                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                with self.subTest(theme=theme, width=width), shared.page() as cdp:
                     sid = self.visit(cdp, width=width, height=700)
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     self.board(cdp, sid, "status")
@@ -421,7 +434,7 @@ class Cards(Base):
                     self.assertEqual(r["icon"], "arrows-out", r)
 
     def test_one_level_of_swimlanes_by_workstream_or_type(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status", lane="workstream")
             lanes = cdp.js("[...document.querySelectorAll('#work-board .lane')].map(l => [l.querySelector('.ll').textContent, +l.querySelector('.lc').textContent, l.querySelectorAll('.bcard').length])", sid)
@@ -432,7 +445,7 @@ class Cards(Base):
             self.assertEqual([[k, w.lstrip("\u2713"), c] for k, w, c in self.view_items(cdp, sid) if k.startswith("lane:")],
                              [["lane:none", "No lanes", "false"], ["lane:workstream", "Workstream lanes", "true"], ["lane:type", "Type lanes", "false"]])
             self.view_pick(cdp, sid, "lane:type")
-            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'View: board, grouped by Status, type lanes'")
+            self.until(cdp, sid, "document.querySelector('#viewMenu').getAttribute('aria-label') === 'Group by: Status, type lanes'")
             self.assertEqual(cdp.js("[...document.querySelectorAll('#work-board .lane .ll')].map(c => c.textContent)", sid), ["Actions", "Risks and issues", "Decisions"])
             self.view_pick(cdp, sid, "group:type")             # the group chosen is not offered as a lane
             self.until(cdp, sid, "!document.querySelector('#work-board .lane-h')", "no lanes when Group by takes the lane's place")
@@ -440,7 +453,7 @@ class Cards(Base):
 
 class Moves(Base):
     def test_dragging_a_card_is_one_step_with_undo(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Order the laptops")
@@ -458,7 +471,7 @@ class Moves(Base):
             self.assertEqual(self.row(a)["status"], "Open")
 
     def test_a_drag_closes_an_item_and_a_reopen_clears_the_date(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Book the training room")
@@ -471,7 +484,7 @@ class Moves(Base):
             self.assertFalse(self.row(a)["closed"])
 
     def test_the_move_to_menu_is_the_keyboard_path_and_makes_the_same_step(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Order the laptops")
@@ -493,7 +506,7 @@ class Moves(Base):
             self.assertEqual(self.row(a)["status"], "Open")
 
     def test_the_menu_closes_with_escape_and_gives_focus_back(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Order the laptops")
@@ -506,7 +519,7 @@ class Moves(Base):
             self.assertEqual(self.steps(), before)
 
     def test_a_lane_and_a_column_in_one_step(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status", lane="workstream")
             a = self.id_of("Order the laptops")                       # Data, Open
@@ -522,7 +535,7 @@ class Moves(Base):
             self.assertEqual((self.row(a)["status"], self.row(a)["workstream"]), ("Open", "Data"))
 
     def test_the_menu_offers_lanes_too(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status", lane="workstream")
             a = self.id_of("Order the laptops")
@@ -534,7 +547,7 @@ class Moves(Base):
             self.assertEqual(self.row(a)["workstream"], "Build")
 
     def test_refusals_say_why_and_change_nothing(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             risk, issue, action = self.id_of("Supplier slips"), self.id_of("Test system is down"), self.id_of("Order the laptops")
@@ -566,7 +579,7 @@ class Moves(Base):
             ("milestone", "Use the new tool", None, "A decision isn't tied to a milestone."),
             ("due", "Order the laptops", "overdue", "Overdue is worked out from the due date. Drop the card on This week, Next week or Later and choose a date."),
         ]
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             before = self.steps()
             for group, card, col, words in cases:
@@ -580,7 +593,7 @@ class Moves(Base):
             self.assertEqual(self.steps(), before)
 
     def test_overdue_is_not_a_drop_target_or_a_menu_item(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "due")
             self.assertEqual(cdp.js("document.querySelector(\"section.col[data-col=overdue]\").getAttribute('aria-disabled')", sid), "true")
@@ -591,7 +604,7 @@ class Moves(Base):
             self.assertIn("No date", items)
 
     def test_due_asks_for_a_date_never_in_the_past(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "due")
             a = self.id_of("Order the laptops")                       # due 2026-12-01 (Later)
@@ -617,7 +630,7 @@ class Moves(Base):
             self.assertEqual(self.row(a)["due_date"], "2026-12-01")
 
     def test_the_suggested_date_is_that_weeks_friday_and_escape_closes_only_the_picker(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "due")
             a = self.id_of("Order the laptops")
@@ -632,7 +645,7 @@ class Moves(Base):
             self.assertEqual(self.steps(), before)
 
     def test_no_date_clears_the_date(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "due")
             a = self.id_of("Order the laptops")
@@ -642,7 +655,7 @@ class Moves(Base):
             self.assertEqual(self.sent[-1][1]["changes"], {"due_date": None})
 
     def test_a_pending_decision_dragged_to_made_asks_first_and_has_no_undo(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             d = self.id_of("Use the new tool")
@@ -662,7 +675,7 @@ class Moves(Base):
             self.assertEqual((self.row(d)["status"], self.row(d)["date"]), ("Made", TODAY))
 
     def test_a_card_with_nowhere_to_go_says_so_and_what_to_do(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             made = cdp.js("(() => { const c = document.querySelector(\"section.col[data-col='Made'] article\"); return c ? c.dataset.id : null; })()", sid)
@@ -679,7 +692,7 @@ class Moves(Base):
         self.assertIn("This card can't move on this board. Record a new decision to change it.", src)
 
     def test_a_move_to_where_the_card_is_does_nothing(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             a = self.id_of("Order the laptops")
@@ -691,7 +704,7 @@ class Moves(Base):
 
     def test_the_board_moves_cards_in_view_as_in_edit(self):
         # #442 (ruled 02-11-2026): View and Edit exist only on the Dashboard; the Work items board always moves cards
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp, edit=False)
             self.board(cdp, sid, "status", mode="open")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch to choose View with")
@@ -713,7 +726,7 @@ class Moves(Base):
         1400 and 900 px, light and dark."""
         for width in (1400, 900):
             for scheme in ("light", "dark"):
-                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                with self.subTest(width=width, scheme=scheme), shared.page() as cdp:
                     sid = self.visit(cdp, width=width, edit=False)
                     cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
                     cdp.js("localStorage.setItem('clark.work.v1', JSON.stringify({ABC: {view: 'board', group: 'status', lane: null, collapsed: []}}))", sid)
@@ -746,7 +759,7 @@ class Moves(Base):
 
 class Collapse(Base):
     def test_columns_collapse_in_every_lane_and_are_remembered(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status", lane="workstream")
             n = cdp.js("document.querySelectorAll(\"section.col[data-col='Closed']\").length", sid)
@@ -763,7 +776,7 @@ class Collapse(Base):
             self.until(cdp, sid, "document.querySelectorAll('section.col.shut').length === 0")
 
     def test_every_column_has_a_count_and_an_empty_one_says_so(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             cols = cdp.js("[...document.querySelectorAll('section.col')].map(c => [c.dataset.col, +c.dataset.count, +c.querySelector('.cn').textContent, c.querySelectorAll('.bcard').length, !!c.querySelector('.none')])", sid)
@@ -774,7 +787,7 @@ class Collapse(Base):
 
 class Peek(Base):
     def test_a_click_opens_the_peek_hook_and_a_click_on_another_card_moves_it_without_a_new_entry(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             cdp.js("window.__peeks = []; window.addEventListener('clark:open-peek', (e) => window.__peeks.push(e.detail.id))", sid)
@@ -796,7 +809,7 @@ class Peek(Base):
 
 class FullScreen(Base):
     def test_full_screen_icon_scrolls_headings_and_keys(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp, height=420)
             self.board(cdp, sid, "status", lane="workstream")
             self.assertTrue(cdp.js("!!document.querySelector('.lanebar #board-full')", sid), "the icon is on the swimlane row")
@@ -836,7 +849,7 @@ class FullScreen(Base):
             self.until(cdp, sid, "!document.body.classList.contains('board-full')", "the icon leaves too")
 
     def test_a_card_double_click_in_full_screen_opens_the_peek_and_a_move_keeps_full_screen(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             click(cdp, sid, "#board-full")
@@ -849,7 +862,7 @@ class FullScreen(Base):
             self.until(cdp, sid, f"location.hash.includes('item={a}')")
 
     def test_full_screen_ends_when_the_table_comes_back(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.board(cdp, sid, "status")
             click(cdp, sid, "#board-full")
@@ -860,10 +873,10 @@ class FullScreen(Base):
 
     def test_board_view_pins_only_the_column_headings_under_the_top_bar(self):
         """#134: the toolbar rows scroll away and the column headings stay at the foot of the top bar; back at 0 the rows return."""
-        rows = "['.head', '.wbar', '.fline-wrap', '.factive', '.lanebar']"
+        rows = "['.head', '.fline-wrap', '.factive', '.lanebar']"   # item 1067: the type and mode pills are gone, so the app has no .wbar row
         for width in (1400, 900):
             for full in (False, True):
-                with self.subTest(width=width, full=full), chrome() as cdp:
+                with self.subTest(width=width, full=full), shared.page() as cdp:
                     sid = self.visit(cdp, width=width, height=700)
                     self.board(cdp, sid, "status")
                     # board() leaves the cursor in the filter box, so the list of fields is open and, being in the page flow, it makes the toolbar taller.
@@ -882,23 +895,23 @@ class FullScreen(Base):
                         f" const rows = {rows}.map(s => document.querySelector(s)).filter(e => e && e.getBoundingClientRect().height > 0);"
                         " const h = document.querySelector('.col-h').getBoundingClientRect().top;"
                         " return {bar, h, rows: rows.map(e => Math.round(e.getBoundingClientRect().bottom)), n: rows.length}; })()", sid)
-                    self.assertGreaterEqual(got["n"], 3, got)
+                    self.assertGreaterEqual(got["n"], 2, got)
                     self.assertTrue(all(b <= got["bar"] + 1 for b in got["rows"]), f"the toolbar rows are above the top bar's foot: {got}")
                     self.assertLessEqual(abs(got["h"] - got["bar"]), 2, f"the column headings sit at the top bar's foot: {got}")
                     cdp.js(f"{scroller}.scrollTop = 0", sid)
                     self.until(cdp, sid, f"{scroller}.scrollTop === 0", "back at the top")
-                    self.assertTrue(cdp.js("['.wbar', '.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
+                    self.assertTrue(cdp.js("['.fline-wrap', '.lanebar'].every(s => document.querySelector(s).getBoundingClientRect().top >= (document.querySelector('.top') && getComputedStyle(document.querySelector('.top')).display !== 'none' ? document.querySelector('.top').getBoundingClientRect().bottom - 1 : -1))", sid), "back at the top the toolbar shows again")
 
     def test_pinned_headings_dark_wheel_no_overlap_and_focus(self):
         """#134 (more): in light and dark, at 1400 and 900 px, the toolbar's top moves away with the page, the headings pin at the top
         bar's foot, the wheel moves the page first, no card sits under a heading, and tabbing to a card brings it clear of the headings."""
         for theme in ("light", "dark"):
             for width in (1400, 900):
-                with self.subTest(theme=theme, width=width), chrome() as cdp:
+                with self.subTest(theme=theme, width=width), shared.page() as cdp:
                     sid = self.visit(cdp, width=width, height=700)
                     cdp.js(f"document.documentElement.dataset.theme = '{theme}'", sid)
                     self.board(cdp, sid, "status")
-                    top0 = cdp.js("document.querySelector('.wbar').getBoundingClientRect().top", sid)
+                    top0 = cdp.js("document.querySelector('.fline-wrap').getBoundingClientRect().top", sid)
                     cdp.js("window.scrollTo(0, 0)", sid)
                     # the wheel over the board moves the page first, up to the gap, and never past it
                     cdp.call("Input.dispatchMouseEvent", {"type": "mouseWheel", "x": 700, "y": 400, "deltaX": 0, "deltaY": 120}, sid)
@@ -909,7 +922,7 @@ class FullScreen(Base):
                         "(() => { const bar = document.querySelector('.top').getBoundingClientRect().bottom, r = s => document.querySelector(s).getBoundingClientRect();"
                         " const h = [...document.querySelectorAll('.col-h')].map(e => e.getBoundingClientRect()), hb = Math.max(...h.map(x => x.bottom));"
                         " const box = r('.boardbox');"
-                        " return {bar, wbar: r('.wbar').bottom, ht: Math.min(...h.map(x => x.top)), hb, box: box.top}; })()", sid)
+                        " return {bar, wbar: r('.fline-wrap').bottom, ht: Math.min(...h.map(x => x.top)), hb, box: box.top}; })()", sid)
                     self.assertLessEqual(got["wbar"], got["bar"] + 1, got)
                     self.assertLessEqual(abs(got["ht"] - got["bar"]), 2, got)
                     self.assertLessEqual(abs(got["box"] - got["bar"]), 2, got)
@@ -925,7 +938,7 @@ class FullScreen(Base):
                                            " return a.top >= hb - 1 && a.bottom <= innerHeight + 1; })()", sid), "the focused card is clear of the headings and on screen")
 
     def test_the_table_view_is_not_pinned(self):
-        with chrome() as cdp:
+        with shared.page() as cdp:
             sid = self.visit(cdp)
             self.assertFalse(cdp.js("document.body.classList.contains('board-view')", sid), "no board class in the table")
             self.board(cdp, sid, "status")
@@ -935,7 +948,7 @@ class FullScreen(Base):
 
     def test_no_sideways_scroll_of_the_page_at_900_and_1400(self):
         for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
+            with self.subTest(width=width), shared.page() as cdp:
                 sid = self.visit(cdp, width=width)
                 self.board(cdp, sid, "status", lane="workstream")
                 self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), "the page does not scroll sideways")

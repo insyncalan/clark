@@ -65,7 +65,10 @@ UNQUOTED_LOCAL = (r"""(?i)(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key
                   r"""([^\s"'`$<>{}()\[\],;]{8,})""")
 # #242: a short sk- key (12 or more letters and digits with a digit, below the publish scan's 32) and a short api or access key value
 # (6 or more, letters and digits mixed) after = or :.
-SHORT_SK = r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}"
+# #598: the prefix is read in any case (Sk-, SK-), and pk- and rk- count as well; for these the 12 or more characters need a letter as
+# well as a digit (or 32 or more of any), so a number-only ticket such as PK-123456789012 passes. A named long form (Sk-ant-...) is caught in any case too, but only with a digit in its tail (row 1006), so pk-admin-handbook passes.
+SHORT_SK = (r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}|\b[SsPpRr][Kk]-(?:(?:ant|proj|svcacct|admin)-(?=[A-Za-z0-9_-]{0,80}\d)[A-Za-z0-9_-]{8,}"
+            r"|[A-Za-z0-9]{32,}|(?=[A-Za-z0-9]{0,40}\d)(?=[A-Za-z0-9]{0,40}[A-Za-z])[A-Za-z0-9]{12,})")
 SHORT_APIKEY = r"""(?i)\b(?:api|access)[ _-]?key\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}["']?([A-Za-z0-9_-]{6,})"""
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""
 SHORT_PASSWORD = r"""(?i)(?<!\w)(?:passw(?:or)?d|pwd|passcode|""" + _PW_OTHER + r""")(?!\w)["']?[ \t]{0,20}[:=][ \t]{0,20}["']?(\S{4,})"""
@@ -138,10 +141,10 @@ def _mixed(value):
 
 
 def _plain(raw):
-    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file); the replacement
-    character counts as printable, so mostly-text data with a few bad bytes is still read."""
+    """Decoded base64 as text, or None when it is mostly not printable (a picture, a compressed file, random bytes); a bad byte
+    (the replacement character) is not printable (#502), so mostly-text data with a few bad bytes is still read."""
     text = raw.decode("utf-8", "replace")
-    return text if sum(c.isprintable() or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
+    return text if sum((c.isprintable() and c != "\ufffd") or c in "\r\n\t" for c in text) >= len(text) * 0.9 else None
 
 
 def _decoded(run):
@@ -169,10 +172,23 @@ def _clean(plain):
     return text if all(c.isprintable() or c in "\r\n\t" for c in text) else None
 
 
+def _name_like(run):
+    """Whether a run joined by _ or - reads as a name (a file, a project, a revision) and not as a key: it has at least three parts, no part is a
+    long one with the look of a random key (a key's own pieces are), and either most parts are plain words or one part is a word of three letters or more, perhaps with a number after it (Tulip, Final, Rev03, Jan2025)."""
+    parts = [p for p in re.split(r"[-_]+", run) if p]
+    if len(parts) < 3:
+        return False
+    if any(len(p) >= 12 and _random_look(p) for p in parts):
+        return False
+    word = [bool(re.fullmatch(r"([A-Z][a-z]{2,}|[a-z]{3,}|[A-Z]{3,})\d{0,4}[A-Za-z]?", p)) for p in parts]
+    plain = [p.isalpha() or p.isdigit() for p in parts]
+    return any(word) or sum(plain) * 2 > len(parts)
+
+
 def _random_look(run, often=True):
     """Whether a run has the look of a random key: an upper case letter, a lower case letter and a digit, not a word-joined name, and the
     class of character changing often (the long-run guess's own test)."""
-    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run):
+    if not (re.search(r"[a-z]", run) and re.search(r"[A-Z]", run) and re.search(r"\d", run)) or ask._words_joined(run) or _name_like(run):
         return False
     kind = [("l" if c.islower() else "u" if c.isupper() else "d" if c.isdigit() else "o") for c in run]
     return not often or sum(1 for x, y in zip(kind, kind[1:]) if x != y) >= len(run) // 2
@@ -235,7 +251,7 @@ def _loose(text):
     """The long-run guess, narrower than the question screen's (that one is for a short question; here a hit drops a whole file):
     a long mixed run with the look of a random key (the class of character changes often), not a word-joined name, not an
     address's path, not inside a picture's data address (the base64 look is decoded and read separately)."""
-    for m in re.finditer(r"[A-Za-z0-9+/_=-]{32,}", text):
+    for m in re.finditer(r"[A-Za-z0-9+/_=-]{25,}", text):
         run = m.group()
         if not _random_look(run):
             continue

@@ -85,8 +85,12 @@ class Fields(Base):
         return p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''")
 
     def undo(self, p):
-        p.js("document.querySelector('.toast [data-undo]').click()")
-        p.until("/^Undone[.:]/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "Undone")
+        """The toast lives 5 seconds and a loaded runner can poll late: wait for the Undo button, then record every toast text from the click on, so a short-lived Undone line is never missed."""
+        p.until("!!document.querySelector('.toast [data-undo]')", "the Undo button")
+        p.js("(() => { window.__toastSeen = []; const note = () => { const t = document.querySelector('.toast .toast-text'); if (t) window.__toastSeen.push(t.textContent || ''); };"
+             " window.__toastWatch && window.__toastWatch.disconnect(); window.__toastWatch = new MutationObserver(note);"
+             " window.__toastWatch.observe(document.body, {subtree: true, childList: true, characterData: true}); document.querySelector('.toast [data-undo]').click(); })()")
+        p.until("window.__toastSeen.some((t) => /^Undone[.:]/.test(t))", "Undone")
 
     def test_the_fields_are_there_on_the_milestones_page_in_view_and_not_on_the_dashboard_in_view(self):
         with chrome() as cdp:
@@ -225,8 +229,11 @@ class Fields(Base):
     def test_workstream_and_client_wording_and_visible_to_client(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-field=workstream] option')].map((o) => o.textContent)")[0], "—")
-            p.js("(() => { const s = document.querySelector('#peek [data-ms-field=workstream]'); s.value = 'Build'; s.dispatchEvent(new Event('change', {bubbles: true})); })()")
+            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=workstream]').textContent"), "—")
+            self.click(p, "#peek [data-ms-field=workstream]")
+            p.until("!!document.querySelector('[data-pop][role=menu]')", "the workstream menu opened")
+            self.assertEqual(p.js("document.querySelectorAll('[data-pop] [role=menuitemradio] svg.i').length"), p.js("document.querySelectorAll('[data-pop] [role=menuitemradio]').length"), "every choice has its icon (row 1074)")
+            self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
             self.saved(p, "workstream", "Build")
             self.click(p, "#peek [data-ms-field=client_message]")
             self.type_in(p, "#peek [data-ms-in=client_message]", "On its way", leave="ctrl")
@@ -261,8 +268,27 @@ class Fields(Base):
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
+            # row 1054: the focus goes to the next milestone row's cells, or to Undo where there is no next row (never to the page body)
+            p.until("document.activeElement && (document.activeElement.hasAttribute('data-undo') || (document.activeElement.classList.contains('msl-cells') && !!document.activeElement.closest('li.msl-row')))", "the focus moved to the next row or to Undo, not to the page body")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
+
+    def test_after_archive_in_the_peek_focus_goes_to_the_next_row_or_to_undo(self):
+        """Row 1054: the peek closes with its item; focus must not drop to the page. Next row's cell, else the toast's Undo."""
+        for ms in (GO_LIVE, PILOT):
+            for width in (1400, 900):
+                with self.subTest(ms=ms, width=width), chrome() as cdp:
+                    self.setUp()
+                    p = self.visit_peek(cdp, ms=ms, width=width)
+                    self.calm(p)
+                    want = p.js(f"(() => {{ const n = document.querySelector('li.msl-row[data-ms=\"{ms}\"]'); const x = n && n.nextElementSibling; "
+                                "return x ? x.getAttribute('data-ms') : ''; })()")
+                    self.click(p, "#peek [data-pk-archive]")
+                    p.until("!document.querySelector('#peek') && !!document.querySelector('.toast [data-undo]')", "closed, Undo offered")
+                    p.until("document.activeElement !== document.body", "focus did not drop to the page")
+                    got = p.js("(() => { const a = document.activeElement; const r = a.closest('li.msl-row'); "
+                               "return r && a.classList.contains('msl-cells') ? r.getAttribute('data-ms') : a.matches('.toast [data-undo]') ? 'undo' : a.tagName; })()")
+                    self.assertEqual(got, want or "undo")
 
     def test_no_archive_button_in_the_dashboards_view_peek(self):
         with chrome() as cdp:

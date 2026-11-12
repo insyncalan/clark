@@ -8,6 +8,7 @@ weekend bar's two moves, each one request and one Undo; View has none of it. In 
 and Draft are drawn with the dark tokens and each line of text reads at 4.5:1 or more on what it is drawn over.
 """
 import json
+import time
 import unittest
 from _editor_checks import for_url
 from datetime import datetime, timezone
@@ -19,7 +20,7 @@ from clark import changes, sneak  # noqa: E402
 from test_peek import key  # noqa: E402
 from test_server import Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, where  # noqa: E402
 
 OVERDUE, WEEKEND = "TUL-A-002", "TUL-A-006"       # demo data at 28-10-2026 (a Wednesday): due 22-10-2026, and Saturday 07-11-2026
 
@@ -197,7 +198,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -206,7 +207,7 @@ class Browser(unittest.TestCase):
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
-                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), real(req))[1],
+                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -229,6 +230,10 @@ class Browser(unittest.TestCase):
         cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
         return sent, sid
+
+    @staticmethod
+    def refused():
+        raise RuntimeError("test refusal")
 
     SHOWN = "[data-pk-latest] [data-rich=latest_update]"           # item 1005: the update drawn as text; a click opens the one rich editor in its place
     BOX = "#peek .ProseMirror"
@@ -318,6 +323,101 @@ class Browser(unittest.TestCase):
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-pk-latest] [data-rich=latest_update]').textContent", sid) == a["latest_update"]))
 
+    def test_pressing_draft_with_the_box_open_does_not_save_the_typed_text_first(self):
+        """Row 549, on the one rich editor: a press on Draft must not move the focus out of the box. Browsers that give a pressed button
+        focus (Chrome) or none at all (Safari, Firefox) both make the box's blur save the typed text before the click, so the click
+        then writes a second change over it. A real press and release must send the draft and nothing else."""
+        with chrome() as cdp:
+            sent, sid = self.load(cdp, 1400, OVERDUE)
+            self.open_box(cdp, sid)
+            self.type_in(cdp, sid, "Typed then Draft pressed")
+            x, y = where(cdp, sid, "[data-pk-draft]")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
+            cdp.call("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x, "y": y, "button": "left", "buttons": 1, "clickCount": 1}, sid)
+            self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the box keeps the focus while Draft is held down")
+            time.sleep(0.4)
+            self.assertEqual(sent, [], "holding Draft down saves nothing")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+            self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+            time.sleep(0.4)
+            self.assertEqual([r["changes"] for r in sent if "Typed" in json.dumps(r["changes"])], [], "the typed text was never saved")
+            self.assertEqual(len(sent), 1, "one request: the draft")
+
+    def test_a_real_click_on_draft_with_the_box_open_keeps_the_caret_in_the_editor(self):
+        """Row 549 follow-up: Draft remounts the editor after the mouse is released; the focus must come back to the editor, not BODY."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                x, y = where(cdp, sid, "[data-pk-draft]")
+                for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15),
+                                "the editor holds the focus after Draft (not BODY): " + str(cdp.js("document.activeElement.tagName", sid)))
+                time.sleep(0.5)
+                self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "and it stays there")
+
+    def test_after_draft_with_the_box_open_the_box_shows_the_drafted_words_and_a_click_elsewhere_saves_nothing_more(self):
+        """Row 549, data loss: Draft remounted the editor from the not-yet-refreshed text, so the box showed the OLD update and the next
+        blur saved that stale text as a second change over the draft. The box must show the drafted words, keep them, and send one save."""
+        a = self.action(OVERDUE)
+        ms = next(m for m in self.data["milestones"] if m["id"] == a["milestone"])
+        name = ms["name"][0].lower() + ms["name"][1:]
+        d, y, m = ms["baseline_date"][8:], ms["baseline_date"][:4], ms["baseline_date"][5:7]
+        want = f"Overdue since 22-10-2026. {a['owner']} is working on it. Needed for {name} on {d}-{m}-{y}."
+        text = lambda cdp, sid: cdp.js("(e => e ? e.textContent : null)(document.querySelector('#peek .ProseMirror'))", sid)
+
+        def press(cdp, sid, x, y):
+            for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+        for dark in (False, True):
+            for width in (1400, 900):
+                with self.subTest(width=width, dark=dark), chrome() as cdp:
+                    sent, sid = self.load(cdp, width, OVERDUE, dark=dark)
+                    self.open_box(cdp, sid)
+                    press(cdp, sid, *where(cdp, sid, "[data-pk-draft]"))
+                    self.assertTrue(wait(lambda: text(cdp, sid) == want, 15), "the box shows the drafted words, got " + repr(text(cdp, sid)))
+                    time.sleep(1)
+                    self.assertEqual(text(cdp, sid), want, "and still shows them a second later")
+                    press(cdp, sid, *where(cdp, sid, "#peek dt"))
+                    time.sleep(1)
+                    saves = [r["changes"] for r in sent if "latest_update" in r["changes"]]
+                    self.assertEqual(saves, [{"latest_update": want}], "exactly one save for the Latest update: the draft")
+
+    def test_item_11_a_refused_draft_with_the_box_open_keeps_the_box_and_what_was_typed(self):
+        """Mutation sweep of row 549: without the guard on the reply, a refused Draft still re-reads and remounts the editor from the stored text."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE, refuse=True)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Typed then a refused Draft")
+                x, y = where(cdp, sid, "[data-pk-draft]")
+                for kind, buttons in (("mouseMoved", 0), ("mousePressed", 1), ("mouseReleased", 0)):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "buttons": buttons, "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the draft is sent")
+                self.assertTrue(wait(lambda: "nothing was changed" in self.toast(cdp, sid), 15), "the refusal is said: " + self.toast(cdp, sid))
+                time.sleep(1)
+                text = cdp.js("(e => e ? e.textContent : null)(document.querySelector('#peek .ProseMirror'))", sid)
+                self.assertIn("Typed then a refused Draft", text or "", "the box is still open with what was typed, got " + repr(text))
+
+    def test_item_11_draft_with_the_box_closed_leaves_it_closed_with_the_drafted_words_shown(self):
+        """Mutation sweep of row 549: the box is reopened only when Draft was pressed with it open."""
+        a = self.action(OVERDUE)
+        ms = next(m for m in self.data["milestones"] if m["id"] == a["milestone"])
+        name = ms["name"][0].lower() + ms["name"][1:]
+        d, y, m = ms["baseline_date"][8:], ms["baseline_date"][:4], ms["baseline_date"][5:7]
+        want = f"Overdue since 22-10-2026. {a['owner']} is working on it. Needed for {name} on {d}-{m}-{y}."
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                click(cdp, sid, "[data-pk-draft]")
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.SHOWN)}).textContent", sid) == want), "the drafted words are shown")
+                time.sleep(1)
+                self.assertFalse(cdp.js(f"!!document.querySelector({json.dumps(self.BOX)})", sid), "the box stays closed")
+                self.assertFalse(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid))
+                self.assertEqual(len(sent), 1)
+
     def test_the_box_saves_on_cmd_enter_and_leaves_the_text_on_escape(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -335,6 +435,34 @@ class Browser(unittest.TestCase):
                 self.assertEqual(len(sent), 1)
                 self.assertIn("Brand new words", sent[0]["changes"]["latest_update"])
                 self.assertTrue(sent[0]["changes"]["latest_update"].startswith("<p>"), "the editor's HTML is what is sent")
+
+    def test_leaving_the_box_saves_it_once_and_one_undo_puts_the_old_text_back(self):
+        """Item 1005 follow-up: the Latest update saves when the focus leaves it, like the At a glance Reason; Esc still saves nothing."""
+        a = self.action(OVERDUE)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Blur saved.")
+                # Settle on the editor's own state, not a sleep: the typed text is in the editor
+                # and the label we click has the same place in two frames running.
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent.includes('Blur saved.')", sid), 10), "the editor holds the typed text")
+                cdp.js("""window.__lab = null; (() => { const at = () => { const r = document.querySelector('#peek .pk-lab, #peek h2, #peek h3').getBoundingClientRect(); return r.x + ',' + r.y + ',' + r.height; }; let last = at(), n = 0; const tick = () => { const now = at(); n = now === last ? n + 1 : 0; last = now; if (n >= 2) { window.__lab = now; } else { requestAnimationFrame(tick); } }; requestAnimationFrame(tick); })(); true""", sid)
+                self.assertTrue(wait(lambda: cdp.js("window.__lab !== null", sid), 10), "the page has settled")
+                x, y = cdp.js("(() => { const r = document.querySelector('#peek .pk-lab, #peek h2, #peek h3').getBoundingClientRect(); return [r.x + 4, r.y + r.height / 2]; })()", sid)
+                for kind in ("mousePressed", "mouseReleased"):
+                    cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid), 10), "leaving the box closed it")
+                self.assertTrue(wait(lambda: "Blur saved." in cdp.js(f"(document.querySelector({json.dumps(self.SHOWN)}) || {{textContent: ''}}).textContent", sid)))
+                self.assertEqual(len(sent), 1, "one save, never two")
+                self.assertIn("Blur saved.", sent[0]["changes"]["latest_update"])
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector({json.dumps(self.SHOWN)}).textContent", sid) == a["latest_update"]), "one Undo")
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, " Not kept.")
+                key(cdp, sid, "Escape")
+                self.assertTrue(wait(lambda: cdp.js(f"!document.querySelector({json.dumps(self.BOX)})", sid)))
+                self.assertEqual(len(sent), 1, "Esc after the Undo saved nothing")
 
     def test_a_legacy_plain_update_opens_in_the_editor_as_paragraphs_and_is_not_saved_by_looking(self):
         with chrome() as cdp:

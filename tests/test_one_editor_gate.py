@@ -182,6 +182,9 @@ class PageGate(unittest.TestCase):
     def test_every_rich_field_opens_a_clark_editor_and_nothing_else(self):
         s = self.serve(self.page_on)
         with chrome() as cdp:
+            # The test clicks every field in one go and expects every editor open at once. With page focus, each click blurs the editor
+            # before it and closes it, so only one stays open: this test needs the unfocused page it was written for.
+            cdp.FOCUS_EMULATION = False
             js, sid = self.edit(cdp, s)
             fields = js("document.querySelectorAll('[data-rich]').length")
             self.assertGreaterEqual(fields, 1, "the text sections show a rich field")
@@ -431,7 +434,7 @@ class MovedLatestFields(unittest.TestCase):
                 self.assertIn(field, publish.RICH.get(table, ()), "published through clean_html")
                 self.assertIn((table, field), publish.LEGACY_RICH, "an old plain row reads as escaped paragraphs")
         from clark import excel
-        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"),), "the workbook carries the words of the same fields, and of the Movement note (never published, so not in the published list)")
+        self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"), ("use_cases", "standing")), "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
         self.assertEqual(src.count("_rich_field("), 4, "the definition and the three fields' writes (latest update, Internal note, description)")
 

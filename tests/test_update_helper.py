@@ -23,6 +23,7 @@ import textwrap
 import threading
 import time
 import unittest
+from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT, SRC
@@ -1113,6 +1114,33 @@ class DefaultSeamsTest(unittest.TestCase):
             port = sock.getsockname()[1]
             self.assertFalse(s.port_free(port))
         self.assertTrue(s.port_free(port))
+
+    def test_a_child_that_exited_without_being_waited_for_counts_as_gone(self):
+        if not Path("/proc/self/stat").exists():
+            self.skipTest("needs /proc")
+        """#476: a server this helper started that exits early stays a zombie until reaped; process_gone reaps it (a real process)."""
+        s = h.Seams()
+        child = subprocess.Popen([sys.executable, "-c", "pass"])
+        end = time.time() + 20
+        while time.time() < end and Path(f"/proc/{child.pid}").exists() and \
+                Path(f"/proc/{child.pid}/stat").read_text(encoding="utf-8").rsplit(")", 1)[1].split()[0] != "Z":
+            time.sleep(0.05)
+        os.kill(child.pid, 0)                                  # still there to the kill test: the zombie
+        self.assertTrue(s.process_gone(child.pid))
+        with self.assertRaises(ChildProcessError):             # and it was reaped, not just seen
+            os.waitpid(child.pid, os.WNOHANG)
+        child.returncode = 0
+
+    def test_the_reaping_branch_runs_on_any_system(self):
+        """#476 where there is no /proc (the Mac): waitpid alone decides. A reaped child is gone; one that is not our child (or still
+        running) falls through to the kill check and is not."""
+        s = h.Seams()
+        with mock.patch.object(h.os, "waitpid", return_value=(os.getpid(), 0)) as reap:
+            self.assertTrue(s.process_gone(os.getpid()))                     # waitpid collected it: gone, though kill(pid, 0) would succeed
+        reap.assert_called_once_with(os.getpid(), os.WNOHANG)
+        for kw in ({"return_value": (0, 0)}, {"side_effect": ChildProcessError()}):
+            with mock.patch.object(h.os, "waitpid", **kw), mock.patch.object(h.Path, "read_text", side_effect=OSError("no /proc")):
+                self.assertFalse(s.process_gone(os.getpid()))
 
     def spare(self):
         child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
