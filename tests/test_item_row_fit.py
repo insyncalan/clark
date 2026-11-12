@@ -19,7 +19,7 @@ PRINT_WIDTH = 703        # an A4 page between its 12 mm side margins, as CSS px:
 PARTS = r"""(() => { const out = [], bad = [];
  const vis = (e) => { const b = e.getBoundingClientRect(), c = getComputedStyle(e); return b.width > 2 && b.height > 2 && c.visibility !== 'hidden' && c.display !== 'none' && c.clip !== 'rect(0px, 0px, 0px, 0px)'; };
  const own = (e) => [...e.childNodes].some(n => n.nodeType === 3 && n.textContent.trim());
- const part = (e) => e.matches('button,.ico,.av,.ico-w,.prio,.late,.cell-ce') || (own(e) && !e.closest('button,.ico,.av,.ico-w,.prio,.late,.cell-ce'));
+ const part = (e) => e.matches('button,.ico,.av,.ico-w,.prio,.late,.wl-words') || (own(e) && !e.closest('button,.ico,.av,.ico-w,.prio,.late,.wl-words'));
  for (const r of document.querySelectorAll('.irows .wl-row')) {
   const leaves = [...r.querySelectorAll('*')].filter(e => vis(e) && part(e));
   for (let i = 0; i < leaves.length; i++) for (let j = i + 1; j < leaves.length; j++) { const a = leaves[i], b = leaves[j]; if (a.contains(b) || b.contains(a)) continue;

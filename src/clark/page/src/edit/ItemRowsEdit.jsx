@@ -4,7 +4,7 @@
 // change route; the page keeps no copy of its own and draws what clark saved (stores/changes.js reads the project again).
 // What is edited in place is what View shows: the status (Cell, edit/cells/), the owner, the date, and the client's own wording
 // (client_message), and a risk's or issue's priority through its impact and likelihood (the Cell's rating picker, item 210).
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useRef, useState } from "preact/hooks";
 import { data, openPeek } from "../stores/report.js";
 import { change, changeCell, refresh, say } from "../stores/changes.js";
 import { ownerOf, showDate, dueField } from "../workItems.js";
@@ -15,7 +15,9 @@ import { rowsFor, candidates, wordings, todayOf, ItemIcon, Head, iconWords, list
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { Cell } from "./cells/Cell.jsx";
-import { plainBox, read, show } from "./Title.jsx";
+import { RichField } from "./RichField.jsx";
+import { richOrPlain } from "../logic/richOrPlain.js";
+import { plainFromEditor } from "./plainWords.js";
 import { tableOf } from "./itemEdit.js";
 
 export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_TITLE_MAX, written in by the build: a work item's text is that many characters at most
@@ -48,26 +50,22 @@ function canShow(type, d, items) {
   return new Set(items.filter((r) => publishable({ ...((d[type] || []).find((x) => x.id === r.id) || {}), client_visible: 1 }, type, rules)).map((r) => r.id));
 }
 
-// A row's client wording, edited in place as plain text: saved when the field is left or on Enter, Esc puts the old words back.
-export function Words({ row, text, cls = "cell-ce" }) {
-  const ref = useRef(null), now = useRef(text), cancelled = useRef(false);
-  now.current = text;
-  useLayoutEffect(() => { const el = ref.current; if (el && read(el) !== text && document.activeElement !== el) show(el, text); }, [text]);       // what clark saved, drawn unless it is being typed in
-  const commit = () => {
-    const el = ref.current;
-    if (cancelled.current) { cancelled.current = false; return; }
-    const t = read(el).replace(/\s+/g, " ").trim();
-    if (t === now.current) { show(el, now.current); return; }
-    if (Array.from(t).length > WORDS_MAX) { show(el, now.current); say("problem", `The wording can be ${WORDS_MAX} characters at most. Shorten it and try again.`); return; }
-    changeCell(tableOf(row), row.id, { client_message: t }, { text: `Wording of ${row.id} changed.`, back: `Wording of ${row.id} is back as it was.` })
-      .then((reply) => (reply ? refresh() : show(el, now.current)));       // the reply never carries the words (as a title is not said back): read them again
+// A row's client wording (item 1005): the one editor (RichField) on one line, saved as plain text as the milestone's Client wording is: what the
+// editor gives is flattened to one line (never markup), so what is stored, published and exported is unchanged and an older value loads as a
+// paragraph. Enter or a click away saves, Esc puts the old words back; one change, one Undo. A text too long is said in the field, which stays open.
+export function Words({ row, text, cls = "wl-words" }) {
+  const was = text || "";
+  const html = (() => { try { return richOrPlain(was); } catch (e) { return ""; } })();
+  const put = async (value) => {
+    const t = plainFromEditor(value, true);
+    if (t === was) return true;
+    if (Array.from(t).length > WORDS_MAX) return `The wording can be ${WORDS_MAX} characters at most. Shorten it and try again.`;
+    const reply = await changeCell(tableOf(row), row.id, { client_message: t }, { text: `Wording of ${row.id} changed.`, back: `Wording of ${row.id} is back as it was.` });
+    if (!reply) return false;
+    await refresh();                                  // the reply never carries the words (as a title is not said back): read them again
+    return true;
   };
-  const onKeyDown = (e) => {
-    if (e.isComposing) return;
-    if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); }
-    else if (e.key === "Escape") { e.preventDefault(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); }
-  };
-  return plainBox({ ref, class: cls, "data-edit-only": "", "data-ce": row.id, "data-f": "title", "aria-label": `Wording of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true });
+  return <RichField field="client_message" id={row.id} value={html} label={`Wording of ${row.id}`} empty="" cls={cls} attrs={{ "data-ce": row.id }} oneLine save={put} />;
 }
 
 function EditRow({ row, today, words, type }) {

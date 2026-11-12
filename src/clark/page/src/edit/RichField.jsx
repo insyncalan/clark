@@ -11,7 +11,7 @@ const shown = (html) => { try { return cleanHtml(html || ""); } catch (e) { retu
 
 // A field may bring a look and a few controls of its own (the At a glance Reason): `cls` and `attrs` go on the view and on the open box, `aria` is the
 // view's name instead of "Edit <label>", `forceOpen` opens it from outside (a health picked with no reason yet), `onClose(refocus)` is told when it closes.
-export function RichField({ field, id, value, label, empty = "Click to write.", save, viewId, labelledBy, cls = "", attrs = null, aria = "", forceOpen = false, onClose = null }) {
+export function RichField({ field, id, value, label, empty = "Click to write.", save, viewId, labelledBy, cls = "", attrs = null, aria = "", forceOpen = false, onClose = null, oneLine = false }) {
   const [open, setOpen] = useState(false);
   const view = useRef(null), back = useRef(false);
   // Esc or Cmd/Ctrl+Enter closed the editor: the focus goes to the field's view, not to the page body (#188). A close because the
@@ -19,7 +19,7 @@ export function RichField({ field, id, value, label, empty = "Click to write.", 
   useEffect(() => { if (!open && back.current) { back.current = false; if (view.current) view.current.focus(); } }, [open]);
   useEffect(() => { if (forceOpen) setOpen(true); }, [forceOpen]);
   if (open) {
-    const editor = <RichText value={value || ""} label={label} onSave={(html) => (save ? save(html) : saveRich(field, id, html))} onClose={(refocus) => { back.current = refocus === true; if (onClose) onClose(refocus); setOpen(false); }} />;
+    const editor = <RichText oneLine={oneLine} value={value || ""} label={label} onSave={(html) => (save ? save(html) : saveRich(field, id, html))} onClose={(refocus) => { back.current = refocus === true; if (onClose) onClose(refocus); setOpen(false); }} />;
     return cls ? <div class={`${cls} rich`} {...(attrs || {})}>{editor}</div> : editor;
   }
   const html = shown(value);

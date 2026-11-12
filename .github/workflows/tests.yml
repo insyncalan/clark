@@ -91,7 +91,7 @@ jobs:
           REPO: ${{ github.repository }}
           PR_NUMBER: ${{ github.event.pull_request.number }}
         run: |
-          FULL=""; MACOS=""; WIDE=""
+          FULL=""; MACOS=""; WIDE=""; NTESTS=0
           case "$EVENT" in
             push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
@@ -124,8 +124,13 @@ jobs:
                   clark.command|clark/__main__.py|clark/launch.py|clark/doctor.py|src/clark/launch.py|src/clark/doctor.py|src/clark/release_files.py|dev/tools/package.py) FULL=1; MACOS=1 ;;      # the launcher (clark/launch.py is what clark.command runs) and the package: Mac-specific too
                   .github/*) FULL=1 ;;
                   *.css|src/clark/brand/*|src/clark/page/*|src/clark/templates/*) WIDE=1 ;;      # reaches many test files: keep six shards
+                  tests/test_*.py) NTESTS=$((NTESTS + 1)) ;;      # counted below: 8 or more test files is WIDE too
                 esac
               done <<< "$CHANGED"
+              # A pull request that changes 8 or more tests/test_*.py files is WIDE: six shards, not three. Three shards carry about 6800 s of
+              # weighted test time each, and a tests-only bundle (PR 1339) timed out three times at the 30-minute cap on three shards;
+              # six shards carry about 3400 s each, which is what a full run takes.
+              if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi
             else
               echo "could not list the changed files: full (fail safe)"
               FULL=1; MACOS=1
