@@ -41,7 +41,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 from pathlib import Path
 
-from clark import docx_build, docx_read, milestones, page, platform, publish, publish_flow, to_client, word_import
+from clark import docx_build, docx_read, milestones, page, platform, publish, publish_flow, to_client, word_brand, word_import
 from clark import store as clark_store
 from clark.changes import Refused, _call, _shown
 from clark.store import Invalid
@@ -349,6 +349,7 @@ APPEARED_CLIENT = (" It was not copied to the client folder, because a file call
                    " Nothing was added to the client folder. Export again to choose what to do.")
 CLIENT_FAILED = " It was not copied to the client folder: {reason} Nothing was added to the client folder."
 NOT_RECORDED_FILE = " The file is fine, but clark could not record it ({reason}); save it again to record it."
+TEMPLATE_REFUSED = "The Word template in the branding folder can't be used, so no report was made. {why} Nothing was saved."
 NOT_MADE = "The Word report could not be made. Nothing was saved. Restart clark and try again. If it happens again, tell whoever looks after clark."
 ARCHIVED = "An archived project can't be exported. Restore it first. Nothing was saved."
 CANCELLED = "Cancelled. Nothing was saved."
@@ -556,8 +557,11 @@ def _do_export(store, who, req, today, chosen, roots, branding=None, brand_root=
         if branding is None:                           # the project's own brand, looked up here (the code is checked above)
             branding = publish_flow.brand_of(store, code, brand_root or page.BRANDING.parent.parent)
         data = docx_build.build(published, colours=_colours(branding))
+        data = word_brand.on_template(data, branding)
     except (publish.PublishError, docx_build.WordError) as e:
         raise Refused(_made_words(e)) from None
+    except docx_read.WordRefused as e:                 # row 853: the brand's own Word template is not usable
+        raise Refused(TEMPLATE_REFUSED.format(why=str(e).strip())) from None
     digest = hashlib.sha256(data).hexdigest()
     week = published["data"]["project"]["week_ending"]
     local = _usable_local(chosen) if chosen else _usable_local(store.last_publish_folder(code) or "")
