@@ -68,8 +68,8 @@ class ProjectSwitch(Base):
                 p.until("!document.querySelector('#project-menu')", "Esc closed it")
                 p.until("document.activeElement.id === 'project-name'", "focus is back on the name")
 
-    def test_C_the_menu_starts_on_the_open_project(self):
-        """Row 856: focus is on the open project (Enter at once keeps it). Row 1092: the project list is all the menu holds."""
+    def test_C_the_menu_starts_on_the_open_project_and_ends_with_the_projects(self):
+        """Row 856: focus is on the open project (Enter at once keeps it). Row 1092: the last entry is a project, not New project or Project settings."""
         self.rig.httpd.projects = lambda archived=False: [TWO[1], TWO[0]]
         with chrome() as cdp:
             p = self.page(cdp)
@@ -77,6 +77,7 @@ class ProjectSwitch(Base):
             p.until("document.activeElement && document.activeElement.getAttribute('aria-checked') === 'true'", "focus is on the open project")
             self.assertEqual(p.js("document.activeElement.querySelector('b').textContent"), "Harbour Bridge Programme")
             self.assertEqual(p.js("document.querySelectorAll('#project-menu [role^=menuitem]').length"), 2, "the two projects and nothing else")
+            self.assertEqual(p.js("[].slice.call(document.querySelectorAll('#project-menu [role^=menuitem]')).pop().getAttribute('role')"), "menuitemradio")
 
     def test_C_the_counts_are_read_again_each_time_the_menu_opens(self):
         """Work done since the page drew (an item closed or added) shows in the menu's counts without a reload."""
@@ -106,6 +107,7 @@ class ProjectSwitch(Base):
             p.js("document.querySelector('[data-mode=edit]').click()")          # View draws no message on the Dashboard: Edit would show one that came across
             p.until("document.querySelector('#report') && document.querySelector('#report').dataset.mode === 'edit'", "Edit")
             self.assertEqual(p.js("(document.querySelector('.toast-text') || {textContent: ''}).textContent"), "", "no 'Switched to' message: the name is on the screen (#944 ruling)")
+
 
 class TheFileHasNoSwitcher(unittest.TestCase):
     def test_the_published_page_has_no_menu_words(self):

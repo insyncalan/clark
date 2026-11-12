@@ -83,7 +83,7 @@ export function ProfileMenu() {
   const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
     { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
   if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports" });
-  items.push({ id: "settings", name: "Settings", tip: "Settings" });      // row 1092: always here, after Published reports and before the Appearance group (the tab list no longer holds Settings)
+  items.push({ id: "settings", name: "Settings" });      // row 1092: always here, after Published reports and before the Appearance group (the tab list no longer holds Settings); no short word, so the tooltip is as it was
   items.push({ id: "help", name: "Help" });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.

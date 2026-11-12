@@ -42,7 +42,7 @@
   color-scheme: dark;
   --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
   --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
-  --brand-navy: #04202A; --white: #ffffff;
+  --brand-navy: #04202A; --white: #ffffff; --phase-bar: var(--grey-500);
   --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
   --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
   --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;
@@ -62,7 +62,7 @@
     color-scheme: dark;
     --surface: #0E2D38; --grey-50: #08232D; --grey-100: #123846; --grey-200: #1A4454; --grey-300: #2B5868; --grey-500: #7AA3AE; --grey-700: #A9CBD4;
     --brand-ink: #E8FAFC; --heading: #E8FAFC; --text: #E8FAFC; --text-muted: #A9CBD4; --border: #2B5868; --bg: #08232D;
-    --brand-navy: #04202A; --white: #ffffff;
+    --brand-navy: #04202A; --white: #ffffff; --phase-bar: var(--grey-500);
     --status-green: #2FB38F; --status-amber: #F2AC24; --status-red: #E2685A; --status-grey: #7AA3AE;
     --status-green-tint: #0F3A36; --status-amber-tint: #3A2C16; --status-red-tint: #3D1F1B;
     --status-green-text: #5CCBA9; --status-amber-text: #F0B84A; --status-red-text: #F08A7C;

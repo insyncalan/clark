@@ -29,8 +29,8 @@ SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the N
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#856", 'The project menu starts on the open project (row 1092: New project is in Settings, not the menu).',
-     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project"),
+    ("#856", 'The project menu starts on the open project and lists only projects.',
+     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project_and_ends_with_the_projects"),
     ("#855", "In Edit, Ctrl or Cmd + J opens ask clark from anywhere and the button's tooltip names it.",
      "test_help_pr_a::TopBar::test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it"),
     ("#849", 'The Settings switches say their new state in a message with one Undo.',
@@ -137,8 +137,8 @@ COVERED = [
      "test_excel_pre1900::ToCell::test_cell_types_in_the_saved_file"),
     ("#839", "The same date in the client workbook is text, and the Week ending line reads in the same form.",
      "test_excel_pre1900::ClientWorkbook::test_client_sheet_has_text_for_an_old_due_date"),
-    ("#787", "The profile menu lists Settings once: the link or the entry.",
-     "test_profile_menu::ProfileMenu::test_C_settings_is_listed_once_the_link_or_the_entry"),
+    ("#787", "The profile menu has a Settings entry after Published reports.",
+     "test_profile_menu::ProfileMenu::test_C_settings_is_an_entry_after_published_reports_before_appearance"),
     ("#824", "Work items edit in View at both widths, light and dark.",
      "test_work_no_mode::WorkNoMode::test_work_items_edit_in_view_at_both_widths_in_light_and_dark"),
     ("#824", "On a row Enter opens the peek and the arrows walk the cells.",
