@@ -214,6 +214,18 @@ class Fields(Base):
                     self.assertEqual((r["left"], r["radius"], r["bg"], r["beside"]), ("0px", "0px", "rgba(0, 0, 0, 0)", True), str(r))
 
 
+    def test_an_achieved_milestone_reads_achieved_with_its_date_in_the_dashboard_in_view(self):
+        with self.store.step("dashboard", USER) as st:
+            st.update("milestones", GO_LIVE, {"status": "Done", "state": "Achieved", "state_set": 1, "actual_date": "2026-03-04", "percent_complete": 100})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit_peek(cdp, width=width, view="dashboard")
+                self.assertEqual(p.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()"), "Achieved on 04-03-2026")
+                self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit], #peek [data-ms-states]').length"), 0, "View: not the editor")
+                self.assertEqual(p.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].length"), 0, "read only")
+                self.assertEqual(p.js(HEAD), ["state", "owner", "progress"])
+
+
 class Published(unittest.TestCase):
     def test_a_published_file_has_the_same_peek_read_only_and_none_of_the_editors_words(self):
         def rich(plant):
@@ -252,6 +264,27 @@ class Published(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-002')(document.querySelector('#peek'))", sid)))
                 self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Not set")
+
+    def test_an_achieved_milestone_in_a_file_reads_achieved_with_its_date_read_only(self):
+        plant = fx.load()
+        for m in plant["data"]["milestones"]:
+            if m["id"] == "PUB-M-001":
+                m.update(status="Done", state="Achieved", state_set=1, actual_date="2026-03-04", percent_complete=100)
+        pub = publish.select(fx.inputs(plant))
+        text = publish.render(pub, page.page_html(tp.EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+        folder = Path(tempfile.mkdtemp(prefix="clark-1078a-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        from test_server import wait
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head]')", sid)), "the peek drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').textContent.trim()", sid), "Achieved on 04-03-2026")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=state]').className.includes('mst')", sid), True)
+                self.assertEqual(cdp.js(f"[...document.querySelector('#peek .pk-body').querySelectorAll({json.dumps(CONTROLS)})].length", sid), 0, "read only")
+                self.assertEqual(cdp.js(f"{WORDS}(document.querySelector('#peek [data-ms-head=progress]'))", sid), "100%")
 
 
 if __name__ == "__main__":

@@ -36,8 +36,12 @@ class NextClamp(Setup):
                     self.assertLess(m["av"]["right"], m["tx"]["left"] + 1)
                     self.assertLess(m["tx"]["right"], m["id"]["left"] + 1, f"id after the text, same line {tag}")
                     self.assertFalse(p.js("!!clarkPage.peek()"))
+                    want = p.js("document.querySelector('.ucstepl li[data-step] [data-stepid]').textContent.trim()")
+                    self.assertTrue(want)
                     p.js("document.querySelector('.ucstepl li[data-step] .ucstept').click()")
                     p.until("!!clarkPage.peek()", f"a click on the step opened the peek {tag}")
+                    self.assertEqual(p.js("clarkPage.peek().id"), want, f"the peek is the clicked step's item {tag}")
+                    self.assertEqual(p.js("clarkPage.peek().kind"), "item")
 
 
 if __name__ == "__main__":

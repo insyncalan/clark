@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_brand
 
-Test A: git tracks nothing under system/branding/, and .gitignore keeps system/branding/ and comms/ out. (Names are
+Test A: git tracks nothing under branding/, and .gitignore keeps branding/ and comms/ out. (Names are
 guarded by tests/test_no_real_names.py, creaite's rule, which needs no local file and never skips.)
 """
 import shutil
@@ -13,7 +13,8 @@ from pathlib import Path
 
 from _paths import ROOT
 
-BRANDING = "system/branding"
+BRANDING = "branding"
+OLD_BRANDING = "system/branding"          # 1.0.5 and earlier; git must keep ignoring it too (it is left in place by the copy)
 GIT = shutil.which("git")
 
 
@@ -23,8 +24,8 @@ def git(repo, *args):
 
 
 def tracked_branding(repo):
-    """Every path git tracks (or has staged) under system/branding/ in `repo`."""
-    return git(repo, "ls-files", "--", BRANDING).split()
+    """Every path git tracks (or has staged) under branding/ in `repo`."""
+    return git(repo, "ls-files", "--", BRANDING, OLD_BRANDING).split()
 
 
 class NothingTrackedUnderBranding(unittest.TestCase):
@@ -34,12 +35,12 @@ class NothingTrackedUnderBranding(unittest.TestCase):
         self.assertEqual(tracked_branding(ROOT), [], "remove these from git (git rm --cached); they stay on the laptop")
 
     def test_gitignore_keeps_branding_and_comms_out(self):
-        for path in ("system/branding/logo.png", "system/branding/brand.css", "comms/notes.md"):
+        for path in ("branding/logo.png", "branding/brand.css", "system/branding/logo.png", "system/branding/brand.css", "comms/notes.md"):
             done = subprocess.run([GIT, "-C", str(ROOT), "check-ignore", "-q", "--no-index", path])
             self.assertEqual(done.returncode, 0, f"{path} is not ignored")
 
     def test_a_staged_file_is_caught(self):
-        """Proved in a temporary copy: a file forced past .gitignore into system/branding/ is found."""
+        """Proved in a temporary copy: a file forced past .gitignore into branding/ is found."""
         with tempfile.TemporaryDirectory() as tmp:
             git(tmp, "init", "-q")
             shutil.copy(ROOT / ".gitignore", Path(tmp) / ".gitignore")

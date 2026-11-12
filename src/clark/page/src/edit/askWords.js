@@ -44,7 +44,7 @@ export const PILLS_BY_SUBJECT = {
   milestones: ["What is the next milestone?", "Which milestones are late?", "Which milestones are due this month?", "What is holding up the next milestone?", "Which milestones have no work items?", "How many milestones are done?"],
   usecases: ["Which use cases need attention?", "Which use cases are not started?", "Which use cases have open risks?", "Which use cases are done?", "What changed in the use cases this week?", "Which use cases have no owner?"],
   risks: ["Which risks are red?", "Which risks have no owner?", "Which issues are open?", "What changed in the risks this week?", "Which risks are new this week?", "Which risks are due soon?"],
-  gantt: ["What is the next milestone?", "Which work items are running late?", "What is on the critical path?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
+  gantt: ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
 };
 export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
 // Words in a question that name a subject. The first one found in the last question wins.
