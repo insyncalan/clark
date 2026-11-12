@@ -60,13 +60,42 @@ class AskIcons(Base):
             self.assertTrue(all(p.js("[...document.querySelectorAll('.ask-hist-when')].map(e => e.textContent.length > 6)")))
             p.js("document.querySelectorAll('.ask-hist-open')[1].click()")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the old chat is back")
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "opening a chat puts the focus in the question box, not on the page body")
             self.assertEqual(p.js("document.querySelector('.ask-turn.user .ask-text').textContent"), "When is go-live?")
             p.js("document.querySelector('#ask-history').click()")
             p.js("document.querySelectorAll('.ask-hist-del')[1].click()")
             p.until("document.querySelectorAll('#ask-hist li').length === 1", "one chat deleted")
+            p.until("document.activeElement && document.activeElement.classList.contains('ask-hist-del')", "after a delete the focus is on a delete button that is left")
             self.assertEqual(p.js("document.querySelector('.ask-hist-title').textContent"), "Which risks are red?")
             keys = p.js("Object.keys(localStorage).filter(k => k.startsWith('clark.askChats.'))")
             self.assertEqual(len(keys), 1, "kept under one key per project")
+            p.js("document.querySelector('.ask-hist-del').click()")
+            p.until("!!document.querySelector('#ask-hist-empty')", "the last chat deleted")
+            self.assertEqual(p.js("document.activeElement.tagName + ':' + (document.activeElement.closest('#ask-hist') ? 'in' : 'out')"), "H3:in", "with no chat left the focus is on the list heading")
+
+    def test_a_full_store_drops_the_oldest_chats_and_keeps_the_newest(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "First question?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the first answer")
+            p.js("document.querySelector('#ask-new').click()")
+            p.js("""(() => { const k = Object.keys(localStorage).find(x => x.startsWith('clark.askChats.')), big = 'x'.repeat(3000);
+              const mk = (n) => ({id: String(n), at: n, title: 'old ' + n, turns: [{role: 'user', text: 'q'}, {role: 'assistant', text: big}]});
+              localStorage.setItem(k, JSON.stringify(JSON.parse(localStorage.getItem(k)).concat([mk(3), mk(2), mk(1)])));
+              const real = Storage.prototype.setItem;
+              Storage.prototype.setItem = function (k, v) { if (String(k).indexOf('askChats') >= 0 && String(v).length > 8000) throw new Error('QuotaExceededError'); return real.call(this, k, v); }; })()""")
+            self.ask(p, "A brand new question?")
+            p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
+            p.js("document.querySelector('#ask-new').click(); document.querySelector('#ask-history').click()")
+            p.until("!!document.querySelector('#ask-hist')", "the list")
+            titles = p.js("[...document.querySelectorAll('.ask-hist-title')].map(e => e.textContent)")
+            self.assertEqual(titles[0], "A brand new question?", "the newest chat is kept even when the store is full")
+            self.assertLess(len(titles), 5, "older chats were dropped to make room")
+
+    def test_a_blank_first_question_gets_a_dated_title_and_long_answers_are_cut(self):
+        src = (test_ask_panel.ROOT / "src" / "clark" / "page" / "src" / "edit" / "askHistory.js").read_text(encoding="utf-8")
+        self.assertIn("HISTORY_UNTITLED(when(now))", src)
+        self.assertIn("MAX_TEXT", src)
 
 
 if __name__ == "__main__":

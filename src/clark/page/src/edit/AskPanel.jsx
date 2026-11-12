@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -78,9 +78,9 @@ export function AskPanel() {
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
-    let t = null; const deck = []; let last = nextQuip(deck, "");
-    setQuip(last);
-    const tick = () => { t = setTimeout(() => { last = nextQuip(deck, last); setQuip(last); tick(); }, quipDelay()); };
+    let t = null;
+    setQuip(drawQuip());
+    const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
     tick();
     return () => clearTimeout(t);
   }, [busy]);
@@ -145,6 +145,19 @@ export function AskPanel() {
     if (busy) return;
     turns.value = c.turns.map((t) => ({ ...t }));
     chatId.value = c.id; histOpen.value = false; setNote("");
+    setTimeout(() => { if (box.current) box.current.focus(); }, 0);   // the button that was pressed is gone: the focus goes to the question box
+  }
+
+  // The delete button that was pressed is removed with its row: the focus goes to the same place in the list (the next row's delete
+  // button, else the one before), and to the list's heading when no chat is left, never to the page body.
+  function removeChat(c, e) {
+    const rows = Array.from(e.currentTarget.closest("ul").querySelectorAll("li")), at = rows.indexOf(e.currentTarget.closest("li"));
+    deleteChat(c.id);
+    setTimeout(() => {
+      const left = Array.from(document.querySelectorAll("#ask-hist .ask-hist-del"));
+      const to = left[Math.min(at, left.length - 1)] || document.querySelector("#ask-hist h3");
+      if (to) to.focus();
+    }, 0);
   }
 
   async function stop() {
@@ -197,13 +210,13 @@ export function AskPanel() {
       ) : null}
       {showHist ? (
         <div class="ask-hist" id="ask-hist" role="region" aria-label={W.HISTORY_TITLE}>
-          <h3>{W.HISTORY_TITLE}</h3>
+          <h3 tabindex="-1">{W.HISTORY_TITLE}</h3>
           <p class="ask-hist-note">{W.HISTORY_NOTE}</p>
           {saved.length ? (
             <ul>{saved.map((c) => (
               <li key={c.id} data-chat={c.id}>
                 <button type="button" class="ask-hist-open" title={W.HISTORY_OPEN(c.title)} aria-label={W.HISTORY_OPEN(c.title)} onClick={() => openChat(c)}><span class="ask-hist-title">{c.title}</span><span class="ask-hist-when">{when(c.at)}</span></button>
-                <button type="button" class="pkp-btn ask-hist-del" title={W.DELETE} aria-label={W.HISTORY_DELETE(c.title)} onClick={() => deleteChat(c.id)}><Icon name="trash" /></button>
+                <button type="button" class="pkp-btn ask-hist-del" title={W.DELETE} aria-label={W.HISTORY_DELETE(c.title)} onClick={(e) => removeChat(c, e)}><Icon name="trash" /></button>
               </li>
             ))}</ul>
           ) : <p class="ask-hist-empty" id="ask-hist-empty">{W.HISTORY_EMPTY}</p>}

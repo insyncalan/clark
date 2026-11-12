@@ -18,11 +18,16 @@ export function useColWidths(table) {
     const v = recall(key, {});
     return v && typeof v === "object" && !Array.isArray(v) ? v : {};
   });
-  const put = (id, px) => {
-    const next = { ...saved };
+  // The widths as they are now, read from a ref (never from the render a drag started in), so a drag, a key and a double-click
+  // each start from the latest. `keep` false: only the screen changes (a drag in progress); the store is written when it ends.
+  const now = useRef(saved);
+  now.current = saved;
+  const put = (id, px, keep = true) => {
+    const next = { ...now.current };
     if (px === null) delete next[id]; else next[id] = clamp(px);
+    now.current = next;
     setSaved(next);
-    remember(key, next);
+    if (keep) remember(key, next);
   };
   const px = (id) => (Number.isFinite(saved[id]) ? clamp(saved[id]) : null);
   const style = (id) => (px(id) === null ? undefined : { width: `${px(id)}px` });
@@ -31,8 +36,8 @@ export function useColWidths(table) {
       if (e.button) return;
       e.preventDefault();
       const from = e.clientX, was = e.currentTarget.parentElement.getBoundingClientRect().width;
-      const move = (m) => put(id, was + m.clientX - from);
-      const stop = () => { document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", stop); document.removeEventListener("pointercancel", stop); };
+      const move = (m) => put(id, was + m.clientX - from, false);
+      const stop = () => { remember(key, now.current); document.removeEventListener("pointermove", move); document.removeEventListener("pointerup", stop); document.removeEventListener("pointercancel", stop); };
       document.addEventListener("pointermove", move); document.addEventListener("pointerup", stop); document.addEventListener("pointercancel", stop);
     };
     return <span class="cgrip" aria-hidden="true" data-cgrip={id} onPointerDown={start} onClick={(e) => e.stopPropagation()} onDblClick={(e) => { e.stopPropagation(); put(id, null); }}></span>;

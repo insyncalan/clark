@@ -49,6 +49,14 @@ export function nextQuip(deck, prev, rand = Math.random) {
   }
   return QUIPS[deck.pop()];
 }
+// One deck for the whole session of the panel (not one per question), so no quip comes round again until all have been shown,
+// and the one that ended a question never opens the next.
+let deck = [], lastQuip = "";
+/** The next quip to show, drawn from the one deck. */
+export function drawQuip(rand = Math.random) {
+  lastQuip = nextQuip(deck, lastQuip, rand);
+  return lastQuip;
+}
 /** 5 to 10 seconds, in milliseconds. */
 export const quipDelay = (rand = Math.random) => 5000 + Math.floor(rand() * 5001);
 

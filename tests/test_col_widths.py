@@ -112,6 +112,21 @@ class Widths(unittest.TestCase):
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))
 
 
+    def test_a_drag_writes_the_store_once_when_it_ends_and_starts_from_the_latest_width(self):
+        src = (Path(page.__file__).parent / "src" / "edit" / "colWidths.jsx").read_text(encoding="utf-8")
+        self.assertIn("now.current", src, "put reads the latest widths, not the render a drag began in")
+        with chrome() as cdp:
+            sid = self.visit(cdp, 1400, "light", "#usecases&p=TUL")
+            js = lambda e: cdp.js(e, sid)  # noqa: E731
+            grip = "#usecases .ucl-hd [data-cgrip=\"ref\"]"
+            self.assertTrue(wait(lambda: js(f"!!document.querySelector('{grip}')"), 20))
+            x, y = js(f"(() => {{ const b = document.querySelector('{grip}').getBoundingClientRect(); return [b.x + b.width / 2, b.y + b.height / 2]; }})()")
+            for t, px, extra in (("mouseMoved", x, {}), ("mousePressed", x, {"button": "left", "buttons": 1, "clickCount": 1}), ("mouseMoved", x + 20, {"buttons": 1}), ("mouseMoved", x + 40, {"buttons": 1})):
+                cdp.call("Input.dispatchMouseEvent", {"type": t, "x": px, "y": y, **extra}, sid)
+            self.assertIsNone(js("localStorage.getItem('clark.cols.usecases')"), "nothing is written while the drag goes on")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x + 40, "y": y, "button": "left", "buttons": 0, "clickCount": 1}, sid)
+            self.assertIn("ref", js("localStorage.getItem('clark.cols.usecases')") or "", "the width is written when the drag ends")
+
     def test_the_published_page_has_no_handles(self):
         view = (Path(page.__file__).parent / "page-view.html").read_text(encoding="utf-8")
         self.assertNotIn("cgrip", view)

@@ -30,7 +30,7 @@ def func(name):
 
 
 def run_node(body):
-    src = "const QUIPS = " + json.dumps(quips()) + ";\n" + func("quipDeal") + "\n" + func("nextQuip") + "\n" + body
+    src = "const QUIPS = " + json.dumps(quips()) + ";\n" + func("quipDeal") + "\n" + func("nextQuip") + "\nlet deck = [], lastQuip = '';\n" + func("drawQuip") + "\n" + body
     out = subprocess.run(["node", "-e", src], capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
     return json.loads(out.stdout)
@@ -62,8 +62,20 @@ class QuipDeck(unittest.TestCase):
         r = run_node("const first = QUIPS[quipDeal(() => 0).pop()]; console.log(JSON.stringify([first, nextQuip([], first, () => 0)]));")
         self.assertNotEqual(r[0], r[1])
 
+    def test_no_repeat_across_questions(self):
+        # each "question" draws a few quips, as a wait does; the one deck carries on, so 3 passes of 150 never repeat inside a pass
+        r = run_node("const s = []; for (let q = 0; q < 150; q++) { for (let i = 0; i < 3; i++) s.push(drawQuip()); } console.log(JSON.stringify(s));")
+        for k in range(3):
+            self.assertEqual(len(set(r[k * 150:(k + 1) * 150])), 150, "pass %d repeated a quip" % k)
+        self.assertTrue(all(r[i] != r[i + 1] for i in range(449)), "the same quip twice running")
+
+    def test_no_quip_names_a_day_or_uses_office_jargon(self):
+        bad = re.compile(r"monday|tuesday|wednesday|thursday|friday|saturday|sunday|RACI|RAG\b|synerg|leverag|stakeholder|ideat|baselin|sign-off|steering|quorum", re.I)
+        self.assertEqual([x for x in quips() if bad.search(x)], [])
+
     def test_the_panel_deals_from_a_deck_with_5_to_10_seconds(self):
-        self.assertIn("nextQuip(deck, last)", PANEL)
+        self.assertIn("drawQuip()", PANEL)
+        self.assertNotIn("const deck", PANEL, "the deck is not made per question")
         self.assertIn("5000 + Math.floor(rand() * 5001)", STATE)
 
 

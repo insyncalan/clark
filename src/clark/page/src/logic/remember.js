@@ -10,6 +10,7 @@ export function recall(key, fallback) {
   }
 }
 
+/** True when it was kept; false when the store refused it (full, blocked), so a caller that must keep it can try less. */
 export function remember(key, value) {
-  try { window.localStorage.setItem(`clark.${key}`, JSON.stringify(value)); } catch (e) { /* not remembered */ }
+  try { window.localStorage.setItem(`clark.${key}`, JSON.stringify(value)); return true; } catch (e) { return false; }
 }
