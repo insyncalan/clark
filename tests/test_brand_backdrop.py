@@ -209,7 +209,7 @@ class Backdrop(Rig):
 
     def test_the_ask_panel_wash_is_not_printed(self):
         self.brand()
-        with chrome() as cdp:
+        with self.chrome() as cdp:
             p = self.load_app(cdp)
             p.js("document.querySelector('#ask-btn').click()")
             p.until("!!document.querySelector('#ask-panel')", "the panel opened")
