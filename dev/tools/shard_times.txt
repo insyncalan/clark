@@ -726,3 +726,6 @@ test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
 test_section_hint_phone.py 30.0
+test_hostile_h950.py 1.0
+test_synced_folders.py 1.0
+test_synced_refusal_words.py 1.0
