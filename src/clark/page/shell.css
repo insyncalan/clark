@@ -688,6 +688,15 @@ input.sec-title { width: 100%; }
 .pk-row { display: grid; grid-template-columns: 130px 1fr; gap: var(--space-3); padding: var(--d-pk-row-y) 0; border-top: 1px solid var(--grey-100); }
 .pk-row dt { color: var(--text-muted); font-size: var(--size-caption); }
 .pk-row dd { margin: 0; overflow-wrap: anywhere; }
+/* Row 1078: the milestone peek's header line (Peek.jsx MsHead), the published page's too: the state, the owner and the progress on one flat line
+   under the title; the hairline under it is the first row's top edge. The editor puts its controls in the same places (edit.css sizes them). */
+.pk-ms-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2) var(--space-3); margin: 0 0 var(--space-3); font-size: var(--size-small); color: var(--text); }
+.pk-ms-head .mst { font-size: var(--size-small); }
+.pk-ms-sep { color: var(--text-muted); }
+.pk-ms-owner { display: inline-flex; align-items: center; gap: var(--space-2); min-width: 0; overflow-wrap: anywhere; }
+.pk-ms-owner .av { width: auto; min-width: 24px; height: 24px; padding: 0 var(--space-1); box-sizing: border-box; border-radius: 12px; font-size: var(--size-caption); line-height: 1; }   /* the owner's initials at the 13 px floor: two letters widen the circle to a pill (as .cr-wl .wl-meta .av) */
+.pk-ms-head .msl-prog { flex: 1 1 120px; min-width: 120px; }
+.pk-row dd .pk-rich p:last-child { margin-bottom: 0; }   /* the read-only Description and Client wording (Peek.jsx Rich, class pk-rich, drawn in the published peek too): no space under the last paragraph, so a row is as tall as its words */
 .pk-source { margin: var(--space-3) 0 0; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }   /* row 1077: the Source line, in a published file too */
 .pk-source-l { font-weight: var(--weight-medium); }
 .wordsbox { position: sticky; bottom: var(--space-3); z-index: 2; margin-top: 20px; padding: var(--space-3); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); background: var(--surface); box-shadow: var(--shadow); }   /* a card that floats at the foot of its page (the use case page), not a panel below the list (row 776) */
