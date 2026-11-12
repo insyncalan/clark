@@ -103,7 +103,9 @@ class ContainerHost(unittest.TestCase):
             with self.assertRaises(pl.PlatformError) as e:
                 pl.check_data_dir("/data")
         self.assertIn("Google Drive", str(e.exception))
-        self.assertIn("GoogleDrive-a@example.org", str(e.exception))
+        self.assertIn("~/Library/CloudStorage/GoogleDrive/clark", str(e.exception))
+        for raw in ("/Users/sam", "sam", "a@example.org", "GoogleDrive-a"):
+            self.assertNotIn(raw, str(e.exception))
         self.assertNotIn("/data", str(e.exception))
 
     def test_onedrive_wins_over_synced_when_both_are_named(self):
