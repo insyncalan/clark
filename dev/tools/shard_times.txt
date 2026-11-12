@@ -734,3 +734,4 @@ test_section_hint_phone.py 30.0
 test_help_r11_999.py 5.0
 test_help_r11_1074.py 5.0
 test_help_r11_1054.py 5.0
+test_help_r11_1342.py 5.0
