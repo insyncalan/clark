@@ -71,23 +71,27 @@ class ItemRows(unittest.TestCase):
         self.store = self.demo.store
         fill(self.store)
 
-    def check_rows(self, js, where):
+    def check_rows(self, js, where, own=False):
+        """own: View reads each item's own description (row 1099); Edit and the file read the client's wording."""
+        W = {"Cut-over plan to be agreed": "Agree the cut-over plan", "Training room booked for November": "Book the training room",
+             "Supplier delivery may slip": "Supplier may deliver late", "Hosting region to be chosen": "Choose the hosting region"} if own else {}
+        w = lambda t: W.get(t, t)
         actions = js(ROWS % "actions")
         self.assertEqual(len(actions), 2, f"{where}: two open client-visible actions (closed and hidden ones left out): {actions}")
-        self.assertIn("Cut-over plan to be agreed", actions[0], where)
+        self.assertIn(w("Cut-over plan to be agreed"), actions[0], where)
         self.assertIn("Sara Khan", actions[0], where)
         self.assertIn("20-10-2026", actions[0], "dates read DD-MM-YYYY")
-        self.assertIn("Training room booked for November", actions[1], "the client's own wording is shown when there is one")
+        self.assertIn(w("Training room booked for November"), actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and "Supplier delivery may slip" in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == "Red" and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
         self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
         self.assertIn("01-11-2026", raid[0])
         self.assertTrue(raid[1].split("|")[1] == "Green" and raid[1].endswith("|issue") and "Low" in raid[1].split("|")[3], raid[1])
         decisions = js(ROWS % "decisions")
         self.assertEqual(len(decisions), 1, where)
         self.assertIn("Needed by 03-11-2026", decisions[0], where)
-        self.assertIn("Hosting region to be chosen", decisions[0], where)
+        self.assertIn(w("Hosting region to be chosen"), decisions[0], where)
         self.assertNotIn(HIDDEN, js("document.body.innerText"), where)
         self.assertNotIn("ZQ-RESPONSE", js("document.body.innerText"), f"{where}: a risk's working note (response action) is never drawn")
         self.assertEqual(actions[0].split("|")[1], "Overdue", f"{where}: a late action reads Overdue (prototype core.js:202-212)")
@@ -102,7 +106,7 @@ class ItemRows(unittest.TestCase):
             p.ready()
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                self.check_rows(p.js, f"View at {w}")
+                self.check_rows(p.js, f"View at {w}", own=True)
                 self.assertGreater(p.js("document.querySelectorAll('.wl-id').length"), 0, "the team's View keeps the item number")
                 fits = "document.documentElement.scrollWidth <= document.documentElement.clientWidth"
                 self.assertTrue(wait(lambda: p.js(fits)), f"nothing pushes the page sideways at {w}")
@@ -300,6 +304,13 @@ class EditRows(unittest.TestCase):
             p.key("Backspace", code="Backspace", vk=8)
         p.key(ending, code=ending, vk=13 if ending == "Enter" else 27)
 
+    def type_words(self, p, row, text):
+        """Item 1005: a row's wording is the one editor on one line: a click opens it, Enter saves."""
+        p.js(f"document.querySelector({row!r} + ' [data-rich=client_message]').click()")
+        p.until("document.activeElement.classList.contains('ProseMirror')", "the editor opens with the focus in it")
+        p.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); if ({json.dumps(text)}) e.commands.insertContent({json.dumps(text)}); else e.commands.deleteSelection(); }})()")
+        p.key("Enter", code="Enter", vk=13)
+
     def click(self, p, click, done, what):
         """Click, and wait for `done`; a click made in the first moments of a busy page may be lost to the page still starting, so
         it is made again (up to six times). A handler that is not there at all still fails."""
@@ -340,13 +351,13 @@ class EditRows(unittest.TestCase):
             act = "[data-type=actions] .wl-row[data-id=%r]" % id_of(self.store, "Cut-over plan to be agreed")
             self.assertEqual(p.js(f"document.querySelector({act!r} + ' [data-cell$=\":status\"]').dataset.tip"), "Action · Overdue")
             # the client's wording, in place
-            self.type_into(p, row + " [data-f=title]", "Supplier delivery may slip by a week")
+            self.type_words(p, row, "Supplier delivery may slip by a week")
             mine = self.stored("raid", "client_message", "Supplier delivery may slip by a week")
             self.assertEqual(mine["description"], "Supplier may deliver late", "the team's own text is untouched")
             # the store has it before the page has read it again: wait for the row to draw what clark saved
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
-            self.type_into(p, row + " [data-f=title]", "", ending="Enter")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
-            p.until(f"document.querySelector({row!r} + ' [data-f=title]').textContent === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
+            p.until(f"document.querySelector({row!r} + ' [data-rich=client_message]').textContent.trim() === 'Supplier delivery may slip by a week'", "the row draws the saved wording")
+            self.type_words(p, row, "")                  # a blank wording clears it (row 893; test_clear_wording_in_place)
+            p.until(f"document.querySelector({row!r} + ' [data-rich=client_message]').textContent.trim() === 'Supplier may deliver late'", "a cleared wording falls back to the item's title")
             # the owner, through its own picker
             p.js(f"document.querySelector({act!r} + ' [data-cell$=\":owner\"]').click()")
             p.until("!!document.querySelector('.menu, .cp, [role=dialog]')", "the owner picker opened")
@@ -436,7 +447,7 @@ class EditRows(unittest.TestCase):
         parts = {
             "view": [("[data-type=raid] .wl-row .c-ico .ico", None), ("[data-type=raid] .wl-row .wl-title", "--text"),
                      ("[data-type=raid] .wl-row .c-date", None), ("[data-type=raid] .wl-row .idl", "--status-blue-text")],
-            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .ico", None), ("[data-item-rows=raid] .wl-row [data-f=title]", "--text"),
+            "edit": [("[data-item-rows=raid] .wl-row [data-cell$=':status'] .ico", None), ("[data-item-rows=raid] .wl-row [data-rich=client_message]", "--text"),
                      ("[data-item-rows=raid] .wl-row [data-cell$=':owner']", None), ("[data-item-rows=raid] .wl-row [data-eye]", None),
                      ("[data-item-rows=raid] .wl-row .idl", "--status-blue-text"), ("[data-item-rows=raid] [data-showing]", "--text-muted")],
         }

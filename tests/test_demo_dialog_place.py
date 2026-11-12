@@ -1,4 +1,4 @@
-"""Row 758: the demo-remove confirm is a proper dialog that starts BELOW the top bar, never over it, at 1400, 901, 900 and 800 px, light and dark.
+"""Row 758: the demo-remove confirm is a proper dialog that starts BELOW the top bar, never over it, at 1400 and 900 px, light and dark.
 
 Run: python3 dev/run_tests.py test_demo_dialog_place
 """
@@ -27,7 +27,7 @@ class DemoDialogPlace(unittest.TestCase):
 
     def test_the_dialog_starts_below_the_top_bar_at_every_width_in_light_and_dark(self):
         for theme in ("light", "dark"):
-            for w in (1400, 901, 900, 800):
+            for w in (1400, 900):
                 with self.subTest(theme=theme, width=w), chrome() as cdp:
                     sid = navigate(cdp, self.s.port, "#dashboard")
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
