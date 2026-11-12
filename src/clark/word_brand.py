@@ -42,6 +42,49 @@ def body_sect(doc):
                 return doc[m.start():stop]
     return None
 RELS = "word/_rels/document.xml.rels"
+# Client-leak hunt B4: parts of the template the report never draws and the client must never get: review comments (and who made them),
+# custom properties (a sensitivity label, an internal id), the template's first-page preview picture, custom XML and the glossary.
+# The template's own look (page set-up, headers, footers, styles, theme, pictures) is kept.
+DROPPED = re.compile(r"^(word/(comments\w*|people)\.xml|word/glossary/.+|docProps/(custom\.xml|thumbnail\..+)|customXml/.+)$")
+RELATIONSHIP = re.compile(r"<Relationship\b[^>]*?/>")
+OVERRIDE = re.compile(r"<Override\b[^>]*?/>")
+
+
+def _target_of(rels_name, target):
+    """The part a relationship in `rels_name` names (inside the file), as a part name."""
+    src = rels_name.replace("_rels/", "", 1) if rels_name.startswith("_rels/") else rels_name.replace("/_rels/", "/", 1)
+    base = src[:-len(".rels")].rsplit("/", 1)[0] if "/" in src[:-len(".rels")] else ""
+    path = target.lstrip("/") if target.startswith("/") else (base + "/" + target if base else target)
+    out = []
+    for seg in path.replace("\\", "/").split("/"):
+        if seg == "..":
+            out and out.pop()
+        elif seg and seg != ".":
+            out.append(seg)
+    return "/".join(out)
+
+
+def _drop_unwanted(out):
+    """Take the DROPPED parts out of `out` (name -> bytes), with the relationships and content types that name them and the
+    relationships files of the parts that went, so nothing left points at a part that is gone."""
+    gone = {n for n in out if DROPPED.search(n)}
+    if not gone:
+        return
+    for n in gone:
+        del out[n]
+    for n in [n for n in out if n.endswith(".rels")]:
+        owner = n.replace("_rels/", "", 1)[:-len(".rels")] if n.startswith("_rels/") else n.replace("/_rels/", "/", 1)[:-len(".rels")]
+        if owner in gone:
+            del out[n]
+            continue
+        text = out[n].decode("utf-8")
+        kept = RELATIONSHIP.sub(lambda m: "" if (re.search(r'TargetMode="External"', m.group(0)) is None
+                                                 and _target_of(n, (re.search(r'Target="([^"]*)"', m.group(0)) or [None, ""])[1]) in gone)
+                                else m.group(0), text)
+        out[n] = kept.encode("utf-8")
+    types = out["[Content_Types].xml"].decode("utf-8")
+    out["[Content_Types].xml"] = OVERRIDE.sub(lambda m: "" if (re.search(r'PartName="/([^"]*)"', m.group(0)) or [None, ""])[1] in gone
+                                              else m.group(0), types).encode("utf-8")
 
 
 def find(branding):
@@ -149,7 +192,8 @@ def wrap(template, built):
     for n in ("docProps/core.xml", "docProps/app.xml"):         # the file's author and company are clark's, never the template's
         if n in parts and n in mine:
             out[n] = mine[n]
-    order = [i.filename for i in infos]
+    _drop_unwanted(out)
+    order = [i.filename for i in infos if i.filename in out]
     order += [n for n in out if n not in parts]
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as w:
