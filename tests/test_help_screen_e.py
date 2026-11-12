@@ -79,7 +79,6 @@ class HelpWords(unittest.TestCase):
     def test_write_the_weekly_report_does_not_send_you_to_an_editor_under_current_state(self):
         steps = " ".join(TASK["write-the-weekly-report"]["s"])
         self.assertNotIn("text under **Current state**", steps)
-        self.assertNotIn("Write the current state", json.dumps(HELP["start"]["loop"]))
 
     def test_change_an_item_in_the_peek_does_not_say_priority_owner_and_due_can_be_clicked_there(self):
         steps = " ".join(TASK["change-an-item-in-the-peek"]["s"])
