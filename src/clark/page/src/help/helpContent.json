@@ -302,7 +302,7 @@
     ],
     "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
     "page": [
-     "settings"
+     "settings#export"
     ]
    },
    {
@@ -865,6 +865,7 @@
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
      "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
+     "Keep clark on the Mac and use Docker only to show it. Connect, ask clark, the brand zip and the file and folder windows need clark to run on the Mac itself. In the clark folder, open two Terminal windows. In the first type `bash docker/front.command server` and leave it open. In the second type `bash docker/front.command`, then open localhost:8766 in Chrome. To stop, type `bash docker/front.command stop` in the second window and press Control-C in the first. If the page cannot be reached, type the first command again. If Docker is a problem, `bash clark.command` does the same without it.",
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
