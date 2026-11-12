@@ -1908,7 +1908,7 @@
        ],
        [
         "Quit",
-        "Quit clark asks you to confirm, then stops clark. Nothing is left running, so you do not need a Terminal window to end it. To start it again, double-click clark.command in the clark folder (with Docker, start it the way you did before)."
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it. It asks first: “Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.” Press **Quit clark** to confirm or **Cancel** to stay. After it stops, the page says how to start clark again."
        ]
       ]
      ]
