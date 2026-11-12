@@ -25,6 +25,9 @@ export function Data() {
           {data.value ? null : <p class="muted dc-note" id="import-why">{L.IMPORT_NEEDS_PROJECT}</p>}
         </div>
         <div>
+          <button type="button" class="btn gb" id="excel-layout" data-excel-layout onClick={(e) => openBox("layout", { opener: e.currentTarget })}><Icon name="doc" />{L.DATA.layout}</button>
+        </div>
+        <div>
           <button type="button" class="btn gb" id="word-export" data-word-export disabled={!data.value} aria-describedby={data.value ? undefined : "word-export-why"} onClick={() => openExport()}><Icon name="dl" />{L.DATA.wordExport}</button>
           {data.value ? null : <p class="muted dc-note" id="word-export-why">{L.IMPORT_NEEDS_PROJECT}</p>}
         </div>

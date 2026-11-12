@@ -100,7 +100,7 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 36))   # with the Feedback entry (#1069), with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446), and Excel file layout (#951), and the Feedback entry (#1069)
         self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 30))
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):

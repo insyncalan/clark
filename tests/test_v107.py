@@ -24,6 +24,8 @@ SCHEMA = 20              # 1.0.6 ended at layout 20; 1.0.7 stays at 20
 COVERED = [
     ('836', 'Settings has a Quit card with one button, Quit clark, that says Stopping clark. You can close this window.',
      'test_quit_card::Card::test_one_click_quits_once_and_says_so'),
+    ('999', 'Two projects with different brands each get their own colours in the web page, the Excel and Word files and the PDF; Generic stays plain.',
+     'test_brand_isolation::Word::test_each_brand_colours_its_own_word_file_and_not_the_others'),
     ('1023', 'A brand cover picture shows faintly behind every page, and nothing is drawn without one.',
      'test_brand_backdrop::Backdrop::test_every_app_page_has_the_brand_picture_fixed_behind_it'),
     ('1057', 'In a work item peek the words box stays at the bottom while the peek scrolls.',
@@ -55,6 +57,7 @@ COVERED = [
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
 BULLET_STARTS = {
     '836': 'Settings has a Quit card.',
+    '999': 'Each project now uses its own brand in everything clark makes',
     '1023': "A brand's cover picture now shows faintly behind every page",
     '1057': "In a work item's peek, the box for your words stays at the bottom while the peek scrolls.",
     '1059': 'The type buttons (All, Actions, Risks and issues, Decisions) and the status buttons (Open, Closed, All) above the list are gone.',
