@@ -4,8 +4,8 @@ import { useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
-const ASK = "Quit clark now? Nothing is left running. To start it again, open clark the way you did before.";
-const AGAIN = "To start clark again, open it the way you did before.";
+const ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
+const AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
 const FAILED = "Quitting did not work. Try again.";
 
 // {status, body}: never a throw; a status of 0 is "no answer".
