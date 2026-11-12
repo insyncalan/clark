@@ -168,6 +168,21 @@ class Owner(unittest.TestCase):
         self.assertEqual(self.row()["owner_id"], self.anna)
         self.assertEqual(self.counts(), before)
 
+    def hand_step(self, writes):
+        """One step written straight to the store on the dashboard's route: writes is [(use case, fields)]."""
+        with self.s.step("dashboard", USER) as st:
+            for ref, fields in writes:
+                st.update("use_cases", ref, fields)
+            return st.apply_id()
+
+    def test_a_link_beside_the_owner_text_of_another_use_case_is_not_undone_from_here(self):
+        with self.s.step("dashboard", USER) as st:
+            other = st.create("use_cases", {"project": "ABC", "title": "Second case", "status": "On track", "source": "demo"})
+        step = self.hand_step([(self.uc, {"owner_id": self.anna}), (other, {"owner": "Anna Example"})])
+        status, undone = self.undo({"project": "ABC", "apply_id": step})
+        self.assertNotEqual((status, undone.get("ok")), (200, True), undone)
+        self.assertEqual(self.row()["owner_id"], self.anna, "nothing was put back")
+
     def test_an_archived_use_case_is_not_edited(self):
         con = sqlite3.connect(str(self.s.path))
         con.execute("UPDATE use_cases SET archived = 1 WHERE id = ?", (self.uc,))
