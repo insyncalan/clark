@@ -76,6 +76,7 @@ class DeleteItem(board.Base):
                     self.readable(cdp, sid, ".toast .toast-text, .toast [data-undo]", where + " toast")
                     click(cdp, sid, "[data-undo]")
                     self.until(cdp, sid, f"!!document.querySelector(\"{ROW % a}\")", f"{where}: the row to come back")
+                    self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"{a} is back.", where)
                     self.assertEqual(len(self.query("SELECT 1 FROM actions WHERE id = ?", a)), 1, where)
                     self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), where)
 
