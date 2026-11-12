@@ -157,6 +157,23 @@ class Fields(Base):
             self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Use cases", "Visible to client", "Client wording"], "the Achieved on row comes with the state")
             self.assertEqual(self.sent[-1][1]["changes"]["percent_complete"], 100)
 
+    def test_the_use_cases_row_lists_the_use_cases_linked_directly_read_only(self):
+        """Row 1107: Use cases lists the ones linked straight to this milestone, and a milestone with none says a dash; no link controls."""
+        from clark import store as sm
+        with self.store.step("dashboard", USER) as st:
+            linked = st.create("use_cases", {"project": "ABC", "title": "Invoice matching", "status": "On track", "source": "demo"})
+            st.create("use_cases", {"project": "ABC", "title": "Badge printing", "status": "On track", "source": "demo"})
+            sm.link_use_case_milestone(st, linked, PILOT)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.visit_peek(cdp, ms=PILOT, width=width)
+                row = "#peek [data-ms-row=use_cases]"
+                self.assertEqual(p.js(f"document.querySelector('{row} [data-ms-ucs]').textContent.trim()"), "Invoice matching", "only the linked use case")
+                self.assertEqual(p.js(f"document.querySelectorAll('{row} {CONTROLS.replace(', ', ', ' + row + ' ')}').length"), 0, "read only: no link controls")
+            with self.subTest(width=width, other="none linked"), chrome() as cdp:
+                p = self.visit_peek(cdp, ms=GO_LIVE, width=width)
+                self.assertEqual(p.js("document.querySelector('#peek [data-ms-ucs]').textContent.trim()"), "\u2014")
+
     def test_client_wording_is_the_one_rich_editor_with_one_undo(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
