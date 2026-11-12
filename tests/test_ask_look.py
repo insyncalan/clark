@@ -229,6 +229,12 @@ class Look(Base):
                     self.assertTrue(box["svg"])
                     self.assertGreaterEqual(box["left"], box["boxRight"] - 1, f"{what}: beside the field")
                     self.assertLess(float(box["op"]), 1, f"{what}: looks disabled while empty")
+                    # row 1096: a round arrow in the brand colour (the pill token), not a grey square
+                    self.assertGreaterEqual(float(box["radius"].split()[0].rstrip("px%")) * (box["sh"] / 100 if box["radius"].endswith("%") else 1), box["sh"] / 2 - 0.5, f"{what}: the send button is round ({box['radius']})")
+                    token = p.js("(function(){var d=document.createElement('div');d.style.backgroundColor='var(--pill-color)';document.body.appendChild(d);var c=getComputedStyle(d).backgroundColor;d.remove();return c;})()")
+                    self.assertEqual(box["bg"], token, f"{what}: the send button is the brand colour")
+                    chans = [float(x) for x in re.findall(r"[\d.]+", box["bg"])[:3]]
+                    self.assertGreater(max(chans) - min(chans), 40, f"{what}: the brand colour, not grey ({box['bg']})")
                     p.js("(function(){var b=document.querySelector('#ask-box');b.value='a very long question '.repeat(20);b.dispatchEvent(new Event('input',{bubbles:true}));})()")
                     p.until("!document.querySelector('#ask-pills')", f"{what}: suggestions gone while typing")
                     self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44, f"{what}: a long question stays one line")
