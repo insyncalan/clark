@@ -110,7 +110,7 @@ function Progress({ m }) {
     <span class="pk-ms-progress">
       <input type="range" min="0" max="100" step="1" value={shown === "" ? 0 : Number(shown)} aria-label={`Progress of ${m.id}`} data-ms-range
         onInput={(e) => setTyped(e.currentTarget.value)} onChange={(e) => commit(e.currentTarget.value)} />
-      <input type="text" inputMode="numeric" class="pk-ms-num" key={again} value={shown} maxLength={3} aria-label={`Progress of ${m.id}, a number from 0 to 100`} data-ms-num
+      <input type="text" inputMode="numeric" class="pk-ms-num" key={again} value={shown} maxLength={3} placeholder={DASH} aria-label={`Progress of ${m.id}, a number from 0 to 100`} data-ms-num
         onInput={(e) => setTyped(e.currentTarget.value)} onBlur={(e) => commit(e.currentTarget.value)}
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(e.currentTarget.value); } else if (e.key === "Escape") { e.stopPropagation(); setTyped(null); } }} />
     </span>

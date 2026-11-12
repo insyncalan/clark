@@ -105,6 +105,7 @@
 .pk-ms-progress { display: flex; align-items: center; gap: var(--space-2); }
 .pk-ms-progress input[type="range"] { flex: 1; min-width: 0; }
 .pk-ms-num { width: 4em; min-height: 28px; box-sizing: border-box; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.pk-ms-num::placeholder { color: var(--text-muted); opacity: 1; }
 .pk-ms-select { max-width: 100%; min-height: 28px; padding: 2px 6px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .pk-latest-hint, .pk-latest-err { margin: 4px 0 0; font-size: var(--size-small); }
 .pk-latest-hint { color: var(--text-muted); }
