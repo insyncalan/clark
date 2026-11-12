@@ -159,8 +159,12 @@ class Owner(unittest.TestCase):
         con.execute("UPDATE use_cases SET archived = 1 WHERE id = ?", (self.uc,))
         con.commit()
         con.close()
+        before = self.counts()
         status, body = self.edit({"owner": "Anna Example"})
         self.assertNotEqual(status, 200)
+        self.assertEqual(body.get("message"), changes.ARCHIVED_USE_CASE, "the fixed archived words, not a generic refusal from the store")
+        self.assertIsNone(self.row()["owner"])
+        self.assertEqual(self.counts(), before)
 
     def test_hostile_input_fuzz_is_either_clean_text_or_a_refusal_and_the_table_survives(self):
         import random
