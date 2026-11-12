@@ -34,15 +34,26 @@ NAME = re.compile(r'[^\\/:*?"<>|\x00-\x1f]{1,120}')      # what the page accepts
 # some 30,000 rows of client text, far past any report.
 MAX_WORKBOOK_BYTES = 1_500_000
 
-# One line to change when the brand palette reaches the export: pass the brand's colours here (the committed ones for now).
+# The committed colours; a call takes the project's brand palette instead (row 999: `palette=`, per call, no module state).
 PALETTE = {"fill": colours.HEADER_FILL, "text": colours.HEADER_TEXT}
 
 FONT = excel.OFFICE_FONT
 BODY = Font(name=FONT, size=11)
-HEAD = Font(name=FONT, size=11, bold=True, color=PALETTE["text"])
-TITLE = Font(name=FONT, size=16, bold=True, color=PALETTE["text"])
-SUB = Font(name=FONT, size=11, color=PALETTE["text"])
-HEAD_FILL = PatternFill("solid", fgColor=PALETTE["fill"])
+
+
+def styles(palette=None):
+    """(head font, title font, sub font, header fill) for a palette {"fill", "text"}: the committed one when None."""
+    p = palette or PALETTE
+    return (Font(name=FONT, size=11, bold=True, color=p["text"]), Font(name=FONT, size=16, bold=True, color=p["text"]),
+            Font(name=FONT, size=11, color=p["text"]), PatternFill("solid", fgColor=p["fill"]))
+
+
+def palette_of(branding):
+    """The {"fill", "text"} of the branding folder's look (the committed pair for a folder with none): the same reader as the
+    local workbook, so the pair that fails 4.5:1 reverts."""
+    from clark import excel_palette
+    pal = excel_palette.palette(branding=branding)
+    return {"fill": pal.header_fill, "text": pal.header_text}
 
 # (header, field, width) per table: only fields the file carries (publish.PUBLISH_FIELDS). Headers are the export's own.
 COLUMNS = {
@@ -83,7 +94,9 @@ def plain(value):
 def value_of(table, row, field):
     if field == "_words":
         own = row.get(OWN_TEXT[table])
-        return (row.get("client_message") or "").strip() or (sanitise.rich_plain_text(own) if (table, OWN_TEXT[table]) in LEGACY_RICH else own)
+        said = row.get("client_message")
+        words = (sanitise.rich_plain_text(said) if (table, "client_message") in LEGACY_RICH else (said or "")).strip()     # row 1078: a milestone's client wording is rich too
+        return words or (sanitise.rich_plain_text(own) if (table, OWN_TEXT[table]) in LEGACY_RICH else own)
     if (table, field) in LEGACY_RICH:                  # row 1005: the editor's HTML, or the plain text an older clark stored
         return sanitise.rich_plain_text(row.get(field))
     if field in RICH:
@@ -122,7 +135,8 @@ def columns(table):
     return cols
 
 
-def write_sheet(wb, published, table):
+def write_sheet(wb, published, table, palette=None):
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
     ws = wb.create_sheet(excel.SHEET_OF[table])
     cols = columns(table)
     editor_locked = excel.locked_fields(EDITOR_LOCKED[table])
@@ -157,10 +171,11 @@ def write_sheet(wb, published, table):
     return ws
 
 
-def write_gantt_sheet(wb, published):
+def write_gantt_sheet(wb, published, palette=None):
     """The Gantt sheet (row 926), from publish.gantt_for_client's output alone (published["data"]["gantt"]): its lines are the eye-on
     lines only, with the hidden columns already not in them, dependencies and parents already cleaned. Days and Status are worked out
     from the start, end and Done %, which are never hidden. The sheet is the tab's name, and every cell is locked."""
+    HEAD, TITLE, SUB, HEAD_FILL = styles(palette)
     g = published["data"]["gantt"]
     fields = set(g["columns"]) | {"_days", "_status"}
     cols = [(label, f, excel.GANTT_WIDTHS.get(f, 12)) for label, f in excel.GANTT_SHEET_COLUMNS if f in fields]
@@ -193,14 +208,14 @@ def write_gantt_sheet(wb, published):
     return ws
 
 
-def workbook_bytes(published):
+def workbook_bytes(published, palette=None):
     """The client workbook as .xlsx bytes (the same bytes for the same published content)."""
     wb = Workbook()
     wb.remove(wb.active)
     for table in sheet_tables(published):
-        write_sheet(wb, published, table)
-    if (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client)
-        write_gantt_sheet(wb, published)
+        write_sheet(wb, published, table, palette)
+    if "gantt" in published.get("tabs", ()) and (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client); row 1068: a table section's copy has no tab and no tab name, so no sheet
+        write_gantt_sheet(wb, published, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone
         ws = wb.create_sheet(excel.SHEET_OF["actions"])
@@ -227,10 +242,10 @@ def file_name(published):
     return platform.safe_name(f"{project.get('code') or 'report'}-report-{project.get('week_ending') or published['as_at']}.xlsx")
 
 
-def embed(published):
+def embed(published, palette=None):
     """What the page's data holds for the workbook: {"client_workbook": {"name", "base64"}} or, over the cap,
     {"client_workbook_too_large": True}."""
-    data = workbook_bytes(published)
+    data = workbook_bytes(published, palette)
     if len(data) > MAX_WORKBOOK_BYTES:
         return {"client_workbook_too_large": True}
     name = file_name(published)

@@ -211,10 +211,15 @@ export function oneLine(x) {
   return text(x).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ").split(/\s+/).filter(Boolean).join(" ");
 }
 
+/** encodeURIComponent that tolerates half an emoji (a lone surrogate from a cut paste): it becomes U+FFFD instead of throwing. */
+function enc(x) {
+  return encodeURIComponent(text(x).replace(/[\ud800-\udbff](?![\udc00-\udfff])|(?<![\ud800-\udbff])[\udc00-\udfff]/g, "\ufffd"));
+}
+
 /** The mail link for Open in your mail app, only when the finished link fits MAILTO_LIMIT; else the words. */
 export function mailLink(draft, limit) {
   if (blocked(draft)) return { href: "", message: blocked(draft) };
-  const href = `mailto:${encodeURIComponent(oneLine(draft.to))}?subject=${encodeURIComponent(oneLine(draft.subject))}&body=${encodeURIComponent(text(draft.text))}`;
+  const href = `mailto:${enc(oneLine(draft.to))}?subject=${enc(oneLine(draft.subject))}&body=${enc(draft.text)}`;
   if (href.length > (limit || MAILTO_LIMIT)) return { href: "", message: MAIL_TOO_LONG };
   return { href, message: "" };
 }

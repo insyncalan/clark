@@ -9,6 +9,9 @@ from unittest import mock
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+import _paths  # noqa: F401
+import _signing
+
 spec = importlib.util.spec_from_file_location("check_release_assets", ROOT / "dev" / "tools" / "check_release_assets.py")
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
@@ -144,6 +147,18 @@ class Check(unittest.TestCase):
         late04 = [{"name": "clark-0.4.0-mac.zip", "size": 5, "created_at": "2026-11-02T10:30:00Z"}]
         self.assertEqual(mod.problems([good("v0.4.0", assets=late04)]), [])            # the 0.3.0 and 0.4.0 gap is history
 
+    def test_attach_order_compares_moments_not_text(self):
+        def zip_at(when):
+            return [{"name": "clark-0.5.0-mac.zip", "size": 5, "created_at": when}]
+        # 11:30 at +04:00 is 07:30Z, before the 10:00Z publish: not late, though the text sorts after it
+        self.assertEqual(mod.problems([good("v0.5.0", assets=zip_at("2026-11-02T11:30:00+04:00"))]), [])
+        # 13:30 at +04:00 is 09:30Z, before: not late
+        self.assertEqual(mod.problems([good("v0.5.0", published_at="2026-11-02T10:00:00Z", assets=zip_at("2026-11-02T13:30:00+04:00"))]), [])
+        # 10:30Z attached, published 14:00 at +04:00 (10:00Z): late, though the text sorts before it
+        out = mod.problems([good("v0.5.0", published_at="2026-11-02T14:00:00+04:00", assets=zip_at("2026-11-02T10:30:00Z"))])
+        self.assertEqual(len(out), 1)
+        self.assertIn("attached after the release was published", out[0])
+
     def test_the_command_reads_every_page_of_releases(self):
         pages = [mock.Mock(returncode=0, stdout=json.dumps([good(f"v0.5.{i}") for i in range(100)])),
                  mock.Mock(returncode=0, stdout=json.dumps([good("v0.4.0")]))]
@@ -268,6 +283,121 @@ class Check(unittest.TestCase):
         step = [l for l in text.splitlines() if l.startswith("20. ")][0]
         self.assertIn("--repo owner/name", step)
         self.assertIn("--repo owner/name", mod.__doc__)
+
+
+class Signature(unittest.TestCase):
+    """From the day the app holds a real release key, a release without a verifying clark-X.Y.Z-mac.zip.sig fails the check."""
+    ZIP = b"PK pretend download bytes"
+
+    def release(self, sig=True, tag="v0.5.0"):
+        rel = good(tag)
+        v = tag.lstrip("v")
+        rel["assets"] = [dict(rel["assets"][0], id=1)] + ([{"name": f"clark-{v}-mac.zip.sig", "size": 64, "id": 2}] if sig else [])
+        return rel
+
+    def fetch(self, seed=None):
+        sig = _signing.signature_for(self.ZIP, seed or _signing.TEST_SEED)
+        return lambda asset: self.ZIP if asset["id"] == 1 else sig
+
+    def test_a_release_with_a_verifying_sig_passes(self):
+        self.assertEqual(mod.problems([self.release()], None, [], self.fetch(), _signing.TEST_PUBLIC), [])
+
+    def test_a_release_without_its_sig_fails_when_the_key_is_real(self):
+        out = mod.problems([self.release(sig=False)], None, [], self.fetch(), _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out[0])
+        self.assertIn("step 7a", out[0])
+
+    def test_a_sig_made_with_another_key_or_over_other_bytes_fails(self):
+        out = mod.problems([self.release()], None, [], self.fetch(_signing.OTHER_SEED), _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("does not verify", out[0])
+        self.assertIn("badsig", out[0])
+        wrong_len = lambda asset: self.ZIP if asset["id"] == 1 else b"short"
+        self.assertEqual(len(mod.problems([self.release()], None, [], wrong_len, _signing.TEST_PUBLIC)), 1)
+
+    def test_a_sig_or_zip_that_cannot_be_downloaded_fails(self):
+        out = mod.problems([self.release()], None, [], lambda asset: None, _signing.TEST_PUBLIC)
+        self.assertEqual(len(out), 1)
+        self.assertIn("could not be downloaded", out[0])
+
+    def test_no_sig_is_asked_for_while_the_key_is_the_placeholder(self):
+        self.assertEqual(mod.problems([self.release(sig=False)], None, []), [])
+        self.assertEqual(mod.problems([self.release(sig=False)], None, [], self.fetch()), [])
+
+    def test_releases_before_0_5_0_are_not_asked_for_a_sig(self):
+        self.assertEqual(mod.problems([self.release(sig=False, tag="v0.4.0")], None, [], self.fetch(), _signing.TEST_PUBLIC), [])
+
+    def test_the_command_fails_a_release_without_its_sig_when_the_key_is_real(self):
+        out = io.StringIO()
+        run = mock.Mock(returncode=0, stdout=json.dumps([self.release(sig=False)]))
+        with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", _signing.TEST_PUBLIC), \
+                contextlib.redirect_stdout(out):
+            self.assertEqual(mod.main(["v0.5.0"]), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out.getvalue())
+
+
+class FirstSigned(unittest.TestCase):
+    """FIRST_SIGNED is the moment the release key went live: the no-argument check asks a .sig only of releases published after it."""
+    LIVE = "2026-11-05T00:00:00Z"
+
+    def release(self, tag, published, sig=False):
+        rel = good(tag, published_at=published)
+        v = tag.lstrip("v")
+        rel["assets"] = [dict(rel["assets"][0], id=1)] + ([{"name": f"clark-{v}-mac.zip.sig", "size": 64, "id": 2}] if sig else [])
+        return rel
+
+    def check(self, releases, tags=None):
+        with mock.patch.object(mod, "FIRST_SIGNED", self.LIVE):
+            return mod.problems(releases, tags, [], None, _signing.TEST_PUBLIC)
+
+    def test_the_constant_exists_and_is_empty_until_the_key_is_real(self):
+        self.assertEqual(mod.FIRST_SIGNED, "")
+        self.assertIn("RELEASE_PUBLIC_KEY", (ROOT / "dev" / "tools" / "check_release_assets.py").read_text(encoding="utf-8"))
+
+    def test_an_unset_constant_asks_every_release_from_0_5_0_for_a_sig(self):
+        old = self.release("v0.5.0", "2026-11-02T10:00:00Z")
+        self.assertEqual(len(mod.problems([old], None, [], None, _signing.TEST_PUBLIC)), 1)
+
+    def test_a_release_published_before_the_key_went_live_needs_no_sig(self):
+        self.assertEqual(self.check([self.release("v0.5.0", "2026-11-02T10:00:00Z")]), [])
+
+    def test_an_offset_time_is_compared_as_the_moment_it_is(self):
+        # 2026-11-05T02:00:00+04:00 is 2026-11-04T22:00:00Z: before the key went live, so no sig. As a raw string it sorts after.
+        self.assertEqual(self.check([self.release("v0.5.0", "2026-11-05T02:00:00+04:00")]), [])
+        # 2026-11-04T22:00:00-04:00 is 2026-11-05T02:00:00Z: after, so the sig is asked (raw string sorts before).
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-04T22:00:00-04:00")])), 1)
+
+    def test_a_bare_date_is_midnight_utc(self):
+        self.assertEqual(self.check([self.release("v0.5.0", "2026-11-04")]), [])
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-06")])), 1)
+
+    def test_a_time_that_is_not_a_time_fails_closed_and_does_not_crash(self):
+        for bad in (20261104, ["2026-11-04T00:00:00Z"], {"a": 1}, "yesterday", "", None, 1.5):
+            with self.subTest(bad=bad):
+                self.assertEqual(len(self.check([self.release("v0.5.0", bad)])), 1)
+
+    def test_exactly_the_moment_the_key_went_live_is_exempt_and_one_second_later_is_not(self):
+        self.assertEqual(self.check([self.release("v0.5.0", self.LIVE)]), [])
+        self.assertEqual(len(self.check([self.release("v0.6.0", "2026-11-05T00:00:01Z")])), 1)
+
+    def test_a_release_published_after_the_key_went_live_needs_its_sig(self):
+        out = self.check([self.release("v0.6.0", "2026-11-06T10:00:00Z")])
+        self.assertEqual(len(out), 1)
+        self.assertIn("no clark-0.6.0-mac.zip.sig", out[0])
+        self.assertEqual(self.check([self.release("v0.6.0", "2026-11-06T10:00:00Z", sig=True)]), [])
+
+    def test_a_tag_named_on_the_command_line_is_still_asked_for_its_sig(self):
+        out = self.check([self.release("v0.5.0", "2026-11-02T10:00:00Z")], {"v0.5.0"})
+        self.assertEqual(len(out), 1)
+        self.assertIn("no clark-0.5.0-mac.zip.sig", out[0])
+
+    def test_the_no_argument_command_passes_an_older_unsigned_release(self):
+        run = mock.Mock(returncode=0, stdout=json.dumps([self.release("v0.5.0", "2026-11-02T10:00:00Z")]))
+        out = io.StringIO()
+        with mock.patch.object(mod.subprocess, "run", return_value=run), mock.patch.object(mod.updates, "RELEASE_PUBLIC_KEY", _signing.TEST_PUBLIC), \
+                mock.patch.object(mod, "FIRST_SIGNED", self.LIVE), contextlib.redirect_stdout(out):
+            self.assertEqual(mod.main([]), 0)
 
 
 if __name__ == "__main__":

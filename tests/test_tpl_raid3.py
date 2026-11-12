@@ -302,6 +302,9 @@ class PageSide(PageBase):
         ids = self.seed()
         sec = ids["sec"]
         with chrome() as cdp:
+            # The test focuses the words box and sends its own blur; on a focused page the box's real blur (when the card redraws) saves
+            # a second change. It counts changes, so it needs the unfocused page it was written for.
+            cdp.FOCUS_EMULATION = False
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-first')", "the first-step line is shown")
@@ -332,9 +335,13 @@ class PageSide(PageBase):
             p.until("(document.querySelector('.toast-text') || {}).textContent === 'Card text changed.'", "the page has taken the saved text source of card 2 (toast)")
             n = len([s for s in self.sent if s[0] == "change"])
             self.set_select(p, f"[data-id={json.dumps(sec)}] select[aria-label='Card 1 text']", "own")
-            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] input[aria-label=\"Card 1 own words\"]')", "own words box")
-            p.js(f"(function(){{ const i = document.querySelector('[data-id={json.dumps(sec)}] input[aria-label=\"Card 1 own words\"]'); i.focus(); i.value = 'Typed words'; i.dispatchEvent(new Event('input', {{bubbles: true}})); i.dispatchEvent(new Event('blur')); }})()")
-            p.until(f"document.querySelector('[data-id={json.dumps(sec)}] input[aria-label=\"Card 1 own words\"]').value === 'Typed words'", "kept")
+            # row 1005: Own words is the one editor (RichField); two paragraphs are kept as one plain line
+            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view')", "own words field")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(sec)}] .rce input').length"), 0, "no plain box")
+            p.js(f"document.querySelector('[data-id={json.dumps(sec)}] .rce-f .rt-view').click()")
+            p.until(f"!!document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror')", "the editor opened")
+            p.js(f"(function(){{ const b = document.querySelector('[data-id={json.dumps(sec)}] .rce-f .ProseMirror'); b.focus(); b.cxed.editor.commands.setContent('<p>Typed</p><p>words</p>'); }})()")
+            p.key("Enter", modifiers=2, code="Enter", vk=13)
             self.assertTrue(self.wait_for(lambda: json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"][0].get("own") == "Typed words"))
             self.assertEqual(len([s for s in self.sent if s[0] == "change"]), n + 2, "the source and the words are one change each")
             final = json.loads(next(r for r in self.store.read("report_sections", "ABC") if r["id"] == sec)["body"])["cards"]

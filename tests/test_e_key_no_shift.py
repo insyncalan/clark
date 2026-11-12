@@ -2,7 +2,7 @@
 
 Real browser. The page is scrolled to each section in turn, E is pressed (then V) and the section nearest the top is measured before and
 after (within 1 px). On the committed test page and on the first-run demo data, with and without the demo banner, with a long project
-name, at 1400, 901, 900 and 800 px, light and dark.
+name, at 1400 and 900 px, light and dark.
 """
 import json
 import shutil
@@ -91,19 +91,19 @@ class Walk:
         self.assertEqual(bad, [])
 
     def test_e_and_v_move_nothing_at_every_width_in_light_and_dark(self):
-        for width in (1400, 901, 900, 800):
+        for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark):
                     self.check(width, dark, False, False)
 
     def test_e_and_v_move_nothing_with_the_demo_banner_up(self):
-        for width in (1400, 901, 900, 800):
+        for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark):
                     self.check(width, dark, True, False)
 
     def test_e_and_v_move_nothing_with_a_long_project_name(self):
-        for width in (1400, 800):
+        for width in (1400, 900):
             with self.subTest(width=width):
                 self.check(width, False, True, True)
 

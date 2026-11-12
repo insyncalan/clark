@@ -8,8 +8,9 @@ import { readActivity } from "./activityApi.js";
 import { createSelection } from "../stores/selection.js";
 import { undoSeveral } from "../stores/changes.js";
 import { ownClick, noTextRange } from "../components/pick.js";
-import { whyNot, chooseable, stepsOf, CONFIRM_ABOVE } from "./activityUndo.js";
+import { whyNot, chooseable, stepsOf, CONFIRM_ABOVE, SENT_KIND } from "./activityUndo.js";
 import { UndoBar } from "./ActivityUndo.jsx";
+import { SourceLine } from "../components/Peek.jsx";
 
 const TABS = [["details", "Details"], ["activity", "Activity"]];
 const LOADING = "Reading the history…";
@@ -39,8 +40,9 @@ export function PeekTabs() {
   );
 }
 
-// The read-only Source line under the Details fields: where the item came from, then " by <name>" (activity_read.source_line). Edit only; the
-// text is drawn as text, and nothing is drawn while it is read, when it is empty or when the read fails.
+// The Source line under the fields on the live page (Edit and View): where the item or milestone came from, by name, then " by <name>"
+// (activity_read.source_line), drawn by the shared SourceLine (components/Peek.jsx; a published file draws its own data with it, row 1077).
+// Nothing is drawn while it is read, when it is empty or when the read fails.
 export function PeekSource({ row }) {
   const [text, setText] = useState("");
   const d = data.value;
@@ -49,12 +51,13 @@ export function PeekSource({ row }) {
     readActivity(project.value, row.id).then((r) => { if (live) setText(r.ok && typeof r.view.source === "string" ? r.view.source : ""); });
     return () => { live = false; };
   }, [row.id, d]);                                // eslint-disable-line react-hooks/exhaustive-deps
-  return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
+  return <SourceLine text={text} />;
 }
 
 function Change({ r }) {
   if (r.kind === "Created") return <p class="pa-what"><span class="pa-kind">Created</span>{r.to ? <span> {r.to}</span> : null}</p>;
   if (r.kind === "Comment") return <p class="pa-what"><span class="pa-kind">Comment</span> {r.to}</p>;
+  if (r.kind === SENT_KIND) return <p class="pa-what">{r.to}</p>;            // row 983: the one sentence, as it is (no field name, no from and to)
   const pieces = Array.isArray(r.diff) && r.diff.length ? r.diff : null;
   return (
     <p class="pa-what">
@@ -154,12 +157,12 @@ export function PeekActivity({ id }) {
         ) : null}
         <ol class="pa-list" data-activity-rows>
           {got.view.rows.map((r, i) => {
-            const why = whyNot(r), step = String(r.step), on = !why && sel.has(step);
+            const note = r.kind === SENT_KIND, why = note ? "" : whyNot(r), step = String(r.step), off = note || !!why, on = !off && sel.has(step);
             return (
-              <li key={i} class={`pa-row${on ? " picked" : ""}`} data-activity-row data-step={why ? undefined : step} data-picked={on ? "1" : undefined}
-                onMouseDown={why ? undefined : noTextRange} onClick={why ? undefined : (e) => onRow(e, step)}>
+              <li key={i} class={`pa-row${on ? " picked" : ""}`} data-activity-row data-step={off ? undefined : step} data-picked={on ? "1" : undefined}
+                onMouseDown={off ? undefined : noTextRange} onClick={off ? undefined : (e) => onRow(e, step)}>
                 <div class="pa-line">
-                  {why ? <span class="pa-notick" /> : (
+                  {off ? <span class="pa-notick" /> : (
                     <span class="gtick-hit">
                       <input type="checkbox" class="gtick" data-pa-tick={step} checked={on} aria-label={`Select this change: ${r.field || r.kind}, ${r.when_text}`}
                         onClick={(e) => { e.stopPropagation(); pick(e, step, true); }} onChange={() => {}} />

@@ -130,6 +130,42 @@ class ServiceWorker(unittest.TestCase):
             self.assertNotIn(text, self.code)
 
 
+TOKENS_CSS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
+TOKEN_BODY = af.token_size(TOKENS_CSS, "--size-body")      # the very reader the offline page uses, so there is one way to read the token
+
+
+class ServerOwnPagesFollowTheBaseTextSize(unittest.TestCase):
+    """#960, #1017: the placeholder page and the gone-preview page use --size-body. The server imports nothing from clark, so it holds
+    one copy of the value (BODY_SIZE); this class is what keeps that one copy equal to tokens.css, and keeps it the only copy."""
+
+    SERVER = (SRC / "clark" / "server.py").read_text(encoding="utf-8")
+
+    def test_the_servers_size_is_the_token(self):
+        self.assertEqual(sv.BODY_SIZE, TOKEN_BODY)
+
+    def test_the_token_is_set_once_so_there_is_one_value_to_follow(self):
+        self.assertEqual(len(re.findall(r"--size-body:", TOKENS_CSS)), 1)
+
+    def test_the_value_is_written_once_in_the_server_and_both_pages_take_it_from_there(self):
+        self.assertEqual(len(re.findall(r'BODY_SIZE\s*=\s*"', self.SERVER)), 1)
+        self.assertEqual(re.findall(r"font:\s*\d+px", self.SERVER), [])       # no page sets its own px text size
+        self.assertEqual(self.SERVER.count("@SIZE_BODY@"), 4)       # the two holders in the pages, the two replaces
+
+    def test_each_page_carries_the_token_size_as_its_text_size(self):
+        self.assertIn(f"body{{font:{TOKEN_BODY} system-ui", sv.PLACEHOLDER)
+        self.assertIn(f"font: {TOKEN_BODY}/1.5 system-ui", sv.PREVIEW_GONE)
+
+    def test_no_page_keeps_a_holder_or_the_old_16px(self):
+        for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE):
+            self.assertNotIn("@SIZE_BODY@", page)
+            self.assertNotRegex(page, r"font:\s*16px")
+
+    def test_the_servers_pages_and_the_offline_page_have_the_same_text_size(self):
+        offline = af.offline_page().decode("utf-8")
+        for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE, offline):
+            self.assertRegex(page, r"font:\s*" + re.escape(TOKEN_BODY) + r"[\s/]")
+
+
 class OfflinePage(unittest.TestCase):
     def setUp(self):
         self.page = af.offline_page().decode("utf-8")
@@ -240,10 +276,17 @@ class OfflinePageColours(unittest.TestCase):
         self.assertEqual(self.light["--accent-ink"].upper(), token_in("light", "--text-on-brand"))
 
     def test_the_font_is_the_pages_own_list_and_no_font_is_named_in_the_file(self):
-        self.assertIn(f"font:16px/1.5 {look.family_list('--font')}}}", self.page)      # body, button and title follow tokens.css (16, 14, 30 px; #428)
+        self.assertIn(f"font:{TOKEN_BODY}/1.5 {look.family_list('--font')}}}", self.page)      # body, button and title follow tokens.css (--size-body, 14, 30 px; #428, #960)
         self.assertIn(f"font:500 14px {look.family_list('--font')};", self.page)
         source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
         self.assertNotRegex(source, r"Arial|Helvetica|Calibri|Inter\b")
+
+    def test_the_body_text_is_the_base_text_size_token_not_a_literal(self):
+        """#960: the page follows --size-body; the source holds a holder for it, never 16px."""
+        source = (SRC / "clark" / "app" / "offline.html").read_text(encoding="utf-8")
+        self.assertNotIn("font:16px", source)
+        self.assertNotIn("@SIZE_BODY@", self.page)
+        self.assertNotIn("font:16px", self.page)
 
     def test_the_dark_button_keeps_the_light_blue_not_the_dark_brand_blue(self):
         self.assertNotIn("--accent", self.dark, "the dark block must not override the button fill")

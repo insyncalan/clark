@@ -35,7 +35,7 @@ from test_updater import Rig
 
 OLD_TAG = "v1.0.3"
 NEW_VERSION = "1.0.4"
-NEW_LAYOUT = 20      # the data layout of this build (schema steps 18 to 20); the test pins the number on purpose
+NEW_LAYOUT = 23      # the data layout of this build (schema steps 18 to 23); the test pins the number on purpose
 GANTT_COLUMNS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")
 
 CHILD = r'''
@@ -105,7 +105,7 @@ def every_row(path, leave_out=()):
     try:
         out = {}
         for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%' AND name != 'meta' ORDER BY name"):
-            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out)
+            kept = ", ".join(f'"{c[1]}"' for c in con.execute(f'PRAGMA table_info("{n}")') if c[1] not in leave_out and f"{n}.{c[1]}" not in leave_out)
             out[n] = con.execute(f'SELECT rowid, {kept} FROM "{n}" ORDER BY rowid').fetchall()
         return out
     finally:
@@ -256,7 +256,7 @@ class Update17To18(Rig):
         now, done = self.update_to_18()
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
-        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand",))
+        after = every_row(self.db, leave_out=GANTT_COLUMNS + ("brand", "use_cases.owner", "use_cases.owner_id"))
         self.assertEqual(self.base, {t: rows for t, rows in after.items() if t != "gantt_lines"}, "every row of every table is kept")
         for table in ("report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)

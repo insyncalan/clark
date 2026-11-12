@@ -201,7 +201,7 @@ class Pure(unittest.TestCase):
 
     def test_a_tab_is_named_by_its_full_name_not_its_short_one_run_together(self):
         # The page's tab button holds a full name and a short one side by side (the short one shows on a narrow window): the
-        # heading must be the full name alone, or the PDF holds a word that is in no page ("Weekly snapshotSnapshot").
+        # heading must be the full name alone, or the PDF holds a word that is in no page (a tab holding a wide and a narrow name side by side).
         js = pdf.stack_script()
         self.assertIn(".tl-full", js)
         self.assertIn("(full||b).textContent", js)
@@ -228,6 +228,38 @@ class Pure(unittest.TestCase):
         moves = [a[2] for a in seen["file_actions"] if a[0] == os.POSIX_SPAWN_DUP2]
         self.assertEqual(moves, [3, 4])
         self.assertEqual(seen["setpgroup"], 0)
+
+    def test_chrome_gets_a_small_environment_and_none_of_the_rest(self):
+        """#596: Chrome opens a page file; nothing else in this program's environment (tokens, keys) is passed to it."""
+        env = {"PATH": "/usr/bin", "HOME": "/home/x", "LANG": "en_GB.UTF-8", "TMPDIR": "/tmp", "LC_ALL": "C",
+               "MY_SERVICE_TOKEN": "s3cret", "AWS_SECRET_ACCESS_KEY": "k", "CLARK_CHROME": "/x", "GIT_ASKPASS": "y"}
+        got = pdf.chrome_env(env)
+        self.assertEqual(got, {"PATH": "/usr/bin", "HOME": "/home/x", "LANG": "en_GB.UTF-8", "TMPDIR": "/tmp", "LC_ALL": "C"})
+        self.assertEqual(pdf.chrome_env({}), {}, "what is not set is not made up")
+        seen = []
+
+        def fake(args, **k):
+            seen.append(k)
+            raise OSError("stop here")
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"MY_SERVICE_TOKEN": "s3cret"}):
+            page = Path(d) / "p.html"
+            page.write_text(PAGE, encoding="utf-8")
+            with self.assertRaises(pdf.PdfError):
+                pdf.make_pdf(page, Path(d) / "o.pdf", chrome="/x", popen=fake)
+        self.assertTrue(seen and "MY_SERVICE_TOKEN" not in seen[0]["env"], "the start is given the small environment")
+        self.assertIn("PATH", seen[0]["env"])
+
+    def test_the_start_places_the_environment_it_is_given(self):
+        seen = {}
+
+        def fake_spawn(path, args, env, **k):
+            seen["env"] = env
+            return 1
+        with mock.patch.object(os, "posix_spawn", fake_spawn):
+            platform.start_child(["/c"], env={"PATH": "/p"})
+            self.assertEqual(seen["env"], {"PATH": "/p"})
+            platform.start_child(["/c"])
+            self.assertEqual(seen["env"], os.environ, "no environment given: the whole one, as before")
 
     def test_pipe_messages_are_nul_ended(self):
         import os
@@ -1183,6 +1215,257 @@ class TheReviewFindings(unittest.TestCase):
         self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
         self.assertEqual(called.call_count, 1)
         self.assertEqual(len(self.rig.saves), 1)
+
+
+class MutationPinsPure(unittest.TestCase):
+    """Pins found by a mutation sweep of publish_pdf.py: each one fails on a small change to the module and passes on the real one."""
+
+    class Fs:
+        def __init__(self, entries):
+            self.entries = entries
+
+        def listdir(self, folder):
+            return self.entries
+
+    def test_every_pdf_key_is_taken_off_the_request_the_rest_of_the_route_reads(self):
+        body = {"project": "PUB", "pdf": True, "pdf_on_clash": "number", "pdf_new_name": "n", "pdf_confirmed": True}
+        self.assertEqual(publish_pdf.split(body)[1], {"project": "PUB"})
+        self.assertEqual(publish_pdf.split({"pdf_confirmed": True})[1], {})
+        for loose in ("yes", 1, "true"):
+            self.assertFalse(publish_pdf.split({"pdf_confirmed": loose})[0]["confirmed"], loose)
+        self.assertTrue(publish_pdf.split({"pdf_confirmed": True})[0]["confirmed"])
+
+    def test_the_html_ending_is_read_in_any_case_and_a_bare_ending_is_kept(self):
+        self.assertEqual(publish_pdf.pdf_name("x.HTML"), "x.pdf")
+        self.assertEqual(publish_pdf.pdf_name("x.Html"), "x.pdf")
+        self.assertEqual(publish_pdf.pdf_name(".html"), ".html.pdf", "no name before the dot: nothing is cut off")
+        self.assertEqual(publish_pdf.pdf_name("notes"), "notes.pdf")
+
+    def test_a_typed_name_with_nothing_but_dots_or_an_ending_is_no_name(self):
+        for bad in (".PDF", "..pdf", " .pdf ", ". .pdf", "..", " . "):
+            self.assertIsNone(publish_pdf.rename_target(bad), bad)
+        self.assertEqual(publish_pdf.rename_target("a.PDF"), "a.PDF")
+
+    def test_cancel_and_an_empty_rename_stop_before_a_name_is_looked_for(self):
+        free = self.Fs([])
+        base = publish_pdf.split({})[0]
+        cancel = dict(base, choice="cancel")
+        self.assertEqual(publish_pdf.client_name(free, "/c", "x.html", False, cancel), ("stop", to_client.MESSAGES["cancelled"]))
+        for typed in (None, "", "  ", "."):
+            rename = dict(base, choice="rename", new_name=typed)
+            self.assertEqual(publish_pdf.client_name(free, "/c", "x.html", False, rename), ("stop", to_client.MESSAGES["empty_name"]), typed)
+        named = dict(base, choice="rename", new_name="Other")
+        self.assertEqual(publish_pdf.client_name(free, "/c", "x.html", False, named), ("write", "Other.pdf", False))
+
+    def test_a_taken_name_is_only_replaced_when_the_replace_was_confirmed(self):
+        taken = self.Fs([{"name": "x.pdf", "kind": "file"}])
+        base = publish_pdf.split({})[0]
+        unconfirmed = dict(base, choice="overwrite", confirmed=False)
+        self.assertEqual(publish_pdf.client_name(taken, "/c", "x.html", False, unconfirmed)[0], "ask")
+        confirmed = dict(base, choice="overwrite", confirmed=True)
+        self.assertEqual(publish_pdf.client_name(taken, "/c", "x.html", False, confirmed), ("write", "x.pdf", True))
+
+    def test_the_footer_without_a_date_is_the_number_alone(self):
+        self.assertEqual(publish_pdf.footer_text("", 7), "Publication 7")
+        self.assertEqual(publish_pdf.footer_text(None, 7), "Publication 7")
+
+    def test_the_pdfs_details_are_read_whatever_they_are_called_and_however_they_are_written(self):
+        for key in ("Title", "Author", "Subject", "Keywords", "Creator", "Producer"):
+            self.assertEqual(publish_pdf.details_of(b"1 0 obj<</%s (ZQ value)>>" % key.encode()), "ZQ value", key)
+        self.assertEqual(publish_pdf.details_of(b"<</Title <505>>>"), "PP", "an odd last hex digit is read as if a 0 followed")
+        self.assertEqual(publish_pdf.details_of(b"<</Title <feff005a>>>"), "\ufeffZ", "a byte-order mark means two bytes a letter")
+
+    def test_a_word_in_the_file_is_found_however_it_is_written_there(self):
+        self.assertEqual(publish_pdf.extra_words("caf\u00e9 plan", "caf&eacute; plan".encode()), [], "a named entity is the same letter")
+        self.assertEqual(publish_pdf.extra_words("caf\u00e9 plan", "cafe\u0301 plan".encode()), [], "a letter and its accent are the one letter")
+        self.assertEqual(publish_pdf.extra_words("\u1100\u1161\u11a8 plan", "\uac01 plan".encode()), [], "the PDF's letters are put in the file's form")
+        self.assertEqual(publish_pdf.extra_words("Harbour of in zzextra", b"Harbour"), ["zzextra"], "a word of two letters is the print's own (Page X of Y)")
+
+    def test_a_pdf_of_exactly_the_size_limit_is_not_over_it(self):
+        with mock.patch.object(publish, "MAX_BYTES", 40), mock.patch.object(pdftext, "text_of", return_value="Programme"):
+            self.assertNotIn("a file over the size limit", publish_pdf.problems(b"%PDF-1.4" + b" " * 32, []))
+            self.assertEqual(publish_pdf.problems(b"%PDF-1.4" + b" " * 33, []), ["a file over the size limit"])
+
+    def test_an_empty_marker_holds_nothing_back(self):
+        with mock.patch.object(pdftext, "text_of", return_value="All fine"):
+            self.assertEqual(publish_pdf.problems(b"%PDF", ["", "ZQ-NOT-THERE"]), [])
+
+    def test_a_step_that_was_not_asked_for_adds_nothing_even_with_bytes_held(self):
+        step = publish_pdf.Step({"on": False}, object())
+        step.data = b"%PDF-1.4"
+        out = {"ok": True, "message": "Published."}
+        with mock.patch.object(publish_pdf.Step, "write", side_effect=AssertionError("no PDF was asked for")):
+            publish_pdf.finish(step, out, 200)
+        self.assertEqual(out, {"ok": True, "message": "Published."})
+
+    def test_the_pdfs_name_goes_on_the_row_only_when_there_is_a_store(self):
+        pub = mock.Mock()
+        step = publish_pdf.Step({"on": True}, pub)
+        step.data, step.local, step.kept_local, step.kept_all = b"%PDF", Path("/x/second.pdf"), True, True
+        with mock.patch.object(publish_pdf.Step, "write", return_value=["said"]), mock.patch.object(publish_pdf.LOG, "exception") as logged:
+            out = {"ok": True, "message": "m"}
+            publish_pdf.finish(step, out, 200)
+            self.assertEqual((out["pdf_name"], logged.call_count), ("second.pdf", 0), "no store: nothing to record, nothing to log")
+            step.record(pub.store, 5)
+            publish_pdf.finish(step, {"ok": True}, 200)
+            pub.store.record_pdf_name.assert_called_once_with(5, "second.pdf")
+            self.assertEqual(logged.call_count, 0)
+
+    def test_the_note_about_a_pdf_that_goes_too_is_added_only_to_the_reports_own_question(self):
+        ask = {"code": "ask", "can_overwrite": True, "name": "x.html", "note": "n"}
+        pdf_there = self.Fs([{"name": "x.pdf", "kind": "file"}])
+        pub = mock.Mock(fs=pdf_there)
+        step = publish_pdf.Step({"on": True}, pub)
+        added = step.with_note(pub, (200, dict(ask)), "/c")[1]["note"]
+        self.assertIn(publish_pdf.MESSAGES["pdf_overwrite_note"], added)
+        self.assertEqual(step.with_note(pub, (200, dict(ask)), "")[1], ask, "no client folder saved: nothing to look in")
+        self.assertEqual(step.with_note(pub, (200, dict(ask, pdf=True)), "/c")[1], dict(ask, pdf=True), "the PDF's own question is not added to")
+        pub.fs = self.Fs([{"name": "x.pdf", "kind": "folder"}])
+        self.assertEqual(step.with_note(pub, (200, dict(ask)), "/c")[1], ask, "a folder of that name is not a PDF to replace")
+
+    def test_the_pdfs_client_name_is_planned_again_when_the_reports_replace_was_confirmed_since(self):
+        plan = {"folder": "/c", "name": "x.html", "replaces": False, "identity": 1}
+        pub = mock.Mock(fs=self.Fs([]))
+        step = publish_pdf.Step(publish_pdf.split({})[0], pub)
+        with mock.patch.object(publish_pdf, "client_name", wraps=publish_pdf.client_name) as called:
+            self.assertIsNone(step.plan_client(pub, plan, False))
+            self.assertIsNone(step.plan_client(pub, plan, False))
+            self.assertEqual(called.call_count, 1, "the same plan again is not planned again")
+            self.assertIsNone(step.plan_client(pub, plan, True))
+            self.assertEqual(called.call_count, 2, "the report's replace was confirmed since: planned again")
+
+    def test_a_pdf_is_only_replaced_with_the_report_when_the_report_is_replaced_and_confirmed(self):
+        plan = {"folder": "/c", "name": "x.html", "replaces": True, "identity": 1}
+        pub = mock.Mock(fs=self.Fs([{"name": "x.pdf", "kind": "file"}]))
+        step = publish_pdf.Step(publish_pdf.split({})[0], pub)
+        status, body = step.plan_client(pub, plan, False)
+        self.assertEqual((status, body["code"], body["name"]), (200, "ask", "x.pdf"))
+        step = publish_pdf.Step(publish_pdf.split({})[0], pub)
+        self.assertIsNone(step.plan_client(pub, plan, True))
+        self.assertEqual(step.client, (Path("/c"), "x.pdf", True))
+
+    def test_a_copy_checked_again_at_the_write_is_checked_against_the_report_it_was_made_from(self):
+        class Fs:
+            def listdir(self, folder):
+                return []
+        pub = mock.Mock(fs=Fs(), data_dir=None, backups_dir=None)
+        step = publish_pdf.Step(publish_pdf.split({})[0], pub)
+        step.data, step.markers, step.saved, step.body = b"%PDF-1.4", [], "/c", b"Programme"
+        step.local, step.client = Path("/nowhere/second.pdf"), (Path("/c"), "x.pdf", False)
+        seen = []
+        with mock.patch.object(to_client, "copy_to_client", side_effect=lambda *a, **k: seen.append(k["extra_problems"]) or to_client.ClientResult(False, "failed", "")), \
+                mock.patch.object(platform, "_write_temp", side_effect=OSError("no")), \
+                mock.patch.object(pdftext, "text_of", return_value="Programme zzextra"):
+            step.write(pub)
+            self.assertEqual(seen[0](b"%PDF-1.4"), [publish_pdf.EXTRA_WORDS])
+
+    def test_a_refusal_with_a_path_but_nothing_written_is_told_by_its_cause_not_as_a_leftover(self):
+        pub = mock.Mock(data_dir=None, backups_dir=None)
+        step = publish_pdf.Step(publish_pdf.split({})[0], pub)
+        step.data, step.markers, step.saved, step.body = b"%PDF-1.4", [], "/c", b"Programme"
+        step.local, step.client = Path("/nowhere/second.pdf"), (Path("/c"), "x.pdf", False)
+        res = to_client.ClientResult(False, "refused", to_client.MESSAGES["held_back"].format(what="x"), path="/c/x.pdf", nothing_written=True)
+        with mock.patch.object(to_client, "copy_to_client", return_value=res), mock.patch.object(platform, "_write_temp", side_effect=OSError("no")):
+            said = step.write(pub)
+        self.assertIn(publish_pdf.MESSAGES["pdf_not_saved"].format(why=publish_pdf.MESSAGES["why_held"]), said)
+
+
+class MutationPinsRoute(unittest.TestCase):
+    """More pins from the mutation sweep, at the route: the Local PDF's Save window, the checks' words, the number on the foot."""
+    GOOD = TheReviewFindings.GOOD
+    setUp = TheReviewFindings.setUp
+    go = TheReviewFindings.go
+
+    def answer(self, name):
+        """The Save window answers `name` (a path) for the PDF's own question, and the report's name for the report's."""
+        def dialog(prompt, default_name, start=None):
+            self.rig.saves.append((prompt, default_name, start))
+            return name if prompt == publish_pdf.SAVE_PROMPT else self.rig.save_to
+        self.rig.publisher.choose_save_file = dialog
+
+    def test_a_number_that_is_not_one_or_more_makes_no_pdf(self):
+        real = publish.build
+        for bad in (0, -1, True, "3", None):
+            def numbered(*a, _bad=bad, **k):
+                return dict(real(*a, **k), number=_bad)
+            with mock.patch.object(publish, "build", numbered):
+                status, got = self.go(pdf=True)
+            self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), (bad, got))
+            self.assertIn(publish_pdf.MESSAGES["pdf_no_number"], got["message"], bad)
+            self.assertEqual(self.rig.everything_written(), self.before, bad)
+
+    def test_a_pdf_name_that_is_a_dangling_link_is_asked_about_and_may_be_replaced_when_chosen(self):
+        link = self.rig.local / "second.pdf"
+        try:
+            link.symlink_to(self.rig.root / "nowhere.pdf")
+        except (OSError, NotImplementedError):
+            self.skipTest("no links here")
+        self.answer(link)
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertIn(publish_pdf.SAVE_PROMPT, [p for p, *_ in self.rig.saves], "a link is a taken name: the Save window asks")
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+        self.assertFalse(link.is_symlink())
+        self.assertEqual(link.read_bytes(), self.GOOD)
+
+    def test_cancelling_the_save_window_of_the_pdf_is_a_cancel_not_a_failure(self):
+        (self.rig.local / "second.pdf").write_bytes(b"%PDF-earlier")
+        self.answer(None)
+        before = self.rig.everything_written()
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["code"]), (200, False, "cancelled"), got)
+        self.assertEqual(self.rig.everything_written(), before)
+
+    def test_a_pdf_name_ending_in_capitals_is_a_pdf_name(self):
+        (self.rig.local / "second.pdf").write_bytes(b"%PDF-earlier")
+        chosen = self.rig.local / "third.PDF"
+        self.answer(chosen)
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"], got["pdf_name"]), (200, True, True, "third.PDF"), got)
+
+    def test_the_pdf_is_never_saved_into_the_client_folder_or_clarks_own_folders_by_the_save_window(self):
+        (self.rig.local / "second.pdf").write_bytes(b"%PDF-earlier")
+        backups = self.rig.root / "backups"
+        backups.mkdir()
+        self.rig.publisher.backups_dir = backups
+        for label, where in (("client folder", self.rig.client / "elsewhere.pdf"), ("data folder", self.rig.data_dir / "x.pdf"),
+                             ("backups folder", backups / "x.pdf")):
+            self.answer(where)
+            before = self.rig.everything_written()
+            status, got = self.go(to_client=False, pdf=True)
+            self.assertEqual((status, got["ok"], got["code"]), (409, False, "pdf_failed"), (label, got))
+            self.assertIn(publish_pdf.MESSAGES["pdf_local_place"], got["message"], label)
+            self.assertFalse(where.exists(), label)
+            self.assertEqual(self.rig.everything_written(), before, label)
+
+    def test_the_client_folders_place_in_the_pdf_matters_only_when_a_copy_goes_there(self):
+        text = "see " + str(self.rig.client)
+        with mock.patch.object(publish_pdf, "extra_words", return_value=[]):          # the path's words are not the report's: only the place is looked at
+            status, got = self.go(text=text, to_client=False, pdf=True)
+            self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+            (self.rig.local / "second.pdf").unlink()
+            self.report.unlink()
+            status, got = self.go(text=text, to_client=True, pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False), got)
+        self.assertIn("the location of the client folder", got["message"])
+
+    def test_a_pdf_that_cannot_be_read_or_is_too_big_to_check_says_so_in_its_own_words(self):
+        status, got = self.go(text="  ", to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False))
+        self.assertIn(publish_pdf.MESSAGES["pdf_unreadable"], got["message"])
+        self.assertNotIn("would contain", got["message"])
+        with mock.patch.object(pdftext, "text_of", side_effect=pdftext.TooBig("big")):
+            def make_it(*a, **k):
+                return self.GOOD
+            with mock.patch.object(pdf, "find_chrome", return_value="/c"), mock.patch.object(publish_pdf, "make", make_it):
+                status, got = self.rig.publish(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"]), (409, False))
+        self.assertIn(publish_pdf.MESSAGES["pdf_too_big"], got["message"])
+        self.assertNotIn("would contain", got["message"])
+
+    def test_a_local_only_pdf_does_not_say_the_client_folder_holds_the_report(self):
+        status, got = self.go(to_client=False, pdf=True)
+        self.assertEqual((status, got["ok"], got["pdf_saved"]), (200, True, True), got)
+        self.assertNotIn(publish_pdf.MESSAGES["pdf_client_same"], got["message"])
 
 
 if __name__ == "__main__":

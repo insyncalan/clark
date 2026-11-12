@@ -94,6 +94,12 @@ def token_value(css, mode, name):
     raise KeyError(name)
 
 
+def token_size(css, name):
+    """A text-size token's value from the first :root block of tokens.css, such as 15px."""
+    block = re.search(r":root\s*\{(.*?)\n\}", css, re.S).group(1)
+    return re.search(re.escape(name) + r":\s*(\d+px)\s*;", block).group(1)
+
+
 def offline_page(launcher="clark.command"):
     """The page shown when clark isn't running, as bytes, with the launcher's file name and the command to type in Terminal
     (`./` and the name). The name comes from platform.launcher_name(); nothing a person typed is ever put in."""
@@ -101,6 +107,7 @@ def offline_page(launcher="clark.command"):
     css = TOKENS_CSS.read_text(encoding="utf-8")
     for holder, (mode, name) in OFFLINE_COLOURS.items():
         page = page.replace(holder, token_value(css, mode, name))
+    page = page.replace("@SIZE_BODY@", token_size(css, "--size-body"))      # #960: the base text size, not a literal
     page = page.replace("@FONT@", look.family_list("--font", css))      # the page's own list: it loads no font, so the first that is installed shows
     page = page.replace("@LAUNCHER@", html.escape(launcher)).replace("@COMMAND@", html.escape("./" + launcher))
     return page.encode("utf-8")
@@ -125,9 +132,12 @@ def data_mark(folder):
 
 
 def code_mark():
-    """Row 975: the same mark, of the folder these program files are in (two levels above this file: the checkout, or .app in a
-    download). A server and a launcher from one folder agree; a renamed or moved folder is another mark."""
-    return data_mark(Path(__file__).resolve().parents[2])
+    """Row 975, #1031 section 7: a short mark of the folder these program files are in (two levels above this file: the checkout,
+    or .app in a download). It is the folder's file identity (device and inode), not its path, so two spellings of one folder
+    (~/Downloads/clark and ~/downloads/clark on a case-insensitive disk) give one mark. A server and a launcher from one folder
+    agree; a moved folder on the same volume keeps its inode and so its mark, and a copy is another folder and another mark."""
+    st = os.stat(Path(__file__).resolve().parents[2])
+    return hashlib.sha256(f"{st.st_dev}:{st.st_ino}".encode("utf-8")).hexdigest()[:16]
 
 
 def health_answer(asked, mark):

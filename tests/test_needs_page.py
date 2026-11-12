@@ -10,6 +10,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 import unittest
 from _editor_checks import for_url
 from pathlib import Path
@@ -615,7 +616,14 @@ class Page(Base):
             before = self.steps()
             p.js("document.querySelector('[data-id=" + ref + "] [data-act=delete]').click()")
             p.until("!document.querySelector('[data-id=" + ref + "]')", "deleted")
+            # the page draws the deletion before the server has it, and an Undo sent in between meets a delete that lands after it
+            # (the CI run where the section stayed gone): wait for the delete to be stored and the toast to offer Undo first
+            deadline = time.time() + 20
+            while self.steps() < before + 1 and time.time() < deadline:
+                time.sleep(0.05)
             self.assertEqual(self.steps(), before + 1)
+            p.saved()   # the section goes at once, its "Section deleted." message (with Undo) only after the reply: a click before it finds no button
+            p.until("!!document.querySelector('.toast [data-undo]')", "the toast offers Undo")
             p.js("document.querySelector('[data-undo]').click()")
             p.until("!!document.querySelector('[data-id=" + ref + "]')", "Undo put it back")
             self.assertEqual([r["what"] for r in self.stored_rows(ref)], ["One"])

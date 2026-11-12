@@ -455,7 +455,7 @@ class OneWriter(unittest.TestCase):
     def test_the_helpers_only_built_sql_is_table_stats_from_a_quoted_name(self):
         tree = ast.parse((SRC / READONLY_HELPER).read_text(encoding="utf-8"))
         built = _sql_fstrings(tree, joined=True)
-        self.assertEqual(2, len(built))                         # the exemption still matches table_stats' two SELECTs
+        self.assertEqual(4, len(built))                         # the exemption still matches table_stats' two SELECTs and content_digest's two
         self.assertEqual([], [(line, parts) for line, parts in built if set(parts) - READONLY_HELPER_SQL_PARTS])
         self.assertEqual([(1, ["name"])], _sql_fstrings(ast.parse('"SELECT 1 FROM " + name'), joined=True))
 

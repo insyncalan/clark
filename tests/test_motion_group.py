@@ -18,8 +18,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 EDIT = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
 PUBLISHED = (ROOT / "src/clark/page/page-view.html").read_text(encoding="utf-8") if (ROOT / "src/clark/page/page-view.html").exists() else ""
 CSS = (ROOT / "src/clark/page/shell.css").read_text(encoding="utf-8")
-# A group just opened (the tbody the table draws with the class) holding its column names and one row, and a group heading beside it.
-MAKE = """(() => { const t = document.createElement('table'); t.innerHTML = '<tbody class="opening"><tr class="grp"><th>g</th></tr><tr class="colh"><th>c</th></tr><tr class="r"><td>x</td></tr></tbody>'; document.body.appendChild(t);
+# A group just opened (the thead and tbody the table draws with the class) holding its column names and one row, and a group heading beside it.
+MAKE = """(() => { const t = document.createElement('table'); t.innerHTML = '<thead class="opening"><tr class="grp"><th>g</th></tr><tr class="colh"><th>c</th></tr></thead><tbody class="opening"><tr class="r"><td>x</td></tr></tbody>'; document.body.appendChild(t);
   const g = n => getComputedStyle(t.querySelector(n)); return JSON.stringify({colh: [g('.colh').animationName, g('.colh').animationDuration], row: g('.r').animationName, head: g('.grp').animationName}); })()"""
 
 
@@ -73,6 +73,19 @@ class MotionGroup(unittest.TestCase):
         jsx = (ROOT / "src/clark/page/src/components/WorkItems.jsx").read_text(encoding="utf-8")
         self.assertRegex(jsx, r"justOpened\s*=\s*shut\s*&&\s*!fromFile\.value\s*\?\s*c\.key")
         self.assertRegex(jsx, r'class=\{justOpened === c\.key && !shut && !fromFile\.value \? "opening"')
+
+    def test_row_1131_lows_heads_have_scope_col_thead_is_pinned_and_both_ends_are_awaited(self):
+        jsx = (ROOT / "src/clark/page/src/components/WorkItems.jsx").read_text(encoding="utf-8")
+        heads = re.search(r"function Heads\(.*?\n\}\n", jsx, re.S).group(0)
+        ths = re.findall(r"<th\b[^>]*>", heads)
+        self.assertGreaterEqual(len(ths), 7)
+        for th in ths:
+            self.assertIn('scope="col"', th)
+        self.assertRegex(EDIT, r'\[data-motion="reduce"\]\) thead\.opening > tr:not\(\.grp\)')
+        self.assertRegex(jsx, r'<thead data-group=\{c\.key\} class=\{justOpened === c\.key && !shut && !fromFile\.value \? "opening"')
+        # the group is marked done only when neither the thead nor the tbody is still gliding
+        opened = re.search(r"const opened = .*", jsx).group(0)
+        self.assertIn(".opening", opened.split("remove(\"opening\")", 1)[1])
 
 
 if __name__ == "__main__":

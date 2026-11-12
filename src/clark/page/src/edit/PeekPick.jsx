@@ -8,10 +8,12 @@ import { data } from "../stores/report.js";
 import { changeCell, refresh } from "../stores/changes.js";
 import { tableOf } from "./itemEdit.js";
 import { MenuPick } from "./cells/MenuPick.jsx";
+import { fieldIcon } from "../menuIcons.js";
 
 const NAMES = { workstream: "Workstream", milestone: "Milestone", use_case: "Use case" };
 const NONE = { workstream: "No workstream", milestone: "No milestone", use_case: "No use case" };
 
+const withIcon = (field, list) => list.map((c) => ({ ...c, ...fieldIcon(field, c.value === "") }));
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || {};
 
 /** The choices of a field: [{value, text}], the current one first kept even when archived, and a last one that clears it. */
@@ -32,7 +34,7 @@ export function PeekPick({ row, field }) {
   const button = useRef(null);
   const name = NAMES[field], rec = raw(row);
   const now = rec[field] || "";                                        // the stored value: a name, or an id
-  const list = choicesOf(field, now);
+  const list = withIcon(field, choicesOf(field, now));
   const text = (v) => (list.find((c) => c.value === v) || { text: "" }).text;
   const said = (v) => text(v);
   const shown = row[field === "use_case" ? "uc" : field] || NONE[field];

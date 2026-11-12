@@ -1,5 +1,6 @@
-"""#1009 parts 2 and 3: the Peek's read-only Source line. Edit only: it comes from GET /api/activity (activity_read.py), is drawn by
-the Edit part (PeekActivity.jsx) and is in no published file.
+"""#1009 parts 2 and 3: the Peek's read-only Source line, from GET /api/activity (activity_read.py) on the live page. Row 1077 (the
+owner's ruling of 10-11-2026): the line is shown by NAME everywhere, a path never: the live page strips a path to its last part, and a
+published file carries the name (publish.select through source_name), drawn by the shared SourceLine (components/Peek.jsx).
 Run: PYTHONPATH=../src:. python3 test_source_line.py"""
 import unittest
 from pathlib import Path
@@ -73,41 +74,55 @@ class TheLine(unittest.TestCase):
             d = st.create("decisions", {"project": "ABC", "decision": "Go with option B", "status": "Pending", "source": "Excel import, 2026-11-07, log.xlsx"})
         self.assertEqual(self.source(d), "Excel import, 07-11-2026, log.xlsx by " + USER)
 
+    def test_a_path_in_the_stored_words_shows_its_last_part_only(self):
+        # row 1077: the name, never the path (the column keeps the path)
+        a = self.demo.action(source="Excel import, 2026-10-01, /Volumes/share/ZQ-FOLDER/plan.xlsx")
+        self.assertEqual(self.source(a), "plan.xlsx by " + USER, "row 1077, strict: a path publishes only its file name, no prefix words")
+        row = self.demo.store.con.execute("SELECT source FROM actions WHERE id = ?", (a,)).fetchone()
+        self.assertIn("ZQ-FOLDER", row[0])
+
     def test_the_text_is_data_not_markup_and_nothing_else_is_added(self):
         a = self.demo.action(source="<b>x</b>")
-        self.assertEqual(self.source(a), "<b>x</b> by " + USER)
+        self.assertEqual(self.source(a), "", "row 1077 (W27): a source is a name, not markup; markup is not plain words, so nothing is shown")
+        b = self.demo.action(source="<i>notes</i>.xlsx")
+        self.assertEqual(self.source(b), "")
 
     def test_the_read_still_has_its_other_keys(self):
         a = self.demo.action()
         self.assertEqual(set(self.read("ABC", a)), {"rows", "empty", "closing", "source"})
 
 
-class NotPublished(unittest.TestCase):
-    def test_the_source_text_is_in_no_published_file(self):
+class PublishedByName(unittest.TestCase):
+    """Row 1077 (ruled 10-11-2026, reversing #1009's 'in no published file'): a published file carries the source NAME, never its path, never
+    the creator's name after it, and the date day first."""
+    def test_the_source_name_is_in_a_published_file_and_its_path_is_not(self):
         rig = Rig(self)
         with rig.store.step("dashboard", PUB_USER) as st:
-            st.create("actions", {"project": "PUB", "description": "Check the rota", "raised": "2026-10-01", "source": "Excel import, 2026-10-01, " + MARK,
-                                  "client_visible": 1})
+            st.create("actions", {"project": "PUB", "description": "Check the rota", "raised": "2026-10-01", "client_visible": 1,
+                                  "source": "Excel import, 2026-10-01, /Volumes/share/ZQ-SECRET-FOLDER, Inc/sub/" + MARK})   # a comma inside the path (reader A)
         status, got = rig.publish(to_client=True)
         self.assertEqual((status, got["ok"]), (200, True), got)
         for folder in (rig.local / "chosen.html", rig.client / WANTED):
             text = Path(folder).read_bytes().decode("utf-8")
-            for bit in (MARK, "ZQ-SOURCE-FILE-6631", "Excel import, 2026-10-01", "Source line"):
+            self.assertIn(MARK, text, folder)
+            for bit in ("ZQ-SECRET-FOLDER", "ZQ-SECRET-FOLDER, Inc", "Inc/", "sub/" + MARK, "/Volumes", MARK + " by ", "Excel import, 2026-10-01", "Excel import, 01-10-2026"):
                 self.assertNotIn(bit, text, folder)
 
-    def test_the_page_text_for_the_line_is_edit_only(self):
+    def test_the_line_is_one_shared_piece_drawn_by_the_edit_part_too(self):
         src = Path(SRC) / "clark" / "page" / "src"
-        self.assertIn("source", (src / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8"))
-        for f in ("components/Peek.jsx", "components/ItemFields.jsx"):
-            p = src / f
-            if p.exists():
-                self.assertNotIn("data-pk-source", p.read_text(encoding="utf-8"))
+        peek = (src / "components" / "Peek.jsx").read_text(encoding="utf-8")
+        self.assertIn("export function SourceLine", peek)
+        self.assertEqual(peek.count("data-pk-source"), 1)
+        edit = (src / "edit" / "PeekActivity.jsx").read_text(encoding="utf-8")
+        self.assertIn("SourceLine", edit)
+        self.assertNotIn("data-pk-source", edit, "one piece of markup, in the shared component")
 
-
-    def test_the_view_page_has_no_source_line(self):
+    def test_the_view_page_draws_the_line_from_its_data_and_asks_no_server(self):
         built = Path(SRC) / "clark" / "page" / "page-view.html"
         if built.exists():
-            self.assertNotIn("data-pk-source", built.read_text(encoding="utf-8"))
+            text = built.read_text(encoding="utf-8")
+            self.assertIn("data-pk-source", text)
+            self.assertNotIn("/api/activity", text)
 
 
 if __name__ == "__main__":

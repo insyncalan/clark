@@ -14,7 +14,7 @@ sanitise.href passed and that starts https: or mailto:), never from row text.
 Rich text (current_state, a use case's standing, a text section's body) is cleaned again with sanitise.clean_html and mapped from
 its token stream: p, h1 to h3 (one level down, so the section title stays the top), strong, em, s, ul and ol to three levels,
 blockquote, hr, br, a checklist box, and a link only to https: or mailto:. The sanitiser has no img, so row text never brings a picture; the only pictures are the ones this module draws (docx_graphics:
-the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media with no label in them.
+the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media; the plan and the Gantt carry each lane's name and the months as pixels, never as markup.
 
 The same rows give the same bytes: parts in a fixed order, a fixed time, system and permission bits on every zip entry, relationship
 ids numbered in order of use, no clock and nothing left to chance, and the file's author and last editor are the word clark, never a person.
@@ -240,10 +240,13 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
     """A cell of words. `colour` (red, amber, green, blue, grey) gives a fill and text of the same hue, the words always shown;
     `late` draws the text red; `extra` are quieter lines under it."""
     fill = color = None
+    if colour == "urgent":      # row 1021: Urgent is a solid maroon cell with bold white words (the page's maroon tile)
+        fill, color = ctx.tok["tone-urgent"], ctx.tok["white"]
+        return text_paras(text, ctx, color=color, bold=True), fill
     if colour in colours_table.COLOURS:
         fill, color = ctx.hexes(colour)
     elif late:
-        color = ctx.tok["status-red-text"]
+        color = ctx.tok["tone-red-text"]
     body = text_paras(text, ctx, color=color)
     body += "".join(para(run(x, color=ctx.tok["grey-700"], size=16), "TableText") for x in extra if x)
     return body, fill
@@ -434,7 +437,7 @@ def section_milestones(published, ctx, title, sec):
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
-        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (m.get("client_message"), {}),
+        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (sanitise.rich_plain_text(m.get("client_message")), {}),     # row 1078: the client wording is rich too
                          (f"Reason: {m['state_reason']}" if m.get("state_reason") else "", {"color": ctx.tok["grey-700"]})):
             if line:
                 name += text_paras(line, ctx, **kw)
@@ -548,6 +551,20 @@ def _due(table_name, field, row, ctx, extra=()):
     return word_cell(_date(iso) + (" (overdue)" if late else "") if iso else "", ctx, late=late, extra=extra)
 
 
+def _status_cell(row, kind, ctx):
+    """The status as the page says it (glance.client_pill): Overdue, Delayed, Due soon or On track on an action; Red, Amber or Green
+    on a risk or issue. Any other RAID type (an assumption, a dependency) is not on the page's lists: it keeps its own status."""
+    if kind not in ("action", "risk", "issue"):
+        return word_cell(row.get("status"), ctx)
+    pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
+                              ctx.as_at)
+    if pill["text"] in ("Closed", "Made", "Completed"):
+        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
+    if row.get("priority") == "Urgent" and glance.is_open(row):
+        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+    return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
+
+
 def section_actions(published, ctx, title, sec):
     rows = []
     for a in _open(_rows(published, "actions")):
@@ -558,7 +575,7 @@ def section_actions(published, ctx, title, sec):
             body += text_paras(update, ctx, color=ctx.tok["grey-700"])
         rows.append([word_cell(a.get("id"), ctx), (body, None), word_cell(a.get("owner"), ctx, extra=[a.get("workstream")]),
                      word_cell(a.get("priority"), ctx, colour=colours_table.colour_for("actions", "priority", a.get("priority"))),
-                     _due("actions", "due_date", a, ctx), word_cell(a.get("status"), ctx)])
+                     _due("actions", "due_date", a, ctx), _status_cell(a, "action", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Action", "Owner", "Priority", "Due", "Status"], [1200, 4038, 1250, 950, 1100, 1100], rows)
@@ -572,10 +589,10 @@ def section_raid(published, ctx, title, sec):
                      (text_paras(_words(r, "client_message", "description"), ctx), None),
                      word_cell(r.get("owner"), ctx, extra=[r.get("workstream")]),
                      word_cell(r.get("priority"), ctx, colour=colours_table.colour_for("raid", "priority", r.get("priority"))),
-                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), word_cell(r.get("status"), ctx)])
+                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), _status_cell(r, str(r.get("type") or "").lower(), ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Type", "Item", "Owner", "Priority", "Impact / likelihood", "Due", "Status"],
+    return _heading(title) + table(ctx, ["Id", "Type", "Title", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"],      # the page's header words
                                    [1200, 1200, 1888, 1150, 950, 1050, 1100, 1100], rows)
 
 

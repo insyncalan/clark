@@ -44,6 +44,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 from clark import doclinks, milestones, page, platform, sanitise, section_bodies
+from clark.source_name import source_name
 from clark.store import (COMMITMENTS, GANTT_COLUMNS, GANTT_HIDEABLE, GANTT_DEFAULT_HIDDEN, GANTT_DEFAULT_TAB, GANTT_ID, GANTT_TAB_LIMIT, GANTT_TEXT_LIMITS, Invalid as StoreInvalid,
                          NumberTaken, check_section_body, excluded_label_names, gantt_list, open_store)
 from clark.server import csp_hashes        # the one place the policy's hashes are worked out (#33); never copied
@@ -61,7 +62,7 @@ DEFAULT_SECTIONS = tuple({"id": f"s-{t}", "type": t, "title": title, "body": "",
                                                          ("usecases", "Use cases"), ("milestones", "Milestones"),
                                                          ("raid", "Risks and issues"), ("actions", "Actions"),
                                                          ("decisions", "Decisions")), 1))
-SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own
+SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs", "gantt", "gantttable") + section_bodies.BODY_TYPES      # row 926: gantt carries no data of its own; row 1068: gantttable neither (both draw data.gantt)
 BUILT_IN_SECTIONS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")      # row 906: the sections whose data lives elsewhere
 
 
@@ -80,21 +81,27 @@ def hidden_types(sections, deleted=False):
 PUBLISH_FIELDS = {
     "projects": ("code", "name", "sponsor", "phase", "health", "health_reason", "client_name", "current_state", "week_ending", "layout"),
     "milestones": ("id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-                   "state_reason", "owner", "actual_date", "client_message", "workstream"),
+                   "state_reason", "owner", "actual_date", "client_message", "workstream", "source"),
     "workstreams": ("id", "name", "status"),
     "actions": ("id", "description", "workstream", "owner", "priority", "due_date", "status", "raised", "closed",
-                "latest_update", "client_message", "milestone", "use_case"),
+                "latest_update", "client_message", "milestone", "use_case", "source"),
     "raid": ("id", "type", "workstream", "description", "owner", "due_date", "impact", "likelihood",
-             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case"),
+             "priority", "status", "raised", "closed", "client_message", "milestone", "use_case", "source"),
     "decisions": ("id", "decision", "made_by", "client_message", "date", "status", "needed_by",
-                  "revisit", "replaces", "use_case"),
+                  "revisit", "replaces", "use_case", "source"),
     "use_cases": ("id", "ref", "title", "status", "headline", "standing", "sort_order", "commitment"),   # #709: the flag goes with the use case
     "links": ("from_item", "to_item", "kind"),
     "documents": ("title", "kind", "url", "date"),        # #74: never its id, place or archive flag
     "gantt_lines": ("id", "name") + tuple(c for c in GANTT_COLUMNS if c != "show"),   # row 926: every column a client may ever see; the line's eye (`show`) only decides, and gantt_hidden_columns takes columns out of the copy (gantt_for_client)
 }
-RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description",)}     # HTML the editor wrote: through clean_html
-LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain)
+# Row 1077 (the owner's ruling of 10-11-2026): a row's `source` is published by NAME only. select() puts the stored words through
+# source_name.source_name (the last part of any path, the date day first), so no folder and no path ever reaches a file; the peek draws it as its Source line.
+SOURCED = ("milestones", "actions", "raid", "decisions")
+# Row 560 (ruled): a client-visible row with no client wording of its own (blank client_message) publishes its title only:
+# the text fields named here are emptied for it, in the web file and the Word copy alike (both read select()'s rows).
+WORDLESS_DROPS = {"actions": ("latest_update",), "milestones": ("description",)}
+RICH = {"projects": ("current_state",), "use_cases": ("standing",), "actions": ("latest_update",), "milestones": ("description", "client_message")}     # HTML the editor wrote: through clean_html
+LEGACY_RICH = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"))     # row 1005: rich now, plain text before: a stored value that is not HTML is escaped into paragraphs first (sanitise.rich_or_plain); row 1078: + a milestone's client wording
 # Read from the database as well, only to decide (never copied): the gates, and what a milestone's state is worked out from.
 GATES = {"milestones": ("client_visible", "archived", "state", "state_set"), "workstreams": ("archived",),
          "actions": ("client_visible", "archived", "client_action"), "raid": ("client_visible", "archived", "client_action"),   # row 811: client_action only decides, it is never copied
@@ -451,16 +458,18 @@ def _gantt_line(row, code):
     return c
 
 
-def gantt_for_client(d, code, project_name):
+def gantt_for_client(d, code, project_name, for_section=False):
     """The Gantt tab's data for the published file, or None when there is no tab: the project's show_gantt_client is not 1, or no
     line is left (the tab needs at least one line with its eye on). The ONE place a client's Gantt is decided, and it runs before
     anything is copied: only a line whose `show` is exactly 1 and which belongs to this project is read at all; a dependency on a
     line that is not in the copy is dropped; a parent that is not in the copy (or is not a phase) reads as no parent; a dependency that
     would close a circle is dropped. The columns in the project's gantt_hidden_columns are not in the copy at all (not hidden by a
     style): the copy holds the line's id and name and every column not on that list. Returns {"tab_name", "title", "columns",
-    "lines"}; `columns` names the columns a line carries."""
+    "lines"}; `columns` names the columns a line carries.
+    `for_section` (row 1068): the copy a Gantt table section draws, the same lines by the same eye and the same columns, asked without
+    the client switch: a template section is in the file by its own place (it still needs an eye-on line), the tab by the switch."""
     project = d.get("project") or {}
-    if type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1:      # exactly the whole number 1: True, 1.0 and "1" are not
+    if not for_section and (type(project.get("show_gantt_client")) is not int or project["show_gantt_client"] != 1):      # exactly the whole number 1: True, 1.0 and "1" are not
         return None
     eyed = [r for r in d.get("gantt_lines") or () if type(r.get("show")) is int and r["show"] == 1 and r.get("project", code) == code]
     eyed.sort(key=lambda r: (r["sort_order"] if type(r.get("sort_order")) is int else 0, str(r.get("id"))))
@@ -536,6 +545,11 @@ def select(inputs):
         out[k] = []
         for r in rows[k]:
             c = _pick(r, PUBLISH_FIELDS[k])
+            if k in SOURCED:                                      # row 1077: the source by name, never a path
+                c["source"] = source_name(c.get("source"), published=True) or None
+            if not (reason_text(r.get("client_message")) or "").strip():       # row 560: no client wording (blank, or only characters nobody sees), title only
+                for f in WORDLESS_DROPS.get(k, ()):
+                    c[f] = None
             for f in RICH.get(k, ()):
                 c[f] = clean_html(sanitise.legacy_to_html(c[f]) if (k, f) in LEGACY_RICH and c[f] and not sanitise.HTML_START.match(c[f]) else c[f])
             if k == "use_cases":                              # plain text the editor wrote: hidden characters out, cut at a limit
@@ -567,6 +581,7 @@ def select(inputs):
         s.get("type") == "docs" and not s.get("hidden") for s in sections) else []          # #74: carried only with a section to draw them
 
     gantt = gantt_for_client(d, code, proj["name"])               # row 926: decided here, from the rows as read, before anything of it is copied
+    table = gantt or gantt_for_client(d, code, proj["name"], for_section=True)      # row 1068: a Gantt table section needs an eye-on line, not the tab's switch
     if gantt:
         out["gantt"] = gantt
         proj["gantt_tab_name"], proj["gantt_title"] = gantt["tab_name"], gantt["title"]       # row 926: the project block carries the tab's name and the page's title, only when the tab is in the file
@@ -576,17 +591,14 @@ def select(inputs):
     for_templates = {k: out[k] for k in KINDS}
     for_templates["actions"] = [{**r, "latest_update": sanitise.rich_plain_text(r.get("latest_update"))} if r.get("latest_update") else r
                                 for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
+    for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
+                                   for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
     ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
-    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list
+    listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)
     if listed:
         needs_sections = [x for x in sections if x.get("type") == section_bodies.NEEDS]
-        if not needs_sections:           # no such section at all: one is made for the file (an owner who has hidden theirs is respected: it is not made again)
-            sections = sections + [{"id": "s-needs-flagged", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
-                                    "beside": 0, "hidden": 0, "sort_order": 1 << 30}]
-            extra["s-needs-flagged"] = {}
-            needs_sections = sections[-1:]
         mine = next((x for x in needs_sections if not x.get("hidden")), None)
         if mine is not None:
             typed = list((extra.get(mine["id"]) or {}).get("rows") or [])
@@ -595,7 +607,8 @@ def select(inputs):
             extra[mine["id"]] = {**(extra.get(mine["id"]) or {}), "rows": typed + listed[:room]}   # typed rows win: the section never holds more than a typed list may
     out_of_file = lambda x: (x.get("hidden") or x.get("type") not in SECTION_TYPES or (x.get("type") in section_bodies.CHECKERS and extra.get(x["id"]) is None)
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
-                             or (x.get("type") == "gantt" and not gantt))                # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
+                             or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
     i = 0
     while i < len(sections):
         if sections[i].get("beside") and i + 1 < len(sections):
@@ -612,6 +625,8 @@ def select(inputs):
         elif s["type"] in section_bodies.CHECKERS:
             c.update({k: v for k, v in extra[s["id"]].items() if k not in c})     # never over id, type, title or beside
         shown.append(c)
+    if table and not gantt and any(s["type"] == "gantttable" for s in shown):
+        out["gantt"] = {"columns": table["columns"], "lines": table["lines"]}      # row 1068: the eye-on lines for the table section alone, with no tab (tabs below), no tab name and no title: the same copy the tab would carry
     out["use_case_pages"] = client_use_cases(d, code, hidden_ids, inputs.get("label_rules"), hidden_types)
     tabs = ["dashboard"]
     if any(SECTION_OF_KIND[k] not in hidden_types for k in WORK_KINDS):
@@ -620,8 +635,6 @@ def select(inputs):
         tabs.append("milestones")
     if out["use_case_pages"]:
         tabs.append("usecases")
-    if "milestones" not in hidden_types:      # the Client Requested Report View (#192) reads only what the file already holds; its figures are the milestones
-        tabs.append("clientreport")
     if gantt:
         tabs.append("gantt")                  # row 926: only with the client switch on and at least one line with its eye on
     return {"data": out, "sections": shown, "tabs": tabs, "as_at": as_at, "needs_dropped": dropped}     # row 811b: build() takes needs_dropped out and logs it; no other caller does
@@ -1059,7 +1072,9 @@ IMPORT_FOUND = "a stylesheet that imports another"
 ADDRESS_FOUND = "a stylesheet address that isn't embedded data"
 
 
-_CSS_ESCAPE = re.compile(r"\\(?:([0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(\r\n|[\n\r\f])|(.))", re.S)
+# A run of escapes that stay as typed (a backslash, a quote: see _NOT_DECODED) is ONE match ("run"): it reads exactly as the escapes
+# one at a time would (each is a backslash and one character, left to right) and costs one step, not one per escape (#871).
+_CSS_ESCAPE = re.compile(r"(?P<run>(?:\\[\\\"'])+)|\\(?:(?P<hex>[0-9A-Fa-f]{1,6})(?:\r\n|[ \t\n\r\f])?|(?P<eol>\r\n|[\n\r\f])|(?P<one>.))", re.S)
 _CSS_PIECE = re.compile(r"""(?s:\"[^"\\\n\r\f]*(?:\\.[^"\\\n\r\f]*)*"?|'[^'\\\n\r\f]*(?:\\.[^'\\\n\r\f]*)*'?)|(-?[A-Za-z_][\w-]*)\s*\(|\(|\)|[\w-]+|(?:(?s:\\.|\\)|[^"'()\w\\-])+""")
 _IMAGE_FUNCTION = re.compile(r"(?:-[a-z]+-)?(?:image-set|src|image|cross-fade)$", re.I)
 _URL_OPEN = re.compile(r"url\(", re.I)
@@ -1069,16 +1084,19 @@ _NOT_DECODED = frozenset("\"'\\\n\r\f")      # an escape for one of these stays 
 
 
 def _css_escape(m):
-    if m.group(1):
-        n = int(m.group(1), 16)
+    if m.group("run"):
+        return m.group(0)             # every escape in the run stays as typed
+    if m.group("hex"):
+        n = int(m.group("hex"), 16)
         c = chr(n) if 0 < n <= 0x10FFFF and not 0xD800 <= n <= 0xDFFF else "\ufffd"
         return m.group(0) if c in _NOT_DECODED else c
-    if m.group(2):
+    if m.group("eol"):
         return "\\\n"                 # a backslash and a line end stays one (as LF): in a string it joins the lines, outside one it is a break between tokens
-    return m.group(0) if m.group(3) in _NOT_DECODED else m.group(3)
+    return m.group(0) if m.group("one") in _NOT_DECODED else m.group("one")
 
 
 _COMMENT_STOP = re.compile(r"/\*|[\"'\\(]")
+_BACKSLASH_RUN = re.compile(r"(?:\\.)+", re.S)       # a run of backslash + one character, read as one step (#871): the same as one at a time
 _DQ_STRING = re.compile(r'"(?:[^"\\\n\r\f]|\\\r\n|\\.)*"?', re.S)
 _SQ_STRING = re.compile(r"'(?:[^'\\\n\r\f]|\\\r\n|\\.)*'?", re.S)
 _UNQUOTED_URL = re.compile(r"[\t\n\f\r ]*(?![\"'\t\n\f\r ])(?:[^)\\]|\\.)*\)?", re.S)
@@ -1110,7 +1128,8 @@ def _without_comments(css, gap=" "):
         if c in "\"'":
             piece = (_DQ_STRING if c == '"' else _SQ_STRING).match(css, m.start()).group(0)
         elif c == "\\":
-            piece = css[m.start():m.start() + 2]
+            run = _BACKSLASH_RUN.match(css, m.start())
+            piece = run.group(0) if run else css[m.start():m.start() + 2]      # no run: a lone backslash at the very end
         else:
             piece = "("
             ident = _IDENT_AT_END.search(tail[-24:]) if tail[-1:] in _URL_NAME_ENDS else None      # "url" is at most 24 characters even spelled with escapes; most names end otherwise
@@ -1349,8 +1368,8 @@ def file_name(code, week_ending, as_at, folder=None):
 # ===== Reading (Store.publish_inputs: one read-only connection, one read transaction) =====
 def read_inputs(store, code, as_at=None):
     """Everything select() needs, read from the store in ONE read-only transaction (so a write can't come between two reads).
-    Only the columns in PUBLISH_FIELDS (and GATES, to decide) are asked for: internal_note, movement and source never leave the
-    database. The SQL itself lives in store.py, the only module that touches the database."""
+    Only the columns in PUBLISH_FIELDS (and GATES, to decide) are asked for: internal_note and movement never leave the
+    database, and a row's source leaves it as its name only (select, row 1077). The SQL itself lives in store.py, the only module that touches the database."""
     if not CODE.fullmatch(code or ""):
         raise PublishError("Give the project's code (3 to 7 capital letters or digits).")
     fields = {t: tuple(dict.fromkeys(PUBLISH_FIELDS.get(t, ()) + GATES.get(t, ()) + (("project",) if t in KINDS + ("workstreams",) else ())))
@@ -1400,7 +1419,7 @@ def build(store, code, now=None, branding=None, section_style=None, number=None,
     if workbook:
         from clark import excel_client           # not at the top: openpyxl is loaded only when a workbook is made
         try:
-            embedded = excel_client.embed(published)
+            embedded = excel_client.embed(published, excel_client.palette_of(branding))
         except Exception as e:                     # the report is the thing: no spreadsheet is better than no report
             logging.getLogger("clark.publish").warning("The client workbook could not be made (%s).", type(e).__name__)   # the class only: never a message or a row
         else:
@@ -1444,9 +1463,9 @@ def read_earlier(path):
 
 
 def still_ours(path, digest):
-    """Whether the file at `path` still holds exactly the bytes whose SHA-256 is `digest`."""
+    """Whether the ordinary file at `path` still holds exactly the bytes whose SHA-256 is `digest`. A link there is not ours (#597)."""
     try:
-        return hashlib.sha256(Path(path).read_bytes()).hexdigest() == digest
+        return hashlib.sha256(read_plain(path)).hexdigest() == digest
     except OSError:
         return False
 

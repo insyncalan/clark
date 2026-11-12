@@ -49,6 +49,7 @@ SLOT_DIR = "/run/clark"
 SLOT_HELD = "CLARK_SUITE_HELD"                  # set by clark-one-suite, which has already taken a slot for this run
 SMALL_RUN = 3                                   # this many test files, repeats counted, need no slot: one file while working goes straight through
 BOX_JOBS = 4                                    # at most this many files at once on such a box, so two runs fill 16 processors and no more
+TICKET = re.compile(r"\d{20}-\d+\Z")                # a place in the line, as _join names it: time of arrival, then the process
 SLOT_MAX_WAIT = 1800.0
 SLOT_SAY_EVERY = 60.0
 
@@ -64,7 +65,7 @@ def box_slots(path=SLOTS_FILE):
 
 def take_slot(runs, jobs, slots=None, folder=SLOT_DIR, environ=None, max_wait=SLOT_MAX_WAIT, pause=3.0, clock=time.monotonic, say=print):
     """(the open lock to keep until the run ends, or None; the number of files to run at once). Waits for a slot when this box has a limit and the run
-    isn't small. Never raises: a limit that can't be used is no limit, because a test run must not fail for it."""
+    isn't small, first come, first served: waiting runs line up in a queue folder and only the first tries the slots. Never raises: a limit that can't be used is no limit, because a test run must not fail for it."""
     slots = box_slots() if slots is None else slots
     environ = os.environ if environ is None else environ
     if not slots:
@@ -77,26 +78,105 @@ def take_slot(runs, jobs, slots=None, folder=SLOT_DIR, environ=None, max_wait=SL
         Path(folder).mkdir(parents=True, exist_ok=True)
     except (ImportError, OSError):
         return None, jobs
-    start, told = clock(), None
-    while True:
-        for n in range(1, slots + 1):
-            try:
-                fd = os.open(str(Path(folder) / f"suite-{n}.lock"), os.O_RDWR | os.O_CREAT, 0o666)
-            except OSError:
+    queue = Path(folder) / "queue"
+    start, told, ticket = clock(), None, None
+    try:
+        while True:
+            if ticket is None and not _ahead(queue, None):
+                fd = _grab(folder, slots)                   # nobody is waiting: straight through
+                if fd != -1:
+                    return fd, jobs
+                if fd is None:
+                    return None, jobs
+            if ticket is None:
+                ticket = _join(queue)
+                if ticket is None:
+                    return None, jobs
+            if not _ahead(queue, ticket[0]):                # first in the queue: only now try the slots
+                fd = _grab(folder, slots)
+                if fd != -1:
+                    return (fd, jobs) if fd is not None else (None, jobs)
+            waited = clock() - start
+            if waited >= max_wait:
+                say(f"Waited {waited / 60:.0f} minutes for a slot on this box: starting anyway.", flush=True)
                 return None, jobs
+            if told is None or clock() - told >= SLOT_SAY_EVERY:
+                say(f"All {slots} test slots on this box are busy: waiting {waited / 60:.0f} minutes so far. Nothing is wrong; this run starts when one is free, "
+                    f"in the order runs arrived.", flush=True)
+                told = clock()
+            time.sleep(pause)
+    finally:
+        if ticket is not None:
             try:
-                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                return fd, jobs
+                os.close(ticket[1])
+                os.unlink(ticket[2])
             except OSError:
-                os.close(fd)
-        waited = clock() - start
-        if waited >= max_wait:
-            say(f"Waited {waited / 60:.0f} minutes for a slot on this box: starting anyway.", flush=True)
-            return None, jobs
-        if told is None or clock() - told >= SLOT_SAY_EVERY:
-            say(f"All {slots} test slots on this box are busy: waiting {waited / 60:.0f} minutes so far. Nothing is wrong; this run starts when one is free.", flush=True)
-            told = clock()
-        time.sleep(pause)
+                pass
+
+
+def _grab(folder, slots):
+    """The open lock on a free slot, -1 when all are busy, None when the folder can't be used."""
+    import fcntl
+    for n in range(1, slots + 1):
+        try:
+            fd = os.open(str(Path(folder) / f"suite-{n}.lock"), os.O_RDWR | os.O_CREAT, 0o666)
+        except OSError:
+            return None
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except OSError:
+            os.close(fd)
+    return -1
+
+
+def _join(queue):
+    """Take the next place in the line: (name, open locked file, path), or None if that can't be done. A place is a file named by the time of arrival and
+    the process, locked while its run waits, so a run that died leaves a place anyone can see is empty."""
+    import fcntl
+    try:
+        queue.mkdir(parents=True, exist_ok=True)
+        path = queue / f"{time.time_ns():020d}-{os.getpid()}"
+        fd = os.open(str(path), os.O_RDWR | os.O_CREAT, 0o666)
+        fcntl.flock(fd, fcntl.LOCK_EX)
+        return path.name, fd, str(path)
+    except OSError:
+        return None
+
+
+def _ahead(queue, mine):
+    """True when a live run joined the line before `mine` (or at all, when mine is None). A place whose lock is free and that is over 5 seconds old
+    belongs to a run that has gone: it is cleared. Only ticket-named files count; anything else in the folder is left alone."""
+    import fcntl
+    try:
+        names = sorted(os.listdir(queue))
+    except OSError:
+        return False
+    for name in names:
+        if not TICKET.match(name):
+            continue                                        # not a place in the line: never ours to clear
+        if name == mine:
+            return False
+        path = str(queue / name)
+        try:
+            fd = os.open(path, os.O_RDWR)
+        except OSError:
+            continue
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            return True                                     # locked: its run is waiting
+        else:
+            try:
+                if time.time() - os.fstat(fd).st_mtime > 5:
+                    os.unlink(path)
+                else:
+                    return True                             # just made, not yet locked by its owner
+            except OSError:
+                pass
+        finally:
+            os.close(fd)
+    return False
 
 
 def chrome_path():

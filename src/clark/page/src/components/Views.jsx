@@ -109,11 +109,10 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-// The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
-// narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
+// The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
 const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
-  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Feedback", "Feedback", "feedback-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 
@@ -130,7 +129,7 @@ function goToCard(headId) {
 function cardHere(cards, picked) {
   const bar = document.querySelector(".set-bar");
   if (!bar || !cards.length) return "";
-  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 900px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
+  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 899px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
   const edge = (row ? bar : top || bar).getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
   const chosen = picked && cardOf(picked);
   if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
@@ -173,9 +172,8 @@ function SettingsHead({ cards }) {
 }
 
 export function Settings({ tools }) {
-  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
-  const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
@@ -186,10 +184,12 @@ export function Settings({ tools }) {
   const Brands = tools && tools.Brands;                  // Brands (#944); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
-  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"];
+  const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
   const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const Feedback = tools && tools.Feedback;              // Feedback (#1069): a form that opens the user's mail app; Edit's page only
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
+  const Quit = tools && tools.Quit;                      // Quit clark (#836); Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <div class="set-layout">
@@ -197,7 +197,6 @@ export function Settings({ tools }) {
       <div class="set-cards">
       {Profile ? <Profile /> : null}
       {ClientFolder ? <ClientFolder /> : null}
-      {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
       {ReviewDays ? <ReviewDays /> : null}
       {GanttSetting ? <GanttSetting /> : null}
@@ -209,6 +208,8 @@ export function Settings({ tools }) {
       {Brands ? <Brands /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
+      {Feedback ? <Feedback /> : null}
+      {Quit ? <Quit /> : null}
       </div>
     </div>
   );

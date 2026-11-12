@@ -30,7 +30,8 @@ UI_NAMES = {"Version and updates", "clark version and updates"}     # the name o
 # 'Show the files' and 'Put back the app and settings only' are the update card's own buttons (logic/update.js LABELS, item 445); the prototype has neither.
 # 'Set commitment' and 'No flag' (#692) are read on the page itself (edit/CommitMenu.jsx SET_WORDS, NO_FLAG); the prototype has no commitment flag.
 # 'Report menu' and 'Export to PDF' are the published file's own menu words (components/ClientMenu.jsx WORDS, #713); the prototype has no such menu.
-CHECKED_BY_HAND = set(['Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Personal › Appearance', 'Personal › Dashboard sections', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Review X.Y.Z', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'The line above the title', 'The project name', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words'])
+# 'Ask clark to update for you' is the words box's heading (edit/SneakPeek.jsx, row 1077, the owner's words of 09-11-2026); the prototype still says Change an item with words.
+CHECKED_BY_HAND = set(['The header line', 'Ask clark to update for you', 'Close this panel', 'Make this panel fill the screen', 'Comfortable', 'Add a group', 'How do I…', 'Keep the date', 'Keep the model I have', 'New agreed date (DD-MM-YYYY)', 'Open folder', 'Outline colour', 'Progress tracker', 'Put back the app and settings only', 'Remove group', 'Show the files', 'Clear filter', 'Open Settings', 'Search work items', 'is any of', 'Confirm and apply', 'Folders asking may read', 'Turn off asking', 'What is the next milestone?', 'Which use cases need attention?', 'Use it anyway', 'Start here', 'Who agreed it', 'What to import', 'Set commitment', 'No flag', 'Report menu', 'Export to PDF', '⋯', 'Template settings', 'Use the automatic words', 'Show history', 'Hide history', 'Show the Gantt to me', 'Show the Gantt to the client', 'Tab name', 'Your email', 'Open in your mail app'])  # merged with main: the four main-only words ('Personal › Spacing', 'Personal › Appearance', 'Review X.Y.Z', 'The line above the title') are now found in the prototype, so they are out; 'Open in your mail app' (Feedback card) is kept  # the last four: the Gantt and Profile cards' own labels (edit/GanttSetting.jsx, edit/Personal.jsx)
 STEPS = SRC["howto"]["tasks"]
 SECTIONS = SRC["reference"]["sections"]
 START = SRC["start"]
@@ -100,8 +101,8 @@ class Shape(unittest.TestCase):
         self.assertEqual([j[0] for j in START["jobs"]], ["add-a-work-item", "write-the-weekly-report", "add-a-section-from-a-template", "arrange-the-report", "publish-the-report"],
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
-        self.assertEqual((len(STEPS), len(SECTIONS)), (37, 35))   # with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (34, 30))
+        self.assertEqual((len(STEPS), len(SECTIONS)), (38, 36))   # merged: main adds the Feedback entry (#1069, section row), so sections 36; steps 37; with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 29))   # merged: icons 29, the branch no longer lists the sparkle (Draft) icon that main still had (30)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
@@ -220,7 +221,7 @@ class Words(unittest.TestCase):
     def test_nothing_is_named_that_clark_does_not_have(self):
         """creaite's mail, calendar and meeting features are not clark's, nor are the report layouts that are only in the backlog (FR-4)."""
         absent = re.compile(r"\b(Outlook|transcripts?|VIP|steerco|Steerco|people register|Teams chat|sweep|meeting minutes|Cover-led|Health spine|health spine)\b")
-        found = [(p, s) for p, s in words() if absent.search(s)]
+        found = [(p, s) for p, s in words() if absent.search(s) and not s.startswith("**Open in your mail app** opens a new email")]   # Feedback (#1069): says clark cannot choose Outlook for you
         self.assertEqual(found, [])
 
     def test_every_button_and_label_in_bold_is_in_the_prototype(self):
@@ -279,11 +280,12 @@ class WordingRound(unittest.TestCase):
         self.assertNotIn("to come back", jsx)
         self.assertRegex(jsx, r"to open Help; Esc takes you where you were")
 
-    def test_the_import_help_names_the_button_the_import_box_shows(self):                   # LOW (#432)
-        jsx = (HELP.parent / "edit" / "Word.jsx").read_text(encoding="utf-8")
-        self.assertRegex(jsx, r'`Add \$\{count\(n, "item"\)\}`', "the box's button reads Add and the number of items")
-        self.assertIn("until you press the Add button (it reads Add and the number of items you ticked, such as Add 3 items)", self.ALL)
-        self.assertNotIn("until you press Add;", self.ALL)
+    def test_the_help_does_not_offer_import_from_word_in_the_profile_menu(self):            # row 1063 (replaces the #432 wording test: the menu entry is gone)
+        self.assertNotIn("Import from Word", self.ALL)
+        self.assertNotIn("bring items in from a Word file", self.ALL)
+        self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
+        raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
+        self.assertNotIn("Import from Word", raw, "no help line, in any section, names the removed menu entry")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
@@ -292,7 +294,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_report_layout_choice_is_mentioned(self):                                     # MEDIUM
         self.assertNotRegex(self.ALL, r"(?i)report layout|layout and section style|Cover-led|Editing the layout|one layout")
-        self.assertIn("the report in the section style you chose", self.ALL)
+        self.assertIn("the report in the Spacing you chose", self.ALL)
 
     def test_no_leftover_from_the_prototype(self):                                           # MEDIUM
         self.assertNotIn("The real clark", self.ALL)
@@ -303,6 +305,7 @@ class WordingRound(unittest.TestCase):
 
     def test_no_results_does_not_offer_ask_clark_yet(self):                                  # MEDIUM
         self.assertNotRegex(re.search(r"export const noResults.*?\}\);", LOGIC, re.S).group(0), r'hint: "[^"]*ask clark')
+
 
 class UseCaseStatuses(unittest.TestCase):
     """#412: Help names the four use case statuses the store allows, in its order, in both places it lists them."""
@@ -351,27 +354,26 @@ class LowWordsRound(unittest.TestCase):
     def test_the_report_has_no_look_to_choose(self):
         self.assertNotIn("one look", self.ALL)
         self.assertIn("The report is the cover, then the sections, with the contents at the right edge", self.ALL)
-        self.assertNotIn("sections in cards", self.ALL)       # the One card style is not cards
+        self.assertNotIn("sections in cards", self.ALL)       # Compact is not cards
 
     def test_no_line_starts_with_ask_clark(self):
         self.assertNotIn("The check in ask clark warns you when", self.ALL)       # ask clark has no such check on the page: the line was taken out of the health steps
         self.assertFalse([s for _, s in words() if re.match(r"(?i)ask clark[’']s\b", s.strip())])
 
     def test_the_section_style_lines_are_the_ones_settings_shows(self):
-        """Help and Settings > Personal give the same four lines for the four styles, and they are the prototype's Settings words."""
+        """Help and Settings › Personal give the same two lines for Compact and Comfortable (item 1025). The prototype predates the Spacing
+        setting, so these lines are checked against Settings only."""
         table = next(b for sec in SECTIONS if sec["id"] == "layouts" for b in sec["b"] if b[0] == "tbl")
-        proto = (PROTO / "views.js").read_text(encoding="utf-8")
         card = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        self.assertEqual(len(table[2]), 4)
+        self.assertEqual([n for n, _ in table[2]], ["Compact", "Comfortable"])
         for name, line in table[2]:
-            self.assertIn(line, proto, f"{name}: Help's line is the prototype's Settings line")
             self.assertIn(line, card, f"{name}: Help's line is the one Settings shows")
 
     def test_use_case_help_says_what_the_page_says(self):
         """The page's button reads "See all N work items for <ref>" (every linked item, as the prototype's views.js) and a use case has four statuses, Done included (UseCases.jsx; #412)."""
         page = (ROOT / "src" / "clark" / "page" / "src" / "components" / "UseCases.jsx").read_text(encoding="utf-8")
         self.assertIn('`See all ${n} work ${n === 1 ? "item" : "items"} for ${u.ref}`', page)
-        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case's reference") + self.ALL.count("which reads “See all N work items” and the use case's reference"), 2)
+        self.assertEqual(self.ALL.count("it reads “See all N work items” and the use case’s reference") + self.ALL.count("which reads “See all N work items” and the use case’s reference"), 2)
         self.assertNotIn("See all work items", self.ALL)
         self.assertIn('export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];', page)
         self.assertIn("Use case statuses: **On track** (green), **Flag** (amber), **High risk** (red) and **Done** (grey).", self.ALL)
@@ -481,6 +483,34 @@ class PublicationNumberWords(unittest.TestCase):
         """item 515: the store never reuses a number and Undo never meets a publication; the publish task in Help says both."""
         text = json.dumps(SRC, ensure_ascii=False)
         self.assertIn("A number is never used again, and **Undo** does not take it back.", text)
+
+
+class NeededFromTheClientWords(unittest.TestCase):
+    def test_help_says_the_flag_lists_the_item_only_when_the_report_has_a_needs_from_you_section(self):
+        """Row 1066: publish adds no 'Needs from you' section the editor lacks, so Help must not promise the item is listed without one."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.", text)
+        self.assertNotIn("switch it on in Edit and the item is listed under “Needs from you”", text)
+        peek = (ROOT / "src" / "clark" / "page" / "src" / "edit" / "PeekLatest.jsx").read_text(encoding="utf-8")
+        self.assertIn("Lists it under “Needs from you” when the report has that section", peek, "the peek's own sub-line makes the same condition")
+
+
+class PeekSourceWords(unittest.TestCase):
+    def test_help_says_source_is_drawn_in_view_and_in_a_published_file_not_only_in_edit(self):
+        """Row 1077: the peek draws Source in Edit, in View and in a published file (the name only there); Help must not say it is in Edit only."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        self.assertIn("**Source** (in Edit, in View and in a published file)", text)
+        self.assertNotIn("**Source** (in Edit)", text)
+        self.assertIn("a published file shows only the name", text)
+
+
+class ProfileCircleWords(unittest.TestCase):
+    def test_help_says_the_profile_circle_is_a_person_icon_that_opens_the_menu_not_initials(self):
+        """1.0.6: the editor's profile circle is a person icon that opens the menu; only the published report's own button shows initials."""
+        text = json.dumps(SRC, ensure_ascii=False)
+        for claim in ("your initials go in the circle", "initials fill the circle", "your initials (a person icon"):
+            self.assertNotIn(claim, text.lower(), f"Help must not say the editor's profile circle shows initials: {claim}")
+        self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
 if __name__ == "__main__":

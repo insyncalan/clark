@@ -18,6 +18,7 @@ Routes:
                          `section_image(req)`, from clark.changes (the picture's checks are there); its own body limit
 - POST /api/sneak/read  words about one work item as from → to changes (#42); read only, plain code (clark.sneak)
 - POST /api/here         "still here" from an open page (#71); stops a launcher-started server when no page is left
+- POST /api/quit         Quit (#836): answers, then stops this server (the Settings card "Quit clark"); nothing is read from the body
 - POST /api/publish      Publish (#43): Local, and the client folder only when the body says `to_client: true`; publish_flow.py
 - POST /api/client-folder  choose or clear the project's client folder (#43); never writes into it
 - GET  /api/publication  ?project=<CODE>: when the project was last published and whether to the client (#43)
@@ -42,7 +43,7 @@ Routes:
 - GET  /api/diagnostics  the logging level, the last 7 days' errors and the Copy diagnostics text (#110)
 - POST /api/logging      set Normal or Debug (#110); POST /api/logging/open-folder shows the log folder
 - POST /api/draft-email  Draft email (#50): the ticks and the email text from the builder; read only, never sends (draft_email_feed.make)
-- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, never any words of the email (draft_email_feed.make_sent)
+- POST /api/draft-email/sent  "I sent it" (#50): records the ids, the mode and the day, and one History sentence (the recipient's name and the subject, composed here; never the address or the body) (draft_email_feed.make_sent)
 - POST /api/ask/change/dry    {project, reply}: the dry run of the changes an answer suggested, held on the server (#47e; ask_service.py)
 - POST /api/ask/open-source   {project, file, page|null}: open a saved folder's PDF at a page in the system's viewer (#943; ask_service.py, platform.py)
 - POST /api/ask/change/apply  {project, offer, confirm?}: one offer saved as one undoable step (#47e; ask_apply.py, changes.make_ask_change)
@@ -445,18 +446,22 @@ def csp_take(n):
         return room
 
 
+TIMER_SKIPPED = "The timer for the turned-away count could not start. The count is written by the next request, or when clark stops."
+
+
 class Refused:
     """Requests turned away before authorised() let them in (#234): counted, never a line of their own, so a page on another
     site looping requests at this port cannot fill the day's log. A burst in one window of `interval` seconds writes exactly
     one line, when the window ends: how many were turned away and how long the window was. A timer writes it, so a lone
     refusal or a last burst before quiet is still written; a later request writes it too if the timer has not yet. Nothing is
     written when the first request arrives. Only two whole numbers are written: nothing of any request (no path, query, header
-    or Origin). A timer that cannot start is skipped without a word. `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
+    or Origin). A timer that cannot start is skipped, and one line says so the first time it happens (#553). `clock` is monotonic, so a clock stepping back never holds the line back; tests pass their own clock and
     `timer=None`."""
 
     def __init__(self, interval=CSP_REPORT_WINDOW, clock=time.monotonic, timer=threading.Timer):
         self.interval, self.clock, self.timer, self.lock = interval, clock, timer, threading.Lock()
         self.since, self.n, self.gen = None, 0, 0
+        self.timer_noted = False                         # #553: the "no timer" line is written once
 
     def _close(self):
         """End the window (the lock is held): the count of the requests in it, or 0."""
@@ -494,7 +499,9 @@ class Refused:
                         t.daemon = True
                         t.start()
                     except (RuntimeError, OSError):      # no thread could be started: the next request or the stop writes the window
-                        pass
+                        noted, self.timer_noted = self.timer_noted, True
+                        if not noted:
+                            LOG.warning("The timer for the turned-away count could not start. The count is written by the next request, or when clark stops.")   # #553: fixed words (the same as TIMER_SKIPPED, which the test pins), once; nothing of the error
             self.n += 1
         self._say(done)
 
@@ -565,13 +572,16 @@ def brand_picture_route(handler, name, brand_id=None):
 
 
 # ===== The page and the data (the seams to #35 and #31) =====
+# #960: the base text size (brand/tokens.css --size-body); this server imports nothing from clark, so a test keeps the two equal.
+BODY_SIZE = "15px"
 PLACEHOLDER = """<!doctype html>
 <html lang="en-GB"><head><meta charset="utf-8"><title>clark</title>
-<style>body{font:16px system-ui,sans-serif;margin:3rem}</style></head>
+<style>body{font:@SIZE_BODY@ system-ui,sans-serif;margin:3rem}</style></head>
 <body><p id="state">clark is starting.</p>
 <script>document.getElementById("state").dataset.ready = "1";</script>
 </body></html>
 """
+PLACEHOLDER = PLACEHOLDER.replace("@SIZE_BODY@", BODY_SIZE)
 
 
 def placeholder_html():
@@ -585,7 +595,22 @@ def with_boot(html):
     boot = json.dumps({"token": TOKEN}).replace("<", "\\u003c")
     block = f'<script type="application/json" id="clark-boot">{boot}</script>'
     i = html.rfind("</body>")
-    return html[:i] + block + html[i:] if i >= 0 else html + block
+    html = html[:i] + block + html[i:] if i >= 0 else html + block
+    return dev_marked(html) if os.environ.get("CLARK_DEV") == "1" else html
+
+
+DEV_RIBBON = ('<div id="clark-dev-ribbon" style="position:fixed;top:0;left:50%;transform:translateX(-50%);z-index:2147483647;'
+              'background:#d9480f;color:#fff;font:700 12px/1 system-ui,sans-serif;letter-spacing:.08em;padding:4px 14px;'
+              'border-radius:0 0 8px 8px;pointer-events:none;box-shadow:0 1px 4px rgba(0,0,0,.3)">DEV COPY</div>')
+
+
+def dev_marked(html):
+    """The dev instance (CLARK_DEV=1, set by dev-clark.command) shows an orange DEV COPY tab at the top and "DEV" in the browser tab,
+    so it is never taken for production. A style attribute only: the policy allows those, so no new hash is needed."""
+    html = html.replace("<title>clark", "<title>DEV clark", 1)
+    i = html.find("<body")
+    j = html.find(">", i) + 1 if i >= 0 else -1
+    return html[:j] + DEV_RIBBON + html[j:] if j > 0 else html
 
 
 def data_route(handler):
@@ -989,7 +1014,7 @@ PREVIEW_GONE = """<!doctype html>
 <title>Preview not available</title>
 <style>
 :root { color-scheme: light dark; }
-body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; font: @SIZE_BODY@/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; background: #f4f6f9; color: #1d2733; }
 main { box-sizing: border-box; max-width: 34rem; margin: 24px; padding: 28px 32px; background: #fff; border: 1px solid #d9dee5; border-radius: 12px; }
 h1 { margin: 0 0 8px; font-size: 1.4rem; font-weight: 500; }
 p { margin: 0 0 8px; color: #55606e; }
@@ -1000,6 +1025,7 @@ p { margin: 0 0 8px; color: #55606e; }
 <p>Go back to clark, open your menu (the circle at the top right) and choose Preview the page in a new tab for a new one.</p>
 </main></body></html>
 """
+PREVIEW_GONE = PREVIEW_GONE.replace("@SIZE_BODY@", BODY_SIZE)
 
 
 def page_for(page_html, code):
@@ -1077,7 +1103,7 @@ def safety_route(method):
 
 def draft_email_route(seam_name):
     """POST /api/draft-email and /api/draft-email/sent (#50): hand the request to the server's seam of that name, which answers
-    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day; never any text of
+    (status, body). The first writes nothing and sends nothing; the second records one "I sent it" (ids, mode, day, and the one History sentence the server composes; never the address or the body of
     the email). With no seam there is nothing to ask: not found. Checked like change_route before this runs (token, Host, Origin,
     JSON only, a Content-Length, the route's own limit)."""
     def route(handler, req):
@@ -1223,6 +1249,14 @@ def update_route(method):
     return route
 
 
+def quit_route(handler, req):
+    """POST /api/quit (#836): answer, then stop this server the way an update's restart does (serve() waits for a running job, closes
+    the socket and ends; __main__ then lets go of the data folder). The token, the Host, the Origin, JSON only and the length are
+    checked before this runs. Nothing is read from the body."""
+    handler.send(200, {"ok": True, "quit": True})
+    threading.Thread(target=handler.server.shutdown, daemon=True).start()
+
+
 UPDATE_ROUTES = ("/api/update", "/api/update/review", "/api/update/install", "/api/update/arm-undo", "/api/update/undo")
 
 
@@ -1339,7 +1373,7 @@ GET_ROUTES = {"/api/projects": projects_route, "/api/data": data_route, "/api/pu
               "/api/publications": past_route("listing"), "/api/past-report": past_route("open"), "/api/as-at": as_at_route, "/api/demo": demo_route("status"),
               "/api/brands": brand_route("listing")}
 POST_ROUTES = {"/api/change": change_route, "/api/section-body": section_body_route, "/api/undo": undo_route, "/api/section-image": section_image_route, "/api/sneak/read": sneak_route, "/api/publish": publisher_route("publish"),
-               "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
+               "/api/quit": quit_route, "/api/client-folder": publisher_route("client_folder"), "/api/preview": publisher_route("preview"),
                "/api/backups/preview": safety_route("preview"), "/api/backups/restore": safety_route("restore"), "/api/backups/copy-folder": safety_route("copy_folder"),
                 "/api/ask-folders": ask_folders_route("change"), "/api/ask-enabled": app_settings_route("change_ask"), "/api/providers/connect": ai_connect_route("connect"),
                 "/api/providers/disconnect": ai_connect_route("disconnect"), "/api/providers/model": ai_connect_route("choose"),

@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v103
 
 Same shape as test_v102.
   COVERED       a merged row a person can see, already covered by a test elsewhere. test_every_covering_test_named_here_exists
-                fails if one goes missing. Rows 273, 802, 827, 872, 874, 889, 895, 905, 907, 917, 918 and 920 have no visible change (NO_VISIBLE_CHANGE).
+                fails if one goes missing. Rows 273, 799 (its Weekly snapshot is gone, row 1065), 802, 827, 872, 874, 889, 895, 905, 907, 917, 918 and 920 have no visible change (NO_VISIBLE_CHANGE).
   WAITING       a row that is not on main yet but has a marker in the source that appears when it lands (item, check, pull request,
                 a file under the top folder, the text in it). Skipped, with the pull request. After the cut commit has set the
                 version and the marker is there, the row fails until it is moved to COVERED with its test. Empty today: the
@@ -29,8 +29,8 @@ SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the N
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#856", 'The project menu ends with New project... and starts on the open project.',
-     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project_and_has_New_project_that_opens_the_form"),
+    ("#856", 'The project menu starts on the open project and lists only projects.',
+     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project_and_ends_with_the_projects"),
     ("#855", "In Edit, Ctrl or Cmd + J opens ask clark from anywhere and the button's tooltip names it.",
      "test_help_pr_a::TopBar::test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it"),
     ("#849", 'The Settings switches say their new state in a message with one Undo.',
@@ -101,10 +101,6 @@ COVERED = [
      "test_buttons_771_772::Buttons::test_the_main_button_keeps_its_focus_ring"),
     ("#772", "The search button has an outline and the ask clark text is smaller.",
      "test_buttons_771_772::Buttons::test_the_search_button_has_an_outline_and_the_ask_text_is_smaller"),
-    ("#799", "Snapshot initials fit inside their pill.",
-     "test_snapshot_avatar_chip::SnapshotAvatarChip::test_the_initials_fit_inside_their_pill"),
-    ("#799", "A snapshot line with no Achieved figure shows no behind-plan chip.",
-     "test_snapshot_avatar_chip::SnapshotAvatarChip::test_the_chip_is_hidden_when_achieved_is_empty_and_shown_when_it_has_a_figure"),
     ("#785", "The published footer gives the date once and no View only.",
      "test_publication_footer::TheFooter::test_row_785_the_client_sees_the_date_once_and_no_view_only_at_1400_and_900_light_and_dark"),
     ("#765", "Each project form label is left of its field on one row.",
@@ -130,7 +126,7 @@ COVERED = [
     ("#757", "The open tab stays in view in the top bar at 900 px.",
      "test_top_bar_tabs::TopBarTabs::test_a_row_narrowed_after_the_scroll_shows_the_open_tab_again_at_900"),
     ("#764", "The top bar's tab row is not cut off at 900 px.",
-     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_1000_px_and_below_and_never_wrap"),
+     "test_top_bar_tabs::TopBarTabs::test_the_tabs_tighten_their_padding_at_900_px_and_never_wrap"),
     ("#775", "The Work items board columns are lifted cards and the full-screen icon is arrows.",
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#776", "The Sneak peek words box is a floating card.",
@@ -141,8 +137,8 @@ COVERED = [
      "test_excel_pre1900::ToCell::test_cell_types_in_the_saved_file"),
     ("#839", "The same date in the client workbook is text, and the Week ending line reads in the same form.",
      "test_excel_pre1900::ClientWorkbook::test_client_sheet_has_text_for_an_old_due_date"),
-    ("#787", "The profile menu lists Settings once: the link or the entry.",
-     "test_profile_menu::ProfileMenu::test_C_settings_is_listed_once_the_link_or_the_entry"),
+    ("#787", "The profile menu has a Settings entry after Published reports.",
+     "test_profile_menu::ProfileMenu::test_C_settings_is_an_entry_after_published_reports_before_appearance"),
     ("#824", "Work items edit in View at both widths, light and dark.",
      "test_work_no_mode::WorkNoMode::test_work_items_edit_in_view_at_both_widths_in_light_and_dark"),
     ("#824", "On a row Enter opens the peek and the arrows walk the cells.",
@@ -279,8 +275,8 @@ COVERED = [
      "test_work_board_page::Cards::test_row_775_columns_are_lifted_cards_and_the_full_screen_icon_are_arrows"),
     ("#805", 'Work items has no intro sentence and no count line.',
      "test_work_items_header::Header::test_row_805_no_intro_sentence_and_no_count_line_and_no_gap_left"),
-    ("#807", 'A selected Board card has no check mark but still shows it is selected.',
-     "test_work_items_header::Header::test_row_807_a_selected_card_has_no_check_mark_but_still_shows_it_is_selected_and_a_list_row_keeps_its_tick"),
+    ("#807", 'A selected Board card or list row has no check mark but still shows it is selected.',
+     "test_work_items_header::Header::test_row_807_a_selected_card_and_a_selected_list_row_have_no_check_mark_but_still_show_it_is_selected"),
     ("#808", 'The filter suggestion list floats over the table and pushes nothing.',
      "test_work_items_header::Header::test_row_808_the_suggestion_list_floats_over_the_table_and_pushes_nothing"),
     ("#808", 'The filter suggestion list floats over the board and pushes nothing.',
@@ -338,7 +334,7 @@ COVERED = [
 ]
 
 # Merged rows with no visible change: they have a MERGED line in the status table and need no bullet, hand check or test here.
-NO_VISIBLE_CHANGE = {"273", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
+NO_VISIBLE_CHANGE = {"273", "799", "802", "827", "872", "874", "889", "895", "905", "907", "908", "914", "917", "918", "920", "932", "941"}
 
 # Rows with one part merged and the rest open: the merged part is covered here, the row stays IN REVIEW in the table.
 PARTLY_MERGED = {"767", "766", "775", "776", "807"}

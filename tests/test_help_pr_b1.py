@@ -57,11 +57,13 @@ class SheetChoice(unittest.TestCase):
 class Commitment(unittest.TestCase):
     def test_the_words_and_the_empty_cell(self):
         t = flat(SECS["excel"])
-        self.assertIn("The Use cases sheet has a Commitment column that reads Candidate, Committed or Planned 2027, spelt exactly like that, or is left empty.", t)
+        self.assertIn("The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty.", t)
         self.assertIn("An empty Commitment cell on import leaves the flag as it is; it never clears it.", t)
-        self.assertIn('COMMITMENTS = ("Candidate", "Committed", "Planned 2027")', text("store.py"))
+        self.assertIn('COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")', text("store.py"))
         imp = text("excel_import.py")
-        self.assertIn("str(value).strip() in writer.COMMITMENTS", imp)
+        # the word is stripped once, an old Candidate is mapped to Planned 2026, then checked against the list
+        self.assertIn("word = str(value).strip()", imp)
+        self.assertIn("if word in writer.COMMITMENTS", imp)
         self.assertRegex(imp, r'if f == "commitment" and v is None:\s+continue')
         self.assertIn('("Commitment", "commitment")', text("excel.py"))
 

@@ -38,7 +38,7 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 20          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 23          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
@@ -81,15 +81,16 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
                  "needs", "tracker",
                  "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
                  "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
-                 "gantt")                                                    # row 926: the Gantt section, which carries no body of its own
-# the thirty of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+                 "gantt",                                                    # row 926: the Gantt section, which carries no body of its own
+                 "gantttable")                                               # row 1068: the Gantt table alone, the same lines and no body of its own
+# the thirty-one of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be deleted; a built-in's row holds no data (its records live in their own tables)
 # #709: the words of a use case's commitment flag, the owner's own, case exact. The ONE place they are written: changes.py, the Excel
 # import and export, the data feed to the page and the tests all read this tuple. No flag is NULL. SQL has no CHECK on the column,
 # so a fourth word later is a change here and not a layout step.
-COMMITMENTS = ("Candidate", "Committed", "Planned 2027")
+COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")
 ALLOWED = {
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
@@ -187,8 +188,10 @@ def attach_freshness(con, data, days, cache=None):
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
-NEVER_PUBLISH = frozenset({"internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords",
+NEVER_PUBLISH = frozenset({"internal_note", "movement", "reasoning", "options", "response_action", "keywords",
                            "aliases", "lead", "publish_local", "publish_client", "by_user", "device"})
+# `source` left this list on row 1077 (the owner's ruling of 10-11-2026): a published file carries a row's source by NAME only; publish.select
+# puts the stored words through source_name.source_name, so a path never reaches a file.
 PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
                  "use_cases": "sort_order, id"}                                                  # this order
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
@@ -613,7 +616,19 @@ def _visible_ok(value):
     return any(unicodedata.category(c)[0] in "LNPS" and c not in _BLANK_LOOKING for c in value)
 
 
-BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok)
+def _html_ok(text):
+    """The editor's words for a template field (row 1005): sanitise.clean_html, '' when there is nothing to read, a line break written
+    as a space (a section's content holds none), or ValueError when the cleaner refuses the text (too long). Cleaning it again changes nothing."""
+    try:
+        out = sanitise.clean_html(text)
+        if not sanitise.plain_text(out).strip():
+            return ""
+        return sanitise.clean_html(out.replace("\r", " ").replace("\n", " "))
+    except sanitise.SanitiseError:
+        raise ValueError("too long") from None
+
+
+BODY_RULES = section_bodies.Rules(plain=_plain_ok, visible=_visible_ok, html=_html_ok)
 
 
 def check_section_body(kind, body):
@@ -2533,7 +2548,7 @@ def migrate_publication_pdf_name(con):
 
 def migrate_use_case_commitment(con):
     """Schema version 15 to 16 (#709): `use_cases.commitment`, the flag that says how firm a use case is (Candidate, Committed or
-    Planned 2027). NULL for every row already there: no flag is guessed. An optional column with no default and no CHECK (the words are
+    Planned 2027; Candidate became Planned 2026 in step 21). NULL for every row already there: no flag is guessed. An optional column with no default and no CHECK (the words are
     store.COMMITMENTS, so a fourth is not another layout step), added in place: no table is made again. Skipped when the column is
     already there (a new database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner
     does). It is step 16 in MIGRATIONS."""
@@ -2644,6 +2659,55 @@ def migrate_brand(con):
         con.execute("ALTER TABLE projects ADD COLUMN " + BRAND_COLUMN)
 
 
+def migrate_commitment_planned_2026(con):
+    """Schema version 20 to 21 (row 1061): the commitment word Candidate is now Planned 2026. Every use case that holds Candidate is
+    rewritten to Planned 2026; no other value is touched. History lines are not rewritten (they keep the word they were written with)
+    and no new one is written. Safe to run twice (nothing holds Candidate the second time). Runs inside the caller's transaction and does
+    not touch the version (the runner does). It is step 21 in MIGRATIONS."""
+    con.execute("UPDATE use_cases SET commitment = 'Planned 2026' WHERE commitment = 'Candidate'")
+
+
+OWNER_STEP = 22        # row 875's step number, written once here and used by MIGRATIONS
+OWNER_COLUMNS = ("owner TEXT", "owner_id TEXT REFERENCES people(id)")      # the same text as schema.sql's use_cases table, in this order
+
+
+def migrate_use_case_owner(con):
+    """Schema version 21 to 22 (row 875): use_cases.owner (free text, as milestones.owner) and use_cases.owner_id (the link to the people
+    list). Both are added at the end of use_cases with the text of schema.sql, so no table is made again; every existing use case has no
+    owner (NULL), nothing is backfilled and no existing value changes. Each column is skipped when it is already there (a new database, or
+    a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and does not touch the
+    version (the runner does). It is step 22 in MIGRATIONS."""
+    have = columns(con, "use_cases")
+    for text in OWNER_COLUMNS:
+        if text.split()[0] not in have:
+            con.execute("ALTER TABLE use_cases ADD COLUMN " + text)
+
+
+# Row 1068: the table-only section type. The report_sections table as schema.sql makes it once a section may be of type 'gantttable',
+# frozen here (tests/test_gantt_table_section.py pins it to schema.sql as it is today). It keeps every type the earlier steps allow.
+REPORT_SECTIONS_WITH_GANTT_TABLE = REPORT_SECTIONS_WITH_GANTT.replace("'onedoc','gantt')),", "'onedoc','gantt','gantttable')),", 1)
+GANTT_TABLE_STEP = 23        # row 1068's step number, written once here and used by MIGRATIONS
+
+
+def migrate_gantt_table_section_type(con):
+    """Schema version 22 to 23 (row 1068): report_sections.type gains 'gantttable'. SQLite cannot change a CHECK in place, so the table
+    is made again from the frozen text above, the rows copied in their order (as steps 8 and 19 do; nothing references this table, it
+    has no trigger or index, and its one outgoing key is kept). Skipped when the table's own definition already names 'gantttable' (a
+    new database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 23 in MIGRATIONS."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE)
+        return
+    if "'gantttable'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_table (", 1))
+    con.execute("INSERT INTO report_sections_table (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_table RENAME TO report_sections")
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2651,7 +2715,8 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
-              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand))
+              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand),
+              (21, migrate_commitment_planned_2026), (OWNER_STEP, migrate_use_case_owner), (GANTT_TABLE_STEP, migrate_gantt_table_section_type))
 
 
 def migration_plan(version, table=None):
@@ -2894,6 +2959,34 @@ def cut_whole_steps(events, cap):
         keep.add(step)
         used += len(g)
     return [e for e in events if e["step"] in keep]
+
+
+EMAIL_NOTE_KEY = "sent:"             # row 983: the item_events item_id of an "I sent it" sentence, then the email_sent number
+EMAIL_NOTE_MAX = 300                 # item_events.src_ref's own limit
+EMAIL_NOTE_NAME_MAX = 100
+_HIDDEN_CATEGORIES = frozenset({"Cf", "Co", "Cs"})
+
+
+def _note_text(text):
+    """One plain line: line breaks and controls become spaces, hidden marks (bidi, zero width) go, white space is collapsed."""
+    flat = "".join(" " if unicodedata.category(c) in ("Cc", "Zl", "Zp") else "" if unicodedata.category(c) in _HIDDEN_CATEGORIES else c
+                   for c in str(text or ""))
+    return " ".join(flat.split())
+
+
+def email_note(name, day, subject):
+    """The one History sentence for "I sent it" (row 983): NEW words, ruled by the Head, exactly
+    `Emailed Pat Example on 29-10-2026, "Example Programme · ABC-A-004 · Chase: Order the laptops"`, or without the name when no
+    person is named. Never an address, never the body. A double quote inside the subject becomes a single one, and a subject too long
+    for src_ref is cut with an ellipsis, so the sentence always fits (300 characters) and has no line break."""
+    y, m, d = str(day).split("-")
+    who = _note_text(name)[:EMAIL_NOTE_NAME_MAX].rstrip()
+    lead = "Emailed " + (who + " " if who else "") + f"on {d}-{m}-{y}, \""      # NEW
+    what = _note_text(subject).replace('"', "'")
+    room = EMAIL_NOTE_MAX - len(lead) - 1
+    if len(what) > room:
+        what = what[:room - 1].rstrip() + "\u2026"
+    return lead + what + '"'
 
 
 class Store:
@@ -3386,14 +3479,20 @@ class Store:
     EMAIL_MAX_IDS = 50
     EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
-    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None, person=None, subject=None):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
         was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
         anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
         id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
-        transaction. Returns the record's number."""
+        transaction. Returns the record's number.
+
+        Row 983: with a `subject` (the server's own, composed again from the ticks, never the page's) the one History sentence is
+        written once, in the same transaction, as an item_events row with no change (place "email", item_id "sent:<seq>", the
+        sentence in src_ref): an existing history store, no schema change, and the email_sent rows still hold ids, mode and day only. `person` is a
+        people id; the name in the sentence is that record's name now (a snapshot: a later rename does not rewrite it), and a
+        person who is not on file, or none, gives the sentence without a name. A press repeated inside the repeat window writes nothing more."""
         if not str(by_user or "").strip():
             raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
@@ -3411,10 +3510,10 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
-        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
-        if sent < now - timedelta(days=1):
+        server_day = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < server_day - timedelta(days=1):
             raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
-        if sent > now + timedelta(days=1):
+        if sent > server_day + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
@@ -3453,6 +3552,14 @@ class Store:
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            if isinstance(subject, str) and subject.strip():
+                name = ""
+                if isinstance(person, str) and person:
+                    found = self.con.execute("SELECT name FROM people WHERE id = ?", (person,)).fetchone()
+                    name = found["name"] if found else ""
+                self.con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                                 "VALUES (?, NULL, ?, NULL, 'change', 'dashboard', 'email', NULL, 'you', ?, NULL)",
+                                 (now(), EMAIL_NOTE_KEY + str(seq), email_note(name, day, subject)))
             self.con.execute("COMMIT")
             return seq
         except BaseException:
@@ -3574,8 +3681,11 @@ class Store:
 
     def step_undone(self, apply_id, reverted=None):
         """Whether step `apply_id` has been undone already: every row it really wrote (not a note, an updated_at stamp or a starting
-        section) has been put back by an undo still in force, the rule undo_many skips a step by. Read only. #377: a caller that asks about
+        section) has been put back by an undo still in force, or the step's applies row says undone_at: the two rules undo_many skips a step by. Read only. #377: a caller that asks about
         many steps passes `reverted` (reverted_rowids, computed once) so it is not rescanned for every step."""
+        flagged = self.con.execute("SELECT undone_at FROM applies WHERE apply_id = ?", (apply_id,)).fetchone()
+        if flagged and flagged[0]:                         # #600: the flag undo_many also skips a step by
+            return True
         real = [r[0] for r in self.con.execute("SELECT rowid FROM change_log WHERE apply_id = ? AND field NOT IN ('note', 'updated_at') "
                                                "AND via != ?", (apply_id, SEED_VIA))]
         back = (reverted if reverted is not None else reverted_rowids(self.con)) if real else set()
@@ -3682,7 +3792,7 @@ class Store:
         return {"project": code, "milestones": out, "truncated": truncated}
 
 
-OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by"}   # #115: the text column beside each owner_id
+OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
 
 
 def _live_person(con, ref):

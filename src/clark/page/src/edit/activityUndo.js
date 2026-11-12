@@ -6,6 +6,7 @@ export const CONFIRM_ABOVE = 25;            // above this a second confirm is as
 
 export const WHY_COMMENT = "A comment has nothing to undo.";
 export const WHY_UNDO = "This was an undo, so it can't be chosen here. Undo it from the message after it.";
+export const SENT_KIND = "Email sent";       // row 983: a sent-email line is a note of something done outside clark: nothing to undo, so it says nothing about Undo
 export const WHY_NO_STEP = "This change can't be undone from here.";
 
 /** "" when the row can be chosen, else the words that say why not. */
@@ -21,7 +22,7 @@ export function whyNot(r) {
 /** The steps of the rows that can be chosen, in the order drawn, each once. */
 export function chooseable(rows) {
   const out = [];
-  for (const r of rows) if (!whyNot(r) && !out.includes(String(r.step))) out.push(String(r.step));
+  for (const r of rows) if (r.kind !== SENT_KIND && !whyNot(r) && !out.includes(String(r.step))) out.push(String(r.step));
   return out;
 }
 

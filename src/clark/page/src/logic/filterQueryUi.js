@@ -16,7 +16,7 @@ const quoted = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : 
 const cache = { rows: null, key: "", schema: null, extra: null };
 /** schemaOf() less the `is:` words this page cannot answer yet (the page turns them on with ctx.isReady), so such a word reads as an unknown state. */
 export function pageSchema(rows, ctx, extra) {
-  const c = ctx || {}, key = `${c.isReady ? 1 : 0}${c.quietReady ? 1 : 0}`;
+  const c = ctx || {}, key = `${c.isReady ? 1 : 0}${c.quietReady ? 1 : 0}${c.archivedReady ? 1 : 0}`;
   if (cache.rows === rows && cache.key === key && cache.extra === (extra || null) && cache.schema) return cache.schema;
   const base = schemaOf(extra || []);
   const schema = { ...base, states: base.states.filter((s) => isOn(s, c, rows)) };
@@ -217,6 +217,14 @@ export function suggestions(text, caret, rows, ctx, extra) {
   return out;
 }
 
+/** Item 1014: Backspace or Delete with the caret right after a half-typed `field:value` takes the whole word away. Returns the text and caret
+ *  after it goes, or null when the caret is not at the end of such a word (a bare `field:`, a plain word, a caret inside the word, or Delete with a space after the caret: that takes the space). */
+export function dropWordAt(text, caret, key) {
+  const s = String(text || ""), { start, word } = wordAt(s, caret);
+  if (!/^-?[a-z]+:./i.test(word) || (caret < s.length && (key === "Delete" || !/\s/.test(s[caret])))) return null;
+  return { text: s.slice(0, start) + s.slice(caret).replace(/^\s+/, ""), caret: start };
+}
+
 /** The text and caret after choosing `opt` for the word the caret is in. A choice that ends the word adds one space after it. */
 export function accept(text, caret, opt) {
   const { start } = wordAt(text, caret);
@@ -275,9 +283,9 @@ export function withCounts(options, chips, rows, ctx, extra) {
   });
 }
 
-/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+/** The word a chip's remove button names: the field's name, or the whole chip for is, has and no (two is: chips must not both be "the is filter"). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];
   if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
-  return String(chip).replace(/^-/, "").split(":")[0];
+  return String(chip);
 }

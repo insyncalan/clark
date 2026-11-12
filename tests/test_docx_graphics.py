@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_docx_graphics
 The pictures come from src/clark/png_draw.py (a PNG writer in zlib and struct) and src/clark/docx_graphics.py (shapes and design-token
-colours only, no text in a picture). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
+colours, and the words of a lane name or a month drawn as pixels with a built-in 5x7 font). What is asserted: the bytes are a valid PNG (signature, IHDR first, every CRC, IDAT inflates to
 exactly the right size); the pixels are the token colours (Achieved green, Late red, a progress bar's done part, the Health segment,
 the Today line where its date is); the .docx holds the picture as a media part with a relationship, a content type and an inline
 drawing, read with the zip and an XML parser only; alt text is made of words the report already shows; hostile rows (none, garbage
@@ -77,7 +77,7 @@ def lane_x(rows, today, iso):
     from clark import milestone_rows as mr
     drawn = g._rows(rows)
     start, end = (date.fromisoformat(d) for d in mr.timeline_span(drawn, today))
-    return g.PAD + round((date.fromisoformat(iso) - start).days * (g.WIDTH - 2 * g.PAD) / (end - start).days)
+    return g.X0 + round((date.fromisoformat(iso) - start).days * (g.X1 - g.X0) / (end - start).days)
 
 
 class PngWriter(unittest.TestCase):
@@ -285,6 +285,156 @@ NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main", "wp":
       "ct": "http://schemas.openxmlformats.org/package/2006/content-types"}
 
 
+class Labels(unittest.TestCase):
+    """#1036: the lane names and the axis dates are in the picture, so the picture reads without the table beside it."""
+    TODAY = "2026-11-08"
+
+    def ink(self, png, x0, x1, y0, y1):
+        """How many pixels of the text colour lie in x0 <= x < x1, y0 <= y < y1."""
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        return sum(1 for y in range(y0, min(y1, h)) for x in range(x0, min(x1, w)) if palette[rows[y][x]] == want)
+
+    def gutter(self, png, i):
+        w, h, palette, rows = read_png(png)
+        return [[palette[v] == tok()["text"] for v in rows[y][:g.LABEL_W]] for y in range(g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)]
+
+    def draw(self, rows):
+        return g.plan(rows, self.TODAY, TOKENS)[0][0]
+
+    def test_a_named_lane_has_ink_in_its_own_band_of_the_name_column_and_an_unnamed_one_none(self):
+        png = self.draw([ms(1, name="Go live"), ms(2, name=None), ms(3, name="   ")])
+        band = lambda i: self.ink(png, 0, g.LABEL_W, g.TOP + i * g.LANE, g.TOP + (i + 1) * g.LANE)
+        self.assertGreater(band(0), 20)
+        self.assertEqual((band(1), band(2)), (0, 0))
+
+    def test_the_same_name_looks_the_same_in_any_lane_and_a_different_name_looks_different(self):
+        png = self.draw([ms(1, name="Go live"), ms(2, name="Sign off"), ms(3, name="Go live")])
+        a, b, c = (self.gutter(png, i) for i in range(3))
+        self.assertFalse(a == b)
+        self.assertTrue(a == c)
+
+    def test_a_small_letter_and_a_capital_are_the_same_picture_but_two_letters_are_not(self):
+        png = self.draw([ms(1, name="go live"), ms(2, name="GO LIVE"), ms(3, name="GO LIVF")])
+        a, b, c = (self.gutter(png, i) for i in range(3))
+        self.assertTrue(a == b)
+        self.assertFalse(b == c)
+
+    def test_a_name_stays_in_the_name_column_and_its_own_lane(self):
+        png = self.draw([ms(1, name="W" * 400), ms(2, name="x"), ms(3, name="W" * 400)])
+        # the time line starts right of the column: no ink between the column and the first mark's lane start but the marks'
+        self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + 3 * g.LANE), 0)
+        w, h, palette, rows = read_png(png)
+        self.assertEqual(self.ink(png, 0, g.LABEL_W, 0, g.TOP), 0)                       # the month band holds no lane name
+        self.assertLessEqual(max(x for y in range(g.TOP, g.TOP + 3 * g.LANE) for x in range(g.LABEL_W)
+                                 if palette[rows[y][x]] == tok()["text"]), g.PAD + g.text_width("W" * g.LABEL_MAX))
+
+    def test_hostile_names_are_only_pixels_and_never_stop_the_picture(self):
+        for name in ('"/><w:p>INJECTED</w:p>', "\u05e9\u05dc\u05d5\u05dd \u202e abc", "\x00\x1b[31m", "&amp; <b>", "\U0001f600" * 50, "a\nb\tc"):
+            png = self.draw([ms(1, name=name)])
+            read_png(png)
+            self.assertGreater(self.ink(png, 0, g.LABEL_W, g.TOP, g.TOP + g.LANE), 0, repr(name))
+            self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + g.LANE), 0, repr(name))
+
+    def test_a_character_the_font_lacks_is_a_question_box_not_a_gap(self):
+        a = self.gutter(self.draw([ms(1, name="\u05e9")]), 0)
+        b = self.gutter(self.draw([ms(1, name="?")]), 0)
+        self.assertTrue(a == b)
+        self.assertEqual(g.label("a\u05e9  b\n"), "A? B")
+
+    def test_a_long_name_ends_in_two_dots(self):
+        self.assertEqual(g.label("x" * 100), "X" * (g.LABEL_MAX - 2) + "..")
+        self.assertEqual(g.label("x" * g.LABEL_MAX), "X" * g.LABEL_MAX)
+
+    def test_the_axis_dates_are_in_the_month_band_over_the_time_line_only(self):
+        png = self.draw([ms(1), ms(2, baseline_date="2027-02-20")])
+        self.assertGreater(self.ink(png, g.X0, g.WIDTH, 0, g.TOP), 40)
+        self.assertEqual(self.ink(png, 0, g.X0 - 4, 0, g.TOP), 0)
+
+    def test_the_axis_dates_follow_the_months_shown(self):
+        a = self.draw([ms(1), ms(2, baseline_date="2027-02-20")])
+        b = self.draw([ms(1, baseline_date="2028-05-20"), ms(2, baseline_date="2028-08-20")])
+        band = lambda png: (lambda r: [[r[2][v] for v in row] for row in r[3][:g.TOP]])(read_png(png))
+        self.assertFalse(band(a) == band(b))
+
+    def test_a_hundred_years_keeps_the_dates_from_touching(self):
+        png = self.draw([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")])
+        self.assertGreater(self.ink(png, g.X0, g.WIDTH, 0, g.TOP), 0)
+
+    def test_month_words_never_touch_and_never_run_past_the_right_edge(self):
+        c = Canvas(g.WIDTH, 30, "#ffffff")
+        spans = []
+        real = g.draw_text
+        with mock.patch.object(g, "draw_text", lambda cv, x, y, text, col: (spans.append((x, x + g.text_width(text))), real(cv, x, y, text, col))):
+            months = [date(2026, m, 1) for m in range(1, 13)]
+            g.month_labels(c, months, lambda d: g.X0 + (d.month - 1) * 20, "#000000")
+            self.assertGreater(len(spans), 1)
+            self.assertLess(len(spans), 12)
+            for (a0, a1), (b0, _) in zip(spans, spans[1:]):
+                self.assertLess(a1, b0)
+            spans.clear()
+            g.month_labels(c, [date(2026, 1, 1)], lambda d: g.WIDTH - 20, "#000000")
+            self.assertEqual(spans, [])
+            g.month_labels(c, [date(2026, 1, 1)], lambda d: g.X0, "#000000")
+            self.assertEqual(len(spans), 1)
+
+    # ---- hostile pass (#1036, PR 1273) ----
+    def test_hostile_non_string_and_odd_names_never_raise_and_stay_in_the_glyph_set(self):
+        odd = [123, 0, 1.5, ["a", "b"], {"k": "v"}, True, b"bytes", "\ud800", "e\u0301" * 30, "\u00df\ufb01\u01c5\u0130\u0131", "\u200b\u200d", "\t\r\n\x0b\x0c\x85\u2028\u2029", "\u3000x\u3000"]
+        for name in odd:
+            text = g.label(name)
+            self.assertLessEqual(len(text), g.LABEL_MAX, repr(name))
+            self.assertTrue(all(ch in g._GLYPHS for ch in text), repr(name))
+            self.assertLessEqual(g.text_width(text), g.LABEL_W - g.PAD, repr(name))
+            png = self.draw([ms(1, name=name)])
+            read_png(png)
+            self.assertEqual(self.ink(png, g.LABEL_W, g.X0 - 2, g.TOP, g.TOP + g.LANE), 0, repr(name))
+
+    def test_label_boundaries_and_tiny_limits(self):
+        self.assertEqual(g.label("x" * (g.LABEL_MAX + 1)), "X" * (g.LABEL_MAX - 2) + "..")
+        self.assertEqual(len(g.label("x" * (g.LABEL_MAX + 1))), g.LABEL_MAX)
+        self.assertEqual(g.label("", 5), "")
+        self.assertLessEqual(len(g.label("abcdefgh", 2)), 2)
+        self.assertLessEqual(len(g.label("abcdefgh", 1)), 1)
+        self.assertLessEqual(len(g.label("abcdefgh", 0)), 0)
+
+    def test_label_tiny_limits_say_what_is_kept_not_only_how_long(self):
+        """Mutation sweep: a limit of 1 keeps one dot, 2 keeps two dots, 3 keeps one letter and two dots; a limit below 0 is empty."""
+        self.assertEqual(g.label("abcdefgh", 1), ".")
+        self.assertEqual(g.label("abcdefgh", 2), "..")
+        self.assertEqual(g.label("abcdefgh", 3), "A..")
+        self.assertEqual(g.label("abcdefgh", 0), "")
+        self.assertEqual(g.label("abcdefgh", -1), "")
+        self.assertEqual(g.label("abcdefgh", -5), "")
+
+    def test_a_name_made_of_only_dots_and_the_ellipsis_cannot_widen_the_column(self):
+        text = g.label("." * 500)
+        self.assertLessEqual(g.text_width(text), g.LABEL_W - g.PAD)
+
+    def test_the_gantt_names_and_dates_are_pixels_only_stay_in_their_columns_and_repeat_the_same_bytes(self):
+        import test_docx_gantt as tg
+        names = ['"/><w:p>INJECTED</w:p>', "\u05e9\u05dc\u05d5\u05dd \u202e", "W" * 400, None, 42, "\U0001f600" * 30, "a\nb"]
+        lines = [tg.line(i + 1, n) for i, n in enumerate(names)]
+        a = g.gantt(lines, "2026-11-08", TOKENS)
+        b = g.gantt(copy.deepcopy(lines), "2026-11-08", TOKENS)
+        self.assertEqual([p[0][0] for p in a["pictures"]], [p[0][0] for p in b["pictures"]])
+        for (png, w, h), _ in a["pictures"]:
+            ww, hh, palette, rows = read_png(png)
+            want = tok()["text"]
+            ink = lambda x0, x1, y0, y1: sum(1 for y in range(y0, min(y1, hh)) for x in range(x0, min(x1, ww)) if palette[rows[y][x]] == want)
+            self.assertEqual(ink(g.LABEL_W, g.X0 - 2, g.G_TOP, hh), 0)
+            self.assertEqual(ink(0, g.X0 - 4, 0, g.G_TOP), 0)
+
+    def test_the_picture_is_as_wide_as_before_and_the_word_file_holds_it_with_the_names_escaped(self):
+        nasty = '"/><w:p>INJECTED</w:p>'
+        _, data = build_with(milestones=[ms(1, name=nasty), ms(2, name="\u05e9\u05dc\u05d5\u05dd")])
+        doc = parts(data)["word/document.xml"]
+        ET.fromstring(doc)
+        self.assertNotIn(b"<w:p>INJECTED", doc)
+        sizes = [read_png(raw)[:2] for n, raw in parts(data).items() if n.startswith("word/media/")]
+        self.assertIn((g.WIDTH, g.TOP + 2 * g.LANE + 2), sizes)
+
+
 class InTheWordFile(unittest.TestCase):
     def setUp(self):
         self.p, self.data = build_with()
@@ -476,6 +626,105 @@ class PicturesNeverStopTheWords(unittest.TestCase):
             _, data = build_with(milestones=[ms(1, percent_complete=50)])
         self.assertIn("50% complete", self.text(data)[1])
         self.assertNotIn(b"<w:drawing>", parts(data)["word/document.xml"])
+
+
+class OverflowIsHandledWhereItHappens(unittest.TestCase):
+    """The OverflowError catches in docx_graphics itself (not the builder's outer try) turn a number no float can hold into the
+    documented fallback. Called directly, so removing either catch fails here."""
+
+    def test_number_returns_none_for_an_int_too_large_for_a_float(self):
+        for bad in (10 ** 400, -10 ** 400):
+            self.assertIsNone(g._number(bad))
+            self.assertIsNone(g.percent(bad))
+
+    def test_number_clamps_an_infinity_without_raising(self):
+        self.assertEqual(g._number(float("inf")), 100.0)
+        self.assertEqual(g._number(float("-inf")), 0.0)
+
+    def test_the_graphics_functions_themselves_do_not_raise_on_a_huge_percent(self):
+        for bad in (10 ** 400, -10 ** 400, float("inf")):
+            g.progress_bar(bad, TOKENS)   # no wrapper: must not raise
+        self.assertIsNone(g.progress_bar(10 ** 400, TOKENS))
+
+    def test_the_slip_read_falls_back_to_no_slip_for_an_infinite_slip(self):
+        # int(float("inf")) raises OverflowError; the fallback is slip 0, so no ghost and the row is still drawn.
+        for bad in (float("inf"), float("-inf")):
+            rows = g._rows([ms(1, "Slipped", slip_days=bad)])
+            self.assertEqual(len(rows), 1)
+            self.assertIsNone(rows[0]["ghost"])
+            self.assertEqual(rows[0]["solid"], date(2026, 11, 20))
+
+
+
+class LabelsExact(unittest.TestCase):
+    """#1036 mutation proof: the exact numbers, glyph shapes and positions of the words in a picture."""
+
+    def spans(self, months, x):
+        got = []
+        real = g.draw_text
+        c = Canvas(g.WIDTH, 30, "#ffffff")
+        with mock.patch.object(g, "draw_text", lambda cv, px, py, text, col: (got.append((px, py, text)), real(cv, px, py, text, col))):
+            g.month_labels(c, months, x, "#000000")
+        return got
+
+    def test_the_sizes_are_these_numbers(self):
+        self.assertEqual((g.TEXT_SCALE, g.LABEL_W, g.LABEL_MAX), (2, 240, 19))
+        self.assertEqual((g.TOP, g.G_TOP), (20, 20))
+        self.assertEqual(g.text_width("ABC"), 36)
+        self.assertEqual(len(g.label("x" * 40)), 19)
+
+    def test_every_glyph_is_five_by_seven_and_space_is_empty(self):
+        for ch, rows in g._GLYPHS.items():
+            self.assertEqual((len(rows), {len(r) for r in rows}), (7, {5}), ch)
+        self.assertFalse(any(any(r) for r in g._GLYPHS[" "]))
+        self.assertTrue(all(any(r) for ch, r in g._GLYPHS.items() if ch != " "))
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["A"]][:2], ["01110", "10001"])
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["8"]][3:5], ["01110", "10001"])
+        self.assertEqual(["".join("1" if v else "0" for v in r) for r in g._GLYPHS["Z"]][1:3], ["00001", "00010"])
+
+    def test_draw_text_puts_each_dot_at_its_exact_pixel(self):
+        c = Canvas(40, 30, "#ffffff")
+        g.draw_text(c, 5, 4, "I", "#000000")
+        k = g.TEXT_SCALE
+        inked = {(x, y) for y in range(c.h) for x in range(c.w) if c.px[y * c.w + x] != c.px[0]}
+        want = {(5 + gx * k + i, 4 + gy * k + j) for gy, row in enumerate(g._GLYPHS["I"]) for gx, on in enumerate(row) if on
+                for i in range(k) for j in range(k)}
+        self.assertEqual(inked, want)
+
+    def test_the_axis_words_are_month_and_two_digit_year_at_three_pixels_right_of_the_month_line_in_the_band(self):
+        got = self.spans([date(2026, 11, 1)], lambda d: 300)
+        self.assertEqual(got, [(303, 3, "NOV 26")])
+
+    def test_axis_words_need_a_gap_of_a_few_pixels_and_may_end_exactly_at_the_edge(self):
+        w = g.text_width("JAN 26")
+        two = lambda gap: self.spans([date(2026, 1, 1), date(2026, 2, 1)], lambda d: 300 if d.month == 1 else 300 + w + gap)
+        self.assertEqual(len(two(6)), 1)     # touching the 6 pixel gap is too close
+        self.assertEqual(len(two(7)), 2)
+        self.assertEqual(len(self.spans([date(2026, 1, 1)], lambda d: g.WIDTH - w - 3)), 1)
+        self.assertEqual(len(self.spans([date(2026, 1, 1)], lambda d: g.WIDTH - w - 2)), 0)
+
+    def test_a_lane_name_is_centred_in_its_lane_and_starts_at_the_side_space(self):
+        png = g.plan([ms(1, name="HHH")], "2026-11-08", TOKENS)[0][0]
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        pts = [(x, y) for y in range(g.TOP, g.TOP + g.LANE) for x in range(g.LABEL_W) if palette[rows[y][x]] == want]
+        self.assertEqual(min(x for x, _ in pts), g.PAD)
+        self.assertEqual((min(y for _, y in pts), max(y for _, y in pts)), (g.TOP + 2, g.TOP + 2 + 7 * g.TEXT_SCALE - 1))
+
+    def test_a_gantt_name_is_centred_in_its_lane(self):
+        import test_docx_gantt as tg
+        png = g.gantt([tg.line(1, "HHH")], "2026-11-08", TOKENS)["pictures"][0][0][0]
+        w, h, palette, rows = read_png(png)
+        want = tok()["text"]
+        pts = [(x, y) for y in range(g.G_TOP, g.G_TOP + g.G_LANE) for x in range(g.LABEL_W) if palette[rows[y][x]] == want]
+        self.assertEqual((min(x for x, _ in pts), min(y for _, y in pts)), (g.PAD, g.G_TOP + (g.G_LANE - 14) // 2))
+
+    def test_a_long_plan_labels_only_the_ticks_it_draws_lines_for(self):
+        seen = []
+        real = g.month_labels
+        with mock.patch.object(g, "month_labels", lambda c, months, x, col: (seen.append(len(months)), real(c, months, x, col))):
+            g.plan([ms(1, baseline_date="2001-01-05"), ms(2, baseline_date="2099-12-30")], "2026-11-08", TOKENS)
+        self.assertTrue(seen and all(n <= g.MAX_TICKS for n in seen), seen)
 
 
 if __name__ == "__main__":

@@ -264,7 +264,11 @@ class Ui(unittest.TestCase):
         self.assertTrue(self.h.until("!!document.querySelector('.rt-bubble')"))
         self.h.ev("document.querySelector('.rt-bubble [aria-label=Bold]').click(); true")
         self.assertTrue(self.h.until("!!document.querySelector('.ProseMirror strong')"))
-        self.h.key("ArrowRight", 0, "ArrowRight", 39)
+        # The Bold command hands the focus back to the text a frame later, which puts the old selection back on the page. A key sent
+        # before that frame is undone by it (about 4 runs in 100), so wait two frames, then press.
+        self.h.ev("window.settled = false; requestAnimationFrame(() => requestAnimationFrame(() => { window.settled = true; })); true")
+        self.assertTrue(self.h.until("window.settled === true"))
+        self.h.key("ArrowRight", 0, "ArrowRight", 39, commands=["moveRight"])
         self.assertTrue(self.h.until("!document.querySelector('.rt-bubble')"))
 
     def test_the_slash_menu_inserts_a_block(self):
@@ -298,7 +302,9 @@ class Ui(unittest.TestCase):
         self.assertTrue(self.h.until("!!document.querySelector('.rt-problem')"))
         self.assertIn("can't be used", self.h.ev("document.querySelector('.rt-problem').textContent"))
         self.assertFalse(self.h.ev("!!document.querySelector('.ProseMirror a')"))
-        self.h.ev("(function(){ var i = document.querySelector('.rt-link input'); i.select(); return true; })()")
+        self.assertTrue(self.h.until("!!(document.activeElement && document.activeElement.closest('.rt-link'))"))
+        self.h.ev("(function(){ var i = document.querySelector('.rt-link input'); i.focus(); i.select(); return true; })()")
+        self.assertTrue(self.h.until("document.activeElement === document.querySelector('.rt-link input')"))
         self.h.type("example.com/page")
         self.h.key("Enter", 0, "Enter", 13)
         self.assertTrue(self.h.until("!!document.querySelector('.ProseMirror a') && !!document.activeElement && document.activeElement.classList.contains('ProseMirror')"))
@@ -344,6 +350,19 @@ class Ui(unittest.TestCase):
                     self.h.ev("window.unmount(); true")
         self.h.resize(1400)
         self.h.theme("light")
+
+
+class FreshPage(unittest.TestCase):
+    """A page nobody has typed into yet: focus events still fire (a headless page starts without the system focus, and an
+    element.focus() then fires no blur, so a field never saw the focus leave: the slow macOS runner failed on that)."""
+
+    def test_a_fresh_page_has_the_focus_and_leaving_the_field_closes_it(self):
+        with rp.Harness(chrome) as h:
+            h.mount("<p>Start</p>")
+            self.assertTrue(h.ev("document.hasFocus()"), "the page has the focus before any input")
+            h.ev("document.getElementById('outside').focus(); true")
+            self.assertTrue(h.until("window.ended === 1"), "leaving the field closed it")
+            self.assertEqual(h.ev("window.saves"), [])
 
 
 if __name__ == "__main__":

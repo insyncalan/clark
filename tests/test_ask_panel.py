@@ -58,6 +58,10 @@ class Stub:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
 
+    def open_source(self, body):
+        self.calls.append(("open_source", body))
+        return 200, {"ok": True}
+
     def stop(self, body=None):
         self.calls.append(("stop", body))
         self.stopped = True
@@ -240,6 +244,21 @@ class Panel(Base):
             self.assertTrue(p.js("document.querySelector('.ask-sources').open"))
             self.assertTrue(p.js("document.querySelector('.ask-sources li').checkVisibility()"))
 
+    def test_a_pdf_source_opens_at_its_page(self):
+        self.stub.sources = [{"id": "P1", "label": "Docs/a.pdf (part 2)", "file": "Docs/a.pdf", "page": 4}, {"id": "P2", "label": "plan.xlsx", "file": None, "page": None}]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-sources li button').length"), 1, "only the PDF is a button")
+            self.assertEqual(p.js("document.querySelector('.ask-sources li button').textContent"), "Docs/a.pdf")
+            p.js("document.querySelector('.ask-sources summary').click()")
+            p.js("document.querySelector('.ask-sources li button').click()")
+            deadline = time.time() + 10
+            while not self.stub.count("open_source") and time.time() < deadline:
+                time.sleep(0.1)
+            got = [c[1] for c in self.stub.calls if c[0] == "open_source"]
+            self.assertEqual([(b["file"], b["page"]) for b in got], [("Docs/a.pdf", 4)])
+
     def test_sources_open_and_close_on_enter_and_space(self):
         self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]
         with chrome() as cdp:
@@ -300,6 +319,7 @@ class Panel(Base):
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")
+            p.js("document.querySelector('#ask-box').value = ''; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('[data-ask-settings]').click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
@@ -467,16 +487,13 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
 
-    def test_with_chatgpt_in_use_the_panel_says_so_and_never_names_claude(self):
-        """#54: what the panel says about where text goes has to be true for the provider in use."""
+    def test_with_chatgpt_in_use_the_panel_has_no_line_about_where_text_goes(self):
+        """#54, #1062: that line lives in Settings now; the panel names neither Claude nor Anthropic nor billing."""
         self.stub.provider = "ChatGPT"
         with chrome() as cdp:
             p = self.opened(cdp)
-            p.until("document.querySelector('#ask-sent').textContent.includes('ChatGPT, which OpenAI runs')", "the line follows the provider")
-            said = p.js("document.querySelector('#ask-sent').textContent")
-            self.assertEqual(said, "Your question and the passages it needs go to ChatGPT, which OpenAI runs, and are billed to the ChatGPT account signed in on this computer.")
-            self.assertNotIn("Claude", said)
-            self.assertNotIn("Anthropic", said)
+            self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
+            self.assertNotIn("Anthropic", p.js("document.querySelector('#ask-panel').textContent"))
 
     def test_chatgpt_not_signed_in_names_chatgpt(self):
         self.stub.provider, self.stub.connected = "ChatGPT", False
@@ -496,13 +513,12 @@ class Panel(Base):
             self.assertNotIn("not signed in", said)
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
 
-    def test_the_panel_says_where_a_question_goes_and_who_pays(self):
-        """#47a: the connect box says the passages go to Claude and are billed to the signed-in account; off, it says nothing of it."""
-        sent = ("Your question and the passages it needs go to Claude, which Anthropic runs, "
-                "and are billed to the Claude account signed in on this computer.")
+    def test_the_panel_no_longer_carries_the_billing_sentence(self):
+        """#1062: the sentence about where a question goes and who pays moved to Settings; the panel says none of it, on or off."""
         with chrome() as cdp:
             p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-sent').textContent"), sent)
+            self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
+            self.assertNotIn("billed", p.js("document.querySelector('#ask-panel').textContent"))
             self.assertEqual(p.js("document.querySelector('#ask-log').getAttribute('role')"), "log", "answers are announced")
         self.stub.enabled = False
         with chrome() as cdp:
@@ -571,14 +587,20 @@ class Words(unittest.TestCase):
                 self.assertRegex(plain or tpl, r"[.…]$", name)
         said = dict((n, p or t) for n, p, t in lines)
         self.assertEqual(said["OFF_LINE"], "Asking is off. Turn it on in Settings.")
-        self.assertIn("billed to the Claude account", said["SENT_LINE"], "the connect box says who pays (#47a)")
+        self.assertNotIn("SENT_LINE", said, "the panel has no billing line (#1062)")
+        self.assertIn("billed to the Claude account", said["ASK_NOTICE_LINE"], "Settings says who pays (#1062)")
         for name in ("SIGNED_OUT_LINE", "NO_ANSWER_LINE", "NOT_REACHED_LINE", "EMPTY_LINE"):
             self.assertRegex(said[name], r"(Sign in|Wait|Check|Type|then)", f"{name} has a next step")
+
+    def test_help_points_to_the_asking_card_for_where_a_question_goes(self):
+        """#1062: Help says the Asking card in Settings tells where a question goes and who pays."""
+        text = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("That card also says where a question goes and which account pays for it.", text)
 
     def test_the_published_page_has_no_panel(self):
         from clark import page
         html = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("ask-panel", "ask-sources", "/api/ask", "billed to the Claude account", "Claude is not signed in"):
+        for needle in ("ask-panel", "ask-sources", "/api/ask", "Claude is not signed in"):
             self.assertNotIn(needle, html)
         self.assertIn("ask-panel", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 

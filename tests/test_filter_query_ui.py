@@ -135,8 +135,9 @@ class Chips(unittest.TestCase):
         n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
         self.assertEqual(n("status:Open"), "Status")
         self.assertEqual(n("-owner:none"), "Owner")
-        self.assertEqual(n("is:open"), "is")
-        self.assertEqual(n("no:owner"), "no")
+        self.assertEqual(n("is:open"), "is:open", "two is: chips must not both be called the is filter")
+        self.assertEqual(n("no:owner"), "no:owner")
+        self.assertEqual(n("-is:open"), "-is:open")
 
 
 class Words(unittest.TestCase):
@@ -165,6 +166,12 @@ class Words(unittest.TestCase):
 
     def test_the_page_cannot_answer_some_states_yet(self):
         self.assertEqual(len(self.say("is:needed")), 1)                  # an error (the token filters nothing), with no approved sentence
+
+    def test_the_schema_follows_archived_ready_on_the_same_rows(self):
+        """Item 1067: is:archived is a word only where the page answers it; the cached schema must not outlive a change of that flag."""
+        probe = (f"(() => {{ const r = {lit(ROWS)}; const n = (c) => Q.parseFor('is:archived', r, c).errors.length;"
+                 f" return [n({lit(CTX)}), n({lit(dict(CTX, archivedReady=True))}), n({lit(CTX)})]; }})()")
+        self.assertEqual(run_node(probe), [1, 0, 1])
 
     def test_me_with_no_name_is_noticed(self):
         for ctx, want in ((CTX, False), ({"today": "2026-10-29", "me": ""}, True)):
@@ -252,6 +259,19 @@ class Autocomplete(unittest.TestCase):
         self.assertEqual([o["ins"] for o in sug("is:open pr is:closed", 10)], ["priority:"])
         self.assertEqual(run_node('Q.wordAt(\'a "b c" d\', 9)'), {"start": 8, "word": "d"})
         self.assertEqual(run_node('Q.wordAt(\'a "b c\', 6)'), {"start": 2, "word": '"b c'})
+
+    def test_a_half_typed_field_value_goes_whole_when_the_caret_is_right_after_it(self):
+        d = lambda text, caret, key="Backspace": run_node(f"Q.dropWordAt({lit(text)}, {caret}, {lit(key)})")
+        self.assertEqual(d("status:Open", 11), {"text": "", "caret": 0})
+        self.assertEqual(d("fix status:Op", 13), {"text": "fix ", "caret": 4})
+        self.assertEqual(d("-owner:Ann x", 10), {"text": "x", "caret": 0})
+        self.assertIsNone(d("status:", 7), "a bare field: loses its colon the usual way")
+        self.assertIsNone(d("status:Open", 8), "a caret inside the word is the usual one letter")
+        self.assertIsNone(d("fix", 3), "a plain word is the usual one letter")
+        self.assertEqual(d("status:Open", 11, "Delete"), {"text": "", "caret": 0}, "Delete with nothing after the caret goes whole too")
+        self.assertEqual(d("status:Open x", 11), {"text": "x", "caret": 0}, "Backspace right before the space after the word takes the word")
+        self.assertIsNone(d("status:Open x", 11, "Delete"), "Delete before a space takes that space, not the word behind the caret")
+        self.assertIsNone(d("status:Open ", 12), "Backspace after the space takes the space")
 
     def test_accepting_a_value_adds_a_space_and_a_field_adds_none(self):
         a = lambda text, caret, opt: run_node(f"Q.accept({lit(text)}, {caret}, {lit(opt)})")

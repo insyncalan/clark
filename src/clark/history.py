@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from clark import freshness as fresh, timefmt
 from clark.publish import LEGACY_RICH, RICH
 from clark.sanitise import SanitiseError, plain_text, rich_plain_text
-from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+from clark.store import BATCH_UNDO, EMAIL_NOTE_KEY, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
 JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
@@ -624,13 +624,17 @@ EMAIL_HOW = "in the Draft email"          # the History's "how" for a sent recor
 
 def _email_rows(con, where, params, titles):
     """The "I sent it" records (#50) as rows: who pressed it, when, and the items asked about. Only in All: a sent record is not a
-    change and not a comment. The ids are the record's own, in order; the email's words were never stored."""
+    change and not a comment. The ids are the record's own, in order; the email's body and address were never stored (row 983: only the one History sentence holds the recipient's name and the subject)."""
     out = []
     for e in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE " + where + " ORDER BY seq DESC", params):
         ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (e["seq"],))]
         when, note = when_text(e["at"], None)
         items = [{"id": i, "title": titles.of(i)} for i in ids]
         words = f"Emailed {_dmy(e['day'])} ({EMAIL_MODE_WORDS.get(e['mode'], e['mode'])}) about " + ", ".join(ids)
+        # Row 983: a record made with its sentence shows that sentence (written once, at the press); an older one keeps the line above.
+        sent = con.execute("SELECT src_ref FROM item_events WHERE place = 'email' AND change IS NULL AND item_id = ? "
+                           "ORDER BY event_id DESC LIMIT 1", (EMAIL_NOTE_KEY + str(e["seq"]),)).fetchone()
+        words = sent[0] if sent and sent[0] else words
         out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": e["by_user"], "how": EMAIL_HOW,
                     "item_id": ids[0] if ids else "", "title": items[0]["title"] if items else "", "items": items,
                     "item": ", ".join((i["id"] + " " + i["title"]).strip() for i in items), "field": "Email sent", "from": "", "to": words,
