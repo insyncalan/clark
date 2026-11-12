@@ -40,7 +40,7 @@ VISIBLE = ["README.md", "START-HERE.md", "clark-release.json", "clark.command", 
 OLD_ONLY = {".app/src/clark/old_report_helper.py": b"HELPER = 'only in the older version'\n",
             ".app/vendor/old_lib/__init__.py": b"OLD_LIB = 1\n",
             "docker/old-compose-notes.txt": b"older notes\n"}
-PERSONS = {"system/branding/tokens.css": b":root { --merge-brand: 746; }\n", "data/clark.db": b"made-up database bytes"}
+PERSONS = {"system/branding/tokens.css": b":root { --old-brand: 746; }\n", "branding/tokens.css": b":root { --merge-brand: 746; }\n", "data/clark.db": b"made-up database bytes"}
 
 
 def sha(data):
@@ -205,7 +205,7 @@ class Merge(unittest.TestCase):
                 for rel, (data, _) in self.new.items():
                     self.assertEqual(data, on_disk[rel], f"{rel} is the newer version's bytes")
                 self.assertEqual(self.newv, json.loads(on_disk[package.MANIFEST])["version"])
-                self.assertEqual(sorted(VISIBLE + [".app", "system", "data"]), sorted(os.listdir(folder)))
+                self.assertEqual(sorted(VISIBLE + [".app", "system", "data", "branding"]), sorted(os.listdir(folder)))
                 self.assertTrue(os.access(folder / "clark.command", os.X_OK), "clark.command stays runnable")
 
     def test_the_new_version_is_what_starts_when_the_older_one_was_the_same_shape(self):
