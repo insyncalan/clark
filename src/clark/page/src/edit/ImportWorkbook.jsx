@@ -10,9 +10,11 @@ import { templateRequest, saveBlob } from "./publishApi.js";
 import { listSheets, checkSheets, applyWorkbook, undoWorkbook } from "./dataApi.js";
 import { SheetChoice } from "./SheetChoice.jsx";
 import * as L from "../logic/dataCard.js";
+import { recall, remember } from "../logic/remember.js";
 
 const T = L.IMPORT;
 const MAX_FILE = 25 * 1024 * 1024;                       // clark's own limit (excel.MAX_FILE_BYTES); the server says it again
+const TICKS_KEY = "importSheets";                        // the sheet names ticked when the person last confirmed an import, one list for all projects
 const SHOWN = 300;                                       // the changes listed with a tick; any more follow what the server takes for "all"
 
 const REAL = { sheets: listSheets, check: checkSheets, apply: applyWorkbook, undo: undoWorkbook };
@@ -24,6 +26,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [saved, setSaved] = useState("");                    // the template, once the browser has been asked to save it
   const [ticks, setTicks] = useState({});
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
+  const [offered, setOffered] = useState([]);           // the sheets of the chosen workbook
   const input = useRef(null);
 
   async function chosen(e) {
@@ -39,9 +42,12 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     const sheets = r.body.sheets || [];
     if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"]); return; }   // none of the five: the check says so
-    const all = {};
-    for (const s of sheets) all[s.table] = true;
-    setTicked(all);
+    const last = recall(TICKS_KEY, null);
+    const mine = Array.isArray(last) ? sheets.filter((s) => last.includes(s.name)) : [];
+    const start = {};
+    for (const s of sheets) start[s.table] = mine.length ? mine.includes(s) : true;   // nothing remembered, or none of it here: all ticked as before
+    setTicked(start);
+    setOffered(sheets);
     setStep({ at: "sheets", file: file.name, key: r.body.file, sheets });
   }
 
@@ -68,6 +74,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     const accept = L.acceptedNumbers(p.items, ticks);
     if (!accept.length) return;
     setProblem("");
+    if (offered.length) remember(TICKS_KEY, offered.filter((s) => ticked[s.table]).map((s) => s.name));
     setStep({ at: "applying", plan: p });
     const r = await api.apply(project, p.plan, accept, p.unrecorded);
     if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
