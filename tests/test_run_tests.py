@@ -124,7 +124,7 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         self.assertTrue(listed, "shard_times.txt is empty")
 
     def test_an_unlisted_test_file_counts_the_default_and_the_heavy_ones_are_weighted_as_heavy(self):
-        """An unlisted file counts as SHARD_DEFAULT (30 s) and nothing requires a line for a new test (Alan 12-11, rule 085);
+        """An unlisted file counts as SHARD_DEFAULT (30 s) and nothing requires a line for a new test;
         test_publish_public.py really takes 6 to 10 minutes on a macOS shard (median 476 s in five full macOS runs) and was
         listed at 80 s, so the shards were uneven. The known heavy ones weigh what they measured."""
         weights = run_tests.shard_weights()
