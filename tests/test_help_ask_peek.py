@@ -35,8 +35,9 @@ ALL = list(strings(RAW))
 
 
 class HelpAskAndSneakPeek(unittest.TestCase):
-    def test_no_mod_j(self):
-        self.assertNotRegex(TEXT, r"Mod\+J|Ctrl\+J|⌘\+?J")
+    def test_mod_j_is_named_because_the_page_binds_it(self):
+        # edit/askPanelState.js installAskKeys opens the panel on Ctrl or Cmd + J; the bar button is a separate question
+        self.assertIn("[[Mod+J]]", TEXT)
 
     def test_the_top_bar_ask_button_is_described_as_the_page_has_it(self):
         """The Help names a top-bar ask button only if the page has one, by the label and picture it really has (edit/AskButton.jsx)."""
@@ -108,6 +109,26 @@ class HelpAskAndSneakPeek(unittest.TestCase):
     def test_double_slash_is_in_the_peek_code(self):
         self.assertRegex((PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8"), r'e\.key === "/".*Words')
         self.assertIn("[[/]] [[/]]", TEXT)
+
+
+def ask_clark_rows(o):
+    if isinstance(o, list):
+        if len(o) >= 2 and o[0] == "ask clark" and all(isinstance(x, str) for x in o):
+            yield o
+        for x in o:
+            yield from ask_clark_rows(x)
+    elif isinstance(o, dict):
+        for v in o.values():
+            yield from ask_clark_rows(v)
+
+
+class AskClarkRowNamesBothKeys(unittest.TestCase):
+    def test_the_ask_clark_row_names_slash_and_mod_j_and_the_palette(self):
+        rows = list(ask_clark_rows(RAW))
+        self.assertTrue(rows, "no ask clark row found")
+        for row in rows:
+            for key in ("[[/]]", "[[Mod+J]]", "[[Mod+K]]"):
+                self.assertIn(key, row[1])
 
 
 if __name__ == "__main__":
