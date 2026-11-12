@@ -9,6 +9,7 @@ import { Rows, today } from "../../templates/WorkItemsList.jsx";
 import { KINDS, MODES, STATUSES, DUE, PRIORITIES, NONE, SORTS, COLUMNS, MAX_ROWS, MAX_CAPTION, WORDS, defaults, filterOf, bodyOf,
   listOf, drawRows, offered } from "../../templates/workItemsList.js";
 import { plural } from "../../workItems.js";
+import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
 
 export const SAVED = "Work items list changed.";
 export const NOT_YET = "This list shows nothing until its filter is saved. Change any choice below to start it.";
@@ -44,6 +45,8 @@ function Choice({ id, label, field, values, words, value, onPick }) {
   );
 }
 
+export const LINE_HINT = "Type a filter, for example: type:risk status:Open owner:\"Pat Demo\"  Press Enter to save it.";
+
 export function Edit({ section }) {
   const [tick, setTick] = useState(0);              // a refused save draws the form again from what is saved
   const d = data.value || {};
@@ -51,6 +54,8 @@ export function Edit({ section }) {
   const filter = saved || defaults();
   const id = `wil-${section.id}`;
   const ucName = Object.fromEntries((d.use_cases || []).map((u) => [u.id, u.ref ? `${u.ref} ${u.title || ""}`.trim() : (u.title || u.id)]));
+  const nameOf = (f, v) => ucName[v] || v;
+  const known = (d.use_cases || []).map((u) => ({ id: u.id, names: [u.title, u.ref, u.ref ? `${u.ref} ${u.title || ""}`.trim() : ""].filter(Boolean) }));
   const none = (f) => (v) => (v === NONE ? WORDS.none[f] : f === "use_case" ? (ucName[v] || v) : v);
 
   // The latest filter the page meant to save, kept while saves are still waiting: a second choice made before the first reply is
@@ -88,6 +93,20 @@ export function Edit({ section }) {
   };
   // Counted as the store counts: one emoji is one character, not two.
   const capInput = (e) => { if (points(e.currentTarget.value) > MAX_CAPTION) say("problem", LONG_CAPTION); };
+  // The filter line: Enter (or leaving the box) reads the typed words onto the filter and saves it as ONE change; a word the list cannot
+  // use is said in plain words and nothing is saved. A chip's x takes that one choice off.
+  const commitLine = (e) => {
+    const el = e.currentTarget, cur = latest();
+    if (el.value.trim() === lineOf(cur, nameOf)) return;
+    const r = readLine(el.value, cur, known);
+    if (r.problem) { say("problem", r.problem); return; }
+    save(r.filter);
+  };
+  const lineKeys = (e) => {
+    if (e.key === "Enter") { e.preventDefault(); commitLine(e); }
+    else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = lineOf(filter, nameOf); e.currentTarget.blur(); }
+  };
+  const dropChip = (field, v) => { const cur = latest(); save({ ...cur, [field]: cur[field].filter((x) => x !== v) }); };
   const keys = (e) => {
     if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
     else if (e.key === "Escape") { e.preventDefault(); e.currentTarget.value = e.currentTarget.name === "max" ? String(filter.max) : filter.caption; e.currentTarget.blur(); }
@@ -99,6 +118,20 @@ export function Edit({ section }) {
   return (
     <div class="wil wil-edit" key={tick} data-wil-edit="">
       {saved ? null : <p class="quiet wil-say" data-wil-say="not-yet">{NOT_YET}</p>}
+      <div class="wil-line" data-wil-line="">
+        <label class="wil-sel wil-linef"><span>Filter</span>
+          <input type="text" name="line" aria-describedby={`${id}-hint`} value={lineOf(filter, nameOf)} key={lineOf(filter, nameOf)} onChange={commitLine} onKeyDown={lineKeys} autocomplete="off" spellcheck={false} />
+        </label>
+        <p class="quiet" id={`${id}-hint`}>{LINE_HINT}</p>
+        <ul class="wil-chips" aria-label="Choices in this filter">
+          {chipsOf(filter, nameOf).map((c) => (
+            <li key={`${c.field}:${c.value}`} class="wil-chip"><span>{c.label}</span>
+              <button type="button" aria-label={`Take off ${c.label}`} onClick={() => dropChip(c.field, c.value)}>&times;</button></li>
+          ))}
+        </ul>
+      </div>
+      <details class="wil-more" data-wil-more="">
+      <summary>Choose from lists</summary>
       <div class="wil-form">
         <Boxes id={id} legend="Kinds" field="kinds" values={KINDS} words={(v) => WORDS.kinds[v]} chosen={filter.kinds} onToggle={toggle} />
         <Choice id={id} label="Show" field="mode" values={MODES} words={WORDS.mode} value={filter.mode} onPick={pick} />
@@ -108,6 +141,9 @@ export function Edit({ section }) {
         <Boxes id={id} legend="Owner" field="owner" values={offered("owner", d, filter.owner)} words={none("owner")} chosen={filter.owner} onToggle={toggle} />
         <Boxes id={id} legend="Workstream" field="workstream" values={offered("workstream", d, filter.workstream)} words={none("workstream")} chosen={filter.workstream} onToggle={toggle} />
         <Boxes id={id} legend="Use case" field="use_case" values={offered("use_case", d, filter.use_case)} words={none("use_case")} chosen={filter.use_case} onToggle={toggle} />
+      </div>
+      </details>
+      <div class="wil-form">
         <Choice id={id} label="Sort by" field="sort" values={SORTS} words={WORDS.sort} value={filter.sort} onPick={pick} />
         <label class="wil-sel" data-field="max"><span>Most rows</span>
           <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
