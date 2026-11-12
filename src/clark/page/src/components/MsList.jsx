@@ -40,11 +40,11 @@ export function MsProgress({ value }) {
 }
 
 export function MsList({ rows, place, open, internalTag, Eye, left, legend, canFold = true }) {
-  const [all, setAll] = useState(() => !!recall(`msAll.${place}`, false));
+  const [all, setAll] = useState(() => canFold && !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
-  const fold = () => { remember(`msDet.${place}`, !det); setDet(!det); };
-  const toggle = () => { remember(`msAll.${place}`, !all); setAll(!all); };
+  const fold = () => { if (canFold) remember(`msDet.${place}`, !det); setDet(!det); };
+  const toggle = () => { if (canFold) remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place}>
       <div class="msl-bar">
