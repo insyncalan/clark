@@ -49,9 +49,9 @@ export function useColWidths(table) {
       if (!t || !t.closest || t.isContentEditable || t.closest("input, textarea, select, .ProseMirror")) return;
       let cell = t.closest("[data-cw-head]");
       if (!cell) {
-        const box = t.closest("table, .ucl-box");
+        const box = t.closest("table, .ucl-box, .msl-box");
         const x = t.getBoundingClientRect().left + 1;
-        cell = box && Array.from(box.querySelectorAll("[data-cw-head]")).find((h) => { const r = h.getBoundingClientRect(); return x >= r.left - 1 && x < r.right; });
+        cell = box && Array.from(box.querySelectorAll("[data-cw-head]")).find((h) => { const r = h.getBoundingClientRect(); return x < r.right; });
       }
       if (!cell || cell.getAttribute("data-cw-table") !== table) return;
       e.preventDefault(); e.stopPropagation();

@@ -18,7 +18,8 @@ from test_inline_edits import EMPTY_BRANDING, key, need_chrome, tearDownModule  
 from test_server import chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
-PAGES = [("usecases", "#usecases&p=TUL", "#usecases .ucl-hd", "ref", "[data-uc]"), ("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]")]
+PAGES = [("usecases", "#usecases&p=TUL", "#usecases .ucl-hd", "ref", "[data-uc]"), ("work", "#work&p=TUL&f=mode:all", "#work table.items", "owner", "#work tbody tr[data-id]"),
+         ("milestones", "#milestones&p=TUL", "#milestones .msl-hd", "state", "#milestones li.msl-row")]      # row 1104: the Milestones list has a heading row too
 
 
 class Widths(unittest.TestCase):
@@ -73,7 +74,7 @@ class Widths(unittest.TestCase):
         cell = f"document.querySelector({json.dumps(grip)}).parentElement.getBoundingClientRect().width"
         box = js(f"(() => {{ const b = document.querySelector({json.dumps(grip)}).getBoundingClientRect(); return [b.width, b.height]; }})()")
         self.assertGreaterEqual(box[1], 24, "the hit area is 24 px tall")
-        hidden = name == "usecases"      # that heading row is hidden from a screen reader: no focus and no words on it
+        hidden = name != "work"      # the Use cases and Milestones heading rows is hidden from a screen reader: no focus and no words on it
         if not hidden:
             self.assertIn("Width of the", js(f"document.querySelector({json.dumps(grip)}).parentElement.getAttribute('aria-description')"))
         first = js(cell)
@@ -105,12 +106,27 @@ class Widths(unittest.TestCase):
         for _ in range(40):
             key(cdp, sid, "ArrowLeft", alt=True)
         until(f"{cell} >= 47 && {cell} <= 60", "a column stops at its minimum and does not vanish")
-        self.assertEqual(js("document.documentElement.scrollWidth <= innerWidth + 1"), True) if name == "usecases" else None
+        self.assertEqual(js("document.documentElement.scrollWidth <= innerWidth + 1"), True) if name != "work" else None
         reload_to_new_page_cdp(cdp, sid, f"!!document.querySelector({json.dumps(grip)}) && {cell} < 61", "the width is still there after a reload")
         js(f"document.querySelector({json.dumps(grip)}).dispatchEvent(new MouseEvent('dblclick', {{bubbles: true}}))")
         until(f"Math.abs({cell} - {first}) < 2", "a double-click on the edge puts the column back")
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))
 
+
+    def test_the_milestones_heading_lines_up_with_the_rows(self):
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.visit(cdp, width, scheme, "#milestones&p=TUL")
+                    js = lambda e: cdp.js(e, sid)  # noqa: E731
+                    self.assertTrue(wait(lambda: js("!!document.querySelector('#milestones .msl-hd [data-cgrip]') && document.querySelectorAll('#milestones li.msl-row').length > 0"), 20))
+                    got = js("""(() => { const h = [...document.querySelectorAll('#milestones .msl-hd [data-cw-head]')].map((e) => e.getBoundingClientRect()), c = document.querySelector('#milestones .msl-cells'),
+                        k = [...c.children].filter((e) => e.matches('.msl-date, .msl-name, .mst, .msl-prog')).map((e) => e.getBoundingClientRect()), hd = document.querySelector('#milestones .msl-hd').getBoundingClientRect(), b = document.querySelector('#milestones .msl').getBoundingClientRect();
+                        return {heads: h.map((r) => r.left), cells: k.map((r) => r.left), words: [...document.querySelectorAll('#milestones .msl-hd [data-cw-head]')].map((e) => e.textContent), gap: b.top - hd.bottom}; })()""")
+                    self.assertEqual(got["words"], ["Date", "Milestone", "State", "Progress"])
+                    for a, b in zip(got["heads"], got["cells"]):
+                        self.assertLess(abs(a - b), 2, "each heading sits over its column of the rows")
+                    self.assertLess(abs(got["gap"]), 2, "the heading row is joined to the rows")
 
     def test_the_published_page_has_no_handles(self):
         view = (Path(page.__file__).parent / "page-view.html").read_text(encoding="utf-8")
