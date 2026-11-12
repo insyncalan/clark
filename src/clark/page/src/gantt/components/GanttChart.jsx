@@ -44,12 +44,12 @@ const Glyph = ({ name }) => (
     dangerouslySetInnerHTML={{ __html: G[name] }} />
 );
 
-// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again) per project; a different project key clears it.
+// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again), one Set per project for the session.
 const grown = new Map();
-let grownKey = null;
+let grownKey = "";
 function grownFor(key) {
-  const k = key || "";
-  if (grownKey !== k) { grown.clear(); grownKey = k; }
+  const k = key || grownKey;      // a chart with no key (none given) is not a project change: it keeps the Set of the project last open
+  if (key) grownKey = key;
   if (!grown.has(k)) grown.set(k, new Set());
   return grown.get(k);
 }
@@ -80,7 +80,7 @@ export function GanttChart({
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
-  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened or the project changed (not per mount)
+  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened (not per mount)
   const born = useRef(new Map());                      // line id to true while its first-draw grow may still run
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
@@ -153,7 +153,7 @@ export function GanttChart({
 
   const goToday = () => {
     const el = gx.current;
-    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: "smooth" });
+    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: reduced() ? "auto" : "smooth" });
   };
   const rowsAt = (n) => {
     if (full) return;
@@ -273,10 +273,10 @@ export function GanttChart({
   // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
   const textW = (t) => Math.ceil(t.length * 8 + 6);
   const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
-    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - gap - 4)}px` }}>{text}</span>
+    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - gap - 4)}px` }}>{text}</span>
     : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
   const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W
-    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - 10)}px` }}>{text}</span>
+    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - 10)}px` }}>{text}</span>
     : <span class="gt-mslab" style={{ left: `${x1 + 22}px`, top: `${top}px` }}>{text}</span>);
   const filters = filtersFor(edit);
   const height = cut ? HH + nShown * RH + 2 : undefined;
@@ -400,7 +400,7 @@ export function GanttChart({
               return (
                 <div key={l.id}>
                   <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}${born.current.get(l.id) ? " gt-grow" : ""}`}
-                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) born.current.set(l.id, false); }}
+                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) { born.current.set(l.id, false); e.currentTarget.classList.remove("gt-grow"); } }}
                     style={{ left: `${q.x1}px`, width: `${w}px`, top: `${l.type === "phase" ? top + 10 : top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
                     onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                     onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}

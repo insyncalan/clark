@@ -8,6 +8,7 @@ or issue reads Red, Amber or Green (its priority); a decision reads Pending, Mad
 """
 import copy
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -134,6 +135,8 @@ for kind in ("action", "risk", "issue", "decision"):
 class ParityWithThePage(unittest.TestCase):
     def test_client_pill_matches_the_pages_clientPill_for_every_case(self):
         if shutil.which("node") is None:
+            if os.environ.get("CI"):
+                self.fail("node is missing but CI is set: these tests must run in CI, not skip")
             self.skipTest("node is not installed on this computer (CI has it)")
         script = bundled(SECTION_ROWS, "SR") + ";console.log(JSON.stringify(%s.map((r) => SR.clientPill(r, %s))))" % (json.dumps(CASES), json.dumps(TODAY))
         done = subprocess.run(["node", "-"], input=script, capture_output=True, text=True)

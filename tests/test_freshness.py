@@ -3,6 +3,7 @@
 Run: python3 dev/run_tests.py test_freshness
 Every test fixes "today". All rows are fictional. The history events are shaped as history.history gives them.
 """
+import os
 import unittest
 from datetime import timezone, timedelta
 from pathlib import Path
@@ -123,6 +124,8 @@ class FilterValue(unittest.TestCase):
         import subprocess
         node = shutil.which("node")
         if not node:
+            if os.environ.get("CI"):
+                self.fail("node is missing but CI is set: this test must run in CI, not skip")
             self.skipTest("no node")
         src = ROOT / "src" / "clark" / "page" / "src"
         code = f'import * as F from "{(src / "filters.js").as_uri()}"; import * as W from "{(src / "workItems.js").as_uri()}"; {body}'
