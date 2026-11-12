@@ -128,10 +128,17 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         test_publish_public.py really takes 6 to 10 minutes on a macOS shard (median 476 s in five full macOS runs) and was
         listed at 80 s, so the shards were uneven. The known heavy ones weigh what they measured."""
         weights = run_tests.shard_weights()
-        self.assertEqual(run_tests.SHARD_DEFAULT, 30)
-        self.assertNotIn("test_a_file_nobody_listed.py", weights)
         for heavy in ("test_publish_public.py", "test_publish_scan_time.py", "test_filter_line_page.py"):
             self.assertGreaterEqual(weights[heavy], 250, heavy)
+
+    def test_a_file_missing_from_the_times_is_balanced_as_if_it_weighed_30_seconds(self):
+        """a=50, b=20, c=20 are listed, u is not. As a 30 s file u goes second, so the shards are {a, c} (70) and {u, b} (50);
+        weighed 0 s or left out, u would land with b and c instead."""
+        files = [Path(f"test_{c}.py") for c in "abcu"]
+        w = {"test_a.py": 50, "test_b.py": 20, "test_c.py": 20}
+        got = [[f.name for f in run_tests.shard(files, i, 2, w)] for i in (1, 2)]
+        self.assertEqual(got, [["test_a.py", "test_c.py"], ["test_b.py", "test_u.py"]])
+        self.assertEqual(sorted(n for part in got for n in part), sorted(f.name for f in files))
 
     def test_the_refreshed_heavy_weights_stay_near_what_was_measured(self):
         """The refresh set these five files to the mean of the old weight and the macOS median x 0.93 (test_publish_public.py's 277.8 is (79.7 + 476) / 2: its median was taken as measured). A weight that drifts far
