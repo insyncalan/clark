@@ -1048,18 +1048,6 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ~~~~
 
-## The container image
-
-The Windows download carries a prebuilt container image so that clark can run in Docker without installing anything. It is a convenience copy under the same terms as the rest of this file. The image is the unmodified official `python:3.12.12-slim-bookworm` image (see `docker/compose.yaml` for the exact reference): it holds only the Python runtime and Debian's minimal packages, and none of clark's own code, which stays in the clark folder on your computer.
-
-What is in the image keeps its own licences, which apply to that software and not to clark's own code. CPython is under the Python Software Foundation licence (PSF-2.0), OpenSSL under the Apache License 2.0, and many Debian packages under the GNU General Public License (GPL) or Lesser General Public License (LGPL). Nothing in `LICENSE` limits what those licences allow you to do with those parts.
-
-- `THIRD-PARTY-IMAGE.txt`: every package in the image with its version and licences, made from the image itself.
-- `image-sbom.cdx.json`: the same list as a software bill of materials (CycloneDX).
-- `image-source/` and `image-source-packages.txt`: the Debian source of every package under the GPL or LGPL, one source package each, as the licences require. The same source is on Debian's mirrors (https://deb.debian.org/debian).
-
-These three are made by `dev/tools/image_licences.py` when the Windows download is built. The wording of this section is an engineering reading and is to be confirmed by a lawyer before the Windows download is published.
-
 ## Differences found when the licence files were checked
 
 - **Inter** (`vendor/fonts/inter/OFL.txt`): identical to the Google Fonts file (`ofl/inter/OFL.txt`) except one line in the introduction, which gives the address `https://openfontlicense.org` where the Google Fonts file gives `https://scripts.sil.org/OFL`. The licence terms are the same.
