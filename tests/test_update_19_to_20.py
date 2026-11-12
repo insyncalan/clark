@@ -35,7 +35,7 @@ from test_updater import Rig
 OLD_TAG = "v1.0.4"
 NEW_VERSION = "1.0.5"
 OLD_LAYOUT = 19
-NEW_LAYOUT = 23      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type); the test pins the number on purpose
+NEW_LAYOUT = 24      # the data layout of this build (schema steps 20 to 23: projects.brand, Planned 2026, use_cases.owner, then the gantttable section type); the test pins the number on purpose
 SKIP_WORDS = "layout 20 is not on this tree yet (store.SCHEMA_VERSION is %s): the 19-to-20 update test runs once it is 20"
 
 CHILD = r'''
@@ -260,6 +260,7 @@ class Update19To20(Rig):
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
         after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id"))
+        self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24): the new table is there and empty")
         self.assertEqual(self.base, after, "every row of every table is kept (the new brand and owner columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
             self.assertTrue(after[table], table)

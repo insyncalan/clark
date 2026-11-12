@@ -46,7 +46,7 @@ def others(path):
     use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l]
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l and "use_case_milestones" not in l]      # row 1107 (step 24) adds that table
     finally:
         con.close()
 
@@ -55,7 +55,7 @@ def names(path):
     con = sqlite3.connect(str(path))
     try:
         return sorted((r[0], r[1]) for r in con.execute("SELECT type, name FROM sqlite_master WHERE name NOT LIKE 'sqlite_%'")
-                      if r[1] != "report_sections")
+                      if r[1] != "report_sections" and not r[1].startswith("use_case_milestones"))
     finally:
         con.close()
 

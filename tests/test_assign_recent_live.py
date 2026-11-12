@@ -172,6 +172,7 @@ class Picker(T.Live):
             self.assertTrue(T.wait(lambda: self.steps() == before + 1, 10), "saved as one step: " + cdp.js("document.body.innerText.slice(0, 300) + ' | ' + (document.querySelector('[data-pop]') || {innerText: 'closed'}).innerText", sid))
             self.assertEqual(self.row("actions", "TUL-A-001")["owner"], "TBC")
             self.changed_once(before, "owner")
+            self.until(cdp, sid, "(document.querySelector('.toast-text')||{}).textContent === 'Owner of TUL-A-001 changed to TBC.'", "the toast")
             self.assertEqual(self.toast(cdp, sid), "Owner of TUL-A-001 changed to TBC.")
             self.open_picker(cdp, sid)
             self.assertEqual(self.section(cdp, sid, "recent"), [], "TBC is not a name to come back to")
