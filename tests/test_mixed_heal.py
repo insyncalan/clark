@@ -577,6 +577,121 @@ class HostileNames(Fixture):
 
 
 @unittest.skipUnless(BASH, "needs bash")
+class AllOrNothing(Fixture):
+    A, B, C = ".app/src/clark/a.py", ".app/src/clark/b.py", ".app/vendor/v.py"
+
+    def prepare(self):
+        names = [n for n in (self.A, self.B) if n in self.good]
+        self.assertEqual(2, len(names), "the fixture has two program files to put back")
+        self.make_old(*names)
+        self.zip_of(self.home / "Downloads")
+        files = self.heal_module.read_record(self.top)
+        copies = self.heal_module.find_copies(self.top, names, files, self.home)
+        self.assertEqual(2, len(copies))
+        return names, files, copies
+
+    def test_a_rename_that_fails_part_way_puts_every_file_back_as_it_was(self):
+        names, files, copies = self.prepare()
+        before = snapshot(self.tmp)
+        real = os.replace
+        calls = []
+
+        def replace(src, dst):
+            calls.append(dst)
+            if str(dst).endswith(names[1]) and ".clark-heal-" in str(src) and not str(src).endswith("-back.tmp"):
+                raise OSError("disk full")
+            return real(src, dst)
+        with mock.patch.object(self.heal_module.os, "replace", replace):
+            self.assertEqual(0, self.heal_module.put_back(self.top, copies, files, self.data))
+        self.assertEqual(before, snapshot(self.tmp), "no file changed and no temporary file is left")
+
+    def test_a_write_that_fails_changes_nothing_and_leaves_no_temporary_file(self):
+        names, files, copies = self.prepare()
+        before = snapshot(self.tmp)
+        real = self.heal_module._stage
+
+        def stage(path, blob, mode):
+            if str(path).endswith("-1.tmp"):
+                raise OSError("disk full")
+            return real(path, blob, mode)
+        with mock.patch.object(self.heal_module, "_stage", stage):
+            self.assertEqual(0, self.heal_module.put_back(self.top, copies, files, self.data))
+        self.assertEqual(before, snapshot(self.tmp))
+
+    def test_one_copy_behind_a_link_puts_nothing_back(self):
+        names, files, copies = self.prepare()
+        outside = self.tmp / "outside"
+        outside.mkdir()
+        os.symlink(str(outside), str(self.top / ".app/zz"))
+        copies = {names[0]: copies[names[0]], ".app/zz/n.py": (b"x", "here")}
+        files = dict(files)
+        files[".app/zz/n.py"] = {"mode": "644"}
+        before = snapshot(self.tmp)
+        self.assertEqual(0, self.heal_module.put_back(self.top, copies, files, self.data))
+        self.assertEqual(before, snapshot(self.tmp))
+
+    def test_a_partial_put_back_never_says_done(self):
+        names, files, copies = self.prepare()
+        real = os.replace
+
+        def replace(src, dst):
+            if str(dst).endswith(names[1]) and ".clark-heal-" in str(src) and not str(src).endswith("-back.tmp"):
+                raise OSError("disk full")
+            return real(src, dst)
+        with mock.patch.object(self.heal_module.os, "replace", replace):
+            code, out, err, opened = self.heal("y")
+        self.assertNotIn("Done.", out)
+        self.assertEqual(3, code)
+
+
+class SourceGuards(Fixture):
+    A = ".app/src/clark/a.py"
+
+    def copies(self):
+        files = self.heal_module.read_record(self.top)
+        return self.heal_module.find_copies(self.top, [self.A], files, self.home)
+
+    def test_a_zip_entry_whose_size_is_not_the_recorded_size_is_not_used(self):
+        self.make_old(self.A)
+        self.zip_of(self.home / "Downloads")
+        record = json.loads((self.top / "clark-release.json").read_text(encoding="utf-8"))
+        record["files"][self.A]["size"] += 1
+        (self.top / "clark-release.json").write_text(json.dumps(record), encoding="utf-8")
+        self.assertEqual({}, self.copies())
+
+    def test_a_zip_entry_larger_than_the_limit_is_not_used(self):
+        self.make_old(self.A)
+        self.zip_of(self.home / "Downloads")
+        self.assertEqual(1, len(self.copies()))
+        with mock.patch.object(self.heal_module, "MAX_FILE", 1):
+            self.assertEqual({}, self.copies())
+
+    def test_a_set_aside_file_that_is_a_link_is_not_used(self):
+        self.make_old(self.A)
+        real = self.tmp / "real-copy.py"
+        real.write_bytes(self.good[self.A])
+        folder = self.top / ".clark-old-1"
+        (folder / ".app/src/clark").mkdir(parents=True)
+        os.symlink(str(real), str(folder / self.A))
+        self.assertEqual({}, self.copies())
+
+    def test_a_set_aside_file_larger_than_the_limit_is_not_used(self):
+        self.make_old(self.A)
+        folder = self.top / ".clark-old-1"
+        self.put(folder / self.A, self.good[self.A])
+        self.assertEqual(1, len(self.copies()))
+        with mock.patch.object(self.heal_module, "MAX_FILE", 1):
+            self.assertEqual({}, self.copies())
+
+    def test_a_zip_that_is_a_link_is_not_a_source(self):
+        self.make_old(self.A)
+        elsewhere = self.tmp / "elsewhere"
+        elsewhere.mkdir()
+        real = self.zip_of(elsewhere)
+        os.symlink(str(real), str(self.home / "Downloads" / "clark-9.9.9-mac.zip"))
+        self.assertEqual({}, self.copies())
+
+
 class ClarkCommand(Fixture):
     def setUp(self):
         super().setUp()
@@ -658,6 +773,18 @@ class ClarkCommand(Fixture):
                 self.assertEqual(0, step, "no question was asked")
             self.assertEqual(before, snapshot(self.tmp))
         self.assertFalse(self.open_log.exists())
+
+    def test_check_or_restore_after_another_argument_skips_the_heal_too(self):
+        self.add_stale()
+        self.make_old(".app/src/clark/a.py")
+        self.zip_of(self.home / "Downloads")
+        before = snapshot(self.tmp)
+        for args in (["--data", "x", "--check"], ["--data", "x", "restore"]):
+            with self.subTest(args=args):
+                code, output, step = self.in_terminal(args, [("Type y", "y")], timeout=30)
+                self.assertEqual(0, step, "no question was asked")
+                self.assertNotIn("Put ", output)
+            self.assertEqual(before, snapshot(self.tmp))
 
     def test_yes_then_yes_puts_files_back_moves_the_older_folders_and_starts(self):
         self.add_stale()

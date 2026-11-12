@@ -275,36 +275,69 @@ def _linked(top, rel):
     return False
 
 
+def _unlink(path):
+    try:
+        os.unlink(str(path))
+    except OSError:
+        pass
+
+
+def _stage(path, blob, mode):
+    """Write blob to path (a temporary name) and make it durable."""
+    with open(str(path), "wb") as f:
+        f.write(blob)
+        f.flush()
+        os.fsync(f.fileno())
+    os.chmod(str(path), mode or 0o644)
+
+
 def put_back(top, copies, files, data=None):
-    """Write each copy beside where it belongs (a temporary name in the same folder), then rename it over the file. Returns how many.
+    """All or nothing. Every copy is first written beside where it belongs (a temporary name in the same folder); only when all are
+    written is each renamed over its file, and if one rename fails the files already renamed are written back as they were.
+    A copy whose path goes through a link, or any write that fails, puts nothing back (0). Returns how many were put back.
     With a clark open on `data`, nothing is written (0)."""
-    top, count = Path(top), 0
-    if server_running(data):
+    top = Path(top)
+    if server_running(data) or any(_linked(top, name) for name in copies):
         return 0
-    for name, (blob, _) in sorted(copies.items()):
-        dest = top / name
-        if _linked(top, name):
-            continue
-        tmp = dest.parent / (".clark-heal-%d.tmp" % os.getpid())
-        try:
+    staged = []                                                     # (destination, temporary name)
+    try:
+        for i, name in enumerate(sorted(copies)):
+            dest = top / name
             dest.parent.mkdir(parents=True, exist_ok=True)
-            with open(str(tmp), "wb") as f:
-                f.write(blob)
-                f.flush()
-                os.fsync(f.fileno())
+            tmp = dest.parent / (".clark-heal-%d-%d.tmp" % (os.getpid(), i))
+            staged.append((dest, tmp))
             try:
                 mode = int(str(files[name].get("mode", "644")), 8) & 0o777
             except ValueError:
                 mode = 0o644
-            os.chmod(str(tmp), mode or 0o644)
+            _stage(tmp, copies[name][0], mode)
+    except OSError:
+        for _, tmp in staged:
+            _unlink(tmp)
+        return 0
+    done = []                                                       # (destination, what it held, its mode) for each one renamed
+    try:
+        for dest, tmp in staged:
+            before = None
+            if dest.is_file():
+                before = (dest.read_bytes(), dest.stat().st_mode & 0o777)
             os.replace(str(tmp), str(dest))
-            count += 1
-        except OSError:
+            done.append((dest, before))
+    except OSError:
+        for _, tmp in staged:
+            _unlink(tmp)
+        for dest, before in reversed(done):
+            back = dest.parent / (".clark-heal-%d-back.tmp" % os.getpid())
             try:
-                os.unlink(str(tmp))
+                if before is None:
+                    os.unlink(str(dest))
+                else:
+                    _stage(back, before[0], before[1])
+                    os.replace(str(back), str(dest))
             except OSError:
-                pass
-    return count
+                _unlink(back)
+        return 0
+    return len(done)
 
 
 def move_stale(top, names, data=None):
