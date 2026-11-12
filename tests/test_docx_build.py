@@ -119,7 +119,23 @@ class HostileHealthAndStatus(unittest.TestCase):
                 d = self.plant(bad)["data"]
                 rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
                 self.assertTrue(rows)
-                self.assertTrue(all(r["colour"] is None or r["colour"] == "grey" for r in rows))
+                self.assertTrue(all(r["colour"] is None for r in rows))
+
+
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
 
 
 class Repeatable(unittest.TestCase):
@@ -338,6 +354,16 @@ class WhatIsInIt(unittest.TestCase):
         p["data"]["milestones"][0].update(status="Done", actual_date="2026-10-14", state="Achieved", state_word="Achieved")
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
+
+    def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
+        # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(client_message="<p>ZQ-RICH-WORDS <strong>bold</strong> &amp; more</p>")
+        text = every_text(docx_build.build(p))
+        self.assertIn("ZQ-RICH-WORDS", text)
+        self.assertIn("bold", text)
+        self.assertNotIn("&lt;p&gt;", text)
+        self.assertNotIn("&lt;strong&gt;", text)
 
     def test_dates_read_dd_mm_yyyy_and_are_never_stored_dates(self):
         both = parts(self.data)

@@ -48,7 +48,7 @@ const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
 const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
-export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
+export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && (ctx.isReady || (v === "archived" && ctx.archivedReady))));   // item 1067: the Edit page answers is:archived
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
 const CLIENT_WORDS = [["shown", "Shown to the client"], ["internal", "Internal only"]];
 const gloss = () => ({ quiet: staleWords(), incomplete: "No owner or no date" });
@@ -413,18 +413,6 @@ export function suggest(wordTyped, rows, ctx) {
     .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(gloss(), v) || "" : "" }));
 }
 
-/** The hint chips under the focused line: a few to start from, each with a plain meaning for its tooltip. */
-export const HINTS = [
-  { text: "status:", gloss: "Open, Pending, Delayed, Closed or Cancelled" },
-  { text: "owner:me", gloss: "Your own items (needs your name in Settings)" },
-  { text: "due:overdue", gloss: "Open items whose date has passed" },
-  { text: "-status:Closed", gloss: "Leave closed items out" },
-  { text: "no:owner", gloss: "Items with no owner" },
-  { text: "is:incomplete", gloss: "No owner or no date" },
-];
-/** The hint chips to show: HINTS, with is:quiet added once the page turns the `is:` data on (ctx.isReady). */
-export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: gloss().quiet }, ...HINTS.slice(5)] : HINTS.slice());
-
 /** True when every field word of the line is one the published file's line may use (CLIENT_FIELDS; `is:` only CLIENT_IS; no `owner:me`) and
  *  is a field at all. Needs no rows. Used to drop a remembered line or saved view that names anything else. */
 export function lineIsClientSafe(line) {
@@ -564,7 +552,9 @@ function nameProblem(views, name, exceptId) {
   if ((views || []).some((v) => !v.archived && v.id !== exceptId && low(v.name) === low(n))) return `A view called ${n} already exists. Choose another name.`;
   return "";
 }
-const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`)) n++; return `v${n}`; };
+// The ids of views deleted in this visit: never given to a new view, so the Undo of a delete (row 1071) can always put the view back under its own id.
+const retired = new Set();
+const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`) || retired.has(`v${n}`)) n++; return `v${n}`; };
 
 /** Save the line as a new view. {ok, views, id} or {ok: false, message}; the list given is never changed. */
 export function addView(views, name, line) {
@@ -604,6 +594,9 @@ export function reorderViews(views, ids) {
 export function insertView(views, view, index) {
   const vs = views || [];
   if (!view || findView(vs, view.id)) return { ok: false, message: "That view is already there." };
+  const bad = nameProblem(vs, view.name, view.id);          // another view may have taken the name since the delete: no two views with one name
+  if (bad) return { ok: false, message: bad };
+  if (!isCoreView(view) && mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
   const i = Math.max(0, Math.min(vs.length, Math.trunc(Number(index)) || 0));
   return { ok: true, views: [...vs.slice(0, i), { ...view }, ...vs.slice(i)] };
 }
@@ -624,6 +617,7 @@ export function duplicateView(views, id) {
 /** Delete a view (a core view too). It is gone: there is no way back. */
 export function deleteView(views, id) {
   if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  retired.add(id);
   return { ok: true, views: views.filter((v) => v.id !== id) };
 }
 /** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it

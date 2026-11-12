@@ -135,8 +135,9 @@ class Chips(unittest.TestCase):
         n = lambda chip: run_node(f"Q.chipName({lit(chip)}, {lit(ROWS)}, {lit(CTX)})")
         self.assertEqual(n("status:Open"), "Status")
         self.assertEqual(n("-owner:none"), "Owner")
-        self.assertEqual(n("is:open"), "is")
-        self.assertEqual(n("no:owner"), "no")
+        self.assertEqual(n("is:open"), "is:open", "two is: chips must not both be called the is filter")
+        self.assertEqual(n("no:owner"), "no:owner")
+        self.assertEqual(n("-is:open"), "-is:open")
 
 
 class Words(unittest.TestCase):
@@ -165,6 +166,12 @@ class Words(unittest.TestCase):
 
     def test_the_page_cannot_answer_some_states_yet(self):
         self.assertEqual(len(self.say("is:needed")), 1)                  # an error (the token filters nothing), with no approved sentence
+
+    def test_the_schema_follows_archived_ready_on_the_same_rows(self):
+        """Item 1067: is:archived is a word only where the page answers it; the cached schema must not outlive a change of that flag."""
+        probe = (f"(() => {{ const r = {lit(ROWS)}; const n = (c) => Q.parseFor('is:archived', r, c).errors.length;"
+                 f" return [n({lit(CTX)}), n({lit(dict(CTX, archivedReady=True))}), n({lit(CTX)})]; }})()")
+        self.assertEqual(run_node(probe), [1, 0, 1])
 
     def test_me_with_no_name_is_noticed(self):
         for ctx, want in ((CTX, False), ({"today": "2026-10-29", "me": ""}, True)):

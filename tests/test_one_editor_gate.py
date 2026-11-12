@@ -89,7 +89,9 @@ class Source(unittest.TestCase):
 
 # Item 1005: plain multiline fields that moved onto the one editor, and the component each one draws (never a textarea or a contenteditable
 # of its own). The pioneer fields (item and milestone Latest update) and the template fields are listed by their own PRs.
-MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason")}
+MOVED = {"edit/Movement.jsx": ("RichField", "the Movement Internal note"), "edit/GlanceEdit.jsx": ("RichField", "the At a glance Reason"),
+         "edit/MilestonePeek.jsx": ("RichField", "the milestone Client wording and Description"), "edit/templates/pictureEdit.jsx": ("RichField", "the picture captions"),
+         "edit/ItemRowsEdit.jsx": ("RichField", "the report rows' Client wording and the work item peek's (PeekWording draws Words)")}
 
 
 class MovedFields(unittest.TestCase):
@@ -104,6 +106,45 @@ class MovedFields(unittest.TestCase):
     def test_a_moved_field_reads_what_is_stored_through_the_page_twin_never_raw(self):
         for rel in MOVED:
             self.assertIn("richOrPlain(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+
+    def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
+        """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
+        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
+            self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+        # Row 1078: a milestone's client wording is rich now (the editor's HTML is saved as it is), so the peek does not flatten it.
+        peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("plainFromEditor(", peek)
+        self.assertIn('<RichField field="client_message"', peek)
+        for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
+            text = (PAGE_SRC / rel).read_text(encoding="utf-8")
+            self.assertIn('<CaptionField section={section} field="caption"', text, rel)
+            self.assertNotIn('<LineField section={section} field="caption"', text, rel)
+        self.assertIn("CaptionField", (PAGE_SRC / "edit" / "templates" / "Gallery.jsx").read_text(encoding="utf-8"))
+
+    def test_the_row_and_peek_client_wording_have_no_plain_box_of_their_own(self):
+        """Row 1005: Words (a report row's Client wording, also the work item peek's) is the RichField with one-line plain storage, not plainBox."""
+        rows = (PAGE_SRC / "edit" / "ItemRowsEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("plainBox", rows)
+        self.assertIn("oneLine", rows)
+        self.assertIn("changeCell(", rows, "still one change with one Undo")
+        peek = (PAGE_SRC / "edit" / "PeekWording.jsx").read_text(encoding="utf-8")
+        self.assertIn("Words", peek)
+        self.assertNotIn("contenteditable", peek.lower())
+
+    def test_the_move_form_and_the_raid_own_words_draw_the_one_editor_and_store_plain_text(self):
+        """Row 1005: Who agreed it, Reason and Source (Movement) and a RAID card's Own words are RichField. What is sent and stored stays
+        plain text on one line (the store refuses a line break there), so an older row and a new one read the same."""
+        move = (PAGE_SRC / "edit" / "Movement.jsx").read_text(encoding="utf-8")
+        self.assertNotRegex(move, r"<input[^>]*id=\"mv-(who|reason|source)\"")
+        for k in ("who", "reason", "source"):
+            self.assertIn('<FormRow k="%s"' % k, move)
+        self.assertGreaterEqual(move.count("<RichField"), 2, "the note and the form's fields")
+        self.assertIn("plainLine(", move)
+        raid = (PAGE_SRC / "edit" / "templates" / "raidEdit.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("<input", raid)
+        self.assertNotIn("<textarea", raid)
+        self.assertIn("<RichField", raid)
+        self.assertIn("plainLine(", raid)
 
     def test_the_published_page_draws_the_reason_with_no_cleaner_of_its_own(self):
         glance = (PAGE_SRC / "components" / "Glance.jsx").read_text(encoding="utf-8")
@@ -386,7 +427,7 @@ class PageGate(unittest.TestCase):
             sel = f"[data-id='{ref}']"
             self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} [data-rich]\")"), 10), "the words are a rich field")
             self.assertEqual(js(f"document.querySelectorAll(\"{sel} textarea\").length"), 0, "no plain box for the words")
-            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich] p\")].map(function(e){{ return e.textContent; }})"),
+            self.assertEqual(js(f"[...document.querySelectorAll(\"{sel} [data-rich=textimage] p\")].map(function(e){{ return e.textContent; }})"),
                              ["Old a < b & c", 'He said "yes"'])
             js(f"document.querySelector(\"{sel} [data-rich]\").click()")
             self.assertTrue(wait(lambda: js(f"!!document.querySelector(\"{sel} .ProseMirror\")"), 10))
@@ -436,7 +477,7 @@ class MovedLatestFields(unittest.TestCase):
         from clark import excel
         self.assertEqual(excel.RICH_WORDS, publish.LEGACY_RICH + (("milestones", "internal_note"), ("use_cases", "standing")), "the workbook carries the words of the same fields, of the Movement note (never published, so not in the published list) and, row 1060, of a use case's Where it stands (HTML from the start, so not legacy)")
         src = (SRC / "clark" / "changes.py").read_text(encoding="utf-8")
-        self.assertEqual(src.count("_rich_field("), 4, "the definition and the three fields' writes (latest update, Internal note, description)")
+        self.assertEqual(src.count("_rich_field("), 5, "the definition and the four fields' writes (latest update, Internal note, description, client wording)")
 
     def test_the_published_page_carries_no_editor_for_them(self):
         page.ensure_built()

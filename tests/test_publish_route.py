@@ -16,6 +16,7 @@ from pathlib import Path
 from unittest import mock
 
 import _publish_fixture as fx
+from _links import needs_links
 import _routes as routes_expected
 from _paths import SRC  # noqa: F401  (puts src/ on the path)
 from clark import changes, page, platform, profile_settings, publish, publish_flow, server as sv, to_client
@@ -315,6 +316,7 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.check(sub / "mine.html", to_client=True)
 
 
+    @needs_links
     def test_local_through_a_link_to_the_client_folder_is_refused(self):
         """#1047: a link (as the folder, as a parent of it, or as the saved client folder) that leads into the client folder."""
         links = self.rig.root / "links"
@@ -330,6 +332,7 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.check(self.rig.client / "mine.html", to_client=False)
         self.check(self.rig.client / "Drafts" / "mine.html")
 
+    @needs_links
     def test_a_link_to_somewhere_else_is_not_the_client_folder(self):
         links = self.rig.root / "links"
         links.mkdir()
@@ -337,6 +340,22 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.rig.save_to = links / "to-local" / "mine.html"
         status, got = self.rig.publish(to_client=False)
         self.assertEqual((status, got["ok"]), (200, True), got)
+
+    @needs_links
+    def test_local_through_dotdot_back_into_the_client_folder_is_refused(self):
+        """A folder written with .. that folds back into the client folder is still inside it."""
+        (self.rig.client / "Drafts").mkdir()
+        elsewhere = self.rig.client.parent / "elsewhere"
+        elsewhere.mkdir()
+        self.check(elsewhere / ".." / self.rig.client.name / "Drafts" / "mine.html", to_client=False)
+        self.check(self.rig.client / "Drafts" / ".." / "mine.html", to_client=False)
+
+    def test_local_with_no_saved_client_folder_is_not_taken_for_inside_it(self):
+        """An empty saved client folder is nowhere: the working directory and the Local folder are not 'inside' it."""
+        self.rig.set_folder("")
+        self.rig.save_to = self.rig.local / "mine.html"
+        status, got = self.rig.publish(to_client=False)
+        self.assertNotEqual((status, got.get("code")), (409, "same_folder"), got)
 
     def test_local_through_a_link_into_clarks_own_data_is_refused(self):
         links = self.rig.root / "links"
@@ -349,6 +368,7 @@ class LocalNeverLandsInTheClientFolder(Base):
         self.assertEqual((self.rig.everything_written(), self.rig.rows()), (before, []))
 
 
+    @needs_links
     def test_a_link_inside_the_client_folder_that_leads_out_is_still_inside_as_written(self):
         """#1047: the as-written check stands apart from the links-followed one."""
         elsewhere = self.rig.root / "elsewhere"
@@ -372,6 +392,7 @@ class HostileFolderInside(unittest.TestCase):
         self.tmp = Path(tempfile.mkdtemp())
         self.addCleanup(__import__("shutil").rmtree, self.tmp, True)
 
+    @needs_links
     def test_a_sibling_sharing_a_name_prefix_is_not_inside(self):
         client = self.tmp / "Client"
         (self.tmp / "Client-old").mkdir()
@@ -398,9 +419,10 @@ class HostileFolderInside(unittest.TestCase):
         nfd = str(self.tmp / "Cle\u0301ment" / "x")                      # same name, other accent form
         self.assertTrue(publish_flow.folder_inside(None, nfd, str(client)))
         for bad in ("a\x00b", "\u202e" * 50, "/" + "d/" * 3000, "\ud800", "$(rm -rf ~)", "-rf", "\n"):
-            self.assertIn(publish_flow.folder_inside(None, bad, str(client)), (True, False), bad)
+            self.assertIs(type(publish_flow.folder_inside(None, bad, str(client))), bool, bad)      # an answer, never a raise
             self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "none") + bad, str(client)), bad)
 
+    @needs_links
     def test_a_link_loop_and_a_dangling_link_are_not_inside_and_do_not_hang(self):
         client = self.tmp / "Client"
         client.mkdir()
@@ -414,6 +436,7 @@ class HostileFolderInside(unittest.TestCase):
         """'' resolves to the working directory on the real disk; it must still be nowhere."""
         self.assertFalse(publish_flow.folder_inside(None, "", os.getcwd()))
 
+    @needs_links
     def test_dotdot_after_a_link_is_judged_both_as_written_and_with_links_followed(self):
         deep = self.tmp / "deep"
         (deep / "e").mkdir(parents=True)
@@ -432,6 +455,7 @@ class HostileFolderInside(unittest.TestCase):
                 return path.replace("/virtual", "/c")
         self.assertTrue(publish_flow.folder_inside(Fake(), "/virtual/b", "/c"))
 
+    @needs_links
     def test_a_link_chain_two_deep_into_the_client_folder_is_inside(self):
         client = self.tmp / "Client"
         (client / "Deep").mkdir(parents=True)
@@ -545,6 +569,7 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         # against is a client-folder file landing next to the database, which would be in this folder's parent, not in it
         return sorted(p.name for p in self.rig.data_dir.iterdir() if not p.name.startswith("clark.db") and p.name not in ("backups", "published-copies"))
 
+    @needs_links
     def test_a_link_to_clarks_data_folder_swapped_in_copies_nothing(self):
         def swap():
             self.rig.client.rmdir()
@@ -557,6 +582,7 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         self.assertEqual(self.rig.listing(self.rig.local), [], "and Local was not written either")
         self.assertEqual(self.rig.rows(), [])
 
+    @needs_links
     def test_a_link_swapped_in_after_the_second_check_is_refused_by_the_copy(self):
         real = self.rig.publisher.write_local
 
@@ -571,6 +597,7 @@ class TheClientFolderChangedWhileTheSaveWindowIsOpen(Base):
         self.assertEqual(self.data_files(), [])
         self.assertTrue(got["local_saved"], "Local is kept")
 
+    @needs_links
     def test_a_link_to_another_real_folder_gets_the_copy_at_that_real_folder(self):
         """As designed: the new place is checked afresh and is a good folder, so the copy goes there (its real path), never to
         the saved spelling."""
@@ -1108,6 +1135,32 @@ class PlainWords(Base):
         status, got = rig.call("POST", "/api/client-folder", {"project": "PUB", "action": "choose"})
         self.assertEqual((status, got["code"]), (409, "dialog_failed"), got)
         self.assertEqual(self.seen(got), "The folder window could not be opened. Try again; if it keeps happening, restart clark. ")
+
+
+class ATableSectionWithTheSwitchOff(Base):
+    """Row 1068: a shown Gantt table section puts the eye-on lines in the file with the client switch off; the route's marker check
+    must not hold that back (publish_flow.gantt_markers mirrors publish.select). The eye-off line stays out."""
+
+    def setUp(self):
+        super().setUp()
+        change = changes.make_change(self.rig.db, [], USER)
+        base = {"type": "task", "start": "2026-10-05", "end": "2026-10-16", "health": "Green"}
+        for req in ({"kind": "report_sections", "op": "new", "values": {"type": "gantttable", "title": "Table"}},
+                    {"kind": "gantt_lines", "op": "new", "values": {**base, "name": "ZQ-TABLE-LINE-ON", "show": 1}},
+                    {"kind": "gantt_lines", "op": "new", "values": {**base, "name": "ZQ-TABLE-LINE-OFF", "show": 0}},
+                    {"kind": "projects", "op": "update", "changes": {"show_gantt_client": 0}}):
+            status, body = change({"project": "PUB", **req})
+            self.assertEqual(status, 200, body)
+
+    def test_the_publish_goes_through_and_the_copy_carries_the_eye_on_line_only(self):
+        status, got = self.rig.publish(to_client=True)
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        copies = [p for p in self.rig.client.iterdir() if p.suffix == ".html"]
+        self.assertEqual(len(copies), 1, self.rig.listing(self.rig.client))
+        text = copies[0].read_text(encoding="utf-8")
+        self.assertIn("ZQ-TABLE-LINE-ON", text)
+        self.assertNotIn("ZQ-TABLE-LINE-OFF", text)
+        self.assertEqual(len(self.rig.rows()), 1)
 
 
 if __name__ == "__main__":
