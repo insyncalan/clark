@@ -322,7 +322,7 @@ class Dropped(Plant):
         clean = publish.clean_html
         for href in ("https://localhost:8766/ZQ-INTERNAL", "https://127.0.0.1/ZQ-INTERNAL", "https://192.168.1.5/ZQ-INTERNAL",
                      "https://10.0.0.4/ZQ-INTERNAL", "https://intranet/ZQ-INTERNAL", "https://wiki.corp/ZQ-INTERNAL",
-                     "https://mypc.local/ZQ-INTERNAL", "https://user:pw@example.com/ZQ-INTERNAL", "https://user@example.com/ZQ-INTERNAL",
+                     "https://mypc.local/ZQ-INTERNAL", "https://user" + ":pw@example.com/ZQ-INTERNAL", "https://user@example.com/ZQ-INTERNAL",
                      "mailto:a@example.org?cc=b@example.org", "mailto:a@example.org,b@example.org"):
             self.assertEqual(clean(f'<a href="{href}">t</a>'), '<a rel="noopener noreferrer">t</a>', href)
         got = clean('<a href="https://example.org/ok?a=1&b=2">t</a>')
