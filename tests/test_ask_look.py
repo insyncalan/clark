@@ -188,6 +188,17 @@ class Look(Base):
                     p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
                     self.check_measures(p, f"{width} {theme} page suggestions")
 
+    def test_row_1093_the_dashboard_has_its_own_suggestions(self):
+        pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"
+        want = ["Is the project on track?", "What is overdue?", "Which risks are red?", "What is the next milestone?", "What needs a decision soon?", "What changed this week?"]
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    p = self.open_panel(cdp, width, theme)
+                    self.assertEqual(p.js("location.hash.split('&')[0]"), "#dashboard")
+                    self.assertEqual(p.js(pills), want, f"{width} {theme}: the Dashboard's own six")
+                    self.check_measures(p, f"{width} {theme} dashboard suggestions")
+
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
             for width in (1400, 900):
