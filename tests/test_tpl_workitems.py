@@ -49,7 +49,8 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["type", "id", "owner", "due", "status"], "caption": ""})
+                               "columns": ["type", "id", "owner", "due", "status"], "caption": "",
+                               "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 
     def test_choices_are_kept_in_their_own_order_without_repeats(self):
@@ -119,12 +120,23 @@ ROWS = {
         {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05"},
     ],
 }
+ROWS["milestones"] = [{"id": "ABC-M-001", "name": "Go live"}, {"id": "ABC-M-002", "name": "Pilot"}]
+for _id, _title, _ms in (("ABC-A-001", "Chase the supplier file", "ABC-M-001"), ("ABC-A-002", "Plan the second wave", None),
+                         ("ABC-A-005", "Order the laptops", "ABC-M-002"), ("ABC-A-004", "Fix the badge printer", None),
+                         ("ABC-001", "Key person leaves", "ABC-M-001"), ("ABC-002", "Supplier portal is down", None)):
+    for _r in ROWS["actions"] + ROWS["raid"]:
+        if _r["id"] == _id:
+            _r["description"], _r["milestone"] = _title, _ms
+ROWS["decisions"][0]["decision"] = "Pick the vendor"
+LEFT = [{"not": {"owner": ["Pat Demo"]}}, {"milestone": ["go LIVE"]}, {"milestone": ["(none)"]}, {"has": [["owner"]]}, {"no": [["due"]]},
+        {"text": ["supplier"]}, {"text": ["abc-00"]}, {"not": {"due": ["overdue"]}}, {"has": [["owner", "due"]], "mode": "all"},
+        {"no": [["owner", "milestone"]]}, {"not": {"kinds": ["risk", "issue"], "milestone": ["Pilot"]}}, {"text": ["second wave", "plan"]}]
 FILTERS = [{}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
            {"due": ["overdue"]}, {"due": ["soon", "none"]}, {"due": ["later"], "mode": "all"}, {"owner": ["Pat Demo"]},
            {"owner": ["(none)"], "mode": "all"}, {"workstream": ["Build", "(none)"]}, {"use_case": ["ABC-U-001"], "mode": "all"},
            {"priority": ["Urgent", "High"]}, {"priority": ["(none)"], "mode": "all"}, {"status": ["Delayed", "Pending"]},
            {"sort": "priority", "mode": "all"}, {"sort": "id", "mode": "all"}, {"max": 3}, {"max": 1, "sort": "priority"},
-           {"kinds": ["action"], "owner": ["Sam Demo", "Pat Demo"], "mode": "all", "sort": "priority"}]
+           {"kinds": ["action"], "owner": ["Sam Demo", "Pat Demo"], "mode": "all", "sort": "priority"}] + LEFT
 
 
 class Rules(unittest.TestCase):
@@ -137,6 +149,32 @@ class Rules(unittest.TestCase):
         self.assertEqual(ids({"sort": "priority"}), ["ABC-002", "ABC-A-004", "ABC-A-001", "ABC-001", "ABC-A-005", "ABC-D-001", "ABC-A-002"])
         self.assertEqual(ids({"owner": ["(none)"], "mode": "all"}), ["ABC-A-004", "ABC-003"], "a blank owner has none")
         self.assertEqual(ids({"mode": "closed", "due": ["none"]}), ["ABC-A-006"], "a closed row with a made-up day has no date")
+
+    def test_not_has_no_milestone_and_free_words_choose_as_the_page_reads_them(self):
+        ids = lambda v: wi.matching(check(v), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(ids({"not": {"owner": ["Pat Demo"]}}), ["ABC-002", "ABC-A-002", "ABC-A-005", "ABC-A-004"])
+        self.assertEqual(ids({"milestone": ["go LIVE"]}), ["ABC-A-001", "ABC-001"], "a milestone is read without regard to case")
+        self.assertEqual(ids({"milestone": ["(none)"]}), ["ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-004"])
+        self.assertEqual(ids({"has": [["owner"]]}), ["ABC-A-001", "ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-005", "ABC-001"])
+        self.assertEqual(ids({"no": [["due"]]}), ["ABC-001", "ABC-A-004"])
+        self.assertEqual(ids({"text": ["supplier"]}), ["ABC-A-001", "ABC-002"], "the title is searched, not the case")
+        self.assertEqual(ids({"text": ["abc-00"]}), ["ABC-002", "ABC-001"], "the id is searched too")
+        self.assertEqual(ids({"not": {"due": ["overdue"]}}), ["ABC-D-001", "ABC-A-002", "ABC-A-005", "ABC-001", "ABC-A-004"])
+        self.assertEqual(ids({"no": [["owner", "milestone"]]}), ["ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-004"], "no: with two fields is either one empty")
+
+    def test_the_new_parts_are_checked_and_an_old_saved_filter_reads_as_before(self):
+        got = check({"has": [["due", "owner"]], "no": [["milestone"]], "text": ["  two   words ", "two words"], "not": {"owner": ["Pat Demo"]}})
+        self.assertEqual((got["has"], got["no"], got["text"], got["not"]["owner"]), ([["owner", "due"]], [["milestone"]], ["two words"], ["Pat Demo"]))
+        self.assertEqual(set(got["not"]), set(wi.LEFT_OUT))
+        for value in ({"has": [["client"]]}, {"has": [[]]}, {"has": "owner"}, {"no": [["owner"]] * 11}, {"text": [""]}, {"text": ["x" * 121]},
+                      {"not": {"client": ["x"]}}, {"not": {"kinds": ["ZQ-kind"]}}, {"not": []}, {"milestone": [5]}):
+            with self.subTest(value=value):
+                with self.assertRaises(base.Bad):
+                    check(value)
+        old = {"v": 1, "kinds": ["risk"], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [], "use_case": [],
+               "priority": [], "sort": "due", "max": 10, "columns": ["id"], "caption": ""}
+        self.assertEqual(check(old)["kinds"], ["risk"])
+        self.assertEqual(wi.matching(check(old), wi.rows_of(ROWS), TODAY), ["ABC-001"])
 
     def test_published_carries_ordered_kept_ids_columns_and_caption_and_never_the_filter(self):
         ctx = base.Context(ROWS, TODAY)
@@ -156,7 +194,9 @@ def bare_page():
         import esbuild
         with tempfile.TemporaryDirectory() as tmp:
             entry = Path(tmp) / "entry.js"
-            entry.write_text('import * as W from "@src/templates/workItemsList.js";\nwindow.W = W;\n', encoding="utf-8")
+            entry.write_text('import * as W from "@src/templates/workItemsList.js";\nimport * as L from "@src/templates/workItemsLine.js";\n'
+                             'import { evaluateQuery } from "@src/logic/filterQueryEval.js";\nimport { rowsOf } from "@src/workItems.js";\n'
+                             'window.W = W;\nwindow.L = L;\nwindow.Q = { evaluateQuery, rowsOf };\n', encoding="utf-8")
             out = Path(tmp) / "t.js"
             done = esbuild.run(["--bundle", "--format=iife", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
                                 *build_page.preact_flags(), f"--alias:@src={PAGE_SRC}", str(entry), f"--outfile={out}"],
@@ -196,6 +236,31 @@ class PageRules(unittest.TestCase):
                 body = stored(f)
                 page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)})")
                 self.assertEqual(page, want)
+
+    def test_a_typed_line_lists_what_the_work_items_pages_own_line_lists(self):
+        lines = ['-owner:"Pat Demo"', 'milestone:"go live"', "milestone:none", "has:owner", "no:due", "supplier", '"second wave"', "-due:overdue",
+                 "-is:overdue", "is:overdue", "-status:Delayed type:action", "has:owner,due", "no:owner,milestone", '-milestone:"Go live"',
+                 "-type:risk,issue", "-priority:none", "due:next-7-days -type:decision", "Supplier -has:milestone", "-is:closed no:workstream"]
+        for line in lines:
+            with self.subTest(line=line):
+                got = self.val(f"(function(){{ var r = L.readLine({json.dumps(line)}, W.defaults(), []); if (r.problem) return {{problem: r.problem}};"
+                               f" r.filter.max = 50; return W.matching(r.filter, W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}).sort(); }})()")
+                data = dict(ROWS, use_cases=[])
+                data = {k: ([dict(r, project="ABC") for r in v] if k != "use_cases" else v) for k, v in data.items()}
+                want = self.val(f"Q.evaluateQuery(Q.rowsOf({json.dumps(data)}), {json.dumps(line + ' is:open')}, {{today: {json.dumps(TODAY)}, me: ''}})"
+                                ".map(function (r) { return r.id; }).sort()")
+                self.assertEqual(got, want)
+
+    def test_the_line_is_read_back_the_way_it_was_typed_and_what_cannot_be_used_is_refused(self):
+        for line in ['type:risk -owner:"Pat Demo" milestone:"Go live" has:owner,due no:workstream supplier "second wave"', "-due:overdue is:closed"]:
+            with self.subTest(line=line):
+                again = self.val(f"(function(){{ var a = L.readLine({json.dumps(line)}, W.defaults(), []).filter;"
+                                 f" var b = L.readLine(L.lineOf(a), W.defaults(), []).filter; return [a, b]; }})()")
+                self.assertEqual(again[0], again[1])
+                self.assertEqual(check(again[0]), again[0], "what the line saves is what the checker keeps")
+        for line in ["client:yes", "is:quiet", "colour:red", "owner:@me", "-is:open -is:closed", "has:client", "due:zzz"]:
+            with self.subTest(line=line):
+                self.assertIn("problem", self.val(f"L.readLine({json.dumps(line)}, W.defaults(), [])"))
 
     def test_the_page_and_publish_name_the_same_choices(self):
         for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS", "DEFAULT_COLUMNS"):

@@ -39,8 +39,12 @@ MAX_VALUES = 30                     # names in one filter
 MAX_TEXT = 120                      # characters in one owner or workstream name
 MAX_CAPTION = 200
 CLOSED = ("Closed", "Cancelled", "Made", "Withdrawn")
-KEYS = ("v", "kinds", "mode", "status", "due", "owner", "workstream", "use_case", "priority", "sort", "max", "columns", "caption")
+KEYS = ("v", "kinds", "mode", "status", "due", "owner", "workstream", "use_case", "priority", "sort", "max", "columns", "caption",
+        "milestone", "not", "has", "no", "text")
 FILTERS = ("kinds", "status", "due", "owner", "workstream", "use_case", "priority")
+LEFT_OUT = FILTERS + ("milestone",)             # what a "not" may name: the choices above, and a milestone
+PRESENT = ("type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone")      # what has: and no: may name (the page's field words)
+MAX_GROUPS = 10                     # has: words and no: words, and free words
 
 NOT_A_FILTER = "That list's filter could not be read. Choose its filter again."
 UNKNOWN_FIELD = "That list's filter has a choice it doesn't know. Choose its filter again."
@@ -93,6 +97,46 @@ def _names(value, rules, ids=False):
     return out
 
 
+def _groups(value):
+    """has: or no: words: a list of lists of field words, each list at least one and distinct, the order given."""
+    if not isinstance(value, list) or len(value) > MAX_GROUPS:
+        raise Bad(BAD_CHOICE)
+    out = []
+    for g in value:
+        if not isinstance(g, list) or not g or any(not isinstance(f, str) or f not in PRESENT for f in g):
+            raise Bad(BAD_CHOICE)
+        out.append([f for f in PRESENT if f in g])
+    return out
+
+
+def _left_out(value, rules):
+    """The "not" part: for each of LEFT_OUT, the values a row must not have; every key present."""
+    if not isinstance(value, dict) or any(k not in LEFT_OUT for k in value):
+        raise Bad(BAD_CHOICE)
+    return {"kinds": _choices(value.get("kinds", []), KINDS), "status": _choices(value.get("status", []), STATUSES),
+            "due": _choices(value.get("due", []), DUE), "owner": _names(value.get("owner", []), rules),
+            "workstream": _names(value.get("workstream", []), rules), "use_case": _names(value.get("use_case", []), rules, ids=True),
+            "priority": _choices(value.get("priority", []), PRIORITIES + (NONE,)), "milestone": _names(value.get("milestone", []), rules)}
+
+
+def _words(value, rules):
+    """The free words: each a plain word or phrase the title or id must contain."""
+    if not isinstance(value, list) or len(value) > MAX_GROUPS:
+        raise Bad(BAD_CHOICE)
+    out = []
+    for w in value:
+        if not isinstance(w, str):
+            raise Bad(BAD_CHOICE)
+        w = " ".join(w.split())
+        if not w or not rules.visible(w):
+            raise Bad(BAD_CHOICE)
+        if len(w) > MAX_TEXT:
+            raise Bad(LONG_NAME)
+        if w not in out:
+            out.append(w)
+    return out
+
+
 def check(value, rules):
     """The saved filter rebuilt field by field, with every key present; Bad in plain words otherwise."""
     if type(value) is not dict:
@@ -132,6 +176,11 @@ def check(value, rules):
         "max": most,
         "columns": columns,
         "caption": caption,
+        "milestone": _names(value.get("milestone", []), rules),
+        "not": _left_out(value.get("not", {}), rules),
+        "has": _groups(value.get("has", [])),
+        "no": _groups(value.get("no", [])),
+        "text": _words(value.get("text", []), rules),
     }
 
 
@@ -160,16 +209,17 @@ def day_number(iso):
 def rows_of(rows):
     """One flat list from the kept rows (ctx.rows): actions, then RAID (its type, lower case, is the kind), then decisions."""
     out = []
+    ms = {m.get("id"): _text(m.get("name")) for m in rows.get("milestones") or ()}
     for r in rows.get("actions") or ():
-        out.append({"id": r.get("id"), "kind": "action", "status": r.get("status"), "owner": r.get("owner"),
+        out.append({"id": r.get("id"), "kind": "action", "title": r.get("description"), "milestone": ms.get(r.get("milestone"), ""), "status": r.get("status"), "owner": r.get("owner"),
                     "workstream": r.get("workstream"), "use_case": r.get("use_case"), "priority": r.get("priority"),
                     "due": r.get("due_date")})
     for r in rows.get("raid") or ():
-        out.append({"id": r.get("id"), "kind": str(r.get("type") or "").lower(), "status": r.get("status"), "owner": r.get("owner"),
+        out.append({"id": r.get("id"), "kind": str(r.get("type") or "").lower(), "title": r.get("description"), "milestone": ms.get(r.get("milestone"), ""), "status": r.get("status"), "owner": r.get("owner"),
                     "workstream": r.get("workstream"), "use_case": r.get("use_case"), "priority": r.get("priority"),
                     "due": r.get("due_date")})
     for r in rows.get("decisions") or ():
-        out.append({"id": r.get("id"), "kind": "decision", "status": r.get("status"), "owner": r.get("made_by"),
+        out.append({"id": r.get("id"), "kind": "decision", "title": r.get("decision"), "milestone": "", "status": r.get("status"), "owner": r.get("made_by"),
                     "workstream": None, "use_case": r.get("use_case"), "priority": None,
                     "due": r.get("needed_by") if r.get("status") == "Pending" else r.get("date")})
     return out
@@ -201,7 +251,33 @@ def _member(row, field, chosen, today):
         return row.get("status") in chosen
     if field == "due":
         return _bucket(row, today) in chosen
+    if field == "milestone":
+        return (_text(row.get(field)) or NONE).lower() in [c.lower() for c in chosen]
     return (_text(row.get(field)) or NONE) in chosen
+
+
+def _empty(row, field, today):
+    """Nothing in the field, as the page's no: reads it (a type and a status are never empty)."""
+    if field == "due":
+        return day_number(row.get("due")) is None or day_number(today) is None
+    key = {"usecase": "use_case", "type": "kind"}.get(field, field)
+    if key in ("kind", "status"):
+        return False
+    return not _text(row.get(key))
+
+
+def _allowed(row, value, today):
+    """The parts of the filter beyond the choices: milestone, not, has, no and the free words."""
+    if not _member(row, "milestone", value["milestone"], today):
+        return False
+    if any(chosen and _member(row, f, chosen, today) for f, chosen in value["not"].items()):
+        return False
+    if any(all(_empty(row, f, today) for f in g) for g in value["has"]):
+        return False
+    if any(not any(_empty(row, f, today) for f in g) for g in value["no"]):
+        return False
+    hay = f"{row.get('title') or ''} {row.get('id') or ''}".lower()
+    return all(w.lower() in hay for w in value["text"])
 
 
 def _due_key(row):
@@ -212,7 +288,7 @@ def matching(value, rows, today):
     """The ids of `rows` (rows_of's shape) that the checked filter `value` lists, sorted and cut to its max."""
     hits = [r for r in rows if isinstance(r.get("id"), str) and r["id"]
             and (value["mode"] == "all" or (value["mode"] == "open") == _open(r))
-            and all(_member(r, f, value[f], today) for f in FILTERS)]
+            and all(_member(r, f, value[f], today) for f in FILTERS) and _allowed(r, value, today)]
     rank = {p: i for i, p in enumerate(PRIORITIES)}
     if value["sort"] == "id":
         hits.sort(key=lambda r: r["id"])
