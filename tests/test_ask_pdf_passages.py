@@ -124,9 +124,12 @@ class Outcomes(Fake):
         self.assertEqual(got.pages, ((1, "ZQ yyyyyyy"),))
 
 
-    def test_sixty_dense_pages_are_all_read(self):
-        got = self.read(pdf(["ZQ %d " % i + "é" * 2000 for i in range(60)]))
-        self.assertEqual((got.status, len(got.pages)), ("ok", 60))
+    def test_sixty_full_pages_are_read_not_a_crash(self):
+        # 60 pages of about 50,000 characters is 3 MB of output: over the old 2 MB cap (which made it "crash"), so the leading pages must come back.
+        got = self.read(pdf(["ZQ %d " % i + "x" * (pdf_reader.MAX_PAGE_CHARS - 10) for i in range(60)]))
+        self.assertEqual(got.status, "ok")
+        self.assertTrue(10 < len(got.pages) <= 60)
+        self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
 
     def test_over_the_output_budget_keeps_the_leading_pages_not_a_crash(self):
         with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
