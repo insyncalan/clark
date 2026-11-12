@@ -13,10 +13,10 @@ import { quickDates } from "./itemEdit.js";
 import { showDate, todayIso, ownerOf } from "../workItems.js";
 import { leftOutIds } from "../logic/picker.js";
 import { setMsHidden } from "./actions.js";
-import { useGrow } from "./useGrow.js";
 import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
+import { plainFromEditor } from "./plainWords.js";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -31,11 +31,10 @@ async function save(m, changes, words) {
 }
 const said = (m, field, now, text) => (now == null || now === "" ? `${field} of ${m.id} cleared.` : `${field} of ${m.id} changed to ${text === undefined ? now : text}.`);
 
-// A text value you click to change. `lines`: a description (several lines; Ctrl or Cmd with Enter saves).
-function Text({ m, field, label, value, lines = false, required = false, max = 200 }) {
+// A one-line text value you click to change (the several-line ones are on the one editor, below).
+function Text({ m, field, label, value, required = false, max = 200 }) {
   const [open, setOpen] = useState(false), [text, setText] = useState("");
   const box = useRef(null), settled = useRef(false), shown = useRef(null);
-  useGrow(box, open && lines ? text : null);
   useLayoutEffect(() => { if (open && box.current) { box.current.focus(); const n = box.current.value.length; box.current.setSelectionRange(n, n); } }, [open]);
   const stop = () => { settled.current = true; setOpen(false); setTimeout(() => { if (shown.current) shown.current.focus(); }, 0); };
   const commit = async (typed) => {
@@ -48,7 +47,7 @@ function Text({ m, field, label, value, lines = false, required = false, max = 2
   };
   const key = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); stop(); }
-    else if (e.key === "Enter" && !e.isComposing && (!lines || e.metaKey || e.ctrlKey)) { e.preventDefault(); commit(e.currentTarget.value); }
+    else if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); commit(e.currentTarget.value); }
   };
   if (!open) {
     return (
@@ -56,11 +55,10 @@ function Text({ m, field, label, value, lines = false, required = false, max = 2
         onClick={() => { settled.current = false; setText(value || ""); setOpen(true); }}>{value || DASH}</button>
     );
   }
-  return lines
-    ? <textarea class="pk-latest-in grow" data-ms-in={field} aria-label={label} rows={3} maxLength={max} value={text} ref={box}
+  return (
+    <input type="text" class="pk-latest-in pk-ms-in" data-ms-in={field} aria-label={label} maxLength={max} value={text} ref={box} autocomplete="off" spellcheck={false}
         onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />
-    : <input type="text" class="pk-latest-in pk-ms-in" data-ms-in={field} aria-label={label} maxLength={max} value={text} ref={box} autocomplete="off" spellcheck={false}
-        onInput={(e) => setText(e.currentTarget.value)} onKeyDown={key} onBlur={(e) => { if (!settled.current) commit(e.currentTarget.value); }} />;
+  );
 }
 
 // Item 1005: the description is on the one rich editor (RichField): the text drawn is cleanHtml of what is stored (the editor's HTML, or the plain
@@ -69,6 +67,19 @@ function Description({ m }) {
   const html = (() => { try { return richOrPlain(m.description || ""); } catch (e) { return "<p>" + String(m.description || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();
   const put = (value) => save(m, { description: value }, richWords(value).trim() ? `Description of ${m.id} changed.` : `Description of ${m.id} cleared.`);
   return <RichField field="description" id={m.id} value={html} label="Description" empty={DASH} save={put} />;
+}
+
+// Item 1005: the client wording is on the one rich editor too, but it is stored and published as plain text: what the editor gives is saved as
+// one line, paragraphs joined by a space (clark refuses line breaks in client wording; never markup), and an older plain value loads as paragraphs. Cmd or Ctrl with Enter saves, Esc leaves it as it was.
+function ClientWording({ m }) {
+  const was = m.client_message || "";
+  const html = (() => { try { return richOrPlain(was); } catch (e) { return ""; } })();
+  const put = async (value) => {
+    const c = textChange("client_message", was, plainFromEditor(value, true));
+    if (!c) return true;
+    return save(m, c, said(m, "Client wording", c.client_message));
+  };
+  return <RichField field="client_message" id={m.id} value={html} label="Client wording" empty={DASH} save={put} />;
 }
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
@@ -178,7 +189,7 @@ export function MilestoneEdit({ m }) {
       <Row name="Description" k="description"><Description m={m} /></Row>
       <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
       <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
-      <Row name="Client wording" k="client_message"><Text m={m} field="client_message" label="Client wording" value={m.client_message || ""} lines max={500} /></Row>
+      <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
     </dl>
   );
 }

@@ -6,6 +6,7 @@ look of a brand's cover. decode(png_bytes) reads a screenshot back to (width, he
 import math
 import struct
 import zlib
+from itertools import accumulate
 
 
 def _chunk(kind, data):
@@ -50,18 +51,23 @@ def decode(data):
     for _ in range(h):
         f, line = raw[p], bytearray(raw[p + 1:p + 1 + stride])
         p += 1 + stride
-        for i in range(stride):
-            a = line[i - bpp] if i >= bpp else 0
-            b, c = prev[i], (prev[i - bpp] if i >= bpp else 0)
-            if f == 1:
-                line[i] = (line[i] + a) & 255
-            elif f == 2:
-                line[i] = (line[i] + b) & 255
-            elif f == 3:
-                line[i] = (line[i] + ((a + b) >> 1)) & 255
-            elif f == 4:
-                pa, pb, pc = abs(b - c), abs(a - c), abs(a + b - 2 * c)
+        if f == 1:                  # Sub: a running sum along each channel
+            for ch in range(bpp):
+                line[ch::bpp] = bytes(v & 255 for v in accumulate(line[ch::bpp]))
+        elif f == 2:                # Up
+            line = bytearray((x + y) & 255 for x, y in zip(line, prev))
+        elif f == 3:                # Average
+            for i in range(stride):
+                line[i] = (line[i] + (((line[i - bpp] if i >= bpp else 0) + prev[i]) >> 1)) & 255
+        elif f == 4:                # Paeth
+            for i in range(min(bpp, stride)):
+                line[i] = (line[i] + prev[i]) & 255
+            for i in range(bpp, stride):
+                a, b, c = line[i - bpp], prev[i], prev[i - bpp]
+                pa, pb = b - c, a - c
+                pc = abs(pa + pb)
+                pa, pb = abs(pa), abs(pb)
                 line[i] = (line[i] + (a if pa <= pb and pa <= pc else b if pb <= pc else c)) & 255
         rows.append(line)
         prev = line
-    return w, h, [[(r[x * bpp], r[x * bpp + 1], r[x * bpp + 2]) for x in range(w)] for r in rows]
+    return w, h, [list(zip(r[0::bpp], r[1::bpp], r[2::bpp])) for r in rows]
