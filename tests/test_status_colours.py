@@ -5,6 +5,7 @@ Red = Overdue / Red; Amber = Due soon / Amber / Blocked; Green = On track / Open
 a dark maroon solid tile with a white letter = Urgent (also when overdue: the due column and the tooltip say overdue); grey = Cancelled and Not rated.
 Widths 1400 and 900 only. A real browser, a real server, fictional rows.
 """
+import colorsys
 import json
 import re
 import sys
@@ -69,6 +70,10 @@ class Tokens(unittest.TestCase):
             for tone in ("red", "amber", "green", "blue", "grey"):
                 self.assertGreaterEqual(contrast(v[f"--tone-{tone}-text"], v[f"--tone-{tone}-tint"]), 4.5, tone)
             self.assertGreaterEqual(contrast("FFFFFF", v["--tone-urgent"]), 4.5)
+            hue = lambda h: colorsys.rgb_to_hsv(*(int(h[i:i + 2], 16) / 255 for i in (0, 2, 4)))[0] * 360
+            self.assertTrue(200 <= hue(v["--tone-blue-text"]) <= 240 and 200 <= hue(v["--tone-blue-tint"]) <= 240, "dark blue is blue")
+            self.assertTrue(hue(v["--tone-red-text"]) < 20 or hue(v["--tone-red-text"]) > 340, "dark red is red")
+            self.assertTrue(95 <= hue(v["--tone-green-text"]) <= 180, "dark green is green")
             self.assertGreaterEqual(contrast(v["--tone-urgent"], "0E2D38"), 2, "the maroon tile is seen on the dark card")
 
 
