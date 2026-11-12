@@ -34,8 +34,14 @@ class TheFilesUseCasePage(unittest.TestCase):
                     js(cdp, sid, "document.querySelector('[data-uc-page]').click()")
                     self.assertTrue(wait(lambda: js(cdp, sid, "!!document.querySelector('[data-ucf]')")), "the use case page opened")
                     page = js(cdp, sid, "document.querySelector('[data-ucf]').innerText")
-                    for word in ("ZQ-KEEP-USECASE-1", "ZQ-KEEP-STANDING", "Where it stands", "Work items", "Milestones", "ZQ-KEEP-MILESTONE-1"):
-                        self.assertIn(word.upper() if word in ("Where it stands", "Work items", "Milestones") else word, page)
+                    for word in ("ZQ-KEEP-USECASE-1", "ZQ-KEEP-STANDING", "ZQ-KEEP-MILESTONE-1"):
+                        self.assertIn(word, page)
+                    # the card headings are read from the headings themselves, so the same words elsewhere on the page do not satisfy this
+                    heads = js(cdp, sid, "[...document.querySelectorAll('[data-ucf] .ucf-ch')].map(e => e.firstChild.textContent.trim().toUpperCase())")
+                    self.assertEqual(heads, ["WHERE IT STANDS", "WORK ITEMS", "MILESTONES"])
+                    # and the cards are drawn: the file has its own rules for them (an unstyled page has no border, no grid)
+                    look = js(cdp, sid, "(() => { const c = getComputedStyle(document.querySelector('[data-ucf] .ucf-card')); const g = getComputedStyle(document.querySelector('[data-ucf] .ucf-grid')); return [c.borderTopWidth, g.display, g.gridTemplateColumns.split(' ').length]; })()")
+                    self.assertEqual(look, ["1px", "grid", 2 if width == 1400 else 1], "a bordered card; two columns at 1400, one at 900 (the 1100 px rule)")
                     self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-archive], [data-eye], .ucf-acts, [contenteditable=true], textarea, input').length"), 0, "no editing control")
                     self.assertNotIn("HISTORY", page.upper(), "no History in a published file")
                     self.assertNotIn("CHANGE STATUS", page.upper())
