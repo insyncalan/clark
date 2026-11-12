@@ -234,7 +234,7 @@ class Words(unittest.TestCase):
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
                 ],
                 "export": ["Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout",        # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ],
                 "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
@@ -260,7 +260,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 101, "no line of the old list was lost in the split: 112 before (104 plus the 8 lines of main's Feedback card), less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 102, "no line of the old list was lost in the split: 113 before (104, the 8 lines of main's Feedback card and the Excel file layout line), less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):

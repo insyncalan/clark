@@ -1381,8 +1381,13 @@ class Line(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "Arrow Down opens it")
             key(cdp, sid, "Enter")                                                # Enter takes the first row, a key: the list stays open on its values (item 1058)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a key keeps the list open")
+            self.assertTrue(wait(lambda: any(o.startswith("is:") and o != "is:" for o in self.listed(cdp, sid))), "choosing a key lists its values")
             key(cdp, sid, "Escape")
             self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "Esc closes it")
+            key(cdp, sid, "ArrowDown")                                            # reopen on the key's values, then a value ends the word and closes the list
+            self.assertTrue(wait(lambda: any(o.startswith("is:") and o != "is:" for o in self.listed(cdp, sid))), "the values are listed again")
+            key(cdp, sid, "Enter")
+            self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#fline-list')", sid)), "choosing a value closes it")
             cdp.js("document.querySelector('#fline-input').blur()", sid)
             self.focus(cdp, sid)
             self.no_list(cdp, sid, "entering the box again opens no list")

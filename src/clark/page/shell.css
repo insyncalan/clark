@@ -72,7 +72,7 @@ html[data-density="comfortable"] .frame.report .cover { border-radius: var(--rad
    at 1181 px and above four tiles sit on one line, even in Edit with its 32 px gutter and a 15 px scroll bar (3 x 140 + 292 + 3 x 12 =
    748 px of the 787 px left there; View leaves 834 px). A long label may wrap to two lines. In Edit the grip and the eye take the right of the label line (below), so at 900 px a long label wraps to two or three. */
 .tcell { position: relative; display: flex; flex: 1 1 0; min-width: 140px; }
-.tcell.health { flex: 2 1 12px; min-width: 292px; }   /* 12px: the gap above; 292 = 2 x 140 + 12 */
+.tcell.health { flex: 2 1 12px; min-width: min(292px, 100%); }   /* 12px: the gap above; 292 = 2 x 140 + 12 */
 /* A-D14 as the prototype has it: at 1180 px and below Project health sits on its own row and the other tiles share the row under it. */
 @media (max-width: 1180px) { .tcell.health { flex-basis: 100%; } }
 .fig { position: relative; display: flex; flex-direction: column; gap: 2px; width: 100%; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); font: inherit; text-align: left; color: inherit; }
@@ -482,6 +482,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 @media (max-width: 900px) { html[data-density="comfortable"] .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
 .slot-full { grid-column: 1 / -1; }
 .slot-left { grid-column: 1; }
+.sec.slot-left, .sec.slot-right { container: half / inline-size; }      /* row 1099: the item rows (shell.css, .irows) size to the half card, not to the window */
 .slot-right { grid-column: 2; }
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
@@ -1134,7 +1135,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .grow { flex: 1; }
 .ms-i { width: 100%; height: 100%; display: block; }
 .mv-bar { display: flex; align-items: center; gap: 6px; margin-bottom: var(--space-2); padding-right: 210px; font-size: var(--size-caption); color: var(--text-muted); flex-wrap: wrap; }
-.mv-wrap { position: relative; border-top: 1px solid var(--grey-200); border-bottom: 1px solid var(--grey-200); overflow-x: auto; overflow-y: hidden; min-height: 110px; max-height: 900px; resize: vertical; background: var(--grey-50); }
+.mv[data-place], .msv-swap { min-width: 0; max-width: 100%; }   /* row 1034: the line scrolls inside its own box, never widens the page */
+.mv-wrap { position: relative; max-width: 100%; border-top: 1px solid var(--grey-200); border-bottom: 1px solid var(--grey-200); overflow-x: auto; overflow-y: hidden; min-height: 110px; max-height: 900px; resize: vertical; background: var(--grey-50); }
 .mv-strip { position: relative; height: 100%; }
 .mv-month { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--grey-200); font-size: var(--size-caption); color: var(--text-muted); padding: 2px 0 0 6px; line-height: 16px; white-space: nowrap; }
 .mv-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--grey-300); }
@@ -1421,6 +1423,7 @@ td.acts .btn { white-space: nowrap; }      /* item 1024c: a row's buttons stay o
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 .ucstepl [data-stepid] { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
+@media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
 .personal { margin-top: var(--space-3); }
@@ -1926,7 +1929,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
-
 .tab .tl-short { display: none; }
 @media (max-width: 1100px) { .tab .tl-full { display: none; } .tab .tl-short { display: inline; } }
 
@@ -1984,7 +1986,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all thead { display: table-header-group; }
   html.print-all a { color: inherit; text-decoration: none; }
   /* row 990: the Gantt on paper. No toolbar, menu or hover control; the chart and the table are drawn whole to the page width (no box to scroll, nothing sticky or fixed); the bars, the Today flag and the swatches keep their colour; a row is not split across two pages. */
-  html.print-all .gp-tools, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz, html.print-all .gt-cr { display: none; }
+  html.print-all .gp-tools, html.print-all .rbar, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz, html.print-all .gt-cr { display: none; }
   html.print-all .gt-full { position: static; inset: auto; z-index: auto; overflow: visible; padding: 0; background: none; }
   html.print-all .gt-gx, html.print-all .gt-full .gt-gx { overflow: clip; max-width: 100%; max-height: none; height: auto !important; }
   html.print-all .gt-scroll { overflow: visible; max-height: none; }
@@ -1999,7 +2001,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .gt-ms.gt-ms.done { background: var(--status-green); border-color: var(--status-green-text); }
   html.print-all .gt-tflag.gt-tflag { background: var(--status-red-tint); border: 1px solid var(--status-red); padding: 2px 10px; color: var(--status-red-text); }
   html.print-all .gt-mslab.gt-flip { --gt-room: none; max-width: var(--gt-room); overflow: hidden; text-overflow: ellipsis; }   /* a word placed left of its bar stays on one line inside the room left of it and ends in an ellipsis, never over the left columns (GanttChart.jsx sets --gt-room on the word itself, which wins over the `none` here; the left columns carry the full name) */
-  html.print-all .gt-in { width: auto; min-width: 0; }
+  html.print-all .gt-in { width: auto; min-width: 0; zoom: var(--gt-fit, 1); }   /* row 1038: the drawn chart is scaled to the page width (--gt-fit, set on .gt-gx by logic/printFit.js on beforeprint), so the last months and the last bars are on the paper; labels are in the canvas and scale with it */
   /* the .gt-gx box clips (above): the canvas keeps its drawn width (labels beside a bar are placed from its right edge); only the empty tail past the last day is clipped at the page edge */
   html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
   html.print-all .gt col { width: auto !important; }
@@ -2158,6 +2160,41 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   .irows.is-dec .c-date { white-space: normal; line-height: 1.25; }      /* 'Needed by 03-11-2026' goes on two lines rather than run into its neighbour */
   .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px; }
 }
+
+/* Row 1099: a half-width card (the section is the container) is as narrow as a phone page, whatever the window: its rows take the narrow layouts by the CARD's width. Same rules as the three blocks above; keep them equal. */
+@container half (max-width: 700px) {
+  /* the screen shows initials from here down; the published file (.is-file) and the printed page keep the full name (paper has room, initials alone are ambiguous) */
+  .irows:not(.is-file), .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 88px; }
+  .irows.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px 84px 124px; }
+  .irows.is-dec { --cols: 28px minmax(0, 1fr) 28px 184px 84px 88px; }
+  .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 184px 84px 124px; }
+  .irows:not(.is-file) .c-owner .nm { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); }      /* the name stays the avatar's spoken name */
+  .irows:not(.is-file) .wl-head .c-owner { overflow: hidden; text-indent: -999px; }
+  .irows:not(.is-file) .c-owner { position: relative; }
+}
+@container half (max-width: 700px) {      /* the file at phone width: the status icon and word at the left, the title, the date and the priority on the first line, the full owner name under the title (the date and the status take too much of the width for the name to keep a column of its own) */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px 84px; row-gap: 0; }
+  .irows.is-file .wl-row { padding: 4px 0; }
+  .irows.is-file .wl-row > .c-ico { grid-row: 1 / span 2; align-self: start; flex-direction: column; align-items: flex-start; gap: 2px; }
+  .irows.is-file .wl-row > .c-title { grid-column: 2; grid-row: 1; }
+  .irows.is-file .wl-row > .c-date { grid-column: 3; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines: it spans both rows */
+  .irows.is-file .wl-row > .c-prio { grid-column: 4; grid-row: 1; }
+  .irows.is-file .wl-row > .c-owner { grid-column: 2; grid-row: 2; }
+  .irows.is-file .c-owner .nm { white-space: normal; }
+  .irows.is-file .wl-head .c-owner { display: none; }
+  .irows.is-file.is-dec .c-date { white-space: normal; line-height: 1.25; }
+}
+@container half (max-width: 460px) {
+  .irows:not(.is-file), .irows.is-dec:not(.is-file) { --cols: 28px minmax(0, 1fr) 28px 112px 88px; }
+  .irows.is-edit, .irows.is-dec.is-edit { --cols: 28px minmax(0, 1fr) 28px 112px; row-gap: 2px; }      /* Edit: the id and the eye are wider than the room left, so they sit under the title, at the right */
+  .irows.is-edit .wl-row > .c-id { grid-column: 2; grid-row: 2; }
+  .irows.is-edit .wl-row > .c-date { grid-column: 4; grid-row: 1 / span 2; align-self: start; }      /* a decision's date takes two lines here: it spans both rows, so it never runs down onto the id */
+  .irows.is-edit .wl-head .c-id { display: none; }
+  .irows .wl-row, .irows .wl-head { gap: 0 8px; }
+  .irows .c-prio { display: none; }
+  .irows.is-dec .c-date { white-space: normal; line-height: 1.25; }      /* 'Needed by 03-11-2026' goes on two lines rather than run into its neighbour */
+  .irows.is-file, .irows.is-dec.is-file { --cols: 60px minmax(0, 1fr) 112px; }
+}
 .item-rows-edit .note { color: var(--text-muted); }
 .item-rows-edit .add-from { display: inline-block; margin-top: 6px; }
 .item-rows-edit .picker { margin-top: 10px; }
@@ -2210,7 +2247,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-pop button:hover, .gt-pop button:focus-visible, .gt-menu button:hover, .gt-menu button:focus-visible { background: var(--grey-100); }
 .gt-ck { width: 14px; color: var(--brand-blue); font-weight: var(--weight-semibold); }
 /* the chart box: it scrolls inside itself with no scrollbar showing */
-.gt-gx { position: relative; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
+.gt-gx { --gt-fit: 1; position: relative; overflow: auto; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); scrollbar-width: none; -ms-overflow-style: none; }
 .gt-gx::-webkit-scrollbar { display: none; width: 0; height: 0; }
 .gt-in { --gt-rh: 32px; --gt-hh: 68px; position: relative; display: grid; width: max-content; min-width: 100%; }
 .gt-lhead { position: sticky; left: 0; top: 0; z-index: 6; height: var(--gt-hh); display: flex; align-items: flex-end; gap: var(--space-1); padding: 0 6px 6px; background: var(--surface); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); color: var(--text-muted); overflow: clip; }
