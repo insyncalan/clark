@@ -57,7 +57,8 @@ class Boundaries(unittest.TestCase):
         self.assertEqual(source_name("Excel import, a.xlsx, notes", published=True), "a.xlsx")
         self.assertEqual(source_name("Added, .docx", published=True), "")
         self.assertEqual(source_name("Imported, report.123", published=True), "")
-        self.assertEqual(source_name("Imported, report.1a", published=True), "report.1a")
+        self.assertEqual(source_name("Imported, report.1a", published=True), "", "1a is not one of the Source extensions (row 1077)")
+        self.assertEqual(source_name("Imported, report.pdf", published=True), "report.pdf")
 
 
 if __name__ == "__main__":
