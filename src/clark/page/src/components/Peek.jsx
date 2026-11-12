@@ -52,7 +52,7 @@ function Row({ name, children, ref_, key_ }) {          // key_: which field thi
   return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-flash={hit ? "1" : undefined}><dt>{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
-// ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39): the same rows, read only.
+// ItemFields and Edge are also the archived peek's (ArchivedItems.jsx in the Edit part, item 450 row 39; reached with is:archived, item 1067): the same rows, read only.
 export function ItemFields({ row, editing, Cell, Wording, Pick }) {
   const today = todayIso(), due = dueCell(row, today), pill = pillOf(row, today), who = ownerOf(row.owner);
   // #448: a closed risk or issue's pill reads Closed; it keeps its rating word beside it (the prototype's "Closed · Amber"; "Not rated" when it never was, #532), here and in a published file.
