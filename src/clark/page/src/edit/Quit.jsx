@@ -4,8 +4,8 @@ import { useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
-const SAVING = "Finishing your save first. clark stops in a moment.";
-const PUBLISHING = "Finishing your publish first. clark stops in a moment.";
+const SAVING = "Finishing your save first. Then clark stops.";
+const PUBLISHING = "Finishing your publish first. Then clark stops.";
 const ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
 const AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
 const FAILED = "Quitting did not work. Try again.";

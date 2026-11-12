@@ -16,8 +16,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 STOPPING = "Stopping clark. You can close this window."
 FAILED = "Quitting did not work. Try again."
-SAVING = "Finishing your save first. clark stops in a moment."
-PUBLISHING = "Finishing your publish first. clark stops in a moment."
+SAVING = "Finishing your save first. Then clark stops."
+PUBLISHING = "Finishing your publish first. Then clark stops."
 ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
 AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
 
