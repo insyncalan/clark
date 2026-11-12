@@ -383,6 +383,12 @@ class Strings(Base):
         self.assertEqual(len(quips), 150)
         self.assertFalse([q for q in quips if "!" in q])
 
+    def test_every_page_suggestion_in_the_words_file(self):
+        block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
+        pills = re.findall(r'"([^"]+)"', block[:block.index("\n};")])
+        self.assertGreaterEqual(len(set(pills)), 25, "the page lists carry at least 25 different suggestions")
+        self.judge(sorted(set(pills)), "page suggestions")
+
     def test_the_judge_catches_what_it_should(self):
         for bad in ("The request failed.", "Open the API.", "Clark is ready.", "Ask clark is off.", "Ready since 2026-10-31.", "Ready on Friday.",
                     "Ask Sarah about this."):
