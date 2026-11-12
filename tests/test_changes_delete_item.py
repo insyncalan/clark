@@ -3,6 +3,7 @@ from the report, in one step; one Undo puts all of it back; refusals in plain wo
 
 Run: python3 dev/run_tests.py test_changes_delete_item
 """
+import json
 import unittest
 
 from _demo import USER, DemoStore
@@ -92,7 +93,7 @@ class DeleteItem(unittest.TestCase):
     def test_an_archived_item_and_another_projects_item_are_refused(self):
         with self.s.step("dashboard", USER) as st:
             st.archive("actions", self.b)
-        self.assertEqual(self.delete("actions", self.b)[1]["message"], changes.ITEM_NOT_MINE)
+        self.assertEqual(self.delete("actions", self.b)[1]["message"], f"{self.b} is archived. Restore it first.")
         self.assertEqual(self.delete("actions", "XYZ-A-001")[1]["message"], changes.ITEM_NOT_MINE)
 
     def test_the_store_refuses_a_delete_of_any_other_table(self):
@@ -141,6 +142,52 @@ class DeleteItem(unittest.TestCase):
         self.assertIn(self.b, ids())
         self.assertEqual(self.count("links"), 0)
         self.assertEqual(self.count("item_labels"), 0)
+
+    def links(self):
+        return [tuple(r) for r in self.con.execute("SELECT from_item, to_item, kind FROM links")]
+
+    def test_two_linked_items_deleted_undo_in_either_order_is_lossless(self):
+        for first in ("a", "b"):
+            with self.subTest(first=first):
+                self.setUp()
+                _, da = self.delete("actions", self.a)
+                _, db = self.delete("actions", self.b)
+                one, two = (da, db) if first == "a" else (db, da)
+                status, back = self.undo({"project": "ABC", "apply_id": one["apply_id"]})
+                self.assertEqual(status, 200, back)
+                self.assertEqual(self.links(), [])                         # the other end is still gone: no link yet
+                self.assertNotIn("section", back["words"])
+                self.assertIn(" is back", back["words"])
+                status, back = self.undo({"project": "ABC", "apply_id": two["apply_id"]})
+                self.assertEqual((status, back["skipped"]), (200, []), back)
+                self.assertEqual(self.links(), [(self.a, self.b, "blocks")])
+                self.assertEqual(self.count("item_labels"), 1)
+
+    def test_bulk_and_hand_over_steps_with_a_since_deleted_item_leave_it_out_cleanly(self):
+        self.delete("actions", self.b)
+        for body in ({"project": "ABC", "kind": "actions", "op": "bulk", "ids": [self.a, self.b], "changes": {"owner": "Sam"}},
+                     {"project": "ABC", "kind": "actions", "op": "handover", "ids": [self.a, self.b], "to": "Sam"}):
+            status, out = self.change(body)
+            self.assertEqual((status, out["ok"]), (200, True), body)
+            self.assertEqual(out["left_out"], [{"id": self.b, "why": changes.BULK_GONE}], body)
+            self.assertNotIn(self.b, json.dumps(out.get("changed")), body)
+        self.assertIsNone(self.s.read("actions", ref=self.b))
+
+    def test_a_second_instance_editing_a_deleted_item_gets_a_clean_refusal_and_nothing_is_written(self):
+        self.delete("actions", self.b)
+        n = self.count("change_log")
+        for body in ({"project": "ABC", "kind": "actions", "op": "update", "id": self.b, "changes": {"owner": "Sam"}},
+                     {"project": "ABC", "kind": "actions", "op": "delete", "id": self.b},
+                     {"project": "ABC", "kind": "actions", "op": "archive", "id": self.b}):
+            status, out = self.change(body)
+            self.assertEqual((status, out["ok"]), (400, False), body)
+            self.assertIn("isn't in this project", out["message"], body)
+        self.assertEqual(self.count("change_log"), n)
+
+    def test_deleting_an_archived_item_says_restore_it_first(self):
+        with self.s.step("dashboard", USER) as st:
+            st.archive("actions", self.b)
+        self.assertEqual(self.delete("actions", self.b)[1]["message"], f"{self.b} is archived. Restore it first.")
 
     def test_milestone_and_use_case_delete_are_refused_by_the_store_and_the_row_stays(self):
         for table, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):

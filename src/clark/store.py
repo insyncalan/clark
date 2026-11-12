@@ -1894,6 +1894,41 @@ def revert_plan(con, rows, step, undoing_a_revert):
     return done, skipped
 
 
+def _link_end_gone(con, old):
+    """Item 658: whether either work item a removed link joined is not in the project now."""
+    for end in (old.get("from_item"), old.get("to_item")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS):
+            return True
+    return False
+
+
+def _return_links(con, step, key, undoing):
+    """Item 658: an item came back by Undo: put back each link to it that its own delete (or the delete of the item at the other end)
+    took away while the other end was still gone, now that both ends are there. A link taken away by hand, or put back already, is left."""
+    out = []
+    for r in con.execute("SELECT rowid, * FROM change_log WHERE tbl = 'links' AND field = ? ORDER BY rowid", (REMOVED,)).fetchall():
+        old = json.loads(r["old_value"])
+        if key not in (old.get("from_item"), old.get("to_item")) or _link_end_gone(con, old):
+            continue
+        if r["apply_id"] == undoing:
+            continue                                               # the step being undone puts its own links back itself
+        lk = r["item_id"]
+        if fetch(con, "links", lk) is not None:
+            continue
+        if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
+            continue                                               # the link was put back, or taken away again, since
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions')",
+                           (r["apply_id"], REMOVED)).fetchone():
+            continue                                               # not removed by a delete of an item
+        back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}
+        check_row(con, "links", dict(back), set(back))
+        _insert_sql(con, "links", back)
+        for f, v in back.items():
+            log(con, step, "links", lk, f, None, v, OP_MADE, undoes=r["rowid"])
+        out.append({"rowid": r["rowid"], "ref": lk, "field": REMOVED, "change": "put back"})
+    return out
+
+
 def revert_group(con, apply_id, table, key, rows_, step):
     """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
     def entry(r, **k):
@@ -1927,6 +1962,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if fetch(con, table, key) is not None:
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
+        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
         before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
         for x in rows_:
@@ -1937,7 +1974,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
         _insert_sql(con, table, back)
         for f, v in back.items():
             log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        return [entry(x, change="put back") for x in rows_], []
+        out = [entry(x, change="put back") for x in rows_]
+        if table in DELETABLE_ITEMS:
+            out += _return_links(con, step, key, apply_id)
+        return out, []
     done, skipped, changes, undoes = [], [], {}, {}
     row = fetch(con, table, key)
     if row is None:

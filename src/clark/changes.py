@@ -885,8 +885,10 @@ def _do_delete_item(store, by_user, req, project, table, place):
     ref = req.get("id")
     with store.step(VIA, by_user, place=place) as st:
         row = store.read(table, ref=ref) if isinstance(ref, str) and _belongs(table, ref, project) else None
-        if row is None or row["project"] != project or row["archived"]:
+        if row is None or row["project"] != project:
             raise Refused(ITEM_NOT_MINE)
+        if row["archived"]:
+            raise Refused(f"{ref} is archived. Restore it first.")      # the store's own words for an archived item
         pointer = clark_store.item_pointer(st.con, ref)
         if pointer:
             raise Refused(f"{ref} can't be deleted: something refers to it ({clark_store._REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
@@ -2590,6 +2592,10 @@ def words(reversed_, skipped, names):
                       else f"{_name(names, e['ref'])} is hidden from the report again")
         elif e["ref"] in removed:
             phrase = f"the new {_name(names, e['ref'])} was removed" if GANTT_REF.fullmatch(str(e["ref"])) else f"the new {_kind_word(e['ref'])} {_name(names, e['ref'])} was removed"
+        elif e["ref"] in restored and "|" in str(e["ref"]) and any(ITEM_REF.fullmatch(str(r)) for r in restored):
+            continue                                                # item 658: its links and labels come back with it; "<ID> is back" says it
+        elif e["ref"] in restored and ITEM_REF.fullmatch(str(e["ref"])):
+            phrase = f"{_name(names, e['ref'])} is back"                # item 658: a deleted work item is back (an item, never a section)
         elif e["ref"] in restored:
             phrase = f"the {_name(names, e['ref'])} is back" if GANTT_REF.fullmatch(str(e["ref"])) else f"the section {_name(names, e['ref'])} is back"
         else:
