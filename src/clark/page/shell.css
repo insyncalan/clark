@@ -1988,11 +1988,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   /* the .gt-gx box clips (above): GanttChart.jsx fits the canvas to the paper on beforeprint (labels beside a bar are placed from its right edge), so the clip is only a safety net and cuts nothing that is drawn */
   html.print-all .gt table { width: 100% !important; table-layout: auto; }   /* the table is shared out over the page width; its cells wrap instead of running on */
   html.print-all .gt col { width: auto !important; }
-  html.print-all .gt th.gt-hid, html.print-all .gt td.gt-hid { display: none; }   /* Edit draws the columns hidden from the client; the paper is the client's copy, so they are left out (cells carry gt-hid as the header does) */
-  html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: break-word; overflow: visible; height: auto; padding-left: 3px; padding-right: 3px; }
-  html.print-all .gt [data-k=id], html.print-all .gt [data-k=par], html.print-all .gt [data-k=s], html.print-all .gt [data-k=e] { white-space: nowrap; }   /* an ID or a date is one token: it stays whole (the hyphens are not break points) while the free-text columns wrap by word */
-  html.print-all .gt table { font-size: calc(var(--size-caption) * 0.75); }   /* the printed table is set in smaller type so a whole word fits its column and no word is broken */
-  html.print-all .gt td[data-k=n], html.print-all .gt td[data-k=dep], html.print-all .gt td[data-k=o], html.print-all .gt td[data-k=ws], html.print-all .gt td[data-k=del] { overflow-wrap: anywhere; }   /* only the free-text cells give way when a narrow page is full (A4 upright); the rest of the table keeps its words whole */
+  html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: anywhere; overflow: visible; height: auto; padding-right: 4px; }
   html.print-all .gt tr { break-inside: avoid; }
 }
 
