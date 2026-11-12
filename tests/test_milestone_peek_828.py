@@ -275,9 +275,27 @@ class Fields(Base):
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
-            p.until("document.activeElement && document.activeElement.hasAttribute('data-undo')", "the focus moved to Undo, not to the page body")
+            # row 1054: the focus goes to the next milestone row's cells, or to Undo where there is no next row (never to the page body)
+            p.until("document.activeElement && (document.activeElement.hasAttribute('data-undo') || (document.activeElement.classList.contains('msl-cells') && !!document.activeElement.closest('li.msl-row')))", "the focus moved to the next row or to Undo, not to the page body")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
+
+    def test_after_archive_in_the_peek_focus_goes_to_the_next_row_or_to_undo(self):
+        """Row 1054: the peek closes with its item; focus must not drop to the page. Next row's cell, else the toast's Undo."""
+        for ms in (GO_LIVE, PILOT):
+            for width in (1400, 900):
+                with self.subTest(ms=ms, width=width), chrome() as cdp:
+                    self.setUp()
+                    p = self.visit_peek(cdp, ms=ms, width=width)
+                    self.calm(p)
+                    want = p.js(f"(() => {{ const n = document.querySelector('li.msl-row[data-ms=\"{ms}\"]'); const x = n && n.nextElementSibling; "
+                                "return x ? x.getAttribute('data-ms') : ''; })()")
+                    self.click(p, "#peek [data-pk-archive]")
+                    p.until("!document.querySelector('#peek') && !!document.querySelector('.toast [data-undo]')", "closed, Undo offered")
+                    p.until("document.activeElement !== document.body", "focus did not drop to the page")
+                    got = p.js("(() => { const a = document.activeElement; const r = a.closest('li.msl-row'); "
+                               "return r && a.classList.contains('msl-cells') ? r.getAttribute('data-ms') : a.matches('.toast [data-undo]') ? 'undo' : a.tagName; })()")
+                    self.assertEqual(got, want or "undo")
 
     def test_no_archive_button_in_the_dashboards_view_peek(self):
         with chrome() as cdp:
