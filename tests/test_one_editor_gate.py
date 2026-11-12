@@ -109,8 +109,12 @@ class MovedFields(unittest.TestCase):
 
     def test_plain_text_fields_on_the_editor_save_plain_text_never_markup(self):
         """Item 1005: Client wording and captions are stored, published and exported as plain text, so the editor's HTML is flattened before it is sent."""
-        for rel in ("edit/MilestonePeek.jsx", "edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
+        for rel in ("edit/templates/pictureEdit.jsx", "edit/ItemRowsEdit.jsx"):
             self.assertIn("plainFromEditor(", (PAGE_SRC / rel).read_text(encoding="utf-8"), rel)
+        # Row 1078: a milestone's client wording is rich now (the editor's HTML is saved as it is), so the peek does not flatten it.
+        peek = (PAGE_SRC / "edit/MilestonePeek.jsx").read_text(encoding="utf-8")
+        self.assertNotIn("plainFromEditor(", peek)
+        self.assertIn('<RichField field="client_message"', peek)
         for rel in ("edit/templates/ImageCap.jsx", "edit/templates/TextImage.jsx"):
             text = (PAGE_SRC / rel).read_text(encoding="utf-8")
             self.assertIn('<CaptionField section={section} field="caption"', text, rel)
