@@ -47,6 +47,8 @@ on:
     types: [opened, synchronize, reopened, labeled, unlabeled]   # labeled/unlabeled: full-ci starts (or stops) the full run
   push:
     branches: [main]
+  merge_group:      # GitHub merge queue: the queue tests the combined result; same Ubuntu matrix as a push to main, no macOS (that stays at the release gate)
+    types: [checks_requested]
 
 name: Tests
 # A hand-started run of named files is named "Tests (files)", so it can be told from a full run.
@@ -93,6 +95,7 @@ jobs:
         run: |
           FULL=""; MACOS=""; WIDE=""; NTESTS=0
           case "$EVENT" in
+            merge_group) FULL=1 ;;      # a merge-queue run: the same Ubuntu matrix as a push to main, NO macOS
             push) FULL=1 ;;      # a push to main: the full Ubuntu matrix; macOS runs at the release gate, not on every merge
             workflow_dispatch) FULL=1; if [ "$MACOS_INPUT" = "true" ]; then MACOS=1; fi ;;
           esac
