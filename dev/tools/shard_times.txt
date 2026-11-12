@@ -755,8 +755,3 @@ test_changes_use_case_owner.py 10.0
 test_people_rename_merge.py 10.0
 test_store_use_case_owner_migration.py 10.0
 test_use_case_owner_never_published.py 10.0
-test_glance_tile_words.py 30.0
-test_rows_bundle_hostile.py 30.0
-test_rows_bundle_hostile_data.py 30.0
-test_rows_bundle_hostile_page.py 30.0
-test_server_host_hostile.py 30.0
