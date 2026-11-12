@@ -147,11 +147,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}", py39)
         self.assertIn("SHARDS39='[1,2,3]'; COUNT39=3", self.jobs["plan"])
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards39) }}", py39)
-        # six shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
+        # four shards on the full path, six on a wide change, three on the cheap path (as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])
+        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])      # wide, not full: six
+        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3,4]'; COUNT=4; fi", self.jobs["plan"])      # full: four
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)
