@@ -160,6 +160,8 @@ class Results(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.show()
+            # the project list is read from the server after the page has drawn: a slow runner opens the palette before it is in
+            p.until("!!document.querySelector('#palette .pal-row[data-kind=\"Project\"]')", "the projects are listed")
             kinds = [r[0] for r in p.rows()]
             self.assertEqual([k for i, k in enumerate(kinds) if i == 0 or k != kinds[i - 1]], ["Page", "Action", "Project", "Command"])     # row 900: one run of each, in this order
             self.assertEqual(p.rows()[0][1], "Dashboard")

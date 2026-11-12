@@ -20,6 +20,7 @@ from test_server import Running, chrome, wait
 ALLOWED = ()        # selectors exempt from the check; empty, and a new entry needs the Head's word
 
 DATA = {"ABC": {**BASE["ABC"],
+                "use_cases": [{"id": "ABC-U-001", "ref": "1.1", "title": "Flag late suppliers", "headline": "Spot delays early", "status": "Planned"}],
                 "milestones": [{"id": "ABC-M-001", "name": "Pilot live", "baseline_date": "2030-03-01", "state": "On track", "status": "Planned"}],
                 "actions": [{"id": "ABC-A-001", "description": "Agree the cut-over plan", "owner": "Sam", "due_date": "2030-01-10", "status": "Open"}],
                 "raid": [{"id": "ABC-001", "type": "Risk", "description": "Supplier may deliver late", "owner": "Priya", "status": "Open"}],
@@ -72,7 +73,10 @@ AUDIT = """(function (allowed) {
 })(%s)"""
 
 
-VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("settings", ".frame.set-head"))
+VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("usecases", "#usecases"), ("gantt", ".frame"), ("settings", ".frame.set-head"))
+
+
+PUBLISHED_VIEWS = tuple(v for v in VIEWS if v[0] not in ("usecases", "gantt"))      # the published file carries the four report views only
 
 
 def published_page():
@@ -80,7 +84,7 @@ def published_page():
     d = DATA["ABC"]
     text = page.page_html(tempfile.mkdtemp(), view=True).replace('<html lang="en-GB">', '<html lang="en-GB" data-mode="view">')
     block = publish.data_block({"data": {k: v for k, v in d.items() if k != "report_sections"}, "sections": d["report_sections"],
-                                "tabs": [v for v, _ in VIEWS]}, "2030-01-01")
+                                "tabs": [v for v, _ in PUBLISHED_VIEWS]}, "2030-01-01")
     i = text.rfind("</body>")
     return text[:i] + block + "\n" + text[i:]
 
@@ -103,7 +107,7 @@ class Sizes(unittest.TestCase):
             for how, got in audits:
                 found += [f"{where} {view}{how}: {g}" for g in sorted(set(got))]
 
-    def run_page(self, html, prefix, edit):
+    def run_page(self, html, prefix, edit, views=VIEWS):
         s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=html)
         self.addCleanup(s.close)
         found = []
@@ -112,7 +116,7 @@ class Sizes(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)), "the page drew")
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
-                self.audit(cdp, sid, f"{w}px", prefix, VIEWS, found)
+                self.audit(cdp, sid, f"{w}px", prefix, views, found)
                 if edit:        # Edit shows the section handles and the add and options controls
                     cdp.js("location.hash = '#dashboard%s'" % prefix, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report') && !!document.querySelector('[data-mode=edit]')", sid)), "the Dashboard and its switch drew (Settings has none)")
@@ -126,7 +130,7 @@ class Sizes(unittest.TestCase):
         self.run_page(lambda: page.page_html(tempfile.mkdtemp()), "&p=ABC", edit=True)
 
     def test_the_published_file_has_text_of_12px_and_targets_of_24px_in_every_view(self):
-        self.run_page(published_page, "&p=ABC", edit=False)
+        self.run_page(published_page, "&p=ABC", edit=False, views=PUBLISHED_VIEWS)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
         s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))

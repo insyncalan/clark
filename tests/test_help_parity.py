@@ -29,7 +29,6 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
 # prototype entries the owner dropped (#919): the prototype still draws them, the build will never have them
 DROPPED = {"howto-start-from-last-report", "ref-since-last-report"}
@@ -94,6 +93,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
 
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds (its form is checked by test_help_content.PublishFileName)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",

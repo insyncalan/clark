@@ -181,9 +181,9 @@ class Words(unittest.TestCase):
             # item 1024, WEAKENS-free: exact equality kept, split by page. Settings shows one page at a time, so the one 150-line list is cut
             # into the lines of each page (no line dropped or reworded) and each page is read at its own address, with the head and the menu.
             HEAD = ["Settings", "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."]
-            MENU = ["Everyday", "Projects", "People", "Published reports", "Profile", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports",
+            MENU = ["Everyday", "Projects", "People", "Published reports", "Profile", "Feedback", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports",
                     "Data and safety", "Backups", "Export and import", "Advanced",
-                    "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]      # the menu: five groups, thirteen pages
+                    "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]      # the menu: five groups, fourteen pages
             PAGES = {
                 "projects": ["Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
@@ -230,7 +230,7 @@ class Words(unittest.TestCase):
                                   "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
                 ],
                 "export": ["Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout",        # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                 ],
                 "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
@@ -244,6 +244,10 @@ class Words(unittest.TestCase):
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version."
                 ],
+                "feedback": ["Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
+                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text"
+                ],
                 "logs": ["Logs and diagnostics",      # #110
                                   "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
                                   "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
@@ -256,7 +260,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 93, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 102, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):
@@ -362,7 +366,8 @@ class Words(unittest.TestCase):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
         for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("X.Y.Z", text, path.name)                                  # the placeholder, whatever the button is called
+            if path.suffix == ".js":
+                self.assertIn("X.Y.Z", text, path.name)                              # the prototype keeps the placeholder
             self.assertNotRegex(text, r"Review v?\d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):

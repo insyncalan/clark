@@ -1112,6 +1112,17 @@ class Menu(board.Base):
         self.s.httpd.people_list = slow
         return gate, done
 
+    def test_row_1048_when_the_people_list_cannot_be_read_the_menu_still_opens_and_the_draft_entry_gives_no_reason(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.s.httpd.people_list = lambda *req: (500, {"ok": False})
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                by = {e[0]: e for e in self.entries(cdp, sid)}
+                self.assertFalse(by["draft"][2], f"{width}: the entry can still be used")
+                self.assertEqual(by["draft"][3], "", f"{width}: no reason is given while there is no People list to judge by")
+
     def test_a_dismiss_before_the_people_read_resolves_cancels_the_open(self):
         for how in ("escape", "outside"):
             with self.subTest(how=how), chrome() as cdp:
@@ -1186,6 +1197,24 @@ class Menu(board.Base):
                 self.until(cdp, sid, "/Decision/.test(document.querySelector('.de-meta').textContent)", f"{width}: the other kind of email")
                 self.assertEqual(self.drafts[-1], {"project": "ABC", "item": a, "mode": "decision", "picked": [a], "include_update": False, **who}, f"{width}: the re-ask keeps them")
                 self.assertIn("ada@example.com", cdp.js("document.querySelectorAll('.de-meta dd')[0].textContent", sid), f"{width}: the To line still shows it")
+
+    def test_row_1048_a_risk_and_a_decision_find_their_owners_address_too_not_only_an_action(self):
+        """Mutation audit: the owner link is looked up in actions, raid and decisions alike (withOwnerLink in RowMenu.jsx)."""
+        risk, decision = self.id_of("Supplier slips"), self.id_of("Use the new tool")
+        with self.store.step("dashboard", USER) as st:
+            pid = st.add_person(name="Ada Quillfeather", email="ada@example.com", source="test")
+            st.update("raid", risk, {"owner": "Ada Quillfeather", "owner_id": pid})
+            st.update("decisions", decision, {"made_by": "Ada Quillfeather", "owner_id": pid})
+        for width in (1400, 900):
+            for ref in (risk, decision):
+                with self.subTest(width=width, ref=ref), chrome() as cdp:
+                    self.drafts.clear()
+                    sid = self.visit(cdp, width=width)
+                    self.open_menu(cdp, sid, self.TABLE % ref)
+                    click(cdp, sid, "[data-rm=draft]")
+                    self.until(cdp, sid, "!!document.querySelector('[data-draft-email] .de')", f"{width} {ref}: the Draft email")
+                    self.assertEqual(self.drafts[0].get("email"), "ada@example.com", f"{width} {ref}: the ask carries the owner's address")
+                    self.assertEqual(self.drafts[0].get("name"), "Ada Quillfeather")
 
     def test_the_draft_dialog_is_modal_and_everything_outside_it_is_inert_even_what_mounts_later(self):
         with chrome() as cdp:

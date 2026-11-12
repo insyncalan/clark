@@ -565,6 +565,11 @@ def _title_key(v):
     return " ".join(str(v or "").split()).casefold()
 
 
+def _six_digit_fraction(text):
+    """Python 3.9's fromisoformat takes a fraction of exactly 3 or 6 digits (3.11 takes any): pad or cut the fraction to 6."""
+    return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
     hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
@@ -573,12 +578,12 @@ def _moved(cell, stored):
     else:
         text = str(cell).strip().replace("T", " ")
         try:
-            then = datetime.fromisoformat(text)
+            then = datetime.fromisoformat(_six_digit_fraction(text))
         except ValueError:
             return False
         slack = 0.002 if "." in text else 1.0
     try:
-        now = datetime.fromisoformat(str(stored).strip().replace("T", " "))
+        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
     except ValueError:
         return False
     return abs((now - then).total_seconds()) > slack
@@ -1282,7 +1287,7 @@ def _scan_member(z, member, title):
     with the words the loaded sheet would get, when it reaches past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS or holds more
     cells than the limits allow at all; raises _TextTooLong for a text longer than Excel can keep. Memory is one chunk and one
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
-    max_row = max_col = cells = row = col = read = 0
+    max_row = max_col = cells = row = col = read = tags = 0
     buf = b""
     text = None                                          # the bytes of a <t> node read so far (it can run over a chunk cut), else None
     opener = z.open                                      # a zip member is read as bytes, never as text
@@ -1324,8 +1329,8 @@ def _scan_member(z, member, title):
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
-                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
-                    if max_row > MAX_SHEET_ROWS:
+                    tags += 1                                    # an empty row does not move max_row (its number is only where the next cell
+                    if tags > MAX_SHEET_ROWS:                    # without an r lands), but row tags are still counted, so a flood of them is refused
                         raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
                                       "clark will import in one go. Check this is the right file. Nothing was changed.")
                     continue

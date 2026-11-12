@@ -184,7 +184,7 @@ class Pure(Browser):
             R.format({view:'work', project:'PDF', s:'people'}), R.format({view:'settings', project:'PDF', s:'claude-ai'}),
             R.format(R.parse('#settings&p=PDF&s=backups'))])""")
         pages, people, bogus, other, twice, projects, escaped, upper, f1, f2, f3, f4, f5, round_trip = json.loads(got)
-        self.assertEqual(pages, ["projects", "people", "profile", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"])
+        self.assertEqual(pages, ["projects", "people", "profile", "feedback", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"])
         self.assertEqual([x["s"] for x in (people, bogus, other, twice, projects, escaped, upper)], ["people", "", "", "people", "", "people", ""],
                          "a known page is kept; an unknown one, another page's, Projects (plain) and another case are dropped; the first of a repeated key wins")
         self.assertEqual((f1, f2, f3, f4, f5, round_trip), ("#settings&p=PDF&s=people", "#settings&p=PDF", "#settings", "#work&p=PDF", "#settings&p=PDF&s=claude-ai",
@@ -1011,20 +1011,21 @@ class BuiltPage(Browser):
         with chrome() as cdp:
             self.draw(cdp, "#work&p=PDF")
             self.tall()
-            self.scroll_to(400)
+            # item 1067: the list starts higher (no pill row), so the page sits where the row is on screen; closing the peek focuses that row and must not scroll
+            self.scroll_to(200)
             self.ev("""(() => {
                 window.lowest = Math.round(scrollY); window.scrolls = 0; window.restores = 0;
                 addEventListener("scroll", () => { window.scrolls++; window.lowest = Math.min(window.lowest, Math.round(scrollY)); });
                 const add = window.addEventListener;                     // a restore hooks once-listeners (wheel, touch, key, mouse) and turns scroll anchoring off
                 window.addEventListener = function (t, f, o) { if (o && o.once) window.restores++; return add.apply(this, arguments); };
             })()""")
-            self.settled()                                               # the scroll to 400 has landed and its event has fired
+            self.settled()                                               # the scroll to 200 has landed and its event has fired
             self.ev("window.scrolls = 0")
 
             def untouched(what):
                 self.settled()
-                self.assertEqual(self.scroll_y(), 400, f"{what}: the page did not move")
-                self.assertEqual(self.ev("window.lowest"), 400, f"{what}: the page never jumped away and back")
+                self.assertEqual(self.scroll_y(), 200, f"{what}: the page did not move")
+                self.assertEqual(self.ev("window.lowest"), 200, f"{what}: the page never jumped away and back")
                 self.assertEqual(self.ev("window.scrolls"), 0, f"{what}: no scroll happened at all")
                 self.assertEqual(self.ev("window.restores"), 0, f"{what}: no restore was started (the screen did not change)")
                 self.assertEqual(self.ev("document.documentElement.style.overflowAnchor"), "", f"{what}: scroll anchoring was left alone")

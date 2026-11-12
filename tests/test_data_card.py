@@ -31,7 +31,7 @@ class DataCard(Base):
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
-                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook", "Excel file layout"])
                 self.assertIn("a sheet each for actions", p.js("document.querySelector('#data-card p').textContent"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
@@ -44,6 +44,24 @@ class DataCard(Base):
             p.until("!!document.querySelector('.toast')", "the page said the file was saved")
             self.assertEqual(p.js("window.__asked"), 1)
             self.assertIn("saved", p.js("document.querySelector('.toast').textContent"))
+
+    def test_C_excel_file_layout_opens_a_box_with_the_three_texts_and_sends_nothing(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("window.__asked = []; const f = window.fetch; window.fetch = function (u, o) { window.__asked.push(String(u)); return f.apply(this, arguments); }")
+                p.js("document.querySelector('#excel-layout').click()")
+                p.until("!!document.querySelector('#excel-layout-box')", "the box opened")
+                self.assertEqual(p.js("document.querySelector('#excel-layout-client').textContent"), "This file is for you and your team. It holds internal notes, so do not send it to a client.")
+                self.assertEqual(p.js("[...document.querySelectorAll('#excel-layout-box dt')].map(e => e.textContent)"), ["Cover", "History"])
+                self.assertIn("The changes made to the items. The import leaves this sheet alone.", p.js("document.querySelector('#excel-layout-box').textContent"))
+                self.assertIn("where to send the file back", p.js("document.querySelector('#excel-layout-box').textContent"))
+                self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
+                self.assertEqual(p.js("window.__asked.filter(u => /export|excel|import/.test(u))"), [])      # the page rereads its own data as it likes; the box asks for no file
+                p.js("document.querySelector('#excel-layout-close').click()")
+                p.until("!document.querySelector('#excel-layout-box')", "the box closed")
 
     def test_C_the_button_is_readable_in_light_and_dark(self):
         for scheme in ("light", "dark"):
