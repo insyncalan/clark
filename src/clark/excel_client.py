@@ -212,7 +212,7 @@ def workbook_bytes(published, palette=None):
     wb.remove(wb.active)
     for table in sheet_tables(published):
         write_sheet(wb, published, table, palette)
-    if (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client)
+    if "gantt" in published.get("tabs", ()) and (published["data"].get("gantt") or {}).get("lines"):       # row 926: only when the file carries the Gantt tab (publish.gantt_for_client); row 1068: a table section's copy has no tab and no tab name, so no sheet
         write_gantt_sheet(wb, published, palette)
     name, sub = title_text(published)
     if not wb.sheetnames:                       # no table section on the page: one sheet with the title band alone

@@ -1136,6 +1136,11 @@
         "Gantt",
         "The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.",
         "Full"
+       ],
+       [
+        "Table",
+        "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
+        "Full or half"
        ]
       ]
      ]
