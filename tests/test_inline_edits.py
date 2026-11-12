@@ -238,6 +238,9 @@ def key(cdp, sid, name, alt=False):
 ON_PAGE = "(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()"
 
 
+WHERE = "(() => { const a = document.activeElement; return a ? a.tagName + ' ' + (a.dataset.cell || a.id || a.className || '') + (a.isConnected ? '' : ' (not in the page)') : 'nothing'; })()"
+
+
 def colours(selector):
     """JS: [text, colour, background] for each element matched, the background the first solid one behind it (item 442, dark)."""
     return ("[...document.querySelectorAll(" + json.dumps(selector) + ")].filter(e => e.offsetWidth > 1).map(e => {"
@@ -1041,7 +1044,8 @@ class Live(unittest.TestCase):
                     key(cdp, sid, "Tab")
                     kept("Tab")
                     if onward:
-                        self.until(cdp, sid, ON_PAGE, f"{ref}: focus settled on the page after Tab")
+                        landed = wait(lambda: cdp.js(ON_PAGE, sid), 10)
+                        self.assertTrue(landed, f"{ref}: focus settled on the page after Tab (focus is on: {cdp.js(WHERE, sid)}; something was tabbable after the date: {onward})")
                         self.assertTrue(cdp.js(ON_PAGE, sid), f"{ref}: after Tab, focus is on the page, not lost")
                     else:
                         self.until(cdp, sid, "!document.querySelector('[data-pop]') && !(document.activeElement && document.activeElement.closest('[data-pop]'))",
