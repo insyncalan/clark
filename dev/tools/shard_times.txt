@@ -718,6 +718,11 @@ test_milestones_dead_ghost_label.py 30.0
 test_work_archived_filter.py 30.0
 test_code_mark.py 1.0
 test_excel_client_mutwave.py 1.0
+test_changes_commitment_old_word.py 0.2
+test_half_cards_1099.py 10.0
+test_help_key_line.py 1.0
+test_milestones_dead_css.py 1.0
+test_row_1034_no_sideways.py 1.0
 test_help_milestone_screen_words.py 30.0
 test_help_publishing_released.py 30.0
 test_help_rev_milestone_peek.py 30.0
@@ -725,3 +730,4 @@ test_help_settings_facts.py 30.0
 test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
+test_section_hint_phone.py 30.0

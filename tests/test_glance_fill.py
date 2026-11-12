@@ -32,7 +32,8 @@ class Source(unittest.TestCase):
         self.assertIn("flex: 1 1 0", cell, "each tile takes an equal share")
         self.assertIn(f"min-width: {TILE_MIN}px", cell)
         self.assertIn(f"flex: 2 1 {GAP}px", health, "two shares, and the gap as its basis, so it is 2 tiles + 1 gap wide")
-        self.assertIn(f"min-width: {2 * TILE_MIN + GAP}px", health)
+        # row 1034: the health tile's floor is capped at the row width (min(292px, 100%)), so a narrow window never scrolls sideways; still 2 tiles + 1 gap
+        self.assertIn(f"min-width: min({2 * TILE_MIN + GAP}px, 100%)", health)
         glance = rule(css, ".glance")
         self.assertTrue(f"gap: {GAP}px" in glance or (GAP == 12 and "gap: var(--space-3)" in glance), "the tile gap")   # 12 px, or its token
         self.assertNotIn("0 0 190px", css)

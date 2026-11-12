@@ -231,6 +231,19 @@ class Chart(unittest.TestCase):
                         if g[0] != "Very long":
                             self.assertFalse(g[3], f"a normal label is not cut: {g}")
 
+    def test_row_1037_a_long_label_beside_a_bar_stays_inside_the_chart(self):
+        for where, lines in (("left edge", [ln("GNT-001", "Edge " * 34, "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Late", "phase", "2027-05-01", "2027-05-28", 0, show=True)]),
+                             ("right edge", [ln("GNT-001", "Early", "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Edge " * 34, "phase", "2027-05-20", "2027-05-28", 0, show=True)])):
+            for width in (1400, 900):
+                with self.subTest(where=where, width=width):
+                    self.look(width, "light")
+                    self.mount(edit=False, lines=lines)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].filter(e => e.textContent.startsWith('Edge')).map(e => { const b = e.getBoundingClientRect(), p = e.offsetParent.getBoundingClientRect(); return [b.left - p.left, b.right - p.right, parseFloat(getComputedStyle(e).maxWidth), parseFloat(e.style.getPropertyValue('--gt-room')) || null, e.classList.contains('gt-flip')]; })")
+                    self.assertTrue(got, "the long label is drawn")
+                    for left, right, maxw, room, flip in got:
+                        self.assertGreaterEqual(left, -1, "the label does not start left of the chart")
+                        if flip:
+                            self.assertLessEqual(maxw, room + 0.5, "a word left of its bar is held to the room there")
     def test_row_1037_a_long_label_near_the_left_edge_never_starts_left_of_the_chart(self):
         # a long name on a milestone at the very start of the plan flips left of its mark; it must stay inside the chart and end in an ellipsis
         lines = [dict(l) for l in LINES]
