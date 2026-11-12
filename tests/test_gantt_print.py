@@ -292,6 +292,38 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_the_printed_table_keeps_an_id_and_a_date_whole_and_lets_only_the_free_text_cells_break_anywhere(self):
+        # The one-token cells are nowrap; only the free-text cells may break inside a word when a narrow page is full; the rest wrap by word.
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(mode="edit")
+                    self.click("[data-gp-layout=table]")
+                    self.until("document.querySelector('.gt table td')", "the table is drawn")
+                    self.printing(width, scheme)
+                    try:
+                        got = json.loads(self.js("""(function () {
+                          var out = {};
+                          [].slice.call(document.querySelectorAll('.gt td[data-k]')).forEach(function (c) {
+                            if (c.classList.contains('gt-hid')) return;
+                            var cs = getComputedStyle(c), k = c.dataset.k;
+                            (out[k] = out[k] || {})[cs.whiteSpace + '|' + cs.overflowWrap] = 1;
+                          });
+                          return JSON.stringify(out);
+                        })()"""))
+                        for k in ("id", "par", "s", "e"):
+                            for combo in got.get(k, {}):
+                                self.assertTrue(combo.startswith("nowrap"), f"{k} stays on one line {got}")
+                        for k, combos in got.items():
+                            if k in ("n", "dep", "o", "ws", "del"):
+                                continue
+                            for combo in combos:
+                                self.assertTrue(combo.endswith("|break-word"), f"{k} breaks only at an overflow, never anywhere {got}")
+                        self.assertTrue(any(k in got for k in ("id", "s", "e")), f"id or date cells are drawn {got}")
+                    finally:
+                        self.done()
+
     def test_a_pdf_of_the_chart_page_is_made_at_a4_without_a_print_box(self):
         self.look(794, "light")
         self.mount(width=734)
