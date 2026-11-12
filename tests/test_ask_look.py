@@ -188,6 +188,38 @@ class Look(Base):
                     p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
                     self.check_measures(p, f"{width} {theme} page suggestions")
 
+    def test_row_1093_a_subject_is_a_whole_word_and_the_first_in_the_list_wins(self):
+        pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent).join('|')"
+        cases = [("We are multitasking", "milestones are", False), ("It was issued", "Which issues are open?", False), ("a brisk week", "Which risks have no owner?", False),
+                 ("Which risks and milestones are red?", "milestones are", True), ("Any use-case blocked?", "use cases", True), ("the usecase list", "use cases", True),
+                 ("each work-item", "work items", True), ("all workitems", "work items", True), ("Open TASKS", "work items", True), ("two issues", "Which issues are open?", True)]
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            for n, (text, snippet, want) in enumerate(cases, 1):
+                self.ask(p, text)
+                p.until(f"document.querySelectorAll('.ask-turn').length === {2 * n} && !!document.querySelector('#ask-pills')", f"{text}: answered")
+                self.assertEqual(snippet in p.js(pills), want, f"{text}: {p.js(pills)}")
+                if not want:
+                    self.assertNotIn("Which milestones are late?", p.js(pills), text)
+
+    def test_row_1096_the_send_says_it_is_disabled_when_empty_and_blank_or_pasted_text_decides_the_suggestions(self):
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            send = "document.querySelector('#ask-send').getAttribute('aria-disabled')"
+            put = lambda v: p.js("(function(){var b=document.querySelector('#ask-box');b.focus();b.value=%s;b.dispatchEvent(new Event('input',{bubbles:true}));})()" % json.dumps(v))
+            self.assertEqual(p.js(send), "true", "empty")
+            put("   ")
+            self.assertEqual(p.js(send), "true", "blank text counts as empty")
+            self.assertTrue(p.js("!!document.querySelector('#ask-pills')"), "blank text keeps the suggestions")
+            self.assertLess(float(p.js("getComputedStyle(document.querySelector('#ask-send')).opacity")), 1, "blank text looks disabled")
+            p.js("document.querySelector('#ask-send').click()")
+            p.until("document.querySelector('#ask-panel').textContent.includes('Type a question first')", "pressing it still says what to do")
+            self.assertEqual([c for c in self.stub.calls if c[0] == "ask"], [])
+            put("pasted text " * 300)
+            self.assertIsNone(p.js(send), "text enables it")
+            p.until("!document.querySelector('#ask-pills')", "a long pasted text hides the suggestions")
+            self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44)
+
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
             for width in (1400, 900):
