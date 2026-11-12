@@ -48,9 +48,19 @@ class TheFilesUseCasePage(unittest.TestCase):
                     self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-item]').length"), 2, "its two shared next steps, as work items")
                     for marker in ("ZQ-OFF-STEP", "ZQ-SENSITIVE-STEP", "ZQ-HIDDEN-USECASE-MILESTONE", "ZQ-USECASE-HISTORY"):
                         self.assertNotIn(marker, page)
+                    want = js(cdp, sid, "document.querySelector('[data-item]').dataset.item")
                     js(cdp, sid, "document.querySelector('[data-item]').click()")
                     self.assertTrue(wait(lambda: js(cdp, sid, "!!document.querySelector('[data-peek]')")), "the read only peek opened")
+                    self.assertEqual(js(cdp, sid, "document.querySelector('[data-peek]').dataset.peek"), want, "the peek is the clicked item")
                     self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-peek] textarea, [data-peek] [contenteditable=true]').length"), 0, "the peek is read only")
+                    js(cdp, sid, "document.querySelector('[data-pk-close]').click()")
+                    self.assertTrue(wait(lambda: js(cdp, sid, "!document.querySelector('[data-peek]')")), "the peek closed")
+                    wantms = js(cdp, sid, "document.querySelector('[data-ucf] [data-ms-open]').dataset.msOpen")
+                    js(cdp, sid, "document.querySelector('[data-ucf] [data-ms-open]').click()")
+                    self.assertTrue(wait(lambda: js(cdp, sid, "!!document.querySelector('[data-peek]')")), "a milestone opened its peek")
+                    self.assertEqual(js(cdp, sid, "document.querySelector('[data-peek]').dataset.peek"), wantms, "the peek is the clicked milestone")
+                    self.assertTrue(js(cdp, sid, "!!document.querySelector('#peek [data-ms-head]')"), "it is the milestone peek")
+                    self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-peek] textarea, [data-peek] [contenteditable]').length"), 0, "the milestone peek is read only")
                     self.assertTrue(js(cdp, sid, "document.documentElement.scrollWidth <= window.innerWidth"))
 
 
