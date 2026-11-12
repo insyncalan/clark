@@ -10,6 +10,7 @@ the product's name, and a name or a date.
 """
 import json
 import re
+import sqlite3
 import unittest
 
 from _paths import ROOT
@@ -187,6 +188,39 @@ class Look(Base):
                     p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
                     p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
                     self.check_measures(p, f"{width} {theme} page suggestions")
+
+    def test_row_1093_each_page_has_its_exact_list_and_a_page_without_one_has_the_generic_list(self):
+        def listed(block_start, line_start):
+            block = WORDS[WORDS.index(block_start):]
+            line = next(l for l in block.splitlines() if l.strip().startswith(line_start))
+            return re.findall(r'"([^"]+)"', line.split("[", 1)[1])
+        generic = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("export const SUGGESTIONS = ["):].split("\n];")[0], re.M)
+        by = {"usecases": ["Which use cases need attention?", "Which use cases are not started?", "Which use cases have open risks?", "Which use cases are done?",
+                           "What changed in the use cases this week?", "Which use cases have no owner?"],
+              "gantt": ["What is the next milestone?", "Which work items are running late?", "What is on the critical path?", "Which work items start next week?",
+                        "Which milestones are at risk?", "What ends this month?"]}
+        for k, v in by.items():
+            self.assertEqual(listed("export const PILLS_BY_SUBJECT", k + ":"), v, f"{k}: the words file and this test agree")
+        self.assertEqual(len(generic), 6)
+        pills = "JSON.stringify([...document.querySelectorAll('#ask-pills button')].map(b => b.textContent))"
+        # Dashboard has no list of its own (PILLS_PAGE names work, milestones, usecases and gantt only): it, Settings and a published file show the generic one
+        expected = {"usecases": by["usecases"], "gantt": by["gantt"], "settings": generic, "dashboard": generic}
+        con = sqlite3.connect(str(self.store.path))      # the Gantt page is offered only where the project's setting says so
+        con.execute("UPDATE projects SET show_gantt_editor = 1")
+        con.commit()
+        con.close()
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for page, want in expected.items():
+                    p = self.open_panel(cdp, width)
+                    if page != "dashboard":              # the page opens on the Dashboard
+                        p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
+                        p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel ({p.js('location.hash')})")
+                        p.key("/", code="Slash", vk=191)
+                        p.until(SETTLE, "the panel is ready again")
+                    self.assertEqual(p.js("location.hash.split('&')[0]"), "#" + page)
+                    p.until(f"({pills}) === {json.dumps(json.dumps(want, separators=(",", ":")))}", f"{width} {page}: its suggestion list")
+                    self.assertEqual(json.loads(p.js(pills)), want, f"{width} {page}")
 
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
