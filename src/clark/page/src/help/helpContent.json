@@ -294,15 +294,15 @@
     "id": "excel-file-layout",
     "g": "Every week",
     "t": "See how the Excel file is laid out",
-    "w": "Settings \u203a Data",
-    "go": "settings#data",
+    "w": "Settings \u203a Export and import",
+    "go": "settings#export",
     "s": [
      "In **Settings**, on the **Data** card, press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
      "The **Cover** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. **History** lists the changes made to the items."
     ],
     "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
     "page": [
-     "settings#data"
+     "settings#export"
     ]
    },
    {
@@ -1856,20 +1856,16 @@
         "About you: **Your name**, **Alias** and **Your email**."
        ],
        [
-        "Publishing",
-        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
-       ],
-       [
         "Feedback",
         "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
        ],
        [
         "Folder",
-        "The local folder, and the client’s SharePoint folder."
+        "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
         "Brand",
-        "Add a brand from a zip file you were given, then replace or remove it."
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
        ],
        [
         "Appearance",
@@ -1877,15 +1873,15 @@
        ],
        [
         "Reports",
-        "Freshness, the days an open item can go without a review before it counts as not reviewed; and Gantt, whether the project has a Gantt tab, for you and for the client, and what the tab is called."
+        "Freshness: **Not reviewed after (days)**: a whole number from 1 to 365, 14 as standard. It sets when an open item in this project counts as not reviewed. Not in the published report. Gantt: **Show the Gantt to me**, **Show the Gantt to the client** and the **Tab name**. The client sees a Gantt only when at least one line is shown to the client."
        ],
        [
         "Backups",
-        "The daily copies of your data, to preview or put back."
+        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
        ],
        [
         "Export and import",
-        "Export to Excel, and Import from Excel."
+        "**Export workbook** and **Import workbook**. Both need an open project."
        ],
        [
         "Asking (on Claude and AI)",

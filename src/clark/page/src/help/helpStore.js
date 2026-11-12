@@ -109,7 +109,7 @@ function arrive(p) {
   setTimeout(() => { helpTarget.value = p.target; helpLand.value++; }, 0);     // set again so a second click on the same link flashes again
 }
 
-const SETTINGS_ANCHOR = { profile: "profile", update: "version", people: "people", folder: "folder" };      // "go:settings#update" opens that Settings page (item 1024)
+const SETTINGS_ANCHOR = { profile: "profile", update: "version", people: "people", folder: "folder", export: "export" };      // "go:settings#update" opens that Settings page (item 1024)
 
 /** A link to a screen: Help closes, the screen opens. A settings anchor opens Settings. */
 export function goTo(to) {
