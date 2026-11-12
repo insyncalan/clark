@@ -919,6 +919,38 @@ class TheWiderSecretsScan(Base):
         self.assertNotIn(base64.b64encode(header).decode()[:20], out)
 
 
+class TheVendoredEncryptionFile(Base):
+    """#891: pypdf's _encryption.py is a lawful file the secrets scan misreads (lines like `password = user_password` are code, not a
+    value). It is let past the secrets scan by exact path AND exact SHA-256 only; any other path, or any changed byte, is scanned."""
+    PATH = "vendor/pypdf/_encryption.py"
+
+    def setUp(self):
+        self.real = (Path(__file__).resolve().parents[1] / self.PATH).read_bytes()
+
+    def found(self, path, data):
+        return pp.secret_findings([pp.Entry(1, "100644", "0" * 40, len(data), path)], [data])
+
+    def test_the_exact_file_at_its_path_passes_the_secrets_scan(self):
+        self.assertTrue(pp.scan_secrets_in(self.real), "the scan misreads it; that is why the pin exists")
+        self.assertEqual(self.found(self.PATH, self.real), [])
+
+    def test_the_same_bytes_at_any_other_path_are_scanned(self):
+        for path in ("vendor/pypdf/_other.py", "vendor/other/_encryption.py", "src/clark/_encryption.py", "Vendor/pypdf/_encryption.py"):
+            with self.subTest(path):
+                self.assertEqual(self.found(path, self.real), ["file #1: a password, key or token value"])
+
+    def test_a_changed_byte_or_an_added_secret_at_its_path_is_scanned(self):
+        for data in (self.real + b"\n", self.real.replace(b"import", b"imp0rt", 1), self.real + b'\ntoken = "' + b"ghp_" + b"a1B2c3D4" * 3 + b'"\n'):
+            with self.subTest(len(data)):
+                self.assertTrue(self.found(self.PATH, data))
+
+    def test_only_that_one_file_is_pinned_and_the_plain_allow_list_stays_empty(self):
+        self.assertEqual(list(pp.SECRET_SCAN_PINNED), [self.PATH])
+        self.assertEqual(pp.SECRET_SCAN_ALLOWED, {})
+        import hashlib
+        self.assertEqual(pp.SECRET_SCAN_PINNED[self.PATH], hashlib.sha256(self.real).hexdigest())
+
+
 class TheSize(Base):
     def test_a_file_over_5_mb_refuses_but_exactly_5_mb_is_fine(self):
         self.make_private(dict(GOOD, **{"data/big.bin": b"\0" * (5 * 1024 * 1024 + 1)}))

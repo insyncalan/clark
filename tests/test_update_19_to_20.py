@@ -22,6 +22,7 @@ import sys
 import tempfile
 import unittest
 import zipfile
+from unittest import mock
 from pathlib import Path
 
 from _paths import ROOT
@@ -162,7 +163,10 @@ class Update19To20(Rig):
             assert package.version(cls.new_tree) == NEW_VERSION
             assert package.schema_version(cls.old_tree) == OLD_LAYOUT, "the old tree is not at layout 19"
             assert package.schema_version(cls.new_tree) == store_module.SCHEMA_VERSION
-            cls.old_zip = package.build("mac", cls.tmp / "dist-old", root=cls.old_tree, dirty=True)
+            # The old release holds what its own tag held: today's list names files bundled since (#891), which the old tree has not.
+            had = tuple(item for item in package.SHARED if (cls.old_tree / item).exists())
+            with mock.patch.object(package, "SHARED", had):
+                cls.old_zip = package.build("mac", cls.tmp / "dist-old", root=cls.old_tree, dirty=True)
             cls.new_zip = package.build("mac", cls.tmp / "dist-new", root=cls.new_tree, dirty=True)
             _signing.sign_file(cls.old_zip)
             _signing.sign_file(cls.new_zip)
