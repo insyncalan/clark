@@ -48,9 +48,8 @@ class EveryPlaceHelpPointsAtExists(unittest.TestCase):
                 self.assertIn(n, known, f"{task['id']} lists {n} as next: no such entry")
 
     def test_go_and_page_names_a_screen_or_a_settings_card_the_page_draws(self):
-        views = (SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")      # the Settings pages and their headings are Edit's (item 1024)
+        views = (SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
         cards = set(re.findall(r'"([\w-]+)-h"\]', views))      # profile, personal, update, people ...
-        cards |= set(re.findall(r'\["([a-z-]+)", "[^"]+", \[', views))      # the pages' address keys ("settings#export" opens Export and import)
         cards |= {re.sub(r"-card$", "", c) for c in cards}     # the Data card's heading is data-card-h; Help says settings#data
         for entry in RAW["howto"]["tasks"] + RAW["reference"]["sections"]:
             for where in [entry.get("go")] + entry.get("page", []):

@@ -7,7 +7,6 @@ import { TopBar } from "@src/components/TopBar.jsx";
 import { Settings } from "@src/components/Views.jsx";
 import { GanttView } from "@src/gantt/components/GanttView.jsx";
 import { GanttSetting } from "@src/edit/GanttSetting.jsx";
-import * as SettingsPages from "@src/edit/settingsPages.js";
 import { GanttTabName } from "@src/edit/GanttTabName.jsx";
 import { Toast } from "@src/edit/Toast.jsx";
 
@@ -31,8 +30,7 @@ window.fetch = async (url, init) => {
 
 function Shell() {
   const Page = view.value === "gantt" ? GanttView : view.value === "settings" ? Settings : () => <section class="frame"><h1>Dashboard</h1></section>;
-  // item 1024: Settings draws the Reports page only where its two cards are tools; Freshness is not under test here
-  const tools = mode.value === "edit" ? { GanttTabName, GanttSetting, SettingsPages, ReviewDays: () => null } : {};
+  const tools = mode.value === "edit" ? { GanttTabName, GanttSetting } : {};
   return <><TopBar tools={tools} /><main id="main"><Page tools={tools} /></main><Toast /></>;
 }
 

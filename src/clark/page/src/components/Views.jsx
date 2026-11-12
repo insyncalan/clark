@@ -2,7 +2,7 @@
 // "Make Dashboard same width as work items"). The Work items list is WorkItems.jsx (#36).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
-import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt, settingsPage, restoreY, show, openSettings, settingsFallback, takeArrival, wantName } from "../stores/report.js";
+import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt } from "../stores/report.js";
 import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
@@ -107,78 +107,109 @@ export function Milestones({ tools }) {
   );
 }
 
-// The Settings shell (item 1024, option A): a menu down the left and ONE page at a time at its right. The menu names the pages in five
-// groups; choosing one is a new history entry (its address is "#settings&s=people", plain "#settings" is Projects), so Back and Forward
-// step through the pages, and each page keeps its own place on the screen (stores/report.js). The cards are the ones they always were,
-// only drawn on the page that holds them. The menu lists a page only if its tool is here and, for the pages that need an open project,
-// only with one open. At 900 px and narrower the menu keeps the row of buttons it had (item 1024, PR 4 turns it into one dropdown line).
-function SettingsMenu({ groups, here, onChoose, note }) {
-  const nav = useRef(null);
-  // Up, Down, Home and End move between entries, in a column or a wrapped row (none is chosen by moving); Left and Right are left to the browser; Enter or Space on one chooses it (it is a button)
-  const key = (e) => {
-    if (e.altKey || e.ctrlKey || e.metaKey) return;      // the browser's own shortcuts are left alone
-    const to = { ArrowDown: 1, ArrowUp: -1, Home: "first", End: "last" }[e.key];
-    if (to === undefined) return;
-    const items = [...nav.current.querySelectorAll(".set-item")], at = items.indexOf(document.activeElement);
-    if (at < 0) return;
-    e.preventDefault();
-    items[to === "first" ? 0 : to === "last" ? items.length - 1 : Math.max(0, Math.min(items.length - 1, at + to))].focus();
-  };
-  return (
-    <nav class="set-menu" aria-label="Settings pages" ref={nav} onKeyDown={key}>
-      {groups.map(([group, pages], i) => (
-        <div class={group === "Advanced" ? "set-group set-advanced" : "set-group"} key={group}>
-          <p class="set-group-h" id={`set-group-${i}`}>{group}</p>
-          {group === "Advanced" ? <p class="set-group-note">{note}</p> : null}
-          <ul class="set-list" aria-labelledby={`set-group-${i}`}>{pages.map(([slug, name]) => (
-            <li key={slug}><button type="button" class="set-item" aria-current={here === slug ? "page" : undefined} onClick={() => onChoose(slug)}>{name}</button></li>
-          ))}</ul>
-        </div>
-      ))}
-    </nav>
-  );
+// The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
+// focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
+// The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
+const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+  ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Feedback", "Feedback", "feedback-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
+
+const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
+
+function goToCard(headId) {
+  const head = document.getElementById(headId);
+  if (!head) return;
+  const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  cardOf(headId).scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
+  head.focus({ preventScroll: true });
 }
 
-export function Settings({ tools }) {
-  const cfg = tools && tools.SettingsPages;      // the pages, their groups and words are Edit's (edit/settingsPages.js): a published file has no Settings and none of them
-  const { GROUPS, ADVANCED_NOTE, NEEDS_PROJECT } = cfg || { GROUPS: [], ADVANCED_NOTE: "", NEEDS_PROJECT: [] };
-  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
-  const have = (tool) => !!(tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool)));      // Edit's tools only: a published file has no Settings
-  const groups = GROUPS.map(([group, pages]) => [group, pages.filter(([, , drawn]) => drawn.every(have))]).filter(([, pages]) => pages.length);
-  const all = groups.flatMap(([, pages]) => pages);
-  const asked = settingsPage.value, page = all.find(([slug]) => slug === asked) || all[0];
-  const slug = page ? page[0] : "";
-  const shown = useRef(false);
-  useEffect(() => () => { wantName.value = false; }, []);      // "Add your name" asked for a box that never drew: leaving Settings spends the wish
-  const reading = status.value === "loading";      // read while drawing, so the end of the read draws again
-  useEffect(() => { if (!reading && asked && !all.some(([s]) => s === asked)) settingsFallback(); });      // a page that is not here opens Projects: the entry is rewritten, never added; not while the project is still being read (its pages, Folder, are not drawn yet)
-  // after a page change the page takes its place on the screen and its heading takes the focus (unless a box in it has already taken it: "Add your name")
+// The card you are reading: the last one whose top has come up to the bar (with a little room). At the foot of the page the last
+// cards can never come up that far, so there the chip last chosen stays marked while its card is in view.
+function cardHere(cards, picked) {
+  const bar = document.querySelector(".set-bar");
+  if (!bar || !cards.length) return "";
+  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 899px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
+  const edge = (row ? bar : top || bar).getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
+  const chosen = picked && cardOf(picked);
+  if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
+  let here = cards[0][2];
+  for (const [, , headId] of cards) { const card = cardOf(headId); if (card && card.getBoundingClientRect().top <= edge) here = headId; }
+  return here;
+}
+
+function SettingsHead({ cards }) {
+  const [here, setHere] = useState("");
+  const picked = useRef("");
+  const ids = cards.map(([, , headId]) => headId).join(" ");
   useEffect(() => {
-    if (!page) return;
-    let moved = false;      // the heading was scrolled to by hand below: the saved place must not be put back over it
-    window.scrollTo(0, restoreY.value);
-    requestAnimationFrame(() => { if (!moved) window.scrollTo(0, restoreY.value); });      // once the page has its height (a list that arrived a moment later)
-    const arrived = takeArrival();
-    if (!shown.current) { shown.current = true; if (!arrived) return; }      // a first draw from a reload leaves the focus; one from another screen (Settings unmounts when the view changes) is an arrival, and the heading takes it
-    const inside = document.activeElement && document.activeElement.closest && document.activeElement.closest(".set-cards");
-    const head = document.getElementById(page[3]);
-    if (head && !inside) {
-      head.focus({ preventScroll: true });
-      // window.scrollTo did not always take (a hosted macOS run had the heading 4466 px down at scrollY 0): only a heading still outside the window, or under the 56 px top bar, is scrolled to
-      const r = head.getBoundingClientRect(), kept = restoreY.value > 0 && Math.abs(window.scrollY - restoreY.value) <= 1;      // a restored place may have it off the screen on purpose
-      if (!kept && (r.top < 56 || r.bottom > window.innerHeight)) { moved = true; (head.closest("section") || head).scrollIntoView({ block: "start" }); }
-    }
-  }, [slug]);
-  const drawn = page ? page[2] : [];
+    const mark = () => setHere(cardHere(cards, picked.current));
+    // the row's height (one row of chips or two) is room the browser keeps clear when it scrolls a card or a box into view (shell.css); a list at the left takes none
+    const bar = document.querySelector(".set-bar"), root = document.documentElement;
+    const room = () => { root.style.setProperty("--set-bar", `${bar ? bar.offsetHeight : 0}px`); mark(); };
+    const seen = bar && window.ResizeObserver ? new ResizeObserver(room) : null;
+    if (seen) seen.observe(bar);
+    room();
+    window.addEventListener("scroll", mark, { passive: true });
+    return () => { window.removeEventListener("scroll", mark); if (seen) seen.disconnect(); root.style.removeProperty("--set-bar"); };
+  }, [ids]);
+  const go = (headId) => { picked.current = headId; setHere(headId); goToCard(headId); };
   return (
-    <div class="set-layout">
+    <>
       <section class="frame set-head">
         <h1>Settings</h1>
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
       </section>
-      {page ? <SettingsMenu groups={groups} here={slug} onChoose={(s) => (s === "published" ? show("published") : openSettings(s === all[0][0] ? "" : s))} note={ADVANCED_NOTE} /> : null}
-      <div class="set-cards" data-settings-page={slug}>
-        {drawn.map((tool) => { const Card = tools[tool]; return <Card key={tool} />; })}
+      {cards.length ? (
+        <nav class="set-bar" aria-label="Settings sections">
+          <ul class="set-nav">{cards.map(([, name, headId]) => (
+            <li key={headId}><button type="button" class="set-chip" aria-current={here === headId ? "location" : undefined} onClick={() => go(headId)}>{name}</button></li>
+          ))}</ul>
+        </nav>
+      ) : null}
+    </>
+  );
+}
+
+export function Settings({ tools }) {
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
+  const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
+  const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
+  const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
+  const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
+  const GanttSetting = open && tools && tools.GanttSetting;      // Gantt (#926): the two ticks and the tab name, per project
+  const Diagnostics = tools && tools.Diagnostics;        // logs and diagnostics (#110)
+  const Data = tools && tools.Data;                    // the Data card (A-S11): Export to Excel; Edit only
+  const Safety = tools && tools.Safety;                  // the backups (#111); a published file has none
+  const Brands = tools && tools.Brands;                  // Brands (#944); a published file has none
+  const Update = tools && tools.Update;                  // Version and updates; a published file has none
+  // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
+  const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
+  const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
+  const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const Feedback = tools && tools.Feedback;              // Feedback (#1069): a form that opens the user's mail app; Edit's page only
+  const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
+  const Quit = tools && tools.Quit;                      // Quit clark (#836); Edit's page only
+  const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
+  return (
+    <div class="set-layout">
+      <SettingsHead cards={cards} />
+      <div class="set-cards">
+      {Profile ? <Profile /> : null}
+      {ClientFolder ? <ClientFolder /> : null}
+      {Personal ? <Personal /> : null}
+      {ReviewDays ? <ReviewDays /> : null}
+      {GanttSetting ? <GanttSetting /> : null}
+      {Diagnostics ? <Diagnostics /> : null}
+      {Projects ? <Projects /> : null}
+      {Data ? <Data /> : null}
+      {Safety ? <Safety /> : null}
+      {Update ? <Update /> : null}
+      {Brands ? <Brands /> : null}
+      {People ? <People /> : null}
+      {AskSettings ? <AskSettings /> : null}
+      {Feedback ? <Feedback /> : null}
+      {Quit ? <Quit /> : null}
       </div>
     </div>
   );

@@ -61,7 +61,7 @@ export function useHeld(later) { CONTENT = content = shownContent(RAW, later); }
 export const TABS = CONTENT.tabs.map(([key, name]) => ({ key, name }));
 const TAB_KEYS = TABS.map((t) => t.key);
 
-// The screens a "go:" link may take you to. A settings anchor ("settings#profile") is a place on the Settings screen.
+// The screens a "go:" link may take you to. A settings anchor ("settings#personal") is a place on the Settings screen.
 export const SCREENS = ["dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"];
 export const GO_LABEL = {
   dashboard: "Open the Dashboard", "dashboard+edit": "Open the Dashboard in Edit", work: "Open Work items", milestones: "Open Milestones",
@@ -221,7 +221,7 @@ export function allText() {
   return strings({ start: CONTENT.start, howto: CONTENT.howto, reference: CONTENT.reference }, []);
 }
 
-/** The links in the text: `inside` (places in Help, "howto-x") and `screens` ("work", "settings#profile"), each once. */
+/** The links in the text: `inside` (places in Help, "howto-x") and `screens` ("work", "settings#personal"), each once. */
 export function linksIn() {
   const inside = new Set(), screens = new Set(), re = /\]\((#|go:)([^)]+)\)/g;
   for (const s of allText()) for (const m of s.matchAll(re)) (m[1] === "#" ? inside : screens).add(m[2]);
@@ -236,7 +236,7 @@ export function linksIn() {
 // ---------- context for a screen (#645 step 1) ----------
 /**
  * What Help has for a screen: [{ tab, id, title, place }], the how-to entries first, then the reference sections, then the guides,
- * each in the order of the source. `page` is a screen of LIVE_SCREENS (helpStore.js) or a Settings card ("settings#profile"); an
+ * each in the order of the source. `page` is a screen of LIVE_SCREENS (helpStore.js) or a Settings card ("settings#personal"); an
  * entry names its screens in its `page` list. A screen includes the entries of its cards; a card includes its own entries and the
  * ones for the whole screen. Held entries are not in CONTENT, so they are never returned. A screen nothing names gives [].
  */
@@ -261,7 +261,7 @@ export function articlesFor(page) {
  * The context text of a screen (#645 step 2), for the peek: { page, title, s (the sentences, with their markup), lines (the same,
  * plain), full (the place to open in the full Help, or null when that place is not shown: a held place is never a target), fullTitle,
  * cards }. `cards` is [{ card, title, line }] for Settings, the short line for each card, and [] for every other screen. A card
- * ("settings#people") gets its screen's text. A screen with no text gives null.
+ * ("settings#publishing") gets its screen's text. A screen with no text gives null.
  */
 export function contextText(page) {
   const screen = String(page == null ? "" : page).split("#")[0];

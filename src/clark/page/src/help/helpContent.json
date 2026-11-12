@@ -67,7 +67,7 @@
    },
    {
     "t": "Say where reports go",
-    "d": "In [Settings › Folder](go:settings#folder), set a local folder and, if the client has one, their SharePoint folder."
+    "d": "In [Settings › Publishing](go:settings), set a local folder and, if the client has one, their SharePoint folder."
    },
    {
     "t": "Look before you publish",
@@ -281,7 +281,7 @@
     "w": "Profile circle › Export to Word",
     "go": "dashboard+edit",
     "s": [
-     "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Folder).",
+     "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
     ],
@@ -294,15 +294,15 @@
     "id": "excel-file-layout",
     "g": "Every week",
     "t": "See how the Excel file is laid out",
-    "w": "Settings › Export and import",
-    "go": "settings#export",
+    "w": "Settings \u203a Data",
+    "go": "settings#data",
     "s": [
-     "In **Settings**, open **Export and import** and press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
+     "In **Settings**, on the **Data** card, press **Excel file layout**. The box says what the exported file holds. It only shows words: nothing is exported.",
      "The **Cover** sheet comes first: the project, the date, who exported it, a caution and where to send the file back. **History** lists the changes made to the items."
     ],
     "n": "The file is for you and your team, because it holds internal notes. Do not send it to a client.",
     "page": [
-     "settings#export"
+     "settings#data"
     ]
    },
    {
@@ -459,7 +459,7 @@
     "id": "import-and-export",
     "g": "Work items",
     "t": "Import or export Excel",
-    "w": "Work items filter line · Settings › Export and import · profile circle",
+    "w": "Work items filter line · Settings › Data · profile circle",
     "go": "work",
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
@@ -538,7 +538,7 @@
      "The figures at the top are worked out for you: Achieved and Planned are the totals of all the lines. A line, a group or the whole that is behind plan shows ▼ and how many points behind. If the weights do not add up to 100%, a note under the section in Edit says so. Change a weight to fix it.",
      "Under the bar is a status and a line of words. Unless you pick the **Health** yourself (On track, At risk or Off track), the status is set for you: On track when the work is ahead of plan or no more than 2 points behind it, At risk from there up to 9.9 points behind, and Off track from 10 points behind. The words say how far behind or ahead of plan you are. Click the words to write your own: they stop at one line when the section is full width and three lines when it sits beside another. Press **Use the automatic words** to go back. Switch on the Tasks, Agents or Workflows columns if you want them. Each of those columns holds a count you type for every line. In View and on the published page the section can be read but not changed.",
      "To change how big the section is, press the cog on it, or press the grip and choose **Template settings**. Choose Large, Medium, Small or Compact. The choice applies to this section only, and the published page shows the same size.",
-     "Each line, group or setting you change is one change with its own **Undo**."
+  "Each line, group or setting you change is one change with its own **Undo**."
     ],
     "page": [
      "dashboard+edit"
@@ -617,12 +617,12 @@
     "id": "change-the-layout-and-look",
     "g": "The report",
     "t": "Change the look",
-    "w": "Settings › Appearance",
+    "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "In **Settings**, then **Appearance**, **Spacing** is yours alone: **Compact** (the standard) or **Comfortable**.",
-     "**Appearance** has **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
-     "**Keys** has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
      "settings"
@@ -745,9 +745,9 @@
     "s": [
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
-     "Each project has **Open** and **Edit**, and a menu button (the three dots, **More for** the project’s name) that holds **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "To set this project’s folders, open **Settings**, then **Folder**. The folders asking may read are in **Settings**, then **Claude and AI**, under **Folders asking may read**.",
-     "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items."
+     "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
+     "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
+     "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
      "settings"
@@ -757,10 +757,10 @@
     "id": "connect-claude-or-chatgpt",
     "g": "Settings and safety",
     "t": "Connect Claude or ChatGPT",
-    "w": "Settings › Claude and AI",
+    "w": "Settings › AI",
     "go": "settings",
     "s": [
-     "Open **Settings**, then **Claude and AI**. The AI card shows Claude and ChatGPT, each as **Connected** or **Not connected**.",
+     "In **Settings**, find the **AI** card. It shows Claude and ChatGPT, each as **Connected** or **Not connected**.",
      "Press **Connect** under the one you use if it says **Not connected**. No password is asked for: the Claude or ChatGPT command already signed in on this computer is the one used. If it is not signed in, the card says what to do.",
      "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept.",
      "Choose the model in **Model for ask clark**. If you choose a smaller one, the card asks first: **Use it anyway** or **Keep the model I have**.",
@@ -793,7 +793,7 @@
     "w": "Settings › People",
     "go": "settings#people",
     "s": [
-     "Open **Settings**, then **People**. It lists everyone who owns a work item or a milestone. The line above the table says how many people still need details (“8 of 8 people need details”). **Show only these** lists just those people, each marked **Needs details**; **Show everyone** brings the rest back.",
+     "Open **Settings** and find the **People** card. It lists everyone who owns a work item or a milestone. The line above the table says how many people still need details (“8 of 8 people need details”). **Show only these** lists just those people, each marked **Needs details**; **Show everyone** brings the rest back.",
      "Press **Paste from Excel**, then paste rows copied from a sheet: name, email, organisation and role, separated by tabs. A first row of headings is skipped. A preview shows what happens to each row, and names every row that needs fixing.",
      "Press **Add to the list**. People are matched by name, so the owner pickers keep working on names. One **Undo**, in the card, takes the whole paste back."
     ],
@@ -830,7 +830,7 @@
     "w": "Settings › Version and updates",
     "go": "settings#update",
     "s": [
-     "Open [Settings › Version and updates](go:settings#update). **Installed** is the version you have now.",
+     "Open [Settings](go:settings#update) and find **Version and updates**. **Installed** is the version you have now.",
      "From the clark releases page, download the update attached to the release for your computer. If it is in Downloads, **Update** shows a **Review** button with the new version number; otherwise press **Choose zip…** under **Install from a file** and pick the update.",
      "Read the review: the version change, the release notes, the files replaced, added and removed. Your projects, settings and published reports are kept, and a copy of your data is made first.",
      "Press **Install**. The new version starts by itself and the page reloads.",
@@ -900,7 +900,7 @@
      [
       "ul",
       [
-       "The project button (an arrow beside the logo): switches projects. Each shows its count of open items. Adding a project and project settings are in Settings.",
+       "The project button (an arrow beside the logo): switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
        "**Dashboard**, **Work items** and **Milestones**: the three screens.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
@@ -1183,7 +1183,7 @@
        "**Last reviewed**: the latest change you made by hand. A change made by clark or an Undo does not count.",
        "**Not reviewed in 14 days**: shown at the top of the peek on an open action, risk, issue or decision that has not been reviewed for that long.",
        "To get **Not reviewed in 14 days** or **No owner or no date**, type **is:** in the filter line and pick it from the list, or save either as a view.",
-       "14 days is the default. To change it for this project, open **Settings**, then **Reports**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
+       "14 days is the default. To change it for this project, open **Settings**, then **Freshness**, and type a whole number from 1 to 365 in **Not reviewed after (days)**. The note and the filter follow at once."
       ]
      ],
      [
@@ -1256,7 +1256,7 @@
     "b": [
      [
       "p",
-      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Appearance; Compact is the standard. It is used on the published report too."
+      "The report is the cover, then the sections, with the contents at the right edge. Choose the Spacing in Settings › Personal; Compact is the standard. It is used on the published report too."
      ],
      [
       "tbl",
@@ -1411,7 +1411,7 @@
      ],
      [
       "p",
-      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in **Settings**, then **Claude and AI** stops it. That card also says where a question goes and which account pays for it."
+      "Asking is on from the first start. Nothing is sent until you ask a question, and only while Claude or ChatGPT is connected and signed in on this computer. **Turn off asking** in the **Asking** card in Settings stops it. That card also says where a question goes and which account pays for it."
      ],
      [
       "ul",
@@ -1743,7 +1743,7 @@
       "ul",
       [
        "**Local**: always. Saved through your browser’s own save window, which opens where you last saved for the project (or your downloads, where the browser has no save window).",
-       "**To client**: only when ticked, to the client folder in Settings › Folder.",
+       "**To client**: only when ticked, to the client folder in Settings › Publishing.",
        "**Also a Word document**: a Word copy in the folder last used for this project, and in the client folder when To client is ticked."
       ]
      ],
@@ -1837,74 +1837,74 @@
     "b": [
      [
       "p",
-      "A menu down the left shows one page at a time (in a window narrower than 900 px it is a row of buttons under the title): Projects, People, Published reports, Profile and Feedback; Folder and Brand; Appearance and Reports; Backups and Export and import; Claude and AI, Logs and diagnostics and Version and updates, in the groups Everyday, Publishing, Look and feel, Data and safety and Advanced. The page you are on is marked in the menu. Settings opens on Projects. Published reports opens the page of that name, not a Settings page. Folder, Published reports and Reports need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
       [
-       "Page",
+       "Card",
        "What it holds"
       ],
       [
-       [
-        "Projects",
-        "Every project with its code, client, workstreams and item count; Open and Edit, with Archive in the row menu (**More for** the project’s name); **+** adds one."
-       ],
-       [
-        "People",
-        "Everyone who owns a work item or a milestone, with email, organisation and role; **Paste from Excel** adds rows. See [People](#ref-people)."
-       ],
-       [
-        "Published reports",
-        "Opens the Published reports page, which is not a Settings page: the numbered copies you have published, each with **Open** to see it as it was."
-       ],
        [
         "Profile",
         "About you: **Your name**, **Alias** and **Your email**."
        ],
        [
-        "Feedback",
-        "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
-       ],
-       [
-        "Folder",
+        "Publishing",
         "The **Local folder**, where the Publish save window opens, and the **Client folder**, a folder OneDrive syncs to the client’s SharePoint. In each, **Choose folder** picks the folder with the system’s own window and **Clear** takes it away again. For the client folder you can also paste the folder’s path and press **Use**. A local folder is saved once, for the project, and a message with **Undo** says so. With none chosen, the save window opens where you last saved the report."
        ],
        [
-        "Brand",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check."
-       ],
-       [
-        "Appearance",
+        "Personal",
         "Spacing (Compact or Comfortable), Appearance (System, Light or Dark) and Keys (Single-key shortcuts)."
        ],
        [
-        "Reports",
-        "**Not reviewed after (days)**: a whole number from 1 to 365, 14 as standard. It sets when an open item in this project counts as not reviewed. Not in the published report. **Show the Gantt to me**, **Show the Gantt to the client** and the **Tab name**. The client sees a Gantt only when at least one line is shown to the client."
+        "Freshness",
+        "**Not reviewed after (days)**: a whole number from 1 to 365, 14 as standard. It sets when an open item in this project counts as not reviewed. Not in the published report."
        ],
        [
-        "Backups",
-        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
-       ],
-       [
-        "Export and import",
-        "**Export workbook** and **Import workbook**. Both need an open project."
-       ],
-       [
-        "Asking (on Claude and AI)",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
-       ],
-       [
-        "AI (on Claude and AI)",
-        "Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+        "Gantt",
+        "**Show the Gantt to me**, **Show the Gantt to the client** and the **Tab name**. The client sees a Gantt only when at least one line is shown to the client."
        ],
        [
         "Logs and diagnostics",
         "The log level (**Normal** or **Debug**), **Open folder** for the log folder, **Copy diagnostics** and the errors of the last 7 days. See [Diagnostics and logs](#ref-diagnostics)."
        ],
        [
+        "Projects",
+        "Every project with its name, code, client, workstreams and item count; **Open**, **Edit** and **Archive**; **+** adds one, and **Show archived** lists the archived ones, each with **Restore**."
+       ],
+       [
+        "Data",
+        "**Export workbook** and **Import workbook**. Both need an open project."
+       ],
+       [
+        "Backups",
+        "The backups clark keeps (a copy of your data each day, and before an undo or an import), each with **Preview** and **Restore**; **Put it back** brings one back, and what you have now is kept first. A box under the list, with **Save**, also puts a copy in a folder of your choice."
+       ],
+       [
         "Version and updates",
         "The installed version, **Review** or **Choose zip…** to update from a release file, and **Undo update**. See [Updating clark](#ref-updating-clark)."
+       ],
+       [
+        "Brands",
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. Each project uses its own brand on the web page, the preview, the Excel and Word files and the PDF check. The Word letterhead of a brand goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
+       ],
+       [
+        "People",
+        "Everyone who owns a work item or a milestone, with email, organisation and role; **Paste from Excel** adds rows. See [People](#ref-people)."
+       ],
+       [
+        "Asking",
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+       ],
+       [
+        "AI (under Asking)",
+        "A card of its own, drawn straight after the Asking card and without a link. Claude and ChatGPT, each with **Connect** or **Disconnect**, and the model ask clark uses. No password or key is kept: the sign-in already on this computer is used."
+       ],
+       [
+        "Feedback",
+        "Write what is wrong or what you would suggest, and **Open in your mail app** makes the email for you to send. See [Feedback](#ref-feedback)."
        ],
        [
         "Quit",
@@ -2074,10 +2074,10 @@
       "ul",
       [
        "Three tabs: **Start here**, **How do I…** and **Reference**. Help opens on the one you used last.",
-       "Help opens with the cursor in the search box.",
+    "Help opens with the cursor in the search box.",
        "The search box looks through all three as you type. Press [[Enter]] for the first result, [[Esc]] to clear it.",
        "A link with a › after it takes you to the screen it names.",
-       "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Appearance › Keys."
+       "[[?]] opens Help from any page. In Help, [[/]] goes to the search box, unless the letter keys are turned off in Settings › Personal › Keys."
       ]
      ]
     ]
@@ -2145,11 +2145,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Appearance"
+    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Appearance"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
@@ -2507,66 +2507,36 @@
    "page": "settings",
    "title": "Settings",
    "s": [
-    "Settings holds what belongs to the whole project and to you, one page for each job.",
-    "The menu at the left shows one page at a time (a row of buttons under the title in a narrow window).",
-    "Below, one short line says what each page is for."
+    "Settings holds what belongs to the whole project and to you, one card for each job.",
+    "The list at the left of the cards takes you to a card (a row of chips under the title in a window narrower than 900 px).",
+    "Below, one short line says what each card is for."
    ],
    "full": "howto-find-a-past-publication",
    "cards": [
-    {
-     "card": "projects",
-     "title": "Projects",
-     "line": "Every project, with Open and Edit; Archive is in its row menu. Show archived lists them, with Restore."
-    },
-    {
-     "card": "people",
-     "title": "People",
-     "line": "Who is on the project, with their emails and roles."
-    },
     {
      "card": "profile",
      "title": "Profile",
      "line": "Your name, Alias and email."
     },
     {
-     "card": "feedback",
-     "title": "Feedback",
-     "line": "Write what is wrong or what you would suggest, then send it by email."
-    },
-    {
      "card": "publishing",
-     "title": "Folder",
+     "title": "Publishing",
      "line": "Where Publish saves the report, and the client folder it is copied to."
     },
     {
-     "card": "brands",
-     "title": "Brand",
-     "line": "Add a brand from a zip file, then replace or remove it."
-    },
-    {
      "card": "personal",
-     "title": "Appearance",
+     "title": "Personal",
      "line": "How the Dashboard sections look, Light or Dark and the single-key shortcuts."
     },
     {
      "card": "freshness",
-     "title": "Reports",
-     "line": "Freshness: days before an open item counts as not reviewed. Gantt: the Gantt tab, for you and the client."
+     "title": "Freshness",
+     "line": "How many days an open item can go without a review before it counts as not reviewed."
     },
     {
-     "card": "backups",
-     "title": "Backups",
-     "line": "The daily copies of your data, to preview or put back."
-    },
-    {
-     "card": "data",
-     "title": "Export and import",
-     "line": "Export the project to an Excel workbook, or import one after you have seen what would change."
-    },
-    {
-     "card": "asking",
-     "title": "Claude and AI",
-     "line": "Asking, and Claude and ChatGPT: the switch, the folders asking may read and the model it uses."
+     "card": "gantt",
+     "title": "Gantt",
+     "line": "Whether the project has a Gantt tab, for you and for the client, and what the tab is called."
     },
     {
      "card": "diagnostics",
@@ -2574,9 +2544,39 @@
      "line": "The logs and checks to look at when something goes wrong."
     },
     {
+     "card": "projects",
+     "title": "Projects",
+     "line": "Every project, with Open, Edit and Archive; Show archived lists archived projects, each with Restore."
+    },
+    {
+     "card": "data",
+     "title": "Data",
+     "line": "Export the project to an Excel workbook, or import one after you have seen what would change."
+    },
+    {
+     "card": "backups",
+     "title": "Backups",
+     "line": "The daily copies of your data, to preview or put back."
+    },
+    {
      "card": "update",
      "title": "Version and updates",
      "line": "The installed version of clark."
+    },
+    {
+     "card": "brands",
+     "title": "Brands",
+     "line": "Add a brand from a zip file, then replace or remove it."
+    },
+    {
+     "card": "people",
+     "title": "People",
+     "line": "Who is on the project, with their emails and roles."
+    },
+    {
+     "card": "feedback",
+     "title": "Feedback",
+     "line": "Write what is wrong or what you would suggest, then send it by email."
     },
     {
      "card": "quit",
@@ -2664,7 +2664,7 @@
    "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
    "steps": [
     {
-     "d": "Press your profile circle and choose **Settings**, then **Export and import**. The **Data** card has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
      "pic": "excel-in-button"
     },
     {
@@ -2710,7 +2710,7 @@
      "pic": "excel-out-menu"
     },
     {
-     "d": "Or choose **Settings**, then **Export and import** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again.",
+     "d": "Or choose **Settings** from the profile circle, find the **Data** card and press **Export workbook**. It is the same export again.",
      "pic": "excel-out-card"
     },
     {
@@ -2745,7 +2745,7 @@
      "pic": "publish-menu"
     },
     {
-     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link, Settings, Folder, takes you to Settings to set one.",
+     "d": "**Local** is always ticked, and the box says you choose the folder and name in the save window. Tick **To client** to copy it to the client folder as well. With no client folder set, that tick is off and a link takes you to Settings, Publishing to set one.",
      "pic": "publish-dialog"
     },
     {
@@ -2889,7 +2889,7 @@
    "job": "See the copies clark keeps of your data, look inside one, and put one back if you need to.",
    "steps": [
     {
-     "d": "Press your profile circle and choose **Settings**, then **Backups**. It says that a copy of your data is kept each day, and before an undo or an import."
+     "d": "Press your profile circle and choose **Settings**, then find the **Backups** card. It says that a copy of your data is kept each day, and before an undo or an import."
     },
     {
      "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."

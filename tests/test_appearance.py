@@ -8,7 +8,6 @@ menu has the same three choices, in the same order, below the separator, the one
 the other at once; a reload keeps it; every page is dark when Dark is chosen, with no sideways scroll; a published file never has it.
 Chrome is required: these tests fail, never skip, without it.
 """
-import json
 import re
 import unittest
 
@@ -16,7 +15,6 @@ from _paths import SRC
 from _new_page import reload_to_new_page
 from test_publish_dialog import Base, PAGE_SRC
 from test_server import chrome
-from _mouse import click_centre, menu_item_js
 
 from clark import page
 
@@ -33,9 +31,7 @@ class Appearance(Base):
         p.js("document.querySelector('#profile-btn').click()")
         p.until("!!document.querySelector('#profile-menu')", "the menu opened")
         p.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()")
-        p.until("!!document.querySelector('.set-menu .set-item')", "Settings drew")
-        click_centre(p.cdp, p.sid, menu_item_js(json.dumps("Appearance")), "the Appearance entry")      # Personal is the Appearance page; a real mouse, as a person clicks
-        p.until("!!document.querySelector('#personal')", "Settings › Appearance drew")
+        p.until("!!document.querySelector('#personal')", "Settings › Personal drew")
 
     def open_menu(self, p):
         """Open the profile menu, clicking again if the first click is lost: right after a page load the button is already in the page before

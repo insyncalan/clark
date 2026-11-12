@@ -246,15 +246,15 @@ class InSettings(unittest.TestCase):
     """The card is on the Settings page after the others, with a link in the list, and Help names it."""
 
     def test_settings_draws_the_card_and_a_link_for_it(self):
-        # item 1024: the Settings menu (edit/settingsPages.js) holds the page and the part it draws, one list of tools for each page
-        pages = (PAGE_SRC / "edit" / "settingsPages.js").read_text(encoding="utf-8")
-        self.assertIn('["feedback", "Feedback", ["Feedback"], "feedback-h"]', pages)
+        views = (PAGE_SRC / "components" / "Views.jsx").read_text(encoding="utf-8")
+        self.assertIn('["Feedback", "Feedback", "feedback-h"]', views)
+        self.assertIn("<Feedback />", views)
         self.assertIn("Feedback,", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
 
     def test_help_names_the_card(self):
         help_ = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
         self.assertIn("Settings › Feedback", help_)
-        self.assertIn("Profile and Feedback;", help_)      # item 1024: the Help line for the Settings menu names the Feedback page in the Everyday group
+        self.assertIn("Asking, Feedback and Quit", help_)
 
 
 if __name__ == "__main__":

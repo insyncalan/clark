@@ -134,14 +134,7 @@ class Browser(unittest.TestCase):
 
     def table(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#projects-table tbody tr')].map(r => ({code: r.dataset.project, cells: [...r.cells].map(c => c.innerText.trim()),"
-                      " buttons: [...r.querySelectorAll('button')].map(b => b.textContent).filter(Boolean),"
-                      " menu: !!r.querySelector('button[data-row-menu]')}))", sid)
-
-    def pick(self, cdp, sid, code, kind):
-        """Item 1024b: Archive and Restore live in the row's menu. Opens it, checks its entry, and chooses it."""
-        cdp.js("document.querySelector('tr[data-project=%s] button[data-row-menu]').click()" % code, sid)
-        self.until(cdp, sid, "document.querySelector('.ddmenu [data-kind=%s]')" % kind, "the row menu entry " + kind)
-        cdp.js("document.querySelector('.ddmenu [data-kind=%s]').click()" % kind, sid)
+                      " buttons: [...r.querySelectorAll('button')].map(b => b.textContent)}))", sid)
 
     def test_the_table_lists_each_project_with_its_columns_at_1400_and_900_px_in_light_and_dark(self):
         s = self.serve()
@@ -158,12 +151,11 @@ class Browser(unittest.TestCase):
                         self.assertIn(self.names[r["code"]], r["cells"][0])
                         self.assertEqual(r["cells"][1], r["code"])
                         self.assertEqual(r["cells"][4], str(sum(len(d[k]) for k in ("actions", "raid", "decisions"))))
-                        self.assertNotIn("Archive", r["buttons"], "Archive is in the row menu, not a button of its own (item 1024b)")
-                        self.assertTrue(r["menu"], "every row has its menu, the open project too")
+                        self.assertIn("Archive", r["buttons"], "Archive is offered on every project, the open one too (#444)")
                         self.assertIn("Edit", r["buttons"])
                     self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways page scroll")
                     self.assertIn("Open now", cdp.js("document.querySelector('tr[data-project=TUL]').innerText", sid))
-                    self.assertEqual(cdp.js("[...document.querySelectorAll('tr[data-project=TUL] button')].map(b => b.textContent).filter(Boolean)", sid), ["Edit"], "no Open on the open project, and Archive is in the menu")
+                    self.assertEqual(cdp.js("[...document.querySelectorAll('tr[data-project=TUL] button')].map(b => b.textContent)", sid), ["Edit", "Archive"], "no Open on the open project")
                     self.assertEqual(cdp.js("document.querySelector('#npBtn').getAttribute('aria-label')", sid), "Add project")
                     self.assertEqual(cdp.js("document.querySelector('#show-archived').textContent.trim()", sid), "Show archived")
 
@@ -171,7 +163,7 @@ class Browser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            self.pick(cdp, sid, "MOSS", "archive")
+            cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').click()", sid)
             self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "the project to leave the list")
             self.assertEqual(self.sent, [{"project": "MOSS", "kind": "projects", "op": "archive", "id": "MOSS"}])
             self.assertEqual(cdp.js("document.activeElement && document.activeElement.id", sid), "projects-h", "focus stays on the Projects heading after Archive")
@@ -181,27 +173,21 @@ class Browser(unittest.TestCase):
             cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]')", "Undo to put the project back")
             self.assertEqual(len(self.undone), 1)
-            self.pick(cdp, sid, "MOSS", "archive")
+            cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').click()", sid)
             self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "archived again")
             cdp.js("document.querySelector('#show-archived').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS].arch')", "the archived row")
             self.assertEqual(cdp.js("document.querySelector('#show-archived').getAttribute('aria-pressed')", sid), "true")
-            self.assertEqual([b for r in self.table(cdp, sid) if r["code"] == "MOSS" for b in r["buttons"]], [], "an archived row has only its menu")
-            cdp.js("document.querySelector('tr[data-project=MOSS] button[data-row-menu]').click()", sid)
-            self.until(cdp, sid, "document.querySelector('.ddmenu')", "the menu")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent.trim())", sid), ["Restore"])
-            cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
-            self.until(cdp, sid, "!document.querySelector('.ddmenu')", "Esc to close the menu")
-            self.pick(cdp, sid, "MOSS", "restore")
+            self.assertEqual([b for r in self.table(cdp, sid) if r["code"] == "MOSS" for b in r["buttons"]], ["Restore"])
+            cdp.js("document.querySelector('tr[data-project=MOSS] [data-restore]').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "the restored row")
             self.assertEqual(self.sent[-1]["op"], "restore")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.hasAttribute('data-row-menu') && document.activeElement.closest('tr').dataset.project === 'MOSS'", "focus on the restored row's menu button")       # item 1024b
 
     def test_the_open_project_can_be_archived_and_the_page_opens_the_first_other_live_project(self):       # #444, row 46
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            self.pick(cdp, sid, "TUL", "archive")
+            cdp.js("document.querySelector('tr[data-project=TUL] [data-archive]').click()", sid)
             self.until(cdp, sid, "location.hash.includes('p=MOSS')", "the page to open the other live project")
             self.assertEqual(self.sent, [{"project": "TUL", "kind": "projects", "op": "archive", "id": "TUL"}])
             self.until(cdp, sid, "!document.querySelector('tr[data-project=TUL]')", "the archived project to leave the list")
@@ -219,7 +205,7 @@ class Browser(unittest.TestCase):
         self.gone.add("MOSS")
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            self.pick(cdp, sid, "TUL", "archive")
+            cdp.js("document.querySelector('tr[data-project=TUL] [data-archive]').click()", sid)
             self.until(cdp, sid, "document.querySelector('.toast.problem')", "the refusal")
             self.assertEqual(cdp.js("document.querySelector('.toast-text').textContent", sid),
                              "This is your only project, so it can't be archived. Add another project first.")
@@ -307,146 +293,6 @@ class Browser(unittest.TestCase):
             self.assertEqual(cdp.js("(() => { const h = document.querySelector('#projects-h'); h.focus(); return [h.tagName, h.tabIndex, document.activeElement === h]; })()", sid), ["H2", -1, True])
             self.assertEqual(cdp.js("document.querySelector('#projects-table').getAttribute('aria-label')", sid), "Projects")
 
-    def test_the_row_menu_offers_archive_on_a_live_row_and_works_by_keyboard(self):       # item 1024b
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 1400)
-            cdp.js("document.querySelector('tr[data-project=MOSS] button[data-row-menu]').click()", sid)
-            self.until(cdp, sid, "document.querySelector('.ddmenu')", "the menu")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.ddmenu [role=menuitem]')].map(b => b.textContent.trim())", sid), ["Archive"])
-            self.assertEqual(cdp.js("document.querySelector('.ddmenu').getAttribute('aria-label')", sid), "More for " + self.names["MOSS"])
-            self.until(cdp, sid, "document.activeElement && document.activeElement.dataset.kind === 'archive'", "focus on the first entry")
-            cdp.js("document.querySelector('.ddmenu').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))", sid)
-            self.until(cdp, sid, "!document.querySelector('.ddmenu')", "Esc to close")
-            self.assertEqual(self.sent, [], "closing the menu archives nothing")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.hasAttribute('data-row-menu')", "focus back on the menu button")
-
-    def test_the_row_menu_button_is_switched_off_while_busy_and_restore_puts_focus_on_the_row_menu(self):       # item 1024b
-        text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
-        self.assertIn('{ "data-row-menu": "", disabled: !!busy }', text, "a second pick while busy cannot be made")
-        self.assertIn("menuLabel={L.moreFor(r.name)}", text, "the menu box is named for its project")
-        s = self.serve()      # Restore is clicked and the focus is read, not the source text
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 900)
-            self.pick(cdp, sid, "MOSS", "archive")
-            self.until(cdp, sid, "!document.querySelector('tr[data-project=MOSS]')", "archived")
-            cdp.js("document.querySelector('#show-archived').click()", sid)
-            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS].arch')", "the archived row")
-            self.pick(cdp, sid, "MOSS", "restore")
-            self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "restored")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.hasAttribute('data-row-menu') && document.activeElement.closest('tr').dataset.project === 'MOSS'", "Restore puts focus on the row's menu button")
-
-    def test_the_row_menu_stays_inside_the_row_without_sideways_scroll_at_1400_and_900_px(self):       # item 1024b
-        s = self.serve()
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, s.port, width)
-                self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways page scroll")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#projects-table tbody tr')].every(r => { const b = r.querySelector('button[data-row-menu]').getBoundingClientRect(), t = r.getBoundingClientRect(); return b.width > 0 && b.left >= t.left - 1 && b.right <= t.right + 1 && b.right <= window.innerWidth; })", sid), True, "the menu button is inside its row")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#projects-table td.acts .dd .btn')].every(b => getComputedStyle(b).marginLeft === '0px')", sid), True, "the spacing is not doubled")
-
-    def test_the_row_menu_button_is_three_dots_with_no_chevron_a_gap_and_a_menu_placed_on_the_window(self):       # item 1024b
-        s = self.serve()
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 1400)
-            btn = "document.querySelector('tr[data-project=MOSS] button[data-row-menu]')"
-            self.assertEqual(cdp.js(btn + ".querySelector('svg').getAttribute('data-icn')", sid), "dots")
-            self.assertEqual(cdp.js(btn + ".querySelector('.nch')", sid), None, "no chevron after the dots")
-            self.assertGreaterEqual(cdp.js("parseFloat(getComputedStyle(document.querySelector('tr[data-project=MOSS] td.acts .dd')).marginLeft)", sid), 8,
-                                    "the menu button keeps its gap from Edit")
-            cdp.js(btn + ".click()", sid)
-            self.until(cdp, sid, "document.querySelector('.ddmenu')", "the menu")
-            self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.ddmenu')).position", sid), "fixed", "the menu is placed on the window, not cut off by the table")
-            self.assertLessEqual(cdp.js("document.querySelector('.ddmenu').getBoundingClientRect().right", sid), 1400)
-
-    def test_the_dots_button_is_at_least_24_by_24_px_at_1400_and_900_px(self):       # item 1024b
-        s = self.serve()
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, s.port, width)
-                sizes = cdp.js("[...document.querySelectorAll('#projects-table button[data-row-menu]')].map(b => { const r = b.getBoundingClientRect(); return [r.width, r.height]; })", sid)
-                self.assertTrue(sizes, "there are menu buttons")
-                for w, h in sizes:
-                    self.assertGreaterEqual(w, 24, "the dots button is wide enough to press")
-                    self.assertGreaterEqual(h, 24, "the dots button is tall enough to press")
-
-    def test_the_name_wraps_by_words_and_the_open_now_pill_stays_on_one_line_at_1400_and_900_px_in_light_and_dark(self):       # item 1024b
-        s = self.serve()
-        words = """(() => { const out = [];
-          for (const b of document.querySelectorAll('#projects-table tbody td:first-child b')) {
-            const node = b.firstChild, text = node.textContent;
-            for (const m of text.matchAll(/\\S+/g)) {
-              const r = document.createRange(); r.setStart(node, m.index); r.setEnd(node, m.index + m[0].length);
-              out.push({word: m[0], lines: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size});
-            }
-          }
-          return out; })()"""
-        for width in (1400, 900):
-            for scheme in ("light", "dark"):
-                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
-                    sid = self.visit(cdp, s.port, width, scheme)
-                    ws = cdp.js(words, sid)
-                    self.assertTrue(ws, "there are names")
-                    for w in ws:
-                        self.assertEqual(w["lines"], 1, "the word %r is not broken across lines: %s" % (w["word"], ws))
-                    pill = cdp.js("(() => { const t = document.querySelector('tr[data-project=TUL] .tag'); const cs = getComputedStyle(t); return {lines: new Set([...t.getClientRects()].map(x => Math.round(x.top))).size, h: t.getBoundingClientRect().height, line: parseFloat(cs.lineHeight) || 0, ws: cs.whiteSpace}; })()", sid)
-                    self.assertEqual(pill["ws"], "nowrap", "the pill keeps its words together")
-                    self.assertLess(pill["h"], 2 * pill["line"] if pill["line"] else 40, "the Open now pill is one line high: %s" % pill)
-
-    def squeezed(self, name, width_check):
-        """Item 1024d: every project gets this name and a very long client, so the Name column is squeezed; checks per width."""
-        s = self.serve()
-        words = """(() => { const out = [];
-          for (const b of document.querySelectorAll('#projects-table tbody td:first-child b')) {
-            const node = b.firstChild, text = node.textContent;
-            for (const m of text.matchAll(/\\S+/g)) {
-              const r = document.createRange(); r.setStart(node, m.index); r.setEnd(node, m.index + m[0].length);
-              out.push({word: m[0], lines: new Set([...r.getClientRects()].map(x => Math.round(x.top))).size});
-            }
-          }
-          return out; })()"""
-        client = "Consolidated Infrastructure Maintenance Partnership Incorporated " * 3 + "Supercalifragilisticexpialidocious" * 3
-        for code in list(self.names):
-            self.names[code] = name
-            self.data[code] = {**self.data[code], "project": {**self.data[code]["project"], "client_name": client}}
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, s.port, width)
-                ws = cdp.js(words, sid)
-                self.assertTrue(ws, "there are names")
-                col = cdp.js("(() => { const em = parseFloat(getComputedStyle(document.querySelector('#projects-table')).fontSize);"
-                             " return document.querySelector('#projects-table tbody td:first-child').getBoundingClientRect().width / em; })()", sid)
-                width_check(self, ws, col, width)
-
-    def test_a_name_with_a_word_wider_than_nine_letters_keeps_that_word_whole_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills overflow-wrap anywhere
-        def check(t, ws, col, width):
-            for w in ws:
-                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
-        self.squeezed("Telecommunications Programme Alpha Bravo", check)
-
-    def test_a_name_of_short_words_keeps_its_column_nine_letters_wide_beside_a_long_client_at_1400_and_900_px(self):       # item 1024d: kills min-width 0
-        def check(t, ws, col, width):
-            t.assertGreaterEqual(col, 9 - 0.01, "the Name column is at least 9em wide at %d" % width)
-            for w in ws:
-                t.assertEqual(w["lines"], 1, "the word %r is not broken across lines at %d: %s" % (w["word"], width, ws))
-        self.squeezed("Transformation Programme Alpha Bravo Charlie Delta Echo Foxtrot", check)
-
-    def test_the_help_says_archive_is_in_the_row_menu_not_a_button_of_its_own(self):       # item 1024b
-        def strings(node):
-            if isinstance(node, str):
-                yield node
-            elif isinstance(node, dict):
-                for v in node.values():
-                    yield from strings(v)
-            elif isinstance(node, list):
-                for v in node:
-                    yield from strings(v)
-        lines = list(strings(json.loads((SRC_DIR / "help" / "helpContent.json").read_text(encoding="utf-8"))))
-        for line in lines:
-            self.assertNotIn("Open, Edit and Archive", line, "no help line lists Archive as a row button")
-            self.assertNotIn("Open**, **Edit** and **Archive", line, "no help line lists Archive as a row button")
-        self.assertTrue([l for l in lines if "More for" in l and "Archive" in l], "one help line says Archive is in the row menu")
-
     def test_an_archive_goes_through_the_change_queue(self):
         text = (SRC_DIR / "edit" / "Projects.jsx").read_text(encoding="utf-8")
         self.assertIn("await enqueue(", text)
@@ -456,13 +302,11 @@ class Browser(unittest.TestCase):
         s = self.serve()
         with chrome() as cdp:
             sid = self.visit(cdp, s.port, 1400)
-            self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] button[data-row-menu]').getAttribute('aria-label')", sid), "More for " + self.names["MOSS"])
-            self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] button[data-row-menu]').getAttribute('aria-haspopup')", sid), "menu")
+            self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-archive]').getAttribute('aria-label')", sid), "Archive " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-open]').getAttribute('aria-label')", sid), "Open " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('tr[data-project=MOSS] [data-edit]').getAttribute('aria-label')", sid), "Edit " + self.names["MOSS"])
             self.assertEqual(cdp.js("document.querySelector('#projects-table thead th:last-child').getAttribute('aria-label')", sid), "What you can do")
-            # item 1024: one page at a time, so "follows" is the menu order: Export and import is after Projects in the menu
-            self.assertEqual(cdp.js("(() => { const n = [...document.querySelectorAll('.set-menu .set-item')].map(b => b.textContent); return n.indexOf('Projects') >= 0 && n.indexOf('Projects') < n.indexOf('Export and import'); })()", sid), True, "the Data card follows the Projects table")
+            self.assertEqual(cdp.js("document.querySelector('#projects').compareDocumentPosition(document.querySelector('#data-card')) & 4", sid), 4, "the Data card follows the Projects table")
 
     def test_open_goes_to_that_project_s_dashboard(self):
         s = self.serve()

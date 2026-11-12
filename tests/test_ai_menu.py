@@ -467,9 +467,9 @@ class Card(unittest.TestCase):
 class WhyOff(unittest.TestCase):
     def test_messages(self):
         self.assertEqual(am.why_off("ready"), "")
-        self.assertEqual(am.why_off("off"), "AI suggestions are switched off. Turn them on in Settings, under Claude and AI.")
-        self.assertEqual(am.why_off("not_signed_in"), "Connect to Claude in Settings, under Claude and AI, to use AI suggestions.")
-        self.assertEqual(am.why_off("not_signed_in", "OpenAI"), "Connect to OpenAI in Settings, under Claude and AI, to use AI suggestions.")
+        self.assertEqual(am.why_off("off"), "AI suggestions are switched off. Turn them on in Settings, under AI.")
+        self.assertEqual(am.why_off("not_signed_in"), "Connect to Claude in Settings, under AI, to use AI suggestions.")
+        self.assertEqual(am.why_off("not_signed_in", "OpenAI"), "Connect to OpenAI in Settings, under AI, to use AI suggestions.")
         self.assertTrue(am.why_off("something new"))
 
     def test_the_provider_is_not_asked_when_ai_is_off_or_not_signed_in(self):

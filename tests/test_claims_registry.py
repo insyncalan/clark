@@ -93,8 +93,8 @@ CLAIMS = [
     Claim("published-search", "**Search work items** box", HELP_FILE, selector(r'<input id="q" type="search"')),
     Claim("show-archived-button", "**Show archived**", HELP_FILE, selector(r"Show archived")),
     Claim("settings-logs-card", "Settings › Logs and diagnostics", HELP_FILE, component("Diagnostics")),
-    Claim("settings-publishing-card", "Settings › Folder", HELP_FILE, component("ClientFolder")),
-    Claim("settings-personal-card", "Settings › Appearance", HELP_FILE, component("Personal")),
+    Claim("settings-publishing-card", "Settings › Publishing", HELP_FILE, component("ClientFolder")),
+    Claim("settings-personal-card", "Settings › Personal", HELP_FILE, component("Personal")),
 ]
 
 

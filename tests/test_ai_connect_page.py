@@ -32,7 +32,7 @@ class Card(unittest.TestCase):
         self.s.httpd.ai_connect = ai_connect.AiConnect(self.d, self.claude, self.chatgpt)
 
     def show(self, cdp):
-        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude-ai")
+        self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
         js = lambda e: cdp.js(e, self.sid)          # noqa: E731
         self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-tile=claude]')"), PAGE_UP), "the card is in Settings")
         return js
@@ -117,7 +117,7 @@ class Card(unittest.TestCase):
     def test_without_the_route_shows_no_card(self):
         self.s.httpd.ai_connect = None
         with chrome() as cdp:
-            self.sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=claude-ai")
+            self.sid = navigate(cdp, self.s.port, "#settings&p=ABC")
             js = lambda e: cdp.js(e, self.sid)      # noqa: E731
             self.assertTrue(wait(lambda: js("!!document.querySelector('#ai-settings')"), PAGE_UP))
             self.assertFalse(wait(lambda: js("!!document.querySelector('[data-ai-tile]')"), 1))

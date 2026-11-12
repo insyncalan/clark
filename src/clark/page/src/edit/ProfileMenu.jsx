@@ -5,7 +5,7 @@
 // Appearance (Light, Dark, System) is in the menu (#179); the top line is the name and email from Settings › Personal (#180).
 import { useEffect } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
-import { data, tabs, show, openSettings, project, mode, view, status } from "../stores/report.js";
+import { data, tabs, show, project, mode, view, status } from "../stores/report.js";
 import { openInNewTab } from "../router.js";
 import { openHelp, openContext } from "../help/helpStore.js";
 import { openPublish, lastLine } from "./Publish.jsx";
@@ -105,7 +105,7 @@ export function ProfileMenu() {
     else if (id === "export") exportExcel();
     else if (id === "published") showPublished();
     else if (id === "word-export") openExport();
-    else if (id === "who") { wantName.value = true; openSettings("profile"); }
+    else if (id === "who") { wantName.value = true; show("settings"); }
     else if (id.startsWith("look-")) setAppearance(id.slice(5));
     else if (id === "settings") show("settings");
     else if (id === "help") { const b = document.getElementById("profile-btn"); if (b) b.focus(); if (!openContext()) openHelp(); }       // row 896: the same peek as the ? key, with the open page's articles; the full Help is its foot link

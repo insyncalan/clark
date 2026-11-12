@@ -175,97 +175,72 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
             cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
-            cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)      # with no name set this link is "Add your name", which lands on Profile (item 1024)
-            self.assertTrue(wait(lambda: "s=profile" in cdp.js("location.hash", sid), WAIT))
-            cdp.js("location.hash = location.hash.replace(/&s=[^&]*/, '')", sid)      # plain Settings is what the lines below pin first
-            # item 1024, WEAKENS-free: exact equality kept, split by page. Settings shows one page at a time, so the one 150-line list is cut
-            # into the lines of each page (no line dropped or reworded) and each page is read at its own address, with the head and the menu.
-            HEAD = ["Settings", "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."]
-            MENU = ["Everyday", "Projects", "People", "Published reports", "Profile", "Feedback", "Publishing", "Folder", "Brand", "Look and feel", "Appearance", "Reports",
-                    "Data and safety", "Backups", "Export and import", "Advanced",
-                    "These are for setting up Claude, and for when something goes wrong. Most people never need them.", "Claude and AI", "Logs and diagnostics", "Version and updates"]      # the menu: five groups, fourteen pages
-            PAGES = {
-                "projects": ["Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
-                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
-                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEdit", "ABC Open now\tABC\t—\t—\t1\tEdit"
-                ],
-                "people": ["People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
-                                  "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
-                                  "The people list could not be read. Reload the page. If it happens again, restart clark. Try again"
-                ],
-                "profile": ["Profile",      # row 950: the first card, with the About you boxes that were in Personal
+            cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
+            self.shown(cdp, sid, ["Settings",
+                                  "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
+                                  "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
-                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email."
-                ],
-                "folder": ["Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
+                                  "Your email", "Optional. Used only to tell which email addresses are your own. Nothing here sends email.",
+                                  "Publishing", "Where Publish saves the report. Local is always used; the client folder only when you tick To client.",
                                   "Local folder", "Always saved. Publish's save window opens in this folder; with none chosen, it opens where you last saved this report.",
                                   "No local folder yet.", "Choose folder",      # row 852: the Local folder is chosen once, like the client folder
                                   "Client folder",      # #43: the client folder, now one half of the Publishing card (A-S9)
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
-                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer."
-                ],
-                "brand": ["Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
-                                  "Brands can't be shown right now. Restart clark the usual way and try again. Try again"
-                ],
-                "appearance": ["Personal",    # #45: Settings › Personal, the section styles
+                                  "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
+                                  "Personal",    # #45: Settings › Personal, the section styles
                                   "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
                                   "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
                                   "Comfortable", "Each Dashboard section is its own card, with room between them.",
                                   "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
-                                  "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work."
-                ],
-                "reports": ["Freshness",          # #160: the project's "Not reviewed after (days)"
+                                  "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
+                                  "Freshness",          # #160: the project's "Not reviewed after (days)"
                                   "When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.",
                                   "Not reviewed after (days)", "A whole number from 1 to 365. The default is 14. Not in the published report.",
                                   "Gantt",          # #926: the project's Gantt tab setting
                                   "Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.",
                                   "Show the Gantt to me", "Show the Gantt to the client", "It appears in a published report only when at least one line is shown to the client.",
-                                  "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page."
-                ],
-                "backups": ["Backups",            # #111: the backups card; this server has no backups to list
-                                  "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
-                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again"
-                ],
-                "export": ["Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook", "Excel file layout",        # #444: Export and Import
+                                  "Tab name", "Up to 30 characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.",
+                                  "Logs and diagnostics",      # #110
+                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
+                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
+                                  "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again.",
+                                  "Projects", "Show archived (2)", "Add project",      # A-S6: the projects table comes before the Data card (#444: Add project is on it); this server's stub list answers the archived request too (#653), so the table and the archived count show
+                                  "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
+                                  "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
+                                  "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
+                                  "Export workbook", "Import workbook", "Excel file layout",      # #444: Export and Import
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
-                ],
-                "claude-ai": ["Claude and AI",             # item 1024: Asking and AI are one card; #47: the switch and its folders
+                                  "Backups",            # #111: the backups card; this server has no backups to list
+                                  "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
+                                  "Backups can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Version and updates",      # Settings › Version and updates: with no updater the server says so
+                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
+                                  "settings and published reports are kept.",
+                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "Brands", "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.",
+                                  "Brands can't be shown right now. Restart clark the usual way and try again. Try again",
+                                  "People", "Paste from Excel",             # #454: the People card; this server has no people routes, so the list can't be read
+                                  "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
+                                  "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
+                                  "Asking",             # #47: the switch and its folders, below the client folder
                                   "Claude is started on this computer for you.",
                                   "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
-                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file.",
+                                  "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
+                                  "Parts of the files in these folders can be sent to Claude, which Anthropic runs, when they help answer a question.",
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
-                                  "AI",                 # #72: the AI status line in the Asking part (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
+                                  "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions come in a later version."
-                ],
-                "feedback": ["Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                                  "AI suggestions come in a later version.",
+                                  "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
                                   "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
-                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text"
-                ],
-                "logs": ["Logs and diagnostics",      # #110
-                                  "The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.",
-                                  "Normal", "Debug", "Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.",
-                                  "Open folder", "Copy diagnostics", "The log settings could not be read. Reload the page and try again."
-                ],
-                "version": ["Version and updates",      # Settings › Version and updates: with no updater the server says so
-                                  "Install a newer version from a file you downloaded from the clark releases page. Your projects, "
-                                  "settings and published reports are kept.",
-                                  "Updates can't be shown right now. Restart clark the usual way and try again. Try again",
-                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
-                ],
-            }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 102, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
-            self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
-            for slug, rest in PAGES.items():
-                with self.subTest(page=slug):
-                    cdp.js("location.hash = location.hash.replace(/&s=[^&]*/, '') + '&s=%s'" % slug, sid)
-                    self.shown(cdp, sid, HEAD + MENU + rest)
+                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
+                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)

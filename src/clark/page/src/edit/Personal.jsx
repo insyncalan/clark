@@ -59,8 +59,7 @@ function AboutYou() {
                alias: ownAlias.current ? (typedIn.current.alias ? t.alias : profile.value.alias || "") : follow(n) };
     });
   }, [profile.value.name, profile.value.email, profile.value.alias, profileRead.value]);
-  const wanted = wantName.value;                                          // read while drawing: the link again on this page draws it again and the box takes the focus
-  useEffect(() => { if (wanted && name.current) { wantName.value = false; name.current.focus(); } });
+  useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email, typed.alias]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
   useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
   const save = async (field) => {

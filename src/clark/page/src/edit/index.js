@@ -49,7 +49,6 @@ import { richOn } from "./richSave.js";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { Safety } from "./Safety.jsx";
 import { Update } from "./Update.jsx";
-import * as SettingsPages from "./settingsPages.js";
 import { Brands } from "./Brands.jsx";
 import { Projects } from "./Projects.jsx";
 import { RowMenu } from "./RowMenu.jsx";
@@ -83,7 +82,7 @@ import { MsLayers } from "./MsLayers.jsx";
 import { ArchivedMilestones } from "./ArchivedMilestones.jsx";
 import { HelpPeek } from "../help/HelpPeek.jsx";
 import { addOverlay } from "../components/pick.js";
-import { installKeys, openHelp, closeHelp, helpOpen, setCloseOthers, closeContext, goTo } from "../help/helpStore.js";
+import { installKeys, openHelp, closeHelp, helpOpen, setCloseOthers, closeContext } from "../help/helpStore.js";
 import { effect } from "@preact/signals";
 
 // One right-hand panel at a time: the Help peek closes the ask panel as it opens, and the ask panel opening closes the Help peek.
@@ -99,4 +98,4 @@ import { HAND_OVER } from "./HandOver.jsx";
 // Row 1078: a milestone's rich words (description, client wording) for the read-only peek; "" when the cleaner refuses them.
 const richOf = (value) => { try { return richOrPlain(value || ""); } catch (e) { return ""; } };
 const clean = (html) => { try { return cleanHtml(html || ""); } catch (e) { return ""; } };
-export const EDIT = { clean, richOf, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Profile, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ProjectSwitch, Add, Title, Toggle, Toast, Words, PeekTabs, PeekActivity, PeekSource, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedPage, exportExcel, ClientFolder, Safety, Update, SettingsPages, Brands, Projects, Diagnostics, Feedback, Quit, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MilestoneTitle, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { goTo, open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };
+export const EDIT = { clean, richOf, DemoBanner, NewProjectButton, glance: GLANCE, Personal, Profile, Data, Boxes, ReviewDays, GanttSetting, GanttTabName, GanttTitle, GanttBarNote, ganttWords: GANTT_EDIT_WORDS, importExcel, RichField, RichRead, NeedsEdit, DocumentsEdit, TrackerEdit, ItemRowsEdit, richOn, Gutter, ExportBtn, ImportBtn, ArchivedItems, ProjectSwitch, Add, Title, Toggle, Toast, Words, PeekTabs, PeekActivity, PeekSource, PeekLatest, PeekWarn, PeekNeeded, PeekTitle, PeekWording, PeekPick, PeekDuplicate, PeekArchive, Cell, Eye, Publish, ReportBar, ProfileMenu, PublishedPage, exportExcel, ClientFolder, Safety, Update, Brands, Projects, Diagnostics, Feedback, Quit, pageErrors: installPageErrors, AskSettings, People, ask: { on: () => askOn.value, set: setAsk, load: loadAsk }, MilestoneMore: Movement, MilestonesPage, MsAdd, MilestoneEdit, MilestoneTitle, MsEye, MsAddBack, MsLayers, ArchivedMilestones, UseCasesPage, ucEdit: UCEDIT, Board, RowMenu, HelpLayer, SearchButton, AskButton, HelpPeek, AddDialog, addItem, Palette, templateEdit, AskPanel, modeKeys: { install: installModeKeys }, askPanel: { open: openPanel, close: closePanel, isOpen: () => panelOpen.value, installKeys: installAskKeys }, help: { open: openHelp, close: closeHelp, isOpen: () => helpOpen.value, installKeys, pictureUrl }, Bulk: { Actions: BulkActions, Layer: BulkLayer, install: installBulk }, HandOver: HAND_OVER, ganttHost: createStoreHost };

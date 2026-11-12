@@ -506,7 +506,7 @@ class Settings(Rig):
     """Settings > Logs and diagnostics in the real page, at 1400 and 900 px, in the light and the dark colour scheme."""
 
     def show(self, cdp, width, scheme):
-        sid = navigate(cdp, self.httpd.server_port, "#settings&p=ABC&s=logs")
+        sid = navigate(cdp, self.httpd.server_port, "#settings&p=ABC")
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, sid)
         self.sid, self.cdp = sid, cdp

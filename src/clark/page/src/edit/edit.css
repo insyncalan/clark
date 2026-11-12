@@ -813,15 +813,11 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .projects .proj-head h2 { margin: 0; }
 .projects .proj-head .btn[aria-pressed="true"] { background: var(--brand-blue-tint); color: var(--status-blue-text); border-color: var(--brand-blue); }
 .projects table.proj-table { table-layout: auto; }
-/* item 1024: a name breaks between words, never inside one (the table rule's anywhere would let the column shrink to a letter), and the Open now pill stays on one line */
-.projects table.proj-table td { overflow-wrap: break-word; }
-.projects table.proj-table td:first-child { min-width: 9em; }
-.projects table.proj-table .tag { white-space: nowrap; }
 .projects table.proj-table td.acts { text-align: right; white-space: nowrap; }
-.projects table.proj-table td.acts .btn + .btn, .projects table.proj-table td.acts .dd { margin-left: 8px; }
+.projects table.proj-table td.acts .btn + .btn { margin-left: 8px; }
 /* item 842: with the Settings links down the left at exactly 900 px the cards are 596 px wide and the table (Open, Edit, Archive in one line) is 619 px: below 960 px the buttons may wrap onto a second line instead of making the page scroll sideways. */
-@media (max-width: 960px) { .projects table.proj-table td.acts { white-space: normal; } .projects table.proj-table td.acts > .btn { margin: 2px 0 2px 8px; } .projects table.proj-table td.acts .dd .btn { margin: 0; } }
-@media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } .projects table.proj-table td.acts .dd:first-child { margin-left: 0; } }
+@media (max-width: 960px) { .projects table.proj-table td.acts { white-space: normal; } .projects table.proj-table td.acts .btn { margin: 2px 0 2px 8px; } }
+@media (max-width: 640px) { .projects table.proj-table td.acts { grid-column: 1 / -1; text-align: left; white-space: normal; } }
 .projects table.proj-table tr.arch td { color: var(--text-muted); }
 .projects table.proj-table .btn:disabled { opacity: .55; cursor: default; }
 /* Settings › Data and Projects, item 444: the project form and Import workbook. Tokens only; no text under 13 px.

@@ -47,7 +47,7 @@ class PeopleCard(unittest.TestCase):
         self.s.httpd.people_list = changes.make_people_list(self.db, [], who)
 
     def show(self, cdp):
-        sid = navigate(cdp, self.s.port, "#settings&p=ABC&s=people")
+        sid = navigate(cdp, self.s.port, "#settings&p=ABC")
         self.sid = sid
         js = lambda e: cdp.js(e, sid)          # noqa: E731
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ppTable')"), 20), "the People card is in Settings, with its table")

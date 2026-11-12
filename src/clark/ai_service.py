@@ -5,7 +5,7 @@ ONE RUN PATH. This does not start a model of its own. It borrows the ask service
 one the Claude command module fills), the same switch and the same Stop. So a suggestion and a question share one run at a time:
 the provider's own lock refuses a second run, and this service looks at it first so the person gets a plain line, not a fault.
 
-THE SWITCH. There is one switch for Claude on this computer, the one in Settings, under Claude and AI. AI suggestions are off while it is off.
+THE SWITCH. There is one switch for Claude on this computer, the one in Settings under Asking. AI suggestions are off while it is off.
 
 ONE-SHOT AND STATELESS. A request is {option, place, text, instruction} and, optionally, a project code (#587: only used to read the project's names for the client check). It is checked and turned into the prompt by ai_menu
 (build_prompt: hidden characters, size, the option and place), sent through the provider with no tools, and the reply is checked by

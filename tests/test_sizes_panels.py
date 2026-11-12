@@ -1,4 +1,4 @@
-"""Targets of 24 px in the places test_sizes does not open: a Work item's peek, a milestone's peek, the Help peek, every Help tab and every Settings page.
+"""Targets of 24 px in the places test_sizes does not open: a Work item's peek, a milestone's peek, the Help peek, every Help tab and Settings.
 
 Run: python3 dev/run_tests.py test_sizes_panels
 Same audit as test_sizes (text of 12 px, hit boxes of 24 by 24 CSS px, empty allow-list), at 1400 and 900 px only.
@@ -14,7 +14,7 @@ from test_page import navigate
 from test_server import Running, chrome, wait
 from test_sizes import AUDIT, ALLOWED, DATA, ONE
 
-PAGES = ["projects", "people", "profile", "feedback", "folder", "brand", "appearance", "reports", "backups", "export", "claude-ai", "logs", "version"]
+PAGES = [""]      # Settings is one page of cards
 
 
 class SizesPanels(unittest.TestCase):
@@ -53,9 +53,9 @@ class SizesPanels(unittest.TestCase):
                     audit(f"{w}px Help tab {i}")
                 cdp.js("window.clarkPage.help.close()", sid)
                 for pg in PAGES:
-                    cdp.js(f"location.hash = '#settings&p=ABC&s={pg}'", sid)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.set-head')", sid)), f"Settings {pg} drew")
-                    audit(f"{w}px Settings {pg}")
+                    cdp.js(f"location.hash = '#settings&p=ABC'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.set-head')", sid)), f"Settings drew")
+                    audit(f"{w}px Settings")
         self.assertEqual(found, [], "every offender, by width and place:\n" + "\n".join(found))
 
 

@@ -4,7 +4,7 @@
 // Also a Word document (#48) is unticked every time as well: when it is ticked, the Word report is saved by the one Word path (wordApi.js exportWord,
 // the same as Export to Word) once the web page is published, in the folder last used for the project, and in the client folder too when To client is ticked.
 import { signal } from "@preact/signals";
-import { data, project, openSettings } from "../stores/report.js";
+import { data, project, show } from "../stores/report.js";
 import { publishRequest, latestRequest, words } from "./publishApi.js";
 import { exportWord } from "./wordApi.js";
 import { openInNewTab } from "../router.js";
@@ -12,9 +12,9 @@ import { printUrl } from "../logic/printView.js";
 import { say } from "./menuNote.js";
 import { placeholderItems, placeholderWarning } from "../logic/placeholders.js";
 
-// With no client folder, To client says where to set one; the second part is a link to the Folder page (the prototype's
-// "Set it in Settings, Folder", io.js).
-export const NO_FOLDER_LEAD = "No client folder yet. Set it in ", NO_FOLDER_LINK = "Settings, Folder";
+// With no client folder, To client says where to set one; the second part is a link to the Publishing card (the prototype's
+// "Set it in Settings, Publishing", io.js).
+export const NO_FOLDER_LEAD = "No client folder yet. Set it in ", NO_FOLDER_LINK = "Settings, Publishing";
 export const NO_FOLDER = NO_FOLDER_LEAD + NO_FOLDER_LINK + ".";
 export const dialog = signal(null);      // null (closed) or the state below
 export const latest = signal(null);      // {at: YYYY-MM-DD, to_client} for the report bar, or null
@@ -71,17 +71,19 @@ export function close() {
   if (back) back.focus();
 }
 
-// The link in To client: the box closes, Settings opens on the Folder page and its heading is scrolled into view and takes the focus.
+// The link in To client: the box closes, Settings opens and the Publishing card is scrolled into view and takes the focus.
 export function toPublishingCard() {
   const el = document.getElementById("publish-dialog");
   if (el && el.open) el.close();
   dialog.value = null;
-  openSettings("folder");
+  show("settings");
   let tries = 10;
   const find = () => {
     const card = document.getElementById("publishing");
     if (!card) { if (--tries > 0) setTimeout(find, 40); return; }
+    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     card.setAttribute("tabindex", "-1");
+    card.scrollIntoView({ block: "start", behavior: calm ? "auto" : "smooth" });
     card.focus({ preventScroll: true });
   };
   setTimeout(find, 40);                                                    // after the box's own focus-back and Settings' first draw

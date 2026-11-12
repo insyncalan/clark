@@ -2,7 +2,7 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { project, openSettings, show, token, view } from "../stores/report.js";
+import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
@@ -153,12 +153,12 @@ export function AskPanel() {
     const d = e.key === "ArrowLeft" ? 24 : e.key === "ArrowRight" ? -24 : 0;
     if (d) { e.preventDefault(); setWidth(panelWidth.value + d, true); }
   }
-  // To Settings, the Claude and AI page and its Asking part: scrolled into view and focused, so the link lands on the switch, not at the top.
+  // To Settings and the Asking card there: scrolled into view and focused, so the link lands on the switch, not at the top.
   function toSettings(e) {
-    e.preventDefault(); closePanel(); openSettings("claude-ai");
+    e.preventDefault(); closePanel(); show("settings");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
-      if (c) { const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
       else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
     };
     focusCard(0);
@@ -178,10 +178,10 @@ export function AskPanel() {
         {busy ? W.WORKING : state === "checking" ? W.CHECKING_LINE : state === "unknown" ? null : state === "off" ? W.READY_LINE : state === "signed-out" ? null : model ? W.MODEL_LINE(model) : W.READY_LINE}
       </p>
       {state === "off" ? (
-        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings&s=claude-ai" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
+        <p class="ask-off" id="ask-off">{W.OFF_LINE} <a href="#settings" data-ask-settings onClick={toSettings}>{W.OFF_LINK}</a></p>
       ) : null}
       {state === "signed-out" ? (
-        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings&s=claude-ai" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
+        <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
       <div class="ask-log" id="ask-log" role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {list.map((t, i) => (

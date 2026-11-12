@@ -23,7 +23,7 @@ import _testpage as testpage
 from clark import page, to_client
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-NO_FOLDER = "No client folder yet. Set it in Settings, Folder."
+NO_FOLDER = "No client folder yet. Set it in Settings, Publishing."
 DONE_NEW = to_client.MESSAGES["done_new"].format(name=WANTED).replace("Published.", "Published (Publication 1).", 1)       # #120
 WIDTHS = (1400, 900)
 
@@ -506,8 +506,8 @@ class NoFolder(Base):
             p.until("document.activeElement.hasAttribute('data-go')", "focus starts on the button when To client cannot be ticked")
 
 
-    def test_C_set_it_in_settings_publishing_is_a_link_to_the_folder_page(self):
-        """D-14 (prototype io.js #pubToSet): the words "Settings, Folder" are a link; it closes the box, opens Settings, and the
+    def test_C_set_it_in_settings_publishing_is_a_link_to_the_publishing_card(self):
+        """D-14 (prototype io.js #pubToSet): the words "Settings, Publishing" are a link; it closes the box, opens Settings, and the
         Publishing card is in view and has the focus. Both widths."""
         with chrome() as cdp:
             p = self.page(cdp)
@@ -516,7 +516,7 @@ class NoFolder(Base):
                 p.js("document.querySelector('[data-view=dashboard]').click()")
                 p.open_publish()
                 self.assertEqual(p.js("(function(){var b=document.querySelector('#pub-client + span small button');return b&&[b.tagName,b.textContent,b.type,b.getBoundingClientRect().height>=24]})()"),
-                                 ["BUTTON", "Settings, Folder", "button", True], f"{w}: a link of its own, at least 24 px to point at")
+                                 ["BUTTON", "Settings, Publishing", "button", True], f"{w}: a link of its own, at least 24 px to point at")
                 self.assertEqual(p.js("document.querySelector('#pub-client + span small').textContent"), NO_FOLDER, "the sentence reads whole")
                 self.assertEqual(p.js("document.querySelector('#pub-client').checked"), False, "pressing the link does not tick the box")
                 p.js("document.querySelector('#pub-to-set').click()")
@@ -533,7 +533,7 @@ class Settings(Base):
     def test_C_publishing_card_has_local_and_client(self):
         """A-S9: one Publishing card with a Local folder part (words only: no typed path) and the client folder part."""
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB&s=folder")
+            p = self.page(cdp, "#settings&p=PUB")
             p.until("!!document.querySelector('#publishing')", "the card")
             self.assertEqual(p.js("document.querySelector('#publishing h2').innerText"), "Publishing")
             self.assertEqual(p.js("document.querySelector('#publishing #local-folder h3').innerText"), "Local folder")
@@ -546,7 +546,7 @@ class Settings(Base):
     def test_C_settings_folder_field(self):
         self.rig.pick = self.rig.client
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB&s=folder")
+            p = self.page(cdp, "#settings&p=PUB")
             p.until("!!document.querySelector('[data-choose-folder]')", "the field")
             self.assertIn("No client folder yet.", p.js("document.querySelector('#client-folder-now').innerText"))
             self.assertIn("a folder OneDrive syncs", p.js("document.querySelector('#client-folder').innerText"))
@@ -580,7 +580,7 @@ class Settings(Base):
         mine.mkdir()
         self.rig.pick = mine
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB&s=folder")
+            p = self.page(cdp, "#settings&p=PUB")
             p.until("!!document.querySelector('[data-choose-local]')", "the Local folder's button")
             self.assertEqual(p.js("document.querySelector('#local-folder-now').innerText.trim()"), "No local folder yet.")
             p.js("document.querySelector('[data-choose-local]').click()")
@@ -599,7 +599,7 @@ class Settings(Base):
 
     def test_C_settings_fits_at_900(self):
         with chrome() as cdp:
-            p = self.page(cdp, "#settings&p=PUB&s=folder")
+            p = self.page(cdp, "#settings&p=PUB")
             p.width(900, 700)
             p.until("!!document.querySelector('[data-choose-folder]')", "the field")
             self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"))
@@ -698,12 +698,10 @@ class Published(unittest.TestCase):
         src = "".join(f.read_text(encoding="utf-8") for f in PAGE_SRC.rglob("edit/*") if f.is_file())
         for key in ("button_local", "button_client", "client_sees"):
             self.assertIn(to_client.MESSAGES[key], src, key)
-        # the Help line about To client names the same link words the box shows
-        self.assertIn("a link, Settings, Folder, takes you", (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8"))
-        # not_saved: the spec's sentence, with its last words now the link "Settings, Folder" (the prototype's wording, D-14)
+        # not_saved: the spec's sentence, with its last words now the link "Settings, Publishing" (the prototype's wording, D-14)
         self.assertEqual(to_client.MESSAGES["not_saved"], "No client folder yet. Set it in Settings.")
         self.assertIn("No client folder yet. Set it in ", src)
-        self.assertIn('NO_FOLDER_LINK = "Settings, Folder"', src)
+        self.assertIn('NO_FOLDER_LINK = "Settings, Publishing"', src)
         for label in to_client.MESSAGES["clash_choices"][:3]:
             self.assertIn(label, src)
         self.assertNotRegex(src, r"report editor|(?<!X-)Clark\b")

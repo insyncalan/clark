@@ -79,7 +79,7 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertIn("on from the first start", ref)
         self.assertIn("**Turn off asking**", ref)
         settings = (PAGE / "edit" / "AskSettings.jsx").read_text(encoding="utf-8")
-        for name in ("Turn off asking", "Folders asking may read", ">Claude and AI<"):
+        for name in ("Turn off asking", "Folders asking may read", ">Asking<"):
             self.assertIn(name, settings)
 
     def test_ask_clark_changes_work_items_and_milestones_not_use_cases(self):

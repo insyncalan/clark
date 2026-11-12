@@ -1,6 +1,6 @@
 // Settings: AI (#54, #446). A tile each for Claude and ChatGPT with Connect or Disconnect, and the model asking
 // uses. clark holds no key or password: Disconnect only stops clark using the person's own sign-in.  Below them, AI suggestions (#72): one status line for the Edit parts' Settings, in the server's own words (GET /api/ai/status): on,
-// off, not signed in, or busy. There is one switch for Claude on this computer, the one in the Asking part of the Claude and AI card; this line only says what it
+// off, not signed in, or busy. There is one switch for Claude on this computer, the one under Asking; this line only says what it
 // means for suggestions. Until the server has answered, or when it cannot, the line says so and AI reads as off.
 import { useEffect, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
@@ -99,11 +99,11 @@ export function AiSettings() {
     return () => { live = false; };
   }, []);
   return (
-    <div class="ai-part" id="ai-settings">
-      <h3>AI</h3>
+    <section class="frame setting" id="ai-settings">
+      <h2>AI</h2>
       <ConnectCard />
       <p class="muted">Suggestions for the text you select in the report. Nothing changes until you accept one.</p>
       <p id="ai-state" data-state={shown.state}>{shown.line}</p>
-    </div>
+    </section>
   );
 }

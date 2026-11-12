@@ -9,7 +9,6 @@ import json
 import tempfile
 import unittest
 
-from _mouse import click_centre, menu_item_js
 from clark import page
 from test_server import Running, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
@@ -58,29 +57,14 @@ class Browser(unittest.TestCase):
         cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{port}/{hash_}"}, sid)
         return sid
 
-    def gather(self, cdp, sid):
-        """item 1024: Settings shows one page at a time, so what the old one long page showed at once is read by choosing each menu entry in turn.
-        Returns (entries, headings, text, ids): the menu's names, every h2 and h3, all the page text, and every id seen on the pages."""
-        entries = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-menu .set-item')].map(b => b.textContent))", sid))
-        heads, text, ids = [], "", set()
-        for name in entries:
-            click_centre(cdp, sid, menu_item_js(json.dumps(name)), "the %s entry" % name)      # a real mouse, as a person clicks
-            self.until(cdp, sid, "(document.querySelector('.set-menu [aria-current]') || {}).textContent === %s" % json.dumps(name), name + " is shown")
-            heads += json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
-            text += cdp.js("document.querySelector('.set-cards').innerText", sid) + "\n"
-            ids |= set(json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-cards [id]')].map(e => e.id))", sid)))
-        return entries, heads, text, ids
-
     def test_settings_opens_with_no_project_and_has_add_project_and_import_workbook(self):
         s = self.serve()
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card (plain Settings opens Projects)")
+                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the Projects and Data cards")
                     self.assertEqual(cdp.js("document.querySelector('#npBtn').getAttribute('aria-label')", sid), "Add project")
-                    cdp.js("location.hash = '#settings&s=export'", sid)      # item 1024: the Data card is on the Export and import page
-                    self.until(cdp, sid, "document.querySelector('#import-workbook')", "the Data card")
                     self.assertEqual(cdp.js("document.querySelector('#import-workbook').textContent.trim()", sid), "Import workbook")
                     self.assertEqual(cdp.js("document.querySelector('h1').textContent", sid), "Settings")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "row 826: no View | Edit on Settings")
@@ -91,41 +75,24 @@ class Browser(unittest.TestCase):
                     cdp.js("document.querySelector('#profile-btn').click()", sid)
                     self.until(cdp, sid, "!!document.querySelector('#profile-menu')", "the profile menu")
                     cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)      # row 976: Settings is no tab; the circle's menu opens it
-                    # with no name given, the circle's top line is the "Add your name in Settings" link: it opens the Profile page (item 787, item 1024), not Projects
-                    self.until(cdp, sid, "document.querySelector('#profile-h') && document.querySelector('.set-menu [aria-current]').textContent === 'Profile'", "Settings again from the circle (the Profile page)")
-                    click_centre(cdp, sid, menu_item_js("'Projects'"), "the Projects entry")
-                    self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card again")
-
-    def test_a_page_that_needs_a_project_opens_projects_by_rewriting_the_address(self):
-        """item 1024: a Folder address with no project open falls back to Projects (settingsFallback), the entry rewritten, none added."""
-        s = self.serve()
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.visit(cdp, s.port, width, "light", "#settings&s=folder")
-                self.until(cdp, sid, "document.querySelector('#npBtn')", "the Projects card (the Folder page is not here)")
-                self.until(cdp, sid, "!location.hash.includes('s=folder')", "the address rewritten")
-                self.assertEqual(cdp.js("document.querySelector('.set-menu [aria-current]').textContent", sid), "Projects")
-                self.assertEqual(cdp.js("document.querySelector('#client-folder-h')", sid), None)
-                self.assertEqual(cdp.js("location.hash", sid), "#settings")
-                self.assertEqual(cdp.js("history.length", sid), 2, "about:blank and this one: replaced, not added")
+                    self.until(cdp, sid, "document.querySelector('#npBtn')", "Settings again from its tab")
 
     def test_item_682_only_the_cards_that_work_show_and_import_says_why(self):
         s = self.serve()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, s.port, width, "light", "#settings")
-                self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('.set-menu .set-item')", "the Projects card and the menu")
-                entries, heads, text, ids = self.gather(cdp, sid)
-                for gone in ("client-folder-h", "review-days-h", "gantt-setting-h", "pubs-h"):
-                    self.assertNotIn(gone, ids, gone)
+                self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook')", "the cards")
+                for gone in ("client-folder-h", "review-days-h", "gantt-setting-h"):
+                    self.assertFalse(cdp.js(f"!!document.getElementById('{gone}')", sid), gone)
+                text = cdp.js("document.querySelector('main').innerText", sid)
                 for word in ("Publishing", "Choose folder", "Published reports", "Freshness"):
                     self.assertNotIn(word, text)
-                for gone in ("Folder", "Published reports", "Reports"):
-                    self.assertNotIn(gone, entries, "no entry for a page that needs a project")
+                chips = cdp.js("[...document.querySelectorAll('.set-chip')].map(c => c.textContent).join('|')", sid)
+                self.assertNotIn("Publishing", chips)
+                self.assertNotIn("Freshness", chips)
                 for kept in ("personal-h", "data-card-h", "safety-h", "diagnostics-h"):
-                    self.assertIn(kept, ids, kept)
-                cdp.js("location.hash = '#settings&s=export'", sid)
-                self.until(cdp, sid, "document.querySelector('#import-workbook')", "the Data card")
+                    self.assertTrue(cdp.js(f"!!document.getElementById('{kept}')", sid), kept)
                 self.assertTrue(cdp.js("document.querySelector('#import-workbook').disabled", sid))
                 self.assertEqual(cdp.js("document.getElementById('import-why').textContent", sid), "Add a project first.")  # logic/dataCard.js IMPORT_NEEDS_PROJECT
                 self.assertEqual(cdp.js("document.querySelector('#import-workbook').getAttribute('aria-describedby')", sid), "import-why")
@@ -159,17 +126,16 @@ class Browser(unittest.TestCase):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
                     sid = self.visit(cdp, s.port, width, scheme, "#settings")
-                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('.set-menu .set-item')", "the Projects card and the menu")
-                    chips, heads, _, _ = self.gather(cdp, sid)      # item 1024: every page read in turn; the entries are what the chips were
-                    cdp.js("location.hash = '#settings&s=export'", sid)
-                    self.until(cdp, sid, "document.querySelector('#import-workbook') && document.querySelector('#import-why')", "the Data card")
+                    self.until(cdp, sid, "document.querySelector('#npBtn') && document.querySelector('#import-workbook') && document.querySelector('#import-why')", "the cards")
+                    heads = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('main h2, main h3')].map(h => h.textContent.trim()))", sid))
                     for card, head in self.WORKING.items():
                         self.assertTrue(head in heads, f"{card} card missing from {heads}")
                     for gone in ("Publishing", "Published reports", "Freshness"):
                         self.assertFalse(any(gone in h for h in heads), f"{gone} card still shown: {heads}")
-                    self.assertTrue(chips, "the menu shows")
+                    chips = json.loads(cdp.js("JSON.stringify([...document.querySelectorAll('.set-chip')].map(c => c.textContent.trim()))", sid))
+                    self.assertTrue(chips, "the section chips show")
                     for gone in ("Publishing", "Published reports", "Freshness"):
-                        self.assertFalse(any(gone in c for c in chips), f"{gone} entry still shown: {chips}")
+                        self.assertFalse(any(gone in c for c in chips), f"{gone} chip still shown: {chips}")
                     probe = json.loads(cdp.js(self.PROBE, sid))
                     for which in ("import", "export"):
                         why = probe[which + "-why"]

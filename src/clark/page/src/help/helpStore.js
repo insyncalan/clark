@@ -2,7 +2,7 @@
 // reached through edit/index.js and never from the shared components. Help is a layer over the open page: it keeps the address,
 // the project and the open view, so Esc puts you back exactly where you were. Plain JS, no JSX.
 import { signal, effect } from "@preact/signals";
-import { view, project, show, openSettings, mode, peek, closePeek } from "../stores/report.js";
+import { view, project, show, mode, peek, closePeek } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { screenOf, shapeContext } from "./peekLogic.js";
 import { contextText, articlesFor, placeOf, TABS, firstPlace } from "./helpLogic.js";
@@ -109,15 +109,13 @@ function arrive(p) {
   setTimeout(() => { helpTarget.value = p.target; helpLand.value++; }, 0);     // set again so a second click on the same link flashes again
 }
 
-const SETTINGS_ANCHOR = { profile: "profile", update: "version", people: "people", folder: "folder", export: "export", feedback: "feedback" };      // "go:settings#update" opens that Settings page (item 1024)
-
 /** A link to a screen: Help closes, the screen opens. A settings anchor opens Settings. */
 export function goTo(to) {
-  const [v, anchor] = String(to).split("#");
+  const v = String(to).split("#")[0];
   if (!canGo(to)) return false;
   opener = null;                                     // going to another screen: focus does not return to the page left
   leave();
-  if (v === "dashboard+edit") { show("dashboard"); mode.value = "edit"; } else if (v === "settings" && SETTINGS_ANCHOR[anchor]) openSettings(SETTINGS_ANCHOR[anchor]); else show(v);
+  if (v === "dashboard+edit") { show("dashboard"); mode.value = "edit"; } else show(v);
   return true;
 }
 

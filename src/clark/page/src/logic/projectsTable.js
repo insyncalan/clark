@@ -27,5 +27,3 @@ export function rowOf(p, data, archived) {
 export const archivedWords = (name) => `${name} archived. To bring it back, choose Show archived, then Restore.`;
 export const restoredWords = (name) => `${name} restored.`;
 export const countLabel = (n) => (n ? `${LABELS.show} (${n})` : LABELS.show);
-
-export const moreFor = (name) => `More for ${name}`;

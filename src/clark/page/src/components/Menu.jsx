@@ -1,7 +1,7 @@
 // A button that opens a menu of commands (creaite v2.6.9 `system/templates/dashboard/src/components/Menu.jsx`, cut down: the
 // button, the role="menu" box and the keys. The hover opening, the pointer-placed menu and the menu group are left out).
 // Keyboard and names: the button has aria-haspopup="menu" and aria-expanded; Down opens it. Inside, Up, Down, Home and End move,
-// Enter or Space runs an item, Esc closes it with focus back on the button, Tab closes it and goes on from the button, a click away closes it.
+// Enter or Space runs an item, Esc closes it with focus back on the button, Tab or a click away closes it.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { moves } from "../stores/report.js";
@@ -128,7 +128,7 @@ function entry(it, close, onPick) {
 
 // items: [{id, name, line?, checked?, pill?}] (`checked` true or false makes it a radio item, marked when it is the one in use; `word` "g", "a" or "r" draws the name as a status word with its coloured dot (the use case rows' own look), `pill` "g", "a" or "r" draws the name as a filled status pill, with a check mark shape after it when in use), or {id, sep: true} for a separator, or {id, lab} for a line of words that is not a command, or {id, head: {name, line, title}} for the top line (a name and, under it, a quiet line), or a command with `link` true, drawn as a link. `onPick(id)` runs after the menu has closed. With no items the button is a plain button and a click
 // is `onClick()` (so a button that sometimes has a menu keeps the same element when it has none).
-export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked, attrs }) {
+export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, ariaDescription, id, btnCls, labelCls, menuId, menuLabel, left, fixed, chevron = true, onOpen, focusChecked }) {
   const [open, setOpen] = useMenuState();
   const [, redraw] = useState(0);
   const btn = useRef(null);
@@ -143,7 +143,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
   const leaving = phase.current === "leaving";
   const gone = () => { if (phase.current === "leaving") { phase.current = "closed"; redraw((n) => n + 1); } };
   useEffect(() => { if (!leaving) return undefined; const t = setTimeout(gone, 400); return () => clearTimeout(t); }, [leaving]);
-  const close = (how) => { back.current = how === "esc" || how === "pick"; if ((how === "esc" || how === "tab") && btn.current) btn.current.focus({ preventScroll: true }); setOpen(false); };   // Esc hands focus back at once: the fading menu must not hold it for a frame
+  const close = (how) => { back.current = how === "esc" || how === "pick"; if (how === "esc" && btn.current) btn.current.focus({ preventScroll: true }); setOpen(false); };   // Esc hands focus back at once: the fading menu must not hold it for a frame
   // Focus goes back to the button only if nothing took it: an item that opens a dialog has put focus there, and the menu must not steal it.
   useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current || (at.closest && at.closest(".ddmenu.leaving") && btn.current.parentNode.contains(at)))) btn.current.focus(); } }, [open]);
   const opens = () => { setOpen(true); if (onOpen) onOpen(); };   // `onOpen` runs each time the menu is opened, by a click or by Down
@@ -151,7 +151,7 @@ export function Menu({ label, items, onPick, onClick, icon, tip, ariaLabel, aria
   return (
     <span class="dd">
       <button type="button" class={btnCls || "btn"} id={id} ref={btn} aria-haspopup={menu ? "menu" : undefined} aria-expanded={menu ? (open ? "true" : "false") : undefined}
-        aria-label={ariaLabel} aria-description={ariaDescription} title={tip} data-tip={tip} {...attrs} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
+        aria-label={ariaLabel} aria-description={ariaDescription} title={tip} data-tip={tip} onKeyDown={onBtnKey} onClick={(e) => { e.preventDefault(); if (menu) { if (open) setOpen(false); else opens(); } else if (onClick) onClick(); }}>
         {icon ? <Icon name={icon} /> : null}<span class={labelCls}>{label}</span>{chevron ? <Icon name="chevdown" cls="nch" /> : null}
       </button>
       {(open || leaving) && menu ? (

@@ -152,36 +152,6 @@ class AboutYou(Base):
             p.until("!!document.querySelector('#about-name')", "Settings › Profile drew")
             p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
 
-    def test_C_the_link_when_already_on_profile_puts_the_cursor_in_the_name_box_and_leaves_no_stale_wish(self):
-        with chrome() as cdp:
-            p = self.page(cdp)
-            self.open_settings(p)
-            p.js("document.activeElement.blur()")
-            self.open_menu(p)
-            p.js("document.querySelector('#profile-menu .who-link').click()")      # already on s=profile: no new address, so no new draw from the address
-            p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
-            p.js("document.activeElement.blur(); location.hash = '#dashboard&p=PUB'")
-            p.until("!document.querySelector('#about-name')", "left Settings")
-            p.js("location.hash = '#settings&p=PUB&s=profile'")
-            p.until("!!document.querySelector('#about-name')", "Profile drew again")
-            p.settled("Profile finished drawing")
-            self.assertNotEqual(p.js("document.activeElement && document.activeElement.id"), "about-name", "the wish was spent, not kept")
-
-    def test_C_a_wish_made_while_no_box_draws_is_spent_on_leaving_Settings(self):
-        """"Add your name" can be asked for while the box is not drawn (here: the test hook asks on Backups). Leaving Settings spends the wish, so a
-        later visit to Profile does not put the cursor in the name box."""
-        with chrome() as cdp:
-            p = self.page(cdp)
-            p.js("location.hash = '#settings&p=PUB&s=backups'")
-            p.until("!!document.getElementById('safety-h') && !document.querySelector('#about-name')", "Backups drew, with no name box")
-            p.js("window.clarkPage.wantName(true)")
-            p.js("location.hash = '#dashboard&p=PUB'")
-            p.until("!document.getElementById('safety-h')", "left Settings")
-            p.js("location.hash = '#settings&p=PUB&s=profile'")
-            p.until("!!document.querySelector('#about-name')", "Profile drew")
-            p.settled("Profile finished drawing")
-            self.assertNotEqual(p.js("document.activeElement && document.activeElement.id"), "about-name", "the wish was spent on leaving, not kept")
-
     def test_C_long_values_are_cut_on_one_line_each_and_never_widen_the_menu(self):
         name, email = "N" * 60, ("e" * 48) + "@example.test"
         self.assertEqual((len(name), len(email)), (60, 61))
@@ -438,8 +408,7 @@ class AboutYou(Base):
             self.type_into(p, "name", "Sam Lee")
             self.handled(p, "Sam Lee")
             reload_to_new_page(p.js, "!!document.querySelector('#profile-btn')", "the page again")
-            p.js("location.hash = '#settings&p=PUB&s=profile'")      # with a name given the circle's Settings entry opens Projects (item 1024), so the Profile page is asked for by its address
-            p.until("!!document.querySelector('#about-name')", "About you drew")
+            self.open_settings(p)
             p.until("document.querySelector('#about-name').value === 'Sam Lee'", "the box follows what clark holds")
             self.type_into(p, "name", "Sam Lee")                      # the stored words, saved again
             self.handled(p, "Sam Lee")

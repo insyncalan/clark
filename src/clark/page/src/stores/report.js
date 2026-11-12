@@ -54,8 +54,6 @@ export const project = signal(start.project);
 export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
-export const settingsPage = signal(start.view === "settings" ? start.s || "" : "");   // item 1024: the Settings page shown, an address key from router.SETTINGS_PAGES, or "" for Projects
-export const wantName = signal(false);                  // "Add your name in Settings": the name box takes the focus when Settings has drawn (here, not in the profile store, so the published page does not pull in the api)
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
@@ -113,39 +111,22 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-// Each Settings page keeps its own place (item 1024): the scroll is noted as it moves, set aside under the page's key when the page
-// is left, and given back when it is shown again by Back, Forward or its menu entry. A page not seen yet starts at the top.
-const scrolls = new Map();
-let seenY = 0;
-export const restoreY = signal(0);                   // where the page now shown should be scrolled to; Settings reads it once it has drawn
-const scrollKey = () => project.value + "|" + settingsPage.value;
-if (typeof addEventListener === "function") addEventListener("scroll", () => { if (view.value === "settings") seenY = window.scrollY; }, { passive: true });
-
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, s: settingsPage.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
-let moved = false;                                   // a move inside the page (a click, Back, Forward) has happened since a Settings page last took it
-/** True once, after an in-app move: Settings uses it to tell a first draw that is an arrival from a first draw that is a reload. */
-export function takeArrival() { const m = moved; moved = false; return m; }
-function apply(s, history = false) {
-  moved = true;
+function apply(s) {
   if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
   if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: s.view === "usecases" ? s.uc : "" };   // row 1111: a file keeps the use case address on its Use cases tab, no other
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
-  const wasSettings = view.value === "settings";
-  if (wasSettings) scrolls.set(scrollKey(), seenY);          // item 1024: the page being left keeps its place, taken before anything changes
   batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
     view.value = s.view;
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
-    settingsPage.value = s.view === "settings" ? s.s || "" : "";
     filterText.value = s.f;
   });
-  restoreY.value = s.view === "settings" && (wasSettings || history) ? scrolls.get(scrollKey()) || 0 : 0;
-  seenY = restoreY.value;                            // the place noted is the one the page is about to be at, so an arrival with no scroll event keeps no old page's place
   if (s.project !== project.value) {
     project.value = s.project;
     data.value = null;
@@ -197,23 +178,11 @@ function leave() {
 
 let backingAt = -Infinity;                               // when a Back from closePeek was started: a second close before it lands must not step Back again; after 1.5 s it counts as lost (row 894; no timer on the open path, see test_peek OpenTime)
 const backing = () => performance.now() - backingAt < 1500;
-route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); apply(s, true); });
+route.onPop((s) => { if (reloadFor(s)) return; backingAt = -Infinity; leave(); apply(s); });
 
 /** Go to a page: one new entry; an open peek closes, and so do the filters (they belong to one page). */
 export function show(next) {
   go({ view: next, project: project.value, item: "", ms: "", f: "" });
-}
-
-/** Open a Settings page (item 1024): one new entry; the same page again adds none. "" is Projects, the page plain Settings opens. */
-export function openSettings(page = "") {
-  go({ view: "settings", project: project.value, item: "", ms: "", f: "", s: page });
-}
-
-/** A Settings page the window cannot show (its project is not open, its tool is not here) is rewritten as Projects, never added. */
-export function settingsFallback() {
-  if (!settingsPage.value) return;
-  settingsPage.value = "";
-  route.navigate(where(), { replace: true });
 }
 
 /** Open Work items with a filter state already set (an At a glance tile, #79): one new entry, as any change of page is. */
@@ -270,7 +239,7 @@ export function closePeek() {
 /** Switch project: one new entry (and any peek and the filters close), so Back returns to the earlier one. */
 export function setProject(code) {
   if (!route.isProject(code)) return;
-  loadProject({ view: view.value, project: code, item: "", ms: "", f: "", s: settingsPage.value });      // the Settings page goes with the person; a page the other project cannot show falls back to Projects (settingsFallback)
+  loadProject({ view: view.value, project: code, item: "", ms: "", f: "" });
 }
 
 // A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's

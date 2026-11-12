@@ -213,7 +213,7 @@ class Route(unittest.TestCase):
         self.demo.update("projects", "ABC", {"publish_client": None})
         message = self.refused(ref, "no_client_folder", dialog=False)
         self.assertEqual(message, "This project has no client folder yet, so the file has nowhere to go. Choose one in Settings, "
-                                  "under Folder, then add the file again.")
+                                  "under Publishing, then add the file again.")
 
     def test_a_client_folder_that_is_gone_or_clark_s_own_is_refused(self):
         ref = self.section()

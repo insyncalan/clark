@@ -29,7 +29,7 @@ SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the N
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
-    ("#856", 'The project menu starts on the open project (row 1092: New project is in Settings, not the menu).',
+    ("#856", 'The project menu starts on the open project and lists only projects.',
      "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project"),
     ("#855", "In Edit, Ctrl or Cmd + J opens ask clark from anywhere and the button's tooltip names it.",
      "test_help_pr_a::TopBar::test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it"),
@@ -50,7 +50,7 @@ COVERED = [
     ("#806", 'A click on a Work items row or card opens its peek.',
      "test_inline_67::RowClick::test_a_click_on_a_row_opens_its_peek_and_one_in_a_field_or_button_does_not"),
     ("#816", 'Help describes the Settings links as a list at the left.',
-     "test_help_pr_a::SettingsChips::test_the_menu_names_and_order_are_the_pages"),
+     "test_help_pr_a::SettingsChips::test_the_chip_names_and_order_are_the_pages"),
     ("#781", 'Messages are a centred pill at the foot.',
      "test_toast_pill::ToastPill::test_source_has_no_left_edge_and_a_pill_radius"),
     ("#792", 'The Keys group is drawn without a box.',

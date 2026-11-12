@@ -49,7 +49,7 @@ COVERED = [
      "test_report_bar::Bar::test_a_typed_entry_that_is_not_a_day_keeps_the_old_date_and_says_so"),
     ("#439", "A typed day that is not a Friday keeps the old date and names the Friday (\"Week ending is a Friday. Pick Friday DD-MM-YYYY.\").",
      "test_report_bar::Bar::test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday"),
-    ("#439", "The project name in the top bar is always a menu: each project with its open-item count (row 1092: Project settings is in Settings, not the menu).",
+    ("#439", "The project name in the top bar is always a menu: each project with its open-item count, and Project settings.",
      "test_project_switch::ProjectSwitch::test_C_the_menu_lists_only_the_projects_with_open_counts"),
     ("#439", "Choosing a project in the menu switches to it and says so.",
      "test_project_switch::ProjectSwitch::test_C_choosing_a_project_changes_the_address_and_says_so"),

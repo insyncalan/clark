@@ -11,16 +11,15 @@ from test_server import chrome
 
 WIDTHS = (1400, 900)
 
-# (name, Settings page address key, heading id, controls that must be drawn and visible: CSS selectors inside the card)
+# (name, heading id, controls that must be drawn and visible: CSS selectors inside the card)
 CARDS = [
-    ("People", "people", "people-h", ["#ppPasteBtn", "#ppAgain"]),
-    ("Personal", "appearance", "personal-h", ["[data-theme-pick]", ".switch"]),
-    ("Profile", "profile", "profile-h", ["#about-name", "#about-alias", "#about-email"]),
-    ("Projects", "projects", "projects-h", ["#show-archived", "#npBtn"]),
-    ("Published reports", "published", "pubs", ["#as-at-day", "#as-at-show"]),
-    ("Publishing", "folder", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]", "#client-folder-paste"]),
-    ("Quit", "version", "quit-h", ["button.btn"]),
-    ("Update", "version", "update-h", ["button.btn"]),
+    ("People", "people-h", ["#ppPasteBtn", "#ppAgain"]),
+    ("Personal", "personal-h", ["[data-theme-pick]", ".switch"]),
+    ("Profile", "profile-h", ["#about-name", "#about-alias", "#about-email"]),
+    ("Projects", "projects-h", ["#show-archived", "#npBtn"]),
+    ("Publishing", "client-folder-h", ["[data-choose-local]", "[data-choose-folder]", "#client-folder-paste"]),
+    ("Quit", "quit-h", ["button.btn"]),
+    ("Update", "update-h", ["button.btn"]),
 ]
 
 PROBE = """((headId, sels) => {
@@ -53,11 +52,9 @@ class CardsWidths(Base):
         for w in WIDTHS:
             with chrome() as cdp:
                 p = self.page(cdp)
-                for name, page, head, sels in CARDS:
+                self.open_settings(p, w)
+                for name, head, sels in CARDS:
                     with self.subTest(width=w, card=name):
-                        if name == "Published reports":
-                            self.skipTest(name + " opens a page of its own, not a Settings page (row 1087)")
-                        self.open_settings(p, w, page=page)      # one page at a time (item 1024): the card's own page
                         got = p.js(PROBE % (json.dumps(head), json.dumps(sels)))
                         self.assertIsNotNone(got, name + ": the card is on the Settings page")
                         self.assertNotIn("noSection", got, name + ": the heading is inside a section (a card)")

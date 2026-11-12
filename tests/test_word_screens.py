@@ -35,7 +35,7 @@ from clark import page, word_route
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
 SCHEMES = ("light", "dark")
-NO_FOLDER = "No client folder yet. Set it in Settings, Folder."
+NO_FOLDER = "No client folder yet. Set it in Settings, Publishing."
 NAME = "week notes.docx"
 JARGON = r"(?i)\bzip\b|\bxml\b|\bentity\b|\bdtd\b|\brelationship|traceback|exception|errno|\bsql\b|\bjson\b|\bschema\b|fingerprint|base64|\bapi\b|\broute\b"
 NEW_STRINGS = ("Export to Word", "Import from Word", "Also a Word document", "/api/word-export", "/api/word-import", "word-export-dialog",

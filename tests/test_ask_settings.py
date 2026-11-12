@@ -26,7 +26,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on."
+ON = "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."
@@ -105,14 +105,14 @@ class Settings(unittest.TestCase):
         return d
 
     def show_page(self, cdp, fake=False):
-        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude-ai"))
+        sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
         self.sid = sid
         js = lambda e: cdp.js(e, sid)          # noqa: E731
         if fake:
             js(FAKE)
             js("location.hash = '#dashboard&p=ABC'")
             wait(lambda: js("!document.querySelector('#ask-settings')"), 10)
-            js("location.hash = '#settings&p=ABC&s=claude-ai'")
+            js("location.hash = '#settings&p=ABC'")
         self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-settings')"), 20), "the Asking entry is in Settings")
         return js
 
@@ -154,7 +154,7 @@ class Settings(unittest.TestCase):
 
     def test_a_choice_left_in_the_browsers_storage_by_an_earlier_build_is_ignored(self):
         with chrome() as cdp:
-            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC&s=claude-ai"))
+            sid = navigate(cdp, self.s.port, for_project("#settings&p=ABC"))
             js = lambda e: cdp.js(e, sid)          # noqa: E731
             js("localStorage.setItem('clark.askEnabled', 'off')")
             reload_to_new_page(js, seconds=20)
@@ -177,7 +177,7 @@ class Settings(unittest.TestCase):
             js("""window.__pending = []; window.__held = () => window.__pending.splice(0).forEach((f) => f()); const real = window.fetch;
                   window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) { const a = arguments; return new Promise((r) => { window.__pending.push(() => r(real.apply(window, a))); }); }
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC&s=claude-ai'""")
+                  location.hash = '#settings&p=ABC'""")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == CHECKING, 10))
             self.assertEqual(js("document.querySelector('[data-ask-switch]').disabled"), True)
             # Release whatever the page has asked so far on every poll, until the answer is on screen (it asks after it draws the words).
@@ -195,11 +195,11 @@ class Settings(unittest.TestCase):
                   window.answer = (i, on) => window.__q[i](new Response(JSON.stringify({ok: true, ask_enabled: on, saved: true}), {status: 200, headers: {'Content-Type': 'application/json'}}));
                   window.fetch = function (url) { if (String(url).indexOf('/api/ask-enabled') >= 0) return new Promise((r) => { window.__q.push(r); });
                                                   return real.apply(this, arguments); };
-                  location.hash = '#settings&p=ABC&s=claude-ai'""")
+                  location.hash = '#settings&p=ABC'""")
             self.assertTrue(wait(lambda: js("window.__q.length") == 1, 10), "the first ask is out")
             js("location.hash = '#dashboard&p=ABC'")
             self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
-            js("location.hash = '#settings&p=ABC&s=claude-ai'")
+            js("location.hash = '#settings&p=ABC'")
             self.assertTrue(wait(lambda: js("window.__q.length") == 2, 10), "the second ask is out")
             js("window.answer(1, true)")                                  # the newer ask answers first: on
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-state') || {}).innerText") == ON, 10), "the newer answer shows")
@@ -232,7 +232,7 @@ class Settings(unittest.TestCase):
                     self.until(lambda: js("window.__q.length"), first + 1, "the change is out")
                     js("location.hash = '#dashboard&p=ABC'")
                     self.assertTrue(wait(lambda: js("!document.querySelector('#ask-settings')"), 10))
-                    js("location.hash = '#settings&p=ABC&s=claude-ai'")
+                    js("location.hash = '#settings&p=ABC'")
                     self.until(lambda: js("window.__q.length"), first + 2, "the newer read is out")
                     js(f"window.answer({first + 1}, 200, {{ok: true, ask_enabled: true, saved: true}})")      # the newer read answers first: on
                     self.until(lambda: js("(document.querySelector('#ask-state') || {}).innerText"), ON, "the newer answer shows")
@@ -297,9 +297,7 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertFalse(js("!!document.querySelector('#ask-folder-path')"), "no box to type a location into")
             self.assertEqual(js("document.querySelector('[data-ask-choose]').innerText"), "Choose folder")
-            text = js("document.querySelector('#ask-settings').innerText")
-            self.assertIn("go to Claude, which Anthropic runs", text)
-            self.assertEqual(text.count("Anthropic"), 1, "what leaves this computer is said once")
+            self.assertIn("Parts of the files in these folders can be sent to Claude", js("document.querySelector('#ask-settings').innerText"))
             msg = "(document.querySelector('#ask-settings .pub-msg') || {}).innerText"
             js("window.__ask.choices = ['/bad', '/gone', '/Example/Programme files']")
             js("document.querySelector('[data-ask-choose]').click()")
