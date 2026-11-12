@@ -13,6 +13,8 @@ import re
 import unittest
 
 from _paths import ROOT
+import _testpage as testpage
+from clark import page
 from test_report_editor import Base
 from test_ask_panel import Stub
 from test_server import chrome
@@ -235,6 +237,28 @@ class Look(Base):
                     self.assertEqual(float(p.js("getComputedStyle(document.querySelector('#ask-send')).opacity")), 1.0, f"{what}: looks enabled with text")
             p.js("(function(){var b=document.querySelector('#ask-box');b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
             p.until("!!document.querySelector('#ask-pills')", "suggestions back when the box is emptied")
+
+    def test_row_1096_the_ask_button_takes_the_brand_accent_colour_and_not_the_default(self):
+        """The round Ask button is the brand's pill colour (--pill-color), read as the computed style, light and dark; the demo default is a different colour."""
+        brand = "#7a1fa2"            # a fictional purple no default uses
+        brand_rgb = "rgb(122, 31, 162)"
+        paint = lambda p: p.js("(function(){var s=getComputedStyle(document.querySelector('#ask-send'));return [s.backgroundColor,s.backgroundImage];})()")
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            for theme in ("light", "dark"):
+                p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                default = paint(p)
+                self.assertNotEqual(default[0], brand_rgb, f"{theme}: the default is not the brand colour")
+        css = ":root, :root[data-theme='dark'] { --pill-color: %s; --pill-bg: none; }" % brand
+        self.s.httpd.page_html = lambda: page.layer_brand(testpage.html(), css)
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            for theme in ("light", "dark"):
+                with self.subTest(theme=theme):
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    p.until(f"getComputedStyle(document.querySelector('#ask-send')).backgroundColor === '{brand_rgb}'", f"{theme}: the Ask button took the brand colour")
+                    self.assertEqual(paint(p)[0], brand_rgb)
+                    self.assertEqual(paint(p)[1], "none", "no default gradient over the brand colour")
 
     def test_a_suggestion_asks_its_words_and_leaves_the_box_alone(self):
         with chrome() as cdp:

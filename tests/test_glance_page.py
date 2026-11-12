@@ -132,6 +132,28 @@ class Tiles(Setup):
             bg = p.js("getComputedStyle(document.querySelector('[data-fig=overdue]')).backgroundColor")
             self.assertEqual(bg, p.js("getComputedStyle(document.querySelector('[data-fig=risks]')).backgroundColor"), "tiles are neutral, whatever the colour")
 
+    def test_row_1112_the_risks_and_decisions_tiles_open_what_they_count(self):
+        status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
+        self.assertEqual(status, 200)
+        for key in ("risks", "decisions"):
+            with self.subTest(tile=key), chrome() as cdp:
+                p = self.show(cdp)
+                p.until(f"!!document.querySelector('[data-fig={key}]')", f"the {key} tile drew")
+                self.assertEqual(p.js(f"document.querySelector('[data-fig={key}] .v').textContent"), "1")
+                p.js(f"document.querySelector('[data-fig={key}]').click()")
+                p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
+                p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 1", "the list holds the one it counted")
+
+    def test_row_1112_the_tile_figure_is_the_count_left_when_an_item_is_archived(self):
+        with self.store.step("dashboard", USER) as st:
+            st.archive("actions", self.a_secret)
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "2", "one of the three is archived")
+            p.js("document.querySelector('[data-fig=overdue]').click()")
+            p.until("location.hash.startsWith('#work&p=ABC&f=')", "Work items opened")
+            p.until("document.querySelectorAll('#work tbody tr[data-id]').length === 2", "the list holds the two left, the archived one not among them")
+
 
 class Health(Setup):
     def test_a_pick_with_no_reason_asks_for_one_and_saves_both_together_with_one_undo(self):
@@ -517,6 +539,39 @@ class Published(PublishedFile, Setup):
             p.until("location.hash.startsWith('#work')", "the file's Work items opened")
             p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
             self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, "the one overdue action the file holds")
+
+    def test_row_1112_the_published_risks_and_decisions_tiles_open_the_files_work_items_and_a_row_opens_a_read_only_peek(self):
+        status, _ = self.real_change({"project": "ABC", "kind": "glance_tiles", "op": "update", "id": "decisions", "changes": {"hidden": 0}})
+        self.assertEqual(status, 200)
+        path = self.publish()
+        for key in ("risks", "decisions"):
+            with self.subTest(tile=key), chrome() as cdp:
+                p = self.draw(cdp, path, 1400)
+                self.assertEqual(p.js(f"document.querySelector('[data-fig={key}]').tagName"), "BUTTON", "a published tile is a button")
+                self.assertEqual(p.js(f"document.querySelector('[data-fig={key}] .v').textContent"), "1", "the figure is the one item the file holds")
+                p.js(f"document.querySelector('[data-fig={key}]').click()")
+                p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+                self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, f"the one {key} item the file holds")
+                p.js("document.querySelector('#work tbody tr[data-id]').click()")
+                p.until("!!document.querySelector('#peek .pk-fields dt')", "the peek opened")
+                self.assertEqual(p.js("document.querySelectorAll('#peek input, #peek textarea, #peek select, #peek [contenteditable]:not([contenteditable=false])').length"), 0, "a published peek is read-only")
+
+    def test_row_1112_the_published_tile_figure_is_the_count_of_what_the_file_holds_when_one_is_hidden(self):
+        extra = self.demo.action(description="Visible overdue step", owner="Pat Demo", due_date=LONG)
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "2")
+        self.store.con.execute("UPDATE actions SET client_visible = 0 WHERE id = ?", (extra,))
+        self.store.con.commit()
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the hidden one leaves the figure")
+            p.js("document.querySelector('[data-fig=overdue]').click()")
+            p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+            self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, "the list is the figure")
 
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
