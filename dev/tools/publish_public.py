@@ -119,6 +119,9 @@ SECRET_NAMES = re.compile(r"^(\.env(\..*)?|.*\.(pem|key|p12|pfx|keystore)|id_(rs
 # Test fixtures that may look like a secret, by exact path, each with its reason. Keep this empty unless a fixture
 # really needs it; a path here is skipped by the secrets scan only (never by the name guard).
 SECRET_SCAN_ALLOWED = {}
+# #891: one bundled file the secrets scan misreads (pypdf's `password = user_password` lines are code, not a value). It is passed only at
+# this exact path AND with exactly this SHA-256 (the same one vendor/manifest.json holds); a changed byte or another path is scanned.
+SECRET_SCAN_PINNED = {"vendor/pypdf/_encryption.py": "342c3ee9fd8cca74bf4be3fe3cb60cc9651aac6025b38f34820321bef85c29fa"}
 
 PASS, REFUSED, SKIPPED = "PASS", "REFUSED", "SKIPPED"
 FORBIDDEN_GIT_ARGS = {"--force", "-f", "--mirror", "--tags", "--delete", "-d", "--prune", "--all", "--follow-tags",
@@ -536,7 +539,7 @@ def secret_findings(entries, blobs):
     for e, data in zip(entries, blobs):
         if SECRET_NAMES.match(e.path.rsplit("/", 1)[-1]):
             found.append("file #%d: a file name that holds secrets (.env, key, credentials or certificate file)" % e.index)
-        if e.path in SECRET_SCAN_ALLOWED:
+        if e.path in SECRET_SCAN_ALLOWED or (e.path in SECRET_SCAN_PINNED and hashlib.sha256(data).hexdigest() == SECRET_SCAN_PINNED[e.path]):
             continue
         for kind in sorted(scan_secrets_in(data)):
             found.append("file #%d: %s" % (e.index, kind))
@@ -578,6 +581,45 @@ TEMPLATE_LIMIT_KIND = ("more uses of the page-template name than this file may h
                        "Remove the extra use, or ask for the limit to be raised")
 GUARD_ALLOWED.update({path: ({reveal("Onaare"): count}, "a page template that shares its name with a person")
                       for path, count in TEMPLATE_NAME_PATHS.items()})
+# Row 891 (vendored pypdf; ruling: the narrow option). Four upstream lines of the vendored library read as a listed word. Each is
+# allowed as ONE exact whole line in ONE exact path (stored rot13-encoded, so this file holds no name in plain text). No wildcard, no
+# directory rule: the same words on any other line, in any other file, or the same line in another path, are still refused.
+VENDOR_LINE_ALLOWED = {
+    "vendor/pypdf/LICENSE": (reveal("Fbzr pbagevohgvbaf pbclevtug (p) 2014, Fgrir Jvgunz <fjvgunz_tvguho@znp-thlire.pbz>"),),
+    "vendor/pypdf/pagerange.py": (reveal("Pbclevtug (p) 2014, Fgrir Jvgunz <fjvgunz_tvguho@znp-thlire.pbz>."),),
+    "vendor/pypdf/constants.py": (reveal('    YNAT = "/Ynat"  # grkg fgevat, bcgvbany'),),
+    "vendor/pypdf/_codecs/adobe_glyphs.py": (reveal('    "/objNaqNeebj": "\\H0001S3S9",'),),
+}
+
+
+# The allowance holds only for the real vendored file: its SHA-256 must equal the pin (the same hashes ci_scan.VENDORED_PINS and
+# vendor/manifest.json hold) and it must be a plain file (mode 100644). A changed byte, or an executable file, gets no allowance.
+VENDOR_LINE_PINS = {
+    "vendor/pypdf/LICENSE": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+    "vendor/pypdf/_codecs/adobe_glyphs.py": "69ac4e46ea50409ee46cb0c76e35a280b67aa60f06f7fe5ea832a2349c72923e",
+    "vendor/pypdf/constants.py": "579bd3b09defab4b63ac63f7effb4713ade10722c8c7799b8566aa80917c3624",
+    "vendor/pypdf/pagerange.py": "0209c3144e2959cf34d1800cfec3dc1afcb6f747f70f93588abaf6e478753b46",
+}
+
+
+def drop_allowed_lines(path, data, mode="100644"):
+    """The bytes without the vendor lines allowed for this exact path (each one use only, the whole line, nothing added).
+    Only when the bytes are the pinned vendored file (SHA-256) and the mode is 100644."""
+    lines = VENDOR_LINE_ALLOWED.get(path)
+    if not lines or mode != "100644" or VENDOR_LINE_PINS.get(path) != hashlib.sha256(data).hexdigest():
+        return data
+    left = [line.encode("utf-8") for line in lines]
+    kept = []
+    for line in data.splitlines(keepends=True):
+        bare = line.rstrip(b"\r\n")
+        if bare in left:
+            left.remove(bare)
+            kept.append(line[len(bare):])
+        else:
+            kept.append(line)
+    return b"".join(kept)
+
+
 # What a person or private repo becomes in prose (.md and .txt). Anyone not listed here is "a teammate".
 ROLES = {reveal("Nyna").lower(): "the owner", reveal("Znuba").lower(): "the owner",
          reveal("Ebznabss").lower(): "the project lead", reveal("Angnfun").lower(): "the project lead",
@@ -1145,7 +1187,7 @@ FEEDBACK_ADDRESS = codecs.decode("nyna.znuba@vaprcgvba42.nv", "rot13").encode()
 FEEDBACK_ADDRESS_PATHS = ("src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py")
 
 
-def guard_kinds(path, data):
+def guard_kinds(path, data, mode="100644"):
     """Kinds of listed word in one file's bytes (not zips): ["a person's name", ...]."""
     allowed = GUARD_ALLOWED.get(path, ({}, ""))[0]
     kinds = set()
@@ -1153,6 +1195,7 @@ def guard_kinds(path, data):
         data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(CONTACT_EMAIL) + rb"(?!\.?[A-Za-z0-9-])", b"contact address", data)
     if path in FEEDBACK_ADDRESS_PATHS:
         data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(FEEDBACK_ADDRESS) + rb"(?!\.?[A-Za-z0-9-])", b"feedback address", data)
+    data = drop_allowed_lines(path, data, mode)
     for form in _forms_of(data):
         counts = listed_word_counts(form)
         over = [word for word, n in counts["capitalised"].items() if n > allowed.get(word, 0)]
@@ -1175,7 +1218,7 @@ def guard_findings(entries, blobs):
     for e, data in zip(entries, blobs):
         if guard_kinds("", e.path.encode("utf-8", "surrogateescape")):
             found.append("file #%d: a listed word in its path" % e.index)
-        for kind in sorted(guard_kinds(e.path, data)):
+        for kind in sorted(guard_kinds(e.path, data, getattr(e, "mode", "100644"))):
             found.append("file #%d: %s" % (e.index, kind))
         if data[:2] == b"PK":
             found += ["file #%d %s" % (e.index, f) for f in zip_findings(data, "", 1, [MAX_ZIP_BYTES],
