@@ -260,7 +260,7 @@ class Words(unittest.TestCase):
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"      # #836: the Quit card, last on the Version and updates page
                 ],
             }
-            self.assertEqual(sum(len(v) for v in PAGES.values()), 101, "no line of the old list was lost in the split: 104 before, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
+            self.assertEqual(sum(len(v) for v in PAGES.values()), 102, "no line of the old list was lost in the split: 105 before, with the Excel file layout line, less 7 for Published reports (its own page since row 1087, pinned in test_as_at_page and test_past_reports_card) and 4 for the two section styles main dropped")
             self.shown(cdp, sid, HEAD + MENU + PAGES["projects"])      # plain Settings opens Projects
             for slug, rest in PAGES.items():
                 with self.subTest(page=slug):
