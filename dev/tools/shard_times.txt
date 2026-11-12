@@ -242,6 +242,7 @@ test_help_nav_page.py 57.5
 test_help_navigation.py 4.2
 test_help_panel.py 38.3
 test_help_parity.py 10.3
+test_help_gaps.py 1.0
 test_help_peek.py 65.4
 test_help_peek_logic.py 2.3
 test_help_peek_real.py 23.3
@@ -701,6 +702,7 @@ test_feedback_tab.py 20.0
 test_hostile_feedback.py 10.0
 test_filter_line_keys.py 30.0
 test_gantt_today_reduced.py 30.0
+test_help_links_exist.py 1.0
 test_help_list_button_words.py 30.0
 test_help_work_icons_1333.py 30.0
 test_help_work_line_words.py 30.0
@@ -720,8 +722,14 @@ test_help_settings_facts.py 30.0
 test_help_straight_apostrophe.py 30.0
 test_help_text_hostile.py 30.0
 test_help_timeline_calendar.py 30.0
+test_a11y_settings_filter_tabs.py 1.0
+test_help_loop_cards.py 1.0
+test_section_hint_all_types.py 1.0
 test_section_hint_phone.py 30.0
-test_peek_lows_q24.py 1.0
+test_help_r11_999.py 1.0
+test_help_r11_1074.py 1.0
+test_help_r11_1054.py 1.0
+test_help_r11_1342.py 1.0
 test_plain_words_hostile_1005.py 1.0
 test_p1005b_eye.py 1.0
 test_b4_hostile_1005.py 1.0
