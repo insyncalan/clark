@@ -1296,7 +1296,7 @@ BRAND_PATHS = {"root": None, "data": None}
 
 
 def set_brand_paths(root, data):
-    """Give the server the clark folder (holding system/branding) and the data folder, so serve() can make the brand seam."""
+    """Give the server the clark folder (holding branding/) and the data folder, so serve() can make the brand seam."""
     BRAND_PATHS["root"], BRAND_PATHS["data"] = root, data
 
 

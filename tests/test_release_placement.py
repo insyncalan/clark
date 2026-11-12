@@ -56,14 +56,15 @@ class Covers(unittest.TestCase):
                 self.assertFalse(rf.covers("mac", rel))
 
     def test_protected_prefixes_are_refused(self):
-        for rel in ("system/branding/logo.png", "system/x", "data/clark.db", "data", "system", "System/branding/a",
+        for rel in ("branding/logo.png", "Branding/a", "system/branding/logo.png", "system/x", "data/clark.db", "data", "system", "System/branding/a",
                     "DATA/x", "Data/y.db"):
             with self.subTest(rel=rel):
                 self.assertFalse(rf.covers("mac", rel))
 
     def test_protected_is_refused_even_when_the_list_names_it(self):
-        with mock.patch.object(rf, "SHARED", ("README.md", "system/", "data/x.db")):
+        with mock.patch.object(rf, "SHARED", ("README.md", "system/", "branding/", "data/x.db")):
             self.assertFalse(rf.covers("mac", "system/branding/a"))
+            self.assertFalse(rf.covers("mac", "branding/a"))
             self.assertFalse(rf.covers("mac", "data/x.db"))
             self.assertTrue(rf.covers("mac", "README.md"))
 
@@ -75,6 +76,8 @@ class Covers(unittest.TestCase):
 
     def test_protected_helper_looks_at_the_first_part_only(self):
         self.assertTrue(rf.protected("system/branding/x"))
+        self.assertTrue(rf.protected("branding/x"))
+        self.assertTrue(rf.protected("Branding/x"))
         self.assertTrue(rf.protected("SYSTEM"))
         self.assertFalse(rf.protected(".app/system/x"))
         self.assertFalse(rf.protected("docker/data/x"))

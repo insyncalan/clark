@@ -4,8 +4,8 @@
     python3 dev/tools/publish_public.py <tag or ref> --target <public repo> [--branch release-X.Y.Z]
 
 Builds a snapshot of the files git tracks at <ref> (read from git's objects, never from the working folder, so
-ignored and untracked files such as system/branding/ and comms/ can never be in it), takes out the internal working
-notes (EXCLUDED; but a tracked file under comms/ or system/branding/ is a refusal, not a removal), swaps in the public
+ignored and untracked files such as branding/, system/branding/ and comms/ can never be in it), takes out the internal working
+notes (EXCLUDED; but a tracked file under comms/, branding/ or system/branding/ is a refusal, not a removal), swaps in the public
 README (docs/public/README.md, which then stays out of the snapshot; the private README is never published), and
 pushes the result as ONE new commit on the public repo's branch: `clark-public` (the default), `release-X.Y.Z` (the
 release gate) or `main` (only with --publish-main). The commit is by a neutral "clark", never by
@@ -74,10 +74,11 @@ EXCLUDED = (
     ".claude/",
     "comms/",
     "system/branding/",
+    "branding/",
 )
 # The public README lives in the private repo as PUBLIC_README_SOURCE; the snapshot's README.md is that file's bytes,
 # and PUBLIC_SOURCE_DIR (its folder) is then left out of the snapshot. Not in EXCLUDED: it is the source, not a note.
-PRIVATE_FOLDERS = ("comms/", "system/branding/")   # kept out of git by .gitignore: a tracked file here is a refusal, not a removal
+PRIVATE_FOLDERS = ("comms/", "system/branding/", "branding/")   # kept out of git by .gitignore: a tracked file here is a refusal, not a removal
 PUBLIC_README_SOURCE = "docs/public/README.md"
 PUBLIC_README = "README.md"
 PUBLIC_SOURCE_DIR = "docs/public/"
@@ -1627,14 +1628,14 @@ def names_clear(report):
 def apply_exclusions(entries, report):
     """(the entries that stay after the exclusion list, whether nothing private was tracked); says how many each rule took out.
     The notes files are expected in the private repo and are removed quietly. Anything tracked under comms/ or
-    system/branding/ is not: those folders must never be in git at all, so it is a refusal (by place number only)."""
+    branding/ and system/branding/ are not: those folders must never be in git at all, so it is a refusal (by place number only)."""
     removed, kept, wrong = {}, [], []
     for e in entries:
         rule = is_excluded(e.path)
         if rule:
             removed[rule] = removed.get(rule, 0) + 1
             if rule in PRIVATE_FOLDERS:
-                wrong.append("file #%d is tracked under comms/ or system/branding/, which must stay out of git: "
+                wrong.append("file #%d is tracked under comms/, branding/ or system/branding/, which must stay out of git: "
                              "find out why in the private repo" % e.index)
         else:
             kept.append(e)
