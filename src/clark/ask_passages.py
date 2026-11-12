@@ -137,7 +137,7 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
                 pdf_reasons.append((label, got.reason))
                 continue
             pages = got.pages
-            lines = [t for _n, t in pages for t in t.splitlines()]
+            lines = [line for _n, text in pages for line in text.splitlines()]
         try:
             if pages is not None:
                 pass
