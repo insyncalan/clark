@@ -92,6 +92,18 @@ export function addableMilestones(d, ucId) {
   return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name, date: m.baseline_date || m.forecast_date || "" }));
 }
 
+/** Row 1107: the milestones a use case can still be linked to directly: the project's live ones it has no direct link to: [{id, name}]. */
+export function linkableMilestones(d, ucId) {
+  const have = new Set(((d && d.uc_milestones) || []).filter((l) => l.use_case === ucId).map((l) => l.milestone));
+  return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name }));
+}
+
+/** Row 1107: the use cases linked straight to a milestone, in the project's order: [{id, ref, title}]. */
+export function usecasesOfMilestone(d, msId) {
+  const ids = new Set(((d && d.uc_milestones) || []).filter((l) => l.milestone === msId).map((l) => l.use_case));
+  return ((d && d.use_cases) || []).filter((u) => !u.archived && ids.has(u.id)).map((u) => ({ id: u.id, ref: u.ref, title: u.title }));
+}
+
 /** The values of the next step that gives a use case a milestone: it names both, and is due on the milestone's date when it has one. */
 export function milestoneStepValues(m, ucId) {
   // the step's words are plain text of at most the title limit (changes.py: no control, hidden or line-break characters; ITEM_TITLE_MAX):

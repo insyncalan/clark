@@ -132,7 +132,7 @@
    ],
    [
     "ask clark",
-    "Answers questions about the project and checks the report. Press [[/]], or open the palette with [[Mod+K]] and choose ask clark.",
+    "Answers questions about the project and checks the report. Press [[/]] or [[Mod+J]], or open the palette with [[Mod+K]] and choose ask clark.",
     "ask"
    ],
    [
@@ -568,7 +568,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -2021,7 +2021,7 @@
        ],
        [
         "Use cases",
-        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible"
+        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
        ]
       ]
      ],
@@ -2223,6 +2223,10 @@
    [
     "[[Mod+K]]",
     "The palette, from any page, even in a box: type to find a command, page, project, work item or milestone. [[Up]] and [[Down]] move, [[Enter]] runs it, [[Esc]] closes it and puts you back. It also opens ask clark: choose ask clark"
+   ],
+   [
+    "[[Mod+J]]",
+    "Opens ask clark, from any page, even in a box. It does nothing while Help or another dialog is open"
    ],
    [
     "[[Up]] [[Down]] [[Home]] [[End]]",

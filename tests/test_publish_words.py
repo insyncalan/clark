@@ -35,8 +35,13 @@ class TheWarning(unittest.TestCase):
         self.assertEqual(jsx.count(SECOND), 2, "the second sentence ends each of the two variants")
         self.assertNotIn("this page and the PDF", jsx, "item 438: the browser makes the PDF, so none goes to the client folder")
         self.assertIn('s.phase !== "clash" && s.phase !== "wordclash" && s.ticked', jsx, "the warning is hidden while either question is asked")
+        # row 1: which sentence goes with which state, not just that both exist (swapping the branches kept every string above)
+        self.assertRegex(jsx, r'\{s\.word \? "The client will see this page and the Word report\. [^"]*" : "The client will see this page\. ')
         ticked = to_client.dialog_step(to_client.new_dialog_state("/x/Harbour Bridge"), "tick", True)
         self.assertEqual(to_client.to_client_dialog(ticked)["line"], WARNING)
+        # and the line goes again when the tick does
+        unticked = to_client.dialog_step(ticked, "tick", False)
+        self.assertIsNone(to_client.to_client_dialog(unticked)["line"])
 
     def test_a_published_file_carries_no_dialog_words(self):
         self.assertNotIn(SECOND, page.VIEW_PAGE.read_text(encoding="utf-8"))
@@ -52,6 +57,8 @@ class TheFinishedState(unittest.TestCase):
         state = src("edit/publishState.js")
         self.assertIn("export const CLOSE_MS = 1200;", state)
         self.assertRegex(state, r"mine === finished && now && now\.phase === \"done\"\) close\(\)", "a late timer never closes a later dialog")
+        self.assertRegex(state, r"close\(\); \}, Math\.max\(0, closeAfter\.ms\)\);", "the timer waits exactly closeAfter.ms, no more")
+        self.assertRegex(state, r"closeAfter = \{ ms: CLOSE_MS \}", "and closeAfter starts at CLOSE_MS")
 
     def test_the_note_is_the_menus_and_has_no_undo(self):
         state, note = src("edit/publishState.js"), src("edit/menuNote.js")

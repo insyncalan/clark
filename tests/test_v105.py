@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.5"
-SCHEMA = 23              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ended at 20 (#944 T1, projects.brand); 1.0.7 moves it to 21 (row 1061, Planned 2026), 22 (row 875, use case owner) and 23 (row 1068, report_sections.type takes gantttable)
+SCHEMA = 24              # 1.0.3 was layout 17; 1.0.4 ended at 19 (row 926); 1.0.5 ended at 20 (#944 T1, projects.brand); 1.0.7 moves it to 21 (row 1061, Planned 2026), 22 (row 875, use case owner) and 23 (row 1068, report_sections.type takes gantttable)
 
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
@@ -318,7 +318,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "layout 23: row 1068 let a section be of type gantttable (1.0.5 ended at 20, #944 T1)")
+        self.assertEqual(schema_version(), SCHEMA, "layout 24: row 1107 added use_case_milestones (23 was row 1068 let a section be of type gantttable (1.0.5 ended at 20, #944 T1)")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
