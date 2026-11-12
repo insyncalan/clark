@@ -1119,6 +1119,29 @@ class Live(unittest.TestCase):
                                    f"{ref}: nothing follows the date, so Tab leaves the panel and the page without a stuck focus")
                     self.assertEqual(self.cell_text(cdp, sid, ref, "due")[:10], f"{was[8:10]}-{was[5:7]}-{was[:4]}", f"{ref}: the row still shows its date")
 
+    def test_tab_out_of_a_date_panel_makes_it_inert_and_lands_on_the_next_control_even_if_focus_is_lost(self):
+        # Row 1391. The other Tab test passes with the fix removed (checked by mutation), so this one pins the two parts of the fix:
+        # the closing panel is made inert at once (the browser's own Tab step cannot land in it), and if focus ends on nothing anyway,
+        # the page carries on from the date to the next control after it, not to any control.
+        ref, cell = "TUL-A-001", "[data-cell='TUL-A-001:due']"
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            click(cdp, sid, cell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "the date panel opened")
+            self.until(cdp, sid, "document.activeElement && !!document.activeElement.dataset.day", "focus is on a day")
+            want = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
+                          ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop]') && !c.contains(e));"
+                          " const n = all.find(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING); if (!n) return null; n.setAttribute('data-want-next', '1'); return n.tagName; })()", sid)
+            self.assertTrue(want, "something is tabbable after the date (the fixture has it)")
+            cdp.js("window.__inert = false; new MutationObserver(rs => { for (const r of rs) if (r.target.matches && r.target.matches('[data-pop]') && r.target.hasAttribute('inert')) window.__inert = true; })"
+                   ".observe(document.body, {attributes: true, subtree: true, attributeFilter: ['inert']});"
+                   " document.addEventListener('keydown', e => { if (e.key === 'Tab') { let n = 0; const t = setInterval(() => { if (document.activeElement) document.activeElement.blur(); if (++n >= 9) clearInterval(t); }, 5); } });", sid)
+            key(cdp, sid, "Tab")
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closed the panel")
+            self.assertTrue(cdp.js("window.__inert", sid), "the closing panel was made inert")
+            self.until(cdp, sid, "!!document.activeElement && document.activeElement.hasAttribute('data-want-next')", "focus was lost, then carried on to the control after the date", 5)
+
+
     def test_a_made_decisions_date_can_change_but_not_be_cleared(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
