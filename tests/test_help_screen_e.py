@@ -38,7 +38,7 @@ class Screen(unittest.TestCase):
         cls.store.close()
         shutil.rmtree(str(cls.folder), ignore_errors=True)
 
-    def open(self, cdp, hash_, width, ready):
+    def show_at(self, cdp, hash_, width, ready):
         s = real_server(self.store.path, self.store.data_for, who="Demo User", projects=lambda archived=False: self.projects, page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -54,7 +54,7 @@ class Screen(unittest.TestCase):
     def test_in_edit_only_summary_this_week_and_next_week_have_a_text_editor(self):
         for width in WIDTHS:
             with chrome() as cdp:
-                p = self.open(cdp, "dashboard", width, "document.querySelectorAll('.sec').length > 0")
+                p = self.show_at(cdp, "dashboard", width, "document.querySelectorAll('.sec').length > 0")
                 p.edit()
                 editors = p.js("[].slice.call(document.querySelectorAll('#report [aria-label^=\"Edit \"][aria-label$=\" text\"]')).map(function (e) { return e.getAttribute('aria-label'); })")
                 self.assertEqual(editors, ["Edit Summary text", "Edit This week text", "Edit Next week text"], f"{width}: no editor under Current state")
@@ -63,7 +63,7 @@ class Screen(unittest.TestCase):
     def test_in_the_peek_only_status_can_be_clicked_of_status_priority_owner_and_due(self):
         for width in WIDTHS:
             with chrome() as cdp:
-                p = self.open(cdp, "work", width, "document.querySelectorAll('#work tbody tr[data-id]').length > 0")
+                p = self.show_at(cdp, "work", width, "document.querySelectorAll('#work tbody tr[data-id]').length > 0")
                 p.js("window.clarkPage.openPeek('TUL-A-002')")
                 p.until("!!document.querySelector('#peek')", "the peek")
                 row = "(function (k) { var r = document.querySelector('#peek [data-row=' + k + ']'); return r ? r.querySelectorAll('button, [role=button], input, [contenteditable=true]').length : -1; })"

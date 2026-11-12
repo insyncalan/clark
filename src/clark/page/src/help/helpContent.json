@@ -405,7 +405,7 @@
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words](#howto-change-an-item-in-words).",
+     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
