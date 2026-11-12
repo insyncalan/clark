@@ -219,7 +219,7 @@ class DeleteItem(unittest.TestCase):
         with self.assertRaises(Invalid) as e:
             with self.s.step("dashboard", USER) as st:
                 store_module.delete_item(self.con, "actions", self.b, row, st)             # direct: not through write_item's own check
-        self.assertIn("is archived", str(e.exception))
+        self.assertEqual(str(e.exception), f"{self.b} is archived. Restore it first.")
         with self.assertRaises(Invalid):
             with self.s.step("dashboard", USER) as st:
                 st.delete("actions", self.b)
@@ -228,15 +228,23 @@ class DeleteItem(unittest.TestCase):
 
     def test_the_store_delete_item_itself_refuses_an_item_a_decision_replaces(self):
         with self.s.step("dashboard", USER) as st:
-            st.create("decisions", {"project": "ABC", "decision": "Newer", "date": "2026-10-02", "source": "demo", "replaces": self.dec})
+            newer = st.create("decisions", {"project": "ABC", "decision": "Newer", "date": "2026-10-02", "source": "demo", "replaces": self.dec})
         n = self.count("change_log")
         row = dict(self.s.read("decisions", ref=self.dec))
         with self.assertRaises(Invalid) as e:
             with self.s.step("dashboard", USER) as st:
                 store_module.delete_item(self.con, "decisions", self.dec, row, st)
-        self.assertIn("something refers to it", str(e.exception))
+        self.assertEqual(str(e.exception), f"{self.dec} can't be deleted: something refers to it (a decision {newer}).")
         self.assertEqual(self.count("change_log"), n)
         self.assertIsNotNone(self.s.read("decisions", ref=self.dec))
+
+    def test_the_store_delete_item_itself_refuses_an_archived_project_in_exact_words(self):
+        row = dict(self.s.read("actions", ref=self.b))
+        self.con.execute("UPDATE projects SET archived = 1, active = 0 WHERE code = ?", (row["project"],))
+        with self.assertRaises(Invalid) as e:
+            with self.s.step("dashboard", USER) as st:
+                store_module.delete_item(self.con, "actions", self.b, row, st)
+        self.assertEqual(str(e.exception), f"{row['project']} is archived. Restore it first.")
 
     def test_an_item_whose_id_says_this_project_but_whose_row_says_another_is_refused(self):
         self.con.execute("PRAGMA foreign_keys = OFF")

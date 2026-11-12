@@ -1572,7 +1572,7 @@ def delete_item(con, table, key, current, step):
         raise Invalid(f"{current['project']} is archived. Restore it first.")
     pointer = item_pointer(con, key)
     if pointer:
-        raise Invalid(f"something refers to it now ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]})")
+        raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
     for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
                      ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
                      ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
