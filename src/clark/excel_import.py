@@ -467,10 +467,10 @@ def same(a, b):
 
 def read_date(value):
     """A date cell as YYYY-MM-DD: a real Excel date, DD-MM-YYYY text (also / or .), or YYYY-MM-DD text. Raises ValueError."""
-    if isinstance(value, datetime):
-        return value.date().isoformat()
     if isinstance(value, date):
-        return value.isoformat()
+        if (value.date() if isinstance(value, datetime) else value) < date(1900, 3, 1):
+            raise ValueError(value)        # Excel's day 60 (a 29 February 1900 that never was) reads as 28 February, and a negative day as 1899: neither is a date
+        return value.isoformat()[:10]
     s = str(value).strip()
     m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", s)
     if m:
