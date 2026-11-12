@@ -34,8 +34,8 @@ def find(rows, start):
 
 class ItemPeek(unittest.TestCase):
     def test_top_bar_is_the_real_bar(self):
-        bar = find(ITEM, "**The top bar**")
-        for word in ("Previous", "Next", "ID", "Duplicate", "Archive", "Across the whole screen", "Close"):
+        bar = find(ITEM, "At the top")      # main wording: the bold name must be a label of the page, and "The top bar" is not
+        for word in ("Previous", "Next", "ID", "Duplicate", "Archive", "Make this panel fill the screen", "Close this panel"):
             self.assertIn(word, bar)
         for gone in ("eye", "Copy link", "⋯"):
             self.assertNotIn(gone, bar)
@@ -62,9 +62,9 @@ class ItemPeek(unittest.TestCase):
     def test_arrows_are_previous_and_next_buttons(self):
         step = find(HOWTO, "With the peek open")
         self.assertNotIn("up and down arrows at the top", step)
-        self.assertIn("**Previous** and **Next**", step)
+        self.assertIn("**Previous item** and **Next item**", step)
         self.assertIn("[[Up]] and [[Down]]", step)
-        self.assertIn("only when focus is on one of the peek’s own buttons", step)      # Peek.jsx peekOwnsArrow: BUTTON inside #peek only
+        self.assertIn("with the focus on one of the peek’s buttons", step)      # Peek.jsx peekOwnsArrow: BUTTON inside #peek only (main's wording)
         code = (PAGE / "components" / "Peek.jsx").read_text(encoding="utf-8")
         self.assertIn('t.tagName !== "BUTTON" || !t.closest("#peek")', code)
 

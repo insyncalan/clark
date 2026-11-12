@@ -103,7 +103,7 @@ class Shape(unittest.TestCase):
                          "the owner's order; bringing in an Excel workbook is not one of them")
         self.assertIn(START["undo"], [t["id"] for t in STEPS])
         self.assertEqual((len(STEPS), len(SECTIONS)), (37, 36))   # with the Feedback entry (#1069), with the People entries (#454), held, and the Word entry, Run clark with Docker, and the AI card task (#446)
-        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 30))
+        self.assertEqual((len(SRC["reference"]["keys"]), len(SRC["reference"]["icons"])), (33, 29))   # 30 on main; the Draft icon entry is out with the Draft chip (row 1077, as test_help_logic test_icon_legend)
 
     def test_ids_are_unique_plain_and_listed_in_a_group(self):
         for kind, rows, groups in (("task", STEPS, SRC["howto"]["groups"]), ("section", SECTIONS, SRC["reference"]["groups"])):
