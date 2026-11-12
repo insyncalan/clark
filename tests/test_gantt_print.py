@@ -175,6 +175,29 @@ class Print(_PageRig):
                         self.assertEqual(before, after, "screen styles and sizes are identical")
                         self.assertGreater(len(json.loads(before)), 50)
 
+    def test_the_printed_left_list_shows_its_values_when_printed_from_edit(self):
+        # Edit draws the left list (name, Start, End, Done) as input elements; html.print-all hid every input, so the paper had an empty list.
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(mode="edit")
+                    self.printing(width, scheme)
+                    try:
+                        got = json.loads(self.js("""JSON.stringify([].slice.call(document.querySelectorAll('.gt-ln input.gt-li')).map(function (e) {
+                          var r = e.getBoundingClientRect(), c = getComputedStyle(e);
+                          return [e.dataset.gEdit, e.value, c.display, Math.round(r.width), Math.round(r.height), c.visibility]; }))"""))
+                        self.assertGreaterEqual(len(got), 8, "Edit draws the list as inputs")
+                        for key, val, disp, w, h, vis in got:
+                            self.assertNotEqual(disp, "none", f"{key}: drawn on paper")
+                            self.assertGreater(w, 4, f"{key}: has width")
+                            self.assertGreater(h, 4, f"{key}: has height")
+                            self.assertEqual(vis, "visible", key)
+                        self.assertTrue(all(v for k, v, *_ in got if k.endswith(":name")), "names have values")
+                        self.assertEqual(self.count(".gt-ln input.gt-li:not([data-g-edit])"), 0)
+                    finally:
+                        self.done()
+
     def test_a_pdf_of_the_chart_page_is_made_at_a4_without_a_print_box(self):
         self.look(794, "light")
         self.mount(width=734)
