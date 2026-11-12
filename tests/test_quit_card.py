@@ -84,6 +84,35 @@ class Card(unittest.TestCase):
         self.until(cdp, sid, "document.querySelector('#quit-yes')", "the confirm button")
         cdp.js("document.querySelector('#quit-yes').click()", sid)
 
+    def esc(self, cdp, sid):
+        for kind in ("rawKeyDown", "keyUp"):
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, sid)
+
+    def test_focus_follows_the_question_and_comes_back(self):
+        """Row 1040: asking moves focus onto Quit clark in the question (not the page); Cancel, Esc and a failed quit put it back on the first button."""
+        s = self.serve()
+        main = "document.activeElement === document.querySelector('#quit .row > button')"
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port)
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'quit-yes'", "focus on the confirm button")
+            self.assertEqual(cdp.js("document.querySelector('#quit [role=alert]') !== null", sid), True)
+            for what in ("#quit-yes", "#quit-no"):
+                self.assertEqual(cdp.js(f"(() => {{ const r = document.querySelector({what!r}).getBoundingClientRect(); return r.width >= 24 && r.height >= 24; }})()", sid), True, what)
+            cdp.js("document.querySelector('#quit-no').click()", sid)
+            self.until(cdp, sid, main, "focus back after Cancel")
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'quit-yes'", "focus on the confirm button again")
+            self.esc(cdp, sid)
+            self.until(cdp, sid, "!document.querySelector('#quit-yes')", "Esc closed the question")
+            self.until(cdp, sid, main, "focus back after Esc")
+            self.assertEqual(self.stops, [])
+            cdp.js("window.fetch = () => Promise.reject(new TypeError('failed'))", sid)
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.confirm(cdp, sid)
+            self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({FAILED!r})", "the fallback words")
+            self.until(cdp, sid, main, "focus back after a failed quit")
+
     def test_cancel_leaves_clark_running(self):
         s = self.serve()
         with chrome() as cdp:
