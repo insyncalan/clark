@@ -32,6 +32,22 @@ class HelpLeftovers(unittest.TestCase):
         for old in ("**View** menu", "View menu", "the View menu"):
             self.assertNotIn(old, TEXT)
 
+    def test_the_board_task_is_filed_under_group_by(self):
+        """Mutation audit of PR 1300: the old name was only ruled out; a different new name (or none) survived."""
+        tasks = [t for t in self._walk(json.loads(TEXT)) if t.get("id") == "use-the-board"]
+        self.assertEqual(len(tasks), 1)
+        self.assertEqual(tasks[0]["w"], "Work items \u203a Group by")
+
+    @classmethod
+    def _walk(cls, x):
+        if isinstance(x, dict):
+            yield x
+            for v in x.values():
+                yield from cls._walk(v)
+        elif isinstance(x, list):
+            for v in x:
+                yield from cls._walk(v)
+
 
 if __name__ == "__main__":
     unittest.main()
