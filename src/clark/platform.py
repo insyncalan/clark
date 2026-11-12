@@ -351,16 +351,30 @@ def shown(path, home=None):
         return str(path)
 
 
-_HOST_HOME = re.compile(r"^(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+)(?=[\\/]|$)")
+_HOST_HOME = re.compile(r"^(?:\\\\\?\\|\\\\[^\\/]+[\\/]+(?=Users[\\/]))?"
+                        r"(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+|Users[\\/]+[^\\/]+)(?=[\\/]|$)",
+                        re.IGNORECASE)
+
+
+def _without_account(segment):
+    """One folder name without an e-mail address: "GoogleDrive-name@example.org" is "GoogleDrive", "Backup name@example.org" is
+    "Backup", and a name that is only an address goes."""
+    if "@" not in segment:
+        return segment
+    kept = re.sub(r"^([A-Za-z0-9]+)-[^@]*@.*$", r"\1", segment)
+    if "@" in kept:
+        kept = re.sub(r"\S*@\S*", "", kept).strip(" -_")
+    return kept
 
 
 def host_shown(path):
     """The Mac's data folder (CLARK_DATA_SOURCE, which only a container sees) as a person reads it in a message: the home folder is
-    written "~" and an account e-mail in a cloud folder's name (GoogleDrive-name@example.org) is dropped, so neither the user's name
-    nor the account is ever in a message that might be copied into a report or an email."""
-    text = str(path)
-    text = _HOST_HOME.sub("~", text, count=1)
-    return re.sub(r"(?<=[\\/])([A-Za-z]+)-[^\\/@]*@[^\\/]*", r"\1", text)
+    written "~" (any case, a Windows drive, a UNC or \\\\?\\ form) and an account e-mail in a cloud folder's name
+    (GoogleDrive-name@example.org) is dropped, so neither the user's name nor the account is ever in a message that might be
+    copied into a report or an email."""
+    text = _HOST_HOME.sub("~", str(path), count=1)
+    parts = re.split(r"([\\/]+)", text)
+    return "".join(_without_account(x) if i % 2 == 0 else x for i, x in enumerate(parts)).replace("//", "/").replace("/ /", "/")
 
 
 def _synced_refusal(where, service):

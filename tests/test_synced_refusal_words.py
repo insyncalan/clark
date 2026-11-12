@@ -79,6 +79,26 @@ class RefusalWords(unittest.TestCase):
                         mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
                     self.assertEqual(pl.check_data_dir("/data"), Path("/data").resolve())
 
+    def test_host_shown_hides_the_name_in_any_case_and_any_path_form(self):
+        for raw, shown in (("/users/sam/Dropbox/clark", "~/Dropbox/clark"),
+                           ("c:\\users\\sam\\Dropbox\\clark", "~\\Dropbox\\clark"),
+                           ("C:\\USERS\\sam\\Dropbox\\clark", "~\\Dropbox\\clark"),
+                           ("\\\\?\\C:\\Users\\sam\\Dropbox\\clark", "~\\Dropbox\\clark"),
+                           ("\\\\server\\Users\\sam\\Dropbox\\clark", "~\\Dropbox\\clark")):
+            with self.subTest(raw=raw):
+                self.assertEqual(pl.host_shown(raw), shown)
+                self.assertNotIn("sam", pl.host_shown(raw))
+
+    def test_host_shown_drops_an_account_address_wherever_it_sits_in_a_folder_name(self):
+        for raw, shown in (("/Users/sam/Backup sam@example.org/clark", "~/Backup/clark"),
+                           ("/Users/sam/sam@example.org/clark", "~/clark"),
+                           ("/Users/sam/Google2-sam@example.org/My Drive/clark", "~/Google2/My Drive/clark"),
+                           ("/Users/sam/Library/CloudStorage/GoogleDrive-sam@example.org/My Drive/clark",
+                            "~/Library/CloudStorage/GoogleDrive/My Drive/clark")):
+            with self.subTest(raw=raw):
+                self.assertEqual(pl.host_shown(raw), shown)
+                self.assertNotIn("@", pl.host_shown(raw))
+
     def test_the_home_folder_is_not_spelled_out_in_it(self):
         self.assertNotIn(str(self.home), self.refuse("Dropbox"))
 
