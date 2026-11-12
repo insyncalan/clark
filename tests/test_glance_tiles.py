@@ -106,8 +106,7 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("document.querySelectorAll('.glance [data-fig]').length > 0", sid), True, "the file drew its figures")
-            self.assertGreaterEqual(cdp.js("document.querySelectorAll('.glance [data-fig]').length", sid), 3, "the file drew its tiles")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance [data-fig]')].map(e => e.dataset.fig).join()", sid), "health,overdue,risks", "the file drew exactly its three tiles, in order")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.glance button')].filter(b => !b.classList.contains('fig')).length", sid), 0)
 
     def test_the_risks_tile_is_red_with_its_word_when_a_high_risk_is_open_and_amber_when_only_other_risks_are(self):
