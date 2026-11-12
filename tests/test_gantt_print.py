@@ -237,12 +237,13 @@ class Print(_PageRig):
                     try:
                         got = json.loads(self.js("""JSON.stringify([].slice.call(document.querySelectorAll('.gt-ln input.gt-li')).map(function (e) {
                           var r = e.getBoundingClientRect(), c = getComputedStyle(e);
-                          return [e.dataset.gEdit, e.value, c.display, Math.round(r.width), Math.round(r.height), c.visibility]; }))"""))
+                          return [e.dataset.gEdit, e.value, c.display, Math.round(r.width), Math.round(r.height), c.visibility, parseFloat(e.style.width)]; }))"""))
                         self.assertGreaterEqual(len(got), 8, "Edit draws the list as inputs")
-                        for key, val, disp, w, h, vis in got:
+                        for key, val, disp, w, h, vis, drawn in got:
                             self.assertNotEqual(disp, "none", f"{key}: drawn on paper")
                             self.assertGreater(w, 4, f"{key}: has width")
                             self.assertGreater(h, 4, f"{key}: has height")
+                            self.assertAlmostEqual(w, drawn, delta=1, msg=f"{key}: keeps the column width it is drawn with, so the value is not squeezed out")
                             self.assertEqual(vis, "visible", key)
                         self.assertTrue(all(v for k, v, *_ in got if k.endswith(":name")), "names have values")
                         self.assertEqual(self.count(".gt-ln input.gt-li:not([data-g-edit])"), 0)
