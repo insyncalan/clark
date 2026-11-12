@@ -2422,7 +2422,15 @@ class TheVendorLineAllowances(unittest.TestCase):
                 with self.subTest(path=path, other=other):
                     if line in pp.VENDOR_LINE_ALLOWED.get(other, ()):
                         continue
-                    self.assertTrue(self.kinds(other, line + "\n") or not has_listed(line))
+                    self.assertTrue(self.kinds(other, line + "\n"))
+
+    def test_each_entry_is_a_whole_line_of_the_real_vendored_file(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            with self.subTest(path):
+                with open(os.path.join(root, path), "rb") as f:
+                    self.assertIn(line.encode("utf-8"), f.read().splitlines())
 
     def test_the_two_name_lines_are_refused_elsewhere(self):
         for path in ("vendor/pypdf/LICENSE", "vendor/pypdf/pagerange.py"):
