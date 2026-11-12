@@ -24,6 +24,13 @@ export const PLACE_OF = {
   "peek.risk_wording": "plain",
   // Words meant to reach a client: the milestone's client wording. Its client check applies (the place decides it).
   "milestone.client_wording": "client_message",
+  // The Movement form's one-line fields (row 1005): plain, like the other short fields.
+  "movement.who": "plain",
+  "movement.reason": "plain",
+  "movement.source": "plain",
+  "raid.own_words": "plain",         // a RAID entry's Own words (row 1005)
+  // A picture's caption: one plain line (row 1005).
+  "picture.caption": "plain",
   // The Draft email preview.
   "email.draft": "email",
 };
@@ -42,6 +49,12 @@ export const RICH_FIELDS = {
   linkcard: "linkcard.text",
   onedoc: "onedoc.text",
   callout: "callout.text",
+  client_message: "milestone.client_wording",
+  caption: "picture.caption",
+  mv_who: "movement.who",
+  mv_reason: "movement.reason",
+  mv_source: "movement.source",
+  raid_own: "raid.own_words",
 };
 
 // The editors that are not a RichField (a plain editable box), by the file that mounts them -> key.
