@@ -215,6 +215,8 @@ class WorkSheetParser:
                 if style_id in self.date_formats:
                     data_type = 'd'
                     try:
+                        if style_id not in self.timedelta_formats and (value < 0 or 60 <= value < 61):
+                            raise ValueError(value)      # clark: Excel's day 60 (a 29 February 1900 that never was) and a negative day are not dates
                         value = from_excel(
                             value, self.epoch, timedelta=style_id in self.timedelta_formats
                         )
