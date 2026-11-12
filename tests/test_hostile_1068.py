@@ -42,10 +42,11 @@ def with_sections(inputs, *extra):
 
 
 def others(path):
-    """Everything in the file except report_sections: its dump lines, so a rebuild of that one table may not touch any other."""
+    """Everything in the file except report_sections: its dump lines, so a rebuild of that one table may not touch any other.
+    use_cases lines are left out too: step 22 (row 875) adds owner and owner_id to that table, which changes its dump text, not row 1068's step."""
     con = sqlite3.connect(str(path))
     try:
-        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l]
+        return [l for l in con.iterdump() if "report_sections" not in l and "schema_version" not in l and "use_cases" not in l]
     finally:
         con.close()
 
