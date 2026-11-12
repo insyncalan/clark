@@ -27,24 +27,22 @@ class PublishedPills(_pub.ClientPageFilters):
 
 for _name in dir(_pub.ClientPageFilters):
     if _name.startswith("test_") and _name not in PublishedPills.__dict__:
-        setattr(PublishedPills, _name, None)
+        setattr(PublishedPills, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class AppBar(_line.Line):
-    def test_the_app_keeps_one_bar_that_holds_the_archived_pill_alone_at_1400_and_900_px(self):
+    def test_the_app_draws_no_bar_at_all_now_that_the_archived_pill_is_gone_at_1400_and_900_px(self):
         s = self.serve()
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.load(cdp, s.port, width=width)
-                self.assertEqual(cdp.js("document.querySelectorAll('.wbar').length", sid), 1)
-                self.assertEqual(cdp.js("document.querySelectorAll('.wbar.keep').length", sid), 1)
-                self.assertEqual(cdp.js("document.querySelectorAll('.wbar .seg').length", sid), 0)
-                self.assertGreaterEqual(cdp.js("parseFloat(getComputedStyle(document.querySelector('.wbar')).minHeight)", sid), 32)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.fline-wrap')", sid)), "the filter line is there")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work .wbar, #showArchived, .arch-pill').length", sid), 0)
 
 
 for _name in dir(_line.Line):
     if _name.startswith("test_") and _name not in AppBar.__dict__:
-        setattr(AppBar, _name, None)
+        setattr(AppBar, _name, unittest.skip("inherited: runs in its own file")(lambda self: None))
 
 
 class HelpWords(unittest.TestCase):
@@ -52,7 +50,7 @@ class HelpWords(unittest.TestCase):
         text = HELP.read_text(encoding="utf-8")
         for need in ("On the filter line, write type: to pick the type, and is:open or is:closed (or status:Open or status:Closed) to pick open or closed items.",
                      "Type is:open or is:closed on the filter line to say which items to list.",
-                     "From the top: the saved views with the **Table** and **Board** icons"):
+                     "From the top: the saved views, then the filter line."):
             self.assertIn(need, text)
         for gone in ("The first switch picks the type", "The second picks **Open**", "Choose **Open**, **Closed** or **All**",
                      "the type switch; **Open**", "the type switch;"):

@@ -57,16 +57,16 @@ class PlannedTwentySix(unittest.TestCase):
         path = make_at(self.dir, STEP - 1)
         plant(path, ["Candidate"])
         con = sqlite3.connect(str(path), isolation_level=None)
-        cols = [r[1] for r in con.execute("PRAGMA table_info(item_events)")]
+        con.execute("INSERT INTO item_events (at, item_id, kind, route, actor, src_ref) "
+                    "VALUES ('2026-10-30 09:00:00', 'ABC-U-001', 'change', 'dashboard', 'you', 'commitment Candidate')")
         con.close()
-        self.assertTrue(cols)
         open_store(path, onedrive_roots=[]).close()
         con = sqlite3.connect(str(path))
         try:
-            text = "".join(str(r) for t in ("item_events",) for r in con.execute(f"SELECT * FROM {t}"))
+            rows = con.execute("SELECT src_ref FROM item_events WHERE item_id = 'ABC-U-001'").fetchall()
         finally:
             con.close()
-        self.assertNotIn("Planned 2026", text, "the migration writes no history line and rewrites none")
+        self.assertEqual(rows, [("commitment Candidate",)], "the migration writes no history line and rewrites none")
 
     def test_old_change_log_lines_keep_the_word_candidate(self):
         path = make_at(self.dir, STEP - 1)

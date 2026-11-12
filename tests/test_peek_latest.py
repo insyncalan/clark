@@ -197,7 +197,7 @@ class Browser(unittest.TestCase):
     HOLD = ("(() => { const st = window.setTimeout, raf = window.requestAnimationFrame; window.requestAnimationFrame = (f) => st(() => raf(f), 4000);"
             " window.setTimeout = (f, d, ...a) => st(f, d >= 20 && d <= 150 ? d + 4000 : d, ...a); })();")     # frames and Preact's effect timers arrive 4 s late
 
-    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None):
+    def load(self, cdp, width, item, edit=True, dark=False, late=False, seed=None, refuse=False):
         self.fresh()
         if seed is not None:                                  # a row an older clark wrote: plain text in the column
             with self.store.step("dashboard", "Demo User") as st:
@@ -206,7 +206,7 @@ class Browser(unittest.TestCase):
         real = changes.make_change(self.store.path, [], "Demo User")
         projects = self.store.read("projects")            # read here: the store's connection belongs to this thread, and the server answers on another
         s = Running(data_for=self.store.data_for, projects=lambda archived=False: projects, page_html=lambda: testpage.html(),
-                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), real(req))[1],
+                    sneak=sneak.make_read(self.store.data_for), change=lambda req: (sent.append(req), self.refused() if refuse else real(req))[1],
                     undo=changes.make_undo(self.store.path, [], "Demo User"))
         self.addCleanup(s.close)
         sid = page_target(cdp)
@@ -229,6 +229,10 @@ class Browser(unittest.TestCase):
         cdp.js(f"clarkPage.openPeek({json.dumps(item)})", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek dt')", sid)))
         return sent, sid
+
+    @staticmethod
+    def refused():
+        raise RuntimeError("test refusal")
 
     SHOWN = "[data-pk-latest] [data-rich=latest_update]"           # item 1005: the update drawn as text; a click opens the one rich editor in its place
     BOX = "#peek .ProseMirror"
