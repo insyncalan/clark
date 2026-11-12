@@ -1454,9 +1454,12 @@ class WaitPolls(unittest.TestCase):
             wait(check, 5)
 
     def test_it_looks_again_within_a_tenth_of_a_second(self):
-        t0, reads = time.time(), iter([False, True])
-        self.assertTrue(wait(lambda: next(reads), 5))
-        self.assertLess(time.time() - t0, 0.15)
+        # what is pinned is the pause wait asks for between two looks, not the wall clock (a loaded box can stretch any sleep past 0.15 s)
+        reads, slept = iter([False, True]), []
+        with mock.patch.object(time, "sleep", slept.append):
+            self.assertTrue(wait(lambda: next(reads), 5))
+        self.assertEqual(len(slept), 1, "one pause between the two looks")
+        self.assertLess(slept[0], 0.1, "it looks again within a tenth of a second")
 
 
 class WaitToast(unittest.TestCase):
