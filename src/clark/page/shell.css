@@ -1184,6 +1184,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
+.ucall { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); cursor: pointer; }
 .msl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); margin: var(--d-msl-det-y) 0 2px; } .msl-bar .mlg { margin: 0; margin-left: auto; }   /* row 1020: 'Hide milestone details' at the left and the Legend at the right, one row */
 .msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 0; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
 .msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }

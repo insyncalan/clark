@@ -11,6 +11,8 @@ import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
 
+export const FIRST = 5;     // the summary shows this many use cases, then offers the rest
+export const moreWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} use cases`);
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
 
@@ -97,12 +99,12 @@ function More({ n }) {
 }
 
 export function UseCases({ tools }) {
-  const d = data.value, [open, setOpen] = useState(() => new Set());
+  const d = data.value, [open, setOpen] = useState(() => new Set()), [all, setAll] = useState(false);
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
-    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); ed.added.value = ""; }
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { if (list.findIndex((s) => s.u.id === fresh) >= FIRST) setAll(true); setOpen(new Set([...open, fresh])); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
@@ -118,7 +120,8 @@ export function UseCases({ tools }) {
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
       </div>
-      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      <ul class="ucrows plain">{(all ? list : list.slice(0, FIRST)).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {list.length > FIRST ? <span class="link ucall" role="button" tabIndex={0} data-ucall onClick={() => setAll(!all)} onKeyDown={(e) => press(e, () => setAll(!all))}>{moreWord(list.length, all)}</span> : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>
