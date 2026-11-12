@@ -6,6 +6,7 @@ manifest that parses with a plain id, and obeys the size caps and does not follo
 
 Run: python3 dev/run_tests.py test_brands_top_pack
 """
+import contextlib
 import json
 import os
 import unittest
@@ -145,19 +146,27 @@ class DownloadsPick(Base):
         os.utime(new, (900, 900))
         self.assertEqual(brands.newest_brand_zip(self.scratch), old)
 
-    def test_a_huge_folder_is_not_all_looked_at(self):
-        for i in range(8):
-            zip_with(self.scratch / f"z{i}.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
-        seen = []
-        real = Path.stat
-        def counting(path, *a, **k):
-            if path.suffix == ".zip":
-                seen.append(path)
-            return real(path, *a, **k)
-        with mock.patch.object(brands, "SCAN_AT", 3), mock.patch.object(Path, "stat", counting):
-            brands.newest_brand_zip(self.scratch)
-        self.assertLessEqual(len(seen), 3 + brands.LOOK_AT * 2)
-        self.assertLess(len({p.name for p in seen}), 8)
+    def test_the_newest_brand_zip_is_found_in_a_huge_folder(self):
+        # 600 zips; the newest (a brand) lists last in directory order, so a cap on the listing would miss it
+        for i in range(600):
+            p = zip_with(self.scratch / f"a{i:04d}.zip", {"readme.txt": "not a brand"})
+            os.utime(p, (1000 + i, 1000 + i))
+        newest = zip_with(self.scratch / "zzz-brand.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
+        os.utime(newest, (99999, 99999))
+        real_scandir = os.scandir
+        def name_order(path):
+            with real_scandir(path) as it:
+                entries = sorted(it, key=lambda e: e.name)
+            return contextlib.nullcontext(iter(entries))
+        opened = []
+        real_has = brands.has_manifest
+        def counting(path):
+            opened.append(path)
+            return real_has(path)
+        with mock.patch.object(os, "scandir", name_order), mock.patch.object(brands, "has_manifest", counting):
+            found = brands.newest_brand_zip(self.scratch)
+        self.assertEqual(found, newest)
+        self.assertLessEqual(len(opened), brands.LOOK_AT)
 
     def test_only_the_newest_few_zips_are_looked_into(self):
         # the cutoff that keeps a Settings listing cheap: LOOK_AT zips are opened at most; a brand zip older than all of them is not found

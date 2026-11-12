@@ -7,10 +7,10 @@ with a backup under <data>/brand-backups/. installed(root) lists the brands; fol
 A zip is read once into memory and judged by its end record and headers before any member is read; every structure failure is
 the update zip's own "damaged" refusal. Nothing here joins text from a request onto a path: an id must match ID_RE first.
 """
+import contextlib
 import functools
 import hashlib
 import importlib.util
-import itertools
 import json
 import os
 import re
@@ -50,7 +50,6 @@ GENERIC = object()                  # what folder() answers for the committed lo
 RESERVED = ("assets", "design-system", "generic", LOCAL)
 ID_RE = re.compile(r"[a-z0-9-]{1,40}")
 VERSION_RE = re.compile(r"[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}")
-SCAN_AT = 500                       # at most this many *.zip entries of Downloads are looked at (stat) before the newest are picked
 LOOK_AT = 5                         # the newest this many zips in Downloads are looked at for a brand manifest
 MANIFEST = "clark-brand.json"
 TOKENS = "tokens.css"
@@ -263,12 +262,16 @@ def has_manifest(path):
 def newest_brand_zip(folder):
     """The newest of the newest LOOK_AT zips in `folder` that holds a brand manifest, or None. Links are not followed."""
     found = []
-    for p in (itertools.islice(Path(folder).glob("*.zip"), SCAN_AT) if folder else []):
-        try:
-            if p.is_file() and not p.is_symlink():
-                found.append((p.stat().st_mtime, p))
-        except OSError:
-            continue
+    try:
+        with os.scandir(folder) if folder else contextlib.nullcontext([]) as it:
+            for e in it:
+                try:
+                    if e.name.lower().endswith(".zip") and not e.is_symlink() and e.is_file(follow_symlinks=False):
+                        found.append((e.stat(follow_symlinks=False).st_mtime, Path(e.path)))
+                except OSError:
+                    continue
+    except OSError:
+        return None
     for _mtime, p in sorted(found, key=lambda t: t[0], reverse=True)[:LOOK_AT]:
         if has_manifest(p):
             return p
