@@ -2393,3 +2393,65 @@ class TheAuthorFlagsAreChecked(Base):
         code, out = self.go("--author-name", "someone", "--author-email", "s@example.invalid")
         self.assertEqual(code, 0, out)
         self.assertRegex(out, r"PASS +author and message are clear")
+
+
+class TheVendorLineAllowances(unittest.TestCase):
+    """Row 891: four exact upstream lines of the vendored pdf library are allowed, each in its own path; nothing wider."""
+    PATHS = tuple(pp.VENDOR_LINE_ALLOWED)
+
+    def kinds(self, path, text):
+        return pp.guard_kinds(path, text.encode("utf-8"))
+
+    def test_there_are_exactly_four_entries_and_no_wildcard(self):
+        self.assertEqual(sorted(self.PATHS), ["vendor/pypdf/LICENSE", "vendor/pypdf/_codecs/adobe_glyphs.py",
+                                              "vendor/pypdf/constants.py", "vendor/pypdf/pagerange.py"])
+        self.assertTrue(all(len(v) == 1 for v in pp.VENDOR_LINE_ALLOWED.values()))
+        self.assertFalse(any("*" in p or p.endswith("/") for p in self.PATHS))
+
+    def test_each_exact_line_passes_in_its_own_path(self):
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            with self.subTest(path):
+                self.assertEqual(self.kinds(path, "ok line\n%s\nok line\n" % line), set())
+                self.assertEqual(self.kinds(path, "%s\r\n" % line), set())
+
+    def test_the_same_line_in_another_path_is_refused(self):
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            for other in [p for p in self.PATHS if p != path] + ["vendor/pypdf/other.py", "src/a.py", "vendor/typing_extensions.py"]:
+                with self.subTest(path=path, other=other):
+                    if line in pp.VENDOR_LINE_ALLOWED.get(other, ()):
+                        continue
+                    self.assertTrue(self.kinds(other, line + "\n") or not has_listed(line))
+
+    def test_the_two_name_lines_are_refused_elsewhere(self):
+        for path in ("vendor/pypdf/LICENSE", "vendor/pypdf/pagerange.py"):
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            for other in ("vendor/pypdf/constants.py", "vendor/pypdf/__init__.py", "src/a.py"):
+                with self.subTest(path=path, other=other):
+                    self.assertEqual(self.kinds(other, line + "\n"), {"a person's name"})
+        self.assertEqual(self.kinds("vendor/pypdf/pagerange.py", pp.VENDOR_LINE_ALLOWED["vendor/pypdf/LICENSE"][0] + "\n"),
+                         {"a person's name"})
+
+    def test_a_listed_word_on_any_other_line_of_those_files_is_refused(self):
+        hostile = ("Copyright (c) 2014, %s Smith" % BUILDER_N,          # a copyright line with a listed name
+                   "x = %s" % BUILDER_N,                                  # a capitalised listed word
+                   '    LANG = "/%s"' % BUILDER2_N,
+                   "%s and %s" % (OWNER_N.lower(), HEAD_N.lower()),       # a name pair
+                   "%s" % OWNER_N.lower())
+        for path in self.PATHS + ("vendor/pypdf/__init__.py",):
+            allowed = pp.VENDOR_LINE_ALLOWED.get(path, ("",))[0]
+            for bad in hostile:
+                with self.subTest(path=path, bad=bad[:6]):
+                    self.assertEqual(self.kinds(path, "%s\n%s\n" % (allowed, bad)), {"a person's name"})
+                    self.assertEqual(self.kinds(path, "%s\n" % bad), {"a person's name"})
+
+    def test_the_allowed_line_with_anything_added_or_repeated_is_refused(self):
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            if not has_listed(line):
+                continue
+            with self.subTest(path):
+                self.assertTrue(self.kinds(path, line + " more\n"))
+                self.assertTrue(self.kinds(path, "# " + line + "\n"))
+                self.assertTrue(self.kinds(path, line + "\n" + line + "\n"))

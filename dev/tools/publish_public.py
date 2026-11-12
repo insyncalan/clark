@@ -581,6 +581,34 @@ TEMPLATE_LIMIT_KIND = ("more uses of the page-template name than this file may h
                        "Remove the extra use, or ask for the limit to be raised")
 GUARD_ALLOWED.update({path: ({reveal("Onaare"): count}, "a page template that shares its name with a person")
                       for path, count in TEMPLATE_NAME_PATHS.items()})
+# Row 891 (vendored pypdf; ruling: the narrow option). Four upstream lines of the vendored library read as a listed word. Each is
+# allowed as ONE exact whole line in ONE exact path (stored rot13-encoded, so this file holds no name in plain text). No wildcard, no
+# directory rule: the same words on any other line, in any other file, or the same line in another path, are still refused.
+VENDOR_LINE_ALLOWED = {
+    "vendor/pypdf/LICENSE": (reveal("Fbzr pbagevohgvbaf pbclevtug (p) 2014, Fgrir Jvgunz <fjvgunz_tvguho@znp-thlire.pbz>"),),
+    "vendor/pypdf/pagerange.py": (reveal("Pbclevtug (p) 2014, Fgrir Jvgunz <fjvgunz_tvguho@znp-thlire.pbz>."),),
+    "vendor/pypdf/constants.py": (reveal('    YNAT = "/Ynat"  # grkg fgevat, bcgvbany'),),
+    "vendor/pypdf/_codecs/adobe_glyphs.py": (reveal('    "/objNaqNeebj": "\\H0001S3S9",'),),
+}
+
+
+def drop_allowed_lines(path, data):
+    """The bytes without the vendor lines allowed for this exact path (each one use only, the whole line, nothing added)."""
+    lines = VENDOR_LINE_ALLOWED.get(path)
+    if not lines:
+        return data
+    left = [line.encode("utf-8") for line in lines]
+    kept = []
+    for line in data.splitlines(keepends=True):
+        bare = line.rstrip(b"\r\n")
+        if bare in left:
+            left.remove(bare)
+            kept.append(line[len(bare):])
+        else:
+            kept.append(line)
+    return b"".join(kept)
+
+
 # What a person or private repo becomes in prose (.md and .txt). Anyone not listed here is "a teammate".
 ROLES = {reveal("Nyna").lower(): "the owner", reveal("Znuba").lower(): "the owner",
          reveal("Ebznabss").lower(): "the project lead", reveal("Angnfun").lower(): "the project lead",
@@ -1156,6 +1184,7 @@ def guard_kinds(path, data):
         data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(CONTACT_EMAIL) + rb"(?!\.?[A-Za-z0-9-])", b"contact address", data)
     if path in FEEDBACK_ADDRESS_PATHS:
         data = re.sub(rb"(?<![A-Za-z0-9._%+-])" + re.escape(FEEDBACK_ADDRESS) + rb"(?!\.?[A-Za-z0-9-])", b"feedback address", data)
+    data = drop_allowed_lines(path, data)
     for form in _forms_of(data):
         counts = listed_word_counts(form)
         over = [word for word, n in counts["capitalised"].items() if n > allowed.get(word, 0)]
