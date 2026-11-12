@@ -1,8 +1,8 @@
 // The At a glance section (#45): Project health (a pill and the reason, two tile widths) and the tiles after it, in the order, with
 // the outline and the hidden flags that glance_tiles holds. View leaves a hidden tile out; Edit draws it dimmed with its controls
 // (`tools.glance`, edit/GlanceEdit.jsx). A published file draws the figures the file carries (data.glance, worked out at publish
-// time from the rows the file keeps) and nothing else: no button, no control.
-import { data, rows, openWork, fromFile } from "../stores/report.js";
+// time from the rows the file keeps); its tiles that count work items open the file's Work items filtered (row 1112), read only. No control.
+import { data, rows, openWork, fromFile, tabs } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
 import { allTiles, fileTiles } from "../glanceTiles.js";
 import { useRef } from "preact/hooks";
@@ -25,7 +25,7 @@ function Figure({ t, file }) {
     </>
   );
   const aria = `${t.label}: ${t.value}${t.detail ? ", " + t.detail : ""}${t.word ? ". " + t.word : ""}`;
-  return file || !t.filter
+  return !t.filter || (file && !tabs.value.includes("work"))      // row 1112: a published file's tile opens its Work items too, when the file has that tab
     ? <div class={`fig rag-${t.rag}`} data-fig={t.key} role="group" aria-label={aria}>{inner}</div>
     : <button type="button" class={`fig go rag-${t.rag}`} data-fig={t.key} onClick={() => openWork(t.filter)} aria-label={`${aria}. Opens Work items showing these`}>{inner}</button>;
 }
