@@ -229,6 +229,7 @@ class ClientWorkbook(Rig):
         published = publish.select(fx.inputs())
         published["data"]["gantt"] = {"tab_name": "Plan", "columns": ["name", "start", "end", "pct"], "lines": [
             {"id": "G1", "name": "Build", "start": "2026-10-01", "end": "2026-10-20", "pct": 50}]}
+        published["tabs"] = [*published["tabs"], "gantt"]      # row 1068: the sheet follows the tab, as a real publish with the switch on lists it
         wb = load_workbook(io.BytesIO(excel_client.workbook_bytes(published, {"fill": "112233", "text": "445566"})))
         ws = wb["Plan"]
         self.assertEqual(ws["A1"].fill.fgColor.rgb[-6:].upper(), "112233")

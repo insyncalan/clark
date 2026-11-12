@@ -53,7 +53,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "checklist", "description": "Next steps or readiness, ticked off."},
 ]
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "needs", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
-BOX = FIRST_SLICE[:-1] + ["gantt"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) sits before One document, placeable since the store takes its type (row 926)
+BOX = FIRST_SLICE[:-1] + ["gantt", "gantt-table"] + FIRST_SLICE[-1:]      # the box's cards: the Gantt (row 926) and the Gantt table (row 1068) sit before One document, placeable since the store takes their types (layouts 19 and 21)
 
 
 class Logic(unittest.TestCase):
@@ -107,7 +107,7 @@ class Logic(unittest.TestCase):
     def test_the_box_and_help_describe_every_template_in_the_same_words(self):
         """The Add a section box and Help's table of section templates say the same thing for each template the box offers."""
         help_ = json.loads((SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
-        rows = {}
+        rows = set()
 
         def walk(o):
             if isinstance(o, dict):
@@ -115,13 +115,12 @@ class Logic(unittest.TestCase):
                     walk(v)
             elif isinstance(o, list):
                 if len(o) == 3 and all(isinstance(x, str) for x in o):
-                    rows[o[0]] = o[1]
+                    rows.add((o[0], o[1]))
                 for v in o:
                     walk(v)
         walk(help_)
-        for t in self.t("TEMPLATES"):
-            self.assertIn(t["name"], rows, f"Help has a row for {t['name']}")
-            self.assertEqual(rows[t["name"]], t["description"], f"{t['name']}: the box and Help use the same words")
+        for t in self.t("TEMPLATES"):      # a row with the card's name AND its description (row 1068: two cards are called Table, the Notes grid and the Gantt table, each with its own row)
+            self.assertIn((t["name"], t["description"]), rows, f"{t['name']}: Help has a row for it, in the box's words")
 
     def test_descriptions_and_what_each_holds_are_the_prototypes(self):
         """The review table: the words and parts are the prototype's (system/prototype/views.js), so Help's table can match them."""
@@ -148,6 +147,7 @@ class Logic(unittest.TestCase):
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
             "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
             "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The Gantt chart"], ["full"]),
+            "gantt-table": ("The plan as a table, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The plan table"], ["full", "half"]),      # row 1068: a template section, full or half (the owner's ruling)
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),
         })
 
@@ -160,7 +160,7 @@ class Logic(unittest.TestCase):
         self.assertEqual(self.t("ACCEPTS")["types"][:2], ["text", "needs"])
         self.assertEqual(changes.CHANGE_KINDS["report_sections"][changes.NEW], ("type", "title", "body"), "new takes a type, a title and (text only) a starting body")
         for x in self.t("TEMPLATES"):
-            if x["id"] == "gantt":      # row 926: no registry module (no content of its own), but the store takes the type at layout 19
+            if x["id"] in ("gantt", "gantt-table"):      # rows 926, 1068: no registry module (no content of their own), but the store takes the types at layouts 19 and 21
                 self.assertIs(x["ready"], True)
                 self.assertIn(x["type"], self.t("ACCEPTS")["types"])
                 self.assertIn(x["type"], changes.NEW_SECTION_TYPES)
@@ -178,7 +178,7 @@ class Logic(unittest.TestCase):
     # ── search, kinds, counts, recently used ─────────────────────────────────
 
     def test_search_and_kinds_and_counts(self):
-        self.assertEqual(len(self.t("list()")), 22)
+        self.assertEqual(len(self.t("list()")), 23)      # row 1068: + the Plan table card
         self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
@@ -309,9 +309,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 22)
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates22", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])
+                             ["All templates23", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates6", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -402,7 +402,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 22, "sketched": 22, "radios": 22, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 23, "sketched": 23, "radios": 23, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -490,7 +490,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 22, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 23, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():

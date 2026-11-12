@@ -36,7 +36,7 @@ from test_updater import Rig
 
 OLD_TAG = "v1.0.3"
 NEW_VERSION = "1.0.4"
-NEW_LAYOUT = 22      # the data layout of this build (schema steps 18 to 22); the test pins the number on purpose
+NEW_LAYOUT = 23      # the data layout of this build (schema steps 18 to 23); the test pins the number on purpose
 GANTT_COLUMNS = ("show_gantt_editor", "show_gantt_client", "gantt_tab_name", "gantt_title", "gantt_hidden_columns", "gantt_default_rows")
 
 CHILD = r'''
