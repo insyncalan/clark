@@ -6,6 +6,7 @@ folder (so the process, limits and outcomes are tested on every machine, even be
 real vendored pypdf is present in vendor/, against it. What is asserted: a text PDF gives passages that keep their page number;
 encrypted, scanned, corrupt, oversize, over-the-page-cap and slow PDFs are each reported (own code), never raise, and never give
 a passage; the reading is done by another process (not the test's own) that is gone afterwards; no new words are shown."""
+import json
 import os
 import shutil
 import subprocess
@@ -27,6 +28,8 @@ class PdfReader:
         data = stream.read()
         if not data.startswith(b"%PDF-") or b"%%EOF" not in data:
             raise ValueError("not a pdf")
+        if strict and b"LOOSE" in data:             # a real strict reader refuses a slightly damaged file; clark asks for the forgiving read
+            raise ValueError("strict")
         open(os.environ.get("TMPDIR", "/nonexistent") + "/pid", "w").write(str(os.getpid()))
         self.is_encrypted = b"/Encrypt" in data
         bodies = re.findall(rb"/Type /Page /Contents.*?stream\n(.*?)\nendstream", data, re.S)
@@ -119,6 +122,51 @@ class Outcomes(Fake):
         with mock.patch.object(platform, "run_stoppable", side_effect=RuntimeError("boom")):
             self.assertEqual(self.read(pdf(["ZQ a"])).reason, "crash")
 
+    # mutation hunt (item 1182): the size edge, odd answers, the forgiving read and the child's trimming were not pinned
+    def test_a_file_of_exactly_the_size_cap_is_read_and_one_byte_more_is_not(self):
+        raw = pdf(["ZQ edge"])
+        with mock.patch.object(pdf_reader, "MAX_BYTES", len(raw)):
+            self.assertEqual(self.read(raw).status, "ok")
+        with mock.patch.object(pdf_reader, "MAX_BYTES", len(raw) - 1):
+            self.assertEqual(self.read(raw).reason, "too_big")
+
+    def test_something_that_is_not_bytes_is_too_big_and_nothing_is_started(self):
+        with mock.patch.object(platform, "run_stoppable") as run:
+            for raw in ("text", None, 12):
+                self.assertEqual(pdf_reader.read(raw, vendor=self.vendor).reason, "too_big", raw)
+        run.assert_not_called()
+
+    def test_a_page_count_equal_to_the_cap_is_read(self):
+        with mock.patch.object(pdf_reader, "MAX_PAGES", 2):
+            got = self.read(pdf(["ZQ a", "ZQ b"]))
+        self.assertEqual((got.status, len(got.pages)), ("ok", 2))
+
+    def test_the_reader_asks_for_the_forgiving_read(self):
+        got = self.read(pdf(["ZQ LOOSE words"]))
+        self.assertEqual((got.status, got.pages), ("ok", ((1, "ZQ LOOSE words"),)))
+
+    def test_the_child_trims_the_text_of_a_page(self):
+        self.assertEqual(self.read(pdf(["  ZQ padded  "])).pages, ((1, "ZQ padded"),))
+
+    def test_odd_answers_from_the_child_are_sorted_out(self):
+        def answer(said):
+            with mock.patch.object(platform, "run_stoppable", return_value=("ok", json.dumps(said).encode(), 0)):
+                return self.read(pdf(["ZQ a"]))
+        got = answer({"status": "ok", "pages": [[0, "ZQ zero"], [2, "   "], [3, "ZQ real"]]})
+        self.assertEqual((got.status, got.pages), ("ok", ((3, "ZQ real"),)))
+        got = answer({"status": "ok", "pages": []})
+        self.assertEqual((got.status, got.reason), ("scanned", "scanned"))
+        got = answer({"status": "weird", "pages": []})
+        self.assertEqual((got.status, got.reason), ("not_read", "crash"))
+        with mock.patch.object(platform, "run_stoppable", return_value=("too_much", b'{"status": "ok", "pages": [[1, "ZQ a"]]}', None)):
+            self.assertEqual(self.read(pdf(["ZQ a"])).reason, "crash")
+
+    def test_the_child_gets_a_minimal_environment(self):
+        env = pdf_reader._env()
+        self.assertEqual(env["PATH"], "/usr/bin:/bin")
+        self.assertEqual(env["PYTHONDONTWRITEBYTECODE"], "1")
+        self.assertEqual(set(env), {"PATH", "LANG", "LC_ALL", "PYTHONDONTWRITEBYTECODE"})
+
     def test_long_page_text_is_cut(self):
         with mock.patch.object(pdf_reader, "MAX_PAGE_CHARS", 10):
             got = self.read(pdf(["ZQ " + "y" * 100]))
@@ -186,6 +234,45 @@ class InAsk(Fake):
         self.assertEqual(labels, {"saved/Plan.pdf (page 1)": "ZQ budget is agreed", "saved/Plan.pdf (page 2)": "ZQ deadline is May",
                                   "saved/Plan.pdf (page 3)": "ZQ risks"})
         self.assertEqual({(p.file, p.page) for p in got.passages}, {("saved/Plan.pdf", 1), ("saved/Plan.pdf", 2), ("saved/Plan.pdf", 3)})   # #943: the open-at-page fields
+
+    # mutation hunt (item 1182): part labels, the part cap, the char and byte budgets and the size cap's source were never pinned
+    def test_a_long_page_is_cut_into_parts_that_keep_the_page_number(self):
+        self.put("Plan.pdf", pdf(["ZQ " + "a" * 57, "ZQ short"]))
+        with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20):
+            got = self.run_it()
+        labels = [p.label for p in got.passages]
+        self.assertEqual(labels, ["saved/Plan.pdf (page 1)", "saved/Plan.pdf (page 1, part 2)", "saved/Plan.pdf (page 1, part 3)", "saved/Plan.pdf (page 2)"])
+        self.assertEqual([p.page for p in got.passages], [1, 1, 1, 2])
+        self.assertEqual("".join(p.text for p in got.passages[:3]), "ZQ " + "a" * 57)
+
+    def test_one_pdf_gives_at_most_the_part_cap_of_passages(self):
+        self.put("Plan.pdf", pdf(["ZQ " + "a" * 197]))
+        with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20), mock.patch.object(ask_passages, "MAX_PDF_PARTS", 4):
+            got = self.run_it()
+        self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf (page 1, part 4)")
+        self.assertEqual(len(got.passages), 4)
+
+    def test_the_part_cap_leaves_room_for_every_page_of_the_longest_pdf(self):
+        self.assertGreaterEqual(ask_passages.MAX_PDF_PARTS, pdf_reader.MAX_PAGES)
+
+    def test_the_text_of_a_pdf_counts_against_the_character_budget(self):
+        self.put("a.pdf", pdf(["ZQ " + "a" * 30]))
+        self.put("b.pdf", pdf(["ZQ second file"]))
+        with mock.patch.object(ask_passages, "MAX_CHARS", 10):
+            got = self.run_it()
+        self.assertEqual(sorted({p.file for p in got.passages}), ["saved/a.pdf"])
+        self.assertEqual(got.other, 1, "the second file is left out, counted")
+
+    def test_the_bytes_of_a_pdf_count_against_the_byte_budget(self):
+        self.put("a.pdf", pdf(["ZQ first file"]))
+        self.put("b.pdf", pdf(["ZQ second file"]))
+        with mock.patch.object(ask_passages, "MAX_BYTES_READ", 10):
+            got = self.run_it()
+        self.assertEqual(sorted({p.file for p in got.passages}), ["saved/a.pdf"])
+        self.assertEqual(got.other, 1)
+
+    def test_the_folder_reader_reads_a_file_up_to_the_readers_own_limit(self):
+        self.assertEqual(ask_passages.MAX_PDF_BYTES, pdf_reader.MAX_BYTES)
 
     def test_each_failure_is_counted_with_its_code_and_gives_no_passage(self):
         self.put("good.pdf", pdf(["ZQ fine"]))

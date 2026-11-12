@@ -45,6 +45,12 @@ class Case(unittest.TestCase):
 
 
 class Report(Case):
+    def test_the_report_says_whether_clark_runs_in_a_container(self):
+        # mutation hunt (item 1183): the report's container flag was only checked as a key, never as a value
+        for flag in (True, False):
+            with self.subTest(container=flag), mock.patch.object(pl, "container_mode", return_value=flag):
+                self.assertIs(self.setup().report()["container"], flag)
+
     def test_the_report_is_the_doctors_lines_as_data(self):
         report = self.setup().report()
         self.assertEqual([r["id"] for r in report["checks"]], [doctor.check_id(c) for c in doctor.CHECKS])
@@ -397,6 +403,11 @@ class Remembered(Case):
         self.setup(str(odd)).choose("Choose")
         self.assertEqual(self.pointer().read_text(encoding="utf-8"), str(odd) + "\n")
         self.assertEqual(self.setup().remembered(), odd)
+
+    def test_a_hand_edited_pointer_with_spaces_around_the_path_is_still_taken(self):
+        # mutation hunt (item 1183): dropping the second try, the line with its spaces ignored, was not caught
+        self.pointer().write_text("  " + str(self.good) + "  \n", encoding="utf-8")
+        self.assertEqual(self.setup().remembered(), self.good)
 
     def test_a_windows_line_end_in_the_pointer_is_taken_off(self):
         self.pointer().write_bytes((str(self.good) + "\r\n").encode("utf-8"))
