@@ -284,8 +284,29 @@ def _due_key(row):
     return (0, row["due"]) if day_number(row.get("due")) is not None else (1, "")
 
 
-def matching(value, rows, today):
+def _alive(value, live):
+    """The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; None when a choice
+    list had names and none of them is left (a name that is gone matches nothing). `live`: {"workstream": names (lower case),
+    "use_case": ids, "gone_owner": names (lower case)}; a missing part is not checked."""
+    if not live:
+        return value
+    here = {"owner": lambda c: _text(c).lower() not in (live.get("gone_owner") or ()),
+            "workstream": lambda c: live.get("workstream") is None or _text(c).lower() in live["workstream"],
+            "use_case": lambda c: live.get("use_case") is None or c in live["use_case"]}
+    out = dict(value)
+    for f, ok in here.items():
+        if value[f]:
+            out[f] = [c for c in value[f] if c == NONE or ok(c)]
+            if not out[f]:
+                return None
+    return out
+
+
+def matching(value, rows, today, live=None):
     """The ids of `rows` (rows_of's shape) that the checked filter `value` lists, sorted and cut to its max."""
+    value = _alive(value, live)
+    if value is None:
+        return []
     hits = [r for r in rows if isinstance(r.get("id"), str) and r["id"]
             and (value["mode"] == "all" or (value["mode"] == "open") == _open(r))
             and all(_member(r, f, value[f], today) for f in FILTERS) and _allowed(r, value, today)]
@@ -304,7 +325,7 @@ def published(value, ctx):
     if type(value) is not dict or set(value) != set(KEYS):
         return None
     kept = ctx.ids.get("actions", frozenset()) | ctx.ids.get("raid", frozenset()) | ctx.ids.get("decisions", frozenset())
-    items = [i for i in matching(value, rows_of(ctx.rows), ctx.as_at) if i in kept]
+    items = [i for i in matching(value, rows_of(ctx.rows), ctx.as_at, ctx.live) if i in kept]
     if not items:
         return None
     return {"items": items, "columns": list(value["columns"]), "caption": value["caption"]}

@@ -237,6 +237,33 @@ class PageRules(unittest.TestCase):
                 page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)})")
                 self.assertEqual(page, want)
 
+    def test_a_name_that_is_gone_matches_nothing_and_the_page_and_publish_agree(self):
+        every = lambda f: wi.matching(check(f), wi.rows_of(ROWS), TODAY)
+        for f, lv, plive, want in (
+                ({"owner": ["Pat Demo"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, []),
+                ({"owner": ["Pat Demo", "Lee Demo"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, every({"owner": ["Lee Demo"], "mode": "all"})),
+                ({"workstream": ["Build"], "mode": "all"}, {"workstream": ["run"]}, {"workstream": frozenset({"run"})}, []),
+                ({"workstream": ["Build", "Run"], "mode": "all"}, {"workstream": ["run"]}, {"workstream": frozenset({"run"})}, every({"workstream": ["Run"], "mode": "all"})),
+                ({"use_case": ["ABC-U-001"], "mode": "all"}, {"use_case": []}, {"use_case": frozenset()}, []),
+                ({"use_case": ["ABC-U-001"], "mode": "all"}, {"use_case": ["ABC-U-001"]}, {"use_case": frozenset({"ABC-U-001"})}, every({"use_case": ["ABC-U-001"], "mode": "all"})),
+                ({"owner": ["(none)"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, every({"owner": ["(none)"], "mode": "all"}))):
+            with self.subTest(filter=f, live=lv):
+                self.assertEqual(wi.matching(check(f), wi.rows_of(ROWS), TODAY, plive), want)
+                page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(stored(f))}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}, {json.dumps(lv)})")
+                self.assertEqual(page, want)
+        self.assertTrue(every({"owner": ["Pat Demo"], "mode": "all"}), "the rows are there; only the missing name makes it empty")
+
+    def test_a_filter_naming_what_is_gone_lists_none_and_its_line_is_still_shown(self):
+        data = {"project": {"code": "ABC"}, "labels": {}, "report_sections": [], "use_cases": [], "milestones": [], "gone_owners": ["pat demo"],
+                "actions": [dict(r, project="ABC", archived=0, client_visible=1, description=r["id"]) for r in ROWS["actions"]], "raid": [], "decisions": []}
+        section = {"id": "ABC-S-001", "body": stored({"owner": ["Pat Demo"], "mode": "all"})}
+        got = self.val(f"(function(){{ var d = {json.dumps(data)}, s = {json.dumps(section)}; var l = W.listOf(s, d, {json.dumps(TODAY)});"
+                       f" return {{ n: l.items.length, saved: l.saved, line: L.lineOf(W.filterOf(s)) }}; }})()")
+        self.assertEqual(got, {"n": 0, "saved": True, "line": 'owner:"Pat Demo" is:open,closed'})
+        data["gone_owners"] = []
+        again = self.val(f"W.listOf({json.dumps(section)}, {json.dumps(data)}, {json.dumps(TODAY)}).items.length")
+        self.assertGreater(again, 0, "the same filter lists rows while the owner is still on the list")
+
     def test_a_typed_line_lists_what_the_work_items_pages_own_line_lists(self):
         lines = ['-owner:"Pat Demo"', 'milestone:"go live"', "milestone:none", "has:owner", "no:due", "supplier", '"second wave"', "-due:overdue",
                  "-is:overdue", "is:overdue", "-status:Delayed type:action", "has:owner,due", "no:owner,milestone", '-milestone:"Go live"',
@@ -342,6 +369,58 @@ class Saved(Api):
         status, got = self.undone(first["apply_id"])
         self.assertEqual(status, 200, got)
         self.assertEqual(self.body(), "")
+
+    def listed(self):
+        sec = next((x for x in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"] if x["id"] == self.ref), None)
+        return sec["items"] if sec else []
+
+    def person_with_item(self, name):
+        with self.s.step("dashboard", USER) as st:
+            pid = st.add_person(name=name, source="demo")
+        item = self.demo.action(description="Row for the live name", owner=name, due_date="2030-01-09")
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", item, {"owner": name, "owner_id": pid})
+        return pid, item
+
+    def test_a_renamed_owner_or_workstream_is_followed_by_the_section(self):
+        pid, item = self.person_with_item("Zed Demo")
+        self.save({"owner": ["Zed Demo"], "not": {"owner": ["zed  demo"]}})
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(pid, "Zed Renamed")
+        got = json.loads(self.body())
+        self.assertEqual((got["owner"], got["not"]["owner"]), (["Zed Renamed"], ["Zed Renamed"]), "the saved words follow the live name")
+        self.save({"owner": ["Zed Demo"]})
+        self.assertEqual(self.listed(), [], "the old name matches nothing")
+        self.save({"owner": ["Zed Renamed"]})
+        self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            ws = st.create("workstreams", {"project": "ABC", "name": "Lane One", "source": "demo"})
+            st.update("actions", item, {"workstream": "Lane One"})
+        self.save({"workstream": ["Lane One"]})
+        self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            st.update("workstreams", ws, {"name": "Lane Two"})
+        self.assertEqual(json.loads(self.body())["workstream"], ["Lane Two"])
+        self.assertEqual(self.listed(), [item])
+
+    def test_an_owner_or_workstream_or_use_case_that_is_gone_matches_nothing_and_the_filter_stays(self):
+        pid, item = self.person_with_item("Zed Demo")
+        with self.s.step("dashboard", USER) as st:
+            ws = st.create("workstreams", {"project": "ABC", "name": "Lane One", "source": "demo"})
+            st.update("actions", item, {"workstream": "Lane One"})
+        for f in ({"owner": ["Zed Demo"]}, {"workstream": ["Lane One"]}):
+            self.save(f)
+            self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            st.archive_person(pid)
+        self.s.con.execute("UPDATE workstreams SET archived = 1 WHERE id = ?", (ws,))      # no step archives a workstream yet; the rules read the flag
+        self.s.con.commit()
+        for f in ({"owner": ["Zed Demo"]}, {"workstream": ["Lane One"]}):
+            self.save(f)
+            self.assertEqual(self.listed(), [], f"{f} is gone")
+            self.assertEqual(json.loads(self.body())[next(iter(f))], list(f.values())[0], "the filter still names it")
+        self.save({"owner": ["Zed Demo", "Pat Demo"]})
+        self.assertEqual(self.listed(), [self.a_due, self.risk], "a name that is left still matches")
 
     def test_a_refused_filter_writes_nothing_and_says_why_without_quoting_it(self):
         got = self.refused(self.req(changes.UPDATE, id=self.ref, changes={"body": json.dumps({"kinds": ["ZQ-kind"]})}, place="report"), wi.BAD_CHOICE)
@@ -483,7 +562,7 @@ class InThePage(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]')", "the start line")
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]').textContent"),
-                             "This list shows nothing until its filter is saved. Change any choice below to start it.")
+                             "No filter is saved for this section yet. Save one on Work items and it shows here.")
             steps = self.demo.last_step()
             p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-field=kinds] input[value=risk]').click()")
             p.saved()

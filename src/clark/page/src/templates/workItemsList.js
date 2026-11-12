@@ -123,8 +123,34 @@ function byDue(x, y) {
 }
 const rank = (r) => { const i = PRIORITIES.indexOf(r.priority); return i < 0 ? PRIORITIES.length : i; };
 
+// The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; null when a choice list had
+// names and none is left (a name that is gone matches nothing): section_kinds/workitems.py _alive. `live` as liveOf makes it.
+function alive(filter, live) {
+  if (!live) return filter;
+  const ok = {
+    owner: (c) => !(live.goneOwner || []).includes(low(tidy(c))),
+    workstream: (c) => !live.workstream || live.workstream.includes(low(tidy(c))),
+    use_case: (c) => !live.use_case || live.use_case.includes(c),
+  };
+  const out = { ...filter };
+  for (const f of Object.keys(ok)) {
+    if (!filter[f].length) continue;
+    out[f] = filter[f].filter((c) => c === NONE || ok[f](c));
+    if (!out[f].length) return null;
+  }
+  return out;
+}
+
+// What still exists in the data the page has: workstream names, use case ids, and the owners archived from the people list.
+export function liveOf(data) {
+  const some = (k, f) => (Array.isArray(data && data[k]) ? data[k].map(f) : null);
+  return { workstream: some("workstreams", (w) => low(tidy(w.name))), use_case: some("use_cases", (u) => u.id), goneOwner: (data && data.gone_owners) || [] };
+}
+
 // The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max: section_kinds/workitems.py matching().
-export function matching(filter, rows, today) {
+export function matching(filter, rows, today, live) {
+  filter = alive(filter, live);
+  if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
     && (filter.mode === "all" || (filter.mode === "open") === isOpen(r))
     && FILTERS.every((f) => member(r, f, filter[f], today)) && allowed(r, filter, today));
@@ -162,7 +188,7 @@ export function listOf(section, data, today) {
   }
   const filter = filterOf(section);
   if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
-  return { items: matching(filter, ruleRows(publishedOnly(data)), today), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).
