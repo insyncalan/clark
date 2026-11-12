@@ -36,6 +36,7 @@ FILE_EXTENSIONS = (
     "doc", "docx", "dot", "dotx", "rtf", "odt", "xls", "xlsx", "xlsm", "ods", "ppt", "pptx", "odp", "vsd", "vsdx",
     "pdf", "txt", "md", "csv", "tsv", "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "svg", "webp", "heic",
     "zip", "7z", "rar", "tar", "gz", "tgz", "eml", "msg",
+    "json", "xml", "html", "htm", "log", "ics", "docm", "xlsb", "pages", "numbers", "key", "mp4", "mov", "mp3", "m4a", "wav",
 )                                                                                                            # what a listed file name may end in (D); a person's name or a domain ("a.smith", "acme.com") is no file
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
 _BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\]*$")                                              # a web address with a host and no path after it (a "?query" or "#fragment" is not a path)
