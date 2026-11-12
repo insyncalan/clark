@@ -7,12 +7,13 @@ dark: every item in the demo data is opened, each icon has its tone and sits bes
 colour, the icon reaches 3:1 and the words beside it 4.5:1, and every word shown is plain. The data is the demo data (fictional).
 """
 import json
+import os
 import re
-import shutil
 import subprocess
 import unittest
 
 from _paths import ROOT
+from test_publish_style import need_node  # noqa: E402
 
 import test_peek as tp  # noqa: E402
 from test_dark_contrast import dark_blocks, ratio  # noqa: E402
@@ -70,9 +71,7 @@ def icon_definitions():
 
 class ToneRules(unittest.TestCase):
     def run_js(self, body):
-        node = shutil.which("node")
-        if not node:
-            self.skipTest("no node")
+        node = need_node(self)
         code = f'import * as I from "{(SRC / "iconColours.js").as_uri()}"; {body}'
         done = subprocess.run([node, "--input-type=module", "-e", code], capture_output=True, text=True)
         self.assertEqual(done.returncode, 0, done.stderr)
@@ -355,6 +354,20 @@ class PlainWords(unittest.TestCase):
         for attr in ("title=", "aria-label=", "alt="):
             self.assertNotIn(attr, toned, "the words beside the icon say it; a second name would be read twice")
         self.assertIn("children", toned)
+
+
+class NodeIsRequiredInCi(unittest.TestCase):
+    def test_a_missing_node_fails_where_ci_is_set_and_skips_elsewhere(self):
+        from unittest import mock
+        probe = ToneRules("run_js")
+        with mock.patch("shutil.which", return_value=None):
+            with mock.patch.dict(os.environ, {"CI": "true"}):
+                with self.assertRaises(self.failureException):
+                    probe.run_js("")
+            env = {k: v for k, v in os.environ.items() if k != "CI"}
+            with mock.patch.dict(os.environ, env, clear=True):
+                with self.assertRaises(unittest.SkipTest):
+                    probe.run_js("")
 
 
 if __name__ == "__main__":

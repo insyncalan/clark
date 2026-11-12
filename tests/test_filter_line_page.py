@@ -1019,6 +1019,55 @@ class Line(unittest.TestCase):
                     self.assertTrue(wait(lambda: (cdp.js(tabs, sid) or [])[:3] == ["Open items", "Actions", "Actions copy"]), "kept")
                     cdp.js("localStorage.clear()", sid)
 
+    def focused_tab_id(self, cdp, sid):
+        """The id of the view tab that has the focus now, or None when the focus is on anything else."""
+        return cdp.js("(() => { const e = document.activeElement; return e && e.matches('.vtab') ? e.dataset.viewId : null; })()", sid)
+
+    def new_tab_id(self, cdp, sid, before):
+        """The id of the one tab that is not in `before`, once it is there."""
+        wait(lambda: len(self.tab_ids(cdp, sid)) == len(before) + 1)
+        return [i for i in self.tab_ids(cdp, sid) if i not in before][0]
+
+    def test_new_view_button_keeps_the_focus_on_itself_and_not_the_new_tab(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    before = self.tab_ids(cdp, sid)
+                    click(cdp, sid, "#viewNew")
+                    new = self.new_tab_id(cdp, sid, before)
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "the focus stays on + New view")
+                    wait(lambda: self.focused_tab_id(cdp, sid) == new, 0.5)      # the new tab's own focus would come on the next tick
+                    self.assertEqual(cdp.js("document.activeElement.id", sid), "viewNew")
+                    self.assertNotEqual(self.focused_tab_id(cdp, sid), new, "and the new tab has not taken it")
+
+    def test_save_as_from_the_view_menu_gives_the_focus_to_the_new_tab(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    before = self.tab_ids(cdp, sid)
+                    click(cdp, sid, "#viewTabMenu")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#viewTabMenuList [data-kind=saveas]')", sid)))
+                    click(cdp, sid, "#viewTabMenuList [data-kind=saveas]")
+                    new = self.new_tab_id(cdp, sid, before)
+                    self.assertTrue(wait(lambda: self.focused_tab_id(cdp, sid) == new), "the new tab has the focus: %r" % self.focused_tab_id(cdp, sid))
+
+    def test_duplicate_view_gives_the_focus_to_the_copys_tab(self):
+        s = self.serve()
+        for width in SIZES:
+            for theme in THEMES:
+                with self.subTest(width=width, theme=theme), shared.page() as cdp:
+                    sid = self.load(cdp, s.port, width, theme=theme)
+                    click_tab(cdp, sid, ".vtab[data-view-id=core-actions]")
+                    before = self.tab_ids(cdp, sid)
+                    click(cdp, sid, "#viewTabMenu")
+                    click(cdp, sid, "#viewTabMenuList [data-kind=duplicate]")
+                    new = self.new_tab_id(cdp, sid, before)
+                    self.assertTrue(wait(lambda: self.focused_tab_id(cdp, sid) == new), "the copy's tab has the focus: %r" % self.focused_tab_id(cdp, sid))
+
     def test_delete_view_gives_an_undo_that_puts_it_back_in_place(self):
         s = self.serve()
         for width in SIZES:

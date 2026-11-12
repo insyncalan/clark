@@ -10,7 +10,8 @@ with O_NOFOLLOW and checks the open file (a regular file, one name on disk, the 
 path swapped for a link, or for another file, after it was listed is refused at that moment.
 
 TYPES. Word files (.docx) are read by `docx_read` (which refuses a hostile one); plain text files (.txt, .md, .csv and a few
-more) are read as UTF-8. PDF is NOT supported yet: it is counted ("not supported yet"), never read. Any other type is counted too.
+more) are read as UTF-8. PDF is read by `pdf_reader` in a separate process (#891): each page is a passage labelled "name (page N)"; a PDF that
+could not be read (scanned, encrypted, damaged, too big, too slow) is counted in `pdf` and its reason code is in `pdf_reasons`. Any other type is counted too.
 
 WHAT COMES BACK. `FolderData`: the chosen passages (each labelled with a name inside its folder, never a path), `left_out` (how
 many did not fit the budget), `safety` (how many files were left out for safety, with the listing's own count), `pdf` and
@@ -23,16 +24,18 @@ import os
 import time
 from dataclasses import dataclass
 
-from clark import ask, ask_data, docx_read, reach, secret_screen
+from clark import ask, ask_data, docx_read, pdf_reader, reach, secret_screen
 
 TEXT_TYPES = (".txt", ".md", ".markdown", ".csv", ".tsv", ".rst")
 WORD_TYPES = (".docx",)
 PDF_TYPES = (".pdf",)
+MAX_PDF_BYTES = pdf_reader.MAX_BYTES
 MAX_TEXT_BYTES = 1024 * 1024               # a plain text file is read to here
 MAX_FILES_READ = 300                       # files opened for one question
 MAX_BYTES_READ = 60 * 1024 * 1024          # all the bytes opened for one question
 MAX_CHARS = 2_000_000                      # all the text kept before passages are chosen
 MAX_PARTS = 40                             # passages one file can give
+MAX_PDF_PARTS = 400                        # passages one PDF can give (a page is at least one, so the page numbers reach the end of a long file)
 READ_SECONDS = 20.0                        # time spent opening files for one question; files after it are left out
 
 
@@ -41,10 +44,11 @@ class FolderData:
     passages: tuple = ()
     left_out: int = 0          # passages that did not fit the budget
     safety: int = 0            # files and folders left out for safety (including a Word file refused as unsafe)
-    pdf: int = 0               # PDFs, not supported yet
+    pdf: int = 0               # PDFs not read (any reason; the codes are in pdf_reasons)
     other: int = 0             # files of a type that is not read
     stopped: bool = False      # the listing was cut short by a cap
     secret_labels: tuple = ()  # labels of files left out because they look like a password or a key (already counted in `safety`)
+    pdf_reasons: tuple = ()    # (label, code) for each PDF not read; codes are pdf_reader.REASONS
 
 
 def _lines_of_word(data, name):
@@ -85,7 +89,7 @@ def _label(root, path):
 def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, max_passages=ask.MAX_PASSAGES):
     """Passages from the saved `folders` (a list of paths) for one question; `data_dir` is clark's own folder. See the module note."""
     safety = pdf = other = 0
-    secret_labels = []
+    secret_labels, pdf_reasons = [], []
     usable = []
     for f in folders or ():
         try:
@@ -105,11 +109,9 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     deadline = time.monotonic() + READ_SECONDS
     for path in listing.files:
         low = str(path).lower()
-        if low.endswith(PDF_TYPES):
-            pdf += 1
-            continue
+        is_pdf = low.endswith(PDF_TYPES)
         word = low.endswith(WORD_TYPES)
-        if not word and not low.endswith(TEXT_TYPES):
+        if not word and not is_pdf and not low.endswith(TEXT_TYPES):
             other += 1
             continue
         root = next((r for r in roots if reach.inside(path, r)), None)
@@ -122,13 +124,24 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             continue
         files_read += 1
         try:
-            raw, truncated = reach.read_bytes(path, usable, data_dir, docx_read.MAX_FILE_BYTES if word else MAX_TEXT_BYTES, home)
+            raw, truncated = reach.read_bytes(path, usable, data_dir, MAX_PDF_BYTES if is_pdf else docx_read.MAX_FILE_BYTES if word else MAX_TEXT_BYTES, home)
         except reach.Never:
             safety += 1                                   # changed since it was listed, or never allowed
             continue
         bytes_read += len(raw)
+        pages = None
+        if is_pdf:
+            got = pdf_reader.read(raw, truncated=truncated)
+            if got.status != "ok":
+                pdf += 1
+                pdf_reasons.append((label, got.reason))
+                continue
+            pages = got.pages
+            lines = [line for _n, text in pages for line in text.splitlines()]
         try:
-            if word:
+            if pages is not None:
+                pass
+            elif word:
                 if truncated:
                     raise docx_read.WordRefused("too big")
                 lines = _lines_of_word(raw, os.path.basename(str(path)))
@@ -141,6 +154,15 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
             safety += 1
             secret_labels.append(label)
             continue
+        if pages is not None:
+            parts = []
+            for number, text in pages:
+                chunks = ask_data._cut(f"{label} (page {number})", list(_chunks(text.splitlines())))
+                parts += [ask.Passage(c.label if i == 1 else f"{label} (page {number}, part {i})", c.text, file=label, page=number) for i, c in enumerate(chunks, 1)]
+            parts = parts[:MAX_PDF_PARTS]
+            chars += sum(len(p.text) for p in parts)
+            passages += parts
+            continue
         parts = [ask.Passage(p.label, p.text, file=label) for p in ask_data._cut(label, list(_chunks(lines)))[:MAX_PARTS]]
         chars += sum(len(p.text) for p in parts)
         if len(parts) > 1:
@@ -150,4 +172,4 @@ def folder_data(folders, data_dir, question="", budget=ask.BUDGET, home=None, ma
     if len(chosen) > max_passages:
         left += len(chosen) - max_passages
         chosen = chosen[:max_passages]
-    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels))
+    return FolderData(chosen, left, safety, pdf, other, bool(listing.stopped), tuple(secret_labels), tuple(pdf_reasons))
