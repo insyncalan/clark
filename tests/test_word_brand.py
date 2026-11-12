@@ -136,6 +136,13 @@ class Refuses(unittest.TestCase):
         with self.assertRaises(WordRefused):
             word_brand.wrap(template(rels_extra=bad), BUILT)
 
+    def test_a_doctype_or_entity_in_any_part_is_refused(self):
+        evil = HEAD + '<!DOCTYPE x [<!ENTITY e "boom">]>' + f'<w:hdr xmlns:w="{W}"><w:p><w:r><w:t>&e;</w:t></w:r></w:p></w:hdr>'
+        with self.assertRaises(WordRefused):
+            word_brand.wrap(template(extra=[("word/header2.xml", evil)]), BUILT)
+        with self.assertRaises(WordRefused):
+            word_brand.wrap(template(body='<w:p><w:r><w:t>x</w:t></w:r></w:p>', styles=HEAD + '<!DOCTYPE s [<!ENTITY a "b">]><w:styles xmlns:w="%s"/>' % W), BUILT)
+
     def test_not_a_zip_is_refused(self):
         with self.assertRaises(WordRefused):
             word_brand.wrap(b"not a word file", BUILT)

@@ -285,7 +285,7 @@
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
      "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
     ],
-    "n": "The use case table in the Word report has a Commitment column. A brand's Word letterhead goes in its branding folder as word/template.docx; the report takes its page, header and footer.",
+    "n": "The use case table in the Word report has a Commitment column.",
     "page": [
      "dashboard+edit"
     ]
@@ -1878,7 +1878,7 @@
        ],
        [
         "Brands",
-        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed."
+        "Add a brand from a zip file you were given, and clark uses its colours, fonts and pictures. “Review the brand in Downloads” reads the newest zip in your Downloads folder, and **Choose zip…** lets you pick one yourself. A panel then lists what the file adds, replaces or removes. Press **Install** for a new brand or **Replace** for one already added, or **Cancel**. Nothing changes until you press Install or Replace. If you close the window without choosing a file, it says “No file was chosen, so nothing was changed.” **Remove** on a brand asks you to confirm with “Back to the default look”. **Undo** puts back what the last install, replace or remove changed. A brand's Word letterhead goes in its branding folder as word/template.docx; the Word report takes its page, header and footer."
        ],
        [
         "People",
