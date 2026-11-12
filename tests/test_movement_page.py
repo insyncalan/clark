@@ -153,6 +153,7 @@ class Base(unittest.TestCase):
 
     def visit(self, cdp, width=1400, theme=None):
         p = Pg.at(self, cdp, self.s.port, "#milestones&p=ABC")
+        cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused, and then a blur is not a leave: the editor stays open
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until("!!document.querySelector('#milestones')", "Milestones drew")
         if theme:
@@ -307,6 +308,10 @@ class Block(Base):
         box = ".mvm-f[data-f=%s] .ProseMirror" % json.dumps(ident[3:])
         p.js("document.getElementById(%s).click()" % json.dumps(ident))
         p.until("!!document.querySelector(%s)" % json.dumps(box), "the editor opened")
+        p.until("document.hasFocus() && document.activeElement === document.querySelector(%s)" % json.dumps(box), "the page and the editor have the focus")
+        # the editor's own focus call finishes on a frame (tiptap); a blur before that frame is undone by it, which a person cannot do. Wait two frames.
+        p.js("window.mvSettled = false; requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.mvSettled = true; }); }); true")
+        p.until("window.mvSettled === true", "the editor settled")
         p.js("(function(){var b = document.querySelector(%s); b.cxed.editor.commands.setContent('<p>' + %s + '</p>'); b.blur();})()"
              % (json.dumps(box), json.dumps(value)))
         p.until("!document.querySelector(%s)" % json.dumps(box), "the editor closed")

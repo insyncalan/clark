@@ -49,7 +49,7 @@ class Logic(unittest.TestCase):
 
 
 class Raid(PageBase):
-    seed, stored, wait_for, open, typed = (eye.Raid.__dict__[k] for k in ("seed", "stored", "wait_for", "open", "typed"))
+    seed, stored, wait_for, open_editor, typed = (eye.Raid.__dict__[k] for k in ("seed", "stored", "wait_for", "open_editor", "typed"))
 
     def edit_open(self, p, view, box):
         p.js(f"document.querySelector({json.dumps(view)}).click()")
@@ -62,7 +62,7 @@ class Raid(PageBase):
         for width, theme in COMBOS:
             self.seed(own)
             with chrome() as cdp:
-                p, view, box = self.open(cdp)
+                p, view, box = self.open_editor(cdp)
                 look(p, width, theme)
                 yield p, view, box
             for r in self.store.read("report_sections", "ABC"):

@@ -68,7 +68,7 @@ class Raid(PageBase):
             time.sleep(0.1)
         return False
 
-    def open(self, cdp):
+    def open_editor(self, cdp):
         p = self.visit(cdp)
         p.edit()
         view = f"[data-id={json.dumps(self.sec)}] .rce-f .rt-view"
@@ -81,7 +81,7 @@ class Raid(PageBase):
     def test_empty_shows_the_quiet_line_and_saves_nothing_new(self):
         self.seed("")
         with chrome() as cdp:
-            p, view, box = self.open(cdp)
+            p, view, box = self.open_editor(cdp)
             self.assertIn("Click to write", p.js(f"document.querySelector({json.dumps(view)}).textContent"))
             snap(p, "raid-empty")
             p.js(f"document.querySelector({json.dumps(view)}).click()")
@@ -95,7 +95,7 @@ class Raid(PageBase):
     def test_exactly_400_saves_and_over_400_stays_open_and_says_so(self):
         self.seed("Old words")
         with chrome() as cdp:
-            p, view, box = self.open(cdp)
+            p, view, box = self.open_editor(cdp)
             p.js(f"document.querySelector({json.dumps(view)}).click()")
             p.until(f"!!document.querySelector({json.dumps(box)})", "opened")
             over = "w" * 401
@@ -120,7 +120,7 @@ class Raid(PageBase):
         """A tall editor in a narrow cell stretched the two selects beside it (a 700 px select); the words now span the card's row."""
         self.seed("Old words")
         with chrome() as cdp:
-            p, view, box = self.open(cdp)
+            p, view, box = self.open_editor(cdp)
             p.js(f"document.querySelector({json.dumps(view)}).click()")
             p.until(f"!!document.querySelector({json.dumps(box)})", "opened")
             self.typed(p, box, "w " * 150)
@@ -134,7 +134,7 @@ class Raid(PageBase):
     def test_a_paste_with_paragraphs_is_one_plain_line_and_escape_keeps_the_old_words(self):
         self.seed("Old words")
         with chrome() as cdp:
-            p, view, box = self.open(cdp)
+            p, view, box = self.open_editor(cdp)
             p.js(f"document.querySelector({json.dumps(view)}).click()")
             p.until(f"!!document.querySelector({json.dumps(box)})", "opened")
             p.js("document.querySelector(%s).cxed.editor.commands.setContent('')" % json.dumps(box))
@@ -162,7 +162,7 @@ class Raid(PageBase):
             for i in range(39):
                 st.create("raid", {"project": "ABC", "type": "Risk", "description": "Item %d %s" % (i, "long " * 20), "raised": "2026-10-01", "source": "demo"})
         with chrome() as cdp:
-            p, view, box = self.open(cdp)
+            p, view, box = self.open_editor(cdp)
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 time.sleep(0.3)

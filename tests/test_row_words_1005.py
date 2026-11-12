@@ -39,7 +39,7 @@ class RowWords(unittest.TestCase):
     def height(self, p, row):
         return p.js(f"document.querySelector({row!r}).getBoundingClientRect().height")
 
-    def open(self, p, row):
+    def open_editor(self, p, row):
         p.js(f"document.querySelector({row!r} + ' {SHOWN}').click()")
         p.until("document.activeElement.classList.contains('ProseMirror')", "the one editor opens with the focus in it")
 
@@ -68,7 +68,7 @@ class RowWords(unittest.TestCase):
                     shut = self.height(p, row)
                     self.assertLess(shut, 52, f"{where}: one line tall")
                     p.js(SPY)
-                    self.open(p, row)
+                    self.open_editor(p, row)
                     self.assertLess(self.height(p, row), 60, f"{where}: the row stays one line tall with the editor open")
                     self.assertTrue(p.js(f"(r => {{ const e = r.querySelector('.ProseMirror').getBoundingClientRect(), c = r.closest('.wl').getBoundingClientRect(); return e.left >= c.left - 1 && e.right <= c.right + 1; }})(document.querySelector({row!r}))"), f"{where}: the editor stays inside its card")
                     self.type(p, "Plain words\na client can read")
@@ -93,13 +93,13 @@ class RowWords(unittest.TestCase):
             for theme, w in self.each(p):
                 where = f"{theme} {w}"
                 p.js(SPY)
-                self.open(p, row)
+                self.open_editor(p, row)
                 self.type(p, "Typed and abandoned")
                 p.key("Escape", code="Escape", vk=27)
                 p.until(f"!document.querySelector({row!r} + ' .ProseMirror')", f"{where}: Esc closes the editor")
                 self.assertEqual(self.stored("actions", ident), "Cut-over plan to be agreed", where)
                 self.assertEqual([b for b in p.js("window.__sent") if "client_message" in b], [], where)
-                self.open(p, row)
+                self.open_editor(p, row)
                 self.type(p, "Saved by leaving")
                 p.js("document.activeElement.blur(); document.body.focus()")
                 self.assertTrue(wait(lambda: self.stored("actions", ident) == "Saved by leaving"), f"{where}: leaving the field saves")
@@ -114,7 +114,7 @@ class RowWords(unittest.TestCase):
             ident = id_of(self.store, "Cut-over plan to be agreed")
             row = self.row("actions", ident)
             p.js(SPY)
-            self.open(p, row)
+            self.open_editor(p, row)
             self.type(p, "x" * 600)
             p.key("Enter", code="Enter", vk=13)
             p.until(f"!!document.querySelector({row!r} + ' .rt-problem')", "the field says why and stays open")
@@ -127,7 +127,7 @@ class RowWords(unittest.TestCase):
             p.edit()
             ident = id_of(self.store, "Cut-over plan to be agreed")
             row = self.row("actions", ident)
-            self.open(p, row)
+            self.open_editor(p, row)
             self.type(p, "")
             p.key("Enter", code="Enter", vk=13)
             p.toast_is(f"Wording of {ident} changed.")
