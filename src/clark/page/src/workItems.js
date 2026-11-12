@@ -108,9 +108,11 @@ export function rowsOf(data) {
   const ms = Object.fromEntries((data.milestones || []).map((m) => [m.id, m.name]));
   // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
-    ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null } : {});
+    ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null }
+    : { raised_on: r.raised || null });      // row 1077: without a history (a published file) the row still knows the date it was raised; under its own name so the Freshness filter is not offered by it
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_action: !!r.client_action, client_message: String(r.client_message || "").trim(),
-    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
+    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
+    source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
   const rows = [];
   for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
