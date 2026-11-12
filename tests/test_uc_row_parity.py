@@ -21,7 +21,9 @@ class Reference(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
                     self.assertEqual(p.js("[...document.querySelectorAll('.ucref')].map(e => e.textContent)"), ["1.1", "1.3 + 1.4"])
-                    self.assertGreater(p.js("parseFloat(getComputedStyle(document.querySelector('.ucref')).borderTopWidth)"), 0, "a box, not plain text")
+                    box = p.js("(() => { const c = getComputedStyle(document.querySelector('.ucref')); return [c.borderTopWidth, c.borderTopStyle, c.borderTopColor]; })()")
+                    grey = p.js("(t => { const e = document.createElement('i'); e.style.color = `var(--${t})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })('grey-300')")
+                    self.assertEqual(box, ["1px", "solid", grey], "a 1 px box in the grey-300 line colour, not plain text and not any border at all")
 
     def test_the_use_case_summary_has_no_export_icon_in_view_or_edit(self):
         with chrome() as cdp:
@@ -38,6 +40,7 @@ class Reference(Setup):
             p.js("document.querySelector('.ucrow .ucbar').click()")
             p.until("!!document.querySelector('.ucdetail')", "opened")
             self.assertNotEqual(bg(), rest, "the open row is tinted")
+            self.assertEqual(bg(), p.js("(t => { const e = document.createElement('i'); e.style.color = `var(--${t})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })('grey-100')"), "and the tint is the grey-100 one, not any colour")
 
 
 class PublishedFile(Published):

@@ -118,7 +118,7 @@ const where = () => ({ view: view.value, project: project.value, item: item.valu
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
   if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
-  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
+  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: s.view === "usecases" ? s.uc : "" };   // row 1111: a file keeps the use case address on its Use cases tab, no other
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
     view.value = s.view;

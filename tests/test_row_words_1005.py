@@ -6,6 +6,7 @@ Run: python3 dev/run_tests.py test_row_words_1005
 """
 import json
 import sys
+import time
 import unittest
 
 from _demo import DemoStore
@@ -96,13 +97,21 @@ class RowWords(unittest.TestCase):
                 self.open_editor(p, row)
                 self.type(p, "Typed and abandoned")
                 p.key("Escape", code="Escape", vk=27)
-                p.until(f"!document.querySelector({row!r} + ' .ProseMirror')", f"{where}: Esc closes the editor")
+                p.until(f"!document.querySelector({row!r} + ' .ProseMirror') && document.querySelector({row!r} + ' {SHOWN}') && document.querySelector({row!r} + ' {SHOWN}').textContent.includes('Cut-over plan')", f"{where}: Esc closes the editor")
                 self.assertEqual(self.stored("actions", ident), "Cut-over plan to be agreed", where)
                 self.assertEqual([b for b in p.js("window.__sent") if "client_message" in b], [], where)
                 self.open_editor(p, row)
+                p.until("document.hasFocus() && document.activeElement.classList.contains('ProseMirror') && !!document.activeElement.cxed", f"{where}: the editor is focused and ready")
+                time.sleep(0.3)
                 self.type(p, "Saved by leaving")
-                p.js("document.activeElement.blur(); document.body.focus()")
+                # A slow runner can drop the first blur: re-issue it until the editor box is gone, for up to 15 s.
+                gone = f"!document.querySelector({row!r} + ' .ProseMirror')"
+                end = time.time() + 15
+                while time.time() < end and not p.js(gone):
+                    p.js("(function(){var a = document.activeElement; if (a && a.classList.contains('ProseMirror')) { a.blur(); } document.body.focus();})()")
+                    time.sleep(0.3)
                 self.assertTrue(wait(lambda: self.stored("actions", ident) == "Saved by leaving"), f"{where}: leaving the field saves")
+                p.until("!!document.querySelector('.toast [data-undo]')", f"{where}: the Undo is offered")
                 p.js("document.querySelector('.toast [data-undo]').click()")
                 self.assertTrue(wait(lambda: self.stored("actions", ident) == "Cut-over plan to be agreed"), f"{where}: Undo")
 
