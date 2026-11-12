@@ -205,6 +205,26 @@ class Card(Base):
             p.until("!!document.querySelector('#import-result')", "the result")
             self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
 
+    def test_the_sheets_ticked_are_saved_in_the_browser_and_ticked_again_next_time(self):
+        """Row 1106: Continue keeps the ticked sheets in localStorage and the next What to import opens with only those ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            p.js("document.querySelector('#import-clear').click()")
+            p.js("document.querySelector('[data-sheet=actions]').click()")              # only Actions ticked
+            p.js("document.querySelector('#import-continue').click()")
+            p.until("!!document.querySelector('#import-summary')", "the check")
+            self.assertEqual(p.js("localStorage.getItem('clark.import.sheets')"), '["actions"]')
+            p.js("location.reload()")
+            self.settle(p, "!!document.querySelector('#profile-btn')", "the page came back")
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+            self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list input')].filter(i => i.checked).map(i => i.dataset.sheet)"), ["actions"])
+
     def test_a_sheet_the_file_does_not_have_is_not_shown(self):
         from openpyxl import load_workbook
         b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
