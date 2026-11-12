@@ -427,7 +427,7 @@ class Browser(unittest.TestCase):
                 key(cdp, sid, "/")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-sneak]')", sid)), "two slashes open it")
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.className", sid) == "sn-in"), "focus is in the box")
-                self.assertIn("Change an item with words", cdp.js("document.querySelector('[data-sneak]').textContent", sid))
+                self.assertIn("Ask clark to update for you", cdp.js("document.querySelector('[data-sneak]').textContent", sid))      # row 1077: the box's heading
                 cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'move to Friday, owner Jo Ellis, high priority'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.sn-list li').length", sid) >= 2))
                 fields = cdp.js("[...document.querySelectorAll('.sn-list li')].map(l => l.dataset.field)", sid)
@@ -863,8 +863,9 @@ class ClosedRiskPublished(unittest.TestCase):
         row = next(r for r in pub["data"]["raid"] if r["id"] == "PUB-001")
         self.assertEqual((row["status"], row["priority"], row["impact"], row["likelihood"]), ("Closed", "Medium", "Medium", "Medium"))
         self.assertLessEqual(set(row), set(publish.PUBLISH_FIELDS["raid"]), "nothing outside the allow-list is on the row")
-        for flag in ("client_visible", "archived", "internal_note", "source"):
+        for flag in ("client_visible", "archived", "internal_note"):
             self.assertNotIn(flag, row)
+        self.assertEqual(row["source"], "raid.xlsx", "row 1077: the source by name, never its path (the plant's is ZQ-SOURCE-PATH/raid.xlsx)")
         for key, marker in plant["markers"].items():
             for spelling in tp.fx.spellings(marker):
                 self.assertNotIn(spelling, text, f"the planted internal text {key} is not in the file")
@@ -933,7 +934,7 @@ class PlainLabels(unittest.TestCase):
             self.assertNotIn("WordsButton", text)
         self.assertNotIn("SneakButton", (self.SRC / "src" / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8"), "nor beside Change status on a use case")
         jsx = self.texts()[0]
-        self.assertIn('aria-label="Change an item with words"', jsx)
+        self.assertIn('aria-label="Ask clark to update for you"', jsx)      # row 1077: the box's label
 
     def test_the_width_button_follows_the_state(self):
         peek = self.texts()[1]

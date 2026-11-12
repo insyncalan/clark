@@ -1,4 +1,4 @@
-"""Item 444: a workbook's external links are never fetched or opened by Import workbook (excel_route.py and the excel_import reader
+"""Item 613: a workbook's external links are never fetched or opened by Import workbook (excel_route.py and the excel_import reader
 it uses). Fictional data only. Run: python3 dev/run_tests.py test_excel_import_no_fetch
 
 The workbook is a real clark export with these added by hand with zipfile: two external workbook links

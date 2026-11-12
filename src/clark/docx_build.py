@@ -437,7 +437,7 @@ def section_milestones(published, ctx, title, sec):
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
-        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (m.get("client_message"), {}),
+        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (sanitise.rich_plain_text(m.get("client_message")), {}),     # row 1078: the client wording is rich too
                          (f"Reason: {m['state_reason']}" if m.get("state_reason") else "", {"color": ctx.tok["grey-700"]})):
             if line:
                 name += text_paras(line, ctx, **kw)
@@ -558,7 +558,7 @@ def _status_cell(row, kind, ctx):
         return word_cell(row.get("status"), ctx)
     pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
                               ctx.as_at)
-    if pill["text"] in ("Closed", "Made", "Completed") or pill["class"] == "b":
+    if pill["text"] in ("Closed", "Made", "Completed"):
         return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
     if row.get("priority") == "Urgent" and glance.is_open(row):
         return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
