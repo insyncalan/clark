@@ -2064,6 +2064,10 @@ def data_version(path):
     try:
         con = connect(path, readonly=True)
         row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    except sqlite3.OperationalError as e:        # a lock, or a read-only folder with no room for the -shm file: not a damaged file
+        if "locked" in str(e) or "busy" in str(e):
+            raise Invalid(_busy(e)) from e
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
     except sqlite3.DatabaseError as e:           # a file that isn't a database, a database with no meta table, or one that can't be read
         raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
     finally:

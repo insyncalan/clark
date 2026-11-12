@@ -89,6 +89,17 @@ class SameData(Base):
         self.assertEqual(list(self.dir.iterdir()), [])
 
 
+class LockedData(Base):
+    def test_a_lock_is_said_as_in_use_not_as_a_database_clark_cannot_read(self):
+        path = make_v1(self.dir)
+        with mock.patch.object(store_module, "connect", side_effect=sqlite3.OperationalError("database is locked")):
+            code, out, err = run(self.dir)
+        self.assertEqual(code, 1)
+        self.assertIn("in use by another program", err)
+        self.assertNotIn("not a database clark can read", err)
+        self.assertTrue(path.is_file())
+
+
 class NewerData(Base):
     def test_a_newer_file_exits_2_with_the_plain_sentence_and_changes_nothing(self):
         path = make_v1(self.dir)

@@ -17,7 +17,8 @@ To update:
 Sometimes the new clark keeps your data in a newer form than the old one did.
 If so, it first makes a copy of your data. The copy is in the backups folder,
 inside your data folder. Its name ends in -migrate.db. Then it brings your data
-up to date. clark keeps the last 3 of these copies.
+up to date. clark keeps the 14 newest of these copies, or the number you chose under
+"How many backups to keep" in Settings (never fewer than 3).
 
 If clark will not start and the message says "start from the newer clark folder.
 Nothing was changed.", a newer clark has already used your data. Start from
@@ -42,4 +43,6 @@ read-only there. Use the steps above.
 Check the download: the release page shows a long number (called SHA-256) for
 the zip. On a Mac, type this:
         shasum -a 256 clark-<version>-mac.zip
+On Windows, type this in PowerShell:
+        Get-FileHash -Algorithm SHA256 clark-<version>-mac.zip
 The number it shows must match the one on the release page.

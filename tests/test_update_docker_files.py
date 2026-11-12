@@ -22,32 +22,42 @@ class DockerUpdate(unittest.TestCase):
         self.assertIsNotNone(m, "the start is one sh -c line")
         line = m.group(1)
         self.assertLess(line.index("check-data --data /data"), line.index("--port 8766"))
-        self.assertIn("check-data --data /data ||", line, "a refusal is handled, not run through to the server")
-        self.assertIn("; exec python3 -m clark --data /data", line)
+        self.assertIn("rc=$$?", line, "the check's own code is kept, not hidden")
+        self.assertIn("exec python3 -m clark --data /data", line)
 
     def run_start(self, code):
         import os, subprocess, tempfile
-        line = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M).group(1).replace("\\\"", '"')
+        line = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M).group(1).replace("\\\"", '"').replace("$$", "$")
         with tempfile.TemporaryDirectory() as d:
             fake = Path(d) / "python3"
             fake.write_text('#!/bin/sh\ncase "$*" in *check-data*) exit %d;; *) echo SERVER; exit 0;; esac\n' % code, encoding="utf-8")
             fake.chmod(0o755)
+            idle = Path(d) / "sleep"
+            idle.write_text("#!/bin/sh\necho HELD\nexit 0\n", encoding="utf-8")
+            idle.chmod(0o755)
             env = dict(os.environ, PATH=d + os.pathsep + os.environ["PATH"])
             return subprocess.run(["sh", "-c", line], capture_output=True, text=True, env=env)
 
-    def test_a_refused_check_ends_the_container_with_exit_0_and_never_starts_the_server(self):
+    def test_a_refused_check_says_its_words_once_then_holds_the_container_and_never_starts_the_server(self):
         for code in (1, 2):
             done = self.run_start(code)
-            self.assertEqual(done.returncode, 0, "exit 0 is not restarted by on-failure, so no loop and no new copy")
+            self.assertIn("HELD", done.stdout, "unless-stopped restarts any exit, 0 included, so a refusal must not exit")
             self.assertNotIn("SERVER", done.stdout)
-            self.assertIn("clark did not start", done.stderr)
+            self.assertEqual(done.stderr.count("clark did not start"), 1)
+
+    def test_any_other_check_code_is_passed_on_so_docker_restarts_it(self):
+        for code in (137, 3):
+            done = self.run_start(code)
+            self.assertEqual(done.returncode, code)
+            self.assertNotIn("HELD", done.stdout)
+            self.assertNotIn("SERVER", done.stdout)
 
     def test_a_passing_check_starts_the_server(self):
         self.assertIn("SERVER", self.run_start(0).stdout)
 
-    def test_compose_restarts_only_on_failure(self):
-        self.assertRegex(COMPOSE, r"(?m)^    restart: on-failure$")
-        self.assertNotIn("unless-stopped", COMPOSE.replace("docker compose down (or stop) still stops it", ""))
+    def test_compose_restarts_unless_stopped_so_a_reboot_brings_clark_back(self):
+        self.assertRegex(COMPOSE, r"(?m)^    restart: unless-stopped$")
+        self.assertNotRegex(COMPOSE, r"(?m)^    restart: on-failure$")
 
     def test_update_txt_names_the_backups_folder_for_the_copy(self):
         self.assertIn("The copy is in the backups folder,\ninside your data folder", UPDATE)
@@ -56,7 +66,7 @@ class DockerUpdate(unittest.TestCase):
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",
                       "docker compose -f docker/compose.yaml up -d", "start from the newer clark folder", "SHA-256",
-                      "clark keeps the last 3 of these copies", "Update from file in Settings does not work under Docker"):
+                      "clark keeps the 14 newest of these copies", "never fewer than 3", "Get-FileHash -Algorithm SHA256", "Update from file in Settings does not work under Docker"):
             self.assertIn(words, UPDATE)
         self.assertNotIn("docker load", UPDATE)
         self.assertNotIn("!", UPDATE)
