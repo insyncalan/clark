@@ -10,6 +10,7 @@ import { undoSeveral } from "../stores/changes.js";
 import { ownClick, noTextRange } from "../components/pick.js";
 import { whyNot, chooseable, stepsOf, CONFIRM_ABOVE, SENT_KIND } from "./activityUndo.js";
 import { UndoBar } from "./ActivityUndo.jsx";
+import { SourceLine } from "../components/Peek.jsx";
 
 const TABS = [["details", "Details"], ["activity", "Activity"]];
 const LOADING = "Reading the history…";
@@ -39,8 +40,9 @@ export function PeekTabs() {
   );
 }
 
-// The read-only Source line under the Details fields: where the item came from, then " by <name>" (activity_read.source_line). Edit only; the
-// text is drawn as text, and nothing is drawn while it is read, when it is empty or when the read fails.
+// The Source line under the fields on the live page (Edit and View): where the item or milestone came from, by name, then " by <name>"
+// (activity_read.source_line), drawn by the shared SourceLine (components/Peek.jsx; a published file draws its own data with it, row 1077).
+// Nothing is drawn while it is read, when it is empty or when the read fails.
 export function PeekSource({ row }) {
   const [text, setText] = useState("");
   const d = data.value;
@@ -49,7 +51,7 @@ export function PeekSource({ row }) {
     readActivity(project.value, row.id).then((r) => { if (live) setText(r.ok && typeof r.view.source === "string" ? r.view.source : ""); });
     return () => { live = false; };
   }, [row.id, d]);                                // eslint-disable-line react-hooks/exhaustive-deps
-  return text ? <p class="pk-source muted" data-pk-source><span class="pk-source-l">Source</span>{": "}<span>{text}</span></p> : null;
+  return <SourceLine text={text} />;
 }
 
 function Change({ r }) {

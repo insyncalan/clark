@@ -72,7 +72,7 @@ class BuiltPages(unittest.TestCase):
         self.assertNotIn("All, Activity, Updates and Source", text)
         self.assertIn("**Activity** tab", text)
         self.assertNotIn("Change an item in words", text)
-        self.assertIn("Change an item with words", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))
+        self.assertIn("Ask clark to update for you", (SRC / "edit" / "SneakPeek.jsx").read_text(encoding="utf-8"))      # row 1077: the box's one name
 
 
 def light_tokens(css):

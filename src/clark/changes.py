@@ -1196,6 +1196,8 @@ def _checked_milestone_changes(fields):
             out[k] = v
         elif k == "description":                                    # row 828: several lines; row 1005: the rich editor's HTML, stored cleaned (plain text from an older caller is escaped into paragraphs)
             out[k] = _rich_field(v, MILESTONE_DESCRIPTION_MAX, MILESTONE_DESCRIPTION_LONG_WORDS, NOTE_TEXT_WORDS)
+        elif k == "client_message" and isinstance(v, str) and sanitise.HTML_START.match(v):     # row 1078 (ruled): the editor's rich wording, stored cleaned as the description is, its words held to the limit the field always had; plain text from any other caller is checked below as it always was
+            out[k] = _rich_field(v, MILESTONE_TEXT[k], ITEM_VALUE_WORDS, ITEM_TEXT_WORDS)
         else:                                                       # state_reason, client_message, owner, workstream
             if v is not None and (not isinstance(v, str) or len(v) > MILESTONE_TEXT[k]):
                 raise Refused(ITEM_VALUE_WORDS)

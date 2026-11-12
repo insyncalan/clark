@@ -94,7 +94,9 @@ def plain(value):
 def value_of(table, row, field):
     if field == "_words":
         own = row.get(OWN_TEXT[table])
-        return (row.get("client_message") or "").strip() or (sanitise.rich_plain_text(own) if (table, OWN_TEXT[table]) in LEGACY_RICH else own)
+        said = row.get("client_message")
+        words = (sanitise.rich_plain_text(said) if (table, "client_message") in LEGACY_RICH else (said or "")).strip()     # row 1078: a milestone's client wording is rich too
+        return words or (sanitise.rich_plain_text(own) if (table, OWN_TEXT[table]) in LEGACY_RICH else own)
     if (table, field) in LEGACY_RICH:                  # row 1005: the editor's HTML, or the plain text an older clark stored
         return sanitise.rich_plain_text(row.get(field))
     if field in RICH:
