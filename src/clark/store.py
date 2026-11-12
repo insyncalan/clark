@@ -1824,8 +1824,8 @@ def referred_to(con, key):
     decision it replaces, a use case), or None."""
     for table, col in REVERT_REFS:
         if col in columns(con, table):
-            live = " AND removed_at IS NULL" if table == "use_case_milestones" else ""      # a link taken off is not a reference
-            r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?{live} LIMIT 1", (key,)).fetchone()
+            rows = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?", (key,)).fetchall()
+            r = next((x for x in rows if not (table == "use_case_milestones" and x["removed_at"])), None)      # a link taken off is not a reference
             if r:
                 return table, key_of(table, r)
     if GANTT_ID.fullmatch(str(key)):          # row 926: a Gantt line another line depends on (a comma list, so it is read, not matched)
