@@ -443,7 +443,7 @@ class PublishedFile(Published):
     def test_the_file_has_none_of_edit_for_the_use_cases(self):
         path = self.publish()
         text = path.read_text(encoding="utf-8")
-        for edit_only in ("Add a use case", "Add use case", "from your project record", "data-uc-back", "uchead-in",
+        for edit_only in ("Add a use case", "Add use case", "from your project record", "uchead-in",   # row 1111: data-uc-back is the use case page crumb, which a file has now
                           "Link an existing work item", "Add a next step", "data-uc-eye", "off the page", "data-uc-step", "data-uc-link"):
             self.assertNotIn(edit_only, text, edit_only)
         with chrome() as cdp:
