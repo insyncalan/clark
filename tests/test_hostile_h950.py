@@ -232,7 +232,7 @@ class WindowsInfoJson(Tmp):
 
 class MacRoots(Tmp):
     def test_dropbox_files_and_lookalike_folders_in_the_home(self):
-        (self.home / "Dropbox").write_text("a file, not a folder")
+        (self.home / "Dropbox").write_text("a file, not a folder", encoding="utf-8")
         (self.home / "Dropbox-old").mkdir()
         (self.home / "Dropboxes").mkdir()
         self.assertEqual(pl.synced_roots(self.home, on=pl.MAC), [])
