@@ -45,19 +45,20 @@ class ClearWordingInPlace(unittest.TestCase):
                         ident = id_of(self.store, words) if any(r["client_message"] == words for r in self.store.read(table, "ABC")) else None
                         self.assertTrue(ident, where)
                         row = f"[data-type={table}] .wl-row[data-id={ident!r}]"
-                        box = f"document.querySelector({row!r} + ' [data-f=title]')"
+                        box = f"document.querySelector({row!r} + ' [data-rich=client_message]')"
                         p.js(SPY)
-                        p.js(f"(function(){{var el={box}; el.focus(); var r=document.createRange(); r.selectNodeContents(el); var s=getSelection(); s.removeAllRanges(); s.addRange(r);}})()")
-                        p.key("Backspace", code="Backspace", vk=8)
+                        p.js(f"{box}.click()")                              # item 1005: the one editor opens in its place
+                        p.until("document.activeElement.classList.contains('ProseMirror')", f"{where}: the editor opens")
+                        p.js("(() => { const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.deleteSelection(); })()")
                         p.key("Enter", code="Enter", vk=13)
                         p.toast_is(f"Wording of {ident} changed.")
                         self.assertTrue(wait(lambda: any('"client_message": ""' in b or '"client_message":""' in b for b in p.js("window.__sent"))), f"{where}: the request carries client_message ''")
-                        p.until(f"{box}.textContent === {json.dumps(title)}", f"{where}: the row stays in its section and shows the item's title")
+                        p.until(f"{box}.textContent.trim() === {json.dumps(title)}", f"{where}: the row stays in its section and shows the item's title")
                         self.assertEqual(p.js(f"document.querySelectorAll({row!r}).length"), 1, where)
                         stored = next(r for r in self.store.read(table, "ABC") if r["id"] == ident)
                         self.assertEqual(stored["client_message"], "", where)
                         p.js("document.querySelector('.toast [data-undo]').click()")
-                        p.until(f"{box}.textContent === {json.dumps(words)}", f"{where}: one Undo puts the old words back")
+                        p.until(f"{box}.textContent.trim() === {json.dumps(words)}", f"{where}: one Undo puts the old words back")
                         self.assertEqual(next(r for r in self.store.read(table, "ABC") if r["id"] == ident)["client_message"], words, where)
 
 

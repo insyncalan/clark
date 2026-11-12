@@ -149,7 +149,7 @@ class Migrating(Base):
         fresh = Path(tempfile.mkdtemp(dir=str(self.dir)))
         open_store(fresh / "clark.db", onedrive_roots=[]).close()
         self.assertEqual(use_case_columns(path), use_case_columns(fresh / "clark.db"))
-        self.assertEqual(use_case_columns(path)[-1][1:], ("commitment", "TEXT", 0, None, 0))
+        self.assertEqual([c for c in use_case_columns(path) if c[1] == "commitment"][0][1:], ("commitment", "TEXT", 0, None, 0))
         self.assertEqual(schema_of(path, "use_cases"), schema_of(fresh / "clark.db", "use_cases"))
         self.assertEqual(set(schema_of(path)), set(schema_of(fresh / "clark.db")))
 
@@ -262,7 +262,7 @@ class AFailureAtTheStepLeavesTheOldFileUsable(Base):
         self.assertEqual(flags(path), {"ABC-U-001": None, "ABC-U-002": None, "ABC-U-003": None})
         after = every_row(path)
         self.assertEqual({t: after[t] for t in rows}, rows)
-        self.assertEqual(use_case_columns(path)[-1][1:], ("commitment", "TEXT", 0, None, 0))
+        self.assertEqual([c for c in use_case_columns(path) if c[1] == "commitment"][0][1:], ("commitment", "TEXT", 0, None, 0))
 
     def test_a_step_that_fails_after_its_alter_rolls_back_and_the_second_open_migrates(self):
         path = make_at(self.dir, STEP - 1)
