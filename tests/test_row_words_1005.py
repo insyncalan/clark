@@ -117,7 +117,7 @@ class RowWords(unittest.TestCase):
             view = f"{row} {SHOWN}"
             for theme, w in self.each(p):
                 where = f"{theme} {w}"
-                self.open(p, row)
+                self.open_editor(p, row)
                 bar = p.js("(r => ['.rt-bar', '.rt-keys'].map(q => { const e = r.querySelector(q); return e ? getComputedStyle(e).display : 'none'; }))(document.querySelector(%s))" % json.dumps(row))
                 self.assertEqual(bar, ["none", "none"], f"{where}: the open one-line editor shows no toolbar")
                 self.type(p, long)
