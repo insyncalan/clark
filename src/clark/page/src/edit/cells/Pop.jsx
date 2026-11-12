@@ -60,7 +60,23 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
   }, []);                                                 // eslint-disable-line react-hooks/exhaustive-deps
   const keys = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(true); }
-    else if (e.key === "Tab") onClose(true);
+    else if (e.key === "Tab") {
+      onClose(true);
+      // The panel sits right after its control in the page, and the redraw that removes it comes after this key: the browser's own Tab step would
+      // then land on a choice inside the closing panel, and the panel's removal would leave focus on nothing. Inert, it is skipped at once.
+      if (box.current) box.current.inert = true;
+      // If the browser still leaves focus on nothing (a slow machine, the redraw landing late), carry on from the control by hand.
+      const from = anchor && anchor.current, back = e.shiftKey;
+      setTimeout(() => {
+        const a = document.activeElement;
+        if (!from || !from.isConnected || (a && a !== document.body) || document.querySelector("[data-pop]")) return;   // gone, settled, or another picker took over
+        const all = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]")]
+          .filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length && !n.closest("[data-pop],[inert]") && !from.contains(n));
+        const rel = (n) => from.compareDocumentPosition(n);
+        const next = back ? all.filter((n) => rel(n) & Node.DOCUMENT_POSITION_PRECEDING && !n.contains(from)).pop() : all.find((n) => rel(n) & Node.DOCUMENT_POSITION_FOLLOWING);
+        if (next) next.focus();
+      }, 60);
+    }
     else if (e.key === "Enter") e.stopPropagation();      // the row behind never takes an Enter meant for the panel
   };
   return (

@@ -132,7 +132,7 @@ export function takeArrival() { const m = moved; moved = false; return m; }
 function apply(s, history = false) {
   moved = true;
   if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
-  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
+  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: s.view === "usecases" ? s.uc : "" };   // row 1111: a file keeps the use case address on its Use cases tab, no other
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   const wasSettings = view.value === "settings";
   if (wasSettings) scrolls.set(scrollKey(), seenY);          // item 1024: the page being left keeps its place, taken before anything changes
