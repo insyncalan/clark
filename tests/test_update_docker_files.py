@@ -30,30 +30,43 @@ class DockerUpdate(unittest.TestCase):
         line = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M).group(1).replace("\\\"", '"').replace("$$", "$")
         with tempfile.TemporaryDirectory() as d:
             fake = Path(d) / "python3"
-            fake.write_text('#!/bin/sh\ncase "$*" in *check-data*) exit %d;; *) echo SERVER; exit 0;; esac\n' % code, encoding="utf-8")
+            log = Path(d) / "calls.log"
+            fake.write_text('#!/bin/sh\necho "python3 $*" >> "%s"\ncase "$*" in *check-data*) exit %d;; *) echo SERVER; exit 0;; esac\n' % (log, code), encoding="utf-8")
             fake.chmod(0o755)
             idle = Path(d) / "sleep"
-            idle.write_text("#!/bin/sh\necho HELD\nexit 0\n", encoding="utf-8")
+            idle.write_text('#!/bin/sh\necho "sleep $*" >> "%s"\necho HELD\nexit 0\n' % log, encoding="utf-8")
             idle.chmod(0o755)
             env = dict(os.environ, PATH=d + os.pathsep + os.environ["PATH"])
-            return subprocess.run(["sh", "-c", line], capture_output=True, text=True, env=env)
+            done = subprocess.run(["sh", "-c", line], capture_output=True, text=True, env=env)
+            done.calls = log.read_text(encoding="utf-8").splitlines() if log.exists() else []
+            return done
 
     def test_a_refused_check_says_its_words_once_then_holds_the_container_and_never_starts_the_server(self):
         for code in (1, 2):
+          with self.subTest(code=code):
             done = self.run_start(code)
+            self.assertEqual(done.calls[0].split()[:4], ["python3", "-m", "clark", "check-data"], "the check ran first")
+            self.assertIn("--data /data", done.calls[0])
+            self.assertEqual(len(done.calls), 2, done.calls)
+            self.assertEqual(done.calls[1], "sleep 2147483647")
             self.assertIn("HELD", done.stdout, "unless-stopped restarts any exit, 0 included, so a refusal must not exit")
             self.assertNotIn("SERVER", done.stdout)
             self.assertEqual(done.stderr.count("clark did not start"), 1)
 
     def test_any_other_check_code_is_passed_on_so_docker_restarts_it(self):
         for code in (137, 3):
+          with self.subTest(code=code):
             done = self.run_start(code)
             self.assertEqual(done.returncode, code)
+            self.assertEqual(len(done.calls), 1, "only the check ran")
             self.assertNotIn("HELD", done.stdout)
             self.assertNotIn("SERVER", done.stdout)
 
     def test_a_passing_check_starts_the_server(self):
-        self.assertIn("SERVER", self.run_start(0).stdout)
+        done = self.run_start(0)
+        self.assertIn("SERVER", done.stdout)
+        self.assertIn("check-data", done.calls[0])
+        self.assertIn("--data /data", done.calls[1])
 
     def test_compose_restarts_unless_stopped_so_a_reboot_brings_clark_back(self):
         self.assertRegex(COMPOSE, r"(?m)^    restart: unless-stopped$")

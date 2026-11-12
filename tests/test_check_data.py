@@ -34,8 +34,14 @@ def sha(path):
 
 
 def names(folder):
-    """Every file under the folder but SQLite's own -wal and -shm (a read-only look at a database in WAL mode may make them, empty)."""
-    return sorted(str(p.relative_to(folder)) for p in Path(folder).rglob("*") if not p.name.endswith(("-wal", "-shm")))
+    """The raw listing of every file under the folder. A read-only look at a WAL-mode database may leave SQLite's -shm index and an EMPTY
+    -wal behind (no data in them): those two are left out. A -wal with anything in it, or any other new file, shows."""
+    out = []
+    for p in sorted(Path(folder).rglob("*")):
+        if p.name.endswith("-shm") or (p.name.endswith("-wal") and p.stat().st_size == 0):
+            continue
+        out.append(str(p.relative_to(folder)))
+    return out
 
 
 def set_version(path, v):
@@ -53,12 +59,19 @@ class Base(unittest.TestCase):
 class OlderData(Base):
     def test_an_older_file_is_copied_then_brought_up_to_date_and_exit_is_0(self):
         path = make_v1(self.dir)
+        original = dump(path)
         code, out, err = run(self.dir)
         self.assertEqual((code, err), (0, ""), out)
         self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
         made = copies(self.dir, "migrate")
         self.assertEqual(len(made), 1)
         self.assertEqual(version(made[0].path), "1")           # the copy is of the data as it was
+        self.assertEqual(dump(made[0].path), original)
+        con = sqlite3.connect(str(path))
+        try:
+            self.assertEqual(con.execute("SELECT code FROM projects").fetchall(), [("ABC",)])    # the data survived
+        finally:
+            con.close()
         self.assertIn(made[0].name, out)
 
     def test_a_forced_failure_rolls_back_and_exits_1_in_plain_words(self):
@@ -92,8 +105,11 @@ class SameData(Base):
 class LockedData(Base):
     def test_a_lock_is_said_as_in_use_not_as_a_database_clark_cannot_read(self):
         path = make_v1(self.dir)
+        before, files = sha(path), names(self.dir)
         with mock.patch.object(store_module, "connect", side_effect=sqlite3.OperationalError("database is locked")):
             code, out, err = run(self.dir)
+        self.assertEqual(out, "")
+        self.assertEqual((sha(path), names(self.dir)), (before, files))
         self.assertEqual(code, 1)
         self.assertIn("in use by another program", err)
         self.assertNotIn("not a database clark can read", err)

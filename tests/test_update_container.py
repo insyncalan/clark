@@ -49,9 +49,13 @@ class InContainer(Rig):
         self.assertEqual(asked, [])
 
     def test_install_arm_and_undo_are_refused_even_with_a_valid_looking_request(self):
-        for status, body in (self.up.install({"review_id": "x"}), self.up.arm_undo({}), self.up.undo({"arm_id": "x"})):
+        with mock.patch.object(platform, "container_mode", return_value=False):
+            review_id = self.reviewed()["review_id"]            # a real, installable review made outside the container
+        for status, body in (self.up.install({"review_id": review_id}), self.up.arm_undo({}), self.up.undo({"arm_id": "x"})):
             self.assertEqual((status, body["code"], body["message"]), (409, "blocked", up.CONTAINER))
         self.assertEqual(self.started, [])
+        with mock.patch.object(platform, "container_mode", return_value=False):      # the refusal used nothing up
+            self.assertEqual(self.up.install({"review_id": review_id})[0], 200)
 
 
 class OutsideContainer(Rig):
