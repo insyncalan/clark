@@ -372,5 +372,70 @@ class Flat(Peeks):
                 self.assertTrue(28 < h["peekB"] - h["boxB"] <= 36, "still a small way above the bottom edge after the scroll: " + str(h))
 
 
+class SneakFlat(Peeks):
+    """Row 1077: the sneak peek (the words box, .sn-* rules in shell.css and edit.css) is flat: no box round it and no shadow on its parts."""
+    BOXLESS = (".sn-head", ".sn-list", ".sn-list li", ".sn-msg", ".sn-confirm", ".sn-foot", ".sn-acts", ".sn-chips")
+
+    def test_no_sneak_rule_gives_a_part_a_shadow_and_the_box_rules_are_the_flat_band(self):
+        import re
+        css = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8") + (SRC / "edit" / "edit.css").read_text(encoding="utf-8")
+        rules = [(m.group(1).strip(), m.group(2)) for m in re.finditer(r"(?m)^\s*([^{}/@\n][^{}\n]*)\{([^{}]*)\}", css)]
+        sneak = [(sel, body) for sel, body in rules if re.search(r"\.sn-[a-z]+", sel)]
+        self.assertTrue(len(sneak) >= 8, "the sneak rules are found")
+        for sel, body in sneak:
+            self.assertNotIn("box-shadow", body.replace("box-shadow: none", ""), f"{sel}: no shadow on a sneak part")
+        flat = [body for sel, body in rules if sel == ".peek .wordsbox"]
+        self.assertEqual(len(flat), 1, "the peek's words box has one flat rule")
+        for need in ("border: 0", "border-radius: 0", "box-shadow: none"):
+            self.assertIn(need, flat[0], f"the words box in the peek: {need}")
+
+    def test_the_open_sneak_peek_has_no_box_round_it_and_its_parts_are_flat(self):
+        probe = ("(sels) => { const o = {}; for (const s of sels) { const e = document.querySelector('#peek ' + s); if (!e) continue; const c = getComputedStyle(e);"
+                 " o[s] = [c.boxShadow, c.borderRadius, c.borderLeftWidth, c.borderRightWidth, c.borderBottomWidth]; } return o; }")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = Flat.work(self, cdp, width)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)))
+                for _ in range(2):
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": "/", "code": "Slash", "text": "/", "windowsVirtualKeyCode": 191}, sid)
+                    cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": "/", "code": "Slash", "windowsVirtualKeyCode": 191}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .wordsbox')", sid)), "two slashes open the box")
+                got = cdp.js(f"({probe})({json.dumps(['.wordsbox', *self.BOXLESS])})", sid)
+                self.assertIn(".wordsbox", got)
+                for sel, (shadow, radius, left, right, bottom) in got.items():
+                    self.assertEqual(shadow, "none", f"{sel}: no shadow {got}")
+                    self.assertEqual(radius, "0px", f"{sel}: square, no rounded box {got}")
+                    self.assertEqual((left, right, bottom), ("0px", "0px", "0px"), f"{sel}: no side or bottom line {got}")
+
+
+class ClientPeeksAlike(Peeks):
+    """Row 1077: a client's work item peek and a client's milestone peek (the Dashboard in View) have one look: the same padding, header and tiles."""
+    LOOK = """(() => {
+      const css = (e, ks) => { const c = getComputedStyle(e); return ks.map(k => c[k]); };
+      const pk = document.querySelector('#peek'), bar = pk.querySelector('.pk-bar'), title = pk.querySelector('.pk-title');
+      const cell = pk.querySelector('.pk-fields > [data-row]') || pk.querySelector('.pk-fields > *');
+      return { peek: css(pk, ['paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft', 'backgroundColor', 'width']),
+               bar: css(bar, ['paddingBottom', 'borderBottomWidth', 'height']),
+               title: css(title, ['fontSize', 'fontWeight', 'lineHeight', 'marginTop', 'marginBottom', 'color']),
+               tile: css(cell, ['paddingTop', 'paddingLeft', 'borderRadius', 'backgroundColor', 'boxShadow']) };
+    })()"""
+
+    def look_of(self, cdp, width, ref, kind):
+        sid = self.dashboard_in_view(cdp, width, self.store, self.code)
+        self.open_peek(cdp, sid, ref, kind)
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations({subtree: true}).every(a => a.playState !== 'running')", sid)), "the slide-in has ended")
+        return cdp.js(self.LOOK, sid)
+
+    def test_the_client_work_item_peek_and_the_client_milestone_peek_look_alike(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                with chrome() as cdp:
+                    item = self.look_of(cdp, width, ACTION, "item")
+                with chrome() as cdp:
+                    milestone = self.look_of(cdp, width, MILESTONE, "milestone")
+                for part in ("peek", "bar", "title", "tile"):
+                    self.assertEqual(item[part], milestone[part], f"{part}: the milestone peek looks like the work item peek (item {item[part]}, milestone {milestone[part]})")
+
+
 if __name__ == "__main__":
     unittest.main()
