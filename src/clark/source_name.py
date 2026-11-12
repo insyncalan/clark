@@ -32,6 +32,11 @@ _HIDDEN = lambda ch: unicodedata.category(ch) in ("Cc", "Cf", "Cs", "Co", "Cn") 
 _ESCAPE = re.compile(r"%(?:u[0-9A-Fa-f]{4}|[0-9A-Fa-f]{2})")
 _ENTITY = re.compile(r"&#|&[A-Za-z0-9]+;")
 _DRIVE = re.compile(r"[A-Za-z]:")
+FILE_EXTENSIONS = (
+    "doc", "docx", "dot", "dotx", "rtf", "odt", "xls", "xlsx", "xlsm", "ods", "ppt", "pptx", "odp", "vsd", "vsdx",
+    "pdf", "txt", "md", "csv", "tsv", "png", "jpg", "jpeg", "gif", "bmp", "tif", "tiff", "svg", "webp", "heic",
+    "zip", "7z", "rar", "tar", "gz", "tgz", "eml", "msg",
+)                                                                                                            # what a listed file name may end in (D); a person's name or a domain ("a.smith", "acme.com") is no file
 _EXT = re.compile(r"\.[A-Za-z0-9]{1,8}$")
 _BARE = re.compile(r"(?:[A-Za-z][A-Za-z0-9+.-]*:)?//[^/\\]*$")                                              # a web address with a host and no path after it (a "?query" or "#fragment" is not a path)
 _COLON_PATH = re.compile(r":(?![\s\d]|$)")                                                                   # "Macintosh HD:Users:name:Folder:file": a colon with words right after it, not "Plan: v2" or "12:30"
@@ -104,11 +109,11 @@ def _file_name(text):
 
 
 def _listed_name(text):
-    """Plain words in a file (D): the last comma part that is wholly a file name (a stem and an extension holding a letter), or ""."""
+    """Plain words in a file (D): the last comma part that is wholly a file name (a stem and a known extension, FILE_EXTENSIONS), or ""."""
     for part in reversed(text.split(",")):
         part = part.strip()
         ext = _EXT.search(part)
-        if ext and part[:ext.start()].strip() and re.search(r"[A-Za-z]", ext.group(0)) and not _ISO_DAY.fullmatch(part):
+        if ext and part[:ext.start()].strip() and ext.group(0)[1:].lower() in FILE_EXTENSIONS and not _ISO_DAY.fullmatch(part):
             return part
     return ""
 
