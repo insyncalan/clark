@@ -151,7 +151,7 @@ class Workflow(unittest.TestCase):
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])
+        self.assertIn("SHARDS='[1,2,3,4]'; COUNT=4", self.jobs["plan"])
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)

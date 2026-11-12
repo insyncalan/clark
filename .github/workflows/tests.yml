@@ -148,7 +148,7 @@ jobs:
           # Ubuntu 3.x shards: six on the full path (every file) and for a pull request that touches a stylesheet or the page (it reaches
           # nearly every test file); THREE on the cheap path otherwise (few files reach: six shards were mostly empty and each one
           # costs a runner slot, a checkout and a setup). Fewer jobs per push means the queue clears sooner (#908 grew it from three).
-          SHARDS='[1,2,3,4,5,6]'; COUNT=6
+          SHARDS='[1,2,3,4]'; COUNT=4      # four on the full and wide path (12-11: fewer runner slots and less repeated setup; each shard about 15 to 20 minutes, under the 30-minute cap)
           if [ -z "$FULL" ] && [ -z "$WIDE" ]; then SHARDS='[1,2,3]'; COUNT=3; fi
           SHARDS39='[1,2,3]'; COUNT39=3      # Python 3.9, quick tier only (full path)
           echo "full=$FULL" >> "$GITHUB_OUTPUT"
