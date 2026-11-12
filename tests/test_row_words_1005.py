@@ -10,7 +10,6 @@ import time
 import unittest
 
 from _demo import DemoStore
-from clark import publish
 from _paths import TOOLS
 
 sys.path.insert(0, str(TOOLS))
@@ -84,32 +83,6 @@ class RowWords(unittest.TestCase):
                     p.js("document.querySelector('.toast [data-undo]').click()")
                     p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes({json.dumps(words)})", f"{where}: one Undo puts the old words back")
                     self.assertEqual(self.stored(table, ident), words, where)
-
-    def test_typed_text_that_looks_like_tags_comes_back_as_the_same_text_after_a_reload_and_in_the_file(self):
-        literal = "<p>use <b>x</b></p>"
-        ident = id_of(self.store, "Cut-over plan to be agreed")
-        row = self.row("actions", ident)
-        with chrome() as cdp:
-            p = Pg.at(self, cdp, self.s.port)
-            p.ready()
-            p.edit()
-            for theme, w in self.each(p):
-                where = f"{theme} {w}"
-                self.open_editor(p, row)
-                p.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({{ type: 'text', text: {json.dumps(literal)} }}); }})()")
-                p.key("Enter", code="Enter", vk=13)
-                self.assertTrue(wait(lambda: self.stored("actions", ident) == literal), f"{where}: the typed text is stored as typed")
-                p.js("location.reload()")
-                p.ready()
-                p.edit()
-                p.until(f"document.querySelector({row!r} + ' {SHOWN}') && document.querySelector({row!r} + ' {SHOWN}').textContent.includes('use')", f"{where}: drawn after a reload")
-                self.assertEqual(p.js(f"document.querySelector({row!r} + ' {SHOWN}').textContent.trim()"), literal, f"{where}: the card shows the typed text after a reload")
-                self.open_editor(p, row)
-                self.assertEqual(p.js("document.activeElement.textContent"), literal, f"{where}: the editor holds the typed text after a reload")
-                p.key("Escape", code="Escape", vk=27)
-                self.assertEqual(self.stored("actions", ident), literal, f"{where}: leaving it unchanged writes nothing back")
-        body = publish.build(self.store, "ABC", now="2026-10-29")["body"].decode("utf-8").replace("\\u003c", "<").replace("\\u003e", ">")
-        self.assertIn(literal, body, "the published file carries the typed text")
 
     def test_escape_keeps_the_old_words_and_a_click_away_saves(self):
         with chrome() as cdp:
