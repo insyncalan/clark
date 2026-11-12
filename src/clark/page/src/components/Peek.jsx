@@ -120,7 +120,7 @@ export function Peek({ tools }) {
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
-  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, MsArchBtn = msEditing && tools.PeekArchive;
+  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
   const Source = editing && forItem && tools.PeekSource;
   const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
@@ -245,6 +245,7 @@ export function Peek({ tools }) {
         <span class="pk-sp" />
         {DupBtn && row ? <DupBtn row={row} /> : null}
         {ArchBtn && row ? <ArchBtn row={row} /> : null}
+        {DelBtn && row ? <DelBtn row={row} /> : null}
         {MsArchBtn && m ? <MsArchBtn row={m} milestone /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>

@@ -270,11 +270,11 @@ class Menu(board.Base):
             self.assertEqual(cdp.js("document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label')", sid), f"Actions for {a}")
             got = self.entries(cdp, sid)
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
-                                                   "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
+                                                   "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive", "Delete"])
             by = {e[0]: e for e in got}
             self.assertEqual(by["draft"][2:], [False, "Sara Khan has no email on the People list, so the To line is left empty."],
                              "open, with the To line's reason in words (#1048: the People list is read when the menu opens)")
-            self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
+            self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive", "delete")))
             self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
@@ -321,7 +321,7 @@ class Menu(board.Base):
             got = cdp.js("Object.fromEntries([...document.querySelectorAll('.rowmenu > .ddmenu [role=menuitem]')].map(b => { const i = b.querySelector('svg.rm-ic'); "
                          "return [b.dataset.rm, i ? [i.dataset.icn, i.getBoundingClientRect().width, i.getBoundingClientRect().height, getComputedStyle(i).color, "
                          "!!(i.compareDocumentPosition(b.querySelector('.rm-t')) & Node.DOCUMENT_POSITION_FOLLOWING), i.getAttribute('aria-hidden'), b === document.activeElement || b.matches(':hover')] : null]; }))", sid)
-            self.assertEqual(len(got), 10, "ten entries")
+            self.assertEqual(len(got), 11, "eleven entries")
             self.assertTrue(all(got.values()), "an icon for every entry")
             self.assertEqual({k: got[k][0] for k in want}, want, "the icons, by name")
             self.assertIn(got["eye"][0], ("eye", "eyeoff"))
@@ -499,7 +499,7 @@ class Menu(board.Base):
             key(cdp, sid, "ArrowDown")
             self.assertEqual((first, cdp.js("document.activeElement.dataset.rm", sid)), ("draft", "peek"))
             key(cdp, sid, "End")
-            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "archive")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "delete")
             key(cdp, sid, "Home")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft")
             key(cdp, sid, "ArrowDown")                                  # Open the peek

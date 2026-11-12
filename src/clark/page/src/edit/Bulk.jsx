@@ -67,7 +67,7 @@ export function runBulk(table, ids, control, value, { place = "bulk", from = nul
 
 /** Ask a question with Change and Cancel; `yes` runs on Change. `ids` and `from`: where the keyboard goes back to if what had
  *  it has gone. */
-export function ask(question, yes, { ids = null, from = null } = {}) { bulkOpen.value = { what: "ask", question, yes, ids, from, back: document.activeElement }; }
+export function ask(question, yes, { ids = null, from = null, yesLabel = "Change" } = {}) { bulkOpen.value = { what: "ask", question, yes, yesLabel, ids, from, back: document.activeElement }; }
 
 /** Open a control for `ids`: Close and Reopen act at once, the others open their picker at `at`. */
 export function openControl(control, ids, at, place = "bulk", from = null) {
@@ -174,7 +174,7 @@ function Ask({ open }) {
       <div class="bask" role="alertdialog" aria-modal="true" aria-labelledby="bask-q" onKeyDown={keys}>
         <p id="bask-q" class="bask-q">{open.question}</p>
         <div class="bask-b">
-          <button type="button" class="btn pri" ref={yes} data-bask="yes" onClick={() => { const y = open.yes; close(); y(); }}>Change</button>
+          <button type="button" class="btn pri" ref={yes} data-bask="yes" onClick={() => { const y = open.yes; close(); y(); }}>{open.yesLabel || "Change"}</button>
           <button type="button" class="btn" data-bask="no" onClick={() => close()}>Cancel</button>
         </div>
       </div>

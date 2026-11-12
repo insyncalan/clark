@@ -21,6 +21,7 @@ import { readPeople } from "./peopleApi.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
@@ -132,6 +133,7 @@ function entries(row, level, edit, d, today, reg) {
     { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
     { id: "sep3", sep: true },
     { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash" }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
@@ -241,6 +243,7 @@ function Panel({ s }) {
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
+    if (id === "delete") { close("pick"); deleteItem(row, "menu", row.id); return undefined; }
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
