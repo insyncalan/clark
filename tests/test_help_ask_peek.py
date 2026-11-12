@@ -111,5 +111,25 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         self.assertIn("[[/]] [[/]]", TEXT)
 
 
+def ask_clark_rows(o):
+    if isinstance(o, list):
+        if len(o) >= 2 and o[0] == "ask clark" and all(isinstance(x, str) for x in o):
+            yield o
+        for x in o:
+            yield from ask_clark_rows(x)
+    elif isinstance(o, dict):
+        for v in o.values():
+            yield from ask_clark_rows(v)
+
+
+class AskClarkRowNamesBothKeys(unittest.TestCase):
+    def test_the_ask_clark_row_names_slash_and_mod_j_and_the_palette(self):
+        rows = list(ask_clark_rows(RAW))
+        self.assertTrue(rows, "no ask clark row found")
+        for row in rows:
+            for key in ("[[/]]", "[[Mod+J]]", "[[Mod+K]]"):
+                self.assertIn(key, row[1])
+
+
 if __name__ == "__main__":
     unittest.main()

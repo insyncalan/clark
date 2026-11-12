@@ -17,8 +17,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 STOPPING = "Stopping clark. You can close this window."
 FAILED = "Quitting did not work. Try again."
-ASK = "Quit clark now? Nothing is left running. To start it again, open clark the way you did before."
-AGAIN = "To start clark again, open it the way you did before."
+ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
+AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
 
 
 class Card(unittest.TestCase):
