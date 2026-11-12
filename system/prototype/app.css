@@ -1,4 +1,4 @@
-/* clark prototype styles. Neutral demo tokens first; a local brand's tokens.css (system/branding/, never committed) is loaded
+/* clark prototype styles. Neutral demo tokens first; a local brand's tokens.css (branding/, never committed) is loaded
    after this file and overrides them. Shapes follow creaite's peek, timeline, cockpit and report editor. */
 :root {
   --brand-blue: #3B5BDB; --brand-blue-strong: #2F4AC0; --brand-blue-tint: #EDF1FF; --brand-navy: #14233A; --brand-ink: #18232B; --brand-cyan: #4FD1E8; --brand-charcoal: #4A5058;

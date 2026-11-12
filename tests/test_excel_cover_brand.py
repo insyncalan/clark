@@ -1,7 +1,7 @@
 """Issue 735: the Excel Cover's logo, cover picture (wave), dark band, larger title and long date.
 
 Run: python3 dev/run_tests.py test_excel_cover_brand
-Every brand here is invented in a temporary folder with generated PNGs; nothing is read from system/branding.
+Every brand here is invented in a temporary folder with generated PNGs; nothing is read from branding.
 A logo and a cover picture load ONLY from the branding folder; with no folder clark's own icon is the logo; a folder with no
 logo gives a Cover with no logo; there is never a default wave.
 """

@@ -304,7 +304,7 @@ def folder_inside(fs, a, b):
 
 
 def brand_of(store, code, root):
-    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/system/branding, or
+    """Row 999 (#944): the branding folder of the project `code`'s own brand: the installed brand's folder under `root`/branding, or
     page.NO_BRAND (a folder with nothing in it) for Generic, an unknown code, an unreadable row or a brand that was removed."""
     try:
         row = store.read("projects", ref=code) if isinstance(code, str) else None
@@ -332,7 +332,7 @@ class Publisher:
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
-        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent.parent      # #944: the clark folder that holds system/branding
+        self.brand_root = Path(brand_root) if brand_root else page.BRANDING.parent      # #944: the clark folder that holds branding/
         self.add_section_file = changes.make_section_file(self.db_path, self.onedrive_roots, self.by_user)   # #96: the step that adds a copied file
         self.lock = threading.Lock()          # one publish at a time (and one file for a section: section_files.py)
         self.previews, self.preview_lock = {}, threading.Lock()      # {nonce: (bytes, time made)}: in memory only
