@@ -1184,6 +1184,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .msl-prog { display: flex; align-items: center; gap: var(--space-2); font-size: var(--size-caption); }
 .pbar { flex: 1; height: 6px; border-radius: 3px; background: var(--grey-100); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--brand-blue); }
 .msl-all { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
+.ucall { display: inline-block; margin: var(--space-2) 0 0 var(--space-1); }
 .msl-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0 var(--space-3); margin: var(--d-msl-det-y) 0 2px; } .msl-bar .mlg { margin: 0; margin-left: auto; }   /* row 1020: 'Hide milestone details' at the left and the Legend at the right, one row */
 .msl-det { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; margin: 0; font-size: var(--size-small); color: var(--text-muted); cursor: pointer; border-radius: 4px; }
 .msl-det:hover { color: var(--text); } .msl-det:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
@@ -1415,9 +1416,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 @media (max-width: 600px) { .ucdcols { grid-template-columns: minmax(0, 1fr); gap: var(--space-2); } }   /* row 1004: one column on a phone, so a next step has the whole line and its id stays whole */
 .ucdetail p { margin: 0 0 6px; }
 .ucdetail ul.plain li { border-top: 0; padding: 2px 0; }
-.ucdetail ul.ucstepl li { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 8px; }   /* wraps, so an id longer than the rest of the line goes to a line of its own */
+.ucdetail ul.ucstepl li { display: flex; flex-wrap: nowrap; align-items: center; gap: 2px 8px; cursor: pointer; }   /* row 1110: the icon, the text and the id sit on one line; the text takes at most two */
+.ucstepl .ucstept { flex: 1 1 0; min-width: 0; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+.ucstepl .av { flex: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
-.ucstepl [data-stepid] { flex: none; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
+.ucstepl [data-stepid] { flex: none; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
 @media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
 @media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
@@ -1969,6 +1972,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
+  html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
   html.print-all main { max-width: none; margin: 0; padding: 0; }
   html.print-all .frame { box-shadow: none; border: 0; padding: 0; background: var(--white); }
   html.print-all .frame.report .cover { margin: 0 0 16px; }      /* the printed frame has no padding, so the band is the frame's width in every spacing; Compact's side pull-out would run past the page */
