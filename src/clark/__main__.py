@@ -110,9 +110,9 @@ class CheckParser(Parser):
 
 def check_parser():
     p = CheckParser(prog=typed.clark("check-data"),
-                    description="Check the version of clark's data before clark starts (the Docker route runs this first). Same version: nothing "
-                                "happens. Older: a copy is kept in the backups folder, then the data is brought up to date. Newer: "
-                                "nothing is changed and the exit code is 2. A failure exits with 1.")
+                    description="Check that your data matches this clark before clark starts (Docker does this first). If it matches, nothing "
+                                "happens. If it is older, a copy is kept in the backups folder, then the data is brought up to date. "
+                                "If it is newer, nothing is changed and the exit code is 2. If something goes wrong, the exit code is 1.")
     p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
     return p
 
@@ -431,7 +431,7 @@ def check_main(argv, out, err, home=None, onedrive_roots=None):
             copy = held.migration_backup
         finally:
             held.close()
-        named = f" The copy taken before the update is {Path(copy).name}, in the backups folder." if copy else ""
+        named = f" A copy of your data from before the update is in the backups folder. Its name is {Path(copy).name}." if copy else ""
         print(f"The data was brought up to date.{named}", file=out, flush=True)
         return 0
     except (platform.PlatformError, clark_store.Invalid) as e:

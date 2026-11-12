@@ -50,13 +50,13 @@ class DockerUpdate(unittest.TestCase):
         self.assertNotIn("unless-stopped", COMPOSE.replace("docker compose down (or stop) still stops it", ""))
 
     def test_update_txt_names_the_backups_folder_for_the_copy(self):
-        self.assertIn("in the backups folder inside your data folder", UPDATE)
+        self.assertIn("The copy is in the backups folder,\ninside your data folder", UPDATE)
         self.assertNotIn("in your data folder)", UPDATE)
 
     def test_update_txt_gives_typed_commands_for_the_new_folder_route(self):
         for words in ("Unzip the new download into a new folder", "docker compose -f docker/compose.yaml down",
                       "docker compose -f docker/compose.yaml up -d", "start from the newer clark folder", "SHA-256",
-                      "The last 3 of these copies are kept", "Update from file in Settings does not work under Docker"):
+                      "clark keeps the last 3 of these copies", "Update from file in Settings does not work under Docker"):
             self.assertIn(words, UPDATE)
         self.assertNotIn("docker load", UPDATE)
         self.assertNotIn("!", UPDATE)
