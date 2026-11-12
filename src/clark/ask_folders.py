@@ -31,6 +31,8 @@ MESSAGES = {
     "not_full_path": "That isn't a folder on this computer. Use Choose folder to pick one. Nothing was changed.",
     "dots": "That isn't a folder on this computer. Use Choose folder to pick one. Nothing was changed.",
     "dialog_failed": "The folder window could not be opened. Try Choose folder again. Nothing was changed.",
+    "no_window": "The folder window can't open on this computer. Type the folder's location in the box below and press Add folder. Nothing was changed.",
+    "no_window_docker": "The folder window needs the Mac, so it can't open when clark runs in Docker. Type the folder's location, as Docker sees it, in the box below and press Add folder. Nothing was changed.",
     "not_a_folder": "That isn't a folder on this computer. Nothing was changed.",
     "home_folder": "Your whole home folder is too wide for asking. Choose a folder inside it. Nothing was changed.",
     "onedrive_root": "The whole of OneDrive is too wide for asking. Choose a folder inside it. Nothing was changed.",
@@ -196,6 +198,8 @@ class AskFolders:
         start = now[-1] if now else next(iter(self.onedrive_roots), None)
         try:
             picked = self.choose_folder(PICK_PROMPT, start=start)
+        except platform.NotBuiltYet:                         # no window will ever open here: say why, and that a typed location works
+            return 409, self.fail("no_window", MESSAGES["no_window_docker" if platform.container_mode() else "no_window"])
         except platform.PlatformError:
             return 409, self.fail("dialog_failed")
         if picked is None:
