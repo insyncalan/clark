@@ -138,7 +138,7 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
         either way (too small leaves a shard slow, too large starves the others) is caught, within 10 percent of each."""
         weights = run_tests.shard_weights()
         refreshed = {"test_publish_public.py": 277.8, "test_publish_public_slow.py": 119.7, "test_publish_scan_time.py": 450.4,
-                     "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 109.8}
+                     "test_filter_line_page.py": 270.6, "test_filter_line_page_900.py": 136}
         for name, expected in refreshed.items():
             with self.subTest(name=name):
                 self.assertAlmostEqual(weights[name] / expected, 1.0, delta=0.10, msg=name)

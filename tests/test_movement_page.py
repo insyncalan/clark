@@ -153,6 +153,7 @@ class Base(unittest.TestCase):
 
     def visit(self, cdp, width=1400, theme=None):
         p = Pg.at(self, cdp, self.s.port, "#milestones&p=ABC")
+        cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)      # a headless page is otherwise not focused, and then a blur is not a leave: the editor stays open
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until("!!document.querySelector('#milestones')", "Milestones drew")
         if theme:
@@ -299,8 +300,21 @@ class Block(Base):
             self.assertEqual(p.js("document.querySelector('.mvm-en.undone .tag').textContent"), "Undone")
 
     def fill(self, p, ident, value):
-        p.js("(function(){var e = document.getElementById(%s); e.value = %s; e.dispatchEvent(new Event('input', {bubbles: true}));})()"
-             % (json.dumps(ident), json.dumps(value)))
+        if ident == "mv-to":
+            p.js("(function(){var e = document.getElementById(%s); e.value = %s; e.dispatchEvent(new Event('input', {bubbles: true}));})()"
+                 % (json.dumps(ident), json.dumps(value)))
+            return
+        # row 1005: Who agreed it, Reason and Source are the one editor: open it, type, and leave it (which keeps the words in the form)
+        box = ".mvm-f[data-f=%s] .ProseMirror" % json.dumps(ident[3:])
+        p.js("document.getElementById(%s).click()" % json.dumps(ident))
+        p.until("!!document.querySelector(%s)" % json.dumps(box), "the editor opened")
+        p.until("document.hasFocus() && document.activeElement === document.querySelector(%s)" % json.dumps(box), "the page and the editor have the focus")
+        # the editor's own focus call finishes on a frame (tiptap); a blur before that frame is undone by it, which a person cannot do. Wait two frames.
+        p.js("window.mvSettled = false; requestAnimationFrame(function(){ requestAnimationFrame(function(){ window.mvSettled = true; }); }); true")
+        p.until("window.mvSettled === true", "the editor settled")
+        p.js("(function(){var b = document.querySelector(%s); b.cxed.editor.commands.setContent('<p>' + %s + '</p>'); b.blur();})()"
+             % (json.dumps(box), json.dumps(value)))
+        p.until("!document.querySelector(%s)" % json.dumps(box), "the editor closed")
 
     def test_a_refusal_from_the_server_is_shown_in_its_fixed_words_and_writes_nothing(self):
         _, text = in_days(30)
@@ -375,8 +389,8 @@ class Block(Base):
             p.js("document.querySelector('.mvm-row').click()")
             p.js("document.querySelector('#mv-move').click()")
             p.until("!!document.querySelector('.mvm-form')", "the form opened")
-            labels = p.js("[...document.querySelectorAll('.mvm-form label')].map(l => l.querySelector('span').textContent + '|' + l.getAttribute('for') + '|' + (document.getElementById(l.getAttribute('for')) ? 1 : 0))")
-            self.assertEqual(labels, ["New agreed date (DD-MM-YYYY)|mv-to|1", "Who agreed it|mv-who|1", "Reason|mv-reason|1", "Source|mv-source|1"])
+            labels = p.js("(function(){return [...document.querySelectorAll('.mvm-form .mvm-f')].map(function(l){var r = l.querySelector('[aria-labelledby]'); var name = r ? document.getElementById(r.getAttribute('aria-labelledby')).textContent : 'label'; return l.querySelector('span').textContent + '|' + (r ? r.id : l.getAttribute('for')) + '|' + name;});})()")
+            self.assertEqual(labels, ["New agreed date (DD-MM-YYYY)|mv-to|label", "Who agreed it|mv-who|Who agreed it", "Reason|mv-reason|Reason", "Source|mv-source|Source"])
             self.assertEqual(p.js("document.querySelector('.mvm-form').getAttribute('aria-labelledby')"), "mv-form-h")
             self.assertEqual(p.js("document.getElementById('mv-form-h').textContent"), "Move the agreed date")
 

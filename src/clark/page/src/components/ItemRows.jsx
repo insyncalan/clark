@@ -21,6 +21,16 @@ export function wordings(d) {
   return out;
 }
 
+// Row 1099: the page clark serves (View) reads each row's own description (a decision's text) on its one line; the client's wording is
+// what a published file carries, and what Edit changes. An item with no description reads as its client wording.
+export function viewWords(d) {
+  const out = wordings(d);
+  for (const [k, own] of [["actions", "description"], ["raid", "description"], ["decisions", "decision"]]) {
+    for (const r of d[k] || []) { const t = String(r[own] || "").trim(); if (t && out[r.id]) out[r.id] = t; }
+  }
+  return out;
+}
+
 export const todayOf = () => (fromFile.value && asAt.value ? asAt.value : todayIso());
 
 // Every row the section could list, marked for the client or not, taken off the page or not (Edit counts them: "Showing N of M").
@@ -102,7 +112,7 @@ function Row({ row, today, words, inFile, type }) {
 }
 
 export function ItemRows({ type }) {
-  const list = rowsFor(type), today = todayOf(), words = wordings(data.value || {}), inFile = fromFile.value;
+  const inFile = fromFile.value, list = rowsFor(type), today = todayOf(), words = (inFile ? wordings : viewWords)(data.value || {});
   if (!list.length) return <p class="quiet" data-nothing>{NOTHING}</p>;
   return (
     <ul class={listClass(type, inFile ? "file" : "view")}>

@@ -235,9 +235,14 @@ class Fields(Base):
             self.assertEqual(p.js("document.querySelectorAll('[data-pop] [role=menuitemradio] svg.i').length"), p.js("document.querySelectorAll('[data-pop] [role=menuitemradio]').length"), "every choice has its icon (row 1074)")
             self.click(p, "[data-pop] [role=menuitemradio][data-value=Build]")
             self.saved(p, "workstream", "Build")
-            self.click(p, "#peek [data-ms-field=client_message]")
-            self.type_in(p, "#peek [data-ms-in=client_message]", "On its way", leave="ctrl")
-            self.saved(p, "client_message", "On its way")
+            self.click(p, "#peek [data-rich=client_message]")
+            p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
+            self.assertEqual(p.js("document.querySelectorAll('#peek textarea[data-ms-in=client_message]').length"), 0, "not a plain box any more (item 1005)")
+            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('On its way'); true")
+            p.key("Enter", code="Enter", vk=13)
+            p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Second line'); true")
+            p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
+            self.saved(p, "client_message", "On its way Second line")          # plain text on one line (the server refuses line breaks in client wording), never markup
             self.assertEqual(p.js("document.querySelector('#peek [data-ms-visible]').getAttribute('aria-pressed')"), "true")
             self.click(p, "#peek [data-ms-visible]")
             self.assertTrue(self.until_store(lambda: GO_LIVE in {h["item_id"] if isinstance(h, dict) else h for h in self.store.data_for("ABC")["report_hidden"]}), "left out of the page")
@@ -268,9 +273,27 @@ class Fields(Base):
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.until("!!document.querySelector('.toast [data-undo]')", "Undo offered")
-            p.until("document.activeElement && document.activeElement.hasAttribute('data-undo')", "the focus moved to Undo, not to the page body")
+            # row 1054: the focus goes to the next milestone row's cells, or to Undo where there is no next row (never to the page body)
+            p.until("document.activeElement && (document.activeElement.hasAttribute('data-undo') || (document.activeElement.classList.contains('msl-cells') && !!document.activeElement.closest('li.msl-row')))", "the focus moved to the next row or to Undo, not to the page body")
             p.js("document.querySelector('.toast [data-undo]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 0), "one Undo brings it back")
+
+    def test_after_archive_in_the_peek_focus_goes_to_the_next_row_or_to_undo(self):
+        """Row 1054: the peek closes with its item; focus must not drop to the page. Next row's cell, else the toast's Undo."""
+        for ms in (GO_LIVE, PILOT):
+            for width in (1400, 900):
+                with self.subTest(ms=ms, width=width), chrome() as cdp:
+                    self.setUp()
+                    p = self.visit_peek(cdp, ms=ms, width=width)
+                    self.calm(p)
+                    want = p.js(f"(() => {{ const n = document.querySelector('li.msl-row[data-ms=\"{ms}\"]'); const x = n && n.nextElementSibling; "
+                                "return x ? x.getAttribute('data-ms') : ''; })()")
+                    self.click(p, "#peek [data-pk-archive]")
+                    p.until("!document.querySelector('#peek') && !!document.querySelector('.toast [data-undo]')", "closed, Undo offered")
+                    p.until("document.activeElement !== document.body", "focus did not drop to the page")
+                    got = p.js("(() => { const a = document.activeElement; const r = a.closest('li.msl-row'); "
+                               "return r && a.classList.contains('msl-cells') ? r.getAttribute('data-ms') : a.matches('.toast [data-undo]') ? 'undo' : a.tagName; })()")
+                    self.assertEqual(got, want or "undo")
 
     def test_no_archive_button_in_the_dashboards_view_peek(self):
         with chrome() as cdp:
