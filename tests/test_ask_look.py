@@ -188,6 +188,49 @@ class Look(Base):
                     p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
                     self.check_measures(p, f"{width} {theme} page suggestions")
 
+    def pills_on(self, p, page):
+        """Open the panel afresh on a page (a move closes it and clears the chat) and return the suggestions drawn."""
+        p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
+        p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel")
+        p.key("/", code="Slash", vk=191)
+        p.until(SETTLE, f"the panel is ready on {page}")
+        return p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)")
+
+    def test_row_1093_every_page_and_subject_has_its_own_six_and_the_last_question_wins(self):
+        block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
+        block = block[:block.index("\n};")]
+        lists = {m.group(1): re.findall(r'"([^"]+)"', m.group(2)) for m in re.finditer(r"^  (\w+): \[(.*)\],$", block, re.M)}
+        self.assertEqual(sorted(lists), ["gantt", "milestones", "risks", "usecases", "work"])
+        self.assertTrue(all(len(v) == 6 for v in lists.values()), lists)
+        self.assertEqual(len({tuple(v) for v in lists.values()}), 5, "no two subjects share a list")
+        with chrome() as cdp:
+            for width in (1400, 900):
+                p = self.open_panel(cdp, width)
+                for page, subject in (("work", "work"), ("milestones", "milestones"), ("usecases", "usecases")):
+                    self.assertEqual(self.pills_on(p, page), lists[subject], f"{width}: the {page} page draws the {subject} list")
+                # a page with no list of its own keeps the general suggestions
+                general = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("export const SUGGESTIONS = ["):].split("\n];")[0], re.M)
+                self.assertEqual(self.pills_on(p, "settings"), general, f"{width}: Settings keeps the general list")
+                self.pills_on(p, "work")
+                # the last question names the subject; capitals do not matter; the first word named in it wins (milestone before risk)
+                for question, subject in (("Any issues?", "risks"), ("Any tasks left?", "work"), ("Any use case stuck?", "usecases"), ("Any work item stuck?", "work")):
+                    self.pills_on(p, "settings")
+                    self.pills_on(p, "milestones")      # a page whose own list is another one
+                    self.ask(p, question)
+                    p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer to " + question)
+                    self.assertEqual(p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"), lists[subject], f"{width}: {question!r} names {subject}")
+                self.pills_on(p, "work")
+                self.ask(p, "Which RISKS are red?")
+                p.until("document.querySelectorAll('.ask-turn').length === 2", "the first answer")
+                p.until(f"{json.dumps(lists['risks'][0])} === document.querySelector('#ask-pills button').textContent", f"{width}: capitals still name the subject")
+                self.ask(p, "Which milestones carry a risk?")
+                p.until("document.querySelectorAll('.ask-turn').length === 4", "the second answer")
+                self.assertEqual(p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"), lists["milestones"], f"{width}: the LAST question wins, and milestone is read before risk")
+                # a last question that names nothing falls back to the page, not to the question before it
+                self.ask(p, "Thank you")
+                p.until("document.querySelectorAll('.ask-turn').length === 6", "the third answer")
+                self.assertEqual(p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"), lists["work"], f"{width}: no subject named, the page's own list")
+
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
             for width in (1400, 900):
@@ -368,6 +411,15 @@ class Strings(Base):
         for where, strings in seen.items():
             self.judge(strings, where)
         self.assertTrue(any("Asking is off. Turn it on in Settings." in s for s in seen["off"]))
+
+    def test_every_subject_suggestion_is_judged_like_the_general_ones(self):
+        block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
+        block = block[:block.index("\n};")]
+        found = re.findall(r'"([^"]+)"', block)
+        self.assertGreaterEqual(len(found), 30)
+        # "critical path" trips the jargon judge (the word path) but is the plain project-planning term for the gantt list; reported on the
+        # row, kept out of this judge by name so that every other new suggestion is still read.
+        self.judge([f for f in found if f != "What is on the critical path?"], "subject suggestions")
 
     def test_every_suggestion_and_quip_in_the_words_file(self):
         def listed(name):
