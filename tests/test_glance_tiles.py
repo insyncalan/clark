@@ -93,7 +93,7 @@ class Tiles(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "Back returns to the Dashboard")
 
     def test_the_published_file_has_no_clickable_tile(self):
-        """A published file is view-only: its tiles are not buttons and open nothing."""
+        """A published file is view-only: its tiles open nothing but the file's own Work items (row 1112), and none is an edit control."""
         from pathlib import Path
         from clark import publish
         from test_report_editor import DemoStore, EMPTY_BRANDING, USER
@@ -106,7 +106,8 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("document.querySelectorAll('.fig.go, .glance button').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('.fig.go').length", sid), 0)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance button')].filter(b => !b.classList.contains('fig')).length", sid), 0)
 
     def test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row(self):
         s = self.serve()
