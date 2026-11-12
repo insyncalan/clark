@@ -18,6 +18,7 @@ import { KIND_WORDS, dueCell, ownerOf, metaOf, todayIso } from "../workItems.js"
 import { ItemFields, Edge } from "../components/Peek.jsx";
 import { slideOut } from "../peek/exit.js";
 import { Icon } from "../components/Icon.jsx";
+import { useColWidths } from "./colWidths.jsx";
 
 const read = signal({ code: "", rows: null }); // the archived rows of one project; rows null until read, [] when there is none
 const openId = signal("");                 // the archived item open in the peek, or "" (memory only: no address, no Back entry)
@@ -44,7 +45,7 @@ function rowKeys(e, id) {
 
 // `rowsShown(rows)` narrows the archived rows by the rest of the filter line; it is the page's own, handed in by Work items.
 export function ArchivedItems({ narrow }) {
-  const code = project.value, d = data.value;
+  const code = project.value, d = data.value, cw = useColWidths("archived");
   useEffect(() => {
     let live = true;
     getArchived(code).then((r) => { if (live) read.value = { code, rows: r.ok ? rowsFor(r.data) : [] }; });
@@ -63,7 +64,7 @@ export function ArchivedItems({ narrow }) {
           <h2 class="arch-h">Archived <span class="muted">{`${n} item${n === 1 ? "" : "s"}`}</span></h2>
           {n === 0 ? <p class="muted">No archived work items.</p> : (
             <table class="items arch">
-              <thead><tr><th class="c-type">Type</th><th class="c-item">Item</th><th class="c-owner">Owner</th><th class="c-due">Due</th><th class="c-status">Status</th></tr></thead>
+              <thead><tr>{[["type", "Type"], ["item", "Item"], ["owner", "Owner"], ["due", "Due"], ["status", "Status"]].map(([id, w]) => <th key={id} class={`c-${id}`} style={cw.style(id)}>{w}{cw.grip(id, w)}</th>)}</tr></thead>
               <tbody>
                 {rows.map((r, i) => (
                   <tr key={r.id} data-arch-id={r.id} class={`arch-row${r.id === at ? " sel" : ""}`} tabIndex={i === 0 ? 0 : -1} aria-label={`Open ${r.id}, archived, read only`}

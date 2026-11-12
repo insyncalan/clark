@@ -184,20 +184,23 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
 // A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
 // while it is drawn, else the first row drawn.
 const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
-function Heads({ eye, hand }) {
+const NO_WIDTHS = { style: () => undefined, grip: () => null };      // a published file: the default widths, no handles
+function Heads({ eye, hand, cw }) {
+  const g = (id, name) => cw.grip(id, name);
   return (
     <>
       {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
-      <th scope="col" class="c-item">Item</th><th scope="col" class="c-owner">Owner</th><th scope="col" class="c-due">Due</th><th scope="col" class="c-prio">Priority</th><th scope="col" class="c-status">Status</th>
+      <th scope="col" class="c-item">Item{g("item", "Item")}</th><th scope="col" class="c-owner">Owner{g("owner", "Owner")}</th><th scope="col" class="c-due">Due{g("due", "Due")}</th><th scope="col" class="c-prio">Priority{g("prio", "Priority")}</th><th scope="col" class="c-status">Status{g("status", "Status")}</th>
       {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );
 }
-function Cols({ eye, hand }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} />)}</colgroup>; }
+function Cols({ eye, hand, cw }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} style={cw.style(c.slice(2))} />)}</colgroup>; }
 
 const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove("opening"); if (justOpened === key && !(el.parentNode && el.parentNode.querySelector(".opening"))) justOpened = ""; };   // the group is done once its thead and its tbody have both finished
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
-function Table({ rows, today, type, Cell, Eye }) {
+function Table({ rows, today, type, Cell, Eye, CW }) {
+  const cw = CW ? CW("work") : NO_WIDTHS;                 // the Edit part's hook, or nothing (stable for as long as the page lives)
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
@@ -213,7 +216,7 @@ function Table({ rows, today, type, Cell, Eye }) {
     const flat = sortRows(rows, today), stop = stopOf(flat);
     order = flat.map((r) => r.id);
     mo = useRowMotion([{ key: "", rows: flat }]);
-    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} /><thead><tr><Heads eye={Eye} hand={hand} /></tr></thead><tbody>{rowsOf("", flat, stop)}</tbody></table></div>;
+    return <div class="wgroup"><table class="items" {...grid}><Cols eye={Eye} hand={hand} cw={cw} /><thead><tr><Heads eye={Eye} hand={hand} cw={cw} /></tr></thead><tbody>{rowsOf("", flat, stop)}</tbody></table></div>;
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
@@ -228,7 +231,7 @@ function Table({ rows, today, type, Cell, Eye }) {
         return (
           <div class="wgroup" key={c.key}>
             <table class="items grouped" {...grid}>
-              <Cols eye={Eye} hand={hand} />
+              <Cols eye={Eye} hand={hand} cw={cw} />
               <thead data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 <tr class="grp"><th colspan={n} scope="colgroup">
                   {hand ? <GroupTick sel={ticks} ids={c.rows.filter((r) => isOpen(r)).map((r) => r.id)} label={c.label} shut={shut} />
@@ -237,7 +240,7 @@ function Table({ rows, today, type, Cell, Eye }) {
                     <Icon name="chevdown" cls={shut ? "turn" : ""} /><span class="gl">{c.label}</span><span class="gc num">{c.rows.length} {c.rows.length === 1 ? "item" : "items"}</span>
                   </button>
                 </th></tr>
-                {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} /></tr>}
+                {shut ? null : <tr class="colh"><Heads eye={Eye} hand={hand} cw={cw} /></tr>}
               </thead>
               <tbody data-group={c.key} class={justOpened === c.key && !shut && !fromFile.value ? "opening" : undefined} onAnimationEnd={opened(c.key)}>
                 {shut ? null : rowsOf(c.key, c.rows, stop)}
@@ -271,7 +274,7 @@ function SearchBox() {
 
 // The published file's list (#69): the older filter bar's chips, search, as-at day. The filter line is the app's only (#153).
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function PublishedList({ Board, Cell, Eye, Bulk }) {
+function PublishedList({ Board, Cell, Eye, Bulk, CW }) {
   const st = filterState.value, today = fromFile.value && asAt.value ? asAt.value : todayIso();
   const filtered = applyFilters(itemRows.value, st, today);
   const cs = chips(st);
@@ -299,13 +302,13 @@ function PublishedList({ Board, Cell, Eye, Bulk }) {
       </div>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">No items match these filters.</p>{canClearAll ? <button type="button" class="btn" id="clearAll2" onClick={clear}>Clear all</button> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} Eye={Eye} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={Cell} Eye={Eye} CW={CW} />}
     </div>
   );
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
+function List({ Board, Cell, Eye, Bulk, HandOver, L, CW }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
@@ -321,7 +324,7 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L }) {
       <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} />}
     </div>
   );
 }
@@ -331,6 +334,7 @@ export function WorkItems({ tools }) {
   const L = fromFile.value ? null : lineApi.current, FilterLine = L && L.FilterLine;
   const d = data.value, plan = addPlan(L ? L.toState(allRows.value, filterCtx()).type : filterState.value.type), Board = tools && tools.Board;
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
+  const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const Eye = tools && tools.Eye && !fromFile.value ? tools.Eye : null;      // the Client-visible column: the page clark serves, never a published file
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
@@ -361,12 +365,12 @@ export function WorkItems({ tools }) {
               ? <>
                   <Switches><GroupBy board={board} /><SearchBox /></Switches>
                   <FilterBar />
-                  <PublishedList Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} />
+                  <PublishedList Board={Board} Cell={Cell} Eye={Eye} CW={CW} Bulk={tools && tools.Bulk} />
                 </>
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
                   <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
-                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
+                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}
     </section>

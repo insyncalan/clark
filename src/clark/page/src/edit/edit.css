@@ -381,7 +381,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-count { margin-left: auto; font-size: var(--size-caption); color: var(--text-muted); }
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 36px; gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
+.ucl-row { display: grid; grid-template-columns: var(--ucl-cols, 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 36px); gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
@@ -407,7 +407,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 1100px) {
-  .ucl-row { grid-template-columns: 70px minmax(0, 1fr) 112px 92px 36px; gap: 10px; }
+  .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
   .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
   .ucl-name small { display: block; }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
@@ -1169,3 +1169,10 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 .pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
 .pk-lh-list { list-style: none; margin: 0; padding: 0; max-height: calc(5 * 4.5em); overflow-y: auto; }
 .pk-lh-row { box-sizing: border-box; min-height: 4.5em; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); overflow-wrap: anywhere; }
+
+/* Row 1104: the right edge of a heading is a handle for the column's width. The hit area is 24 px tall; the line shows on hover and focus. */
+th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }
+.cgrip { position: absolute; top: 50%; right: 0; z-index: 2; width: 10px; height: 24px; margin-top: -12px; cursor: col-resize; touch-action: none; }
+.cgrip::after { content: ""; position: absolute; top: 3px; bottom: 3px; left: 4px; width: 2px; border-radius: 1px; background: var(--grey-300); opacity: 0; }
+.cgrip:hover::after, .cgrip:focus-visible::after { opacity: 1; background: var(--brand-blue); }
+.cgrip:focus-visible { outline: 2px solid var(--focus); outline-offset: 0; border-radius: 3px; }
