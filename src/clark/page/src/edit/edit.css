@@ -269,16 +269,18 @@ table.items td.c-pick { vertical-align: middle; }
 @media (prefers-reduced-motion: reduce) { .ask-turn, .ask-work { animation: none; } .ask-dots i { animation: none; opacity: .6; } .ask-grip::before, .ask-grip::after, .ask-pills button, .ask-form textarea { transition: none; } }
 .ask-note { flex: none; margin: 0; padding: 0 20px 6px; font-size: var(--size-caption); color: var(--text-muted); }
 .ask-note:empty { padding: 0; height: 0; overflow: hidden; }
-.ask-form { flex: none; display: flex; flex-direction: column; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
+.ask-form { flex: none; display: flex; flex-direction: row; align-items: center; gap: var(--space-2); padding: var(--space-3) var(--space-4) 14px; border-top: 1px solid var(--grey-200); }
 /* row 1023 (prototype app.css:583): the brand picture, faint, at the panel's foot behind the box, rising from the bottom; nothing without a picture (--image-cover is none) */
 .ask-form { position: relative; }
 .ask-form::before { content: ""; position: absolute; left: 0; right: 0; bottom: 0; height: 340px; z-index: -1; pointer-events: none; background: var(--image-cover) 70% bottom / cover no-repeat; opacity: .2; -webkit-mask-image: linear-gradient(0deg, var(--black), transparent); mask-image: linear-gradient(0deg, var(--black), transparent); }
 @media print { .ask-form::before { display: none; } }
-.ask-form textarea { width: 100%; box-sizing: border-box; min-height: 56px; max-height: 140px; padding: 10px 14px; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: vertical; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
+.ask-form textarea { flex: 1 1 auto; min-width: 0; width: 100%; box-sizing: border-box; height: 40px; min-height: 0; max-height: 40px; line-height: 20px; padding: 9px 14px; overflow-y: auto; border: 1px solid var(--ask-edge); border-radius: 12px; background: var(--grey-50); color: var(--text); font: inherit; font-size: var(--size-body); resize: none; outline: none; transition: border-color var(--dur-instant) var(--ease-out), box-shadow var(--dur-instant) var(--ease-out); }
 .ask-form textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .ask-form textarea:focus-visible { background: var(--surface); border-color: var(--brand-blue); box-shadow: 0 0 0 2px var(--brand-blue), 0 0 0 5px color-mix(in srgb, var(--brand-blue) 20%, transparent); }
 .ask-form textarea:disabled { opacity: .7; }
-.ask-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.ask-actions { flex: none; display: flex; align-items: center; gap: var(--space-2); }
+.ask-actions .btn.primary { width: 36px; min-width: 36px; height: 36px; min-height: 36px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 50%; }
+.ask-actions .btn.primary:disabled, .ask-actions .btn.primary[data-empty] { opacity: .45; cursor: default; box-shadow: none; }
 /* #47e: a suggested change in the ask panel */
 .ask-changes { display: flex; flex-direction: column; gap: 10px; margin-top: var(--space-1); }
 .ask-passage { margin: 0; padding: 6px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); }  /* row 936: a quote edge is a hairline all round, no one-side stripe */
@@ -891,7 +893,6 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 /* Editors throughout (item 660): one class for every plain text box that sizes itself (useGrow.js). Three lines to start, one blank line
    always under the last, a corner handle to pull it taller; the script writes the height, this keeps the floor and the handle. */
 textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-height: calc(3lh + 1rem); }
-.ask-form textarea.grow.grow { max-height: 40vh; flex: none; }
 .rt-host { min-height: 6rem; min-height: calc(3lh + 1rem); resize: vertical; overflow: auto; }
 .rt-host .ProseMirror { min-height: 3lh; padding-bottom: 1lh; }
 .de-preview { min-height: calc(3lh + 1.5rem); max-height: 60vh; resize: vertical; }
