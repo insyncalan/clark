@@ -67,9 +67,9 @@ CHANGE_KINDS = {
     # (an item is closed or cancelled by its status, and archived only by archiving). priority is not in raid's list because the
     # store works it out from impact and likelihood (D-12: the status picker's Rating sets those two); `archived` is in no list.
     # #67: a work item's title is the column the page shows as its title: an action's and a RAID item's `description`, a decision's `decision`.
-    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action")},   # the peek's Latest update (an action's only)
-    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action")},   # row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
-    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible")},   # #45: use_case links an existing use case of this project, or clears the link
+    "actions": {UPDATE: ("status", "workstream", "owner", "priority", "due_date", "milestone", "use_case", "description", "latest_update", "client_message", "client_visible", "client_action"), DELETE: ()},   # the peek's Latest update (an action's only); item 658: DELETE removes the item, with its links and labels
+    "raid": {UPDATE: ("status", "impact", "likelihood", "workstream", "owner", "due_date", "milestone", "use_case", "description", "client_message", "client_visible", "client_action"), DELETE: ()},   # row 811: needed from the client (an action or a risk or issue; a decision has no such flag)
+    "decisions": {UPDATE: ("status", "made_by", "needed_by", "date", "use_case", "decision", "client_message", "client_visible"), DELETE: ()},   # #45: use_case links an existing use case of this project, or clears the link
     # #45: the At a glance tiles and the project's health. A tile is hidden, given an outline colour or moved (its place is worked
     # out here, never sent); the project's change takes no `id` (it is the request's project) and only its health and the reason.
     "glance_tiles": {UPDATE: ("hidden", "outline"), MOVE: ()},
@@ -742,7 +742,7 @@ def _do_change(store, by_user, req):
     if store.read("projects", ref=project) is None:
         raise Refused(NO_PROJECT, 404, "project_not_found")
     table = next(k for k in CHANGE_KINDS if k == kind)              # the allow-list's own spelling, never the request's
-    if (kind == "report_hidden" or op in (BULK, HAND_OVER) or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
+    if (kind == "report_hidden" or op in (BULK, HAND_OVER, DELETE) or (op == NEW and kind in NEWABLE)) and clark_store.is_archived(store.con, project):
         raise Refused(PROJECT_NOT_ACTIVE)                           # #67: an archived project is read only; said alike for show, hide, pick and a new row
     if op in (ARCHIVE, RESTORE):
         return _do_archive(store, by_user, project, table, op, place, req.get("id"))
@@ -759,6 +759,8 @@ def _do_change(store, by_user, req):
         return _do_bulk(store, by_user, req, project, table, columns, place)
     if op == HAND_OVER:
         return _do_hand_over(store, by_user, req, project, place)
+    if kind in ITEM_KINDS and op == DELETE:
+        return _do_delete_item(store, by_user, req, project, table, place)
     if kind in ITEM_KINDS:
         return _do_item_change(store, by_user, req, project, table, columns, place)
     if kind == "milestones":
@@ -874,6 +876,23 @@ def _do_archive(store, by_user, project, table, op, place, ref):
     if counts is not None:
         reply["counts"] = counts
     return 200, reply
+
+
+def _do_delete_item(store, by_user, req, project, table, place):
+    """Item 658: delete one action, RAID item or decision of THIS project, with its links and labels, in one step with one Undo.
+    Refused for an archived project (before this), a missing or archived item, and an item another record points at (the refusal
+    names the pointer, in the Undo's own words). The reply gives the apply_id for the toast's Undo."""
+    ref = req.get("id")
+    with store.step(VIA, by_user, place=place) as st:
+        row = store.read(table, ref=ref) if isinstance(ref, str) and _belongs(table, ref, project) else None
+        if row is None or row["project"] != project or row["archived"]:
+            raise Refused(ITEM_NOT_MINE)
+        pointer = clark_store.item_pointer(st.con, ref)
+        if pointer:
+            raise Refused(f"{ref} can't be deleted: something refers to it ({clark_store._REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
+        st.delete(table, ref)
+        apply_id = st.peek_apply_id()
+    return 200, {"ok": True, "apply_id": apply_id, "undoable": apply_id is not None, "ref": ref, "deleted": True}
 
 
 def _do_new_row(store, by_user, req, project, table, columns, place):
@@ -2302,6 +2321,22 @@ def _eligible(rows, project, hand_over=False):
     shown_kinds = {**items, "use_cases": re.compile(re.escape(project) + r"-U-\d{3}")}    # #67: the picker's step also reaches these two
 
     milestone = re.compile(re.escape(project) + r"-M-\d{3}")
+
+    gone = clark_store.REMOVED
+
+    def deleted_row(r):                                             # item 658: a deleted item, and the links, labels and hiding that went with it, all of this project
+        key = str(r["key"])
+        if r.get("field") != gone or r["via"] != VIA:
+            return False
+        if r["table"] in ITEM_KINDS:
+            return bool(items[r["table"]].fullmatch(key))
+        if r["table"] == "links":
+            return all(re.fullmatch(re.escape(project) + r"-(?:[AD]-)?\d{3}", end) for end in key.split("|")[:2])
+        if r["table"] == "item_labels":
+            return bool(re.match(re.escape(project) + r"-(?:[AD]-)?\d{3}\|", key))
+        return r["table"] == "report_hidden" and key.startswith(project + "|" + project + "-")
+    if any(r.get("field") == gone and r["table"] in ITEM_KINDS for r in rows):
+        return all(deleted_row(r) for r in rows)                    # a delete is one family: nothing else in its step
 
     def movement_row(r):                                            # #136: a Movement step's own rows: the milestone's fields, and the decision a rebaseline made
         if r["table"] == "milestones":

@@ -1172,8 +1172,8 @@ def write_item(con, item, step):
     reverting = bool(item.get("revert"))
     if not reverting:
         refuse_archived_field(item)
-    if op not in ("new", "update", "cancel", "archive", "restore"):
-        raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
+    if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
+        raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -1189,6 +1189,8 @@ def write_item(con, item, step):
         _refuse_label_on_archived(con, table, current)
     if op == "cancel" and table in DELETED_ON_CANCEL:
         return delete_row(con, table, key, current, step)
+    if op == "delete":
+        return delete_item(con, table, key, current, step)
     changes = _cancel_changes(table) if op == "cancel" else dict(item.get("changes") or {})
     return _update_row(con, table, item, key, current, changes, cols, step)
 
@@ -1492,10 +1494,10 @@ def all_sections_deleted(con, code):
     return not con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone() and sections_were_made(con, code)
 
 
-def delete_row(con, table, key, current, step):
-    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row. The row is kept in
-    change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL:
+def delete_row(con, table, key, current, step, item=False):
+    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
+    is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
+    if table not in DELETED_ON_CANCEL and not (item and table in DELETABLE_ITEMS):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1509,6 +1511,42 @@ def delete_row(con, table, key, current, step):
     con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
     log(con, step, table, key, REMOVED, json.dumps(current, ensure_ascii=False), None, "update")
     return key
+
+
+DELETABLE_ITEMS = ("actions", "raid", "decisions")     # item 658: the work items a person may delete (not by cancel: cancel closes them); milestones and use cases are never deleted
+
+
+def item_pointer(con, key):
+    """(table, the referring row's key) where another record names this item and the delete cannot take that pointer with it
+    (a decision's 'replaces'), or None. A link, a label on it and its hiding from the report go with the item, so they are not pointers."""
+    for table, col in REVERT_REFS:
+        if table in ("links", "item_labels") or col not in columns(con, table):
+            continue
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+        if r:
+            return table, key_of(table, r)
+    return None
+
+
+def delete_item(con, table, key, current, step):
+    """Item 658: delete one action, RAID item or decision, with its links, its labels and its hiding from the report, in the
+    caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
+    Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
+    (next_id reads change_log)."""
+    if table not in DELETABLE_ITEMS:
+        raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
+    _refuse_if_archived(table, key, current)
+    if con.execute("SELECT 1 FROM projects WHERE code = ? AND archived = 1", (current["project"],)).fetchone():
+        raise Invalid(f"{current['project']} is archived. Restore it first.")
+    pointer = item_pointer(con, key)
+    if pointer:
+        raise Invalid(f"something refers to it now ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]})")
+    for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
+                     ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
+        for r in rows_:
+            delete_row(con, t, key_of(t, r), dict(r), step)
+    return delete_row(con, table, key, current, step, item=True)
 
 
 # ---------- updates and cancels ----------
@@ -3899,6 +3937,10 @@ class Step:
     def restore(self, kind, ref):
         """Bring an archived record back, as it was (#126)."""
         return write_item(self.con, {"table": kind, "op": "restore", "id": ref}, self)
+
+    def delete(self, kind, ref):
+        """Item 658: delete an action, RAID item or decision with its links and labels: one step, one Undo."""
+        return write_item(self.con, {"table": kind, "op": "delete", "id": ref}, self)
 
     def cancel(self, kind, ref):
         """Close a row as cancelled (work items, projects, workstreams), or remove a link, label or item label."""
