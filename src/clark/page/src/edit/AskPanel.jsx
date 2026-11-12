@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
+import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
@@ -158,7 +159,11 @@ export function AskPanel() {
     e.preventDefault(); closePanel(); show("settings");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
-      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
+        stopRestore();
+        for (let i = 0; i < 12; i++) setTimeout(() => c.scrollIntoView({ block: "start" }), i * 50);
+        const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+      }
       else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
     };
     focusCard(0);

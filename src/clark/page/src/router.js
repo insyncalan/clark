@@ -95,6 +95,9 @@ function screenKey(state) {
   return s.view + "|" + s.project + "|" + s.uc;
 }
 
+/** Stop any place-restore still running, so a scroll the page makes itself (a link that lands on a card) is not set back to the top. */
+export function stopRestore() { restoring++; }
+
 function scrollNow() {
   try { return Math.max(0, Math.round(window.scrollY || 0)); } catch (e) { return 0; }
 }

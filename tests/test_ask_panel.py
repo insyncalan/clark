@@ -487,6 +487,20 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
 
+    def test_row_1097_the_open_settings_link_with_no_model_connected_lands_on_the_asking_card(self):
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').textContent.trim()"), "Open Settings")
+            p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').click()")
+            p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1 && !!document.querySelector('#ask-settings')", "Settings, with the Asking card")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading")
+            p.until("(function(){ var t = document.querySelector('#ask-settings').getBoundingClientRect().top; return t >= -2 && t < 200; })()", "the card is scrolled into view at the top, not left below the fold")
+            time.sleep(1)       # the page's own place-restore runs for a moment: it must not set the scroll back
+            top = p.js("document.querySelector('#ask-settings').getBoundingClientRect().top")
+            self.assertTrue(-2 <= top < 200, f"the card is still in view a moment later ({top})")
+
     def test_with_chatgpt_in_use_the_panel_has_no_line_about_where_text_goes(self):
         """#54, #1062: that line lives in Settings now; the panel names neither Claude nor Anthropic nor billing."""
         self.stub.provider = "ChatGPT"

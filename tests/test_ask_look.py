@@ -165,6 +165,25 @@ class Look(Base):
                         else:
                             self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "no suggestions while it is not set up")
 
+    def test_row_1097_the_open_settings_link_in_the_not_set_up_line_is_seen_and_readable(self):
+        self.stub.enabled, self.stub.connected = True, False
+        with chrome() as cdp:
+            p = self.open_panel(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out a')", "the not set up line with its link")
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    what = f"{width} {theme}"
+                    got = json.loads(p.js("JSON.stringify((function(){var l=document.querySelector('#ask-signed-out'),a=l.querySelector('a'),r=a.getBoundingClientRect(),q=l.getBoundingClientRect(),pn=document.querySelector('#ask-panel').getBoundingClientRect();"
+                                          "return {txt:a.textContent.trim(),w:r.width,h:r.height,inside:r.left>=pn.left&&r.right<=pn.right&&r.top>=q.top-1&&r.bottom<=q.bottom+1,fs:parseFloat(getComputedStyle(a).fontSize),ul:getComputedStyle(a).textDecorationLine,col:getComputedStyle(a).color,line:getComputedStyle(l).color};})())"))
+                    self.assertEqual(got["txt"], "Open Settings", what)
+                    self.assertTrue(got["inside"], f"{what}: the link sits inside the line and the panel")
+                    self.assertGreaterEqual(got["fs"], 12, f"{what}: text under 12 px")
+                    self.assertGreaterEqual(got["h"], 14, what)
+                    self.assertTrue(got["ul"] != "none" or got["col"] != got["line"], f"{what}: the link looks different from the words around it")
+                    self.check_measures(p, f"{what} not set up link")
+
     def test_row_1093_the_suggestions_follow_the_page_and_the_last_question(self):
         pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent).join('|')"
         with chrome() as cdp:
