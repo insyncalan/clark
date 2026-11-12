@@ -16,6 +16,7 @@ from test_gantt_page import Page as _PageRig, lit
 from test_server import chrome  # noqa: F401  # this file drives Chrome through test_gantt_page's rig; the runner's text check looks for this import
 
 A4 = {"portrait": 794, "landscape": 1123}      # A4's width in CSS pixels
+TAIL = 41      # the canvas ends 40 px after the last day: empty space the clip may take
 KEEP = "display position overflowX overflowY maxHeight height backgroundColor borderTopColor color zIndex".split()
 
 
@@ -51,7 +52,8 @@ class Print(_PageRig):
             bar: !!q('.gt-bar') && cs(q('.gt-bar')).display, tools: !!q('.gp-tools') && cs(q('.gp-tools')).display,
             moving: moving.map(function (e) { return e.className + ':' + getComputedStyle(e).position; }),
             overflow: cs(gx).overflowX, scrollW: gx.scrollWidth, clientW: gx.clientWidth,
-            right: Math.round(inner.getBoundingClientRect().right), doc: document.documentElement.clientWidth, docScroll: document.documentElement.scrollWidth,
+            right: Math.round(inner.getBoundingClientRect().right),
+            canvasRight: q('.gt-canvas') ? Math.round(q('.gt-canvas').getBoundingClientRect().right) : 0, gxRight: Math.round(gx.getBoundingClientRect().right), doc: document.documentElement.clientWidth, docScroll: document.documentElement.scrollWidth,
             barAdjust: bar ? cs(bar).printColorAdjust : 'exact', barBg: bar ? cs(bar).backgroundColor : 'x',
             rowBreak: rows.length ? cs(rows[0]).breakInside : 'avoid', rows: rows.length,
           });
@@ -73,6 +75,8 @@ class Print(_PageRig):
         self.assertIn(got["overflow"], ("visible", "clip"), f"{what}: no scrolling box")
         if got["overflow"] == "visible":
             self.assertLessEqual(got["scrollW"], got["clientW"] + 1, f"{what}: nothing cut at the box edge {got}")
+        if got["canvasRight"]:      # a clipping box hides what is drawn past its edge, so the canvas may overhang by no more than its empty tail (GanttChart.jsx: 40 px past the last day)
+            self.assertLessEqual(got["canvasRight"], got["gxRight"] + TAIL, f"{what}: the canvas is not cut at the box edge {got}")
         self.assertLessEqual(got["right"], got["doc"] + 1, f"{what}: the chart ends inside the page {got}")
         self.assertLessEqual(got["docScroll"], got["doc"] + 1, f"{what}: no sideways scroll on the page {got}")
         self.assertEqual(got["barAdjust"], "exact", f"{what}: bars keep their colour")
@@ -154,6 +158,53 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_a_chart_measured_on_the_screen_is_fitted_to_the_paper_when_the_print_starts(self):
+        # The page is measured at the screen width (1400 or 900) and the browser then lays it out at the paper width without a ResizeObserver
+        # callback (stubbed to nothing here): beforeprint must refit the chart, so the scale, the Migration bar end and the labels are on the paper.
+        paper = 703      # A4 width 794 less 12 mm margins
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.js("window.__RO = window.__RO || window.ResizeObserver; window.ResizeObserver = function () { this.observe = function () {}; this.disconnect = function () {}; };")
+                    lines = ("P.LINES.map(function (l) { return Object.assign({}, l, { show: 1 }); }).concat([{ id: 'GNT-007', name: 'A very long milestone name that cannot fit beside its diamond', type: 'milestone', parent: '', start: '2026-11-10', end: '2026-11-10', pct: 0, "
+                             "health: '', depends: [], owner: '', workstream: '', priority: '', baseline_start: '', baseline_end: '', effort: '', budget: '', deliverable: '', show: 1, note: '', sort_order: 7 }])")
+                    self.js(f"P.mount({{ lines: {lines}, width: {width - 40} }})")
+                    self.until("document.querySelector('#gantt-page .gt-canvas')", "the chart is drawn")
+                    self.assertEqual(self.count(".gt-ln"), 7, "seven lines are drawn")
+                    self.printing(paper, scheme)
+                    self.js(f"document.getElementById('host').style.width = '{paper}px'; window.dispatchEvent(new Event('beforeprint'))")
+                    self.settle()
+                    try:
+                        got = json.loads(self.js("""(function () {
+                          var gx = document.querySelector('.gt-gx').getBoundingClientRect(), cv = document.querySelector('.gt-canvas').getBoundingClientRect(), out = { canvas: [Math.round(cv.right), Math.round(gx.right)], cut: [] };
+                          var cells = document.querySelectorAll('.gt-rhead .gt-hc'), last = cells[cells.length - 1];
+                          out.lastCell = last ? Math.round(last.getBoundingClientRect().left) : null;
+                          document.querySelectorAll('.gt-mslab, .gt-b, .gt-ms, .gt-tflag').forEach(function (e) {
+                            var r = e.getBoundingClientRect();
+                            if (r.right > gx.right + 1 || r.left < cv.left - 1) out.cut.push([e.className, e.textContent, Math.round(r.right)]);
+                          });
+                          var mig = document.querySelector('[data-g-bar="GNT-004"]'), mv = document.querySelector('[data-g-bar="GNT-006"]');
+                          out.mig = mig ? Math.round(mig.getBoundingClientRect().right) : null;
+                          var lab = [].slice.call(document.querySelectorAll('.gt-mslab')).filter(function (e) { return /Move applications/.test(e.textContent); })[0];
+                          out.move = lab ? [lab.scrollWidth, lab.clientWidth, lab.classList.contains('gt-flip')] : null;
+                          var long = [].slice.call(document.querySelectorAll('.gt-mslab')).filter(function (e) { return /very long/.test(e.textContent); })[0];
+                          out.long = long ? [long.classList.contains('gt-flip'), long.scrollWidth > long.clientWidth] : null;
+                          out.gxRight = Math.round(gx.right);
+                          return JSON.stringify(out); })()"""))
+                        self.assertLessEqual(got["canvas"][0], got["canvas"][1] + TAIL, f"only the empty tail of the canvas is past the page {got}")
+                        self.assertLessEqual(got["lastCell"], got["gxRight"], f"the last month is on the page {got}")
+                        self.assertIsNotNone(got["mig"])
+                        self.assertLessEqual(got["mig"], got["gxRight"] + 1, f"the Migration bar end is on the page {got}")
+                        self.assertEqual(got["cut"], [], "no label, bar or milestone is cut at the page edge")
+                        self.assertIsNotNone(got["move"], "Move applications has its word")
+                        if not got["move"][2]:      # a word placed left of its bar ends in an ellipsis by design (row 1037); beside its bar it is whole
+                            self.assertLessEqual(got["move"][0], got["move"][1] + 1, f"Move applications is whole {got}")
+                        self.assertTrue(got["long"] and got["long"][0], f"the long milestone word flips to the left {got}")
+                    finally:
+                        self.js("window.dispatchEvent(new Event('afterprint')); document.getElementById('host').style.width = ''; window.ResizeObserver = window.__RO")
+                        self.done()
+
     def test_a_long_plan_is_scaled_to_the_page_and_nothing_is_cut(self):
         # #1038: a plan wider than the paper lost every column past the page edge, and the View | Edit pill printed. beforeprint scales the chart to
         # the page (--gt-fit); the last month label and the last bar lie inside the box, in the editor and in a published file, at 794 and 1400 px.
@@ -211,6 +262,30 @@ class Print(_PageRig):
                         self.js("document.documentElement.classList.remove('print-all')")
                         self.assertEqual(before, after, "screen styles and sizes are identical")
                         self.assertGreater(len(json.loads(before)), 50)
+
+    def test_the_printed_left_list_shows_its_values_when_printed_from_edit(self):
+        # Edit draws the left list (name, Start, End, Done) as input elements; html.print-all hid every input, so the paper had an empty list.
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(mode="edit")
+                    self.printing(width, scheme)
+                    try:
+                        got = json.loads(self.js("""JSON.stringify([].slice.call(document.querySelectorAll('.gt-ln input.gt-li')).map(function (e) {
+                          var r = e.getBoundingClientRect(), c = getComputedStyle(e);
+                          return [e.dataset.gEdit, e.value, c.display, Math.round(r.width), Math.round(r.height), c.visibility, parseFloat(e.style.width)]; }))"""))
+                        self.assertGreaterEqual(len(got), 8, "Edit draws the list as inputs")
+                        for key, val, disp, w, h, vis, drawn in got:
+                            self.assertNotEqual(disp, "none", f"{key}: drawn on paper")
+                            self.assertGreater(w, 4, f"{key}: has width")
+                            self.assertGreater(h, 4, f"{key}: has height")
+                            self.assertAlmostEqual(w, drawn, delta=1, msg=f"{key}: keeps the column width it is drawn with, so the value is not squeezed out")
+                            self.assertEqual(vis, "visible", key)
+                        self.assertTrue(all(v for k, v, *_ in got if k.endswith(":name")), "names have values")
+                        self.assertEqual(self.count(".gt-ln input.gt-li:not([data-g-edit])"), 0)
+                    finally:
+                        self.done()
 
     def test_a_pdf_of_the_chart_page_is_made_at_a4_without_a_print_box(self):
         self.look(794, "light")

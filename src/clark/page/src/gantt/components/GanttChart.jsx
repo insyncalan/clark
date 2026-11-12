@@ -29,6 +29,8 @@ export const RH = 32;          // a row
 export const HH = 68;          // the header: Today flag, upper band, lower band
 const BAR = 20;
 const PAD = 6;
+const PAPER_W = 680;      // A4 portrait is 794 px wide less 12 mm margins each side; a wider sheet only leaves the chart a little room over
+
 const MINW = { name: 110, start: 84, end: 84, pct: 44 };
 const MAXW = { name: 420, start: 200, end: 200, pct: 120 };
 
@@ -77,6 +79,7 @@ export function GanttChart({
   const [showOpen, setShowOpen] = useState(false);
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
+  const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
   const gx = useRef(null);
   const dragged = useRef(false);
@@ -85,7 +88,8 @@ export function GanttChart({
   const born = useRef(new Map());                      // line id to true while its first-draw grow may still run
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
-  const narrow = width < 1000;
+  const fitW = paper ? Math.min(width, PAPER_W) : width;      // the screen is unchanged: only a print narrows it
+  const narrow = fitW < 1000;
   const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
@@ -111,6 +115,15 @@ export function GanttChart({
     return () => ro.disconnect();
   }, [drawn]);
 
+  // The browser lays the page out again for the paper without telling a ResizeObserver, so the chart listens for the print itself (beforeprint, afterprint).
+  useEffect(() => {
+    const on = () => setPaper(true);
+    const off = () => setPaper(false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
+  }, []);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
@@ -135,7 +148,7 @@ export function GanttChart({
   }, []);
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
-  const fit = fitPpd(Math.max(200, width - leftW), range);
+  const fit = fitPpd(Math.max(200, fitW - leftW), range);
   const ppd = ppdFor(scale, fit, zoom);
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
