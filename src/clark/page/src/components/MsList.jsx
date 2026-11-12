@@ -39,10 +39,9 @@ export function MsProgress({ value }) {
   return <><span class="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span><span class="num"><span class="sr">Progress </span>{pct}%</span></>;
 }
 
-export function MsList({ rows, place, open, internalTag, Eye, left, legend }) {
+export function MsList({ rows, place, open, internalTag, Eye, left, legend, canFold = true }) {
   const [all, setAll] = useState(() => !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
-  const canFold = !!open;                    // a published file has nothing to open and remembers nothing: no toggle, the list as it is
   const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
   const fold = () => { remember(`msDet.${place}`, !det); setDet(!det); };
   const toggle = () => { remember(`msAll.${place}`, !all); setAll(!all); };
