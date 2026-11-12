@@ -202,6 +202,35 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
 
+    def test_C_with_a_name_typed_the_menu_still_has_settings_in_order_and_it_opens_settings(self):
+        """Row 1092: the named pass. The top line is the name (no link), Settings is still one entry after Published reports and before the
+        Appearance group, and a click on it opens Settings."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('#about-name')", "About you drew")
+            p.js("(() => { const el = document.querySelector('#about-name'); el.value = 'Sam Lee'; el.dispatchEvent(new Event('input', {bubbles: true})); "
+                 "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()")
+            p.js("location.hash = '#dashboard&p=PUB'")
+            p.until("!!document.querySelector('#profile-btn')", "back on a report")
+            for _ in range(2):
+                p.js("document.querySelector('#profile-menu') || document.querySelector('#profile-btn').click()")
+                if p.js("!!document.querySelector('#profile-menu b') && document.querySelector('#profile-menu b').textContent === 'Sam Lee'"):
+                    break
+                p.js("document.querySelector('#profile-menu') && document.querySelector('#profile-btn').click()")
+            p.until("!!document.querySelector('#profile-menu') && !!document.querySelector('#profile-menu .who b')", "the menu opened with the name")
+            self.assertEqual(p.js("document.querySelector('#profile-menu .who b').textContent"), "Sam Lee")
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu .who-link').length"), 0, "no link once a name is typed")
+            labels = self.labels(p)
+            self.assertEqual(labels.count("Settings"), 1)
+            self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
+            nxt = "document.querySelector('#profile-menu [data-kind=settings]').nextElementSibling"
+            self.assertEqual(p.js(nxt + ".getAttribute('role')"), "separator", "Settings, then the separator")
+            self.assertEqual(p.js(nxt + ".nextElementSibling.getAttribute('role')"), "group", "then the Appearance group")
+            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
     def test_C_the_settings_link_opens_settings(self):
         with chrome() as cdp:
             p = self.page(cdp)
