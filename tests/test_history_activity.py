@@ -104,6 +104,7 @@ class WordDiffBounds(unittest.TestCase):
     def test_a_typed_ampersand_entity_is_not_decoded_twice(self):
         self.assertTrue(history.word_diff("a &amp;lt; b c d", "a &lt; b c d"))
 
+
 class PlainAndRichFields(unittest.TestCase):
     """Review of #189: a plain-text field is compared as typed; a rich field reaches the rows as words, never markup."""
     def setUp(self):

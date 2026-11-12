@@ -66,8 +66,8 @@ UNQUOTED_LOCAL = (r"""(?i)(?:api[ _-]?key|access[_-]?key|ssh[_-]?private[_-]?key
 # #242: a short sk- key (12 or more letters and digits with a digit, below the publish scan's 32) and a short api or access key value
 # (6 or more, letters and digits mixed) after = or :.
 # #598: the prefix is read in any case (Sk-, SK-), and pk- and rk- count as well; for these the 12 or more characters need a letter as
-# well as a digit (or 32 or more of any), so a number-only ticket such as PK-123456789012 passes. A named long form (Sk-ant-...) is caught in any case too.
-SHORT_SK = (r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}|\b[SsPpRr][Kk]-(?:(?:ant|proj|svcacct|admin)-[A-Za-z0-9_-]{8,}"
+# well as a digit (or 32 or more of any), so a number-only ticket such as PK-123456789012 passes. A named long form (Sk-ant-...) is caught in any case too, but only with a digit in its tail (row 1006), so pk-admin-handbook passes.
+SHORT_SK = (r"\bsk-(?=[A-Za-z0-9]{0,40}\d)[A-Za-z0-9]{12,}|\b[SsPpRr][Kk]-(?:(?:ant|proj|svcacct|admin)-(?=[A-Za-z0-9_-]{0,80}\d)[A-Za-z0-9_-]{8,}"
             r"|[A-Za-z0-9]{32,}|(?=[A-Za-z0-9]{0,40}\d)(?=[A-Za-z0-9]{0,40}[A-Za-z])[A-Za-z0-9]{12,})")
 SHORT_APIKEY = r"""(?i)\b(?:api|access)[ _-]?key\w{0,40}["']?[ \t]{0,20}[:=][ \t]{0,20}["']?([A-Za-z0-9_-]{6,})"""
 CELL_LOCAL = r"""(?i)""" + _KEY + r"""\w{0,40}["']?[ \t]{0,20}:?[ \t]{0,20}[|\t,][ \t]{0,20}["']?([^\s|,;"'`$<>{}()\[\]]{8,})"""

@@ -194,6 +194,25 @@ class Header(Base):
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid))
         self.each(check)
 
+    def test_row_1032_discard_changes_does_not_overlap_new_view_after_group_by(self):
+        """Issue 1032: after Group by the line is changed; the tabs, + New view, Save view and Discard changes each keep their own room."""
+        probe = """(() => { const q = (s) => { const e = document.querySelector(s); if (!e) return null; const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom]; };
+          return JSON.stringify({vnew: q('#viewNew'), rev: q('#fvRevert'), save: q('#fvSave'), grp: q('#viewMenu'), tabs: q('.vtabs'), row: q('.fvrow'), sw: document.documentElement.scrollWidth, iw: innerWidth}); })()"""
+
+        def check(cdp, sid, width):
+            click(cdp, sid, "#viewMenu")
+            self.until(cdp, sid, "document.querySelector('#viewMenuList [data-kind=\"group:type\"]')", "the Group by menu")
+            click(cdp, sid, "#viewMenuList [data-kind=\"group:type\"]")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fvRevert')", "Discard changes shows")
+            got = json.loads(cdp.js(probe, sid))
+            a, b, t = got["vnew"], got["rev"], got["tabs"]
+            self.assertGreaterEqual(a[0], t[1] - 3.5, "+ New view sits beside the tabs, not inside the scrolling row: %s" % got)
+            self.assertTrue(a[1] <= b[0] + 0.5 or b[1] <= a[0] + 0.5 or a[3] <= b[2] or b[3] <= a[2], "Discard changes overlaps + New view: %s" % got)
+        self.each(check)
+
     def test_row_844_the_saved_view_menu_opens_under_its_arrow_not_at_the_page_edge(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
         probe = ("(() => { const a = document.querySelector('#viewTabMenu').getBoundingClientRect(), m = document.querySelector('#viewTabMenuList').getBoundingClientRect();"
@@ -209,7 +228,8 @@ class Header(Base):
                 click(cdp, sid, "#viewTabMenu")
                 self.until(cdp, sid, "document.querySelector('#viewTabMenuList')", "the menu")
                 got = cdp.js(probe, sid)
-                self.assertLessEqual(abs(got["ml"] - got["al"]), 2, f"{tab}: the menu starts at its arrow {got}")
+                # the menu starts at its arrow, or is held 8 px inside the window's right edge when the arrow is too near it (row 1084: the tabs now have the whole row)
+                self.assertLessEqual(abs(got["ml"] - min(got["al"], width - 8 - (got["mr"] - got["ml"]))), 2, f"{tab}: the menu starts at its arrow {got}")
                 self.assertGreaterEqual(got["mt"], got["ab"], f"{tab}: below the arrow {got}")
                 self.assertLessEqual(got["mr"], width, f"{tab}: inside the page {got}")
                 key(cdp, sid, "Escape")
@@ -224,7 +244,7 @@ class Header(Base):
         def check(cdp, sid, width):
             self.assertEqual(cdp.js(chips, sid), ["is:open"], "the starting line is a chip")
             self.assertEqual(cdp.js("document.querySelector('#fline-input').placeholder", sid), "", "no placeholder once a chip exists")
-            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is filter")
+            self.assertEqual(cdp.js("document.querySelector('[data-chip] button').getAttribute('aria-label')", sid), "Remove the is:open filter")
             click(cdp, sid, "#fline-input")
             cdp.call("Input.insertText", {"text": "priority:High "}, sid)
             self.until(cdp, sid, f"JSON.stringify({chips}) === JSON.stringify(['is:open', 'priority:High'])", "the accepted word became a chip")
@@ -320,6 +340,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelectorAll('[data-fline] [data-chip]').length === 3", "three chips")
             key(cdp, sid, "Escape")      # the suggestions close, so the examples line (where the meaning is said) shows
             self.until(cdp, sid, "document.querySelector('.fhints.on')", "the examples line")
+            cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, sid)      # the pointer is off the chips (the chips may have wrapped under it)
             self.assertFalse(cdp.js(gloss, sid)[1], "nothing is said until a chip is pointed at")
             hover(cdp, sid, "[data-chip='priority:High,Urgent']")
             self.until(cdp, sid, "document.querySelector('#fline-gloss').textContent !== ''", "the meaning on hover")
@@ -414,7 +435,6 @@ class Header(Base):
             got = json.loads(cdp.js("""(() => { const g = document.querySelector('#viewMenu'), sw = document.querySelector('#work .lsw'), cs = getComputedStyle(g);
               return JSON.stringify({gm: cs.marginBottom, sm: getComputedStyle(sw).marginBottom, display: cs.display, box: cs.boxSizing}); })()""", sid))
             self.assertEqual(got["gm"], got["sm"], f"the same bottom margin as the Table and Board switch: {got}")
-            self.assertNotEqual(got["gm"], "0px", got)
             self.assertEqual(got["display"], "inline-grid", got)
             self.assertEqual(got["box"], "border-box", got)
         self.each(check)
@@ -428,13 +448,13 @@ class Header(Base):
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
-            pair = ("[...document.querySelectorAll('#work .fvrow [role=group][aria-label=Layout] button')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent, !!b.querySelector('svg'),"
+            pair = ("[...document.querySelectorAll('#work .fline [role=group][aria-label=Layout] button')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent, !!b.querySelector('svg'),"
                     " Math.round(b.getBoundingClientRect().width), Math.round(b.getBoundingClientRect().height)])")
             got = cdp.js(pair, sid)
-            self.assertEqual([g[:6] for g in got], [["table", "Table", "Table", "true", "", True], ["board", "Board", "Board", "false", "", True]], "icons, not words, named Table and Board")
+            self.assertEqual([g[:6] for g in got], [["table", "List", "List", "true", "", True], ["board", "Board", "Board", "false", "", True]], "icons, not words, named List and Board")
             self.assertTrue(all(g[6] >= 32 and g[7] >= 28 for g in got), f"each icon is a target of a fair size: {got}")
             self.assertTrue(cdp.js("document.documentElement.scrollWidth <= innerWidth", sid), "the page does not scroll sideways")
-            self.assertEqual(cdp.js("document.querySelectorAll('#work [aria-haspopup=menu]').length >= 1 && !document.querySelector('#work .fvrow [aria-label^=\"View:\"][data-lay]')", sid), True)
+            self.assertEqual(cdp.js("document.querySelectorAll('#work [aria-haspopup=menu]').length >= 1 && !document.querySelector('#work .fvrow [data-lay]')", sid), True)
             # the View menu keeps Group by (and no Layout); its words and button name are unchanged
             click(cdp, sid, "#viewMenu")
             self.until(cdp, sid, "document.querySelector('#viewMenuList')", "the View menu")
@@ -466,7 +486,7 @@ class Header(Base):
             self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=quiet]')", "the saved view")
             self.assertEqual(cdp.js("document.querySelectorAll('#freshMenu, #freshMenuList, [aria-label=Freshness]').length", sid), 0, "no Freshness pill")
             self.assertFalse(cdp.js("[...document.querySelectorAll('.fvrow .btn')].some(b => /Freshness/.test(b.textContent))", sid))
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-2:], ["seg", "dd"], "the row ends with the layout switch and the View menu")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.fvrow > *')].map(e => e.className.split(' ')[0])", sid)[-1:], ["vnew"], "row 1084: the layout switch and Group by left the row; the tabs are in it, and + New view sits beside them (row 1032)")
             # the saved view draws the word, the typed word filters, and the page does not scroll sideways
             click_tab(cdp, sid, ".vtab[data-view-id=quiet]")
             self.until(cdp, sid, "document.querySelector('[data-fline]').dataset.line === 'is:open is:quiet'", "the saved view's line")

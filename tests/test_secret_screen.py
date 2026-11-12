@@ -146,6 +146,15 @@ class Screen(unittest.TestCase):
             with self.subTest(text):
                 self.assertFalse(secret_screen.looks_like_secret(text))
 
+    def test_ordinary_hyphenated_words_after_pk_rk_sk_pass_and_named_keys_with_digits_are_refused(self):
+        """Row 1006: the named long form needs a digit in its tail, so plain hyphenated words are accepted. Mutation: drop the digit lookahead."""
+        for text in ("p" + "k-admin-handbook", "r" + "k-ant-colony-study", "S" + "k-proj-roadmap-notes", "P" + "k-svcacct-onboarding-guide"):
+            with self.subTest(text):
+                self.assertFalse(secret_screen.looks_like_secret(text))
+        for text in ("s" + "k-ant-api03-abcdefgh", "S" + "k-proj-abcdefgh12", "p" + "k-admin-abcd1234efgh", "r" + "K-svcacct-" + "a" * 8 + "9"):
+            with self.subTest(text):
+                self.assertTrue(secret_screen.looks_like_secret(text))
+
     def test_a_short_mixed_value_after_api_key_is_refused_on_purpose(self):
         """The accepted trade-off (#242): some ordinary mixed values after the name are refused too, because a short mixed value cannot be told from a key. Help says so."""
         for text in ("api " + "key: v2beta3", "access " + "key = rotate2026"):

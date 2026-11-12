@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import DemoStore
+from _links import needs_links
 from _paths import SRC
 from clark import docx_read, history, platform, word_route
 from test_docx_read import P, TBL, TR, docx
@@ -761,6 +762,7 @@ class Export(unittest.TestCase):
     def seam_for(self, folder):
         return word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=lambda p: str(folder))
 
+    @needs_links
     def test_a_folder_reached_through_a_link_into_the_client_folder_is_refused(self):
         """#1047: the link as the folder, as a parent of it, and as the saved client folder; nothing is written or recorded."""
         links = self.tmp / "links"
@@ -777,6 +779,7 @@ class Export(unittest.TestCase):
             self.assertEqual((self.publications(), self.files(self.client)), ([], ["Inner"]), (chosen, saved))
             self.assertEqual(self.files(self.client / "Inner"), [], (chosen, saved))
 
+    @needs_links
     def test_a_folder_reached_through_a_link_elsewhere_is_not_the_client_folder(self):
         links = self.tmp / "links"
         links.mkdir()
@@ -785,6 +788,7 @@ class Export(unittest.TestCase):
         status, got = self.seam_for(links / "to-local")({"project": "ABC"})
         self.assertEqual(status, 200, got)
 
+    @needs_links
     def test_a_folder_reached_through_a_link_into_clarks_own_data_is_refused(self):
         links = self.tmp / "links"
         links.mkdir()
