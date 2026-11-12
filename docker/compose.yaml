@@ -23,7 +23,7 @@ services:
     # and a data that failed half way would take a new pre-update copy on each loop. So a refusal (exit 1 or 2) prints the words once and
     # then holds the container idle: docker compose logs shows the words, docker ps shows it unhealthy. After a restart of the computer the
     # check runs again, once. Any other code (killed for memory, a crash) is passed on as it is, so Docker restarts it.
-    command: ["sh", "-c", "python3 -m clark check-data --data /data; rc=$$?; if [ $$rc -eq 0 ]; then exec python3 -m clark --data /data --port 8766; fi; if [ $$rc -eq 1 ] || [ $$rc -eq 2 ]; then echo 'clark did not start. The words above say why.' >&2; exec sleep 2147483647; fi; exit $$rc"]
+    command: ["sh", "-c", "python3 -m clark check-data --data /data; rc=$$?; if [ $$rc -eq 0 ]; then exec python3 -m clark --data /data --port 8766; fi; if [ $$rc -eq 1 ] || [ $$rc -eq 2 ]; then echo 'clark did not start. The words above say why.' >&2; trap 'exit 0' TERM INT; sleep 2147483647 & wait; fi; exit $$rc"]
     ports:
       - "127.0.0.1:${CLARK_PORT:-8766}:8766"
     # clark's code is shared in read-only, so the container cannot change it; only the data folder can be written. The data folder
