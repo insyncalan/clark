@@ -537,6 +537,29 @@ class Published(PublishedFile, Setup):
                     seen.setdefault(tile, set()).update(ids)
         self.assertTrue(seen["overdue"].isdisjoint(seen["risks"]), "the two tiles open different rows")
 
+    def test_row_1112_the_risks_tile_opens_exactly_the_rows_it_counted(self):
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width)
+                want = int(p.js("document.querySelector('[data-fig=risks] .v').textContent"))
+                self.assertEqual(p.js("document.querySelector('[data-fig=risks]').tagName"), "BUTTON")
+                self.assertTrue(p.js("document.querySelector('[data-fig=risks]').getAttribute('aria-label').endsWith('Opens Work items showing these')"), "the spoken name says where it goes")
+                p.js("document.querySelector('[data-fig=risks]').click()")
+                p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                p.until("!!document.querySelector('#work')", "Work items drawn")
+                self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), want, "list and count match")
+                p.js("history.back()")
+                p.until("!!document.querySelector('.glance')", "Back returns to the Dashboard")
+
+    def test_row_1112_a_tile_button_keeps_its_box_on_paper(self):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            p.js("document.documentElement.classList.add('print-all')")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "1px", "the print reset does not strip the tile")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.glance .fig .v')).display === 'none'"), False)
+
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
