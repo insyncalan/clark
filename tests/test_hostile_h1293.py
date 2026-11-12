@@ -55,6 +55,31 @@ class Hostile(unittest.TestCase):
             with self.assertRaises(docx_build.WordError):
                 word_brand.wrap(template(), BUILT)
 
+    def test_wrap_refuses_a_hostile_template_before_building_anything(self):
+        """wrap() relies on the template loader's checks; each hostile kind is refused through wrap() itself."""
+        from clark import docx_read
+        base = parts(template())
+        xxe = dict(base)
+        xxe["word/document.xml"] = (b'<?xml version="1.0"?><!DOCTYPE d [<!ENTITY x SYSTEM "file:///etc/passwd">]>'
+                                    + base["word/document.xml"].split(b"?>", 1)[-1])
+        big = dict(base)
+        big["word/header1.xml"] = b"<w:hdr/>" + b" " * (docx_read.MAX_PART_BYTES + 1)
+        bomb = dict(base)
+        bomb["word/header1.xml"] = b"<w:hdr/>" + b" " * (docx_read.MAX_PART_BYTES - 100)
+        cases = {
+            "xxe": list(xxe.items()),
+            "oversize part": list(big.items()),
+            "zip bomb": list(bomb.items()),
+            "parent folder name": list(base.items()) + [("word/../evil.xml", b"x")],
+            "absolute name": list(base.items()) + [("/evil.xml", b"x")],
+            "backslash name": list(base.items()) + [("word\\evil.xml", b"x")],
+            "same name twice in another case": list(base.items()) + [("WORD/Header1.xml", b"x")],
+        }
+        for what, entries in cases.items():
+            with self.subTest(what):
+                with self.assertRaises(WordRefused):
+                    word_brand.wrap(zip_of(entries), BUILT)
+
     def test_template_without_body_is_refused(self):
         bad = swap(template(), "word/document.xml", f'<w:document xmlns:w="{W}"></w:document>'.encode())
         with self.assertRaises(WordRefused) as e:
