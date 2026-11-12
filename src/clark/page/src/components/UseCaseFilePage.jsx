@@ -17,8 +17,8 @@ export function UseCaseFilePage({ id }) {
   if (!d) return null;
   const u = (d.use_cases || []).find((x) => x.id === id) || null;
   const listAt = `#usecases&p=${project.value}`;
-  const crumb = (label) => <nav class="ucd-crumb" aria-label="You are here"><a href={listAt} data-uc-back>Use cases</a><span aria-hidden="true"> › </span><span>{label}</span></nav>;
-  if (!u) return <div class="ucd" data-ucd data-missing>{crumb("Use case")}<h1 class="ucd-h">That use case isn't in this report</h1><p><a href={listAt}>Go back to the use cases</a>.</p></div>;
+  const crumb = (label) => <nav class="ucf-crumb" aria-label="You are here"><a href={listAt} data-uc-back>Use cases</a><span aria-hidden="true"> › </span><span>{label}</span></nav>;
+  if (!u) return <div class="ucf" data-ucf data-missing>{crumb("Use case")}<h1 class="ucf-h">That use case isn't in this report</h1><p><a href={listAt}>Go back to the use cases</a>.</p></div>;
   const page = (d.use_case_pages || []).find((x) => x.id === u.id) || { next_steps: [], milestones: [] };
   const work = page.next_steps.map((n) => rows.value.find((r) => r.id === n)).filter(Boolean);
   const ms = page.milestones.map((n) => (d.milestones || []).find((m) => m.id === n)).filter(Boolean);
@@ -27,39 +27,39 @@ export function UseCaseFilePage({ id }) {
   const sub = work.length ? `${open.length} of ${plural(work.length, "work item")} open` : "No work items";
   const std = u.standing || "";                    // cleaned at publish (publish.select), as the Use cases tab draws it
   return (
-    <div class="ucd" data-ucd data-uc-id={u.id}>
+    <div class="ucf" data-ucf data-uc-id={u.id}>
       {crumb(name)}
-      <div class="ucd-head">
-        <div class="ucd-titles">
-          <h1 class="ucd-h"><span class="ucd-ref">{name} ·</span><span class="ucd-name ucd-ro" data-ucd-field="title">{u.title}</span></h1>
-          <p class="ucd-sub">
-            <span class={`ucd-word rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
+      <div class="ucf-head">
+        <div class="ucf-titles">
+          <h1 class="ucf-h"><span class="ucf-ref">{name} ·</span><span class="ucf-name ucf-ro" data-ucf-field="title">{u.title}</span></h1>
+          <p class="ucf-sub">
+            <span class={`ucf-word rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
             <CommitChip u={u} />
             <span>{sub} · {plural(ms.length, "milestone")}</span>
           </p>
-          <p class="ucd-line"><span class="ucd-headline ucd-ro" data-ucd-field="headline">{u.headline || <span class="muted">No headline yet</span>}</span></p>
+          <p class="ucf-line"><span class="ucf-headline ucf-ro" data-ucf-field="headline">{u.headline || <span class="muted">No headline yet</span>}</span></p>
         </div>
       </div>
-      <div class="ucd-grid">
-        <div class="ucd-main">
-          <section class="ucd-card" aria-labelledby="ucd-h-std">
-            <h2 id="ucd-h-std" class="ucd-ch"><span>Where it stands</span></h2>
-            {std ? <div class="prose ucd-std" dangerouslySetInnerHTML={{ __html: std }} /> : <p class="muted">Not written yet.</p>}
+      <div class="ucf-grid">
+        <div class="ucf-main">
+          <section class="ucf-card" aria-labelledby="ucf-h-std">
+            <h2 id="ucf-h-std" class="ucf-ch"><span>Where it stands</span></h2>
+            {std ? <div class="prose ucf-std" dangerouslySetInnerHTML={{ __html: std }} /> : <p class="muted">Not written yet.</p>}
           </section>
-          <section class="ucd-card" aria-labelledby="ucd-h-work">
-            <h2 id="ucd-h-work" class="ucd-ch"><span>Work items</span>
+          <section class="ucf-card" aria-labelledby="ucf-h-work">
+            <h2 id="ucf-h-work" class="ucf-ch"><span>Work items</span>
               {open.length && label ? <button type="button" class="link" data-open-all onClick={() => openWork(setFilter(initial(), "use_case", [label], false))}>{`Open all ${open.length} in Work items`}</button> : null}
             </h2>
             {work.length ? (
-              <ul class="ucd-items plain">
+              <ul class="ucf-items plain">
                 {work.map((r) => {
                   const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.client_message || r.title}</span>
-                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                      <button type="button" class="ucf-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
+                        <span class="ucf-id num">{r.id}</span><span class="ucf-t">{r.client_message || r.title}</span>
+                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucf-x">{extra}</span>
                       </button>
                     </li>
                   );
@@ -68,13 +68,13 @@ export function UseCaseFilePage({ id }) {
             ) : <p class="muted" data-no-work>No work items are shared for this use case.</p>}
           </section>
         </div>
-        <div class="ucd-side">
-          <section class="ucd-card" aria-labelledby="ucd-h-ms">
-            <h2 id="ucd-h-ms" class="ucd-ch">Milestones</h2>
-            {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => {
+        <div class="ucf-side">
+          <section class="ucf-card" aria-labelledby="ucf-h-ms">
+            <h2 id="ucf-h-ms" class="ucf-ch">Milestones</h2>
+            {ms.length ? <ul class="ucf-ms plain">{ms.map((m) => {
                 const st = milestoneRows([m], todayIso(), false)[0];
-                return <li key={m.id} data-ms={m.id}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
+                return <li key={m.id} data-ms={m.id}><button type="button" class="link ucf-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
+                  <span class="ucf-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span></span></li>;
               })}</ul>
               : <p class="muted">No milestones are shared for this use case.</p>}
           </section>
