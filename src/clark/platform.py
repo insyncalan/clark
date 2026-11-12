@@ -64,7 +64,7 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
-_POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0")       # tunnel devices the kernel makes in every network, not a physical one
+_POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0")       # tunnel devices the kernel makes in every network, not a physical one
 
 
 def _extra_pod_interface(name):

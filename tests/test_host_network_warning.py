@@ -35,6 +35,7 @@ class HostNetwork(unittest.TestCase):
 
     def test_tunnel_and_extra_pod_interfaces_are_not_the_host_network(self):
         self.assertFalse(self.check(True, "lo", "eth0", "tunl0", "sit0", "ip6tnl0"))
+        self.assertFalse(self.check(True, "lo", "eth0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0"))   # more tunnel devices the kernel makes in every network
         self.assertFalse(self.check(True, "lo", "eth0", "net1", "net2"))
         self.assertTrue(self.check(True, "lo", "eth0", "tunl0", "wlan0"))
 
