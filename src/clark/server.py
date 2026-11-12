@@ -1327,7 +1327,14 @@ class BrandLibrary:
 
     def listing(self):
         return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data),
-                                      "review_ready": lib.newest_brand_zip(self._downloads(importlib.import_module("clark.platform"))) is not None})
+                                      "review_ready": self._review_ready(lib)})
+
+    def _review_ready(self, lib):
+        plat = importlib.import_module("clark.platform")
+        try:
+            return lib.newest_brand_zip(self._downloads(plat)) is not None
+        except plat.NotBuiltYet:    # no Downloads folder to read here (Docker, Windows, Linux): an empty review, the rest of the listing stands
+            return False
 
     def _file(self, source):
         plat = importlib.import_module("clark.platform")

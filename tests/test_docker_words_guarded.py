@@ -40,6 +40,47 @@ class Brand(Base):
         self.said(self.rig.call("POST", "/api/brands/review", {"from": "file"}))
 
 
+class Listing(unittest.TestCase):
+    """The Brands listing needs no Downloads folder: off a Mac it still lists brands and undo, with review_ready False."""
+    container = True
+    system = "linux"
+
+    def setUp(self):
+        for patch in (mock.patch.object(sys, "platform", self.system), mock.patch.object(pl, "container_mode", return_value=self.container)):
+            patch.start()
+            self.addCleanup(patch.stop)
+        self.root, self.data, self.scratch = make_dirs(self)
+        self.rig = Rig(self, library=False)
+        self.rig.httpd.brands = sv.BrandLibrary(self.root, self.data)
+
+    def test_the_listing_is_200_with_brands_undo_and_no_review(self):
+        status, got = self.rig.call("GET", "/api/brands")
+        self.assertEqual(status, 200, got)
+        self.assertEqual((got["ok"], got["brands"], got["undo"], got["review_ready"]), (True, [], False, False))
+
+    def test_a_linux_box_that_is_not_docker(self):
+        with mock.patch.object(pl, "container_mode", return_value=False):
+            status, got = self.rig.call("GET", "/api/brands")
+        self.assertEqual((status, got["review_ready"]), (200, False), got)
+
+    def test_another_fault_in_the_listing_is_not_swallowed(self):
+        with mock.patch.object(pl, "downloads_dir", side_effect=ValueError("boom")):
+            status, got = self.rig.call("GET", "/api/brands")
+        self.assertEqual(status, 500, got)
+
+
+class ListingOnAMac(unittest.TestCase):
+    def test_a_brand_zip_in_downloads_is_review_ready(self):
+        import json, zipfile
+        root, data, scratch = make_dirs(self)
+        with zipfile.ZipFile(scratch / "kit.zip", "w") as z:
+            z.writestr("kit/clark-brand.json", json.dumps({"id": "kit"}))
+        rig = Rig(self, library=False)
+        rig.httpd.brands = sv.BrandLibrary(root, data, downloads=scratch)
+        status, got = rig.call("GET", "/api/brands")
+        self.assertEqual((status, got["review_ready"]), (200, True), got)
+
+
 class Uncaught(Base):
     def test_a_route_that_lets_the_refusal_out_gets_the_same_words(self):
         class Service:

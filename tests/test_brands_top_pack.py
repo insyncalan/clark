@@ -145,6 +145,20 @@ class DownloadsPick(Base):
         os.utime(new, (900, 900))
         self.assertEqual(brands.newest_brand_zip(self.scratch), old)
 
+    def test_a_huge_folder_is_not_all_looked_at(self):
+        for i in range(8):
+            zip_with(self.scratch / f"z{i}.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})
+        seen = []
+        real = Path.stat
+        def counting(path, *a, **k):
+            if path.suffix == ".zip":
+                seen.append(path)
+            return real(path, *a, **k)
+        with mock.patch.object(brands, "SCAN_AT", 3), mock.patch.object(Path, "stat", counting):
+            brands.newest_brand_zip(self.scratch)
+        self.assertLessEqual(len(seen), 3 + brands.LOOK_AT * 2)
+        self.assertLess(len({p.name for p in seen}), 8)
+
     def test_only_the_newest_few_zips_are_looked_into(self):
         # the cutoff that keeps a Settings listing cheap: LOOK_AT zips are opened at most; a brand zip older than all of them is not found
         old = zip_with(self.scratch / "old-brand.zip", {"kit/clark-brand.json": json.dumps({"id": "kit"})})

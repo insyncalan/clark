@@ -10,6 +10,7 @@ the update zip's own "damaged" refusal. Nothing here joins text from a request o
 import functools
 import hashlib
 import importlib.util
+import itertools
 import json
 import os
 import re
@@ -49,6 +50,7 @@ GENERIC = object()                  # what folder() answers for the committed lo
 RESERVED = ("assets", "design-system", "generic", LOCAL)
 ID_RE = re.compile(r"[a-z0-9-]{1,40}")
 VERSION_RE = re.compile(r"[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}")
+SCAN_AT = 500                       # at most this many *.zip entries of Downloads are looked at (stat) before the newest are picked
 LOOK_AT = 5                         # the newest this many zips in Downloads are looked at for a brand manifest
 MANIFEST = "clark-brand.json"
 TOKENS = "tokens.css"
@@ -261,7 +263,7 @@ def has_manifest(path):
 def newest_brand_zip(folder):
     """The newest of the newest LOOK_AT zips in `folder` that holds a brand manifest, or None. Links are not followed."""
     found = []
-    for p in (sorted(Path(folder).glob("*.zip")) if folder else []):
+    for p in (itertools.islice(Path(folder).glob("*.zip"), SCAN_AT) if folder else []):
         try:
             if p.is_file() and not p.is_symlink():
                 found.append((p.stat().st_mtime, p))
