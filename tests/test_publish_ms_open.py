@@ -21,6 +21,9 @@ class PublishedMilestonesOpen(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         plant = fx.load()
+        ms = plant["data"]["milestones"]
+        extra = dict(ms[0], id="PUB-M-003", name="Third milestone", baseline_date="2026-06-15", forecast_date="2026-06-15")
+        ms.insert(1, extra)          # three milestones, so one is neither first nor last
         pub = publish.select(fx.inputs(plant))
         text = publish.render(pub, page.page_html(tp.EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
         cls.folder = Path(tempfile.mkdtemp(prefix="clark-1114-"))
@@ -36,6 +39,30 @@ class PublishedMilestonesOpen(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#milestones .msl-row')", sid)), "the Milestones page drew")
         return sid
 
+    def test_each_opens_its_own_milestone_not_another(self):
+        """Every row, mark and chip is clicked in turn (the list's own order is not the data's), so one that is neither first nor last is among them."""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.draw(cdp, width)
+                for kind, sel in (("row", "#milestones .msl-row"), ("mark", "#milestones .mv-mk")):
+                    ids = cdp.js(f"[...document.querySelectorAll({sel!r})].map(e => e.dataset.ms)", sid)
+                    self.assertGreaterEqual(len(ids), 3, f"{kind}: one is neither first nor last")
+                    for one in ids:
+                        cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                        self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
+                        target = f"{sel}[data-ms=\"{one}\"]" + (" .msl-cells" if kind == "row" else "")
+                        cdp.js(f"document.querySelector({target!r}).click()", sid)
+                        self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the {kind} {one} opened {cdp.js(PEEK_ID, sid)}")
+                cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                cdp.js("document.querySelector('#milestones [data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar drew the chips")
+                chips = cdp.js("[...document.querySelectorAll('#milestones .cal-ms')].map(e => e.dataset.ms)", sid)
+                for one in chips:
+                    cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
+                    cdp.js(f"document.querySelector('#milestones .cal-ms[data-ms=\"{one}\"]').click()", sid)
+                    self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the chip {one} opened {cdp.js(PEEK_ID, sid)}")
+
     def test_a_row_a_mark_and_a_chip_open_the_read_only_peek(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -46,7 +73,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "the row opened the peek")
                 self.assertEqual(cdp.js(f"[...document.querySelectorAll('#peek .pk-body').length ? document.querySelectorAll('#peek .pk-body') : []].reduce((n, b) => n + b.querySelectorAll({CONTROLS!r}).length, 0)", sid), 0, "read only")
                 cdp.js("location.hash = '#milestones&p=PUB'", sid)
-                self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} === ''", sid)), "the peek closed")
+                self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
                 cdp.js("document.querySelector('#milestones .mv-mk').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "a mark on the timeline opened the peek")
                 cdp.js("location.hash = '#milestones&p=PUB'", sid)

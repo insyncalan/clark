@@ -990,6 +990,29 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "due cleared")
                 self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-11-02")
 
+    def test_date_tab_lands_on_the_next_control_when_the_redraw_is_slow_and_the_row_is_drawn_again(self):
+        # The flake behind the date Tab: the redraw lands after the one-shot 60 ms fallback, and the row's date control is replaced, so the
+        # fallback (holding the old control) gave up and focus ended on the body. Made deterministic: after the Tab the page eats the browser's
+        # own step, drops focus, swaps the date control for a copy and holds the main thread for 150 ms.
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cell = "[data-cell='TUL-A-001:due']"
+            cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "Enter opens the date panel")
+            cdp.js("""document.addEventListener('keydown', function f(e) {
+                if (e.key !== 'Tab') return;
+                document.removeEventListener('keydown', f);
+                e.preventDefault();
+                document.activeElement.blur();
+                const c = document.querySelector(%s); c.replaceWith(c.cloneNode(true));
+                const t = performance.now(); while (performance.now() - t < 150) {}
+            });""" % json.dumps(cell), sid)
+            key(cdp, sid, "Tab")
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closes the panel")
+            landed = wait(lambda: cdp.js(ON_PAGE, sid), 10)
+            self.assertTrue(landed, f"focus carried on to the next control, not the body (focus is on: {cdp.js(WHERE, sid)})")
+
     def test_every_inline_date_closes_on_one_esc_a_click_away_or_tab_and_changes_nothing(self):
         # #91: an action's due date, a pending decision's needed-by date and a made decision's date. Each is one panel of clark's
         # own (no browser calendar opens over it), so one Esc closes it; a click away and Tab close it too, and none of them sends
