@@ -96,6 +96,18 @@ class Route(unittest.TestCase):
     def test_a_running_publish_is_named_so_the_card_can_say_it_finishes_first(self):
         self.assertEqual(self.quit_while("/api/publish"), {"ok": True, "quit": True, "finishing": "publish"})
 
+    def test_a_request_that_writes_nothing_is_not_named_a_save(self):
+        for path in ("/api/ask", "/api/preview", "/api/ai/suggest", "/api/sneak/read", "/api/providers/connect"):
+            with self.subTest(path=path):
+                self.assertEqual(self.quit_while(path), {"ok": True, "quit": True, "finishing": None})
+                self.assertEqual(sv.BUSY_KINDS, {"save": 0, "publish": 0})
+
+    def test_every_request_that_writes_data_or_a_file_is_named_a_save(self):
+        for path in ("/api/section-body", "/api/undo", "/api/section-image", "/api/backups/restore", "/api/client-folder",
+                     "/api/word-import", "/api/excel-import"):
+            with self.subTest(path=path):
+                self.assertEqual(self.quit_while(path), {"ok": True, "quit": True, "finishing": "save"})
+
     def test_after_a_job_ends_the_quit_is_idle_again(self):
         self.quit_while("/api/change")
         self.assertEqual(sv.running_kind(), None)

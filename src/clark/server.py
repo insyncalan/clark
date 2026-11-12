@@ -941,8 +941,13 @@ def open_route(handler, route):
 HERE_ROUTE = "/api/here"
 IDLE = None
 BUSY = {"n": 0}
-BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; any other POST that is not the quit or the here call is "save"
+BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
 PUBLISH_PATHS = ("/api/publish",)
+SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
+              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled",
+              "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
+              "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
+              "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
 BUSY_LOCK = threading.Lock()
 JOB_WAIT_LIMIT = 60.0                  # seconds the server waits for a running job once it has been told to stop
 
@@ -1520,7 +1525,8 @@ class Handler(BaseHTTPRequestHandler):
         counted = self.command == "POST" and route is not here_route       # a POST mid-run keeps the idle stop waiting
         kind = None
         if counted and route is not quit_route:
-            kind = "publish" if self.path.split("?")[0] in PUBLISH_PATHS else "save"
+            where = self.path.split("?")[0]
+            kind = "publish" if where in PUBLISH_PATHS else "save" if where in SAVE_PATHS else None
         if counted:
             with BUSY_LOCK:
                 BUSY["n"] += 1
