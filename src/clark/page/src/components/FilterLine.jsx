@@ -3,6 +3,7 @@
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
 // tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
+import { ImportExport } from "./ImportExport.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -12,7 +13,7 @@ import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { work, setWork, announce } from "../stores/work.js";
-import { say, toast } from "../stores/changes.js";
+import { say, sayLocalUndo } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
 
 export const PAUSE = 400;                                // ms after the last key before the typed line is applied (the owner's 300 to 500)
@@ -41,16 +42,29 @@ export function layoutItems(w, board) {
   return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
 }
 
-// Row 812: Table and Board as a two-icon switch (the words "Table" and "Board" name the buttons; "Layout" names the pair).
+// Row 812: the list and the board as a two-icon switch (row 1084 names the buttons "List" and "Board"; "Layout" names the pair).
 function LayoutSwitch() {
   const onBoard = work.value.view === "board";
   return (
     <div class="seg lsw" role="group" aria-label="Layout">
       {["table", "board"].map((k) => {
-        const word = k === "table" ? "Table" : "Board";
+        const word = k === "table" ? "List" : "Board";
         return <button type="button" key={k} data-lay={k} aria-label={word} title={word} aria-pressed={onBoard === (k === "board") ? "true" : "false"} onClick={() => pickLayout(`layout:${k}`)}><Icon name={k} /></button>;
       })}
     </div>
+  );
+}
+
+// Row 1084: List, Board and Group by are three icon buttons at the right end of the filter box line (they were at the right of the tab row).
+// Group by is the one View menu (grouping, and on the board the swimlanes) as an icon-only button named "Group by".
+function ViewIcons({ board }) {
+  if (fromFile.value) return null;
+  const lay = layoutItems(work.value, !!board);
+  return (
+    <span class="vicons">
+      {board ? <LayoutSwitch /> : null}
+      <Menu label="" ariaLabel={lay.label} tip="Group by" icon="group" chevron={false} id="viewMenu" btnCls="btn sm vgb" menuId="viewMenuList" menuLabel="Group by" items={lay.items} onPick={pickLayout} />
+    </span>
   );
 }
 
@@ -70,14 +84,15 @@ function SavedViews({ board }) {
   const shown = draft && draft.length === here.length && draft.every((id) => here.some((v) => v.id === id)) ? draft.map((id) => here.find((v) => v.id === id)) : here;
   const trouble = (v) => Q.troubleQuery(v, rows, ctx);
   const nameBox = useRef(null);
-  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id
+  const [form, setForm] = useState(null);                 // null, or {mode: "rename" | "note", name, error}; a new view has no form now (row 1073), so "saveas" is only ever a menu id, and Delete view has no question (row 1071)
   const mine = chosen.value[code];
   const matching = shown.find((v) => !trouble(v) && !Q.differsQuery(v, line, rows, ctx)) || null;
   const active = shown.find((v) => v.id === mine) || matching;
   const said = active ? trouble(active) : "";
   const dirty = !!active && !said && Q.differsQuery(active, line, rows, ctx);
   // Row 844: the view the line matched stays the chosen tab when the line is then changed, so the dot shows on it and Discard changes has a view to go back to.
-  useEffect(() => { if (matching && !shown.some((v) => v.id === mine)) chosen.value = { ...chosen.value, [code]: matching.id }; }, [matching && matching.id, code]);
+  const afterDelete = useRef(null);      // what was chosen right after a Delete view: "", or the view the effect below then picked by itself (no click)
+  useEffect(() => { if (chosen.value[code] !== mine) return; /* a slow effect from an older render must not undo a tab chosen since, such as the Undo of a delete */ if (matching && !shown.some((v) => v.id === mine)) { chosen.value = { ...chosen.value, [code]: matching.id }; if (afterDelete.current !== null) afterDelete.current = matching.id; } }, [matching && matching.id, code]);
   const click = (e, v) => { if (swallow.current) { swallow.current = false; e.preventDefault(); return; } pick(v); };      // the click that ends a drag chooses nothing
   const pick = (v) => { chosen.value = { ...chosen.value, [code]: v.id }; if (!trouble(v)) setLine(v.line); };
   // The open tab and its arrow are brought into view inside the scrolling row (the row alone moves, never the page).
@@ -115,9 +130,14 @@ function SavedViews({ board }) {
       // Row 1071: no question first; the message at the foot of the page has Undo, which puts the view back where it was
       const at = all.findIndex((v) => v.id === active.id), gone = active, r = FL.deleteView(all, gone.id);
       if (!r.ok) { say("problem", r.message); return; }
-      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" };
-      say("done", `View deleted: ${gone.name}`);
-      toast.value = { ...toast.value, local: () => { const b = FL.insertView(viewsOf(code), gone, at); if (b.ok) saveViews(code, b.views); chosen.value = { ...chosen.value, [code]: gone.id }; } };
+      saveViews(code, r.views); chosen.value = { ...chosen.value, [code]: "" }; afterDelete.current = "";
+      sayLocalUndo("done", `View deleted: ${gone.name}`, () => {
+        const b = FL.insertView(viewsOf(code), gone, at);
+        if (!b.ok) { say("problem", b.message); return; }          // a name taken since, say, is told, never silent
+        saveViews(code, b.views);
+        const now = chosen.value[code];          // the restored view is chosen only if no other tab was chosen since the delete
+        if (!now || now === gone.id || now === afterDelete.current) chosen.value = { ...chosen.value, [code]: gone.id };
+      }, code);
       setTimeout(() => { const el = document.getElementById("viewNew"); if (el) el.focus(); }, 0);
     }
   };
@@ -224,7 +244,6 @@ function SavedViews({ board }) {
     const t = setTimeout(() => { if (nameBox.current) nameBox.current.focus(); }, 40);
     return () => clearTimeout(t);
   }, [form && form.mode]);
-  const lay = layoutItems(work.value, !!board);
   // The open tab's own menu (the small arrow beside its name): Save changes only while the dot shows and never on a core view; Rename and Delete on any view, a core one too. Save view and Discard changes sit beside the tabs while the dot shows (Save view never on a core view).
   const core = !!active && FL.isCoreView(active);
   const tabItems = [];
@@ -257,22 +276,20 @@ function SavedViews({ board }) {
           return (
             <span class="vt" key={v.id} data-lifted={draft && drag.current && drag.current.id === v.id ? "" : undefined}>
               <button type="button" class="vtab" data-view-id={v.id} aria-pressed={on ? "true" : "false"} data-moving={moving === v.id ? "" : undefined} onClick={(e) => click(e, v)} onPointerDown={(e) => pressTab(e, v)}
-                aria-label={`${v.name}, ${count} items${dot ? ", the line has changes you have not saved" : ""}`}>
+                aria-label={`${v.name}, ${count} ${count === 1 ? "item" : "items"}${dot ? ", the line has changes you have not saved" : ""}`}>
                 <span>{v.name}</span><em class="num">{count}</em>{dot ? <i class="fdot" data-dot aria-hidden="true"></i> : null}
               </button>{arrow}
             </span>
           );
         })}
-        {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       </div>
+      {fromFile.value ? null : <button type="button" class="vnew" id="viewNew" onClick={() => act("saveas")}>{"+ New view"}</button>}
       {fromFile.value || !dirty ? null : (
         <span class="fvacts">
           {core ? null : <button type="button" class="btn sm" id="fvSave" onClick={() => act("save")}>Save view</button>}
           <button type="button" class="link" id="fvRevert" onClick={() => act("discard")}>Discard changes</button>
         </span>
       )}
-      {fromFile.value || !board ? null : <LayoutSwitch />}
-      {fromFile.value ? null : <Menu label="" icon="group" chevron={false} tip="Group by" ariaLabel={lay.label} id="viewMenu" btnCls="btn sm gbtn" menuId="viewMenuList" menuLabel="Group by" items={lay.items} onPick={act} />}
       </div>
       {form ? (
         <form class="vform" onSubmit={submit} onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); closeForm(); } }}>
@@ -292,7 +309,7 @@ function SavedViews({ board }) {
   );
 }
 
-export function FilterLine({ board }) {
+export function FilterLine({ board, tools }) {
   const code = project.value, rows = allRows.value, ctx = filterCtx(), line = lineText.value;
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx);
@@ -302,7 +319,7 @@ export function FilterLine({ board }) {
   const [focused, setFocused] = useState(false);
   const [caret, setCaret] = useState(0);
   const [active, setActive] = useState(-1);                   // the suggestion the arrows are on (-1: none)
-  const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice and Esc close it
+  const [armed, setArmed] = useState(false);                 // row 931: Space or Arrow Down opened the list; entering the box, a choice that ends the word and Esc close it
   const [gloss, setGloss] = useState("");                    // the plain meaning of the chip the pointer or focus is on, shown in the examples line
   const setChips = (v) => { live.current.chips = v; setChipsRaw(v); };
   const setDraft = (v) => { live.current.draft = v; setDraftRaw(v); };
@@ -342,7 +359,7 @@ export function FilterLine({ board }) {
   const listed = focused && armed && options.length > 0;
   const pick = (o) => {
     const r = Q.accept(draft, caret, o);
-    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(false);
+    want.current = r.caret; edit(r.text, r.caret); setActive(-1); setArmed(!o.close);   // item 1058: a key (no close) keeps the list open, now on its values
     if (input.current) input.current.focus();
   };
   const clear = () => {
@@ -411,9 +428,7 @@ export function FilterLine({ board }) {
     document.addEventListener("keydown", slash);
     return () => document.removeEventListener("keydown", slash);
   }, []);
-  const hints = FL.hints(ctx);
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
-  const useHint = (h) => { const t = (draft && !/\s$/.test(draft) ? draft + " " : draft) + h.text + " "; want.current = t.length; edit(t); if (input.current) input.current.focus(); };
   // Row 808: the list floats over the page just under the box (it is out of the flow), so opening it pushes no row or card down.
   // Item 954: it floats just under the box when the message line is empty, and under that line when it says something, so it never covers the message
   // (the unknown-field error is there). The message line is after the examples' room; the list is out of the flow, so it sits where it is written.
@@ -468,6 +483,8 @@ export function FilterLine({ board }) {
         </div>
         <span class="fcount num" id="fline-count" data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id="fline-x" aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+        {tools && !fromFile.value ? <ImportExport tools={tools} line /> : null}
+        <ViewIcons board={board} />
       </div>
       {notes.length ? null : suggestions}
       {/* Row 833: the note comes before the examples, which float (out of the flow) from where they stand: under the note, never over it. */}
@@ -476,8 +493,6 @@ export function FilterLine({ board }) {
         // Always drawn, hidden unless the line is focused: the room stays, so a click that moves focus away from the line does not shift the page under the pointer.
         // The examples and the list of suggestions are never shown together: while the list is open the examples keep their room but are hidden.
         <div class={`fhints${focused && !listed ? " on" : ""}`} role="group" aria-label="Examples" aria-hidden={focused && !listed ? undefined : "true"}>
-          <span class="fhl">Try</span>
-          {hints.map((h) => <button type="button" key={h.text} class="fhint" title={h.gloss} onMouseDown={(e) => e.preventDefault()} onClick={() => useHint(h)}>{h.text}</button>)}
           <span class="fgloss" id="fline-gloss" aria-hidden="true" hidden={!gloss}>{gloss}</span>
         </div>
       }

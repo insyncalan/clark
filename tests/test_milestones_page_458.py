@@ -47,6 +47,18 @@ def js_words():
     return {m.group(1): json.loads(m.group(2)) for m in re.finditer(r'^export const (\w+) = ("(?:[^"\\]|\\.)*");$', text, re.M)}
 
 
+def toast_said(p, pattern, what, seconds=10):
+    """The toast text the wait itself saw, matched by `pattern` (a regex): a second read after the wait can find the toast gone or
+    replaced on a slow runner. Bounded by test_server.wait."""
+    seen = []
+
+    def check():
+        seen[:] = [p.js("(document.querySelector('.toast .toast-text') || {}).textContent || ''") or ""]
+        return bool(re.search(pattern, seen[0]))
+    assert wait(check, seconds), f"{what}: last toast seen {seen[0] if seen else 'nothing'!r}"
+    return seen[0]
+
+
 class NoBrowser(unittest.TestCase):
     def test_the_published_page_has_the_head_and_none_of_the_owners_parts(self):
         view = page.VIEW_PAGE.read_text(encoding="utf-8")
@@ -332,8 +344,8 @@ class Page(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('.mvm-actions .btn')].map(b => b.textContent)"),
                              ["Hold: keep the forecast, agreed date unchanged", "Move the agreed date", "Add a recovery action", "Escalate to steering"])
             p.js("document.querySelector('#mv-recover').click()")
-            p.until("/added and linked to Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
-            text = self.toast(p)
+            said = toast_said(p, "added and linked to Go live\\. Undo\\.$", "the action's toast")
+            text = said
             action = self.store.read("actions", ref=text.split(" ")[0])
             self.assertEqual((action["description"], action["priority"], action["due_date"], action["milestone"]), ("Recover go live", "High", iso, GO_LIVE))
             self.assertRegex(sanitise.rich_plain_text(action["latest_update"]), r"^Go live is \d+ days? behind its agreed date\.$")
@@ -343,8 +355,8 @@ class Page(Base):
             p.js("document.querySelector('[data-pk-close]').click()")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.js("document.querySelector('#mv-escalate').click()")
-            p.until("/added for Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the decision's toast")
-            decision = self.store.read("decisions", ref=self.toast(p).split(" ")[0])
+            said = toast_said(p, "added for Go live\\. Undo\\.$", "the decision's toast")
+            decision = self.store.read("decisions", ref=said.split(" ")[0])
             self.assertEqual((decision["decision"], decision["needed_by"], decision["status"]), ("Steering decision on go live", iso, "Pending"))
             self.assertRegex(decision["reasoning"], r"^Go live is \d+ days? behind its agreed date\.$")
             p.until("!!document.querySelector('#peek') && document.querySelector('#peek').dataset.peek === %s" % json.dumps(decision["id"]), "the decision opens in the peek")
@@ -360,15 +372,15 @@ class Page(Base):
             p = self.visit(cdp)
             self.open_movement(p)
             p.js("document.querySelector('#mv-recover').click()")
-            p.until("/added and linked to /.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
-            action = self.store.read("actions", ref=self.toast(p).split(" ")[0])
+            said = toast_said(p, "added and linked to ", "the action's toast")
+            action = self.store.read("actions", ref=said.split(" ")[0])
             self.assertLessEqual(len(action["description"]), 200)
             self.assertTrue(action["description"].startswith("Recover go live zzz") and action["description"].endswith("\u2026"), action["description"])
             p.js("document.querySelector('[data-pk-close]').click()")
             p.until("!document.querySelector('#peek')", "the peek closed")
             p.js("document.querySelector('#mv-escalate').click()")
-            p.until("/added for /.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the decision's toast")
-            decision = self.store.read("decisions", ref=self.toast(p).split(" ")[0])
+            said = toast_said(p, "added for ", "the decision's toast")
+            decision = self.store.read("decisions", ref=said.split(" ")[0])
             self.assertLessEqual(len(decision["decision"]), 200)
             self.assertTrue(decision["decision"].startswith("Steering decision on go live zzz") and decision["decision"].endswith("\u2026"), decision["decision"])
 
@@ -378,8 +390,8 @@ class Page(Base):
                 p = self.visit(cdp, width)
                 self.open_movement(p)
                 p.js("document.querySelector('#mv-recover').click()")
-                p.until("/added and linked to Go live\\. Undo\\.$/.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "the action's toast")
-                ref = self.toast(p).split(" ")[0]
+                said = toast_said(p, "added and linked to Go live\\. Undo\\.$", "the action's toast")
+                ref = said.split(" ")[0]
                 self.assertIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "the eye is off from the start")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no page-wide scroll")
                 p.js("document.querySelector('.toast [data-undo]').click()")
@@ -387,24 +399,35 @@ class Page(Base):
                 self.assertIsNone(self.store.read("actions", ref=ref))
                 self.assertNotIn(ref, [r["item_id"] for r in self.store.read("report_hidden")], "one Undo took the hiding back too")
 
+    def open_note(self, p, inside):
+        """Click the note to open its editor, again if the click came before the page had hooked it up (a busy runner)."""
+        for _ in range(6):
+            p.js("var v = document.querySelector('#mvNote .rt-view'); if (v) v.click()")
+            if wait(lambda: p.js(inside), 3):
+                return
+        self.fail("the editor opened")
+
     def test_the_internal_note_is_the_one_rich_editor_saves_when_left_undoes_and_follows_the_row(self):          # item 1005: it was a plain textarea
         IN = "document.activeElement && !!document.activeElement.closest('#mvNote .ProseMirror')"
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_movement(p)
+            p.until("!!document.querySelector('#mvNote .rt-view')", "the note box drew")
             self.assertEqual(p.js("document.querySelector('#mvNote').previousElementSibling.textContent"), "Internal note")
             self.assertEqual(p.js("document.querySelector('#mvNote-help').textContent"), "Saves when you leave the box. Never published.")
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').textContent"), INTERNAL, "an old plain note reads as the words the milestone holds")
             self.assertEqual(p.js("document.querySelector('#mvNote .rt-view').getAttribute('aria-label')"), "Edit internal note")
             before = len(self.sent)
-            p.js("document.querySelector('#mvNote .rt-view').click()")
-            p.until(IN, "the editor opened")
+            self.open_note(p, IN)
             self.assertEqual(p.js("document.querySelectorAll('#mvNote .rt-bar, #mvNote .ProseMirror').length"), 2, "the toolbar and the editor, as everywhere")
             p.key("Escape", 0, "Escape", 27)          # a key, not blur(): a page with no input event yet has no focus, and the editor ignores a blur then
             p.until("!document.querySelector('#mvNote .ProseMirror')", "the editor closed")
             self.assertEqual(len(self.sent), before, "closing the box with no change sends nothing")
-            p.js("document.querySelector('#mvNote .rt-view').click()")
-            p.until(IN, "the editor opened again")
+            self.open_note(p, IN)
+            # the editor hands the focus to the text a frame later and that puts the old caret back: a select-all sent before it is
+            # undone and the typing is added to the old note instead of replacing it (the CI diff), so wait two frames first
+            p.js("window.settled = false; requestAnimationFrame(() => requestAnimationFrame(() => { window.settled = true; })); true")
+            p.until("window.settled === true", "two frames have passed")
             p.js("document.execCommand('selectAll')")
             p.type("Waiting for the vendor")
             p.key("Enter", 0, "Enter", 13)

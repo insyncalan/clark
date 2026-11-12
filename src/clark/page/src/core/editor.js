@@ -58,6 +58,12 @@ const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["h
   h3: ["heading", { level: 3 }], bullet: ["bulletList"], numbered: ["orderedList"], checklist: ["taskList"], quote: ["blockquote"],
   link: ["link"] };
 
+// Item 1005: the cleaner drops the next-line character (U+0085) as a control, which glued the words either side of it. It is a space.
+function nelToSpace(node) {
+  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/\u0085/g, " ") };
+  return node && node.content ? { ...node, content: node.content.map(nelToSpace) } : node;
+}
+
 export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel, onChange, keyHook, onError } = {}) {
   const plain = profile === "plain";
   const stored = html || "";
@@ -95,7 +101,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
   const handle = {
     editor,
     dirty: () => !editor.state.doc.eq(initial),
-    written: () => (plain ? textOf(editor.getJSON()) : toHtml(editor.getJSON())),
+    written: () => (plain ? textOf(editor.getJSON()) : toHtml(nelToSpace(editor.getJSON()))),
     html() {
       if (!this.dirty()) return stored;
       return this.written();
