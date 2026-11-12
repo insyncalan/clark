@@ -69,11 +69,11 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
       const from = anchor && anchor.current, back = e.shiftKey;
       setTimeout(() => {
         const a = document.activeElement;
-        if (!from || (a && a !== document.body)) return;
+        if (!from || !from.isConnected || (a && a !== document.body) || document.querySelector("[data-pop]")) return;   // gone, settled, or another picker took over
         const all = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]")]
           .filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length && !n.closest("[data-pop],[inert]") && !from.contains(n));
         const rel = (n) => from.compareDocumentPosition(n);
-        const next = back ? all.filter((n) => rel(n) & Node.DOCUMENT_POSITION_PRECEDING).pop() : all.find((n) => rel(n) & Node.DOCUMENT_POSITION_FOLLOWING);
+        const next = back ? all.filter((n) => rel(n) & Node.DOCUMENT_POSITION_PRECEDING && !n.contains(from)).pop() : all.find((n) => rel(n) & Node.DOCUMENT_POSITION_FOLLOWING);
         if (next) next.focus();
       }, 60);
     }
