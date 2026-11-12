@@ -42,7 +42,7 @@ class Widths(unittest.TestCase):
         finally:
             st.close()
 
-    def open(self, cdp, width, scheme, name):
+    def visit(self, cdp, width, scheme, name):
         sid = page_target(cdp)
         for m, p in (("Page.enable", {}), ("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}),
                      ("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}), ("Emulation.setFocusEmulationEnabled", {"enabled": True})):
@@ -65,7 +65,7 @@ class Widths(unittest.TestCase):
                         self.check(cdp, width, scheme, name, url, head, col, ready)
 
     def check(self, cdp, width, scheme, name, url, head, col, ready):
-        sid = self.open(cdp, width, scheme, url)
+        sid = self.visit(cdp, width, scheme, url)
         js = lambda e: cdp.js(e, sid)  # noqa: E731
         until = lambda e, what: self.assertTrue(wait(lambda: js(e), 20), what)  # noqa: E731
         until(f"document.querySelectorAll({json.dumps(ready)}).length > 0 && !!document.querySelector('{head} [data-cgrip=\"{col}\"]')", "the heading has its handle")

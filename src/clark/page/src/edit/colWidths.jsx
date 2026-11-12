@@ -46,7 +46,7 @@ export function useColWidths(table) {
     const onKey = (e) => {
       if (!e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || (e.key !== "ArrowLeft" && e.key !== "ArrowRight")) return;
       const t = e.target;
-      if (!t || !t.closest || t.closest("input, textarea, select, [contenteditable]")) return;
+      if (!t || !t.closest || t.isContentEditable || t.closest("input, textarea, select, .ProseMirror")) return;
       let cell = t.closest("[data-cw-head]");
       if (!cell) {
         const box = t.closest("table, .ucl-box");
