@@ -108,7 +108,12 @@ class Words(unittest.TestCase):
 
         def page_then_stop():
             """Serves the page, then clark's window closes: the page's own request for the data finds nobody."""
-            closing = threading.Thread(target=lambda: (self.s.httpd.shutdown(), self.s.httpd.server_close()), daemon=True)
+            mine = threading.get_ident()
+            def close():
+                self.s.httpd.shutdown()
+                self.s.httpd.server_close()
+                self.s.httpd.drop_connections(keep=mine)      # Chrome's spare connections, accepted before the close, would still answer the page's request for the data
+            closing = threading.Thread(target=close, daemon=True)
             closing.start()
             closing.join(10)      # the server is closed before the page is given out, not after a guess of how long that takes
             self.assertFalse(closing.is_alive(), "the server closed")

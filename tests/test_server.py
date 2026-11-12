@@ -66,14 +66,22 @@ class Stoppable(sv.LocalServer):
 
     def __init__(self, *a, **kw):
         self.accepted = []
+        self.serving = {}
         super().__init__(*a, **kw)
 
     def process_request(self, request, client_address):
         self.accepted.append(request)
         super().process_request(request, client_address)
 
-    def drop_connections(self):
+    def process_request_thread(self, request, client_address):
+        self.serving[threading.get_ident()] = request
+        super().process_request_thread(request, client_address)
+
+    def drop_connections(self, keep=None):
+        """keep: the id of the handler thread whose connection is left to finish its reply (it is HTTP/1.0: it closes after the reply)."""
         for conn in self.accepted:
+            if keep and conn is self.serving.get(keep):
+                continue
             try:
                 conn.shutdown(socket.SHUT_RDWR)
             except OSError:
