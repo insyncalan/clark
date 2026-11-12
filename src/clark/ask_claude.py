@@ -118,9 +118,10 @@ MODEL_UNAVAILABLE = "Claude says that model can't be used with this sign-in. Cho
 LIMIT_REACHED = "Claude says the limit for this model has been reached, so nothing more was sent."
 LIMIT_OFFER = "You could ask again with {others}. clark doesn't switch unless you choose to."
 BUSY = "Another question is being answered. Wait for it, or press Stop."
-# Which words say "not found", by case. PROPOSED sentences for the cases are in the build report, awaiting approval; until they are
-# approved both cases keep the existing sentence. Swap the values here to change the words.
-NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_INSTALLED}
+NOT_ELSEWHERE = ("Claude works in Terminal, but clark can't use it from where it is installed. Install it with its own installer "
+                 "from claude.com/claude-code, then ask again.")
+# Which words say "not found", by case: nowhere on this computer, or only somewhere clark does not look.
+NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_ELSEWHERE}
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
               "settings, so Claude may not answer here. If questions fail, ask whoever runs your network for a way to reach Claude "

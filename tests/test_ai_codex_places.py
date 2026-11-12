@@ -70,8 +70,17 @@ class NotFound(unittest.TestCase):
         self.assertIs(c.CodexCommand.not_found_words, c.NOT_FOUND_WORDS)
         self.assertIsNot(c.NOT_FOUND_WORDS, ask_claude.NOT_FOUND_WORDS)
 
-    def test_today_both_cases_say_the_existing_sentence(self):
-        self.assertEqual(c.NOT_FOUND_WORDS, {"missing": c.NOT_INSTALLED, "elsewhere": c.NOT_INSTALLED})
+    def test_missing_says_the_old_sentence_and_elsewhere_the_new_one(self):
+        self.assertEqual(c.NOT_FOUND_WORDS, {"missing": c.NOT_INSTALLED, "elsewhere": c.NOT_ELSEWHERE})
+        self.assertEqual(c.NOT_ELSEWHERE, "Codex works in Terminal, but clark can't use it from where it is installed. "
+                         "Install it again with ChatGPT's own installer, then ask again.")
+        provider = c.CodexCommand(places=(str(self.d / "none"),), env={}, walled=False)
+        with mock.patch.object(ask_claude.shutil, "which", return_value="/x/codex"):
+            self.assertEqual(provider.command(), (None, c.NOT_ELSEWHERE))
+            self.assertEqual(provider.status(), {"connected": False, "why": c.NOT_ELSEWHERE})
+        with mock.patch.object(ask_claude.shutil, "which", return_value=None):
+            self.assertEqual(provider.command(), (None, c.NOT_INSTALLED))
+            self.assertEqual(provider.status(), {"connected": False, "why": c.NOT_INSTALLED})
 
 
 if __name__ == "__main__":

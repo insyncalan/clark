@@ -62,8 +62,9 @@ MODEL_TEXT = re.compile(r"model is not supported|model .{0,60}not supported|unkn
 
 READY = "ChatGPT is signed in on this computer."
 NOT_INSTALLED = "ChatGPT needs the Codex command, and it isn't on this computer. Install Codex, sign in with ChatGPT, then try again."
-# PROPOSED sentences for the cases are in the build report, awaiting approval; until then both keep the existing sentence.
-NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_INSTALLED}
+NOT_ELSEWHERE = ("Codex works in Terminal, but clark can't use it from where it is installed. Install it again with ChatGPT's "
+                 "own installer, then ask again.")
+NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_ELSEWHERE}
 NOT_NATIVE = "The Codex command on this computer can't be used safely. Install it again, then try again."
 UNTESTED = "This version of Codex has not been tested with clark: update clark."
 ODD_HOME = "Your computer's home folder is not where macOS usually keeps it, so clark can't keep ChatGPT away from your files. Nothing was sent."

@@ -383,9 +383,9 @@ class FoundAndChecked(Fake):
         with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
             provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
             self.assertEqual(provider.status()["connected"], False)
-            self.assertTrue(provider.status()["why"].startswith(ac.NOT_INSTALLED))
+            self.assertTrue(provider.status()["why"].startswith(ac.NOT_ELSEWHERE))
             got = provider.ask(self.request())
-        self.assertEqual(got, ask.Failure(ac.NOT_INSTALLED))
+        self.assertEqual(got, ask.Failure(ac.NOT_ELSEWHERE))
         self.assertEqual(self.calls(), [], "a command on PATH is never run")
 
     def test_a_relative_place_is_never_used(self):
@@ -605,6 +605,18 @@ class NpmAndNvmInstalls(NativeProgram):
             self.assertEqual(provider.command(), (None, "WORDS-ELSEWHERE"))
         with mock.patch.object(shutil, "which", return_value=None):
             self.assertEqual(provider.command(), (None, "WORDS-MISSING"))
+
+    def test_missing_says_the_old_sentence_and_elsewhere_the_new_one(self):
+        self.assertEqual(ac.NOT_ELSEWHERE, "Claude works in Terminal, but clark can't use it from where it is installed. "
+                         "Install it with its own installer from claude.com/claude-code, then ask again.")
+        self.assertEqual(ac.NOT_FOUND_WORDS, {"missing": ac.NOT_INSTALLED, "elsewhere": ac.NOT_ELSEWHERE})
+        provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(provider.command(), (None, ac.NOT_ELSEWHERE))
+            self.assertEqual(provider.status(), {"connected": False, "why": ac.NOT_ELSEWHERE})
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(provider.command(), (None, ac.NOT_INSTALLED))
+            self.assertEqual(provider.status(), {"connected": False, "why": ac.NOT_INSTALLED})
 
 
 class SignIn(Fake):
