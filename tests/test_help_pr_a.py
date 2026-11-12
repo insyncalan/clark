@@ -135,10 +135,10 @@ class SettingsChips(unittest.TestCase):
         views = code("components", "Views.jsx")
         cards = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
         names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', cards)]
-        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", ""])
+        self.assertEqual(names, ["Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "", "", "People", "Asking", "Feedback", ""])
         self.assertIn('Update.chip = L.TITLE', code("edit", "Update.jsx"))
         self.assertIn('TITLE = "Version and updates"', code("logic", "update.js"))
-        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking and Quit, in the order the cards are drawn.", self.TEXT)
+        self.assertIn("Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn.", self.TEXT)
         self.assertIn('<nav class="set-bar"', views)
         self.assertIn('aria-current={here === headId ? "location" : undefined}', views)
         self.assertIn('NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"]', views)
@@ -172,7 +172,7 @@ class SettingsChips(unittest.TestCase):
         self.assertIn("<legend>Appearance</legend>", per)
         self.assertLess(per.index('["system", "System"'), per.index('["light", "Light"'))
         self.assertIn("Appearance (System, Light or Dark) and Keys (Single-key shortcuts)", self.TEXT)
-        self.assertIn("About you (your name, Alias and Email).", self.TEXT)
+        self.assertIn("About you: **Your name**, **Alias** and **Your email**.", self.TEXT)      # the three boxes of the Profile card
         self.assertNotIn("Phone number", self.TEXT)
 
     def test_published_reports_row(self):
