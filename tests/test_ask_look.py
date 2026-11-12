@@ -183,17 +183,45 @@ class Look(Base):
                 p.key("Escape", code="Escape", vk=27)
                 p.until("document.querySelector('#ask-panel') === null", "closed")
 
+    def test_the_box_is_one_line_the_suggestions_go_while_typing_and_the_send_is_a_round_arrow(self):
+        with chrome() as cdp:
+            p = self.open_panel(cdp)
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    what = f"{width} {theme}"
+                    p.js("(function(){var b=document.querySelector('#ask-box');b.focus();b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+                    p.until("!!document.querySelector('#ask-pills')", f"{what}: suggestions with an empty box")
+                    box = json.loads(p.js("JSON.stringify((function(){var r=document.querySelector('#ask-box').getBoundingClientRect();var s=document.querySelector('#ask-send').getBoundingClientRect();"
+                                          "var cs=getComputedStyle(document.querySelector('#ask-send'));"
+                                          "return {h:r.height,w:s.width,sh:s.height,left:s.left,boxRight:r.right,radius:cs.borderRadius,txt:document.querySelector('#ask-send').textContent.trim(),"
+                                          "title:document.querySelector('#ask-send').title,label:document.querySelector('#ask-send').getAttribute('aria-label'),svg:!!document.querySelector('#ask-send svg'),"
+                                          "bg:cs.backgroundColor,op:cs.opacity};})())"))
+                    self.assertLessEqual(box["h"], 44, f"{what}: one line high")
+                    self.assertGreaterEqual(min(box["w"], box["sh"]), 24, f"{what}: 24 px hit box")
+                    self.assertEqual(box["txt"], "", f"{what}: no word on the button")
+                    self.assertEqual((box["title"], box["label"]), ("Ask", "Ask"))
+                    self.assertTrue(box["svg"])
+                    self.assertGreaterEqual(box["left"], box["boxRight"] - 1, f"{what}: beside the field")
+                    self.assertLess(float(box["op"]), 1, f"{what}: looks disabled while empty")
+                    p.js("(function(){var b=document.querySelector('#ask-box');b.value='a very long question '.repeat(20);b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+                    p.until("!document.querySelector('#ask-pills')", f"{what}: suggestions gone while typing")
+                    self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44, f"{what}: a long question stays one line")
+                    self.assertEqual(float(p.js("getComputedStyle(document.querySelector('#ask-send')).opacity")), 1.0, f"{what}: looks enabled with text")
+            p.js("(function(){var b=document.querySelector('#ask-box');b.value='';b.dispatchEvent(new Event('input',{bubbles:true}));})()")
+            p.until("!!document.querySelector('#ask-pills')", "suggestions back when the box is emptied")
+
     def test_a_suggestion_asks_its_words_and_leaves_the_box_alone(self):
         with chrome() as cdp:
             p = self.open_panel(cdp)
             p.js("document.querySelector('#ask-box').focus()")
-            p.type("half a thought")
             first = p.js("document.querySelector('#ask-pills button').textContent")
             p.js("document.querySelector('#ask-pills button').click()")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the answer")
             sent = [c[1] for c in self.stub.calls if c[0] == "ask"]
             self.assertEqual(sent[0]["question"], first)
-            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "half a thought")
+            self.assertEqual(p.js("document.querySelector('#ask-box').value"), "")
             self.assertEqual(p.js("document.activeElement.id"), "ask-box", "the keyboard's place is kept")
 
     def test_the_working_line_takes_the_suggestions_place_and_the_box_stays_put(self):

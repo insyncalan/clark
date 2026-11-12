@@ -130,10 +130,9 @@ def _open(template, name):
     return z, infos
 
 
-def fill(template, values, name="The template"):
-    """The template (bytes) with each {{NAME}} in its main text replaced by values["NAME"]; returns the new file's bytes.
-    Raises WordRefused (an unsafe or unreadable template) or NotFilled (a name with no value); nothing is returned then."""
-    _check_values(values)
+def _load(template, name):
+    """The template's directory entries and every part's bytes, after the safety checks any Word file gets (size, names, no macros,
+    no embedded or linked files, no entities). Raises WordRefused in plain words."""
     z, infos = _open(template, name)
     with z:
         _r._check_names_and_sizes(name, infos)
@@ -152,6 +151,14 @@ def fill(template, values, name="The template"):
             if n.endswith(".rels"):
                 _r._check_rels(name, _r._part(z, name, n, _r.SMALL_PART_BYTES))
         data = {i.filename: _r._part(z, name, i.filename) for i in infos}
+    return infos, data
+
+
+def fill(template, values, name="The template"):
+    """The template (bytes) with each {{NAME}} in its main text replaced by values["NAME"]; returns the new file's bytes.
+    Raises WordRefused (an unsafe or unreadable template) or NotFilled (a name with no value); nothing is returned then."""
+    _check_values(values)
+    infos, data = _load(template, name)
     stray = []
     for n in sorted(data):
         if OTHER_TEXT_PARTS.match(n):

@@ -419,6 +419,7 @@ class HostileFolderInside(unittest.TestCase):
         nfd = str(self.tmp / "Cle\u0301ment" / "x")                      # same name, other accent form
         self.assertTrue(publish_flow.folder_inside(None, nfd, str(client)))
         for bad in ("a\x00b", "\u202e" * 50, "/" + "d/" * 3000, "\ud800", "$(rm -rf ~)", "-rf", "\n"):
+            self.assertIs(publish_flow.folder_inside(None, bad, str(client)), False, bad)      # a hostile string is never inside the client folder
             self.assertIs(type(publish_flow.folder_inside(None, bad, str(client))), bool, bad)      # an answer, never a raise
             self.assertFalse(publish_flow.folder_inside(None, str(self.tmp / "none") + bad, str(client)), bad)
 
