@@ -1,5 +1,5 @@
 """#944 T2: the installed list, the folder lookup, install, replace, remove, undo, crash recovery and the brand lock
-(src/clark/brands.py). RED until brands.py exists. Temp folders only, never a real system/branding. See tests/_brand_rig.py for
+(src/clark/brands.py). RED until brands.py exists. Temp folders only, never a real branding. See tests/_brand_rig.py for
 the calls these tests expect.
 
 Run: python3 dev/run_tests.py test_brands_install

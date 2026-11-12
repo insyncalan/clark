@@ -93,6 +93,35 @@ def _mixed(code_root=None):
     return False
 
 
+def differing(code_root=None):
+    """The program files (everything listed under .app, and clark.command) that are missing or differ from the record, sorted, as
+    the record spells them. [] when they all match. None when there is nothing to compare: not a download, no record, or a record
+    that can't be read (row 1017: same_version_heal.py, which cannot import this file, reads the record the same way, and a test
+    keeps the two lists equal)."""
+    root = Path(code_root) if code_root is not None else _code_root()
+    if root.name != HIDDEN:
+        return None
+    top = root.parent
+    record = top / MANIFEST
+    if not record.exists():
+        return None
+    try:
+        if record.stat().st_size > MAX_MANIFEST:
+            return None
+        files = json.loads(record.read_text(encoding="utf-8"))["files"]
+        if not isinstance(files, dict):
+            return None
+        out = []
+        for name, entry in files.items():
+            if not isinstance(name, str) or not _safe(name) or not isinstance(entry, dict):
+                return None
+            if _wanted(name) and not _same(top / name, entry):
+                out.append(name)
+        return sorted(out)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError):
+        return None
+
+
 def _data_folder(argv):
     """The data folder these arguments name (--data FOLDER or --data=FOLDER), else clark's own default; None when it can't be told."""
     try:
