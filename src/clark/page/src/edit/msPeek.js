@@ -9,14 +9,15 @@ export const ALL_STATES = ["Forecast", "On track", "At risk", "Slipped", "Overdu
 // The state a milestone shows now (the dates' own suggestion unless a state was set by hand).
 export const shownState = (m, today) => stateOf(m, today);
 
-// The change a state button sends. Achieved is Done with its achieved date (today, unless it has one); any other state on a Done milestone
-// reopens it (Planned, no achieved date). Pressing the state that was set by hand again clears it, so the dates decide again.
+// The change a state button sends. Achieved is Done with its achieved date (today, unless it has one) and the progress at 100 (row 1078,
+// the design's note); any other state on a Done milestone reopens it (Planned, no achieved date; the progress stays as it is). Pressing the
+// state that was set by hand again clears it, so the dates decide again.
 export function stateChange(m, pick, today) {
   const set = !!(m.state_set && m.state);
   const done = m.status === "Done";
   if (pick === "Achieved") {
     if (done) return { status: "Planned", state: null, state_set: 0, actual_date: null };      // pressed again: reopened, the dates decide
-    return { status: "Done", state: "Achieved", state_set: 1, actual_date: m.actual_date || today };
+    return { status: "Done", state: "Achieved", state_set: 1, actual_date: m.actual_date || today, percent_complete: 100 };
   }
   if (set && m.state === pick && !done) return { state: null, state_set: 0 };
   return done ? { status: "Planned", actual_date: null, state: pick, state_set: 1 } : { state: pick, state_set: 1 };

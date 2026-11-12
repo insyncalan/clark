@@ -119,7 +119,7 @@ class WhatIsRead(Folders):
         self.assertIn("ZQ-FINE", self.text_of(got))
         self.assertEqual(got.safety, 2)
 
-    def test_pdf_is_counted_as_not_supported_and_never_opened(self):
+    def test_pdf_that_cannot_be_read_is_counted_and_gives_no_passage(self):
         self.put(self.box, "scan.pdf", b"%PDF-1.4 ZQ-PDF", binary=True)
         self.put(self.box, "photo.png", b"\x89PNG", binary=True)
         real = reach.read_bytes
@@ -127,7 +127,7 @@ class WhatIsRead(Folders):
         with mock.patch.object(reach, "read_bytes", side_effect=lambda p, *a, **k: (opened.append(str(p)), real(p, *a, **k))[1]):
             got = self.run_it()
         self.assertEqual((got.pdf, got.other, got.passages), (1, 1, ()))
-        self.assertEqual(opened, [], "neither is opened")
+        self.assertEqual([os.path.basename(p) for p in opened], ["scan.pdf"], "only the PDF is opened (#891; tests/test_ask_pdf_passages.py)")
 
     def test_a_label_that_could_forge_a_line_is_left_out(self):
         self.put(self.box, "bad‮name.txt", "ZQ-BIDI")
