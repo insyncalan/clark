@@ -8,6 +8,7 @@ tests, skip until the cut commit sets 1.0.7 in src/clark/__init__.py; from then 
 status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout stays at 20.
 """
 import ast
+import os
 import re
 import unittest
 
@@ -147,6 +148,21 @@ def bullets(notes):
             inside = line in SECTIONS
         elif inside and line.startswith("- "):
             out.append(line)
+    return out
+
+
+def bullet_problems(found, covered, final):
+    """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
+    out = []
+    for item in sorted(covered):
+        n = sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item]))
+        if n > 1 or (final and n == 0):
+            out.append("%s has %d bullets, wanted %s" % (item, n, "one" if final else "at most one"))
+    if covered:
+        starts = [BULLET_STARTS[i] for i in covered]
+        out += ["a bullet for no merged row: " + b[:40] for b in found if not any(b.startswith("- " + t) for t in starts)]
+    if final and not found:
+        out.append("the notes hold no bullet")
     return out
 
 
@@ -299,19 +315,54 @@ class Notes(unittest.TestCase):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
     def test_a_bullet_is_only_for_a_merged_visible_row_and_none_waits(self):
-        found = bullets(self.text)
+        """A merged row may lack its bullet until the cut; V107_FINAL=1 (set at cut time) demands exactly one for each."""
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
-        self.assertTrue(found, "the notes hold no bullet")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        if covered:         # once the bookkeeping has filled COVERED: one bullet for each covered row
-            self.assertEqual(len(found), len(covered), "one bullet for each merged visible row, and no other")
-            for item in covered:
-                self.assertEqual(sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item])), 1, "%s has one bullet" % item)
+        self.assertEqual(bullet_problems(bullets(self.text), covered, os.environ.get("V107_FINAL") == "1"), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
         self.assertNotRegex(self.text, r"(?m)^\| ")
+
+
+class BulletsFinalCheck(unittest.TestCase):
+    """Self-test of the cut-time check: a merged row without a bullet fails with V107_FINAL=1 and passes without it."""
+
+    ROWS = {"1", "2"}
+
+    def setUp(self):
+        self._saved = dict(BULLET_STARTS)
+        BULLET_STARTS.update({"1": "Alpha ", "2": "Beta "})
+
+    def tearDown(self):
+        BULLET_STARTS.clear()
+        BULLET_STARTS.update(self._saved)
+
+    def test_a_missing_bullet_fails_only_when_final(self):
+        found = ["- Alpha one"]
+        self.assertEqual(bullet_problems(found, self.ROWS, False), [])
+        self.assertTrue(bullet_problems(found, self.ROWS, True))
+
+    def test_every_bullet_there_passes_when_final(self):
+        self.assertEqual(bullet_problems(["- Alpha one", "- Beta two"], self.ROWS, True), [])
+
+    def test_a_duplicate_or_stray_bullet_fails_either_way(self):
+        self.assertTrue(bullet_problems(["- Alpha one", "- Alpha again"], self.ROWS, False))
+        self.assertTrue(bullet_problems(["- Alpha one", "- Gamma"], self.ROWS, False))
+
+    def test_the_env_var_switches_the_real_check(self):
+        old = os.environ.get("V107_FINAL")
+        try:
+            os.environ["V107_FINAL"] = "1"
+            self.assertTrue(bullet_problems([], self.ROWS, os.environ.get("V107_FINAL") == "1"))
+            del os.environ["V107_FINAL"]
+            self.assertEqual(bullet_problems([], self.ROWS, os.environ.get("V107_FINAL") == "1"), [])
+        finally:
+            if old is None:
+                os.environ.pop("V107_FINAL", None)
+            else:
+                os.environ["V107_FINAL"] = old
 
 
 class Cut(unittest.TestCase):
