@@ -11,7 +11,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -229,18 +228,20 @@ class NoNewWords(unittest.TestCase):
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")
 class RealLibrary(unittest.TestCase):
     def test_a_real_text_pdf_is_read_with_its_page(self):
-        raw = textwrap.dedent("""\
-            %PDF-1.4
-            1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-            2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-            3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
-            4 0 obj<</Length 44>>stream
-            BT /F1 12 Tf 20 100 Td (Hello from a tiny PDF) Tj ET
-            endstream endobj
-            5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
-            trailer<</Root 1 0 R/Size 6>>
-            %%EOF
-            """).encode()
+        # A well-formed file (objects, a cross-reference table and a startxref line with true byte offsets): the vendored library
+        # refuses a file with no startxref, so the earlier hand-written fixture without a table was not a readable PDF at all.
+        body = b"BT /F1 12 Tf 20 100 Td (Hello from a tiny PDF) Tj ET"
+        objects = [b"<</Type/Catalog/Pages 2 0 R>>", b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+                   b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+                   b"<</Length %d>>\nstream\n" % len(body) + body + b"\nendstream",
+                   b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+        raw, offsets = b"%PDF-1.4\n", []
+        for number, obj in enumerate(objects, 1):
+            offsets.append(len(raw))
+            raw += b"%d 0 obj\n" % number + obj + b"\nendobj\n"
+        table = len(raw)
+        raw += b"xref\n0 6\n0000000000 65535 f \n" + b"".join(b"%010d 00000 n \n" % o for o in offsets)
+        raw += b"trailer\n<</Root 1 0 R/Size 6>>\nstartxref\n%d\n%%%%EOF\n" % table
         got = pdf_reader.read(raw)
         self.assertEqual(got.status, "ok")
         self.assertEqual(got.pages[0][0], 1)
