@@ -171,6 +171,20 @@ class Panel(Base):
             p.key("Escape", code="Escape", vk=27)
             p.until("!document.querySelector('#help') && document.activeElement && document.activeElement.dataset.mode === 'view'", "Esc put focus back on View")
 
+    def test_the_start_here_list_heads_each_run_of_parts_once(self):
+        """Row 1030 follow-up (ruling pending): the left list of Start here never shows the same heading twice in a row. Both widths."""
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.js("window.clarkPage.help.open('start')")
+                p.until("document.querySelectorAll('.hp-idx .hp-ig').length > 0", f"{w}: the contents list drew")
+                heads = p.js("[...document.querySelectorAll('.hp-idx .hp-ig')].map(e => e.textContent)")
+                self.assertEqual([h for i, h in enumerate(heads) if i and heads[i - 1] == h], [], f"{w}: no heading twice in a row: {heads}")
+                self.assertEqual(heads[0], "Start here", f"{w}: the first group")
+                self.assertEqual(p.js("document.querySelectorAll('.hp-idx [data-hlink^=start-]').length"), len(shown_content()["start"]["parts"]), f"{w}: every part is still listed")
+
     def test_the_top_bar_has_no_help_button_and_help_has_no_back_button(self):
         """Row 899: the top bar has no "?" button. Help is reached by the ? key, the palette and the profile menu; Help has no Back button
         (row 779): Esc puts the person where they were. Both widths."""

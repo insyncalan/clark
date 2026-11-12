@@ -135,10 +135,11 @@ class Logic(unittest.TestCase):
         """The seven parts in order; the jobs part is followed by the group of the five jobs (each opens its how-to entry) and the group of the other how-to entries."""
         groups = self.r["lists"]["start"]
         jobs = ["howto-add-a-work-item", "howto-write-the-weekly-report", "guide-add-a-section-from-a-template", "guide-arrange-the-report", "guide-publish-to-the-client"]      # three jobs open a guide (#642 guides A and B)
-        self.assertEqual([g["group"] for g in groups], ["Start here", "Start here", "Start here", "Start here", "The five jobs", "Also under How do I...", "Start here", "Start here", "Start here"])
-        self.assertEqual([g["entries"][0]["place"] for g in groups if g["group"] == "Start here"], ["start-" + p for p in ("top", "loop", "first", "jobs", "where", "rules", "foot")])
-        self.assertEqual([e["place"] for e in groups[4]["entries"]], jobs)
-        self.assertEqual(sorted(e["place"] for e in groups[5]["entries"]), sorted("howto-" + x["id"] for x in TASKS if "howto-" + x["id"] not in jobs))      # the how-to entries of the guide jobs are here
+        self.assertEqual([g["group"] for g in groups], ["Start here", "The five jobs", "Also under How do I...", "Start here"], "parts in a row that share a heading are one group, headed once")
+        self.assertEqual([e["place"] for e in groups[0]["entries"]], ["start-" + p for p in ("top", "loop", "first", "jobs")])
+        self.assertEqual([e["place"] for e in groups[3]["entries"]], ["start-" + p for p in ("where", "rules", "foot")])
+        self.assertEqual([e["place"] for e in groups[1]["entries"]], jobs)
+        self.assertEqual(sorted(e["place"] for e in groups[2]["entries"]), sorted("howto-" + x["id"] for x in TASKS if "howto-" + x["id"] not in jobs))      # the how-to entries of the guide jobs are here
         self.assertEqual(self.r["noList"], [])
 
     def test_the_jobs_and_steps_of_start_here(self):
