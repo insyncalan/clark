@@ -106,6 +106,30 @@ class RowWords(unittest.TestCase):
                 p.js("document.querySelector('.toast [data-undo]').click()")
                 self.assertTrue(wait(lambda: self.stored("actions", ident) == "Cut-over plan to be agreed"), f"{where}: Undo")
 
+    def test_long_words_are_cut_on_one_line_with_an_ellipsis_and_the_open_editor_has_no_toolbar(self):
+        long = " ".join(["wording"] * 22)
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            p.edit()
+            ident = id_of(self.store, "Cut-over plan to be agreed")
+            row = self.row("actions", ident)
+            view = f"{row} {SHOWN}"
+            for theme, w in self.each(p):
+                where = f"{theme} {w}"
+                self.open(p, row)
+                bar = p.js("(r => ['.rt-bar', '.rt-keys'].map(q => { const e = r.querySelector(q); return e ? getComputedStyle(e).display : 'none'; }))(document.querySelector(%s))" % json.dumps(row))
+                self.assertEqual(bar, ["none", "none"], f"{where}: the open one-line editor shows no toolbar")
+                self.type(p, long)
+                p.key("Enter", code="Enter", vk=13)
+                p.until(f"!document.querySelector({row!r} + ' .ProseMirror') && document.querySelector({view!r}) && document.querySelector({view!r}).textContent.includes('wording wording')", f"{where}: closed and drawn")
+                st = p.js(f"(e => {{ const c = getComputedStyle(e); return [c.textOverflow, c.whiteSpace, c.overflowX, e.scrollWidth > e.clientWidth, e.getBoundingClientRect().height]; }})(document.querySelector({view!r}))")
+                self.assertEqual(st[:4], ["ellipsis", "nowrap", "hidden", True], f"{where}: one line cut with an ellipsis")
+                self.assertLess(st[4], 52, f"{where}: one line tall")
+                p.js("document.querySelector('.toast [data-undo]').click()")
+                self.assertTrue(wait(lambda: self.stored("actions", ident) == "Cut-over plan to be agreed"), f"{where}: Undo")
+                p.until(f"document.querySelector({view!r}) && document.querySelector({view!r}).textContent.includes('Cut-over plan')", f"{where}: old words drawn")
+
     def test_a_wording_over_the_limit_is_refused_in_the_field_and_nothing_is_saved(self):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.s.port)
