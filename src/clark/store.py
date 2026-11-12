@@ -230,7 +230,8 @@ REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "r
                ("links", "to_item"), ("item_labels", "item_id"),
                ("gantt_lines", "parent"),                                                   # row 926: a phase with lines under it (depends is a list: see referred_to)
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
-               ("item_labels", "label"))                                                # clark: a label still on an item
+               ("item_labels", "label"),                                                # clark: a label still on an item
+               ("use_case_milestones", "milestone"), ("use_case_milestones", "use_case"))   # row 1107: a live link between a use case and a milestone
 
 
 class Invalid(Exception):
@@ -1823,7 +1824,8 @@ def referred_to(con, key):
     decision it replaces, a use case), or None."""
     for table, col in REVERT_REFS:
         if col in columns(con, table):
-            r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+            live = " AND removed_at IS NULL" if table == "use_case_milestones" else ""      # a link taken off is not a reference
+            r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?{live} LIMIT 1", (key,)).fetchone()
             if r:
                 return table, key_of(table, r)
     if GANTT_ID.fullmatch(str(key)):          # row 926: a Gantt line another line depends on (a comma list, so it is read, not matched)
@@ -1973,7 +1975,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
-              "item_labels": "a label on an item"}   # named with the referring row's key
+              "item_labels": "a label on an item",
+              "use_case_milestones": "a use case and milestone link"}   # named with the referring row's key
 
 
 def _typed(con, table, changes):

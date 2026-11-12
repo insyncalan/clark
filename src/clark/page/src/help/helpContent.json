@@ -244,7 +244,7 @@
      "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
-     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
+     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**. The suggestions change with the page that is open (work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about.",
      "**New chat** at the top starts again. **Close**, [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider."
     ],
     "say": [
