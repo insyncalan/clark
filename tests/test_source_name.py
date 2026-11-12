@@ -190,18 +190,18 @@ class OnlyARealFileName(unittest.TestCase):
     """Row 1077, hostile: a client's Source is a real file name (a known extension at the end, no space beside a dot); free text with a dot is not."""
 
     def test_free_text_with_a_dot_is_not_published(self):
-        for words in ("Raised by Jo. Confidential.Salary", "Email re. layoffs.Re", "Call with Acme Corp, www.acme.com", "notes.Salary",
-                      "Raised by Jo. Confidential.xlsx", "Budget .xlsx", "a.b", "", "x" * 5000, "x" * 5000 + ".Salary", "Mr. X, said.Re"):
+        for words in ("Raised by the PM. Confidential.Salary", "Email re. layoffs.Re", "Call with Acme Corp, www.acme.com", "notes.Salary",
+                      "Raised by the PM. Confidential.xlsx", "Budget .xlsx", "a.b", "", "x" * 5000, "x" * 5000 + ".Salary", "Mr. X, said.Re"):
             self.assertEqual(source_name(words, published=True), "", words[:40])
 
     def test_a_real_file_name_is_published(self):
         for words, shown in (("report.final.docx", "report.final.docx"), ("Plan.XLSX", "Plan.XLSX"), ("r\u00e9union \u4f1a.docx", "r\u00e9union \u4f1a.docx"),
-                             ("Raised by Jo. Confidential, plan.xlsx", "plan.xlsx"), ("See the note, notes.Salary, budget.csv", "budget.csv"),
+                             ("Raised by the PM. Confidential, plan.xlsx", "plan.xlsx"), ("See the note, notes.Salary, budget.csv", "budget.csv"),
                              ("Excel import, 2026-10-01, clark import template.xlsx", "clark import template.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
 
     def test_only_the_extensions_clark_imports_or_reads_are_published(self):
-        """Jarvis's list: xlsx xlsm xls csv docx doc pdf. The others (pptx txt msg eml md) are not published: a shorter list leaks less."""
+        """The list: xlsx xlsm xls csv docx doc pdf (what clark imports or reads). The others (pptx txt msg eml md) are not published: a shorter list leaks less."""
         for ext in ("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "XLSX", "Pdf"):
             self.assertEqual(source_name(f"plan.{ext}", published=True), f"plan.{ext}", ext)
         for ext in ("pptx", "txt", "msg", "eml", "md", "html", "zip", "json"):
