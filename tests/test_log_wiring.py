@@ -50,7 +50,7 @@ class Rig(unittest.TestCase):
         self.opened.append(Path(folder))
 
     def start(self, logs):
-        self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=logs, data_for=DATA.get,
+        self.httpd = sv.LocalServer((sv.HOST, 0), page_html=page.page_html, logs=logs, data_for=lambda code, archived=None: DATA.get(code),
                                     projects=lambda archived=False: [{"code": "ABC", "name": "Example Programme"}])
         self.httpd.handle_error = lambda *a: None
         threading.Thread(target=self.httpd.serve_forever, daemon=True).start()

@@ -203,6 +203,16 @@ class Chart(unittest.TestCase):
                     self.assertEqual(self.val("[...document.querySelectorAll('.gt-lhead .gt-h')].map(e => e.textContent.trim())"), ["Phase / task", "Start", "End", "Done"])
                     self.assertEqual(self.text("[data-g-today]"), "Today")
 
+    def test_today_flag_is_read_in_full_when_today_is_at_the_start_of_the_plan(self):
+        # #995 D4b: the flag is centred on today's line, so at the plan's first day half of it ran under the label column ("oday")
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme):
+                    self.look(width, scheme)
+                    self.mount(today="2026-09-01")
+                    box = self.val("(function(){ var f = document.querySelector('[data-g-today]').getBoundingClientRect(), l = document.querySelector('[data-g-left]').getBoundingClientRect(); return {flagLeft: Math.round(f.left * 10) / 10, labelRight: Math.round(l.right * 10) / 10}; })()")
+                    self.assertGreaterEqual(box["flagLeft"], box["labelRight"] - 0.5, f"the Today flag starts right of the label column: {box}")
+
     def test_a_long_bar_label_ellipsises_and_a_short_one_does_not(self):
         long = [dict(l) for l in LINES]
         long[0]["name"] = "Very long phase name " * 10
@@ -220,6 +230,35 @@ class Chart(unittest.TestCase):
                     for g in got:
                         if g[0] != "Very long":
                             self.assertFalse(g[3], f"a normal label is not cut: {g}")
+
+    def test_row_1037_a_long_label_beside_a_bar_stays_inside_the_chart(self):
+        for where, lines in (("left edge", [ln("GNT-001", "Edge " * 34, "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Late", "phase", "2027-05-01", "2027-05-28", 0, show=True)]),
+                             ("right edge", [ln("GNT-001", "Early", "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Edge " * 34, "phase", "2027-05-20", "2027-05-28", 0, show=True)])):
+            for width in (1400, 900):
+                with self.subTest(where=where, width=width):
+                    self.look(width, "light")
+                    self.mount(edit=False, lines=lines)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].filter(e => e.textContent.startsWith('Edge')).map(e => { const b = e.getBoundingClientRect(), p = e.offsetParent.getBoundingClientRect(); return [b.left - p.left, b.right - p.right, parseFloat(getComputedStyle(e).maxWidth), parseFloat(e.style.getPropertyValue('--gt-room')) || null, e.classList.contains('gt-flip')]; })")
+                    self.assertTrue(got, "the long label is drawn")
+                    for left, right, maxw, room, flip in got:
+                        self.assertGreaterEqual(left, -1, "the label does not start left of the chart")
+                        if flip:
+                            self.assertLessEqual(maxw, room + 0.5, "a word left of its bar is held to the room there")
+    def test_row_1037_a_long_label_near_the_left_edge_never_starts_left_of_the_chart(self):
+        # a long name on a milestone at the very start of the plan flips left of its mark; it must stay inside the chart and end in an ellipsis
+        lines = [dict(l) for l in LINES]
+        lines[2].update(name="Records audit complete " * 8, start="2026-08-30", end="2026-08-30")
+        lines[0]["start"] = "2026-08-30"
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=False, lines=lines)
+                got = self.val("[...document.querySelectorAll('.gt-mslab.gt-flip')].map(e => [e.textContent.trim().slice(0, 7), e.getBoundingClientRect().left - e.offsetParent.getBoundingClientRect().left, getComputedStyle(e).textOverflow])")
+                flipped = [g for g in got if g[0] == "Records"]
+                self.assertTrue(flipped, "the long label is drawn left of its mark")
+                for _, left, to in flipped:
+                    self.assertGreaterEqual(left, -0.5, "the label starts at or right of the chart's left edge, never behind the left columns")
+                    self.assertEqual(to, "ellipsis")
 
     def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
         bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]

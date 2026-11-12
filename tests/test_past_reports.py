@@ -12,9 +12,12 @@ import http.client
 import json
 import os
 import re
+import shutil
+import sqlite3
 import stat
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -180,7 +183,9 @@ class Seam(Base):
         self.assertEqual((body["total"], body["shown"], body["limit"]), (12, 10, 10))
         self.assertEqual([p["number"] for p in body["publications"]], list(range(12, 2, -1)), "newest first")
         row = body["publications"][0]
-        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived"})   # week and day: #344's picker
+        self.assertEqual(set(row), {"number", "when", "where", "who", "word", "kept", "week", "day", "archived", "at", "pdf"})   # week and day: #344's picker; at and pdf (row 1087): the time as UTC for the page to show in the person's own zone, and whether a PDF was saved with it
+        self.assertRegex(row["at"], r"^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$")
+        self.assertIs(row["pdf"], False)
         self.assertRegex(row["day"], r"^\d{4}-\d\d-\d\d$")
         self.assertTrue(row["week"] is None or re.fullmatch(r"\d{4}-\d\d-\d\d", row["week"]), row["week"])
         self.assertEqual((row["where"], row["who"], row["kept"], row["word"]), ("Local", USER, True, False))
@@ -191,6 +196,31 @@ class Seam(Base):
         shas = [r[0] for r in self.store.con.execute("SELECT file_sha256 FROM publications")]
         for s in shas:
             self.assertNotIn(s, text)
+
+    def test_row_1087_a_row_says_whether_a_pdf_was_saved_with_it_and_its_time_is_utc_with_a_Z(self):
+        done, body = self.publish(now="2026-11-02")
+        seq = self.store.web_publication_seq("PUB", done["number"])
+        self.store.record_pdf_name(seq, "Report.pdf")
+        row = self.past.listing("PUB")[1]["publications"][0]
+        self.assertIs(row["pdf"], True)
+        at = self.store.con.execute("SELECT at FROM publications WHERE seq = ?", (seq,)).fetchone()[0]
+        self.assertEqual(row["at"], at.replace(" ", "T").split(".")[0] + "Z")
+        self.assertNotIn("Report.pdf", json.dumps(self.past.listing("PUB")[1]), "no file name leaves")
+
+    def test_row_1087_utc_stamp_converts_an_offset_stamp_to_utc_and_says_none_for_a_non_time(self):
+        self.assertEqual(past_reports.utc_stamp("2026-11-02 12:00:00+04:00"), "2026-11-02T08:00:00Z", "an offset is converted, not just relabelled")
+        self.assertEqual(past_reports.utc_stamp("2026-11-02T08:00:00Z"), "2026-11-02T08:00:00Z")
+        for odd in ("nonsense", "", None, 7, "2026-13-45 00:00:00"):
+            self.assertIsNone(past_reports.utc_stamp(odd), repr(odd))
+
+    def test_row_1087_a_word_row_never_reports_a_pdf(self):
+        done, body = self.publish()
+        page = self.store.web_publication_seq("PUB", done["number"])
+        self.store.log_publication("PUB", Path("/tmp/clark-fictional/old.docx"), "2026-10-23", "b" * 64, USER, word=1, same_as=page)
+        word_seq = self.store.con.execute("SELECT seq FROM publications WHERE word = 1").fetchone()[0]
+        self.store.record_pdf_name(word_seq, "Odd.pdf")
+        rows = self.past.listing("PUB")[1]["publications"]
+        self.assertEqual([(r["word"], r["pdf"]) for r in rows], [(False, False), (True, False)])
 
     def test_show_archived_lists_the_archived_ones_too_marked_and_the_default_hides_them(self):
         for i in range(3):
@@ -237,6 +267,12 @@ class Seam(Base):
     def test_listing_answers_for_a_bad_or_missing_project(self):
         self.assertEqual(self.past.listing("x")[0], 400)
         self.assertEqual(self.past.listing(None)[0], 400)
+
+        class Code:
+            def __str__(self):
+                return "PUB"
+        self.assertEqual(self.past.listing(Code())[0], 400, "an object that prints as a code is not a code")
+        self.assertEqual(self.past.visit(Code(), 1)[0], 400)
         status, body = self.past.listing("ZZZ")
         self.assertEqual((status, body["message"]), (404, "There is no project with that code."))
 
@@ -325,6 +361,104 @@ class Seam(Base):
             self.assertNotIn(hidden, text, hidden)
         self.assertIn('data-mode="view"', text)
         self.assertIn(f'"publication":{{"n":{done["number"]}}}', text)
+
+    # Mutation sweep of past_reports.py: the guards below were each removed or loosened with every test green before these were added.
+
+    def test_mutwave_a_week_that_is_not_a_whole_day_is_none_not_passed_on(self):
+        """The store refuses such a week, but a damaged or restored database could hold one: the list never passes it on."""
+        for day in ("2026-01-09", "2026-01-10", "2026-01-11", "2026-01-12", "2026-01-13", "2026-01-14"):
+            self.store.log_publication("PUB", Path("/tmp/clark-fictional/w.html"), day, SHA, USER)
+        self.store.con.execute("DROP TRIGGER publications_number_fixed")        # this test's own copy of the database only
+        odd = {1: "2026-01-5", 2: "2026-1-05", 3: "2026-01-05x", 4: "x2026-01-05", 5: "2026-01-05\n"}
+        for number, week in odd.items():
+            self.store.con.execute("UPDATE publications SET week_ending = ? WHERE number = ?", (week, number))
+        self.store.con.commit()
+        weeks = {r["number"]: r["week"] for r in self.past.listing("PUB")[1]["publications"]}
+        self.assertEqual(weeks, {6: "2026-01-14", 5: None, 4: None, 3: None, 2: None, 1: None})
+
+    def test_mutwave_a_project_code_that_is_not_text_is_refused_even_if_its_text_would_pass(self):
+        self.assertEqual(self.past.listing(123)[0], 400)
+        self.assertEqual(self.past.listing(None)[0], 400)
+        self.assertEqual(self.past.visit(123, 1)[0], 400)
+
+    def test_mutwave_the_seam_connection_cannot_write(self):
+        self.publish()
+        con = self.past._con()
+        try:
+            with self.assertRaises(sqlite3.OperationalError):
+                con.execute("DELETE FROM publications")
+        finally:
+            con.close()
+        self.assertEqual(self.store.con.execute("SELECT count(*) FROM publications").fetchone()[0], 1)
+
+    @unittest.skipUnless(hasattr(time, "tzset"), "no tzset here")
+    def test_mutwave_the_day_is_the_computers_own_day_not_the_utc_day(self):
+        old = os.environ.get("TZ")
+        self.addCleanup(lambda: (os.environ.__setitem__("TZ", old) if old is not None else os.environ.pop("TZ", None), time.tzset()))
+        os.environ["TZ"] = "Asia/Dubai"                    # UTC+4: 22:00 UTC is already the next morning
+        time.tzset()
+        self.assertEqual(past_reports.local_day("2026-11-02 22:00:00"), "2026-11-03")
+        self.assertEqual(past_reports.local_day("2026-11-02 10:00:00"), "2026-11-02")
+
+    def test_mutwave_a_word_row_is_never_opened_even_when_a_matching_copy_is_kept(self):
+        done, body = self.publish()
+        word = self.store.number_of(self.store.log_publication("PUB", Path("/tmp/clark-fictional/old.docx"), "2026-10-23", sha(body), USER, word=1))
+        self.assertNotEqual(word, done["number"])
+        shutil.copyfile(self.copies / f"PUB-{done['number']}.html", self.copies / f"PUB-{word}.html")        # a copy under the Word row's own number that matches its checksum
+        status, got = self.past.visit("PUB", word)
+        self.assertEqual((status, got["code"]), (404, "not_kept"))
+        self.assertEqual(len(self.past.visits), 0)
+
+    def test_mutwave_a_kept_copy_that_is_not_a_page_clark_makes_is_refused_though_its_checksum_matches(self):
+        plain = b"just some bytes, no page here"
+        number = self.store.number_of(self.store.log_publication("PUB", Path("/tmp/clark-fictional/plain.html"), "2026-10-23", sha(plain), USER))
+        self.copies.mkdir(exist_ok=True)
+        (self.copies / f"PUB-{number}.html").write_bytes(plain)
+        status, got = self.past.visit("PUB", number)
+        self.assertEqual((status, got["code"]), (409, "copy_changed"))
+        self.assertEqual(len(self.past.visits), 0, "nothing was made ready")
+
+    def test_mutwave_four_wait_and_the_fifth_pushes_the_oldest_out(self):
+        done, body = self.publish()
+        past = past_reports.PastReports(self.db, clock=lambda: 0.0)
+        ids = [past.visit("PUB", done["number"])[1]["url"].split("=")[1] for _ in range(4)]
+        self.assertEqual(list(past.visits), ids, "all four wait")
+        fifth = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        self.assertEqual(list(past.visits), ids[1:] + [fifth], "the oldest went, in order")
+
+    def test_mutwave_an_address_lives_exactly_the_visit_seconds(self):
+        done, body = self.publish()
+        clock = [0.0]
+        past = past_reports.PastReports(self.db, clock=lambda: clock[0])
+        mid = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        clock[0] = 120
+        self.assertIsNotNone(past.take(mid), "at the limit it still opens")
+        clock[0] = 0.0
+        late = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        clock[0] = 120.5
+        self.assertIsNone(past.take(late), "just past the limit it is gone")
+
+    def test_mutwave_a_visit_made_later_drops_the_expired_ones_but_not_the_one_at_the_limit(self):
+        done, body = self.publish()
+        clock = [0.0]
+        past = past_reports.PastReports(self.db, clock=lambda: clock[0])
+        old = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        clock[0] = 120
+        new = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        self.assertEqual(list(past.visits), [old, new], "exactly at the limit is not expired")
+        clock[0] = 121
+        third = past.visit("PUB", done["number"])[1]["url"].split("=")[1]
+        self.assertEqual(list(past.visits), [new, third], "the expired one was dropped when the next was made")
+
+    def test_mutwave_take_answers_only_to_an_id_of_the_right_shape_text(self):
+        past = past_reports.PastReports(self.db, clock=lambda: 0.0)
+        for key, ok in (("a" * 15, False), ("a" * 16, True), ("a" * 64, True), ("a" * 65, False), ("a" * 16 + "!", False), ("bad!", False)):
+            with self.subTest(key=key):
+                past.visits[key] = (b"page", 0.0)
+                self.assertEqual(past.take(key), b"page" if ok else None)
+                past.visits.pop(key, None)
+        for odd in (None, 7, b"a" * 20, ["a" * 20]):
+            self.assertIsNone(past.take(odd), repr(odd))
 
 
 class TheRoutes(Base):

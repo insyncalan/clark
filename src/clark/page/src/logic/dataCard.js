@@ -10,6 +10,16 @@ export const DATA = {
   export: "Export workbook",
   import: "Import workbook",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",
+  layout: "Excel file layout",
+};
+
+// Excel file layout (row 951): a read-only box that says what the exported file holds. It reads nothing and sends nothing.
+export const LAYOUT = {
+  title: "Excel file layout",
+  client: "This file is for you and your team. It holds internal notes, so do not send it to a client.",
+  cover: ["Cover", "The first sheet: the project, the date it was exported and who exported it, a caution that the file shows the data at that date, and where to send the file back."],
+  history: ["History", "The changes made to the items. The import leaves this sheet alone."],
+  close: "Close",
 };
 
 export const IMPORT = {
@@ -156,6 +166,18 @@ export function acceptedNumbers(items, ticked) {
 export function startTicks(items) {
   const t = {};
   for (const i of items) t[i.n] = !!i.default;
+  return t;
+}
+
+// The sheets to tick when "What to import" opens (#1106): the ones ticked last time on this computer (`saved`, a list of table names);
+// a remembered sheet the new workbook lacks is simply not there, never ticked or mentioned. With nothing remembered, or none of it in this
+// workbook, every sheet is ticked as before.
+export const SHEETS_KEY = "clark.import.sheets";
+export function startSheets(sheets, saved) {
+  const mine = Array.isArray(saved) ? saved.filter((n) => typeof n === "string") : [];
+  const any = sheets.some((s) => mine.includes(s.table));
+  const t = {};
+  for (const s of sheets) t[s.table] = any ? mine.includes(s.table) : true;
   return t;
 }
 

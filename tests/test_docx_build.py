@@ -19,7 +19,7 @@ from unittest import mock
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 
 import _publish_fixture as fx
-from clark import docx_build, docx_read, look, platform, publish
+from clark import docx_build, docx_read, glance, look, platform, publish
 from clark.docx_build import WordError
 
 SENSITIVE_WORDS = r"(?i)traceback|exception|\bxml\b|\bzip\b|errno|\bAPI\b"
@@ -53,6 +53,89 @@ def with_project(p, **fields):
     p = copy.deepcopy(p)
     p["data"]["project"].update(fields)
     return p
+
+
+class HostileValues(unittest.TestCase):
+    """A stored value that is not text (a list, a dict) in a field that picks a colour must not break the Word build (an unhashable
+    value in a dict or set lookup raised TypeError): it just has no colour. The risks are LINKED to a use case and open, so the
+    use-case strip (glance.use_case_strip, worst colour, pill_of, colour_of_priority) is reached as well as the table cells."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        for row in data["raid"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        for row in data["actions"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+        for row in data["decisions"]:
+            row["status"] = bad
+        return plant
+
+    def test_a_priority_or_status_that_is_not_text_builds_with_no_colour(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                data = docx_build.build(published(self.plant(bad)))
+                self.assertTrue(data.startswith(b"PK"))
+
+    def test_a_priority_that_is_not_text_is_not_rated_on_a_linked_risk(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = self.plant(bad)
+                d = plant["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                linked = [r for r in rows if r["id"] == plant["data"]["use_cases"][0]["id"]]
+                self.assertTrue(linked)
+                self.assertIsNone(linked[0]["worst"])
+                self.assertIsNone(glance.colour_of_priority(bad))
+
+
+class HostileHealthAndStatus(unittest.TestCase):
+    """Row 1035: a project's health or a use case's status that is a list or dict (an unhashable key in a colour lookup raised
+    TypeError) builds with no colour, with a use case linked to open work."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        data["project"]["health"] = bad
+        for uc in data["use_cases"]:
+            uc["status"] = bad
+        for row in data["raid"]:
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        return plant
+
+    def test_a_health_or_use_case_status_that_is_not_text_builds(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                self.assertTrue(docx_build.build(published(self.plant(bad))).startswith(b"PK"))
+
+    def test_the_pill_and_the_strip_give_no_colour(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                pill = glance.health_pill(bad)
+                self.assertIsNone(pill["colour"])
+                self.assertEqual(pill["words"], "Not set")
+                d = self.plant(bad)["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                self.assertTrue(rows)
+                self.assertEqual([r["colour"] for r in rows], [None] * len(rows))      # no colour at all, not a grey one
+
+
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
 
 
 class Repeatable(unittest.TestCase):
@@ -249,7 +332,7 @@ class WhatIsInIt(unittest.TestCase):
         self.assertEqual(blocks(docx_build.build(with_project(self.p, week_ending=None)))[1]["text"], "As at 28-10-2026")
 
     def test_a_table_for_each_kind(self):
-        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Ref")]
+        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id", "Ref")]
         self.assertEqual([h[1] for h in heads], ["Use case", "Milestone", "Type", "Action", "Decision"])
 
     def test_client_wording_replaces_the_rows_own_text(self):
@@ -272,6 +355,16 @@ class WhatIsInIt(unittest.TestCase):
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
 
+    def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
+        # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(client_message="<p>ZQ-RICH-WORDS <strong>bold</strong> &amp; more</p>")
+        text = every_text(docx_build.build(p))
+        self.assertIn("ZQ-RICH-WORDS", text)
+        self.assertIn("bold", text)
+        self.assertNotIn("&lt;p&gt;", text)
+        self.assertNotIn("&lt;strong&gt;", text)
+
     def test_dates_read_dd_mm_yyyy_and_are_never_stored_dates(self):
         both = parts(self.data)
         words = (both["word/document.xml"] + both["word/footer1.xml"]).decode("utf-8")
@@ -285,11 +378,11 @@ class WhatIsInIt(unittest.TestCase):
         self.assertIn("Project health: ", doc)
         self.assertIn("At risk", doc)
         self.assertIn("ZQ-HEALTH-REASON", doc)
-        self.assertIn(docx_build.TOKENS["status-amber-tint"], doc)
+        self.assertIn(docx_build.TOKENS["tone-amber-tint"], doc)
 
     def test_status_words_travel_with_their_colour(self):
         for b in self.blocks:
-            if b["kind"] == "table" and b["rows"][0][0] == "ID" and "Priority" in b["rows"][0]:
+            if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id") and "Priority" in b["rows"][0]:
                 col = b["rows"][0].index("Priority")
                 self.assertTrue(all(r[col] in ("Urgent", "High", "Medium", "Low") for r in b["rows"][1:]))
 
@@ -574,7 +667,7 @@ class Source(unittest.TestCase):
 
 # Row 769: the Word copy's tables. The narrowest each column may be, in twentieths of a point, so that an ID, a date, a status
 # word or "Commitment" is never broken across two lines (nine-point text and 80-twip cell margins on each side).
-MIN_COL = {"ID": 1150, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
+MIN_COL = {"ID": 1150, "Id": 1150, "Review by": 1050, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
            "Forecast": 1050, "State": 1050, "Slip": 900, "Commitment": 1300, "Impact / likelihood": 1000, "Made by": 1300,
            "Date": 1700, "Work items": 1000}
 W_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
@@ -596,7 +689,7 @@ class WordTableWidths(unittest.TestCase):
                                 "repeat": rows[0].find("w:trPr/w:tblHeader", W_NS) is not None})
 
     def data_tables(self):
-        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Ref")]
+        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Id", "Ref")]
 
     def test_every_table_fits_the_text_width_and_the_cells_follow_the_grid(self):
         self.assertTrue(self.tables)
@@ -620,8 +713,8 @@ class WordTableWidths(unittest.TestCase):
 
     def test_open_actions_and_risks_columns_are_wide_enough_for_ids_dates_and_words(self):
         for second, names, wide in (("Action", ["ID", "Owner", "Priority", "Due", "Status"], "Action"),
-                                    ("Type", ["ID", "Type", "Owner", "Priority", "Impact / likelihood", "Due", "Status"], "Item")):
-            (t,) = [x for x in self.tables if x["head"][:2] == ["ID", second]]
+                                    ("Type", ["Id", "Type", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"], "Title")):
+            (t,) = [x for x in self.tables if x["head"][:2] in (["ID", second], ["Id", second])]
             for name in names:
                 self.assertGreaterEqual(t["grid"][t["head"].index(name)], MIN_COL[name], f"{second} table, {name}")
             self.assertGreaterEqual(t["grid"][t["head"].index(wide)], 1800)
@@ -649,7 +742,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 out += "".join(x.text or "" for x in t.iter(q + "t"))
         return out
 
@@ -674,7 +767,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 counts[head[1]] = len(rows) - 1
         self.assertEqual(counts, {"Action": 3, "Type": 2})
 

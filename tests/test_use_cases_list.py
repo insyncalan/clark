@@ -79,7 +79,7 @@ class Setup(Base):
         if hash_ == "#usecases&p=ABC":
             p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0 || !!document.querySelector('#usecases [data-empty]')", "the list drew")
         if hash_.startswith("#dashboard"):
-            p.until("document.querySelectorAll('[data-mode]').length > 0", "the Dashboard drew its View | Edit switch (row 804)")
+            p.until("document.querySelectorAll('[data-mode]').length === 3", "the Dashboard drew its whole View | Edit switch (row 804)")
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 3, "the View | Edit switch is on the Dashboard")      # row 804: the Dashboard has it, so the page must have drawn before anything is read (a race on a slow runner)
         else:
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
@@ -125,7 +125,7 @@ class Tab(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.ready()
-            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Settings"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.innerText)"), ["Dashboard", "Work items", "Milestones", "Use cases"])      # row 976: no Settings tab
             p.js("document.querySelector('[data-view=usecases]').click()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "the tab opened the page at its own address")
             self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases")
@@ -191,7 +191,7 @@ class Published(Setup):
         for hash_ in ("", "#usecases&p=ABC", "#usecases&p=ABC&uc=1.1"):
             with self.subTest(hash=hash_), chrome() as cdp:
                 p = self.draw(cdp, path, hash_)
-                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use cases", "Weekly snapshotSnapshot"])   # the last tab holds its wide and its narrow name (#433)
+                self.assertEqual(p.js("[...document.querySelectorAll('.tabs .tab')].map(t => t.textContent)"), ["Dashboard", "Work items", "Milestones", "Use cases"])
                 self.assertEqual(p.js("document.querySelectorAll('#usecases, #usecase, .ucl-row, [data-uc-more], .ucmore').length"), 0)
                 if hash_:
                     self.assertEqual(p.js("document.querySelector('.tab[aria-selected=true]').textContent"), "Use cases", "an address of the Use cases page opens the file's own tab")

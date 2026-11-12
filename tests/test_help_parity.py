@@ -29,7 +29,6 @@ def read(*parts):
 # prototype entry id (howto- or ref-) -> (the feature it needs, a pattern that must NOT yet match the page's code, and the one file to look in when it is not all of it)
 WAITS = {
     "howto-check-before-you-publish": ("the stale and incomplete notes with Show them in the Publish box", r"Show them"),
-    "howto-excel-file-layout": ("the Excel file layout with drop-downs and locked IDs (drawn in the prototype only)", r"Excel file layout"),
 }
 # prototype entries the owner dropped (#919): the prototype still draws them, the build will never have them
 DROPPED = {"howto-start-from-last-report", "ref-since-last-report"}
@@ -94,6 +93,7 @@ class EveryPrototypeEntryIsAccountedFor(unittest.TestCase):
 
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "DPP-report-2026-10-30.html": "a worked example of the file name Publish builds (its form is checked by test_help_content.PublishFileName)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
@@ -106,7 +106,7 @@ COMPUTED = {
     "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
     "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
     "forecast Friday \u00b7 achieved yesterday \u00b7 done \u00b7 reopen": "words typed in Sneak peek, read by sneak.py (row 728)",
-    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 candidate \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
+    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 planned 2026 \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
     "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
 }
 
@@ -313,6 +313,37 @@ class HealthStepsSayWhatThePageDoes(unittest.TestCase):
     def test_no_check_that_ask_clark_does_not_make(self):
         self.assertNotIn("ask clark", self.TEXT)
         self.assertNotIn("warns you", self.TEXT)
+
+
+class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
+    KEYS = {r[0]: r[1] for r in RAW["reference"]["keys"]}
+    ALL = json.dumps(RAW, ensure_ascii=False)
+
+    def test_alt_slash_is_not_a_key_the_page_binds(self):
+        self.assertNotIn("[[Alt+/]]", self.ALL)                            # no key handler binds Alt+/: the AI menu opens from the bar's AI button and the slash menu
+
+    def test_alt_slash_is_not_named_in_plain_text_either(self):
+        for name, blob in (("helpContent", self.ALL), ("helpLater", json.dumps(LATER, ensure_ascii=False))):
+            self.assertNotIn("Alt+/", blob, name)                          # the plain words too, not only the [[Alt+/]] markup
+
+    def test_mod_enter_is_only_what_the_page_does(self):
+        row = self.KEYS["[[Mod+Enter]]"]
+        self.assertIn("In an editor: keep the text and close it", row)     # core/editor.js
+        self.assertIn("In Sneak peek: confirm and apply a change that needs your OK", row)    # SneakPeek.jsx apply(mod, shift)
+        self.assertNotIn("AI suggestion", row)                             # AiCard.jsx handles only Escape
+        self.assertNotIn("health reason", row)                             # a reason saves on blur
+        self.assertNotIn("Accept** ([[Mod+Enter]])", self.ALL)
+
+    def test_no_row_for_a_last_instruction(self):
+        self.assertNotIn("last instruction", self.ALL)
+
+    def test_mod_j_opens_ask_clark_and_help_names_it(self):
+        # askPanelState.js installAskKeys: Ctrl or Cmd + J opens the panel from anywhere, a box included
+        self.assertIn("[[Mod+J]]", self.KEYS)
+        row = self.KEYS["[[Mod+J]]"]
+        self.assertIn("ask clark", row)
+        self.assertIn("even in a box", row)
+        self.assertIn("(e.key || \"\").toLowerCase() === \"j\"", read("page", "src", "edit", "askPanelState.js"))
 
 
 if __name__ == "__main__":

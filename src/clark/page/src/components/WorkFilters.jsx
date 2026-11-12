@@ -19,14 +19,17 @@ export function Switches({ children, L }) {
   const st = sw ? sw.state : filterState.value;
   const n = sw ? sw.n : counts(rows, st, today), t = sw ? sw.t : typeCounts(rows, st, today);
   const setT = (v) => (L ? L.pickType(v) : setFilterState(setType(filterState.value, v))), setM = (v) => (L ? L.pickMode(v) : setFilterState(setMode(filterState.value, v)));
+  if (L && !children) return null;                       // row 1059: with the pills gone the app's bar holds nothing of its own
   return (
     <div class="wbar">
+      {L ? null : <>
       <div class="seg" role="group" aria-label="Type">
         {TYPES.map(([v, w]) => <button type="button" key={v} data-type={v} aria-pressed={st.type === v ? "true" : "false"} onClick={() => setT(v)}>{w} <em class="num" key={t[v]}>{t[v]}</em></button>)}
       </div>
       <div class="seg" role="group" aria-label="Open or closed">
         {MODES.map(([v, w]) => <button type="button" key={v} data-show={v} aria-pressed={st.mode === v ? "true" : "false"} onClick={() => setM(v)}>{w} <em class="num" key={n[v]}>{n[v]}</em></button>)}
       </div>
+      </>}
       {children ? <div class="vctl">{children}</div> : null}
     </div>
   );

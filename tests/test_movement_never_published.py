@@ -22,7 +22,9 @@ WHO = "ZQ-AGREED-WITH-3302 Pat Placeholder"
 SOURCE = "ZQ-SOURCE-9184 steering minutes"
 HOLD_WORDS = "ZQ-HOLD-4417"
 RICH_NOTE = "ZQ-RICH-NOTE-4418"            # row 1005: a note written as the one rich editor's HTML, through the change route, on the second milestone
-MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE}
+UC_OWNER = "ZQ-UC-OWNER-6605"             # row 875: a use case's owner (text, and the name of the linked person) is internal too: planted on U-001, through the change route
+MARKERS = {"internal note": INTERNAL, "rich internal note": RICH_NOTE, "reason": REASON, "agreed with": WHO, "source": SOURCE,
+           "use case owner": UC_OWNER}
 PHRASES = ("Rebaselined", "Movement choice", "Undone", "Internal only", "Never moved", "Agreed date moved", "What changed",
            "Decide what to do", "Move the agreed date", "holding; agreed date unchanged", "Nothing has changed since it was first agreed")
 M = "PUB-M-001"                                   # agreed 15-10-2026, client-visible, in the published file
@@ -47,6 +49,11 @@ def history_on(rig):
                           "changes": {"internal_note": '<p><strong>%s</strong> <a href="https://example.com/x">link</a></p><ul><li>second</li></ul>' % RICH_NOTE}})
     assert status == 200, got
     assert "<strong>" + RICH_NOTE in rig.store.read("milestones", ref="PUB-M-002")["internal_note"]
+    with rig.store.step("dashboard", USER) as st:
+        st.add_person(name=UC_OWNER + " Pat Placeholder", source="People list")
+    status, got = change({"project": "PUB", "kind": "use_cases", "op": "update", "id": "PUB-U-001", "changes": {"owner": UC_OWNER + " Pat Placeholder"}})
+    assert status == 200, got
+    assert rig.store.read("use_cases", ref="PUB-U-001")["owner_id"], "the owner is linked, so the person's name is planted too"
     return moved
 
 
@@ -144,7 +151,19 @@ class Planted(unittest.TestCase):
 
 class Unchanged(unittest.TestCase):
     def test_the_published_field_lists_are_as_they_were(self):
-        self.assertTrue({"internal_note", "movement", "source", "reasoning", "by_user"} <= clark_store.NEVER_PUBLISH)
+        self.assertTrue({"internal_note", "movement", "reasoning", "by_user"} <= clark_store.NEVER_PUBLISH)
+        self.assertNotIn("source", clark_store.NEVER_PUBLISH, "row 1077: the source is published by name (publish.select, source_name)")
+        # structural (reader A): whatever is stored, a published Source value holds no path separator and no segment of the stored path but the file name
+        from clark.source_name import source_name
+        for stored in ("Excel import, 2026-10-01, C:\\Users\\xuser\\OneDrive - Acme, Inc\\actions.xlsx", "/Users/Doe, Pat/Private Clients, Inc/Q3, final.xlsx",
+                       "Private Clients/Q3 plan", "/Users/x/Private Clients/", "~/Folder, A/b.docx", "\\\\srv\\share, x\\Clients\\r.xlsx", "https://h.example/Private/p.xlsx?u=1#f",
+                       "C:\uff0fUsers\uff0fxuser\uff0fplan.xlsx"):
+            shown = source_name(stored)
+            self.assertFalse(set(shown) & set("/\\\uff0f\uff3c\u2215"), (stored, shown))
+            segments = [s.strip() for s in __import__("re").split(r"[\\/\uff0f\uff3c\u2215]", stored)[:-1] if s.strip() and s.strip() not in ("C:", "~", "https:")]
+            for s in segments:
+                if s.split(",")[-1].strip() and not s.startswith("Excel import"):
+                    self.assertNotIn(s.split(",")[0].strip(), shown, (stored, shown))
         for table, fields in publish.PUBLISH_FIELDS.items():
             self.assertFalse(set(fields) & {"internal_note", "movement"}, table)
             self.assertFalse(set(fields) & clark_store.NEVER_PUBLISH - {"state_reason"}, table)
@@ -152,9 +171,9 @@ class Unchanged(unittest.TestCase):
         self.assertNotIn("movement", publish.PUBLISH_FIELDS["milestones"])
         self.assertEqual(publish.PUBLISH_FIELDS["milestones"], (
             "id", "name", "description", "baseline_date", "forecast_date", "status", "sort_order", "percent_complete",
-            "state_reason", "owner", "actual_date", "client_message", "workstream"))
+            "state_reason", "owner", "actual_date", "client_message", "workstream", "source"))
         self.assertEqual(clark_store.NEVER_PUBLISH, frozenset({
-            "internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
+            "internal_note", "movement", "reasoning", "options", "response_action", "keywords", "aliases", "lead",
             "publish_local", "publish_client", "by_user", "device"}))
 
     def test_no_publishing_module_names_the_read_the_view_or_the_route(self):

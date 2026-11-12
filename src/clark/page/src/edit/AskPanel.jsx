@@ -2,7 +2,6 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
 import { project, show, token } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
@@ -14,8 +13,17 @@ import { ChangeCards, fixedLine } from "./AskChange.jsx";
 // the suffix is dropped and each file is listed once, in the order first seen.
 function sourceLabels(list) {
   if (!Array.isArray(list)) return [];
-  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
-  return names.filter((n, i) => names.indexOf(n) === i);
+  const out = [];
+  for (const s of list) {
+    if (!s || typeof s.label !== "string" || !s.label) continue;
+    const name = s.label.replace(/ \(part \d+\)$/, "");
+    const file = typeof s.file === "string" && s.file ? s.file : "";
+    const page = Number.isInteger(s.page) && s.page >= 1 ? s.page : null;
+    const seen = out.find((o) => o.name === name);
+    if (!seen) out.push({ name, file, page });
+    else if (!seen.file && file) { seen.file = file; seen.page = page; }
+  }
+  return out;
 }
 
 async function post(path, body) {
@@ -36,7 +44,6 @@ export function AskPanel() {
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
   const box = useRef(null), log = useRef(null);
-  useGrow(box, open ? text : null);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -66,6 +73,14 @@ export function AskPanel() {
   }, [busy]);
 
   if (!open && !leaving) return null;
+
+  // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
+  async function openSource(n) {
+    const r = await post("/api/ask/open-source", { project: project.value, file: n.file, page: n.page });
+    if (r.status === 200) return;
+    const m = r.status === 0 ? W.NOT_REACHED_LINE : words(r, "answer");
+    turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
+  }
 
   // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
   async function send(e, preset) {
@@ -167,7 +182,7 @@ export function AskPanel() {
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
-                <ul>{t.sources.map((n, k) => <li key={k}>{n}</li>)}</ul>
+                <ul>{t.sources.map((n, k) => <li key={k}>{n.file ? <button type="button" class="ask-source-open" data-file={n.file} onClick={() => openSource(n)}>{n.name}</button> : n.name}</li>)}</ul>
               </details>
             ) : null}
           </div>
@@ -178,20 +193,21 @@ export function AskPanel() {
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
           <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
         </p>
-      ) : state === "ready" || state === "off" ? (
+      ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
           {W.SUGGESTIONS.map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
         </div>
       ) : null}
-      {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.named(W.SENT_LINE, askProvider.value)}</p> : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
-        <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
+        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
           {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" disabled={state !== "ready" || busy}>{W.SEND}</button>
+          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"}>
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
         </div>
       </form>
     </aside>

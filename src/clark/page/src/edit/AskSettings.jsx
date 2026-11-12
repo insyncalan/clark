@@ -4,7 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project } from "../stores/report.js";
 import { askOn, askStatus, askSaved, askProvider, loadAsk, setAsk, ASK_OFF_LINE, ASK_CHECKING_LINE, ASK_UNAVAILABLE_LINE } from "./askState.js";
-import { named } from "./askWords.js";
+import { named, ASK_NOTICE_LINE } from "./askWords.js";
 import { AiSettings } from "./AiSettings.jsx";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { askFoldersRead, askFoldersChange, askFoldersChoose, words } from "./publishApi.js";
@@ -20,6 +20,8 @@ export function AskSettings() {
   const code = project.value;
   const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
   const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
+  const [typed, setTyped] = useState("");
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
 
   const switchRef = useRef(null);
@@ -71,9 +73,17 @@ export function AskSettings() {
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       if (b.message) setMsg({ kind: "note", text: b.message });
-      return;
+      return true;
     }
+    if (b && b.code === "no_window") setTyping(true);
     setMsg({ kind: "error", text: failure(r) });
+  }
+
+  async function addTyped(e) {
+    e.preventDefault();
+    const path = typed.trim();
+    if (!path) return;
+    if (await change("add", path)) setTyped("");
   }
 
   const list = Array.isArray(folders) ? folders : [];
@@ -81,7 +91,8 @@ export function AskSettings() {
     <>
     <section class="frame setting" id="ask-settings">
       <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
-      <p class="muted">{named("Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.", askProvider.value)}</p>
+      <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
+      <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
       <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
@@ -102,6 +113,13 @@ export function AskSettings() {
         <div class="row">
           <button type="button" class="btn" data-ask-choose disabled={busy} onClick={() => change("choose")}>Choose folder</button>
         </div>
+      ) : null}
+      {typing && Array.isArray(folders) ? (
+        <form class="row" id="ask-folder-form" onSubmit={addTyped}>
+          <label for="ask-folder-path">Folder location</label>
+          <input id="ask-folder-path" class="grow" type="text" autocomplete="off" spellcheck={false} value={typed} onInput={(e) => setTyped(e.currentTarget.value)} />
+          <button type="submit" class="btn" data-ask-add disabled={busy || !typed.trim()}>Add folder</button>
+        </form>
       ) : null}
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>

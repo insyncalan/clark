@@ -31,7 +31,7 @@ PAGE_SRC = SRC / "src"
 TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
 VARIANTS = [(w, s) for w in (1400, 900) for s in ("light", "dark")]
-TICK_WORDS = "The page as it prints: the tabs one after another, no controls, with the publication number in the foot"      # the prototype's (system/prototype/io.js:348)
+TICK_WORDS = "The page as it prints: the tabs one after another, no controls, with the publication number in the foot."      # the app's sentence (edit/Publish.jsx); the prototype (system/prototype/io.js:348) says "the four tabs" and has no full stop
 NOTE_WORDS = "Your browser’s print box opens; choose Save as PDF. In the print box, untick Headers and footers, so the PDF carries no web address."
 
 
@@ -83,9 +83,9 @@ class Logic(unittest.TestCase):
         self.assertEqual(logic('P.printTabs(["usecases","settings","milestones","work","dashboard"])'),
                          ["dashboard", "work", "milestones", "usecases"])
 
-    def test_the_weekly_snapshot_prints_and_use_cases_still_come_last(self):
+    def test_1065_a_tab_that_is_no_longer_offered_is_not_printed(self):
         self.assertEqual(logic('P.printTabs(["usecases","clientreport","milestones","work","dashboard"])'),
-                         ["dashboard", "work", "milestones", "clientreport", "usecases"])
+                         ["dashboard", "work", "milestones", "usecases"])
 
     def test_a_file_with_three_tabs_prints_three(self):
         self.assertEqual(logic('P.printTabs(["dashboard","work","milestones"])'), ["dashboard", "work", "milestones"])
@@ -132,6 +132,11 @@ class Source(unittest.TestCase):
         self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
         self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
 
+    def test_the_hover_only_legend_button_is_not_printed(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        hide = re.search(r"((?:html\.print-all [^{,]+,\s*)+html\.print-all [^{,]+)\{\s*display: none;", block).group(1)
+        self.assertRegex(hide, r"html\.print-all \.mlg(?![\w-])", "the Legend help control is not content")
+
     def test_the_print_rules_are_in_the_pages_own_style_and_name_no_address(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         for need in ("print-all", ".top", ".toc", ".peek", ".fbar", ".wbar", "print-color-adjust", ".print-tab", "break-inside", "break-before"):
@@ -172,9 +177,10 @@ class Source(unittest.TestCase):
 
     def test_the_printed_page_comes_from_one_function_in_the_publish_state(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
-        self.assertEqual(state.count("export async function printSource("), 1)
-        self.assertEqual(state.count("previewRequest("), 1, "the preview is asked for in that one place")
-        self.assertIn("printSource(project.value, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
+        self.assertEqual(state.count("export function printSource("), 1)
+        self.assertNotIn("previewRequest", state, "the print tab is the published bytes (item 465), not a second build")
+        self.assertIn("body.print = true", state)
+        self.assertIn("printSource(r.body, Number.isInteger(r.body.publication) ? r.body.publication : 0)", state)
 
     def test_the_box_sends_no_pdf_key_and_has_no_pdf_clash_keys(self):
         state = (PAGE_SRC / "edit" / "publishState.js").read_text(encoding="utf-8")
@@ -262,7 +268,7 @@ class Browser(unittest.TestCase):
                 tabs = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid)
                 self.printed(cdp, sid)
                 titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
-                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Weekly snapshot", "Use cases"], "every tab the file has, in print order, Use cases last")
+                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Use cases"], "every tab the file has, in print order, Use cases last")
                 self.assertEqual(len(tabs), len(titles), "the file's tab bar has the same tabs")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none")
                 self.assertEqual(cdp.js("document.querySelectorAll('.print-tab').length", sid), len(tabs))
@@ -304,8 +310,9 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!document.getElementById('print-foot')", sid)), "taken off after the print")
 
     def test_the_printed_preview_shows_the_number_just_published_not_the_next(self):
-        # The Publish box prints /api/preview, which is built with the next number: right after Publication 1 is made, the preview's
-        # page carries 2. The box puts the number it was given on the address (&n=1), and that is the one the foot must show.
+        # The Publish box prints the bytes just published (item 465: the publish reply's print_url), not a second build. This test stands
+        # a stale page in at /preview that carries the next number, 2, and the address carries the number it was given (&n=1): that is the
+        # one the foot must show.
         text = self.path.read_text(encoding="utf-8")
         own = re.search(r',"publication":\{"n":1\}', text)
         self.assertTrue(own, "the published file carries its own number, 1")
@@ -382,6 +389,22 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
+    def test_the_printed_milestone_marks_are_drawn_shapes_with_a_colour(self):
+        # #1012: the milestone graphics on paper. Every mark is an svg with a visible width and at least one shape that is filled or stroked.
+        probe = """JSON.stringify([...document.querySelectorAll('.print-tab .mv-mk svg')].map((s) => { const r = s.getBoundingClientRect();
+          const shapes = [...s.querySelectorAll('circle, path')].filter((e) => { const c = getComputedStyle(e); return (c.fill !== 'none' && c.fill !== 'rgba(0, 0, 0, 0)') || (c.stroke !== 'none' && c.strokeWidth !== '0px'); });
+          return [Math.round(r.width), shapes.length]; }))"""
+        with chrome() as cdp:
+            sid = open_page(cdp, self.path.as_uri(), 1400, "light")
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+            self.printed(cdp, sid)
+            time.sleep(0.6)
+            got = json.loads(cdp.js(probe, sid))
+            self.assertTrue(got, "the printed milestones draw marks")
+            for width, shapes in got:
+                self.assertGreater(width, 4)
+                self.assertGreater(shapes, 0, "a mark has a painted shape")
+
     def test_the_printed_stack_is_light_whatever_the_page_theme_and_the_computer_prefer(self):
         # row 767: the PDF is light only. Every colour that is drawn in the stack is the same in the print of a dark computer as in a light one
         # (the published file carries no data-theme, and the print block sets color-scheme: light), whole stack, not just the body.
@@ -427,19 +450,24 @@ class Browser(unittest.TestCase):
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
 
-    def test_the_snapshot_tab_prints_before_use_cases_when_the_file_has_it(self):
+    def test_1065_a_file_with_a_stale_snapshot_tab_draws_only_the_tabs_the_page_has_and_a_tab_it_lacks_opens_the_first(self):
         text = self.path.read_text(encoding="utf-8")
         tabs = re.search(r'"tabs":\[[^\]]*\]', text)
         self.assertTrue(tabs, "the file lists its tabs")
-        changed = text.replace(tabs.group(0), '"tabs":["dashboard","work","milestones","clientreport","usecases"]', 1)
-        path = Path(self.folder) / "with-snapshot.html"
-        path.write_text(changed, encoding="utf-8")
-        with chrome() as cdp:
-            sid = open_page(cdp, path.as_uri(), 1400, "light")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
-            self.printed(cdp, sid)
-            titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
-            self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Weekly snapshot", "Use cases"])
+        path = Path(self.folder) / "stale-tab.html"
+        path.write_text(text.replace(tabs.group(0), '"tabs":["dashboard","work","milestones","clientreport","usecases"]', 1), encoding="utf-8")
+        for width in (1400, 900):
+            for hash_ in ("", "#clientreport", "#settings"):
+                with self.subTest(width=width, hash=hash_), chrome() as cdp:
+                    sid = open_page(cdp, path.as_uri() + hash_, width, "light")
+                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                    views = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.dataset.view).join()", sid)
+                    self.assertEqual(views, "dashboard,work,milestones,usecases", "the retired tab is not drawn")
+                    self.assertEqual(cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid), "dashboard", "an address the file lacks opens its first tab")
+                    cdp.js("location.hash = '#work'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "work"))
+                    cdp.js("location.hash = '#settings'", sid)
+                    self.assertTrue(wait(lambda: cdp.js("document.querySelector('.tab[aria-selected=true]').dataset.view", sid) == "dashboard"), "a move to a tab the file lacks opens its first tab")
 
     def test_a_page_with_the_flag_opens_the_print_box_once_it_has_drawn_and_a_page_without_it_does_not(self):
         for flag, times in (("?print=1", 1), ("", 0)):

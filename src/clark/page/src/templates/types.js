@@ -7,7 +7,7 @@ export const TEMPLATE_TYPES = [
 ];
 
 // Template types that have a page part but no section_kinds module, because they carry no content of their own (row 926: the Gantt
-// section draws the project's Gantt lines). Drawn by templateFor / templateEdit, taken by the store (changes.py NEW_SECTION_TYPES,
-// layout 19) and offered by logic/templates.js ACCEPTS, but not in TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to
-// the registry's list.
-export const PENDING_TYPES = ["gantt"];
+// section draws the project's Gantt lines; row 1068: the Gantt table section draws the same lines as a table). Drawn by templateFor /
+// templateEdit, taken by the store (changes.py NEW_SECTION_TYPES, layouts 19 and 21) and offered by logic/templates.js ACCEPTS, but not
+// in TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to the registry's list.
+export const PENDING_TYPES = ["gantt", "gantttable"];

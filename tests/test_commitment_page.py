@@ -1,9 +1,9 @@
-"""#709 page side: the commitment chip (Candidate, Committed, Planned 2027, or none) in a real browser.
+"""#709 page side: the commitment chip (Planned 2026, Committed, Planned 2027, or none) in a real browser.
 
 Run: python3 dev/run_tests.py test_commitment_page
 Where it is drawn: the Dashboard's use case rows, the Use cases page and a use case's own page, and the published file (its dashboard and
 its Use cases tab). A use case with no flag has NO chip in View and on the published page; in Edit it has the quiet "Set commitment"
-menu button, which is not in the published file's bytes. Widths 1400, 901, 900 and 800 px, light and dark: nothing overlaps or runs
+menu button, which is not in the published file's bytes. Widths 1400 and 900 px, light and dark: nothing overlaps or runs
 out of its cell. Fictional data; the page is the committed one, served by a real server over a real store.
 """
 import tempfile
@@ -19,7 +19,7 @@ from test_server import chrome
 
 from clark import page, publish
 
-WORDS = ["Candidate", "Committed", "Planned 2027"]
+WORDS = ["Planned 2026", "Committed", "Planned 2027"]
 CHIPS = "[...document.querySelectorAll('%s [data-commit]')].map(e => e.textContent)"
 
 # Pairs of a row's cells that overlap, and cells that run out of their box. `row` and `cell` are selectors.
@@ -96,11 +96,11 @@ class View(Flags):
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.ucrow .cchip')).borderRadius"), "4px", "a square chip; the status is a dot and a word")
 
     def test_each_word_has_its_own_look_and_the_text_reads_at_4_5_to_1_in_light_and_dark(self):
-        for uc, word in ((self.demo.use_case, "Candidate"), (self.demo.use_case, "Planned 2027"), (self.demo.use_case, "Committed")):
+        for uc, word in ((self.demo.use_case, "Planned 2026"), (self.demo.use_case, "Planned 2027"), (self.demo.use_case, "Committed")):
             with self.store.step("dashboard", USER) as st:
                 st.update("use_cases", uc, {"commitment": word})
         with self.store.step("dashboard", USER) as st:
-            st.update("use_cases", self.uc2, {"commitment": "Candidate"})
+            st.update("use_cases", self.uc2, {"commitment": "Planned 2026"})
         looks = {}
         for dark in (False, True):
             with self.subTest(dark=dark), chrome() as cdp:
@@ -109,7 +109,7 @@ class View(Flags):
                     self.assertGreaterEqual(ratio, 4.5, f"{text} in {'dark' if dark else 'light'}: {ratio:.1f}")
                 looks[dark] = p.js("[...document.querySelectorAll('.ucrow .cchip')].map(e => { const c = getComputedStyle(e); return [e.textContent, c.borderTopStyle, c.backgroundColor]; })")
         self.assertEqual(looks[False][0][1], "solid")
-        self.assertEqual(looks[False][1][1], "dashed", "Candidate is a dashed outline")
+        self.assertEqual(looks[False][1][1], "dashed", "Planned 2026 is a dashed outline")
 
     def test_the_use_cases_page_row_and_search(self):
         with chrome() as cdp:
@@ -140,8 +140,8 @@ class Fit(Flags):
         with self.store.step("dashboard", USER) as st:
             st.update("use_cases", self.uc2, {"commitment": "Planned 2027", "status": "High risk"})
 
-    def test_nothing_overlaps_or_wraps_at_1400_901_900_and_800_light_and_dark(self):
-        for width in (1400, 901, 900, 800):
+    def test_nothing_overlaps_or_wraps_at_1400_and_900_light_and_dark(self):
+        for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)

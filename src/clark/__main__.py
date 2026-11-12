@@ -139,12 +139,13 @@ def port_number(text, where):
 
 
 def port_free(port):
-    """True when nothing is listening on `port` of 127.0.0.1 (the address the server uses)."""
+    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (#575) the
+    container's own bind address, so a listener on any of the container's addresses counts."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if os.name == "posix":
             probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)       # as the server binds: a recent stop is not "in use"
         try:
-            probe.bind(("127.0.0.1", port))
+            probe.bind((server.CONTAINER_BIND if platform.container_mode() else "127.0.0.1", port))
         except OSError as e:
             if e.errno == errno.EADDRINUSE:
                 return False
@@ -570,16 +571,17 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
+        draft_seam = draft_email_feed.make(
+            store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
+            rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
+            chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c)))
         done = serve(port=port, data_for=store.data_for, page_html=page_of(store.path, roots),
                      projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
-                     draft_email=draft_email_feed.make(
-                         store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
-                         rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
-                         chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c))),
-                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who),
+                     draft_email=draft_seam,
+                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who, subject_for=draft_email_feed.subject_of(draft_seam)),
                      milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),

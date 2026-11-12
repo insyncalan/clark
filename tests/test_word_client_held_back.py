@@ -6,10 +6,7 @@ the file's own text (word_route._held_back, with the same markers) before it wri
 
 Case b: a risk whose working note (response_action, one of publish_flow.NOTE_FIELDS) is also pasted into its client-visible
 description; markers_for lists every row's note, so the web publish and the Word export both refuse.
-Not here, because the web publish does not refuse them either (no assertion it would fail): case c, the main text of a left-out
-row pasted into a client-visible row (it is then part of kept text, so it is not a marker), and case d, a hidden report section's
-body quoted in a visible row or section (markers_for reads no hidden section). In both the Word copy carries the text as the web
-file does.
+Cases c and d (#619): a left-out row's text, and a hidden section's text, pasted into a visible row. Both routes refuse them.
 
 Fictional data only: the demo store's project ABC, a few rows, a client folder and Local folders in a temporary folder.
 Run: python3 dev/run_tests.py test_word_client_held_back
@@ -204,9 +201,182 @@ class CleanReport(Setup, unittest.TestCase):
         self.assertNotIn("<w:", text)
 
 
-# Not covered here, and not refused by either path today (the web publish does not refuse them either): case c, a left-out row's
-# main text pasted into a client-visible row (it is then kept text, so it is not a marker: by design in markers_for), and case d,
-# a hidden report section's text quoted in a visible row (markers_for reads no hidden section). For the Head to decide separately.
+LEFT_OUT_TEXT = "Renegotiate the supplier penalty clause before the March audit"
+SECTION_TEXT = "Our fallback is to drop the second vendor if pricing slips"
+
+
+class LeftOutTextPasted(Cases, unittest.TestCase):
+    """#619 case c: the main text of a row left out of the client's view (client flag off), pasted into a client-visible row.
+    markers_for exempts a left-out text only when a kept value is exactly those words, so pasted inside other text it is refused."""
+    leak, absent = LEFT_OUT_TEXT, ()
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.visible = f"Next: {LEFT_OUT_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+        (hidden,) = [r for r in self.store.read("actions", "ABC") if r["description"] == LEFT_OUT_TEXT]
+        self.look_at = hidden["id"]
+
+
+class HiddenSectionTextPasted(Cases, unittest.TestCase):
+    """#619 case d: the body of a hidden report section, quoted in a client-visible row. markers_for reads no hidden section."""
+    leak, absent = SECTION_TEXT, ()
+
+    def plant(self):
+        with self.store.step("dashboard", USER) as st:
+            st.create("report_sections", {"project": "ABC", "type": "text", "title": "Internal fallback",
+                                          "body": SECTION_TEXT, "hidden": 1, "sort_order": 50})
+        (sec,) = [r for r in self.store.read("report_sections", "ABC") if r["title"] == "Internal fallback"]
+        self.look_at = sec["id"]
+        self.visible = f"Context: {SECTION_TEXT}"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class LeftOutTextSameAsKept(Setup, unittest.TestCase):
+    """#619: a left-out row whose text is exactly a kept row's text (nothing around it) is not a leak: both copies still save."""
+
+    def plant(self):
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=0)
+        self.demo.action(description=LEFT_OUT_TEXT, client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+DOC_TITLE = "Vendor contract annex for the March audit"
+DOC_URL = "https://docs.example.com/vendor-annex-march-audit"
+GANTT_NAME = "Renegotiate penalty clause with vendor"
+
+
+def plant_document(demo, title=DOC_TITLE, url=DOC_URL, archived=1):
+    """A document written past the writer, as test_documents_published does; returns its id."""
+    ref = f"ABC-L-{90 + archived:02d}{len(title) % 10}"
+    con = sqlite3.connect(str(demo.store.path))
+    con.execute("INSERT INTO documents (project, id, title, kind, url, date, sort_order, archived) VALUES (?,?,?,?,?,?,?,?)",
+                ("ABC", ref, title, "Report", url, "2030-01-02", 90, archived))
+    con.commit()
+    con.close()
+    return ref
+
+
+def plant_gantt_line(demo, name, show=0):
+    with demo.store.step("dashboard", USER) as st:
+        st.create("gantt_lines", {"project": "ABC", "type": "task", "name": name, "start": "2026-11-02", "end": "2026-11-13",
+                                  "show": show, "sort_order": 90})
+    (row,) = [r for r in demo.store.read("gantt_lines", "ABC") if r["name"] == name]
+    return row["id"]
+
+
+class LeftOutDocumentPasted(Cases, unittest.TestCase):
+    """#619 follow-up (a): the title of a document left out of the client's view (archived), pasted inside a longer client-visible row."""
+    leak, absent = DOC_TITLE, ()
+
+    def plant(self):
+        self.look_at = plant_document(self.demo)
+        self.visible = f"See also the {DOC_TITLE} for details"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class LeftOutDocumentPastedIntoKeptDocument(Cases, unittest.TestCase):
+    """The same words inside the title of a document that IS kept: the longer title does not excuse the left-out one."""
+    leak, absent = DOC_TITLE, ()
+
+    def plant(self):
+        self.look_at = plant_document(self.demo)
+        self.visible = f"Draft of the {DOC_TITLE}"
+        plant_document(self.demo, title=self.visible, url="https://docs.example.com/kept-one", archived=0)
+
+
+class LeftOutGanttLinePasted(Cases, unittest.TestCase):
+    """#619 follow-up (b): the name of a Gantt line whose eye is off, pasted inside a longer client-visible row."""
+    leak, absent = GANTT_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, GANTT_NAME)
+        self.visible = f"Next: {GANTT_NAME} this month"
+        self.demo.action(description=self.visible, client_visible=1)
+
+
+class DocumentAndGanttSameAsKept(Setup, unittest.TestCase):
+    """(c) A left-out document title, or Gantt name, that is exactly the whole of a kept value is not a leak: both copies still save."""
+
+    def plant(self):
+        plant_document(self.demo)
+        self.demo.action(description=DOC_TITLE, client_visible=1)
+        plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=GANTT_NAME, client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+LABEL_NAME = "Vendor-facing delivery stream"
+
+
+def plant_label_on_kept_action(demo, name, around=None):
+    """A kept action carrying a label (not an exclude one): the label is a value in the published data that is no row's own text.
+    `around` is a kept action whose text holds the label's words inside longer text (what a left-out line's name is found in)."""
+    demo.action(description="Kept action that carries a label", client_visible=1)
+    (kept,) = [r for r in demo.store.read("actions", "ABC") if r["description"] == "Kept action that carries a label"]
+    with demo.store.step("dashboard", USER) as st:
+        st.create("labels", {"name": name, "behaviour": "warn", "default_choice": "include"})
+        st.create("item_labels", {"item_id": kept["id"], "label": name})
+    if around:
+        demo.action(description=around, client_visible=1)
+
+
+class GanttLeftOutSameAsKeptNonRow(Setup, unittest.TestCase):
+    """#619 (reader's mutation run): gantt_markers' kept set holds the whole leaf values of the published data other than the Gantt
+    copy. A left-out Gantt line named exactly a kept NON-row value (a label on a kept action) is not a leak, even where its words
+    are also found inside a longer kept row: both copies still save."""
+
+    def plant(self):
+        plant_label_on_kept_action(self.demo, LABEL_NAME, around=f"Next: {LABEL_NAME} this month")
+        plant_gantt_line(self.demo, LABEL_NAME)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+class GanttLeftOutInsideLongerKeptNonRow(Cases, unittest.TestCase):
+    """The contrast: the same words only inside a longer kept non-row value (a longer label) and a longer kept row excuse nothing."""
+    leak, absent = LABEL_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, LABEL_NAME)
+        self.visible = f"Next: {LABEL_NAME} this month"
+        plant_label_on_kept_action(self.demo, f"Review of the {LABEL_NAME} ahead", around=self.visible)
+
+
+SPACED = GANTT_NAME.replace(" penalty clause ", "  penalty  clause ")      # the same words, with double spaces
+
+
+class SpacingOnlyDiffersFromKeptWhole(Setup, unittest.TestCase):
+    """#619: _same_words makes spacing one. A left-out Gantt line, whose words are found inside a longer kept row, and a kept row
+    that holds exactly those words but spaced differently: the kept row is the whole value, so both copies still save."""
+
+    def plant(self):
+        plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=SPACED, client_visible=1)
+        self.demo.action(description=f"Next: {GANTT_NAME} this month", client_visible=1)
+
+    def test_the_word_copy_and_the_web_publish_still_save(self):
+        self.assertEqual(self.word_export()[0], 200)
+        self.assertEqual(self.web_publish()[0], 200)
+
+
+class SpacingInsideLongerKeptValue(Cases, unittest.TestCase):
+    """The contrast: the words spaced differently inside a longer kept value are not the whole value, so both copies refuse."""
+    leak, absent = GANTT_NAME, ()
+
+    def plant(self):
+        self.look_at = plant_gantt_line(self.demo, GANTT_NAME)
+        self.demo.action(description=f"{SPACED} today", client_visible=1)
+        self.visible = f"Next: {GANTT_NAME} this month"
+        self.demo.action(description=self.visible, client_visible=1)
 
 
 if __name__ == "__main__":

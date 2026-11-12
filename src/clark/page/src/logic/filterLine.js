@@ -48,7 +48,7 @@ const isWords = () => [["open", "Open"], ["closed", "Closed"], ["overdue", "Open
 // a date to count from (hasReviewDates), or when the page says so; `is:incomplete` needs only the owner and the date, so it is always on.
 const NOT_YET = { needed: "Work needed from the client", archived: "Archived work" };
 const quietOn = (rows, ctx) => !!(ctx && ctx.isReady) || (rows || []).some((r) => r && r.reviewed) || hasReviewDates(rows);
-export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && ctx.isReady));
+export const isOn = (v, ctx, rows) => (v === "quiet" ? quietOn(rows, ctx) : !own(NOT_YET, v) || !!(ctx && (ctx.isReady || (v === "archived" && ctx.archivedReady))));   // item 1067: the Edit page answers is:archived
 const PLURAL = { owner: "owners", workstream: "workstreams", usecase: "use cases", milestone: "milestones" };
 const CLIENT_WORDS = [["shown", "Shown to the client"], ["internal", "Internal only"]];
 const gloss = () => ({ quiet: staleWords(), incomplete: "No owner or no date" });
@@ -413,18 +413,6 @@ export function suggest(wordTyped, rows, ctx) {
     .map(([v, l]) => ({ kind: "value", ins: `${not ? "-" : ""}${k}:${done}${quote(word(k, v))}`, label: word(k, v), note: l !== word(k, v) ? l : "", n: count(k, v), gloss: k === "is" ? own(gloss(), v) || "" : "" }));
 }
 
-/** The hint chips under the focused line: a few to start from, each with a plain meaning for its tooltip. */
-export const HINTS = [
-  { text: "status:", gloss: "Open, Pending, Delayed, Closed or Cancelled" },
-  { text: "owner:me", gloss: "Your own items (needs your name in Settings)" },
-  { text: "due:overdue", gloss: "Open items whose date has passed" },
-  { text: "-status:Closed", gloss: "Leave closed items out" },
-  { text: "no:owner", gloss: "Items with no owner" },
-  { text: "is:incomplete", gloss: "No owner or no date" },
-];
-/** The hint chips to show: HINTS, with is:quiet added once the page turns the `is:` data on (ctx.isReady). */
-export const hints = (ctx) => (isPublished() ? HINTS.filter((h) => lineIsClientSafe(h.text)) : ctx && (ctx.isReady || ctx.quietReady) ? [...HINTS.slice(0, 5), { text: "is:quiet", gloss: gloss().quiet }, ...HINTS.slice(5)] : HINTS.slice());
-
 /** True when every field word of the line is one the published file's line may use (CLIENT_FIELDS; `is:` only CLIENT_IS; no `owner:me`) and
  *  is a field at all. Needs no rows. Used to drop a remembered line or saved view that names anything else. */
 export function lineIsClientSafe(line) {
@@ -564,7 +552,9 @@ function nameProblem(views, name, exceptId) {
   if ((views || []).some((v) => !v.archived && v.id !== exceptId && low(v.name) === low(n))) return `A view called ${n} already exists. Choose another name.`;
   return "";
 }
-const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`)) n++; return `v${n}`; };
+// The ids of views deleted in this visit: never given to a new view, so the Undo of a delete (row 1071) can always put the view back under its own id.
+const retired = new Set();
+const nextId = (views) => { let n = (views || []).length + 1; const ids = new Set((views || []).map((v) => v.id)); while (ids.has(`v${n}`) || retired.has(`v${n}`)) n++; return `v${n}`; };
 
 /** Save the line as a new view. {ok, views, id} or {ok: false, message}; the list given is never changed. */
 export function addView(views, name, line) {
@@ -573,6 +563,13 @@ export function addView(views, name, line) {
   if (mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
   const id = nextId(vs);
   return { ok: true, id, views: [...vs, { id, name: cleanName(name), line: String(line || "") }] };
+}
+/** Row 1073: the name a new view gets without asking, View 1, View 2 ... the lowest number no view (hidden ones too) already has. */
+export function nextViewName(views) {
+  const taken = new Set((views || []).map((v) => low(cleanName(v.name))));
+  let n = 1;
+  while (taken.has(`view ${n}`)) n++;
+  return `View ${n}`;
 }
 /** Save the current line over a view (Save). */
 export function saveView(views, id, line) {
@@ -584,9 +581,43 @@ export function renameView(views, id, name) {
   const bad = nameProblem(views, name, id);
   return bad ? { ok: false, message: bad } : { ok: true, views: views.map((v) => (v.id === id ? { ...v, name: cleanName(name) } : v)) };
 }
+/** Row 1071: put some of the views in a new order. `ids` are the ids of the views to place, in the order they should now be in; they take the places those
+ *  views had, so any view not named (one that is hidden) stays where it is. {ok, views}, or {ok: false, message}; the list given is never changed. */
+export function reorderViews(views, ids) {
+  const vs = views || [], want = Array.isArray(ids) ? ids : [];
+  if (!want.length || new Set(want).size !== want.length || want.some((id) => !findView(vs, id))) return { ok: false, message: "That view is not there any more." };
+  const slots = vs.map((v, i) => (want.includes(v.id) ? i : -1)).filter((i) => i >= 0), out = vs.slice();
+  want.forEach((id, n) => { out[slots[n]] = findView(vs, id); });
+  return { ok: true, views: out };
+}
+/** Row 1071: put a deleted view back at the place it had (the Undo after Delete view). `index` is the place it is to end at; the length is the end. */
+export function insertView(views, view, index) {
+  const vs = views || [];
+  if (!view || findView(vs, view.id)) return { ok: false, message: "That view is already there." };
+  const bad = nameProblem(vs, view.name, view.id);          // another view may have taken the name since the delete: no two views with one name
+  if (bad) return { ok: false, message: bad };
+  if (!isCoreView(view) && mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
+  const i = Math.max(0, Math.min(vs.length, Math.trunc(Number(index)) || 0));
+  return { ok: true, views: [...vs.slice(0, i), { ...view }, ...vs.slice(i)] };
+}
+/** Row 1071: a copy of a view, called "<name> copy" ("<name> copy 2" and so on when that is taken), right after it. The copy is the person's own, even from a core view. */
+export function duplicateView(views, id) {
+  const vs = views || [], from = findView(vs, id);
+  if (!from) return { ok: false, message: "That view is not there any more." };
+  if (mineVisible(vs).length >= MAX_VIEWS) return { ok: false, message: `You can keep ${MAX_VIEWS} saved views. Delete one to make room.` };
+  let name = "", n = 1;
+  for (; n < 100; n++) {
+    const tail = n === 1 ? " copy" : ` copy ${n}`;
+    name = cleanName(from.name).slice(0, MAX_NAME - tail.length).trim() + tail;
+    if (!nameProblem(vs, name, null)) break;
+  }
+  const newId = nextId(vs), copy = { id: newId, name, line: from.line }, at = vs.indexOf(from);
+  return { ok: true, id: newId, views: [...vs.slice(0, at + 1), copy, ...vs.slice(at + 1)] };
+}
 /** Delete a view (a core view too). It is gone: there is no way back. */
 export function deleteView(views, id) {
   if (!findView(views, id)) return { ok: false, message: "That view is not there any more." };
+  retired.add(id);
   return { ok: true, views: views.filter((v) => v.id !== id) };
 }
 /** Why a saved view cannot be used, in plain words, or "" when it can (#589). A view whose line the filter line no longer reads (a word it
@@ -614,6 +645,7 @@ export const viewCount = (view, rows, ctx) => apply(rows, view.line, ctx).length
 
 export const LINE_KEY = "clark.fline";
 export const VIEWS_KEY = "clark.fviews";
+export const ORDER_KEY = "clark.forder";          // per project: the ids of the views in the order the person put them (row 1071)
 export const CORE_KEY = "clark.fcore";           // per project: {names: {core id: new name}, gone: [core ids deleted]}
 
 function readAll(storage, key) {
@@ -645,7 +677,11 @@ export function viewsGet(storage, project) {
   const own = (Array.isArray(mine) && mine.every(sane) ? mine : DEFAULT_VIEWS).filter((v) => !isCoreView(v) && !oldOpenItems(v)).map((v) => ({ ...v }));
   const kept = storage ? readAll(storage, CORE_KEY)[project] : null, names = (kept && kept.names) || {}, gone = Array.isArray(kept && kept.gone) ? kept.gone : [];
   const core = CORE_VIEWS.filter((v) => !gone.includes(v.id)).map((v) => ({ ...v, name: typeof names[v.id] === "string" && names[v.id].trim() && names[v.id].length <= MAX_NAME ? names[v.id] : v.name }));
-  const got = [...core, ...own];
+  const got = [...core, ...own], order = storage ? readAll(storage, ORDER_KEY)[project] : null;
+  if (Array.isArray(order)) {       // row 1071: the person's own order; a view the order does not name (a new one) goes last, in the order it came
+    const at = (v) => { const i = order.indexOf(v.id); return i < 0 ? order.length : i; };
+    got.sort((a, b) => at(a) - at(b));            // sort is stable
+  }
   return isPublished() ? got.filter((v) => lineIsClientSafe(v.line)) : got;
 }
 export function viewsPut(storage, project, views) {
@@ -657,5 +693,8 @@ export function viewsPut(storage, project, views) {
   for (const v of there) { const was = CORE_VIEWS.find((c) => c.id === v.id); if (was && v.name !== was.name) names[v.id] = v.name; }
   const core = readAll(storage, CORE_KEY);
   if (gone.length || Object.keys(names).length) core[project] = { names, gone }; else delete core[project];
-  return writeAll(storage, VIEWS_KEY, all) && writeAll(storage, CORE_KEY, core);
+  const order = readAll(storage, ORDER_KEY), natural = [...CORE_VIEWS.filter((c) => there.some((v) => v.id === c.id)), ...all[project]].map((v) => v.id);
+  const ids = (views || []).map((v) => v.id);
+  if (ids.join("\n") === natural.join("\n")) delete order[project]; else order[project] = ids;      // nothing extra is stored for the order a project starts with
+  return writeAll(storage, VIEWS_KEY, all) && writeAll(storage, CORE_KEY, core) && writeAll(storage, ORDER_KEY, order);
 }

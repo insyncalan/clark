@@ -1,18 +1,12 @@
-// The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): the open project's name, always a button,
-// with a chevron and a menu. The menu lists the projects (the open one marked, each with "N open items"), then "Project settings".
+// The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): a button with a chevron and a menu. Row 1064: the name is not drawn in the bar
+// (the Dashboard cover has it); it stays in the button for a screen reader, and in the label. The menu lists the projects (the open one marked, each with "N open items"), and nothing else (row 1092: a new project and the project's settings are done in Settings).
 // Choosing a project is setProject(): one new address entry and a page load for that project (#944), so Back returns to the project before;
 // the name in the bar says which is open, so there is no message. Only the editor has it (a published file shows the name as plain words and never asks a server). The list is
-// GET /api/projects, read when the bar draws and again each time the menu opens (so the counts follow the work done since); until it is read, or if it cannot be, the menu has the open project and Project settings.
-// "New project..." (row 856) opens the project form Settings uses; the new project opens on Work items. The menu starts on the open project.
+// GET /api/projects, read when the bar draws and again each time the menu opens (so the counts follow the work done since); until it is read, or if it cannot be, the menu has the open project. The menu starts on the open project.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Menu } from "../components/Menu.jsx";
-import { token, project, setProject, show, loadProjects, openProjectAt } from "../stores/report.js";
-import { say } from "../stores/changes.js";
-import { openBox, closeBox } from "./boxes.js";
-import * as D from "../logic/dataCard.js";
+import { token, project, setProject } from "../stores/report.js";
 
-const NEW = "\u0000new";
-const SETTINGS = "\u0000settings";      // not a project code, so no project can be mistaken for it
 
 export const openWords = (n) => (typeof n === "number" ? `${n} open ${n === 1 ? "item" : "items"}` : undefined);
 
@@ -31,20 +25,7 @@ export function ProjectSwitch({ name }) {
   const rows = list.length ? list : project.value ? [{ code: project.value, name: shown }] : [];
   const items = [
     ...rows.map((p) => ({ id: p.code, name: p.name || p.code, line: openWords(p.open), checked: p.code === project.value })),
-    ...(rows.length ? [{ id: "sep", sep: true }] : []),
-    { id: NEW, name: "New project..." },
-    { id: SETTINGS, name: "Project settings" },
   ];
-  async function created(body) {
-    closeBox();
-    await loadProjects();
-    openProjectAt(body.code, "work");
-    say("done", D.PROJECT.created(body.name));
-  }
-  const pick = (id) => {
-    if (id === NEW) { openBox("project", { row: null, opener: document.getElementById("project-name"), onSaved: created }); return; }
-    if (id === SETTINGS) { show("settings"); return; }
-    setProject(id);
-  };
-  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left items={items} onPick={pick} onOpen={read} focusChecked />;
+  const pick = (id) => setProject(id);
+  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
 }

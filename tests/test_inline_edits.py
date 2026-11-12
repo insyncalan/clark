@@ -6,7 +6,7 @@ pick sends, the choices each kind of item has, and the date picker's days. Part 
 are the real clark.changes over a real demo store (fictional data, built at CLARK_NOW=2026-10-28) and drives the committed page
 at 1400 and 900 px with real mouse and key events: each picker opens by a click and by the keyboard, a pick changes the row and
 the store in one step with Undo, Esc leaves the value as it was (one panel, closed by one Esc), and a click on the row still opens
-the item's peek. The table has no phone layout of its own (it is the 900 px one below that), so 390 px is not tested here.
+the item's peek.
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
 import contextlib
@@ -941,7 +941,7 @@ class Live(unittest.TestCase):
                 sel = cdp.js("(() => { const c = getComputedStyle(document.querySelector('[data-pop] [data-day=\"2026-11-02\"]')); return [c.fontWeight, c.textDecorationLine]; })()", sid)
                 other = cdp.js("(() => { const c = getComputedStyle(document.querySelector('[data-pop] [data-day=\"2026-11-03\"]')); return [c.fontWeight, c.textDecorationLine]; })()", sid)
                 self.assertEqual((sel, other), (["600", "underline"], ["400", "none"]), "the day it has is marked by more than its fill: heavier and underlined")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [data-quick]')].map(b => b.firstChild.textContent)", sid), ["Today", "Tomorrow", "Friday", "Next week", "No date"])
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [data-quick]')].map(b => b.querySelector('span:not(.mi-i)').textContent)", sid), ["Today", "Tomorrow", "Friday", "Next week", "No date"])
                 click(cdp, sid, "[data-pop] [data-quick='2026-10-29']")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
                 self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-10-29")
@@ -1032,6 +1032,7 @@ class Live(unittest.TestCase):
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Tab")
                     kept("Tab")
+                    self.until(cdp, sid, "(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", f"{ref}: focus settled on the page after Tab")
                     self.assertTrue(cdp.js("(() => { const a = document.activeElement; return !!a && a !== document.body && a.isConnected && !a.closest('[data-pop]'); })()", sid),
                                     f"{ref}: after Tab, focus is on the page, not lost")
                     self.assertEqual(self.cell_text(cdp, sid, ref, "due")[:10], f"{was[8:10]}-{was[5:7]}-{was[:4]}", f"{ref}: the row still shows its date")
