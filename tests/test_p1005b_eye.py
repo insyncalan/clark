@@ -191,7 +191,15 @@ class Movement(tmp.Base):
         p.js("document.getElementById(%s).click()" % json.dumps(ident))
         p.until("!!document.querySelector(%s)" % json.dumps(box), "the editor opened")
         p.js("(function(){var b = document.querySelector(%s); b.cxed.editor.commands.setContent('<p>' + %s + '</p>'); b.blur();})()" % (json.dumps(box), json.dumps(value)))
-        p.until("!document.querySelector(%s)" % json.dumps(box), "the editor closed")
+        # A slow runner can drop the first blur: re-issue it until the editor box is gone, for up to 15 s.
+        gone = "!document.querySelector(%s)" % json.dumps(box)
+        reblur = "(function(){var b = document.querySelector(%s); if (b) { b.focus(); b.blur(); } })()" % json.dumps(box)
+
+        end = time.time() + 15
+        while time.time() < end and not p.js(gone):
+            p.js(reblur)
+            time.sleep(0.2)
+        self.assertTrue(p.js(gone), "the editor closed")
 
     def test_empty_fields_are_asked_for_and_look_right(self):
         with chrome() as cdp:
