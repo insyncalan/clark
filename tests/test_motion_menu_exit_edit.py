@@ -304,7 +304,7 @@ class Pins(unittest.TestCase):
     def test_row_962_the_css_is_edit_only_in_a_no_preference_block_with_tokens_only(self):
         gate = r'@media \(prefers-reduced-motion: no-preference\) \{\s*:root:not\(\[data-motion="reduce"\]\) '
         rule = r"\{ pointer-events: none; animation: m-out var\(--dur-instant\) var\(--ease-exit\) forwards; \}"
-        for sel in (r"\.cpop\.leaving", r"\.menu\.leaving", r":is\(\.flist, \.fbox, \.gt-menu, \.tset, \.dpick\)\.leaving"):
+        for sel in (r"\.cpop\.leaving", r"\.menu\.leaving", r":is\(\.flist, \.fbox, \.gt-menu, \.gt-pop, \.rt-slash, \.tset, \.dpick\)\.leaving"):
             self.assertRegex(EDIT_CSS, gate + sel + " " + rule)
         self.assertNotRegex(SHELL_CSS, r"\.(cpop|menu|flist|fbox|gt-menu|tset|dpick)\.leaving")     # the published page carries none of it
 
