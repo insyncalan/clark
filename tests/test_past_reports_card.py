@@ -240,6 +240,15 @@ class Card(InBrowser):
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
         self.assertEqual(rows, ["2|16-10-2026|21-10-2026 at 12:15by Sam Example|Local folder|Word|Not keptArchive", "1|Not recorded|14-10-2026 at 20:40by Not recorded|Local folder|Page|Not keptArchive"])
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
+        # the band is the project's own: its colour and picture come from the brand tokens (as a brand's tokens.css sets them), not from a default
+        pic = "data:image/gif;base64,R0lGODlhAQABAIAAAAUEBAAAACwAAAAAAQABAAACAkQBADs="
+        look = f"""(() => {{ const c = document.querySelector('#pubs-page .cover'); return {{ bg: getComputedStyle(c).backgroundColor, pic: getComputedStyle(c, '::before').backgroundImage }}; }})()"""
+        plain = self.val(look)
+        self.assertEqual(plain["pic"], "none", "no own look: no picture")
+        self.js(f"document.documentElement.style.setProperty('--brand-navy', 'rgb(12, 99, 34)'); document.documentElement.style.setProperty('--image-cover', 'url({pic})')")
+        own = self.val(look)
+        self.assertEqual(own["bg"], "rgb(12, 99, 34)", "the band takes the project's own colour")
+        self.assertIn(pic, own["pic"], "the band shows the project's own picture")
 
     def test_row_1087_a_latest_with_no_week_says_no_week_instead_of_week_ending_not_recorded(self):
         self.replies(list=OK({**LIST, "total": 1, "shown": 1, "publications": [ROWS[2]]}))
