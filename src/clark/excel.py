@@ -114,7 +114,7 @@ SHEETS = [
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
         ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
         ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client-visible", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
@@ -801,6 +801,11 @@ def _open_items(rows_by_table):
     return {k: ", ".join(sorted(v)) for k, v in found.items()}
 
 
+def writer_ids(text):
+    """The ids in a use case row's `milestones` value (the canonical form the export keeps: 'ID, ID')."""
+    return [i for i in (text or "").split(", ") if i]
+
+
 def column_width(table, field):
     """A column's width by its kind: ID 10; the title 40 (48 when it is a long-text column); other long text 48; dates 12;
     flags and numbers 10; the Updated stamp 24 (it is text such as 2030-01-10 09:30:00.000); people, streams and labels 18;
@@ -809,7 +814,7 @@ def column_width(table, field):
         return 10
     if field in REF_TABLES and table not in ("milestones", "use_cases"):
         return 40
-    if field == "open_items":
+    if field in ("open_items", "milestones"):
         return 30
     if field in WIDE:
         return 48
@@ -824,7 +829,7 @@ def column_width(table, field):
 
 def wraps(table, field):
     """Whether a column's text wraps: long text, the title column, and the "ID: name" Milestone and Use case columns of the other sheets."""
-    return (field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
+    return (field in WIDE or field == TITLE_OF.get(table) or field in ("open_items", "milestones")
             or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
 
@@ -1229,6 +1234,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
+            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one "ID: name" per line (the ids are in the row; the import reads them back)
+                r = {**r, "milestones": "\n".join(names["milestone"].get(i, i) for i in writer_ids(r.get("milestones"))) or None}
             if table in ("milestones", "use_cases"):
                 r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
             else:
@@ -1458,6 +1465,9 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     for t in LABELLED:
         for r in rows[t]:
             r["labels"] = ", ".join(have.get(r["id"], [])) or None
+    from clark import store as clark_store
+    for r in rows["use_cases"]:      # row 1107: the direct links (canonical 'ID, ID'), kept in the export's record too
+        r["milestones"] = ", ".join(clark_store.use_case_milestone_ids(store.con, r["id"])) or None
     for r in rows["milestones"]:
         r["original_date"] = history.original_date(store.con, r["id"], r.get("baseline_date"))
     # The Cover is worked out from what the published page shows (excel_cover.from_store), so the two can't disagree; the person

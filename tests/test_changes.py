@@ -80,7 +80,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link"})      # #196: + bulk; #199: + handover; #485: + link
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link", "msadd", "msremove"})      # row 1107: + msadd, msremove; #196: + bulk; #199: + handover; #485: + link
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -92,7 +92,7 @@ class Allowed(Api):
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
                              | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over
-                             | ({"link"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
+                             | ({"link", "msadd", "msremove"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):

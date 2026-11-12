@@ -47,11 +47,15 @@ function linkedTo(d, id, all) {
   return sortRows(all.filter((r) => link[r.id] === id), todayIso());
 }
 
-// The milestones its linked work items point at, in the order the project keeps them.
+// The milestones of a use case, in the order the project keeps them, each with how it is reached (row 1107): linked directly (the
+// store's use_case_milestones, d.uc_milestones), through its work items (their milestone), or both.
 function milestonesOf(d, id) {
-  const named = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
-  return (d.milestones || []).filter((m) => !m.archived && named.has(m.id));
+  const via = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
+  const direct = new Set((d.uc_milestones || []).filter((l) => l.use_case === id).map((l) => l.milestone));
+  return (d.milestones || []).filter((m) => !m.archived && (via.has(m.id) || direct.has(m.id)))
+    .map((m) => ({ m, direct: direct.has(m.id), via: via.has(m.id) }));
 }
+const HOW_LINKED = (k) => (k.direct && k.via ? "Linked directly and through work items" : k.direct ? "Linked directly" : "Through work items");
 
 // A stored UTC time (YYYY-MM-DD HH:MM:SS.sss) as the person's own time: DD-MM-YYYY and HH:MM.
 function when(stamp) {
@@ -282,13 +286,15 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-ms">
             <h2 id="ucd-h-ms" class="ucd-ch">Milestones</h2>
-            {ms.length ? <ul class="ucd-ms plain">{ms.map((m) => {
-                const st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
-                return <li key={m.id} data-ms={m.id}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed ? <ed.MilestoneRemove u={u} m={m} /> : null}</span></li>;
+            {ms.length ? <ul class="ucd-ms plain">{ms.map((k) => {
+                const m = k.m, st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
+                return <li key={m.id} data-ms={m.id} data-how={k.direct ? (k.via ? "both" : "direct") : "work"}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}{!ro && ed && k.via ? <ed.MilestoneRemove u={u} m={m} /> : null}</span>
+                  <span class="muted ucd-mshow" data-ms-how>{HOW_LINKED(k)}</span></li>;
               })}</ul>
-              : <p class="muted">No milestones: none of its work items is linked to one.</p>}
-            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneAdd u={u} /></div> : null}
+              : <p class="muted">No milestones: it is not linked to one directly, and none of its work items is linked to one.</p>}
+            {ms.length ? <p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p> : null}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /><ed.MilestoneAdd u={u} /></div> : null}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>

@@ -163,11 +163,21 @@ def pill_of(row, today):
     return {"text": "Open", "class": "b"}
 
 
+PLAIN_STATUS = (None, "", "Open", "Planned")             # a status that says nothing of its own (sectionRows.js PLAIN_STATUS)
+OWN_STATUS_CLASS = {"Blocked": "a", "In progress": "g", "Completed": "b"}      # the colour of a status word a record carries itself; any other is grey
+
+
 def client_pill(row, today):
-    """The status word a client reads on a report row: pill_of, except that an action neither late, delayed nor due soon reads
-    "On track" (green) instead of "Open". The page, the published file and the Word copy all say this word. (sectionRows.js clientPill)"""
+    """The status word a client reads on a report row (row 1021, option B). An open action or risk or issue whose own status is
+    something other than Open or Planned (Blocked, In progress, ...) keeps that word, in its colour (amber, green, blue, else grey);
+    Delayed and Closed are read as pill_of reads them. Otherwise it is pill_of, except that an action neither late, delayed nor due
+    soon, with a plain status, reads "On track" (green) instead of "Open". The page, the published file and the Word copy all say
+    this word. (sectionRows.js clientPill)"""
+    s, kind = row.get("status"), row.get("kind")
+    if kind in ("action", "risk", "issue") and isinstance(s, str) and s not in PLAIN_STATUS and s not in CLOSED + ("Delayed",):
+        return {"text": s, "class": OWN_STATUS_CLASS.get(s, "n")}
     p = pill_of(row, today)
-    return {"text": "On track", "class": "g"} if row.get("kind") == "action" and p["text"] == "Open" else p
+    return {"text": "On track", "class": "g"} if kind == "action" and p["text"] == "Open" else p
 
 
 _CLASS_COLOUR = {"r": "red", "a": "amber", "g": "green"}

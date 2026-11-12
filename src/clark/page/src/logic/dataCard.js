@@ -71,7 +71,7 @@ export const IMPORT_COLUMNS = [
   ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
-  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible"]],
+  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
 ];
 
 export const PROJECT = {
@@ -166,6 +166,18 @@ export function acceptedNumbers(items, ticked) {
 export function startTicks(items) {
   const t = {};
   for (const i of items) t[i.n] = !!i.default;
+  return t;
+}
+
+// The sheets to tick when "What to import" opens (#1106): the ones ticked last time on this computer (`saved`, a list of table names);
+// a remembered sheet the new workbook lacks is simply not there, never ticked or mentioned. With nothing remembered, or none of it in this
+// workbook, every sheet is ticked as before.
+export const SHEETS_KEY = "clark.import.sheets";
+export function startSheets(sheets, saved) {
+  const mine = Array.isArray(saved) ? saved.filter((n) => typeof n === "string") : [];
+  const any = sheets.some((s) => mine.includes(s.table));
+  const t = {};
+  for (const s of sheets) t[s.table] = any ? mine.includes(s.table) : true;
   return t;
 }
 

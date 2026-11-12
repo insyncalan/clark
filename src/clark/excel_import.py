@@ -142,6 +142,7 @@ WORDS = {"actions": "action", "raid": "RAID item", "decisions": "decision", "mil
 LOCKED = {"id", "project", "source", "updated_at", "archived", "closed", "state_set"}
 LOCKED_IN = {"raid": {"priority"}}                       # worked out from impact and likelihood
 LABELS = "labels"      # not a column: an item's labels, as the export writes them (comma-separated); the store keeps them apart
+UC_MILESTONES = "milestones"      # row 1107: not a use_cases column: the milestones a use case is linked to directly, as ids ('ID, ID'); the store keeps them in use_case_milestones
 FLAGS = {"client_visible", "state_set", "active"}
 # what applying "removed from the workbook" does (#126: nothing is deleted or closed; the row is archived, status unchanged)
 REMOVED_BY = {"actions": "archived", "raid": "archived", "decisions": "archived", "milestones": "archived"}
@@ -171,6 +172,29 @@ def clean_rich(field, text):
 
 
 _FORMULA = object()        # a cell typed as a formula: not read (it is neither blank nor a value)
+
+
+def virtual_columns(table):
+    """The columns of a sheet that are not columns of its table: labels (actions, risks, decisions) and a use case's direct milestones."""
+    return [LABELS] if table in writer.LABELLED else [UC_MILESTONES] if table == "use_cases" else []
+
+
+def milestone_ids(text):
+    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one 'ID: name' per line;
+    a line with no ': ' may hold several ids split by commas. `bad` is the first piece that is not a milestone id."""
+    found, bad = set(), ""
+    for line in str(text).replace("\r", "\n").split("\n"):
+        if not line.strip():
+            continue
+        head = resolve_ref("milestone", line)
+        pieces = [head] if (": " in line or "," not in line) else [p.strip() for p in line.split(",") if p.strip()]
+        for piece in pieces:
+            m = writer.ITEM_ID.fullmatch(piece)
+            if m and m.group(2) == "M":
+                found.add(piece)
+            elif not bad:
+                bad = piece
+    return sorted(found), bad
 
 
 def _label(table, f):
@@ -473,6 +497,9 @@ def resolve_ref(field, text):
     return text
 
 
+OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
+
+
 def from_cell(name, value, kind, label=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
@@ -487,9 +514,17 @@ def from_cell(name, value, kind, label=None):
             return read_date(value), None
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
+    if name == UC_MILESTONES:                                   # row 1107: the ids, in the one form the export keeps ('ID, ID')
+        ids, bad = milestone_ids(value)
+        if bad:
+            return None, f"{label} must be milestone IDs, one per line (got {_got(bad)})"
+        return ", ".join(ids) or None, None
     if name == "commitment":                                    # #709: the owner's words, case exact (spaces round the word are not part of it); never guessed
-        if str(value).strip() in writer.COMMITMENTS:
-            return str(value).strip(), None
+        word = str(value).strip()
+        if word == OLD_COMMITMENT:                              # row 1061: a workbook exported before the rename still says Candidate; it is Planned 2026 (exact word only)
+            word = writer.COMMITMENTS[0]
+        if word in writer.COMMITMENTS:
+            return word, None
         return None, f"{label} must be one of {', '.join(writer.COMMITMENTS[:-1])} or {writer.COMMITMENTS[-1]}, or left empty (got {_got(value)})"
     if name in FLAGS:
         s = str(value).strip().lower()
@@ -746,6 +781,9 @@ class _Reader:
         if table in writer.LABELLED:
             cols = cols + [LABELS]
             info[LABELS] = ("TEXT", False, None)
+        if table == "use_cases":
+            cols = cols + [UC_MILESTONES]
+            info[UC_MILESTONES] = ("TEXT", False, None)
         header, named, ignored = header_map(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ()), table, cols, sheet)
         if "id" not in header:
             self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
@@ -758,6 +796,8 @@ class _Reader:
         for r in db.values():
             if LABELS in cols:
                 r[LABELS] = ", ".join(writer.labels_of(self.store.con, r["id"])) or None
+            if UC_MILESTONES in cols:
+                r[UC_MILESTONES] = ", ".join(writer.use_case_milestone_ids(self.store.con, r["id"])) or None
         seen, rows = set(), 0
         self.typed_rows = 0
         self.row_titles = {}                      # id → the title the workbook gives it (to tell a swap from a title edit)
@@ -1227,7 +1267,7 @@ def list_sheets(path, store=None, project=None):
             else:
                 cols = None
                 if store is not None:
-                    cols = writer.columns(store.con, table) + ([LABELS] if table in writer.LABELLED else [])
+                    cols = writer.columns(store.con, table) + virtual_columns(table)
                 rows = min(_rows_counted(ws, table, cols), OVER_LIMIT)
             found[table] = (ws.title, rows)
         listed = [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
@@ -1558,16 +1598,34 @@ def _write(st, store, c, ctx=None):
         found = store.resolve_owner(after[text]) if after[text] else {"status": "blank"}
         if found["status"] == "one" or c.kind == "changed":
             after["owner_id"] = found["id"] if found["status"] == "one" else None
+    wanted = after.pop(UC_MILESTONES, False) if c.table == "use_cases" and c.kind != "removed" else False      # row 1107: False = the cell was not part of this change
     if c.kind == "new":
-        return st.create(c.table, after)
+        ref = st.create(c.table, after)
+        _write_milestone_links(st, ref, wanted)
+        return ref
     now = store.read(c.table, ref=c.id)
     if now is None:
         raise Invalid(f"{c.id} is no longer in clark; run the import again")
     if now["updated_at"] != c.seen_at:
         raise Invalid(f"{c.id} was changed in clark after this import was checked; run the import again")
     if c.kind == "changed":
-        return st.update(c.table, c.id, after)
+        ref = st.update(c.table, c.id, after) if after else c.id
+        _write_milestone_links(st, c.id, wanted)
+        return ref
     return st.archive(c.table, c.id)
+
+
+def _write_milestone_links(st, use_case, wanted):
+    """Make a use case's direct milestone links the ones the cell names (row 1107): missing ones are added, ones the cell no longer names
+    are ended (their rows are kept). `wanted` is the cell as milestone_ids' text, None for an emptied cell, False when not part of the change."""
+    if wanted is False:
+        return
+    want = set(wanted.split(", ")) if wanted else set()
+    have = set(writer.use_case_milestone_ids(st.con, use_case))
+    for m in sorted(want - have):
+        writer.link_use_case_milestone(st, use_case, m)
+    for m in sorted(have - want):
+        writer.unlink_use_case_milestone(st, use_case, m)
 
 
 def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):

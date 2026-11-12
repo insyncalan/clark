@@ -57,16 +57,17 @@ const ownClick = (e) => !e.target.closest("button, a, input") && !String(window.
 // in a published file they are also drawn as a small word beside it, because paper, a PDF and a Word copy have no hover.
 // The tile's colour (final 1021 colours): Red Overdue/Red, Amber Due soon/Amber, Green On track/Open/Pending, Blue Completed/Made/Closed, grey
 // Cancelled/Withdrawn/Not rated, and and an extra "u" class (a solid maroon tile that wins over the colour) on an open Urgent item, overdue or not.
-export const isUrgent = (row) => row.priority === "Urgent" && isOpen(row);
+export const isUrgent = (row) => row.priority === "Urgent" && isOpen(row) && row.status !== "Completed";      // a Completed item is blue, never maroon
 export const toneOf = (row, pill) => {
   if (row.kind === "decision") return row.status === "Made" ? "b" : row.status === "Withdrawn" ? "n" : "g";
-  if (row.status === "Closed") return "b";
+  if (row.status === "Closed" || row.status === "Completed") return "b";
   return pill.class === "b" ? "g" : pill.class;
 };
-const isLate = (row, today) => { const a = dayNumber(dueField(row)), b = dayNumber(today); return isOpen(row) && a !== null && b !== null && a < b; };
+const isLate = (row, today) => { const a = dayNumber(dueField(row)), b = dayNumber(today); return isOpen(row) && row.status !== "Completed" && a !== null && b !== null && a < b; };
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
-  const parts = isUrgent(row) ? [pill.text, "Urgent", late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
+  const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue
+  const parts = isUrgent(row) ? [pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
   const words = parts.filter(Boolean);
   return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
 };
