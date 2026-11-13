@@ -8,6 +8,7 @@ import { useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
+import { fromFile } from "../stores/report.js";
 import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
@@ -54,11 +55,11 @@ function Sized({ CW, place, children }) {
 export function MsList({ CW, ...rest }) { return CW ? <Sized CW={CW} place={rest.place}>{(vars, hd) => <MsRows {...rest} vars={vars} hd={hd} />}</Sized> : <MsRows {...rest} />; }
 
 function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = true, vars, hd }) {
-  const [all, setAll] = useState(() => !!recall(`msAll.${place}`, false));
+  const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
   const fold = () => { remember(`msDet.${place}`, !det); setDet(!det); };
-  const toggle = () => { remember(`msAll.${place}`, !all); setAll(!all); };
+  const toggle = () => { if (!fromFile.value) remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place} style={vars}>
       <div class="msl-bar">
