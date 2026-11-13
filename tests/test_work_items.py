@@ -57,6 +57,7 @@ class Rules(unittest.TestCase):
             colour: c.priority_colour.map((x) => WI.colourOf(x.priority)),
             owner: c.owner.map((x) => WI.ownerOf(x.owner)),
             sort: WI.sortRows(c.sort.rows, c.today).map((r) => r.id),
+            ties: WI.sortRows(["XYZ-1000", "XYZ-999", "XYZ-12", "ABC-5"].map((id) => ({ id, status: "Open" })), c.today).map((r) => r.id),
             count: c.count_line.map((x) => WI.countOf(x.total, x.open)),
             useCase: WI.metaOf(WI.rowsOf(c.use_case_label.data)[0]),
             sub: (() => { const r = { id: "A-1", uc: "Use case 1", milestone: "Go live", workstream: "Build" };   // #947
@@ -88,6 +89,9 @@ class Rules(unittest.TestCase):
 
     def test_the_sort_order(self):
         self.assertEqual(self.out["sort"], CASES["sort"]["expected_order"])
+
+    def test_equal_rows_tie_break_on_the_number_in_the_id_not_its_text(self):
+        self.assertEqual(self.out["ties"], ["ABC-5", "XYZ-12", "XYZ-999", "XYZ-1000"])
 
     def test_each_list_becomes_rows_of_its_kind_and_a_decision_s_owner_is_who_made_it(self):
         self.assertEqual(self.out["kinds"], [["A", "action", "a", None, True], ["R", "dependency", "r", None, False],
