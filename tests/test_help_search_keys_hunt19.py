@@ -35,7 +35,8 @@ class SearchKeys(N.Nav):
                 set_size(cdp, p, w)
                 self.assertEqual(p.js("!!document.querySelector('#hpQk')"), True, f"{w}: on: the chip is there")
             p.js("localStorage.setItem('clark.single-keys','off')")
-            p.js("location.reload()")
+            from _new_page import reload_to_new_page
+            reload_to_new_page(p.js)
             p.ready()
             from test_help_panel import full_help_from_menu
             full_help_from_menu(p)
