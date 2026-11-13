@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v107
 Same shape as test_v106. COVERED holds the rows merged so far (the first docs batch); the cut bookkeeping adds the rest from the merged list. WAITING and TEST_ONLY start empty.
 The notes' own rules run now against dev/release-notes/1.0.7-plain.md. Everything that reads the hand-check sheet, and the cut
 tests, skip until the cut commit sets 1.0.7 in src/clark/__init__.py; from then on both files must exist, every row in the sheet's
-status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout stays at 20.
+status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout is 24 (steps 21 to 24 came with 1.0.7).
 """
 import ast
 import os
@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.7"
-SCHEMA = 20              # 1.0.6 ended at layout 20; 1.0.7 stays at 20
+SCHEMA = 24              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24
 
 # Filled with the rows merged so far; the cut bookkeeping adds the rest from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
@@ -487,7 +487,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "1.0.7 stays at layout 20")
+        self.assertEqual(schema_version(), SCHEMA, "1.0.7 ends at layout 24")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()
