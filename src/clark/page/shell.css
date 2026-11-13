@@ -213,7 +213,7 @@ table.items th { text-align: left; font-weight: var(--weight-regular); font-size
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: var(--space-1); }
-table.items .c-eye { width: 76px; white-space: nowrap; }
+table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
@@ -818,9 +818,11 @@ table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-t
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
-table.items .rmore { width: 28px; height: 28px; opacity: 0; vertical-align: middle; }
+table.items .rmore { width: 24px; height: 24px; margin-left: 0; opacity: 0; vertical-align: middle; }
 table.items tr:hover .rmore, table.items tr:focus-within .rmore, table.items .rmore:focus-visible, table.items .rmore[aria-expanded="true"] { opacity: 1; }
 @media (hover: none) { table.items .rmore { opacity: 1; } }
+@media (max-width: 1000px) { table.items .rmore { display: block; margin: 0 auto; } }          /* the narrow table keeps the eye column as it was: the button sits under the eye */
+@media (min-width: 1001px) { table.items .c-eye { width: 68px; } }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }

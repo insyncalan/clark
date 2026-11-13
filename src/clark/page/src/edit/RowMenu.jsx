@@ -404,7 +404,7 @@ export function RowMore({ row }) {
     openFor(tr, r.right + 4, r.top, e.detail > 0, b);
   };
   return (
-    <button type="button" class="ib rmore" aria-haspopup="menu" aria-expanded={s && s.id === row.id ? "true" : "false"} aria-label="More actions" title="More actions" data-rowmore={row.id} onClick={open} onDblClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+    <button type="button" tabIndex={-1} class="ib rmore" aria-haspopup="menu" aria-expanded={s && s.id === row.id ? "true" : "false"} aria-label="More actions" title="More actions" data-rowmore={row.id} onClick={open} onDblClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
       <Icon name="dots" />
     </button>
   );

@@ -1545,7 +1545,7 @@ class Menu(board.Base):
                 btn = f"tr[data-id='{a}'] button.rmore"
                 self.assertEqual(cdp.js(f"[document.querySelectorAll('tr[data-id] button.rmore').length, document.querySelectorAll('tr[data-id]').length]", sid)[0],
                                  cdp.js("document.querySelectorAll('tr[data-id]').length", sid), "one on every row")
-                self.assertEqual(cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(btn)}); return [b.getAttribute('aria-label'), b.title, b.tabIndex]; }})()", sid), ["More actions", "More actions", 0])
+                self.assertEqual(cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(btn)}); return [b.getAttribute('aria-label'), b.title, b.tabIndex]; }})()", sid), ["More actions", "More actions", -1])
                 self.assertEqual(cdp.js(f"getComputedStyle(document.querySelector({json.dumps(btn)})).opacity", sid), "0", "hidden until the row is hovered or focused")
                 before = self.steps()
                 cdp.js(f"document.querySelector({json.dumps(btn)}).scrollIntoView({{block: 'center'}})", sid)
