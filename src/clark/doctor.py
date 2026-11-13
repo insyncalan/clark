@@ -49,7 +49,7 @@ class Seen:
     """What the checks look at, and the system calls they make. Each is a seam the tests replace."""
 
     def __init__(self, data=None, port=None, environ=None, home=None, on=None, version=None, sqlite_version=None,
-                 data_dir=None, onedrive_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP):
+                 data_dir=None, onedrive_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP, identity=None, page=None):
         self.data, self.port_text, self.home, self.on, self.app = data, port, home, on or platform.system(), Path(app)
         self.environ = os.environ if environ is None else environ
         self.version = tuple(sys.version_info[:3]) if version is None else tuple(version)
@@ -58,7 +58,7 @@ class Seen:
         self.onedrive_roots = onedrive_roots or (lambda: platform.onedrive_roots(self.home, on=self.on))
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
-        self.health, self.free = health, free
+        self.health, self.free, self.identity, self.page = health, free, identity, page
         self._folder = self._roots = None
 
     def tilde(self, path):
@@ -168,6 +168,9 @@ def check_port(seen):
     if kind == launch.NOTHING:
         return Line(READY, "Nothing else on this computer is in the way of clark starting.")
     if kind == launch.OURS:
+        problem = launch.ours_problem(port, mark, seen.identity or launch.ask_identity, seen.page or launch.ask_page)
+        if problem:                             # row 1030: the launcher would refuse this one, so it is not ready
+            return Line(FIX, problem)
         return Line(READY, "Your clark is already running with this data.")
     if kind == launch.OTHER_DATA and folder is None:
         return Line(READY, "A copy of clark is already running on this computer.")

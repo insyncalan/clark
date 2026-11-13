@@ -146,7 +146,7 @@ class TheOtherMacOnlyCalls(Case):
     def test_each_says_it_needs_the_mac_in_a_container(self):
         self.inside()
         for call in self.calls():
-            with self.assertRaisesRegex(pl.NotBuiltYet, "needs the Mac, so it is not available when clark runs in Docker. To use it, start clark with clark.command instead.") as said:
+            with self.assertRaisesRegex(pl.NotBuiltYet, "This needs clark to run on the Mac itself; start it from Terminal: bash clark.command") as said:
                 call()
             self.assertNotIn("linux", str(said.exception))
             self.assertTrue(issubclass(type(said.exception), pl.PlatformError))
