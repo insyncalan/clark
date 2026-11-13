@@ -37,6 +37,18 @@ class Api(unittest.TestCase):
         self.assertEqual((status, body.get("message")), (200, None), body)
         return body
 
+    def test_a_store_rule_with_no_words_of_its_own_says_the_one_value_sentence_not_the_stores_text(self):
+        for said, shown in (("sort_order must be a whole number (got 'x')", changes.ITEM_VALUE_WORDS), ("A title must be text.", "A title must be text.")):
+            def work(store, by_user, req):
+                raise store_module.Invalid(said)
+            status, body = changes._call(self.path, [], USER, work, {})
+            self.assertEqual((status, body["message"], body["code"]), (400, shown, "refused"))
+        self.assertEqual(changes.ITEM_VALUE_WORDS, "That value isn't one clark can use.")
+
+    def test_an_unknown_key_in_an_undo_request_says_the_one_sentence(self):
+        status, body = self.undo({"project": "ABC", "apply_id": 1, "colour": "red"})
+        self.assertEqual((status, body["message"]), (400, "That change doesn't take 'colour'."))
+
     def refused(self, request, words, status=400):
         before = self.snapshot()
         got = self.change(request)
@@ -108,7 +120,7 @@ class Refusals(Api):
         self.refused([], changes.NOT_JSON_OBJECT)
         self.refused("text", changes.NOT_JSON_OBJECT)
         self.refused(None, changes.NOT_JSON_OBJECT)
-        self.refused({**self.req("new"), "colour": "red"}, "clark doesn't know 'colour' in that request.")
+        self.refused({**self.req("new"), "colour": "red"}, "That change doesn't take 'colour'.")
         self.refused({"kind": KIND, "op": "new"}, changes.BAD_PROJECT)
         self.refused({**self.req("new"), "project": "abc"}, changes.BAD_PROJECT)
         self.refused({**self.req("new"), "project": "ABC; DROP"}, changes.BAD_PROJECT)
@@ -897,7 +909,7 @@ class Undoing(Api):
     def test_unknown_keys_in_an_undo_are_refused(self):
         self.assertEqual(self.undo([])[1]["message"], changes.NOT_JSON_OBJECT)
         self.assertEqual(self.undo({"project": "ABC", "apply_id": 1, "kind": KIND})[1]["message"],
-                         "clark doesn't know 'kind' in that request.")
+                         "That change doesn't take 'kind'.")
         self.assertEqual(self.undo({"apply_id": 1})[1]["message"], changes.BAD_PROJECT)
 
 
