@@ -104,6 +104,17 @@ class ImportBox(unittest.TestCase):
         self.esc()
         self.until("T.closed === 1", "Esc closed the box")
 
+    def test_the_note_about_the_rest_follows_reject_all_and_accept_all(self):
+        self.to_plan(items(305))
+        note = "document.querySelector('#import-more').textContent"
+        self.assertIn("5 more, of which 5 will be imported", self.js(note))
+        self.click("#import-reject-all")
+        self.until(f"{note}.includes('of which 0 will be')", "the note follows Reject all")
+        self.assertEqual(self.js("document.querySelector('#import-go').disabled"), True)
+        self.click("#import-accept-all")
+        self.until(f"{note}.includes('of which 5 will be')", "the note follows Accept all")
+        self.assertEqual(self.js("document.querySelector('#import-go').textContent"), "Import 305 changes")
+
     def test_with_nothing_ticked_focus_is_inside_the_box_and_esc_closes_it(self):
         self.to_plan(items(2, default=False))
         self.until("document.querySelector('#import-box').contains(document.activeElement)", "focus is in the box")
@@ -123,13 +134,10 @@ class ImportBox(unittest.TestCase):
         self.assertEqual(self.js("T.closed"), 0)
 
 
-    def test_the_note_about_the_rest_follows_reject_all_and_accept_all(self):
-        self.to_plan(items(305))
-        note = "document.querySelector('#import-more').textContent"
-        self.assertIn("5 more, of which 5 will be imported", self.js(note))
-        self.click("#import-reject-all")
-        self.until(f"{note}.includes('of which 0 will be')", "the note follows Reject all")
-        self.assertEqual(self.js("document.querySelector('#import-go').disabled"), True)
-        self.click("#import-accept-all")
-        self.until(f"{note}.includes('of which 5 will be')", "the note follows Accept all")
-        self.assertEqual(self.js("document.querySelector('#import-go').textContent"), "Import 305 changes")
+class HelpMatchesTheBox(unittest.TestCase):
+    def test_help_has_no_refused_count_and_says_nothing_was_imported(self):
+        text = (PAGE_SRC / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("updated, refused", text)
+        self.assertNotIn("how many break a rule", text)
+        self.assertNotIn("A change that has a problem says why", text)
+        self.assertIn("the box says **Nothing was imported**", text)
