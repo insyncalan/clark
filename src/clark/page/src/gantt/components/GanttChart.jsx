@@ -126,6 +126,17 @@ export function GanttChart({
     return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
   }, []);
 
+  const boxFrom = useRef(null);
+  useEffect(() => {      // the edit box closes (Escape, Save, Cancel): focus goes back to the bar it was opened from, unless it already went somewhere else
+    if (box) { boxFrom.current = box.id; return; }
+    const id = boxFrom.current; boxFrom.current = null;
+    if (!id) return;
+    const a = document.activeElement;
+    if (a && a !== document.body) return;
+    const bar = [...document.querySelectorAll("[data-g-bar]")].find((b) => b.getAttribute("data-g-bar") === id);
+    if (bar) bar.focus();
+  }, [box]);
+
   useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
     if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
   }, [menu]);
