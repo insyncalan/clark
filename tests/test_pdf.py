@@ -279,6 +279,30 @@ class Pure(unittest.TestCase):
             pipe.recv_json()
         pipe.close()
 
+    def test_pipe_big_message_is_not_quadratic(self):
+        import threading
+        import time
+        r, w = os.pipe()
+        o_r, o_w = os.pipe()
+        body = b'{"data": "' + b"a" * (60 << 20) + b'"}\0'
+
+        def feed():
+            view = memoryview(body)
+            while view:
+                view = view[os.write(w, view[:1 << 20]):]
+        t = threading.Thread(target=feed)
+        t.start()
+        pipe = pdf._Pipe(o_w, r, time.monotonic() + 30)
+        start = time.monotonic()
+        got = pipe.recv_json()
+        took = time.monotonic() - start
+        t.join()
+        self.assertEqual(len(got["data"]), 60 << 20)
+        self.assertLess(took, 5)
+        pipe.close()
+        os.close(w)
+        os.close(o_r)
+
     def test_remove_folder_retries(self):
         with tempfile.TemporaryDirectory() as d:
             sub = Path(d) / "a"
