@@ -259,7 +259,7 @@ BULLET_STARTS = {
     '1104': 'You can change a column\'s width by dragging',
     '831': 'The Data card in Settings has Export to Word and Import',
     '951': 'The Data card also has "Excel file layout". It opens a b',
-    '658': 'A work item or a decision can be deleted from its "..."',
+    '658': 'A work item or a decision can be deleted from its row menu',
     '1094': 'While ask clark is working, it shows a line from a deck',
     '1095': 'In the ask clark panel, New chat, History and Close are',
     '1036': 'The milestone plan picture in the Word file has the lane',
