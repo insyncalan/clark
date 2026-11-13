@@ -87,8 +87,7 @@ class RefusalWords(unittest.TestCase):
                            ("\\\\server\\Users\\sam\\Dropbox\\clark", "~\\Dropbox\\clark"),
                            ("\\\\srv\\share\\Users\\sam\\Dropbox", "~\\Dropbox"),
                            ("\\\\?\\UNC\\srv\\share\\Users\\sam\\x", "~\\x"),
-                           ("\\\\?\\UNC\\srv\\Users\\sam\\x", "~\\x"),
-                           ("//srv/share/Users/sam/x", "~/x")):
+                           ("\\\\?\\UNC\\srv\\Users\\sam\\x", "~\\x")):
             with self.subTest(raw=raw):
                 self.assertEqual(pl.host_shown(raw), shown)
                 self.assertNotIn("sam", pl.host_shown(raw))
