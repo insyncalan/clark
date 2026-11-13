@@ -838,7 +838,7 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar { display: flex; align-items: center; gap: var(--space-3); margin: 14px 0 10px; }
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
-.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
@@ -936,7 +936,7 @@ body.board-view:not(.board-full) .frame.work { padding-bottom: 0; }
    filters and the swimlane row are its first lines, so they scroll away. Lane and column headings stay (sticky, above). */
 body.board-full { overflow: hidden; --topbar: 0px; }
 body.board-full .top, body.board-full .crumbs, body.board-full .head, body.board-full .note { display: none; }
-body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior-y: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
 body.board-full .frame { background: transparent; border: 0; box-shadow: none; padding: 0; }
 body.board-full #work-list, body.board-full .wbar { padding-top: 0; }
 body.board-full .boardbox { overflow: visible; max-height: none; }
