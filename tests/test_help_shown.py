@@ -138,6 +138,21 @@ class Held(unittest.TestCase):
         self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 36, 34))   # 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
 
 
+def lacks(code, name):
+    """True when the page's code lacks the bold name. "N" stands for a count the screen builds (`Show all ${n} use cases`) and a menu
+    heading built from the Group by word (`Move to ${groupLabel(g)}`) is read as its template."""
+    name = re.sub(r"[‘’]", "'", name).strip(" .,:;…")
+    if name in code:
+        return False
+    if re.fullmatch(r"Show all N [a-z ]+", name):
+        return name.replace(" N ", " ${n} ") not in code
+    if name == "Move to Status":
+        return "`Move to ${groupLabel(g)}`" not in code
+    if re.fullmatch(r"(Workstream|Type) lanes", name):
+        return "${groupLabel(x)} lanes" not in code
+    return True
+
+
 class AgainstThePage(unittest.TestCase):
     """HIGH 1: what Help shows must exist on the page as it is today."""
     CODE = page_code()
@@ -146,7 +161,7 @@ class AgainstThePage(unittest.TestCase):
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
         code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Summary, This week, Next week) come from the server
-        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
     def test_the_held_use_case_entry_names_only_what_the_page_has(self):
@@ -155,7 +170,7 @@ class AgainstThePage(unittest.TestCase):
         code = norm(self.HELPCODE)
         entry = next(x for x in RAW["howto"]["tasks"] if x["id"] == "keep-the-use-cases")
         self.assertIn("keep-the-use-cases", LATER["howto"])
-        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(names, [])
 
     def test_every_screen_shown_is_a_tab_of_the_page(self):
@@ -249,6 +264,9 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
+    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
+    "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
@@ -405,6 +423,73 @@ class Wording(unittest.TestCase):
         html = build_page.build()
         self.assertNotIn("Open the report with a message", html)
         self.assertNotIn("the archive picture in the top bar archives the milestone and closes the peek", html)      # a held entry (the milestone peek) is not in the page
+
+
+def _src(*p):
+    return PAGE_SRC.joinpath(*p).read_text(encoding="utf-8")
+
+
+DOCS, USE_CASES, MILESTONES = _src("edit", "DocumentsEdit.jsx"), _src("components", "UseCases.jsx"), _src("logic", "milestones.js")
+FILTER_LINE, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
+
+
+def _flat(x):
+    return [x] if isinstance(x, str) else [y for v in (x if isinstance(x, list) else x.values() if isinstance(x, dict) else []) for y in _flat(v)]
+
+
+ALL = _flat(RAW)
+
+
+class HelpWordsMatchScreen(unittest.TestCase):
+    """w20b (Jarvis-approved): Help words each button as the screen does, pinned to the screen's own string read from its source."""
+    def test_add_a_document_link(self):
+        self.assertRegex(DOCS, r'>Add a document link</button>')
+        self.assertTrue(any("press **Add a document link** at the foot" in s for s in ALL))
+        self.assertFalse(any("+ Add a document link" in s for s in ALL))
+
+    def test_add_back_a_document(self):
+        self.assertRegex(DOCS, r"<summary>Add back a document \(")
+        self.assertTrue(any("**Add back a document** brings it back" in s for s in ALL))
+        self.assertFalse(any("+ Add back a document" in s for s in ALL))
+
+    def test_show_all_use_cases(self):
+        m = re.search(r"`Show all \$\{n\} (use cases)`", USE_CASES)
+        self.assertIsNotNone(m, "the screen's word changed")
+        self.assertTrue(any("**Show all N use cases** shows the rest" in s for s in ALL))
+        self.assertFalse(any("**Show all** shows the rest" in s and "use cases" in s for s in ALL))
+
+    def test_show_all_milestones(self):
+        m = re.search(r"`Show all \$\{n\} (milestones)`", MILESTONES)
+        self.assertIsNotNone(m, "the screen's word changed")
+        self.assertTrue(any("**Show all N milestones** shows the rest" in s for s in ALL))
+        self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
+
+    def test_swimlane_choices(self):
+        self.assertIn('name: "No lanes"', FILTER_LINE)
+        self.assertIn("name: `${groupLabel(x)} lanes`", FILTER_LINE)
+        self.assertIn('Workstream', FILTER_LINE + FILTERS)
+        self.assertTrue(any("choose **No lanes**, **Workstream lanes** or **Type lanes**." in s for s in ALL))
+        self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
+
+    def test_move_to_lists(self):
+        self.assertIn("head: `Move to ${groupLabel(g)}`", BOARD)
+        self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
+        self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
+        self.assertFalse(any("**Move to…**" in s for s in ALL))
+
+    def test_add_menu_words(self):
+        for word in ("Add action", "Add risk", "Add issue", "Add decision"):
+            self.assertIn(f'"{word}"', FILTERS)
+        self.assertIn('"Add risk or issue"', FILTERS)
+        self.assertIn('"Add item"', FILTERS)
+        self.assertTrue(any("(a menu of **Add risk** and **Add issue**) and, with no type on the line, **Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**)" in s for s in ALL))
+        self.assertFalse(any("a menu of Risk and Issue" in s or "a menu of Action, Risk" in s for s in ALL))
+
+    def test_move_to_friday_and_the_date(self):
+        self.assertIn("`Move to Friday ${showDate(fri)}`", PEEK_LATEST)
+        mine = [s for s in ALL if "such as **Move to Friday**" in s]
+        self.assertEqual(len(mine), 2)
+        self.assertTrue(all("such as **Move to Friday** and the date." in s for s in mine))
 
 
 if __name__ == "__main__":
