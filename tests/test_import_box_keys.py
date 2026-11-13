@@ -103,3 +103,9 @@ class ImportBox(unittest.TestCase):
         self.until("document.activeElement && document.activeElement.id === 'import-close'", "focus moved to Close")
         self.esc()
         self.until("T.closed === 1", "Esc closed the box")
+
+    def test_with_nothing_ticked_focus_is_inside_the_box_and_esc_closes_it(self):
+        self.to_plan(items(2, default=False))
+        self.until("document.querySelector('#import-box').contains(document.activeElement)", "focus is in the box")
+        self.esc()
+        self.until("T.closed === 1", "Esc closed the box")

@@ -16,7 +16,8 @@ export function Dialog({ title, id, onClose, first, wide, children, foot, onSubm
   useEffect(() => {
     const r = root.current;
     const release = inertBehind(r);                                 // everything outside the box, a toast button too (modalLayers.js)
-    const start = (first && r && r.querySelector(first)) || (r && tabbable(r)[0]);
+    const c = first && r && r.querySelector(first);       // a disabled button cannot take the focus: fall back to the first control, then the box
+    const start = (c && !c.disabled && c) || (r && tabbable(r)[0]) || r;
     if (start) start.focus();
     return () => {
       release();
