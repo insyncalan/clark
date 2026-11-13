@@ -337,6 +337,16 @@ class EditTiles(Setup):
             p.saved()
             self.assertEqual(self.tiles(p)[:2], ["risks", "health"])
 
+    def test_escape_in_the_outline_menu_returns_focus_to_the_grip(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+            p.until("!!document.querySelector('.tilemenu')", "the colour menu")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.tilemenu:not(.leaving)')", "closed")
+            self.assertTrue(p.js("document.activeElement === document.querySelector('[data-tile=overdue] [data-tile-grip]')"))
+
     def test_right_click_sets_the_outline_colour_and_undo_puts_it_back(self):
         with chrome() as cdp:
             p = self.show(cdp)
