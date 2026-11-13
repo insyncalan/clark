@@ -22,7 +22,9 @@ import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnO
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
 import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
-import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
+import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
+import { clientPill } from "../logic/sectionRows.js";
+import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
@@ -96,14 +98,14 @@ function focusRow(tr, id, cell) {
 
 // #970: a row deleted in Edit keeps its place for the fade (a copy with no id and no role, inert, hidden from a screen reader), then leaves the DOM.
 function GhostRow({ row, today, Eye, group, onMotionEnd }) {
-  const due = dueCell(row, today), pill = pillOf(row, today), o = ownerOf(row.owner);
+  const due = dueCell(row, today), pill = clientPill(row, today), o = ownerOf(row.owner);
   return (
     <tr class="leaving" role="presentation" aria-hidden="true" inert onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "m-out") onMotionEnd(row.id); }}>
-      <td class="c-item"><div class="tcell"><span class={`kb k-${row.kind}`} aria-hidden="true">{kindLetter(row.kind)}</span><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group)}</span></span></div></td>
+      <td class="c-status"><ItemIcon row={row} pill={pill} today={today} plain /></td>
+      <td class="c-item"><div class="tcell"><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group)}</span></span></div></td>
       <td class="c-owner">{o.text}</td>
       <td class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td>
       <td class="c-prio">{row.priority || ""}</td>
-      <td class="c-status"><span class={`pill ${pill.class}`}>{pill.text}</span></td>
       {Eye ? <td class="c-eye" /> : null}
     </tr>
   );
@@ -137,7 +139,7 @@ function useRowMotion(lay) {
 
 function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMotionEnd }) {
   if (motion === "leave") return <GhostRow row={row} today={today} Eye={Eye} group={group} onMotionEnd={onMotionEnd} />;
-  const due = dueCell(row, today), pill = pillOf(row, today);
+  const due = dueCell(row, today), pill = clientPill(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
   const on = selecting() && !hand, picked = on && sel.ids.value.includes(row.id);
@@ -160,9 +162,9 @@ function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMo
           </label> : null}
         </td>
       ) : null}
+      <td class="c-status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
       <td class="c-item">
         <div class="tcell">
-          <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
           <span class="tx">
             <span class="t">{row.title}</span>
             <span class="meta">{metaOf(row, group)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
@@ -172,7 +174,6 @@ function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMo
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
       {Eye ? <td class="c-eye"><Eye row={row} />{More ? <More row={row} /> : null}</td> : null}
     </tr>
   );
@@ -184,14 +185,14 @@ function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMo
 // the Client-visible eye. A published file has no eye column, and its code holds none of the eye's words: the client is shown nothing about what is internal.
 // A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
 // while it is drawn, else the first row drawn.
-const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
+const COLS = ["c-status", "c-item", "c-owner", "c-due", "c-prio"];
 const NO_WIDTHS = { style: () => undefined, grip: () => null, head: () => ({}) };      // a published file: the default widths, no handles
 function Heads({ eye, hand, cw }) {
   const g = (id, name) => cw.grip(id, name), h = (id, name) => cw.head(id, name);
   return (
     <>
       {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
-      <th scope="col" class="c-item" {...h("item", "Item")}>Item{g("item", "Item")}</th><th scope="col" class="c-owner" {...h("owner", "Owner")}>Owner{g("owner", "Owner")}</th><th scope="col" class="c-due" {...h("due", "Due")}>Due{g("due", "Due")}</th><th scope="col" class="c-prio" {...h("prio", "Priority")}>Priority{g("prio", "Priority")}</th><th scope="col" class="c-status" {...h("status", "Status")}>Status{g("status", "Status")}</th>
+      <th scope="col" class="c-status" {...h("status", "Status")}>Status{g("status", "Status")}</th><th scope="col" class="c-item" {...h("item", "Item")}>Item{g("item", "Item")}</th><th scope="col" class="c-owner" {...h("owner", "Owner")}>Owner{g("owner", "Owner")}</th><th scope="col" class="c-due" {...h("due", "Due")}>Due{g("due", "Due")}</th><th scope="col" class="c-prio" {...h("prio", "Priority")}>Priority{g("prio", "Priority")}</th>
       {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );
