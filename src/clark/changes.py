@@ -204,7 +204,7 @@ BULK_PROJECTS = "These items are in different projects."
 BULK_CONFIRM = "Send confirm as true or false."
 BULK_ARCHIVED = "It is archived. Restore it first."
 BULK_NOT_CLOSED = "It isn't closed, so it stays as it is."       # item 1133: Reopen only undoes a close
-BULK_CANCELLED = "It is cancelled, so it stays cancelled."         # item 1133: Close does not turn Cancelled into Closed
+BULK_CANCELLED = "It is cancelled, so it stays cancelled."         # item 1133: neither Close nor Reopen touches a Cancelled item (Cancelled is not closed)
 BULK_NOT_FROM = "Its status isn't one this change applies to, so it stays as it is."
 BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
 DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
@@ -1790,7 +1790,7 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
         if decided and row["status"] in DECIDED:
             return BULK_DECIDED
         if from_status is not None and row["status"] not in from_status:     # item 1133: only items in these statuses take the change
-            return BULK_CANCELLED if row["status"] == "Cancelled" and changes.get("status") == "Closed" else \
+            return BULK_CANCELLED if row["status"] == "Cancelled" else \
                 BULK_NOT_CLOSED if changes.get("status") == "Open" and "Closed" in from_status else BULK_NOT_FROM
         return None
     return _bulk_write(store, by_user, project, place, {ref: (table, changes) for ref in ids}, kept)

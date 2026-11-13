@@ -71,9 +71,10 @@ export function changesFor(table, id, value) {
   return null;
 }
 
-/** Item 1133: the statuses an item may be in to take Close (not Cancelled) or Reopen (only Closed). null: any. */
-export function fromStatusFor(id) {
-  if (id === "close") return ["Open", "Delayed", "Closed"];
+/** Item 1133: the statuses an item may be in to take Close (not Cancelled) or Reopen (only Closed). null: any. A risk, issue or other
+ *  RAID line has no Delayed status, and the server refuses a status the table does not have. */
+export function fromStatusFor(id, table = "actions") {
+  if (id === "close") return table === "raid" ? ["Open", "Closed"] : ["Open", "Delayed", "Closed"];
   if (id === "reopen") return ["Closed", "Open"];
   return null;
 }

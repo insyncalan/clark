@@ -99,8 +99,10 @@ class Rules(unittest.TestCase):
 
     def test_close_and_reopen_send_a_from_status(self):                               # item 1133
         got = self.run_("return [B.fromStatusFor('close'), B.fromStatusFor('reopen'), B.fromStatusFor('status'),"
-                        " B.requestFor('actions', ['ABC-A-001'], {status: 'Open'}, {fromStatus: B.fromStatusFor('reopen')}).from_status];")
-        self.assertEqual(got, [["Open", "Delayed", "Closed"], ["Closed", "Open"], None, ["Closed", "Open"]])
+                        " B.requestFor('actions', ['ABC-A-001'], {status: 'Open'}, {fromStatus: B.fromStatusFor('reopen')}).from_status,"
+                        " B.fromStatusFor('close', 'raid'), B.fromStatusFor('reopen', 'raid')];")
+        self.assertEqual(got, [["Open", "Delayed", "Closed"], ["Closed", "Open"], None, ["Closed", "Open"], ["Open", "Closed"], ["Closed", "Open"]],
+                         "a RAID line has no Delayed status: its Close sends only Open and Closed")
 
     def test_the_question_is_asked_above_25(self):
         self.assertEqual(self.run_("return [B.needsConfirm(25), B.needsConfirm(26), B.confirmWords(26)];"), [False, True, "Change 26 items?"])

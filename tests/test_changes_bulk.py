@@ -173,7 +173,7 @@ class Bulk(unittest.TestCase):
         _, body = self.send("actions", self.actions, {"status": "Open"}, from_status=["Closed", "Open"])
         self.assertEqual(body["changed"], self.actions[:1], body)
         self.assertEqual([e["id"] for e in body["left_out"]], self.actions[1:])
-        self.assertEqual({e["why"] for e in body["left_out"]}, {changes.BULK_NOT_CLOSED})
+        self.assertEqual([e["why"] for e in body["left_out"]], [changes.BULK_NOT_CLOSED, changes.BULK_CANCELLED], "Delayed is not closed; Cancelled is cancelled, not 'not closed'")
         self.assertIn("Left out", body["words"])
         self.assertEqual([self.value("actions", r, "status") for r in self.actions], ["Open", "Delayed", "Cancelled"])
 
@@ -183,6 +183,15 @@ class Bulk(unittest.TestCase):
         self.assertEqual(body["changed"], self.actions[:2], body)
         self.assertEqual(body["left_out"], [{"id": self.actions[2], "why": changes.BULK_CANCELLED}])
         self.assertEqual(self.value("actions", self.actions[2], "status"), "Cancelled")
+
+    def test_close_on_raid_lines_with_the_pages_from_status_is_accepted_and_leaves_cancelled_alone(self):     # item 1133
+        for ref, w in zip(self.risks, ("Open", "Cancelled")):
+            with self.s.step("dashboard", USER) as st:
+                st.update("raid", ref, {"status": w})
+        _, body = self.send("raid", self.risks, {"status": "Closed"}, from_status=["Open", "Closed"])      # what the page sends for RAID: no Delayed
+        self.assertEqual(body["changed"], self.risks[:1], body)
+        self.assertEqual(body["left_out"], [{"id": self.risks[1], "why": changes.BULK_CANCELLED}])
+        self.refused("raid", self.risks, {"status": "Closed"}, changes.NOT_A_STATUS, from_status=["Open", "Delayed", "Closed"])
 
     def test_a_bad_from_status_is_refused(self):                                      # item 1133
         for bad in ([], "Closed", ["Nope"], [3]):
