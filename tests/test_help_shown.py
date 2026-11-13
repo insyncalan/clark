@@ -229,7 +229,8 @@ class AgainstThePage(unittest.TestCase):
         # 10 measured with the Settings entries reworded (15 before): the How do I entries no longer bold Personal arrow Spacing, Personal arrow Appearance, Settings arrow Projects or the Review X.Y.Z placeholder, none of which is a label of the page
         # 15 measured with row 828 (the milestone peek's own fields: State, Progress, Visible to client and Client wording are on the page now, 16 before)
         # 8 measured on the merge of main (8) into the milestone peek and Source line branch (14): both sides' removals of false names together (9 fails)
-        self.assertGreaterEqual(len(names), 8)
+        # 8 to 7 when Help said "Automatic" (the tile outline choice) instead of the wrong "Automatic, from the data", which the page never had
+        self.assertGreaterEqual(len(names), 7)
 
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
