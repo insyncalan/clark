@@ -265,6 +265,23 @@ class InThePage(Base):
     def fill(self, p, selector, text):
         p.js(f"(function(){{var e=document.querySelector({json.dumps(selector)}); e.focus(); e.value={json.dumps(text)};}})()")
 
+    def test_escape_in_a_label_or_a_day_puts_the_saved_text_back_and_saves_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.edit()
+            sec = f'[data-id="{self.ref}"]'
+            p.until(f"!!document.querySelector('{sec} input[aria-label=\"Date label\"]')", "the list")
+            before = self.stored()
+            for label, typed_text, saved in (("Date label", "Typed then cancelled", "Board meeting"), ("Date, DD-MM-YYYY", "01-01-2031", "10-04-2030")):
+                box = f"{sec} input[aria-label='{label}']"
+                self.fill(p, box, typed_text)
+                p.key("Escape", code="Escape", vk=27)
+                p.until(f"document.querySelector({json.dumps(box)}).value === {json.dumps(saved)}", f"the saved {label} is back")
+            import time
+            time.sleep(0.5)
+            self.assertEqual(self.stored(), before)
+            self.assertEqual([w for w, r in self.sent if w == "change"], [], "no save was sent")
+
     def test_edit_adds_a_typed_date_in_one_step_and_undo_takes_it_back(self):
         with chrome() as cdp:
             p = self.page(cdp)

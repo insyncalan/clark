@@ -122,7 +122,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   }
   if (step.at === "done" || step.at === "undone") {
     return (
-      <Dialog key="done" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
+      <Dialog key={step.at} id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
         foot={<>{step.at === "done" && step.applyId ? <button type="button" class="btn quiet" id="import-undo" onClick={undo}>{T.undo}</button> : null}<button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button></>}>
         <p role="status" id="import-result">{step.message}</p>
         <p class="error" role="alert" id="import-problem">{problem}</p>
