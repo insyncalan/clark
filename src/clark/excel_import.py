@@ -114,7 +114,7 @@ import zipfile
 import zlib
 from html import unescape
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -605,23 +605,36 @@ def _six_digit_fraction(text):
     return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
 
 
+def _naive(when):
+    """A date-time with any timezone suffix taken to UTC and then dropped, so two of them can always be subtracted."""
+    if when.tzinfo is not None:
+        when = when.astimezone(timezone.utc).replace(tzinfo=None)
+    return when
+
+
+def _read_when(text):
+    """Text as a naive date-time: a trailing Z or an offset is read and stripped. Raises ValueError when it is not a date-time."""
+    text = text.strip().replace("T", " ")
+    if text[-1:] in ("Z", "z"):
+        text = text[:-1] + "+00:00"
+    return _naive(datetime.fromisoformat(_six_digit_fraction(text)))
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
-    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
-    if isinstance(cell, datetime):
-        then, slack = cell, 0.002
-    else:
-        text = str(cell).strip().replace("T", " ")
-        try:
-            then = datetime.fromisoformat(_six_digit_fraction(text))
-        except ValueError:
-            return False
-        slack = 0.002 if "." in text else 1.0
+    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash.
+    A timezone suffix (Z or an offset) is read and dropped; this never raises."""
     try:
-        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
-    except ValueError:
+        if isinstance(cell, datetime):
+            then, slack = _naive(cell), 0.002
+        else:
+            text = str(cell)
+            then = _read_when(text)
+            slack = 0.002 if "." in text else 1.0
+        now = _read_when(str(stored))
+        return abs((now - then).total_seconds()) > slack
+    except (ValueError, TypeError, OverflowError):
         return False
-    return abs((now - then).total_seconds()) > slack
 
 
 # ── Reading the workbook ──────────────────────────────────────────────────────
