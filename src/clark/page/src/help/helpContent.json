@@ -901,7 +901,7 @@
       "ul",
       [
        "The project button (an arrow beside the logo): switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
-       "**Dashboard**, **Work items** and **Milestones**: the three screens.",
+       "**Dashboard**, **Work items**, **Milestones** and **Use cases**: the screens. A **Gantt** tab (it carries the project’s own tab name) appears after them when that setting is on.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
