@@ -43,7 +43,7 @@ NOTHING_TICKED = "No items are ticked. Tick at least one to draft the email."
 NO_OPEN_ITEMS = "There are no open items to put in an email."
 NO_SENDER = "Add your name in Settings › Profile so it signs the email."
 # Shown, with the preview selected, when the browser refuses the clipboard.
-COPY_REFUSED = "The browser did not copy it. Press ⌘C to copy the selected text."
+COPY_REFUSED = "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text."
 MAILTO_LIMIT = 2000        # the longest finished mailto: link (encoded) that every mail app keeps whole; longer ones are cut off
 HELD_WORDS = ("confidential", "restricted")
 WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
