@@ -61,6 +61,7 @@ function dueValues(row, ctx) {
   if (a === null || t === null) return ["none"];
   if (!isOpen(row)) return [];
   const n = a - t;
+  if (n < 0 && row.status === "Completed") return [];
   return n < 0 ? ["overdue"] : n === 0 ? ["today", "soon"] : n <= 7 ? ["soon"] : ["later"];
 }
 

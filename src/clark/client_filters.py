@@ -98,7 +98,7 @@ def bucket_of(row, today):
     a, b = glance.day_number(row.get("due")), glance.day_number(today)
     if a is None or b is None:
         return "none"
-    if glance.is_open(row):
+    if glance.is_open(row) and not (a < b and row.get("status") == "Completed"):
         return "overdue" if a < b else "soon" if a - b <= 7 else "later"
     return "past" if a < b else "later"
 

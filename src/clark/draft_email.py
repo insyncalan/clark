@@ -158,7 +158,17 @@ def working_days_ahead(start, n=2, weekend=(5, 6)):
     return d.isoformat()
 
 
-def due_info(due, today, kind="actions", soon=DUE_SOON_DAYS):
+def _done(item):
+    return str(item.get("status") or "").strip().lower() == "completed"
+
+
+def is_late(item, today):
+    """True when the item has a due date before today and is not finished work (a Completed item is never overdue)."""
+    return bool(item.get("due") and today and item["due"] < today
+                and not _done(item))
+
+
+def due_info(due, today, kind="actions", soon=DUE_SOON_DAYS, done=False):
     """{date, words, level} for a due (or needed-by) date: level is "over", "soon" or "". "4 days overdue", "due in 6 days",
     "due today", "due tomorrow"; a decision says "needed". No date reads "No date"; beyond the window there are no words."""
     if not due:
@@ -167,6 +177,8 @@ def due_info(due, today, kind="actions", soon=DUE_SOON_DAYS):
         n = (date.fromisoformat(due) - date.fromisoformat(today)).days
     except ValueError:
         return {"date": str(due), "words": "", "level": ""}
+    if n < 0 and done:                        # finished work keeps its date but is never overdue
+        return {"date": shown(due), "words": "", "level": ""}
     if n < 0:
         return {"date": shown(due), "words": f"{-n} day{'' if n == -1 else 's'} overdue", "level": "over"}
     if n > soon:
@@ -178,7 +190,7 @@ def due_info(due, today, kind="actions", soon=DUE_SOON_DAYS):
 
 def _rank(item, today):
     due = item.get("due") or ""
-    return (0 if due and due < today else 1 if due else 2, due or "9999", item.get("id") or "")
+    return (0 if is_late(item, today) else 1 if due else 2, due or "9999", item.get("id") or "")
 
 
 def sort_items(items, today):
@@ -244,7 +256,7 @@ def items_for_owner(items, owner, address="", own_domains=(), mode="update_reque
     mine = [i for i in items if str(i.get("owner") or "").strip().lower() == want]
     ok, _ = offered(mine, address, own_domains)
     if mode == "chase":
-        ok = [i for i in ok if i.get("due") and i["due"] < today and i.get("kind") != "decisions"]
+        ok = [i for i in ok if is_late(i, today) and i.get("kind") != "decisions"]
     return sort_items(ok, today or "9999-12-31")
 
 
@@ -259,7 +271,7 @@ def mode_for(item, today):
     else is an update request."""
     if item.get("kind") == "decisions":
         return "decision"
-    return "chase" if item.get("due") and item["due"] < today else "update_request"
+    return "chase" if is_late(item, today) else "update_request"
 
 
 # ---- chase counts and the tone -----------------------------------------------------------------------------------------
@@ -328,7 +340,7 @@ def subject(mode, items, today, tone=0, project_names=None, reply_by=""):
         return word
     if len(items) == 1:
         return f"{lead}{one_line(items[0]['id'])} · {word}: {short(items[0].get('text'))}"
-    over = sum(1 for i in items if i.get("due") and i["due"] < today)
+    over = sum(1 for i in items if is_late(i, today))
     if mode == "chase":
         if over == len(items):
             return f"{lead}{word}: {len(items)} overdue items"
@@ -343,7 +355,7 @@ def _held(unblocks):
 
 def _days_late(item, today):
     """Whole days past the due date, or 0 when the item is not past it (or has no date)."""
-    if not (item.get("due") and today and item["due"] < today):
+    if not is_late(item, today):
         return 0
     return (date.fromisoformat(today) - date.fromisoformat(item["due"])).days
 
@@ -474,7 +486,7 @@ def _muted(text):
 
 
 def _row_html(item, today, include_update):
-    d = due_info(item.get("due"), today, item.get("kind") or "actions")
+    d = due_info(item.get("due"), today, item.get("kind") or "actions", done=_done(item))
     colour = COLOURS["red"] if d["level"] == "over" else COLOURS["amber"] if d["level"] == "soon" else COLOURS["ink"]
     strong = "font-weight:bold;" if d["level"] == "over" else ""
     what = escape(_what(item))
@@ -500,7 +512,7 @@ def _text_rows(items, today, include_update):
     pad = " " * width
     out = []
     for i in items:
-        d = due_info(i.get("due"), today, i.get("kind") or "actions")
+        d = due_info(i.get("due"), today, i.get("kind") or "actions", done=_done(i))
         words = f" ({d['words']})" if d["words"] else ""
         out.append(f"  {i['id'].ljust(width)}  {_what(i)}  |  {d['date']}{words}  |  {i.get('priority') or ''}")
         out += [f"  {pad}  {x}" for x in _lines(i, include_update)]

@@ -223,6 +223,32 @@ class Card(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => li.innerText.trim().split(' (')[0])"),
                              ["Actions", "Risks & Issues", "Milestones", "Use cases"])
 
+    def test_the_sheets_ticked_last_time_are_ticked_again_when_the_box_is_opened_again(self):
+        """#1106, in the browser: Continue keeps exactly the ticked sheets, and the next time the sheet list opens only those are ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        ticks = "[...document.querySelectorAll('#import-sheet-list li')].map(li => li.querySelector('input').checked)"
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_box(p)
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list")
+                self.assertEqual(p.js(ticks), [True] * 5, "nothing remembered: all ticked")
+                p.js("document.querySelector('#import-clear').click()")
+                p.js("document.querySelector('[data-sheet=raid]').click()")
+                p.js("document.querySelector('[data-sheet=milestones]').click()")
+                p.js("document.querySelector('#import-continue').click()")
+                p.until("!!document.querySelector('#import-none') || !!document.querySelector('#import-summary')", "the check")
+                self.assertEqual(p.js("JSON.parse(localStorage.getItem('clark.import.sheets'))"), ["raid", "milestones"], "the ticked tables are kept")
+                p.js("document.querySelector('#import-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+                p.until("!document.querySelector('#import-box')", "Esc closed it")
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened again")
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+                self.assertEqual(p.js(ticks), [False, True, False, True, False], "Risks & Issues and Milestones are ticked again, the rest are not")
+
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import
         with chrome() as cdp:

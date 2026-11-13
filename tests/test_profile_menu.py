@@ -25,8 +25,10 @@ ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
 
 class ProfileMenu(Base):
     def open_menu(self, p):
-        p.js("document.querySelector('#profile-btn').focus(); document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+        p.js("document.querySelector('#profile-btn').focus()")
+        p.until("(() => { if (document.querySelector('#profile-menu')) return true; "
+                "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
+                "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def labels(self, p):
         return p.js("[].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent})")
@@ -204,6 +206,27 @@ class ProfileMenu(Base):
             self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
             p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_the_top_line_stacks_the_name_over_the_email(self):
+        """The name in bold with the email under it (not side by side), at 1400 and 900, in light and in dark."""
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Sam Lee", "profile_email": "sam@example.test"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                for theme in ("light", "dark"):
+                    with self.subTest(width=w, theme=theme):
+                        p.js("document.documentElement.setAttribute('data-theme', %s)" % json.dumps(theme))
+                        self.open_menu(p)
+                        p.until("!!document.querySelector('#profile-menu .who b')", "the name line drew")
+                        r = p.js("(function(){var w=document.querySelector('#profile-menu .who'),b=w.querySelector('b').getBoundingClientRect(),s=w.querySelector('small').getBoundingClientRect();"
+                                 "return {top:b.bottom,sTop:s.top,bl:b.left,sl:s.left,disp:getComputedStyle(w).display,name:w.querySelector('b').textContent,email:w.querySelector('small').textContent}})()")
+                        self.assertEqual((r["name"], r["email"]), ("Sam Lee", "sam@example.test"))
+                        self.assertNotIn("flex", r["disp"], "the line is a block, not the owner cell's inline-flex row")
+                        self.assertGreaterEqual(r["sTop"], r["top"] - 1, "the email is under the name")
+                        self.assertAlmostEqual(r["bl"], r["sl"], delta=1, msg="both start at the same left edge")
+                        p.key("Escape", code="Escape", vk=27)
+                        p.until("!document.querySelector('#profile-menu')", "closed")
 
     def test_C_the_settings_link_opens_settings(self):
         with chrome() as cdp:

@@ -8,6 +8,7 @@ switch reads as off too. The folder choice calls
 server with the route would give are put in by replacing the page's fetch for that one address. Chrome is required: fails, never skips.
 """
 import os
+import json
 import re
 import shutil
 import sqlite3
@@ -336,6 +337,31 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed")
                 self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
                 self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
+
+    def test_the_typed_location_is_trimmed_spaces_alone_add_nothing_and_a_refused_one_stays_in_the_box(self):
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+            js("window.__ask.choices = ['/nowin']")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+            put = lambda text: js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(text))
+            put("    ")
+            self.assertTrue(wait(lambda: js("document.querySelector('#ask-folder-path').value") == "    ", 10))
+            self.assertTrue(js("document.querySelector('[data-ask-add]').disabled"), "spaces alone are nothing to add")
+            before = js("window.__ask.calls.filter(Boolean).length")
+            js("document.querySelector('#ask-folder-form').requestSubmit()")                    # Enter in the box submits even when the button is off
+            self.assertEqual(js("window.__ask.calls.filter(Boolean).length"), before, "nothing was sent for spaces")
+            put("/bad")                                                                           # the server refuses it: the words stay to be corrected
+            self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+            js("document.querySelector('[data-ask-add]').click()")
+            self.assertTrue(wait(lambda: "passwords" in (js("(document.querySelector('#ask-settings .pub-msg') || {}).innerText") or ""), 10))
+            self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "/bad", "a refused location is not cleared")
+            put("  /Example/typed  ")
+            self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+            js("document.querySelector('[data-ask-add]').click()")
+            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+            self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed", "sent without the spaces")
 
     def test_the_sources_hold_no_sentence_that_starts_with_the_product_name_and_the_published_page_has_none_of_it(self):
         text = "\n".join((PAGE_SRC / "edit" / n).read_text(encoding="utf-8") for n in ("AskSettings.jsx", "askState.js"))
