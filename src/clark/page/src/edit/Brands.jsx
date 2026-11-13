@@ -30,6 +30,10 @@ export function Brands({ api = REAL }) {
   }
   useEffect(() => { load(); }, []);
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
+  // Remove asks first: the Confirm button takes the focus, so the second click is one Enter away.
+  useEffect(() => { if (armed) { const b = document.querySelector("#brands [data-remove-confirm]"); if (b) b.focus(); } }, [armed]);
+  // A button that closes the panel or the ask is gone after the click, and the focus would fall to the page's top: put it on the title.
+  const home = () => setTimeout(() => { const h = document.getElementById("brands-h"); if (h) h.focus(); }, 0);
 
   async function review(from) {
     opener.current = from === "file" ? "[data-choose]" : "[data-review]";
@@ -57,8 +61,8 @@ export function Brands({ api = REAL }) {
     await load();
     setBusy(false);
   }
-  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)); };
-  const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id)); };
+  const install = () => { const id = panel.id; setPanel(null); home(); return act(() => api.install(id)); };
+  const remove = () => { const id = armed; setArmed(null); home(); return act(() => api.remove(id)); };
 
   const v = state.view;
   return (
