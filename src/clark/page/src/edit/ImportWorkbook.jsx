@@ -99,9 +99,9 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     } finally { busy.current = false; }
   }
 
-  const applying = step.at === "applying";
-  const close = () => { if (!applying) onClose(); };     // the import is on its way and will be saved: the box stays to show the result and Undo
-  const cancel = <button type="button" class="btn quiet" data-close disabled={applying} onClick={close}>{T.cancel}</button>;
+  const applying = step.at === "applying";               // the import carries on whatever is clicked, so nothing may close the box and lose the result and Undo
+  const close = () => { if (!applying) onClose(); };
+  const cancel = <button type="button" class="btn quiet" data-close aria-disabled={applying ? "true" : undefined} onClick={close}>{T.cancel}</button>;
   const fileInput = <input ref={input} type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={chosen} />;
 
   if (step.at === "pick" || step.at === "checking") {
@@ -153,7 +153,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
   return (
     <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={close} wide first={empty ? "#import-close" : "#import-go"}
-      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button>
+      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" aria-disabled={applying ? "true" : undefined} onClick={close}>{T.close}</button>
         : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
       <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>

@@ -100,7 +100,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const onTable = (rows, change) => {
     const after = fromTable(rows);
     const gone = diff(stored, after).filter((o) => o.op === "delete").length;
-    send(after, change.type === "add" ? E.added : change.type === "delete" ? (gone === 1 ? E.deleted(change.ids[0]) : E.deletedMany(gone)) : E.changed((change.ids && change.ids[0]) || ""));
+    send(after, change.type === "add" ? E.added : change.type === "delete" ? (gone === 1 ? E.deleted(change.ids[0]) : E.deletedMany(gone)) : (change.ids && change.ids[0]) ? E.changed(change.ids[0]) : E.planChanged);
   };
   const onTableHidden = (keys) => host.saveSettings({ gantt_hidden_columns: hiddenFromTable(keys) }, E.columnsChanged);
 

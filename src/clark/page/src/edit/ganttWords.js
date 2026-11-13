@@ -9,6 +9,7 @@ export const GANTT_EDIT_WORDS = {
   editNote: "Editing · each change saves on its own",                                  // the Dashboard's own words, reused
   titleLabel: "Title",                                                                   // added: the title box's accessible name
   titleChanged: "Title changed.",                                                        // added: the title's Undo toast
+  planChanged: "Plan changed.",                                                         // added: a fill, a clear or a paste, which has no one line to name
   changed: (id) => `${id} changed.`,                                                     // added: a line edited in the chart
   added: "A line was added with the next free ID.",
   deleted: (id) => `Line ${id} deleted.`,
