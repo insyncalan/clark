@@ -60,7 +60,7 @@ class Map(unittest.TestCase):
 
 # The name of every menu the drives below open. Each belongs to a menu file in Source.MENUS (and the other way round).
 DRIVE_NAMES = {
-    "section", "profile", "project-switch", "outline", "health", "uc-status", "commitment", "uc-group", "uc-detail-status", "uc-milestone-add",
+    "section", "profile", "project-switch", "outline", "health", "uc-status", "commitment", "uc-group", "uc-detail-status",
     "uc-milestone-link", "new-tile", "view-tab", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status",
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
