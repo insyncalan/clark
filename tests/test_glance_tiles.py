@@ -106,7 +106,8 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("0", sid), 0)
+            figs = cdp.js("[...document.querySelectorAll('.glance .fig')].map(f => [f.dataset.fig, f.tagName])", sid)
+            self.assertTrue(figs and all((tag == "BUTTON") == (key != "health") for key, tag in figs), f"every counting tile is a button and Project health is not: {figs}")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.glance button')].filter(b => !b.classList.contains('fig')).length", sid), 0)
 
     def test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row(self):

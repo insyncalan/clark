@@ -121,7 +121,7 @@ class Look(Base):
         m = self.measure(p)
         self.assertLessEqual(m["docW"], m["vw"], f"{what}: the page scrolls sideways")
         self.assertLessEqual(m["panelW"], m["panelClient"] + 1, f"{what}: the panel scrolls sideways")
-        self.assertGreater(m["checked"], 3, f"{what}: the text was read")
+        self.assertGreater(m["checked"], 2, f"{what}: the text was read")   # the head buttons are icons now (row 1095)
         self.assertGreater(m["controls"], 3, f"{what}: the controls were read")
         self.assertEqual(m["short"], [], f"{what}: controls under 24 px")
         self.assertEqual(m["small"], [], f"{what}: text under 12 px")
@@ -320,7 +320,7 @@ class Strings(Base):
         return p.js("""(function(){var out=[];var panel=document.getElementById('ask-panel');
           [panel].concat([].slice.call(panel.querySelectorAll('*'))).forEach(function(e){
             ['aria-label','placeholder','title'].forEach(function(a){var v=e.getAttribute(a);if(v)out.push(v);});
-            [].forEach.call(e.childNodes,function(n){if(n.nodeType===3&&n.textContent.trim())out.push(n.textContent.trim());});});
+            if(e.id==='ask-quip')return;[].forEach.call(e.childNodes,function(n){if(n.nodeType===3&&n.textContent.trim())out.push(n.textContent.trim());});});
           return out;})()""")
 
     def sentences(self, strings):
@@ -377,7 +377,17 @@ class Strings(Base):
         self.assertGreaterEqual(len(suggestions), 5)
         self.assertGreaterEqual(len(quips), 20)
         self.assertEqual(len(set(quips)), len(quips), "no quip twice in the list")
-        self.judge(suggestions + quips + [WORDS_FOR_JUDGE], "words file")
+        # item 1094: the 150 quips are a copy of the creaite list, approved by its owner as it is (names, days and office talk included),
+        # so they are not judged for wording; the changing quip is left out of read() for the same reason
+        self.judge(suggestions + [WORDS_FOR_JUDGE], "words file")
+        self.assertEqual(len(quips), 150)
+        self.assertFalse([q for q in quips if "!" in q])
+
+    def test_every_page_suggestion_in_the_words_file(self):
+        block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
+        pills = re.findall(r'"([^"]+)"', block[:block.index("\n};")])
+        self.assertGreaterEqual(len(set(pills)), 25, "the page lists carry at least 25 different suggestions")
+        self.judge(sorted(set(pills)), "page suggestions")
 
     def test_the_judge_catches_what_it_should(self):
         for bad in ("The request failed.", "Open the API.", "Clark is ready.", "Ask clark is off.", "Ready since 2026-10-31.", "Ready on Friday.",

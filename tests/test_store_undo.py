@@ -111,6 +111,23 @@ class Undo(unittest.TestCase):
         self.assertTrue(out["skipped"])
         self.assertTrue(all("something refers to it now (an action ABC-A-" in x["why"] for x in out["skipped"]))
 
+    def test_a_milestone_a_use_case_is_linked_to_is_skipped_and_named_until_the_link_is_taken_off(self):
+        from clark import store as sm
+        with self.s.step("dashboard", USER) as st:
+            m = st.create("milestones", {"project": "ABC", "name": "Second", "source": "demo"})
+        made = self.demo.last_step()
+        with self.s.step("dashboard", USER) as st:
+            sm.link_use_case_milestone(st, self.demo.use_case, m)
+        out = self.s.undo(made, USER)
+        self.assertIsNotNone(self.s.read("milestones", ref=m))
+        self.assertTrue(any("something refers to it now (a use case and milestone link" in x["why"] for x in out["skipped"]), out)
+        with self.s.step("dashboard", USER) as st:
+            sm.unlink_use_case_milestone(st, self.demo.use_case, m)
+        self.assertIsNone(sm.referred_to(self.s.con, m))          # a link taken off is not a reference
+        out = self.s.undo(made, USER)
+        self.assertEqual(out["skipped"], [], out)
+        self.assertIsNone(self.s.read("milestones", ref=m))
+
     def test_a_new_label_still_on_an_item_is_skipped(self):
         with self.s.step("dashboard", USER) as st:
             st.create("labels", {"name": "Watch"})

@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -310,7 +311,7 @@ class MacZipTest(unittest.TestCase):
         text = package.start_here("mac")
         flat = " ".join(text.split())
         self.assertIn("What is in this folder: README.md says what clark is. START-HERE.md is this page. Double-click clark.command to start clark. "
-                      "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
+                      "docker is for starting clark with Docker. branding holds your own logo and colours, if you add them. "
                       "The program files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
         self.assertIn("If an earlier Docker start kept your data in a data folder inside the clark folder, move that data folder out of the "
@@ -320,7 +321,7 @@ class MacZipTest(unittest.TestCase):
         self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
         steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
                  "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
-                 "system/branding folder from the old clark folder into the new one. An update never changes that folder, but replacing the "
+                 "branding folder (an older clark keeps it in system/branding) from the old clark folder into the new one. An update never changes that folder, but replacing the "
                  "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
                  "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
                  '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',
@@ -565,7 +566,7 @@ class PlacedLayoutTest(unittest.TestCase):
         self.assertEqual(len(repo), len(made))
         changed = [(a, b) for a, b in zip(repo, made) if a != b]
         self.assertEqual([("    working_dir: /clark", "    working_dir: /clark/.app")], changed)
-        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so system/branding is seen")
+        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so branding is seen")
         self.assertEqual("    working_dir: /clark", next(ln for ln in repo if "working_dir" in ln), "the repo's own file is untouched")
 
     def test_the_compose_change_is_refused_unless_the_line_is_found_exactly_once(self):
@@ -577,7 +578,7 @@ class PlacedLayoutTest(unittest.TestCase):
                 package.compose_for_zip(bad)
 
     def test_a_tracked_path_under_system_or_data_refuses_the_build(self):
-        for kept in ("system/branding/logo.png", "data/clark.db", "System/x.txt"):
+        for kept in ("branding/logo.png", "system/branding/logo.png", "data/clark.db", "System/x.txt"):
             with self.subTest(kept=kept):
                 root = ForClientTest.snapshot(self, {kept: "mine\n"})
                 out = Path(self.tmp) / ("refused " + kept.replace("/", "-"))
@@ -678,6 +679,65 @@ class DefaultAudienceTest(unittest.TestCase):
     def test_a_client_zip_has_no_audience_line(self):
         self.assertNotIn(self.TEAM, package.start_here("mac", for_client=True))
         self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))
+
+
+class GitHangTest(unittest.TestCase):
+    """Every git call in package.py is given GIT_TIMEOUT. The git on PATH here is a shim that sleeps, so a call with no
+    timeout would sit for the whole sleep; each call must come back well before it, and files() must not raise
+    TimeoutExpired (it refuses, as Refused, like the other callers)."""
+    SLEEP = 20
+    LIMIT = 8       # seconds a call may take; GIT_TIMEOUT is patched to 1
+
+    def setUp(self):
+        shim = Path(tempfile.mkdtemp(prefix="clark git shim "))
+        self.addCleanup(shutil.rmtree, shim, True)
+        git = shim / "git"
+        git.write_text(f"#!/bin/sh\nexec sleep {self.SLEEP}\n", encoding="utf-8")
+        git.chmod(0o755)
+        env = mock.patch.dict(os.environ, {"PATH": f"{shim}{os.pathsep}{os.environ.get('PATH', '')}"})
+        env.start()
+        self.addCleanup(env.stop)
+        limit = mock.patch.object(package, "GIT_TIMEOUT", 1)
+        limit.start()
+        self.addCleanup(limit.stop)
+
+    def prompt(self, call):
+        began = time.monotonic()
+        try:
+            result = call()
+        except BaseException as e:
+            result = e
+        self.assertLess(time.monotonic() - began, self.LIMIT)
+        return result
+
+    def test_tracked_is_asked_with_the_limit(self):
+        self.assertIsInstance(self.prompt(lambda: package.tracked(ROOT, ["src/clark/"])), subprocess.TimeoutExpired)
+
+    def test_files_refuses_and_does_not_raise_timeout_expired(self):
+        got = self.prompt(lambda: package.files("mac", ROOT))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_the_audience_and_the_snapshot_check_read_a_hang_as_team_only(self):
+        self.assertEqual(package.TEAM_ONLY, self.prompt(lambda: package.audience(ROOT)))
+        self.assertIn("could not list", self.prompt(lambda: package.snapshot_problem(ROOT)))
+
+    def test_the_last_commit_check_alone_comes_back(self):
+        with mock.patch.object(package, "private_paths", return_value=[]):
+            got = self.prompt(lambda: package.snapshot_problem(ROOT))
+        self.assertIn("isn't a public snapshot", got)
+
+    def test_released_on_falls_back_to_today(self):
+        import datetime
+        self.assertEqual(datetime.date.today().isoformat(), self.prompt(lambda: package.released_on(ROOT)))
+
+    def test_uncommitted_refuses(self):
+        got = self.prompt(lambda: package.uncommitted(ROOT, ["README.md"]))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_tag_problem_says_git_could_not(self):
+        self.assertIn("did not say which tag", self.prompt(lambda: package.tag_problem(ROOT, "1.2.3")))
 
 
 class ReleaseFromTagTest(unittest.TestCase):

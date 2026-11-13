@@ -34,7 +34,7 @@ def text(name):
 class SheetChoice(unittest.TestCase):
     def test_import_step_three(self):
         t = flat(TASKS["import-and-export"])
-        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows and all ticked: untick any you do not want, then press **Continue**.", t)
+        self.assertIn("Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**.", t)
         self.assertNotIn("Excel or CSV", t)
         self.assertIn('accept=".xlsx,', (PAGE / "edit" / "ImportWorkbook.jsx").read_text(encoding="utf-8"))
         cards = (PAGE / "logic" / "dataCard.js").read_text(encoding="utf-8")

@@ -40,7 +40,7 @@ PLACED_NEW = {
     ".app/vendor/lib/a.py": b"A = 1\n",
 }
 PLACED_MINE = {"notes.txt": b"my notes\n", ".app/src/clark/mine.py": b"MINE = 1\n"}
-PERSONS = {"system/branding/logo.png": b"my own logo", "system/branding/tokens.css": b"my tokens", "data/clark.db": b"docker data"}
+PERSONS = {"system/branding/logo.png": b"old place logo", "branding/logo.png": b"my own logo", "branding/tokens.css": b"my tokens", "data/clark.db": b"docker data"}
 
 
 def placed_fixture(root):
@@ -50,15 +50,15 @@ def placed_fixture(root):
         fx = Fixture(root)
     for rel, data in PERSONS.items():
         th.put(fx.app, rel, data)
-    os.symlink(fx.app / "README.md", fx.app / "system" / "branding" / "alias")      # a link there must not stop anything
+    os.symlink(fx.app / "README.md", fx.app / "branding" / "alias")      # a link there must not stop anything
     fx.before = snapshot(fx.app)
     return fx
 
 
 def persons(app):
-    """Everything under system and data, with link targets, so a link that changed shows."""
+    """Everything under system, branding and data, with link targets, so a link that changed shows."""
     out = {}
-    for top in ("system", "data"):
+    for top in ("system", "data", "branding"):
         for folder, dirs, names in os.walk(Path(app) / top):
             for n in names + dirs:
                 p = Path(folder, n)
@@ -228,7 +228,7 @@ class HelperRefusals(unittest.TestCase):
 
     def test_begin_refuses_a_record_that_names_a_persons_folder(self):
         for which in ("old", "new"):
-            for rel in ("system/branding/logo.png", "data/clark.db", "System/branding/x"):
+            for rel in ("branding/logo.png", "system/branding/logo.png", "Branding/x", "data/clark.db", "System/branding/x"):
                 for check in (True, False):
                     with self.subTest(which=which, rel=rel, check=check):
                         fx = self.names_in(which, rel)
@@ -274,7 +274,7 @@ class HelperRefusals(unittest.TestCase):
         case.setUp()
         self.addCleanup(case.doCleanups)
         release = case.taken()
-        release.files["system/branding/logo.png"] = dict(release.files["README.md"])
+        release.files["branding/logo.png"] = dict(release.files["README.md"])
         with self.assertRaises(ui.InstallError) as said:
             ui.stage(release, case.app, INSTALL_STAMP)
         self.assertIn("unsafe name", said.exception.detail)
@@ -288,15 +288,15 @@ class WholeInstall(Base):
         super().setUp()
         for rel, data in PERSONS.items():
             th.put(self.app, rel, data)
-        os.symlink(self.app / "README.md", self.app / "system" / "branding" / "alias")
+        os.symlink(self.app / "README.md", self.app / "branding" / "alias")
 
     def test_an_update_in_place_leaves_system_branding_byte_identical(self):
         keep = persons(self.app)
-        self.assertIn("system/branding/logo.png", keep)
+        self.assertIn("branding/logo.png", keep)
         _, code, _ = install(self)
         self.assertEqual(h.OK, code)
         self.assertEqual(keep, persons(self.app))
-        self.assertTrue((self.app / "system" / "branding" / "alias").is_symlink())
+        self.assertTrue((self.app / "branding" / "alias").is_symlink())
         self.assertIn('"0.3.1"', (self.app / ".app/src/clark/__init__.py").read_text(encoding="utf-8"))
 
     def test_the_new_install_passes_the_real_health_check(self):
@@ -311,7 +311,7 @@ class WholeInstall(Base):
 
     def test_space_is_counted_without_them(self):
         small = ui.space_needed(self.app, self.db)
-        th.put(self.app, "system/branding/huge.bin", b"x" * 5_000_000)
+        th.put(self.app, "branding/huge.bin", b"x" * 5_000_000)
         self.assertEqual(small, ui.space_needed(self.app, self.db))
 
     def test_a_link_in_system_does_not_stop_the_check_the_server_makes_first(self):
