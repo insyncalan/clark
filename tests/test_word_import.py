@@ -89,6 +89,13 @@ class WhatIsStaged(unittest.TestCase):
         self.assertTrue(any("Weight" in n for n in p.notes))
         self.assertIn("table 1, line 1", a.where)
 
+    def test_a_title_row_above_the_headings_is_skipped(self):
+        t = table(["Weekly actions", "Weekly actions"], ["Action", "Owner"], ["Order the licences", "Sam Okafor"])
+        p = plan([H("Actions"), t])
+        self.assertEqual([i.values["description"] if "description" in i.values else list(i.values.values())[0] for i in p.items][:1],
+                         ["Order the licences"])
+        self.assertEqual(p.items[0].values["owner"], "Sam Okafor")
+
     def test_a_risk_table_and_a_decision_table(self):
         p = plan([H("Risks"), table(["Item", "Impact", "Likelihood"], ["Late delivery", "High", "medium"]),
                   H("Decisions"), table(["Decision", "Status", "Made by", "Date"],
@@ -414,6 +421,14 @@ class ReadFromARealFile(unittest.TestCase):
         return (P("Weekly notes", style="Heading1") + P("Actions", style="Heading1") + P("Chase the supplier", style="ListBullet")
                 + TBL(TR("Action", "Owner", "Due"), TR("Draft the brief", "Sam Okafor", "12-11-2026"))
                 + P("Decisions", style="Heading1") + P("Move go-live to December") + P("Deleted words", hidden=True))
+
+    def test_a_merged_cell_keeps_the_later_cells_in_their_columns(self):
+        span = '<w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:t>Late delivery</w:t></w:r></w:p></w:tc>'
+        body = P("Risks", style="Heading1") + TBL(TR("Item", "Note", "Impact", "Likelihood"), TR(span, "High", "medium"))
+        read = docx_read.read(docx(body), NAME)
+        self.assertEqual([b for b in read.blocks if b["kind"] == "table"][0]["rows"][1], ["Late delivery", "", "High", "medium"])
+        r = stage(read, NAME, ON).items[0]
+        self.assertEqual((r.values["impact"], r.values["likelihood"]), ("High", "Medium"))
 
     def test_a_file_made_by_hand_stages_through_the_reader(self):
         read = docx_read.read(docx(self.body()), NAME)

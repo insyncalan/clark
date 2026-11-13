@@ -42,8 +42,10 @@ const stillMotion = () => document.documentElement.dataset.motion === "reduce" |
 // Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
 function pillsFor(list, page) {
   const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
-  const said = asked ? asked.text.toLowerCase() : "";
-  const hit = W.PILLS_WORDS.find(([word]) => said.includes(word));
+  const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
+  // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
+  const named = (word) => new RegExp("(^|[^a-z])" + word.replace(/ /g, " ?") + "s?([^a-z]|$)").test(said);
+  const hit = W.PILLS_WORDS.find(([word]) => named(word));
   const subject = hit ? hit[1] : W.PILLS_PAGE[page];
   return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
 }
@@ -257,7 +259,7 @@ export function AskPanel() {
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
           {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"}>
+          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
         </div>

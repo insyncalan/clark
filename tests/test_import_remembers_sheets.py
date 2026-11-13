@@ -66,12 +66,45 @@ class StartSheets(unittest.TestCase):
         self.assertEqual(start(["raid", "milestones"], ["actions"]), {"raid": True, "milestones": True})
 
 
+def probe(js):
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("no node")
+    with tempfile.TemporaryDirectory() as tmp:
+        script = Path(tmp) / "probe.js"
+        script.write_text(bundle() + ";\nconsole.log(JSON.stringify((() => { " + js + " })()));", encoding="utf-8")
+        done = subprocess.run([node, str(script)], capture_output=True, text=True)
+        assert done.returncode == 0, done.stderr
+        return json.loads(done.stdout)
+
+
+STUB = "const mk = (init, fail) => { const m = {...init}; return { getItem: (k) => { if (fail === 'get') throw new Error('blocked'); return k in m ? m[k] : null; }, setItem: (k, v) => { if (fail === 'set') throw new Error('quota'); m[k] = v; }, m }; };"
+
+
+class RememberAndRecall(unittest.TestCase):
+    def test_what_is_remembered_comes_back(self):
+        self.assertEqual(probe(STUB + "const s = mk({}); Q.rememberSheets(['raid'], s); return [Q.recalledSheets(s), s.m[Q.SHEETS_KEY]]"), [["raid"], '["raid"]'])
+
+    def test_nothing_stored_corrupt_or_blocked_recalls_nothing_and_never_throws(self):
+        self.assertEqual(probe(STUB + "return [Q.recalledSheets(mk({})), Q.recalledSheets(mk({[Q.SHEETS_KEY]: '{not json'})), Q.recalledSheets(mk({}, 'get')), Q.recalledSheets(undefined)]"), [None, None, None, None])
+
+    def test_a_full_or_blocked_store_is_ignored_when_remembering(self):
+        self.assertEqual(probe(STUB + "const s = mk({}, 'set'); Q.rememberSheets(['raid'], s); Q.rememberSheets(['raid'], undefined); return Object.keys(s.m)"), [])
+
+    def test_a_corrupt_choice_ticks_every_sheet(self):
+        self.assertEqual(probe(STUB + "return Q.startSheets([{table: 'actions'}, {table: 'raid'}], Q.recalledSheets(mk({[Q.SHEETS_KEY]: '{not json'})))"), {"actions": True, "raid": True})
+
+
 class TheWindowKeepsThem(unittest.TestCase):
-    def test_the_import_page_asks_for_and_saves_the_ticks(self):
+    def test_the_import_page_asks_for_the_ticks_and_saves_them_only_after_a_check_that_went_through(self):
         src = EDIT.read_text(encoding="utf-8")
-        self.assertIn("L.startSheets(sheets, recalled())", src)
-        self.assertIn("remember(tables);", src)
-        self.assertIn("localStorage.setItem(L.SHEETS_KEY", src)
+        self.assertIn("L.startSheets(sheets, L.recalledSheets())", src)
+        read = src[src.index("async function read_("):]
+        read = read[:read.index("// Get the template")]
+        self.assertLess(read.index("await api.check("), read.index("if (!r.ok)"))
+        self.assertLess(read.index("if (!r.ok)"), read.index("L.rememberSheets(tables)"), "a failed check keeps the old choice")
+        self.assertIn('"use_cases"], false)', src, "the none-of-the-five fallback keeps nothing")
+        self.assertIn("if (keep) L.rememberSheets(tables)", read)
 
 
 if __name__ == "__main__":

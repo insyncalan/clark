@@ -221,6 +221,7 @@ NO_RAID_PRIORITY = "A risk or issue's priority comes from its impact and likelih
 NO_DECISION_FIELD = {"workstream": "A decision isn't part of a workstream.", "milestone": "A decision isn't tied to a milestone.",
                      "priority": "A decision has no priority."}
 ITEM_VALUE_WORDS = "That value isn't one clark can use."
+STORE_LEAK = re.compile(r"\(got |\b[a-z]+_[a-z_]+\b")      # a store text that shows a value it was sent or a field name: never said to a person
 LATEST_UPDATE_MAX = 1000                  # the most characters a latest update may have
 LATEST_LONG_WORDS = f"A latest update can be at most {LATEST_UPDATE_MAX} characters. Shorten it and try again."
 LATEST_HIDDEN_WORDS = "That has a hidden character in it. Take it out and try again."     # a latest update may have line breaks, so ITEM_TEXT_WORDS would be wrong
@@ -340,7 +341,7 @@ def _shape(req):
     known = set(BASE_KEYS) | {k for keys in OP_KEYS.values() for k in keys} | {k for ops in KIND_OP_KEYS.values() for keys in ops.values() for k in keys}
     for k in req:
         if k not in known:
-            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
@@ -2712,7 +2713,7 @@ def _do_undo(store, by_user, req):
         return _do_undo_many(store, by_user, req)
     for k in req:
         if k not in ("project", "apply_id", "place"):
-            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
@@ -2874,7 +2875,7 @@ def _do_undo_many(store, by_user, req):
     the page shows that reply, not the preview it showed before."""
     for k in req:
         if k not in ("project", "steps", "preview", "confirm"):
-            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
     project = req.get("project")
     if not isinstance(project, str) or not re.fullmatch(clark_store.CODE_RE, project):
         raise Refused(BAD_PROJECT, code="bad_project_code")
@@ -2990,7 +2991,7 @@ def _call(path, onedrive_roots, by_user, work, req):
             return 503, {"ok": False, "message": IN_USE, "code": "busy"}
         if str(e).startswith(NOT_OPENED):                           # a folder or file that can't be written to
             return 503, {"ok": False, "message": CANT_SAVE, "code": "no_data"}
-        return 400, {"ok": False, "message": str(e), "code": "refused"}
+        return 400, {"ok": False, "message": ITEM_VALUE_WORDS if STORE_LEAK.search(str(e)) else str(e), "code": "refused"}
 
 
 def make_change(path, onedrive_roots=None, by_user=None):
@@ -3182,7 +3183,7 @@ def _paste_people(st, rows):
                     live.setdefault(k, []).append(new)
                 added += 1
         except Invalid as e:                                    # a store rule (one email per person ...), said with the person's name
-            raise Refused(f"{shown}: {e} Nothing was changed.") from None
+            raise Refused(f"{shown} couldn't be saved. Check the row and try again. Nothing was changed.") from None
     return added, updated
 
 
@@ -3198,7 +3199,7 @@ def _do_people(store, by_user, req):
     allowed = ("op",) + PEOPLE_SHAPES[op]
     for k in req:
         if k not in allowed:
-            raise Refused(f"clark doesn't know '{_shown(k)}' in that request.")
+            raise Refused(f"That change doesn't take '{_shown(k)}'.")
     ref, count, pasted = None, 0, {}
     with store.step("dashboard", by_user) as st:
         if op == "paste":
