@@ -134,7 +134,7 @@ LOGO = """(() => { const c = document.querySelector('header.cover'), r = c.getBo
 
 
 class Logo(Setup):
-    """#1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right (the
+    """item 1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right (the
     prototype's .cover .mark), in the editor's page at 1400 and 900, light and dark; nothing is drawn without a brand logo."""
 
     def test_the_brand_logo_sits_at_the_right_of_the_band(self):
@@ -157,7 +157,7 @@ class Logo(Setup):
 
 
 class BrandLogo(Setup):
-    """#1154: the logo comes from the installed brand's assets/logo.png, through the real wiring (the page text the brand layer
+    """item 1154: the logo comes from the installed brand's assets/logo.png, through the real wiring (the page text the brand layer
     builds and the picture route), not from a variable set by hand: at 1400 and 900 it is drawn in the band; a brand with no
     logo draws nothing."""
 
@@ -202,7 +202,7 @@ ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.query
 
 
 class LogoRoom(Setup):
-    """#1154: a long project title and cover line wrap before the logo box when a brand logo is set (at 1400 and 900), and
+    """item 1154: a long project title and cover line wrap before the logo box when a brand logo is set (at 1400 and 900), and
     the band's padding is what it was with no logo."""
     serve = BrandLogo.serve
 

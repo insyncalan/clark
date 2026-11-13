@@ -325,7 +325,7 @@ def brand_picture_of(name, brand_id=None):
 
 def page_html(branding=None, view=False, brand_id=None):
     """The page, with the user's own brand tokens layered over the demo ones when they exist. view=True gives the published
-    page (page-view.html) in place of the served one. #1154: `brand_id` is the installed brand's id (None: the one brand folder);
+    page (page-view.html) in place of the served one. item 1154: `brand_id` is the installed brand's id (None: the one brand folder);
     the served page gets --image-logo from that brand's assets/logo.png when it has one, and the published page never does."""
     ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
@@ -352,13 +352,13 @@ BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topb
 HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!(?:none|inherit|initial|unset|revert)\b)[^;}\s]", re.I)
 
 
-# #1154: the room the editor's report band keeps free at its right for the logo box (192 px wide, 36 px from the edge), so a long
+# item 1154: the room the editor's report band keeps free at its right for the logo box (192 px wide, 36 px from the edge), so a long
 # title or cover line wraps before the logo; set only with a logo (the edit.css default is 0px, so no logo leaves the band as it was).
 COVER_LOGO_ROOM = "calc(var(--space-8) * 3 + var(--space-6) + var(--space-1))"
 
 
 def logo_url(brand_id=None):
-    """The address the served page draws the brand's logo from (#1154): the same route as the cover picture."""
+    """The address the served page draws the brand's logo from (item 1154): the same route as the cover picture."""
     return f'url("/assets/{brand_id}/logo.png")' if brand_id else 'url("/assets/logo.png")'
 
 
