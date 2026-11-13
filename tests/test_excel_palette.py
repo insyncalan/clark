@@ -244,7 +244,7 @@ class PlainWarningWording(unittest.TestCase):
         ep.palette(css=":root { --brand-navy: nonsense; }", warnings=w2)
         self.assertTrue(w and w2)
         for text in w + w2:
-            for word in ("tokens", "committed", "(Brand colour"):
+            for word in ("tokens", "committed", "not used ("):
                 self.assertNotIn(word, text)
 
 

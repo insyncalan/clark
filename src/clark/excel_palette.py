@@ -157,7 +157,7 @@ def palette(css=None, branding=None, warnings=None):
             try:
                 tokens[name] = look.colour(name, css=merged)
             except look.LookError as e:
-                notes.append("One of the brand's colours could not be used, so clark's standard colour was used for it in the workbook.")
+                notes.append(f"The brand colour {name} could not be used, so clark's standard colour was used for it in the workbook.")
         for _ in range(len(base.TOKEN_NAMES)):
             bad = [(f, t, what) for f, t, what in _pairs(colours) if contrast_ratio(tokens[f], tokens[t]) < MIN_CONTRAST]
             changed = False
