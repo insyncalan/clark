@@ -433,7 +433,8 @@ export function GanttChart({
                   <div key={l.id}>
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
                       aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
-                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }} />
+                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }} />
                     {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
                   </div>
