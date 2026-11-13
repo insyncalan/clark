@@ -4,6 +4,7 @@
 export const GENERIC = "That didn't work, and nothing was changed. Try again, or restart clark.";
 export const NOT_ANSWERING = "Nothing is answering. Check that the window clark runs in is still open, then reload the page.";
 export const STALE = "This page is out of date because clark was restarted. Reload the page and try again.";
+export const NO_BRAND = "No brand file was found.";
 export const CANCELLED = "No file was chosen, so nothing was changed.";
 export const TITLE = "Brands";
 export const INTRO = "Add a brand from a file you were given, and clark uses its colours, fonts and pictures. Nothing changes until you choose Install.";
@@ -12,7 +13,7 @@ export const EMPTY = "No brand is added, so the default look is used.";
 export const REVIEW_HINT = "Looks in your Downloads folder for the newest brand file.";
 export const CONFIRM_REMOVE = "Back to the default look";
 export const LABELS = { review: "Review the brand in Downloads", choose: "Choose zip…", install: "Install", replace: "Replace", remove: "Remove",
-  undo: "Undo", cancel: "Cancel", tryAgain: "Try again", added: "Added", replaced: "Replaced", removed: "Removed" };
+  undo: "Undo", dismiss: "Dismiss", cancel: "Cancel", tryAgain: "Try again", added: "Added", replaced: "Replaced", removed: "Removed" };
 
 const text = (v, n = 300) => (typeof v === "string" ? v.slice(0, n) : "");
 const names = (v) => (Array.isArray(v) ? v.slice(0, 2000).map((n) => text(n)) : []);
@@ -26,8 +27,9 @@ export function answerWords(status, body) {
 }
 
 export const listView = (b) => ({
-  brands: Array.isArray(b.brands) ? b.brands.slice(0, 500).map((x) => ({ id: text(x.id, 40), name: text(x.name, 200), version: text(x.version, 40) })) : [],
+  brands: Array.isArray(b.brands) ? b.brands.slice(0, 500).map((x) => ({ id: text(x.id, 40), name: text(x.name, 200), version: text(x.version, 40), own: x.own_folder !== false })) : [],
   undo: b.undo === true,
+  ready: b.review_ready === true,
 });
 
 // The four files a brand holds, in plain words; a name not here is shown as it is.

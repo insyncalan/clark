@@ -1335,24 +1335,28 @@ class BrandLibrary:
             return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
         except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
             return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
+        except Exception as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault; found by the class name, so no top-level import of clark is needed
+            if type(e).__name__ != "NotBuiltYet":
+                raise
+            plat = importlib.import_module("clark.platform")
+            return 409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())}
 
     def listing(self):
-        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data)})
+        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data),
+                                      "review_ready": self._review_ready(lib)})
+
+    def _review_ready(self, lib):
+        plat = importlib.import_module("clark.platform")
+        try:
+            return lib.newest_brand_zip(self._downloads(plat)) is not None
+        except plat.NotBuiltYet:    # no Downloads folder to read here (Docker, Windows, Linux): an empty review, the rest of the listing stands
+            return False
 
     def _file(self, source):
         plat = importlib.import_module("clark.platform")
         if source == "file":
             return (self.choose or plat.choose_zip_file)("Choose a brand file", start=self._downloads(plat))
-        folder = self._downloads(plat)
-        lib = self.library()
-        found = []
-        for p in (sorted(folder.glob("*.zip")) if folder else []):
-            try:        # only a file named as a brand zip (a browser's " (1)" allowed) counts; a newer unrelated zip hides nothing
-                if lib.ZIP_NAME_RE.fullmatch(lib.BROWSER_COPY.sub("", p.name)) and p.is_file() and not p.is_symlink():
-                    found.append((p.stat().st_mtime, p))
-            except OSError:
-                continue
-        return max(found, key=lambda t: t[0])[1] if found else None
+        return self.library().newest_brand_zip(self._downloads(plat))
 
     def _downloads(self, plat):
         return self.downloads if self.downloads is not None else plat.downloads_dir()
@@ -1539,7 +1543,11 @@ class Handler(BaseHTTPRequestHandler):
             return route(self, *args)
         except CLIENT_LEFT:
             return None
-        except Exception:  # noqa: BLE001  the server answers whatever a route does
+        except Exception as e:  # noqa: BLE001  the server answers whatever a route does
+            if type(e).__name__ == "NotBuiltYet":    # item 1100: a Mac-only step no route caught: the same words, never a fault (found by the class name, so no top-level import of clark is needed)
+                LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
+                plat = importlib.import_module("clark.platform")
+                return self.send(409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())})
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
         finally:

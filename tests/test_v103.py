@@ -30,7 +30,7 @@ SCHEMA = 17              # 1.0.1 moved to layout 16; 1.0.3 moves it to 17 (the N
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
 COVERED = [
     ("#856", 'The project menu starts on the open project and lists only projects.',
-     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project_and_ends_with_the_projects"),
+     "test_project_switch::ProjectSwitch::test_C_the_menu_starts_on_the_open_project"),
     ("#855", "In Edit, Ctrl or Cmd + J opens ask clark from anywhere and the button's tooltip names it.",
      "test_help_pr_a::TopBar::test_ctrl_or_cmd_j_is_handled_and_the_ask_tooltip_names_it"),
     ("#849", 'The Settings switches say their new state in a message with one Undo.',

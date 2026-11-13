@@ -231,8 +231,8 @@ class Updater:
         else:
             try:
                 path = self.choose(CHOOSE_PROMPT, start=self._downloads())
-            except platform.PlatformError:
-                return reply(500, "dialog")
+            except platform.PlatformError as e:
+                return reply(500, "dialog", platform.refusal_words(e, MESSAGES["dialog"]))
             if path is None:
                 return 200, {"ok": True, "cancelled": True}
         reinstall = bool(req.get("reinstall", False))
