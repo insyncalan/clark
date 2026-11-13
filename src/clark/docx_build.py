@@ -450,7 +450,7 @@ def section_milestones(published, ctx, title, sec):
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
                      word_cell(m.get("state_word") or m.get("state"), ctx, colour=colour),
-                     word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
+                     word_cell(f"+{slip} day{'' if slip == 1 else 's'}" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's

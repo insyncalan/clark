@@ -102,7 +102,12 @@ class IconsOnTheLine(Base):
             self.until(cdp, sid, "!!document.querySelector('#work-board')", "the board")
             cdp.js("document.querySelector('#work .fline-row .vicons [data-lay=table]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('table.items')", "the list")
-            self.assertGreaterEqual(cdp.js("document.querySelectorAll('.vtab em.num').length", sid), 1, "tab counts stay")
+            tabs = cdp.js("[...document.querySelectorAll('.vt')].map(t => [t.querySelector('.vtab span').textContent, (t.querySelector('.vtab em.num') || {}).textContent, "
+                          "t.querySelector('.vtab').getAttribute('aria-pressed'), t.querySelectorAll('.nch').length])", sid)
+            self.assertEqual(tabs, [["Open items", "9", "true", 1], ["Actions", "4", "false", 0], ["Risks and issues", "2", "false", 0], ["Decisions", "2", "false", 0],
+                                    ["All work items", "12", "false", 0], ["Overdue", "1", "false", 0], ["My actions", "0", "false", 0]],
+                             "every tab keeps its count, and only the current tab has the light chevron for its menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('.vtabs .nch').length", sid), 1, "one chevron in the tab row: the current tab's")
 
     def test_group_by_has_its_own_picture_and_its_menu_still_regroups(self):
         with chrome() as cdp:

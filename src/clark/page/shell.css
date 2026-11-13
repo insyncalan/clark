@@ -31,6 +31,12 @@ a { color: var(--status-blue-text); }
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+@media (max-width: 1000px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so a long tab name never pushes the bar past the window (the editor's edit.css says the same) */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; }
+  .top .asat { flex: none; white-space: nowrap; }
+}
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -397,12 +403,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
-@media (max-width: 700px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so the bar never pushes the page sideways (the editor's edit.css says the same) */
-  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .top .tabs::-webkit-scrollbar { display: none; }
-  .top .tab { flex: none; }
-  .top .asat { flex: none; white-space: nowrap; }
-}
 @media (max-width: 640px) {
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
@@ -503,7 +503,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-body pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; }
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
-.sec-body blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.sec-body blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 /* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
    others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
 .sec-needs { margin: var(--space-2) 0 var(--space-2); min-width: 0; }
@@ -955,7 +955,7 @@ body.board-full .toasts { z-index: 40; }
 .de-opts input[type="text"], .de-opts input[type="date"] { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .de-count, .de-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 .de-problem { margin: var(--space-2) 0; color: var(--status-red-text); }
-.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
+.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); }
 .de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--black); overflow: auto; max-height: 320px; }
 .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
@@ -1065,7 +1065,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-task li, .hp-ref li { margin: 0 0 7px; line-height: 1.55; }
 .hp-ref ul { margin: 0 0 10px; padding-left: 20px; }
 .hp-ref p { margin: 0 0 10px; line-height: 1.55; }
-.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--brand-blue); background: var(--brand-blue-tint); border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--size-small); }
+.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); background: var(--brand-blue-tint); border-radius: var(--radius); font-size: var(--size-small); }
 .hp-say { margin: 10px 0 0; font-size: var(--size-small); color: var(--text-muted); }
 .hp-say code { margin-right: var(--space-1); }
 .hp .hp-go { display: inline-block; margin-top: var(--space-3); font-size: var(--size-small); font-weight: var(--weight-regular); }
@@ -1611,7 +1611,7 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .rt-host .ProseMirror li[data-type="taskItem"] > label { flex: none; padding-top: 2px; }
 .rt-host .ProseMirror li[data-type="taskItem"] > div { flex: 1; min-width: 0; }
 .rt-host .ProseMirror a { color: var(--link); }
-.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 .rt-host .ProseMirror hr { border: 0; border-top: 1px solid var(--grey-300); margin: var(--space-3) 0; }
 .rt-host .ProseMirror-selectednode { outline: 2px solid var(--brand-blue); }
 .rt-link { display: flex; gap: 6px; align-items: center; padding: 6px; border-bottom: 1px solid var(--border); }
@@ -1862,7 +1862,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-callout-p { margin: 0 0 var(--space-2); }
 .tpl-callout-p:last-child { margin-bottom: 0; }
-.tpl-quote { margin: var(--space-2) 0; padding: 0 0 0 var(--space-4); border-left: 3px solid var(--brand-blue); min-width: 0; overflow-wrap: anywhere; }
+.tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
 .tpl-quote-q p { margin: 0; }
 .tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
@@ -2000,7 +2000,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .docs-ic .i { width: 18px; height: 18px; }
 .docs-open { flex: none; color: var(--text-muted); }
 .tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
-.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .tab .tl-short { display: none; }
