@@ -43,6 +43,48 @@ class DataCard(Base):
             p.js("document.querySelector('[data-word-import]').click()")
             p.until("!!document.querySelector('#word-import-dialog[open]')", "the Import from Word box opened, no Edit needed")
 
+    def key(self, cdp, p, key, code, vk, text=None):
+        for kind in ("keyDown", "keyUp"):       # a real key press
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                **({"text": text} if kind == "keyDown" and text else {})}, p.sid)
+
+    def test_C_word_boxes_give_focus_back_to_the_data_button_on_esc_and_close(self):          # 1.0.8 H1
+        for w in WIDTHS:
+            for btn, dlg, close in (("word-export", "word-export-dialog", None), ("word-import", "word-import-dialog", None)):
+                with self.subTest(width=w, button=btn), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    self.open_settings(p)
+                    prev = "excel-layout" if btn == "word-export" else "word-export"
+                    p.js(f"document.getElementById('{prev}').focus()")
+                    self.key(cdp, p, "Tab", "Tab", 9)
+                    self.assertEqual(p.js("document.activeElement.id"), btn)
+                    self.key(cdp, p, "Enter", "Enter", 13, "\r")
+                    p.until(f"!!document.querySelector('#{dlg}[open]')", "the box opened")
+                    self.key(cdp, p, "Escape", "Escape", 27)
+                    p.until(f"!document.querySelector('#{dlg}')", "the box closed on Esc")
+                    self.assertEqual(p.js("document.activeElement.id"), btn)
+                    # and again with the Close button (a real Enter on it)
+                    self.key(cdp, p, "Enter", "Enter", 13, "\r")
+                    p.until(f"!!document.querySelector('#{dlg}[open]')", "the box opened again")
+                    p.js(f"(document.querySelector('#{dlg} button[type=button]:not([disabled])') || document.querySelector('#{dlg} button')).focus()")
+                    self.key(cdp, p, "Enter", "Enter", 13, "\r")
+                    p.until(f"!document.querySelector('#{dlg}')", "the box closed")
+                    self.assertEqual(p.js("document.activeElement.id"), btn)
+
+    def test_C_word_export_from_the_profile_menu_still_returns_to_the_profile_circle(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                p.js("document.querySelector('#profile-btn').click()")
+                p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+                p.js("document.querySelector('#profile-menu [data-kind=word-export]').click()")
+                p.until("!!document.querySelector('#word-export-dialog[open]')", "the box opened")
+                self.key(cdp, p, "Escape", "Escape", 27)
+                p.until("!document.querySelector('#word-export-dialog')", "the box closed")
+                self.assertEqual(p.js("document.activeElement.id"), "profile-btn")
+
     def test_C_pressing_export_downloads_one_workbook_and_says_so(self):
         with chrome() as cdp:
             p = self.page(cdp)
