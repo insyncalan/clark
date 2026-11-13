@@ -1,7 +1,7 @@
 // The Motion switch (row 1115, Settings › Essentials): clark's own choice to let the page move or not. Until it is chosen, the switch follows the
 // computer's reduced-motion setting (Off when the computer asks for reduced motion, otherwise On). Off sets `data-motion="reduce"`
 // on the page at once, which stores/motion.js and the CSS already answer. Remembered in the browser on this computer, like the single-key shortcuts.
-// The computer's own reduced-motion setting still wins whatever this says. Only Edit's parts import this file (edit/index.js, so the choice is applied at load).
+// A choice made with the switch is remembered and wins; the computer's reduced-motion setting only sets the default until then. Only Edit's parts import this file (edit/index.js, so the choice is applied at load).
 import { signal } from "@preact/signals";
 
 const KEY = "clark.motion";
