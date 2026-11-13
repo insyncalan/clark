@@ -656,7 +656,7 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
         raise Refused(f"A release or a client zip carries {ZIP_README} as its README.md, and that file is missing. "
                       "Nothing was written. Restore it, then build again.")
     extra = extra_content(extra_folders)            # before anything is written; a plain Refused if a folder is not fit
-    changed = [] if dirty else changed_files(uncommitted(root, [zip_source(p, root) for p in listed(system)]))
+    changed = [] if dirty else changed_files(uncommitted(root, [zip_source(p, root) for p in listed(system) if p not in GENERATED]))
     if changed:
         raise Refused(f"Some of the files that go in the zip have changes that aren't committed: {', '.join(changed)}. "
                       "Commit them first, or add --dirty to build from them as they are.")
@@ -672,9 +672,9 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
                 raise Refused("A release zip for Windows holds the real runtime image tar, built in CI: give it with --image-tar. Nothing was written.")
             tar = Path(image_tar).read_bytes() if image_tar else IMAGE_PLACEHOLDER
             content[f"{top}/{place(g)}"] = (tar, FILE_MODE)
-    assert_no_native_windows(system, content)
     content[f"{top}/{place(START_HERE)}"] = (start_here(system, for_client, root, {n.split("/")[0] for n in extra}).encode("utf-8"), FILE_MODE)
     content.update({f"{top}/{n}": (data, FILE_MODE) for n, data in extra.items()})      # issue 716: not in git, so not in `names`
+    assert_no_native_windows(system, content)       # after the extra folders, so they are checked too (item 624)
     if for_client:
         shown_paths, hidden = name_guard_hits({unplace(n[len(top) + 1:]): data for n, (data, _) in content.items()}, banned)   # repo names, as the builder knows them
         if shown_paths or hidden:
@@ -685,7 +685,7 @@ def download_content(system, root=ROOT, dirty=False, for_client=False, banned=No
     return content
 
 
-NATIVE_WINDOWS = re.compile(r"\.(exe|cmd|bat|dll)\Z|(^|/)python[^/]*(/|\Z)", re.I)
+NATIVE_WINDOWS = re.compile(r"\.(exe|cmd|bat|dll)\Z|(^|/)python[0-9.]*(\.exe)?(/|\Z)", re.I)
 
 
 def assert_no_native_windows(system, content):

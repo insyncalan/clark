@@ -7,6 +7,7 @@ import tempfile
 import unittest
 import zipfile
 from pathlib import Path
+from unittest import mock
 
 from _paths import ROOT
 import package
@@ -61,11 +62,47 @@ class WindowsZipTest(unittest.TestCase):
         self.assertNotIn("clark.command", self.text)
         self.assertNotIn("Mac", self.text)
 
-    def test_a_placeholder_tar_is_refused_in_a_release(self):
+    def test_the_placeholder_is_what_a_build_without_a_tar_holds(self):
         self.assertEqual(package.IMAGE_PLACEHOLDER, self.tar)
+
+    def test_a_release_without_a_tar_is_refused_for_the_tar(self):
+        with mock.patch.object(package, "tag_problem", return_value=None), mock.patch.object(package, "uncommitted", return_value=""), \
+                self.assertRaises(package.Refused) as said:
+            package.download_content("windows", package.ROOT, release=True)
+        self.assertIn("--image-tar", str(said.exception))
+
+    def test_a_native_file_in_an_extra_folder_is_refused(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            folder = Path(tmp) / "intake"
+            folder.mkdir()
+            (folder / "run.cmd").write_bytes(b"x")
+            with self.assertRaises(package.Refused):
+                package.download_content("windows", dirty=True, extra_folders=[str(folder)])
+
+    def test_the_guard_leaves_alone_names_that_only_start_with_python(self):
+        for fine in ("clark/docs/python-notes.md", "clark/pythonic.py", "clark/docs/python-style/a.md"):
+            with self.subTest(fine=fine):
+                package.assert_no_native_windows("windows", {fine: (b"x", 0o644)})
+        for bad in ("clark/python3/a.py", "clark/python3.12/a.py", "clark/python"):
+            with self.subTest(bad=bad), self.assertRaises(package.Refused):
+                package.assert_no_native_windows("windows", {bad: (b"x", 0o644)})
+
+    def test_a_system_with_no_download_is_refused(self):
         with self.assertRaises(package.Refused) as said:
-            package.download_content("windows", package.ROOT, release=True, dirty=False)
-        self.assertTrue("--image-tar" in str(said.exception) or "tag" in str(said.exception))
+            package.download_content("linux", dirty=True)
+        self.assertIn("Choose mac or windows", str(said.exception))
+
+    def test_the_tar_option_reaches_the_build_through_main(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tar = Path(tmp) / "image.tar"
+            tar.write_bytes(b"the image bytes")
+            code = package.main(["windows", "--dirty", "--image-tar", str(tar), "--out", str(Path(tmp) / "out")])
+            self.assertEqual(0, code)
+            with zipfile.ZipFile(next((Path(tmp) / "out").glob("*.zip"))) as z:
+                self.assertEqual(b"the image bytes", z.read("clark/docker/clark-runtime.tar"))
+
+    def test_entries_match_the_zip(self):
+        self.assertEqual(sorted(n for n in self.names if n != "clark/clark-release.json"), package.entries("windows"))
 
     def test_a_given_tar_goes_in_as_it_is(self):
         with tempfile.TemporaryDirectory() as tmp:
