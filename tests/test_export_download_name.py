@@ -48,6 +48,24 @@ class Name(unittest.TestCase):
         self.assertEqual(excel.download_name("..hidden", "EAI", WHEN), "hidden(EAI) 2026.11.13 18.52.07.xlsx")
         self.assertEqual(excel.download_name(". .", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
 
+    def test_a_300_character_code_is_cut_and_the_name_keeps_its_date_and_extension(self):
+        got = excel.download_name("Plan", "C" * 300, WHEN)
+        self.assertEqual(got, "Plan(" + "C" * 40 + ") 2026.11.13 18.52.07.xlsx")
+
+    def test_fifty_emoji_in_the_code_and_a_long_name_still_fit_255_bytes(self):
+        got = excel.download_name("\U0001F600" * 60, "\U0001F680" * 50, WHEN)
+        self.assertLessEqual(len(got.encode("utf-8")), 255)
+        self.assertTrue(got.endswith(") 2026.11.13 18.52.07.xlsx"))
+        self.assertEqual(got.count("\U0001F680"), 40)
+        got = excel.download_name("", "\U0001F680" * 50, WHEN)
+        self.assertEqual(got, "\U0001F680" * 40 + " 2026.11.13 18.52.07.xlsx")
+
+    def test_a_dotted_code_never_gives_a_hidden_file(self):
+        self.assertEqual(excel.download_name("..", "..code", WHEN), "code 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("Plan", "..code", WHEN), "Plan(code) 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("..", ". .", WHEN), "work items 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("", "..", WHEN), "work items 2026.11.13 18.52.07.xlsx")
+
     def test_invisible_and_direction_characters_are_removed(self):
         for ch in "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200b\u200c\u200d\u200e\u200f\ufeff\x7f\x85\u2028\u2029":
             got = excel.download_name(f"Pl{ch}an", "EAI", WHEN)
