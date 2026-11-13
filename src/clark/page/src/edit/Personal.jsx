@@ -62,7 +62,9 @@ function AboutYou() {
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email, typed.alias]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
   useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
+  const flying = useRef(""), saveNow = useRef(null);
   const save = async (field) => {
+    if (!typedIn.current[field]) return;      // nothing typed since the last save: Enter and then the blur must not send twice
     // the boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over another. An Alias that
     // is not the person's is the suggestion for the name now; before clark has said what Alias it has, none is sent (clark keeps its own)
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
@@ -70,10 +72,14 @@ function AboutYou() {
     // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
     // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
     const unread = !profileRead.value;
+    const key = JSON.stringify([sent, unread]);
+    if (flying.current === key) return;
+    flying.current = key;
     const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email, sent.alias);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
+    if (flying.current === key) flying.current = "";
     if (!r.newest) return;
     if (r.ok) {
       // A saved Alias is frozen (item 613): it becomes what clark has, so the name no longer carries it and only the person changes it.
@@ -97,6 +103,12 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "", alias: about === "alias" ? r.message : "" });
   };
+  saveNow.current = save;
+  useEffect(() => {      // closing the tab with a box focused and unsaved text saves it
+    const gone = () => { const f = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute("data-about"); if (f) saveNow.current(f); };
+    window.addEventListener("pagehide", gone);
+    return () => window.removeEventListener("pagehide", gone);
+  }, []);
   // The name box carries the Alias with it while the Alias is not the person's; typing in the Alias box makes it theirs.
   const onInput = (field, v) => {
     typedIn.current[field] = true;

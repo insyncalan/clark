@@ -71,8 +71,11 @@ export function People() {
     setBusy(false);
     if (back.ok) {
       setList(back.people); setDone({ text: "Undone.", step: null, problem: false });
-      setTimeout(() => doneLn.current && doneLn.current.focus(), 0);      // the Undo button is gone: the focus goes to the line that says so, not to the page
-    } else setDone({ text: back.message, step: done.step, problem: true });      // kept, so Undo can be tried again
+      setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0);      // the Undo button is gone: the focus goes back to Paste from Excel
+    } else {
+      setDone({ text: back.message, step: done.step, problem: true });      // kept, so Undo can be tried again
+      setTimeout(() => doneLn.current && doneLn.current.focus(), 0);      // the button was disabled while it worked: the focus goes to the line that says what happened
+    }
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);

@@ -52,13 +52,15 @@ class Notes(PublishedFile, glance.Setup):
                     self.assertEqual(got["lc"], "1px")
                     self.assertEqual(got["callout"], "4px", "the callout keeps its tone stripe")
 
-    def test_the_published_file_is_unchanged(self):
+    def test_the_published_file_draws_the_quiet_marker_and_keeps_the_callout_stripe(self):
         self.plant_notes()
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 got = self.settled(self.draw(cdp, path, width, dark))
-                self.assertEqual((got["quote"], got["lc"], got["callout"]), ("3px", "4px", "4px"))
+                self.assertEqual((got["quote"], got["lc"], got["callout"]), ("0px", "1px", "4px"), "no decorative stripe, the callout keeps its tone")
+                self.assertNotEqual(got["quoteBg"], "rgba(0, 0, 0, 0)", "the quote is a quiet panel")
+                self.assertEqual(got["lc"], got["lcTop"], "the link preview's left edge is as thin as its top")
 
 
 if __name__ == "__main__":

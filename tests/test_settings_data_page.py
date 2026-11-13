@@ -129,9 +129,10 @@ class Card(Base):
                 self.assertIn("1 changed", p.js("document.querySelector('#import-result').textContent"))
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
                 self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
-                p.js("document.querySelector('#import-undo').click()")
+                p.js("document.querySelector('#import-undo').focus(); document.querySelector('#import-undo').click()")
                 p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
+                self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "import-close", "Undo took its button away: the focus is on Close, so Esc and Tab still work")
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
@@ -280,7 +281,7 @@ class Card(Base):
             p.until("!!document.querySelector('#import-box')", "the box opened")
             self.settle(p, "!!document.querySelector('#import-columns')", "the column lists")
             self.assertEqual(p.js("document.querySelector('#import-columns').previousElementSibling.textContent"),
-                             "Columns, in any order (only the name or title is needed):")
+                             "Columns, in any order (the ID column and the name or title are needed):")
             shown = p.js("[...document.querySelectorAll('#import-columns > span')].map(s => [s.querySelector('b').textContent, s.textContent.slice(s.querySelector('b').textContent.length).trim().split(', ')])")
         want = {name: [label for label, field in cols if field == "id" or field not in (set(locked) | excel_import.LOCKED)]
                 for name, _, cols, locked in excel.SHEETS}

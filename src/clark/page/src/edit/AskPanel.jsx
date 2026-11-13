@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
+import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
 import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, closePanel, newChat, setWidth, clampWidth, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
@@ -58,7 +59,7 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
-  const box = useRef(null), log = useRef(null);
+  const box = useRef(null), log = useRef(null), stopped = useRef(false);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -69,14 +70,18 @@ export function AskPanel() {
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
-  const seen = useRef({ open: false, bump: 0 });
+  const seen = useRef({ open: false, bump: 0, busy: false, state });
   useEffect(() => {
-    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
-    seen.current = { open, bump: panelFocus.value };
+    const was = seen.current;
+    const fresh = was.open !== open || was.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
+    if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
-  }, [open, state, panelFocus.value]);
+  }, [open, state, panelFocus.value, busy]);
   // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
   useEffect(() => {
     const el = log.current;
@@ -110,10 +115,11 @@ export function AskPanel() {
     if (state !== "ready" || busy) return;
     const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
-    setNote("");
+    setNote(""); stopped.current = false;
     histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
-    turns.value = [...list, { role: "user", text: q }];
+    const mine = { role: "user", text: q };
+    turns.value = [...list, mine];
     if (!preset) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
@@ -123,6 +129,11 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
+    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (!answered && !preset) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
+      setText((t) => t || q);
+      if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it
+    }
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
@@ -176,6 +187,7 @@ export function AskPanel() {
   }
 
   async function stop() {
+    stopped.current = true;
     setNote(W.STOPPING_LINE);
     await post("/api/ask/stop", {});
   }
@@ -197,7 +209,11 @@ export function AskPanel() {
     e.preventDefault(); closePanel(); show("settings");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
-      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
+        stopRestore();
+        for (let i = 0; i < 12; i++) setTimeout(() => c.scrollIntoView({ block: "start" }), i * 50);
+        const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+      }
       else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
     };
     focusCard(0);

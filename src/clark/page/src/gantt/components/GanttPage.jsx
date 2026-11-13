@@ -31,6 +31,8 @@ function useHost(host) {
   return state;
 }
 
+const focusFirst = (el) => { if (el) el.focus(); };      // the first item takes focus once, as the menu opens (a module-level function, so a later render does not call it again)
+
 export function GanttPage({ host, tools, above = null, below = null, today }) {
   const { project, settings, lines, toast } = useHost(host);
   const now = today || host.today || (fromFile.value && asAt.value) || todayIso();      // a published file is as at the day it was published
@@ -67,8 +69,10 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   useEffect(() => {      // the Show menu closes on a click anywhere else
     if (!showOpen) return undefined;
     const off = (e) => { if (!e.target.closest("[data-gp-showwrap]")) setShowOpen(false); };
+    const esc = (e) => { if (e.key === "Escape" && !e.isComposing) { setShowOpen(false); if (showBtn.current) showBtn.current.focus(); } };      // Escape hands focus back to the Show button, as the chart's menu does
     document.addEventListener("pointerdown", off, true);
-    return () => document.removeEventListener("pointerdown", off, true);
+    document.addEventListener("keydown", esc);
+    return () => { document.removeEventListener("pointerdown", off, true); document.removeEventListener("keydown", esc); };
   }, [showOpen]);
 
   const send = (after, words) => { const ops = diff(stored, after); if (ops.length) host.applyLines(ops, words); };
@@ -124,9 +128,16 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
             <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${W.show}: ${filterWord(filter)}`} title={`${W.show}: ${filterWord(filter)}`}
               data-gp-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Icon name="filter" /></button>
             {showOpen ? (
-              <Fade class="gt-pop" role="menu" aria-label={W.show} data-gp-showmenu>
-                {filters.map((f) => (
-                  <button type="button" key={f} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); showBack(); }}>
+              <Fade class="gt-pop" role="menu" aria-label={W.show} data-gp-showmenu
+                onKeyDown={(e) => {
+                  if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+                  const items = [...e.currentTarget.querySelectorAll("[role=menuitemradio]")];
+                  const at = items.indexOf(document.activeElement);
+                  e.preventDefault();
+                  items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+                }}>
+                {filters.map((f, i) => (
+                  <button type="button" key={f} ref={i === 0 ? focusFirst : undefined} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); showBack(); }}>
                     <span class="gt-ck" aria-hidden="true">{filter === f ? "✓" : ""}</span>{filterWord(f)}
                   </button>
                 ))}

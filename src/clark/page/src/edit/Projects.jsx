@@ -43,7 +43,7 @@ export function Projects({ api = REAL }) {
         if (next) openProjectAt(next, "settings");
         await load();
         loadProjects();                                              // the top bar's list follows
-        focusHeading();                                              // the clicked button is gone (archive or restore): keep the place
+        focusHeading();                                              // the clicked button is gone (Archive or Restore): keep the place
         const nextName = next ? (state.live.find((x) => x.code === next) || {}).name || next : "";
         say("done", op === "archive" ? (next ? D.archivedOpenWords(row.name, nextName) : L.archivedWords(row.name)) : L.restoredWords(row.name), r.applyId, row.code);
       });
