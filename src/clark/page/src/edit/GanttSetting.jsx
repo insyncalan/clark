@@ -6,7 +6,7 @@ import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { editorOn, clientOn, tabName, nameOf, requestFor, NAME_MAX } from "../gantt/ganttTab.js";
 import { NAME_REFUSED } from "./ganttWords.js";
-import { SettingRow } from "./SettingRow.jsx";
+import { SettingRow, focusControl } from "./SettingRow.jsx";
 import { defaultOf } from "./settingsDefaults.js";
 
 export function GanttSetting() {
@@ -31,8 +31,15 @@ export function GanttSetting() {
     busy.current = false;
     setTyped(null);
   };
-  const resetTick = (which, id, words) => () => change(requestFor(which, defaultOf(id)), words);
-  const resetName = () => change(requestFor("name", defaultOf("gantt-name")), `Gantt tab renamed to ${defaultOf("gantt-name")}.`);
+  const resetTick = (which, id, words) => async () => {
+    await change(requestFor(which, defaultOf(id)), words, { focus: "#" + id });
+    focusControl(id);
+  };
+  const resetName = async () => {
+    setTyped(null); setSaid("");                     // the typed name and the refusal line go with the Reset
+    await change(requestFor("name", defaultOf("gantt-name")), `Gantt tab renamed to ${defaultOf("gantt-name")}.`, { focus: "#gantt-name" });
+    focusControl("gantt-name");
+  };
   return (
     <section class="frame setting" id="gantt-setting" aria-labelledby="gantt-setting-h">
       <h2 id="gantt-setting-h" tabIndex={-1}>Gantt</h2>

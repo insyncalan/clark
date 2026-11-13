@@ -11,7 +11,7 @@ import { GanttTabName } from "@src/edit/GanttTabName.jsx";
 import { ReviewDays } from "@src/edit/ReviewDays.jsx";
 import { Toast } from "@src/edit/Toast.jsx";
 
-const G = { sent: [], project: null };
+const G = { sent: [], undone: [], back: {}, project: null };
 window.G = G;
 const BASE = { code: "DEMO", name: "Harbour Bridge", health: "Green", health_reason: "", review_after_days: 14, show_gantt_editor: 0, show_gantt_client: 0, gantt_tab_name: "Gantt" };
 const EMPTY = { project: null, actions: [], raid: [], decisions: [], milestones: [], report_sections: [], glance_tiles: [], use_cases: [] };
@@ -22,8 +22,15 @@ window.fetch = async (url, init) => {
   if (u.startsWith("/api/change")) {
     const req = JSON.parse(init.body);
     G.sent.push(req);
+    G.back[G.sent.length] = Object.fromEntries(Object.keys(req.changes).map((k) => [k, G.project[k]]));      // what an Undo puts back
     Object.assign(G.project, req.changes);
     return json({ ok: true, apply_id: G.sent.length, project: { ...G.project }, sections: [] });
+  }
+  if (u.startsWith("/api/undo")) {
+    const req = JSON.parse(init.body);
+    G.undone.push(req.apply_id);
+    Object.assign(G.project, G.back[req.apply_id]);
+    return json({ ok: true, project: { ...G.project }, sections: [] });
   }
   if (u.startsWith("/api/data")) return json({ ok: true, data: { ...EMPTY, project: { ...G.project } } });
   return { ok: false, status: 404, json: async () => ({}) };
@@ -37,6 +44,8 @@ function Shell() {
 
 G.mount = (over, edit) => {
   G.sent = [];
+  G.undone = [];
+  G.back = {};
   G.project = { ...BASE, ...(over || {}) };
   project.value = "DEMO";
   data.value = { ...EMPTY, project: { ...G.project } };

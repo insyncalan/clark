@@ -7,7 +7,7 @@ import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { REVIEW_DAYS } from "../filters.js";
 import { plural } from "../workItems.js";
-import { SettingRow } from "./SettingRow.jsx";
+import { SettingRow, focusControl } from "./SettingRow.jsx";
 import { defaultOf } from "./settingsDefaults.js";
 
 export const REFUSED = "Choose a whole number of days from 1 to 365. Nothing was changed.";      // changes.py BAD_REVIEW_DAYS, word for word
@@ -41,8 +41,12 @@ export function ReviewDays() {
     setTyped(null);                                  // the box shows what clark kept (a refused change leaves the old number)
   };
 
-  const reset = () => change({ kind: "projects", op: "update", changes: { review_after_days: defaultOf("review-days") }, place: "menu" },
-    `Not reviewed after: ${plural(defaultOf("review-days"), "day")}.`);
+  const reset = async () => {
+    setTyped(null); setSaid("");                     // the typed value and the refusal line go with the Reset
+    await change({ kind: "projects", op: "update", changes: { review_after_days: defaultOf("review-days") }, place: "menu" },
+      `Not reviewed after: ${plural(defaultOf("review-days"), "day")}.`, { focus: "#review-days" });
+    focusControl("review-days");
+  };
   return (
     <section class="frame setting" id="freshness" aria-labelledby="review-days-h">
       <h2 id="review-days-h" tabIndex={-1}>Freshness</h2>

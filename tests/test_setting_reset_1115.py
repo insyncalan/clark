@@ -10,6 +10,8 @@ import re
 import unittest
 
 import test_gantt_tab as T
+from _demo import USER, DemoStore
+from clark import changes
 
 DEFAULTS = json.loads(T.read("edit", "settingsDefaults.json"))
 ROWS = ("review-days", "gantt-editor", "gantt-client", "gantt-name")
@@ -80,6 +82,72 @@ class Reset(unittest.TestCase):
                              " return [...r.querySelectorAll('.set-reset, input, .set-dot')].every(e => { const k = e.getBoundingClientRect(); return k.left >= b.left - 1 && k.right <= b.right + 1; })"
                              " && document.documentElement.scrollWidth <= innerWidth; })()")
                 self.assertTrue(ok)
+
+    def focused(self):
+        return self.js("document.activeElement && (document.activeElement.id || document.activeElement.tagName)")
+
+    def test_after_reset_and_after_undo_the_focus_is_on_the_rows_own_control(self):
+        changed = {"review_after_days": 30, "show_gantt_editor": 1, "show_gantt_client": 1, "gantt_tab_name": "Plan"}
+        for w in (1400, 900):
+            for id in ROWS:
+                with self.subTest(width=w, row=id):
+                    self.load(changed, edit=True, width=w)
+                    self.go("location.hash = '#settings&p=DEMO'")
+                    self.go("document.getElementById('%s').closest('.set-row').querySelector('.set-reset').focus()" % id)
+                    self.go("document.activeElement.click()")
+                    self.assertEqual(self.focused(), id, "after Reset")
+                    self.go("document.querySelector('[data-undo]').focus(); document.querySelector('[data-undo]').click()")
+                    self.assertEqual(self.js("G.undone.length"), 1, "the toast's Undo was used")
+                    self.assertEqual(self.focused(), id, "after Undo")
+                    self.assertTrue(self.row(id)["reset"], "the row is changed again after Undo")
+
+    def test_reset_clears_the_typed_value_and_the_refusal_line(self):
+        for w in (1400, 900):
+            for id, bad, typed in (("review-days", "data-review-days-bad", "0"), ("gantt-name", "data-gantt-name-bad", "")):
+                with self.subTest(width=w, row=id):
+                    self.load({"review_after_days": 30, "gantt_tab_name": "Plan"}, edit=True, width=w)
+                    self.go("location.hash = '#settings&p=DEMO'")
+                    self.go("var b = document.getElementById('%s'); b.focus(); b.value = %s; b.dispatchEvent(new Event('input', {bubbles: true}))" % (id, json.dumps(typed)))
+                    self.go("document.getElementById('%s').blur()" % id)
+                    self.assertTrue(self.js("document.querySelector('[%s]').textContent.length > 0" % bad), "the refusal line is shown")
+                    self.go("document.getElementById('%s').closest('.set-row').querySelector('.set-reset').click()" % id)
+                    self.assertEqual(self.js("document.querySelector('[%s]').textContent" % bad), "", "the refusal line is gone")
+                    self.assertEqual(self.js("document.getElementById('%s').value" % id), "14" if id == "review-days" else "Gantt")
+                    self.assertIsNone(self.js("document.getElementById('%s').getAttribute('aria-invalid')" % id))
+
+    def test_reset_drops_a_half_typed_value(self):
+        self.load({"gantt_tab_name": "Plan"}, edit=True)
+        self.go("location.hash = '#settings&p=DEMO'")
+        self.go("var b = document.getElementById('gantt-name'); b.value = 'Half'; b.dispatchEvent(new Event('input', {bubbles: true}))")
+        self.go("document.getElementById('gantt-name').closest('.set-row').querySelector('.set-reset').click()")
+        self.assertEqual(self.js("document.getElementById('gantt-name').value"), "Gantt")
+
+
+class StoreUndo(unittest.TestCase):
+    """The four Resets are ordinary project changes: each one is a step, and its Undo puts the changed value back."""
+
+    def setUp(self):
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.path = self.demo.store.path
+        self.change = changes.make_change(self.path, [], USER)
+        self.undo = changes.make_undo(self.path, [], USER)
+
+    def value(self, field):
+        return self.demo.store.con.execute("SELECT %s FROM projects WHERE code = 'ABC'" % field).fetchone()[0]
+
+    def test_each_reset_has_one_undo_that_puts_the_changed_value_back(self):
+        cases = (("review_after_days", 30, 14), ("show_gantt_editor", 1, 0), ("show_gantt_client", 1, 0), ("gantt_tab_name", "Plan", "Gantt"))
+        for field, was, default in cases:
+            with self.subTest(field=field):
+                self.assertEqual(self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {field: was}})[0], 200)
+                status, got = self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {field: default}, "place": "menu"})
+                self.assertEqual((status, got.get("ok")), (200, True), got)
+                self.assertEqual(self.value(field), default, "Reset sends the default")
+                self.assertTrue(got.get("apply_id"), "Reset is one step")
+                status, back = self.undo({"project": "ABC", "apply_id": got["apply_id"]})
+                self.assertEqual((status, back.get("ok")), (200, True), back)
+                self.assertEqual(self.value(field), was, "Undo puts the changed value back")
 
 
 if __name__ == "__main__":

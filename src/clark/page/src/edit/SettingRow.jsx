@@ -4,6 +4,12 @@
 // A row whose setting is not at its default (`changed`) shows a small dot after the name and a Reset button (`onReset`) at the left of the
 // control; a row at its default shows neither. Reset is the card's own change, so it has the same toast and Undo as any change (row 1115, S4).
 // Extra attributes (a data-... hook the page or a test reads) go on the row itself. Edit parts only.
+/** After Reset the button is gone from the page, so the focus would drop to the page's top: it goes to the row's own control (row 1115, S4). */
+export function focusControl(id) {
+  const el = document.getElementById(id);
+  if (el && el.focus) el.focus({ preventScroll: true });
+}
+
 export function SettingRow({ id, name, help, helpId, bad, changed, onReset, children, ...rest }) {
   return (
     <div class="set-row" {...rest}>
