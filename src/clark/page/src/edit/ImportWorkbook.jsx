@@ -89,7 +89,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       const r = await api.undo(project, id);
       if (!r.ok) { setProblem(r.words); return; }
       onDone(r.body);
-      setStep({ at: "undone", message: T.undone });
+      setStep({ at: "undone", message: (r.body && r.body.message) || T.undone });
     } finally { busy.current = false; }
   }
 
