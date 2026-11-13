@@ -1385,7 +1385,7 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["At a glance", "Use case summary", "Shown <b>plan</b>", "Next week"],
+            self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
                              "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
@@ -1517,10 +1517,10 @@ class Published(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["glance", "usecases"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
-                             "only text sections, At a glance and the use case summary (#45) are drawn")
+            self.assertEqual(drawn, ["glance", "usecases", "milestones"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
+                             "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
             for s in sections:
-                if s["type"] not in ("text", "glance", "usecases"):
+                if s["type"] not in ("text", "glance", "usecases", "milestones"):
                     self.assertIsNone(cdp.js(f"document.querySelector('[data-id=\"{s['id']}\"]')", sid), s["type"])
             page_text = cdp.js("document.body.innerText", sid)
             self.assertNotIn("is not shown", page_text)
