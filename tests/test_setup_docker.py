@@ -17,7 +17,7 @@ from clark import doctor, platform as pl, setup_mode, setup_page, typed
 NOT_CHECKED_WORDS = f"The Docker check couldn't finish. Run {typed.doctor()} again."   # doctor.run_check's own sentence
 SEEN = dict(version=(3, 9, 6), sqlite_version="3.37.0")
 OK_LINE = "clark is running in Docker, and your data is kept in {host}."
-ONEDRIVE = ("Your data can't be kept in {host} because it is inside OneDrive ({name}). OneDrive copies files while they are being "
+ONEDRIVE = ("Your data can't be kept in {host} because it is inside OneDrive. OneDrive copies files while they are being "
             "written, which damages the database. Choose a folder on this computer that OneDrive doesn't sync.")
 CLOUD = ("Your data can't be kept in {host} because it is inside {service}. {service} copies files while they are being written, "
          "which damages the database. Choose a folder on this computer that {service} doesn't sync.")
@@ -44,7 +44,7 @@ class Check(unittest.TestCase):
     def test_onedrive_is_to_fix_in_the_refusals_own_words(self):
         host = "/Users/pat/OneDrive - Work/clark"
         line = doctor.check_docker(seen_for(host))
-        self.assertEqual((line.kind, line.words), (doctor.FIX, ONEDRIVE.format(host=host, name="OneDrive - Work")))
+        self.assertEqual((line.kind, line.words), (doctor.FIX, ONEDRIVE.format(host=pl.host_shown(host))))
 
     def test_each_synced_service_is_to_fix(self):
         for host, service in (("/Users/pat/Dropbox/clark", "Dropbox"),

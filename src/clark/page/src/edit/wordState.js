@@ -15,10 +15,10 @@ export const ADD_FAILED = "Something went wrong while the items were being added
 // ── The export ───────────────────────────────────────────────────────────────
 
 export const exportBox = signal(null);        // null (closed) or {saved, ticked, phase: choose | working | clash | done | error, clash, choice, confirmed, message}
-const freshExport = (saved) => ({ saved, ticked: false, phase: "choose", clash: null, choice: "number", confirmed: false, message: null });
+const freshExport = (saved, opener) => ({ opener: opener || null, saved, ticked: false, phase: "choose", clash: null, choice: "number", confirmed: false, message: null });
 const setExport = (patch) => { if (exportBox.value) exportBox.value = { ...exportBox.value, ...patch }; };
 
-export const openExport = () => { exportBox.value = freshExport(savedFolder()); };
+export const openExport = (opener) => { exportBox.value = freshExport(savedFolder(), opener); };      // opener: the button that opened the box, so focus can go back to it
 export function closeExport() {
   const el = document.getElementById("word-export-dialog");
   if (el && el.open) el.close();
@@ -26,7 +26,7 @@ export function closeExport() {
 }
 export function tickClient(on) {
   const s = exportBox.value;
-  if (s && s.saved && ["choose", "error", "done"].includes(s.phase)) setExport({ ticked: !!on });
+  if (s && s.saved && ["choose", "error"].includes(s.phase)) setExport({ ticked: !!on });
 }
 export const pickClash = (choice) => { if (exportBox.value && exportBox.value.phase === "clash") setExport({ choice, confirmed: false }); };
 export const confirmReplace = (on) => { const s = exportBox.value; if (s && s.phase === "clash" && s.choice === "overwrite") setExport({ confirmed: !!on }); };
@@ -52,11 +52,11 @@ export async function goExport() {
 // null (closed) or {phase: choose | reading | plan | adding, file: the chosen File or null, plan: null or what was read, ticks: the
 // numbers ticked, message: null or {kind, text}}
 export const importBox = signal(null);
-const freshImport = () => ({ phase: "choose", file: null, plan: null, ticks: [], message: null });
+const freshImport = (opener) => ({ opener: opener || null, phase: "choose", file: null, plan: null, ticks: [], message: null });
 const setImport = (patch) => { if (importBox.value) importBox.value = { ...importBox.value, ...patch }; };
 
-export function openImport() {
-  importBox.value = freshImport();      // row 826: the same in View and Edit
+export function openImport(opener) {
+  importBox.value = freshImport(opener);      // row 826: the same in View and Edit
 }
 export function closeImport() {
   const el = document.getElementById("word-import-dialog");

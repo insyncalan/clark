@@ -31,6 +31,12 @@ a { color: var(--status-blue-text); }
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+@media (max-width: 1000px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so a long tab name never pushes the bar past the window (the editor's edit.css says the same) */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; }
+  .top .asat { flex: none; white-space: nowrap; }
+}
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -196,6 +202,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* The Work items list (#36): a table that never scrolls sideways; the Item column takes what the others leave and wraps. */
 .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: var(--size-small); }
 .btn:hover { border-color: var(--grey-500); }
+.btn[aria-disabled="true"] { opacity: .55; cursor: default; }  /* Save and "Use <path>" while a save runs: dimmed, not `disabled`, so the keyboard keeps its place */
+.btn[aria-disabled="true"]:hover { border-color: var(--border); }
 .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .link { all: unset; color: var(--status-blue-text); cursor: pointer; font-size: var(--size-small); }
 .link:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -211,7 +219,7 @@ table.items th { text-align: left; font-weight: var(--weight-regular); font-size
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: var(--space-1); }
-table.items .c-eye { width: 44px; }
+table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
@@ -347,8 +355,11 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fline:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }   /* the box has a 2 px ring while the input has the focus */
+/* Issue 1137 (ruling: "nothing at all"): the box looks the same with or without the cursor in it. No ring, no coloured border; the text cursor shows where typing goes. The icons stand beside the box, in the row, at the same place as before. */
+.fline-row { display: flex; align-items: center; gap: var(--space-2); }
+.fline-row > .fline { flex: 1 1 auto; min-width: 0; }
+.fline-tail { flex: none; display: inline-flex; align-items: center; margin-right: 11px; }   /* 11 px: the icons end where they ended inside the box (its 10 px padding and 1 px border) */
+.fline-tail .vicons, .fline-tail .fio { margin-left: 0; }
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -392,12 +403,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
-@media (max-width: 700px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so the bar never pushes the page sideways (the editor's edit.css says the same) */
-  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .top .tabs::-webkit-scrollbar { display: none; }
-  .top .tab { flex: none; }
-  .top .asat { flex: none; white-space: nowrap; }
-}
 @media (max-width: 640px) {
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
@@ -419,8 +424,8 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
   table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
   table.items .c-owner { grid-column: 1 / -1; grid-row: 2; }
   /* The eye has a grid cell of its own beside the item (a fourth column), so it never lies over the item's box. */
-  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 28px; }
-  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 28px; padding: 0; }
+  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 56px; }
+  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 56px; padding: 0; white-space: nowrap; }
   table.items tr.colh { display: none; }
   table.items .c-status { grid-column: 1; grid-row: 3; }
   table.items .c-due { grid-column: 2; grid-row: 3; }
@@ -498,7 +503,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-body pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; }
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
-.sec-body blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.sec-body blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 /* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
    others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
 .sec-needs { margin: var(--space-2) 0 var(--space-2); min-width: 0; }
@@ -816,6 +821,11 @@ table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-t
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
+table.items .rmore { width: 24px; height: 24px; margin-left: 0; opacity: 0; vertical-align: middle; }
+table.items tr:hover .rmore, table.items tr:focus-within .rmore, table.items .rmore:focus-visible, table.items .rmore[aria-expanded="true"] { opacity: 1; }
+@media (hover: none) { table.items .rmore { opacity: 1; } }
+@media (max-width: 1000px) { table.items .rmore { display: block; margin: 0 auto; } }          /* the narrow table keeps the eye column as it was: the button sits under the eye */
+@media (min-width: 1001px) { table.items .c-eye { width: 68px; } }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -950,7 +960,7 @@ body.board-full .toasts { z-index: 40; }
 .de-opts input[type="text"], .de-opts input[type="date"] { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .de-count, .de-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 .de-problem { margin: var(--space-2) 0; color: var(--status-red-text); }
-.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
+.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); }
 .de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--black); overflow: auto; max-height: 320px; }
 .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
@@ -1052,7 +1062,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
-.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
+.hp-task, .hp-ref { max-width: 56ch; }   /* a readable measure: under 80 characters of text on a rendered line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
@@ -1060,7 +1070,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-task li, .hp-ref li { margin: 0 0 7px; line-height: 1.55; }
 .hp-ref ul { margin: 0 0 10px; padding-left: 20px; }
 .hp-ref p { margin: 0 0 10px; line-height: 1.55; }
-.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--brand-blue); background: var(--brand-blue-tint); border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--size-small); }
+.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); background: var(--brand-blue-tint); border-radius: var(--radius); font-size: var(--size-small); }
 .hp-say { margin: 10px 0 0; font-size: var(--size-small); color: var(--text-muted); }
 .hp-say code { margin-right: var(--space-1); }
 .hp .hp-go { display: inline-block; margin-top: var(--space-3); font-size: var(--size-small); font-weight: var(--weight-regular); }
@@ -1153,6 +1163,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-wrap { position: relative; max-width: 100%; border-top: 1px solid var(--grey-200); border-bottom: 1px solid var(--grey-200); overflow-x: auto; overflow-y: hidden; min-height: 110px; max-height: 900px; resize: vertical; background: var(--grey-50); }
 .mv-strip { position: relative; height: 100%; }
 .mv-month { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--grey-200); font-size: var(--size-caption); color: var(--text-muted); padding: 2px 0 0 6px; line-height: 16px; white-space: nowrap; }
+.mv-month-end > span { position: absolute; top: 2px; right: 12px; }   /* printed: the last month names sit left of their line, inside the box */
 .mv-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--grey-300); }
 .mv-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--brand-navy); z-index: 2; }
 .mv-today b { position: absolute; left: 4px; top: 20px; line-height: 16px; font-size: var(--size-caption); font-weight: var(--weight-regular); color: var(--status-blue-text); background: var(--surface); padding: 0 var(--space-1); white-space: nowrap; }
@@ -1606,7 +1617,7 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .rt-host .ProseMirror li[data-type="taskItem"] > label { flex: none; padding-top: 2px; }
 .rt-host .ProseMirror li[data-type="taskItem"] > div { flex: 1; min-width: 0; }
 .rt-host .ProseMirror a { color: var(--link); }
-.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 .rt-host .ProseMirror hr { border: 0; border-top: 1px solid var(--grey-300); margin: var(--space-3) 0; }
 .rt-host .ProseMirror-selectednode { outline: 2px solid var(--brand-blue); }
 .rt-link { display: flex; gap: 6px; align-items: center; padding: 6px; border-bottom: 1px solid var(--border); }
@@ -1857,7 +1868,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-callout-p { margin: 0 0 var(--space-2); }
 .tpl-callout-p:last-child { margin-bottom: 0; }
-.tpl-quote { margin: var(--space-2) 0; padding: 0 0 0 var(--space-4); border-left: 3px solid var(--brand-blue); min-width: 0; overflow-wrap: anywhere; }
+.tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
 .tpl-quote-q p { margin: 0; }
 .tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
@@ -1924,7 +1935,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .raid-top .raid-kind { flex: none; white-space: nowrap; }
 .raid-top .raid-id { white-space: nowrap; }   /* the ID shows whole: no clip, no ellipsis */
 .raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.raid-title { font-weight: var(--weight-medium); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
+.raid-title { font-weight: var(--weight-light); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
 .raid-meta { font-size: var(--size-caption); color: var(--text-muted); }
 .raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
@@ -1995,7 +2006,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .docs-ic .i { width: 18px; height: 18px; }
 .docs-open { flex: none; color: var(--text-muted); }
 .tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
-.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .tab .tl-short { display: none; }
@@ -2053,7 +2064,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
 @media print {
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all .ucall { display: none; }   /* row 1108: on paper every use case shows, so the Show all button has nothing to do */
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
   html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
@@ -2196,7 +2207,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows .wl-head { min-height: 0; padding: 4px 0 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
 .irows .wl-row > *, .irows .wl-head > * { min-width: 0; }
 .irows .wl-head span, .irows .c-date, .irows .c-prio, .irows .c-id { white-space: nowrap; }
-.irows .wl-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; font-weight: var(--weight-medium); }
+.irows .wl-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; font-weight: var(--weight-light); }   /* plan 1140: a work item's title is normal weight, not bold */
 .irows .wl-head .c-title { font-weight: var(--weight-regular); }
 .irows .c-ico { display: flex; align-items: center; gap: 8px; }
 .irows .c-owner { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--size-small); }
@@ -2327,9 +2338,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-grp .gt-ib { border-radius: 0; border: 0; border-right: 1px solid var(--border); width: 36px; }
 .gt-grp .gt-ib:last-child { border-right: 0; }
 .gt-ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
-.gt-ib:hover:not(:disabled) { background: var(--grey-100); color: var(--text); }
+.gt-ib:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--grey-100); color: var(--text); }
 .gt-ib[aria-pressed="true"] { background: var(--pill-bg); color: var(--pill-fg); }
-.gt-ib:disabled { opacity: .45; cursor: default; }
+.gt-ib:disabled, .gt-ib[aria-disabled="true"] { opacity: .45; cursor: default; }
 .gt-ib:focus-visible, .gt-wd:focus-visible, .gt-zf:focus-visible, .gt-eye:focus-visible, .gt-addb:focus-visible, .gt-btn:focus-visible, .gt-tflag:focus-visible, .gt-b:focus-visible, .gt-ms:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .gt-zf { all: unset; box-sizing: border-box; min-width: 48px; height: 32px; display: inline-grid; place-items: center; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius); }
 .gt-zf:hover { background: var(--grey-100); color: var(--text); }

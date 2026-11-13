@@ -110,10 +110,42 @@ class PeopleCard(unittest.TestCase):
             finally:
                 store.close()
             self.assertEqual(steps, 1, "the whole paste is one step")
-            js("document.querySelector('#ppUndo').click()")
+            js("document.querySelector('#ppUndo').focus(); document.querySelector('#ppUndo').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#ppCount span').innerText") == "2 of 3 people need details", 20))
             self.assertEqual(js("document.querySelector('[data-person=\"Zed Newman\"]').innerText.indexOf('zed@example.com')"), -1)
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppDone", 10), "Undo took its button away: the focus goes to the line that says so")
+
+    def test_a_refused_undo_still_shows_its_message(self):
+        """A trailing comment once swallowed the `else` after the focus line, so a refused Undo said nothing."""
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/People.jsx").read_text(encoding="utf-8")
+        lines = src.splitlines()
+        at = next(i for i, l in enumerate(lines) if "back.ok" in l and "Undone." in l)
+        self.assertNotIn("else", lines[at].split("//", 1)[-1] if "//" in lines[at] else "", "the comment must not hold the else")
+        self.assertIn("else setDone({ text: back.message", lines[at + 1], "a refused Undo shows the server's message")
+        self.assertIn("doneLn.current.focus()", lines[at + 2], "either way the focus goes to the line that says what happened")
+
+    def test_hunt14_filter_resets_when_none_need_details_and_focus_stays_after_undo(self):
+        """Hunt 14: fixing the last missing email left a stale 'Show only these' button; Undo dropped the focus to the body."""
+        with chrome() as cdp:
+            js = self.show(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)
+            js("document.querySelector('#ppOnly').click()")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('#ppTable tbody tr').length") == 2, 10))
+            js("document.querySelector('#ppPasteBtn').click()")
+            self.fill(js, PASTE)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppPreview')"), 10))
+            js("document.querySelector('#ppAdd').click()")
+            self.assertTrue(wait(lambda: js("document.querySelector('#ppCount span').innerText") == "0 of 3 people need details", 20))
+            self.assertEqual(js("!!document.querySelector('#ppOnly')"), False, "no button when nobody needs details")
+            self.assertEqual(js("document.querySelectorAll('#ppTable tbody tr').length"), 3)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppUndo')"), 10))
+            js("document.querySelector('#ppUndo').focus(); document.querySelector('#ppUndo').click()")
+            self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppDone", 10), "the focus stays in the card after Undo")
+            self.assertEqual(js("document.querySelector('#ppOnly').innerText"), "Show only these")
+            self.assertEqual(js("document.querySelectorAll('#ppTable tbody tr').length"), 3, "the filter did not come back by itself")
 
     def test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button(self):
         """Item keys-settings, 1400 px: Esc in the box did nothing, so the only way out was a mouse or a Tab to the button."""

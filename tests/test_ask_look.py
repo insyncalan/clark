@@ -10,6 +10,7 @@ the product's name, and a name or a date.
 """
 import json
 import re
+import sqlite3
 import unittest
 
 from _paths import ROOT
@@ -164,6 +165,25 @@ class Look(Base):
                         else:
                             self.assertEqual(p.js("document.querySelector('#ask-pills')"), None, "no suggestions while it is not set up")
 
+    def test_row_1097_the_open_settings_link_in_the_not_set_up_line_is_seen_and_readable(self):
+        self.stub.enabled, self.stub.connected = True, False
+        with chrome() as cdp:
+            p = self.open_panel(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out a')", "the not set up line with its link")
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                    p.js(f"document.documentElement.dataset.theme = '{theme}'")
+                    what = f"{width} {theme}"
+                    got = json.loads(p.js("JSON.stringify((function(){var l=document.querySelector('#ask-signed-out'),a=l.querySelector('a'),r=a.getBoundingClientRect(),q=l.getBoundingClientRect(),pn=document.querySelector('#ask-panel').getBoundingClientRect();"
+                                          "return {txt:a.textContent.trim(),w:r.width,h:r.height,inside:r.left>=pn.left&&r.right<=pn.right&&r.top>=q.top-1&&r.bottom<=q.bottom+1,fs:parseFloat(getComputedStyle(a).fontSize),ul:getComputedStyle(a).textDecorationLine,col:getComputedStyle(a).color,line:getComputedStyle(l).color};})())"))
+                    self.assertEqual(got["txt"], "Open Settings", what)
+                    self.assertTrue(got["inside"], f"{what}: the link sits inside the line and the panel")
+                    self.assertGreaterEqual(got["fs"], 12, f"{what}: text under 12 px")
+                    self.assertGreaterEqual(got["h"], 14, what)
+                    self.assertTrue(got["ul"] != "none" or got["col"] != got["line"], f"{what}: the link looks different from the words around it")
+                    self.check_measures(p, f"{what} not set up link")
+
     def test_row_1093_the_suggestions_follow_the_page_and_the_last_question(self):
         pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent).join('|')"
         with chrome() as cdp:
@@ -274,6 +294,40 @@ class Look(Base):
                 p.until("document.querySelectorAll('.ask-turn').length === 6", "the third answer")
                 self.assertEqual(p.js("[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"), lists["work"], f"{width}: no subject named, the page's own list")
 
+    def test_row_1093_each_page_has_its_exact_list_and_a_page_without_one_has_the_generic_list(self):
+        def listed(block_start, line_start):
+            block = WORDS[WORDS.index(block_start):]
+            line = next(l for l in block.splitlines() if l.strip().startswith(line_start))
+            return re.findall(r'"([^"]+)"', line.split("[", 1)[1])
+        generic = re.findall(r'^  "(.+)",$', WORDS[WORDS.index("export const SUGGESTIONS = ["):].split("\n];")[0], re.M)
+        by = {"usecases": ["Which use cases need attention?", "Which use cases are not started?", "Which use cases have open risks?", "Which use cases are done?",
+                           "What changed in the use cases this week?", "Which use cases have no owner?"],
+              "gantt": ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?",
+                        "Which milestones are at risk?", "What ends this month?"]}
+        for k, v in by.items():
+            self.assertEqual(listed("export const PILLS_BY_SUBJECT", k + ":"), v, f"{k}: the words file and this test agree")
+        self.assertEqual(len(generic), 6)
+        pills = "JSON.stringify([...document.querySelectorAll('#ask-pills button')].map(b => b.textContent))"
+        # the Dashboard has its own list (tested above); here the Use cases and Gantt pages and the generic fallback on Settings
+        expected = {"usecases": by["usecases"], "gantt": by["gantt"], "settings": generic}
+        con = sqlite3.connect(str(self.store.path))      # the Gantt page is offered only where the project's setting says so
+        con.execute("UPDATE projects SET show_gantt_editor = 1")
+        con.commit()
+        con.close()
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for page, want in expected.items():
+                    p = self.open_panel(cdp, width)
+                    if page != "dashboard":              # the page opens on the Dashboard
+                        p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
+                        p.until("!document.querySelector('#ask-panel')", f"a move to {page} closes the panel ({p.js('location.hash')})")
+                        p.key("/", code="Slash", vk=191)
+                        p.until(SETTLE, "the panel is ready again")
+                    self.assertEqual(p.js("location.hash.split('&')[0]"), "#" + page)
+                    want_json = json.dumps(json.dumps(want, separators=(",", ":")))
+                    p.until(f"({pills}) === {want_json}", f"{width} {page}: its suggestion list")
+                    self.assertEqual(json.loads(p.js(pills)), want, f"{width} {page}")
+
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
         with chrome() as cdp:
             for width in (1400, 900):
@@ -306,15 +360,25 @@ class Look(Base):
                     box = json.loads(p.js("JSON.stringify((function(){var r=document.querySelector('#ask-box').getBoundingClientRect();var s=document.querySelector('#ask-send').getBoundingClientRect();"
                                           "var cs=getComputedStyle(document.querySelector('#ask-send'));"
                                           "return {h:r.height,w:s.width,sh:s.height,left:s.left,boxRight:r.right,radius:cs.borderRadius,txt:document.querySelector('#ask-send').textContent.trim(),"
-                                          "title:document.querySelector('#ask-send').title,label:document.querySelector('#ask-send').getAttribute('aria-label'),svg:!!document.querySelector('#ask-send svg'),"
+                                          "title:document.querySelector('#ask-send').title,label:document.querySelector('#ask-send').getAttribute('aria-label'),svg:!!document.querySelector('#ask-send svg'),d:(document.querySelector('#ask-send svg path')||{getAttribute:function(){return ''}}).getAttribute('d'),"
                                           "bg:cs.backgroundColor,op:cs.opacity};})())"))
                     self.assertLessEqual(box["h"], 44, f"{what}: one line high")
                     self.assertGreaterEqual(min(box["w"], box["sh"]), 24, f"{what}: 24 px hit box")
                     self.assertEqual(box["txt"], "", f"{what}: no word on the button")
                     self.assertEqual((box["title"], box["label"]), ("Ask", "Ask"))
                     self.assertTrue(box["svg"])
+                    self.assertAlmostEqual(box["w"], box["sh"], delta=1, msg=f"{what}: the button is square")
+                    rad = box["radius"]
+                    self.assertTrue(rad == "50%" or float(rad.rstrip("px")) >= box["w"] / 2 - 1, f"{what}: the button is round ({rad})")
+                    self.assertTrue(box["d"].startswith("M8 13V3M3.5 7.5 8 3"), f"{what}: the arrow points up ({box['d']})")
                     self.assertGreaterEqual(box["left"], box["boxRight"] - 1, f"{what}: beside the field")
                     self.assertLess(float(box["op"]), 1, f"{what}: looks disabled while empty")
+                    # row 1096: a round arrow in the brand colour (the pill token), not a grey square
+                    self.assertGreaterEqual(float(box["radius"].split()[0].rstrip("px%")) * (box["sh"] / 100 if box["radius"].endswith("%") else 1), box["sh"] / 2 - 0.5, f"{what}: the send button is round ({box['radius']})")
+                    token = p.js("(function(){var d=document.createElement('div');d.style.backgroundColor='var(--pill-color)';document.body.appendChild(d);var c=getComputedStyle(d).backgroundColor;d.remove();return c;})()")
+                    self.assertEqual(box["bg"], token, f"{what}: the send button is the brand colour")
+                    chans = [float(x) for x in re.findall(r"[\d.]+", box["bg"])[:3]]
+                    self.assertGreater(max(chans) - min(chans), 40, f"{what}: the brand colour, not grey ({box['bg']})")
                     p.js("(function(){var b=document.querySelector('#ask-box');b.value='a very long question '.repeat(20);b.dispatchEvent(new Event('input',{bubbles:true}));})()")
                     p.until("!document.querySelector('#ask-pills')", f"{what}: suggestions gone while typing")
                     self.assertLessEqual(p.js("document.querySelector('#ask-box').getBoundingClientRect().height"), 44, f"{what}: a long question stays one line")
@@ -479,7 +543,7 @@ class Strings(Base):
         self.assertGreaterEqual(len(found), 30)
         # "critical path" trips the jargon judge (the word path) but is the plain project-planning term for the gantt list; reported on the
         # row, kept out of this judge by name so that every other new suggestion is still read.
-        self.judge([f for f in found if f != "What is on the critical path?"], "subject suggestions")
+        self.judge([f for f in found if f != "Which work items hold up the end date?"], "subject suggestions")
 
     def test_every_suggestion_and_quip_in_the_words_file(self):
         def listed(name):

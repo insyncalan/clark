@@ -3,7 +3,7 @@
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
 // this import takes back. The workbook is sent once (#655: "sheets" lists what it has and the server keeps it; the check then names only the
 // ticked sheets, the only ones the server reads, compares or can archive in). `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { templateRequest, saveBlob } from "./publishApi.js";
@@ -28,6 +28,12 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
   const input = useRef(null);
   const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
+  // Choose a file is off while the file is read, which takes the focus away; when the box is back on its first step, give it back.
+  useEffect(() => {
+    if (step.at !== "pick") return;
+    const b = document.querySelector("#import-box #import-choose");
+    if (b && !document.querySelector("#import-box").contains(document.activeElement)) b.focus();
+  }, [step.at]);
 
   async function chosen(e) {
     const file = e.currentTarget.files && e.currentTarget.files[0];
@@ -93,7 +99,9 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     } finally { busy.current = false; }
   }
 
-  const cancel = <button type="button" class="btn quiet" data-close onClick={onClose}>{T.cancel}</button>;
+  const applying = step.at === "applying";               // the import carries on whatever is clicked, so nothing may close the box and lose the result and Undo
+  const close = () => { if (!applying) onClose(); };
+  const cancel = <button type="button" class="btn quiet" data-close aria-disabled={applying ? "true" : undefined} onClick={close}>{T.cancel}</button>;
   const fileInput = <input ref={input} type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={chosen} />;
 
   if (step.at === "pick" || step.at === "checking") {
@@ -116,7 +124,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   }
   if (step.at === "done" || step.at === "undone") {
     return (
-      <Dialog key="done" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
+      <Dialog key={step.at} id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
         foot={<>{step.at === "done" && step.applyId ? <button type="button" class="btn quiet" id="import-undo" onClick={undo}>{T.undo}</button> : null}<button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button></>}>
         <p role="status" id="import-result">{step.message}</p>
         <p class="error" role="alert" id="import-problem">{problem}</p>
@@ -143,8 +151,8 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const setAll = (on) => { const t = {}; for (const i of items) t[i.n] = on && !!i.default && !i.problem; setTicks(t); };
   const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
   return (
-    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} wide first={empty ? "#import-close" : "#import-go"}
-      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button>
+    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={close} wide first={empty ? "#import-close" : "#import-go"}
+      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" aria-disabled={applying ? "true" : undefined} onClick={close}>{T.close}</button>
         : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
       <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>

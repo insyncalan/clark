@@ -24,10 +24,11 @@ class Source(unittest.TestCase):
         self.assertIn("border-left: 0", de)
         self.assertIn("border-left: 0", rt)
 
-    def test_shell_css_is_unchanged(self):
+    def test_shell_css_draws_the_same_quiet_marker_in_its_own_rules(self):
         css = read(PAGE / "shell.css")
-        self.assertIn(".de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid", css)
-        self.assertIn(".rt-host .ProseMirror blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid", css)
+        for start in (".de-internal {", ".rt-host .ProseMirror blockquote {", ".sec-body blockquote {"):
+            line = next(l for l in css.splitlines() if l.startswith(start))
+            self.assertNotIn("border-left", line, start)
 
 
 if __name__ == "__main__":

@@ -48,10 +48,10 @@ class FocusRings(unittest.TestCase):
         self.assertIsNotNone(m, "menu items have a ring rule of their own")
         self.assertIn("outline: 2px solid var(--focus)", m.group(1))
 
-    def test_the_filter_box_shows_a_two_pixel_ring_while_the_input_has_focus(self):
-        body = rule(".fline:focus-within")
-        self.assertIsNotNone(body)
-        self.assertIn("outline: 2px solid var(--focus)", body)
+    def test_the_filter_box_has_no_focus_ring_rule(self):
+        # Issue 1137, the ruling: the filter field looks the same with or without the cursor in it.
+        self.assertIsNone(rule(".fline:focus-within"))
+        self.assertIsNone(re.search(r"\.fline\.on\s*[,{]", CSS))
 
 
 BROWSER_RING = r"""(() => {
@@ -61,12 +61,12 @@ BROWSER_RING = r"""(() => {
   const menuItem = ring(item);
   const input = document.querySelector('#fline-input');
   input.focus({ preventScroll: true });
-  return JSON.stringify({ menuItem, active: document.activeElement === input, box: ring(input.closest('.fline')) });
+  return JSON.stringify({ menuItem, active: document.activeElement === input });
 })()"""
 
 
 class FocusRingsDrawn(_Base):
-    """The rings are drawn in the real page, at 1400 and 900: a focused menu item and the filter box (Chrome is required)."""
+    """The rings are drawn in the real page, at 1400 and 900: a focused menu item (Chrome is required)."""
 
     def test_a_focused_menu_item_and_the_filter_box_draw_a_two_pixel_ring_at_both_widths(self):
         with chrome() as cdp:
@@ -84,7 +84,7 @@ class FocusRingsDrawn(_Base):
                 cdp.js("document.querySelector('#profile-btn').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu [role=menuitem]')", sid)), "the profile menu opened")
                 got = json.loads(cdp.js(BROWSER_RING, sid))
-                for name, r in (("menu item", got["menuItem"]), ("filter box", got["box"])):
+                for name, r in (("menu item", got["menuItem"]),):
                     where = f"{width} px, {name}"
                     self.assertTrue(r["visible"], where + ": has focus")
                     self.assertEqual(r["style"], "solid", where)

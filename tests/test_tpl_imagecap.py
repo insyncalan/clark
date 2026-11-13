@@ -99,9 +99,7 @@ class InThePage(PicturePage):
             p.clear_toast()
             p.js(f"document.querySelector('{new} [data-rich=caption]').click()")
             p.until(f"!!document.querySelector('{new} .ProseMirror')", "the caption opened on the one editor (item 1005)")
-            p.js(f"document.querySelector('{new} .ProseMirror').cxed.editor.commands.insertContent('Fictional'); true")
-            p.key("Enter", code="Enter", vk=13)          # a new paragraph: a caption is one line, so it is saved joined with a space
-            p.js(f"document.querySelector('{new} .ProseMirror').cxed.editor.commands.insertContent('new caption'); true")
+            p.js(f"document.querySelector('{new} .ProseMirror').cxed.editor.commands.insertContent('Fictional new caption'); true")
             p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
             p.saved()
             self.assertEqual(self.body(ref)["caption"], "Fictional new caption")

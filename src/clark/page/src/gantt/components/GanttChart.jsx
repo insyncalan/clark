@@ -85,6 +85,7 @@ export function GanttChart({
   const [width, setWidth] = useState(900);
   const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
+  const [mine, setMine] = useState({});                // columns the person has dragged: their width is kept as set, never capped again
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
@@ -94,7 +95,8 @@ export function GanttChart({
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const fitW = paper ? Math.min(width, PAPER_W) : width;      // the screen is unchanged: only a print narrows it
   const narrow = fitW < 1000;
-  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
+  const capW = { name: 120, start: 94, end: 94, pct: 44 };
+  const cwN = narrow ? Object.fromEntries(Object.keys(cw0).map((k) => [k, mine[k] ? cw0[k] : Math.min(cw0[k], capW[k])])) : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); showBack(); if (onFilter) onFilter(f); else setOwnFilter(f); };
@@ -184,9 +186,15 @@ export function GanttChart({
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, fitW - leftW), range);
-  const ppd = ppdFor(scale, fit, zoom);
+  const ppd = ppdFor(scale, fit, paper ? 1 : zoom);      // the paper is fitted at the zoom of 100%: a screen zoom would print several pages wide and be clipped at the floor of the fit
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
+  useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
+    if (drawn && document.documentElement.classList.contains("print-all")) fitCharts(document, true);
+  }, [drawn]);
+  useLayoutEffect(() => {      // the beforeprint fit ran before the paper was drawn and measured the chart at its screen zoom; once it is drawn for the paper (paper, ppd) the ratio is taken again
+    if (paper && drawn) fitCharts(document, true);
+  }, [paper, ppd, drawn]);
   const nShown = full ? total : (grip !== null ? grip : rowsShown(total, defaultRows, own, edit));
   const cut = !full && nShown < total;
   const canvasH = total * RH;
@@ -227,7 +235,7 @@ export function GanttChart({
     e.preventDefault(); e.stopPropagation();
     const el = e.currentTarget, x0 = e.clientX, w0 = cw[key];
     el.setPointerCapture(e.pointerId);
-    el.onpointermove = (m) => setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) }));
+    el.onpointermove = (m) => { setMine((o) => ({ ...o, [key]: true })); setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) })); };
     const stop = cancellable(el, () => setCw((c) => ({ ...c, [key]: w0 })), () => {});
     el.onpointerup = () => { stop(); };
   };
@@ -498,7 +506,7 @@ export function GanttChart({
       </div>
 
       <div class="gt-grip" role="separator" aria-orientation="horizontal" aria-label={WORDS.gripLabel} aria-valuemin={1} aria-valuemax={total} aria-valuenow={cut ? nShown : total}
-        tabindex="0" title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
+        tabindex="0" aria-disabled={full ? "true" : undefined} title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
         <i />{grip !== null ? <span class="gt-gl2">{grip} of {total}</span> : null}
       </div>
 
