@@ -195,6 +195,18 @@ COVERED = [
      'test_settings_data_page::Card::test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error'),
     ('1044', 'At 900 wide the leftmost label of the Milestones strip is not clipped.',
      'test_milestones_dead_css::LeftLabel::test_the_left_most_label_starts_inside_the_strip'),
+    ('1121', 'In the window that asks what to import, Tab and Shift+Tab move on from Choose a file instead of getting stuck.',
+     'test_settings_data_page::Card::test_tab_and_shift_tab_move_on_from_choose_a_file_and_back_1121'),
+    ('1127', 'On the Gantt, a milestone opens its edit box from the keyboard (Enter or Space), and focus goes back to where you were when a box or menu closes.',
+     'test_gantt_chart::Chart::test_enter_or_space_on_a_milestone_opens_its_edit_box_with_real_keys'),
+    ('1129', 'A long folder path with no spaces in the Backups card wraps inside the card.',
+     'test_long_path_wrap::LongPathWrap::test_these_break_anywhere'),
+    ('1131', 'On the Use cases page a long no-match message wraps, and a long headline or milestone list stays within two lines.',
+     'test_use_cases_long_text_clamp::UseCasesLongTextClamp::test_no_match_message_wraps_anywhere'),
+    ('1132', 'A published file keeps the Timeline or Calendar choice of its Milestones when the page is reloaded.',
+     'test_ms_view_kept_in_file::MsViewKept::test_a_file_choice_goes_to_the_address_and_not_to_storage'),
+    ('1134', 'A filter line with several types, a plain word or is:overdue opens the same list from a copied link in a new tab.',
+     'test_filter_line_page::Line::test_the_address_carries_what_the_older_state_cannot_hold_and_a_new_tab_opens_the_same_list'),
 ]
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -285,6 +297,12 @@ BULLET_STARTS = {
     '1122': 'After Preview or Restore in the Backups card, the restor',
     '1125': 'A double click on Import, or on its Undo, now counts onc',
     '1044': 'The leftmost label of the Milestones strip no longer cli',
+    '1121': 'In the window that asks what to import, Tab and Shift+Tab',
+    '1127': 'On the Gantt, a milestone now opens its edit box with Enter or Space',
+    '1129': 'A long folder path with no spaces in the Backups card',
+    '1131': 'On the Use cases page, a long message when nothing matches',
+    '1132': 'A published file now keeps the Timeline or Calendar choice',
+    '1134': 'A filter line with several types, a plain word or "is:overdue"',
 }
 
 # Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669).
