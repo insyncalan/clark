@@ -321,7 +321,8 @@ def page_of(path, onedrive_roots=None):
             finally:
                 found.close()
         folder = brands.folder(page.BRANDING.parent, brand)
-        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder)
+        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder,
+                              brand_id=None if folder is brands.GENERIC or folder == page.BRANDING else brand)
     return page_html
 
 
