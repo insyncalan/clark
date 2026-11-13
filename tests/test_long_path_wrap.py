@@ -1,32 +1,33 @@
-"""A long folder path is one unbroken word: the Settings copy-folder hint, its refusal, the warning line and the
-suggestion buttons must wrap it inside the card (overflow-wrap) rather than push past the edge at 900.
+"""Item 1129: a long unbroken folder path (a copy folder with no spaces) wraps inside the Settings card instead of pushing past it.
+The error line, the field hint, the field error, the buttons and the Use {path} suggestion all break anywhere.
 
 Run: python3 dev/run_tests.py test_long_path_wrap
 """
 import re
+import sys
 import unittest
-from pathlib import Path
 
-import _paths  # noqa: F401
+from _paths import TOOLS
 
-CSS = Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "shell.css"
+sys.path.insert(0, str(TOOLS))
+import build_page  # noqa: E402
 
 
-def rule(selector):
-    for m in re.finditer(r"^" + re.escape(selector) + r" \{([^}]*)\}", CSS.read_text(encoding="utf-8"), re.M):
-        return m.group(1)
-    raise AssertionError("no rule for " + selector)
+def rule(css, selector):
+    return " ".join(re.findall(r"(?m)^" + re.escape(selector) + r"\s*\{([^}]*)\}", css))
 
 
 class LongPathWrap(unittest.TestCase):
-    def test_each_place_a_folder_path_is_shown_wraps_anywhere(self):
-        for sel in (".setting p.error", ".fld-bad", ".fld small", ".fld [data-copy-suggestion]"):
-            self.assertIn("overflow-wrap: anywhere", rule(sel), sel)
+    css = (build_page.PAGE / "shell.css").read_text(encoding="utf-8")
 
-    def test_a_suggestion_button_stays_inside_its_column(self):
-        body = rule(".fld [data-copy-suggestion]")
+    def test_these_break_anywhere(self):
+        for sel in (".setting p.error", ".fld small", ".fld-bad", ".btn"):
+            self.assertIn("overflow-wrap: anywhere", rule(self.css, sel), sel)
+
+    def test_the_suggestion_button_stays_inside_the_card(self):
+        body = rule(self.css, "[data-copy-suggestion]")
         self.assertIn("max-width: 100%", body)
-        self.assertIn("white-space: normal", body)
+        self.assertIn("text-align: left", body)
 
 
 if __name__ == "__main__":

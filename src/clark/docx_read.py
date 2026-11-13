@@ -475,11 +475,14 @@ class _Body:
         elif local == "hyperlink":
             self.counts["links"] += 1
         elif local == "tbl":
-            self.tables.append({"rows": [], "row": None, "cell": None})
+            self.tables.append({"rows": [], "row": None, "cell": None, "span": 1})
         elif local == "tr" and self.tables:
             self.tables[-1]["row"] = []
         elif local == "tc" and self.tables:
             self.tables[-1]["cell"] = []
+            self.tables[-1]["span"] = 1
+        elif local == "gridSpan" and self.tables and self.tables[-1]["cell"] is not None:
+            self.tables[-1]["span"] = min(max(_int(val) or 1, 1), 64)       # a spanning cell fills this many columns
 
     def text(self, data):
         if self.in_t:
@@ -510,14 +513,16 @@ class _Body:
         elif local == "tc" and self.tables:
             t = self.tables[-1]
             t["row"].append("\n".join(t["cell"] or []))
+            t["row"] += [""] * (t["span"] - 1)
             t["cell"] = None
         elif local == "tr" and self.tables:
             t = self.tables[-1]
-            if any(c.strip() for c in t["row"] or []):
-                t["rows"].append(t["row"])
+            t["rows"].append(t["row"] or [])             # a blank row inside a table is kept; trailing ones go at </tbl>
             t["row"] = None
         elif local == "tbl" and self.tables:
             done = self.tables.pop()
+            while done["rows"] and not any(c.strip() for c in done["rows"][-1]):
+                done["rows"].pop()
             if self.tables:                                  # nested: its text goes into the cell it sits in
                 outer = self.tables[-1]
                 if outer["cell"] is not None:

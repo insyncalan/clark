@@ -7,13 +7,16 @@ import { inertBehind } from "./modalLayers.js";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
+// The controls Tab can reach: a hidden one (the import's file input) is not one, so the wrap lands on a control that takes the focus.
+const tabbable = (r) => Array.from(r.querySelectorAll(FOCUSABLE)).filter((el) => !el.hidden && el.type !== "hidden" && el.offsetParent !== null);
+
 export function Dialog({ title, id, onClose, first, wide, children, foot, onSubmit, opener }) {
   const root = useRef(null);
   const back = useRef(opener || (typeof document !== "undefined" ? document.activeElement : null));
   useEffect(() => {
     const r = root.current;
     const release = inertBehind(r);                                 // everything outside the box, a toast button too (modalLayers.js)
-    const start = (first && r && r.querySelector(first)) || (r && r.querySelector(FOCUSABLE));
+    const start = (first && r && r.querySelector(first)) || (r && tabbable(r)[0]);
     if (start) start.focus();
     return () => {
       release();
@@ -24,7 +27,7 @@ export function Dialog({ title, id, onClose, first, wide, children, foot, onSubm
   const onKeyDown = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); return; }
     if (e.key !== "Tab" || !root.current) return;
-    const all = Array.from(root.current.querySelectorAll(FOCUSABLE));
+    const all = tabbable(root.current);
     if (!all.length) return;
     const a = all[0], z = all[all.length - 1];
     if (!root.current.contains(document.activeElement) || document.activeElement === root.current) { e.preventDefault(); (e.shiftKey ? z : a).focus(); }

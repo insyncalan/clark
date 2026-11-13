@@ -34,7 +34,7 @@ EXTRA_PAIRS = (
     ("brand-navy", "grey-100", "the cover's subtitle"),
     ("grey-50", "brand-ink", "the cover's tiles"),
 )
-DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
+DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;]+)(?:;|$)")   # the last declaration of a block may have no closing semicolon
 
 
 def _channel(hexa):

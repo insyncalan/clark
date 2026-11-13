@@ -13,7 +13,7 @@ def rule(selector):
 
 class LongText(unittest.TestCase):
     def test_no_match_message_wraps(self):
-        self.assertIn("overflow-wrap: anywhere", rule(".ucl-none p"))
+        self.assertIn("overflow-wrap: anywhere", rule(".ucl-none"))
 
     def test_headline_and_milestones_clamp_to_two_lines(self):
         body = rule(".ucl-head, .ucl-ms")

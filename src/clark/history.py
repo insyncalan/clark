@@ -664,8 +664,7 @@ def _publication_rows(con, code):
 
 
 def _dmy(day):
-    y, m, d = str(day).split("-")
-    return f"{d}-{m}-{y}"
+    return timefmt.day_text(day)
 
 
 def _when_key(stamp):
