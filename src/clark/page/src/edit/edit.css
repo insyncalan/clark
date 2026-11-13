@@ -478,15 +478,11 @@ table.items td.c-pick { vertical-align: middle; }
 .ucd-items { margin: 0; padding: 0; }
 .ucd-items li { padding: 0; border-top: 1px solid var(--grey-100); }
 .ucd-items li:first-child { border-top: 0; }
-.ucd-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucd-item { position: relative; display: grid; grid-template-columns: 24px 96px minmax(0, 1fr) minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .ucd-item:hover { background: var(--grey-50); }
+.ucd-item[data-tip]:hover::after, .ucd-item[data-tip]:focus-visible::after { left: 4px; right: auto; }      /* row 1145: the status tip of the icon opens at the row's left */
 .ucd-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
 /* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
-.ucd-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucd-item .pill.r::before { background: var(--tone-red-text); }
-.ucd-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucd-item .pill.a::before { background: var(--tone-amber-text); }
-.ucd-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucd-item .pill.g::before { background: var(--tone-green-text); }
-.ucd-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucd-item .pill.b::before { background: var(--tone-blue-text); }
-.ucd-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucd-item .pill.n::before { background: var(--tone-grey-text); }
 .ucd-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucd-foot { margin: 0; }
@@ -509,7 +505,7 @@ table.items td.c-pick { vertical-align: middle; }
   .ucd-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .ucd-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .ucd-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   .ucd-x { grid-column: 2 / -1; text-align: left; }
 }
 /* G5 typed notes (#96): the Edit parts of Callout, Quote, Contacts and Table. Edit only. Tokens only. */
@@ -1042,7 +1038,7 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 }
 
 /* row 940 (macOS gate, test_edit_cells_layout): in Edit at 900 px and below the Due, priority and status columns are 8 px wider than the bare minimum, so a font a little wider than Linux's (macOS draws these three 2 to 3 px wider) stays inside its box. EDIT ONLY: shell.css is also the published page's, whose Item column must stay at least 280 px (test_published_item_column), so the widths are not set there. Same specificity as shell.css's 900 px rule and later in the page, so these win without !important. */
-@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 150px; } }
+@media (max-width: 900px) { table.items .c-due { width: 139px; } table.items .c-prio { width: 101px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 150px; } }
 
 /* row 834: at 900 px an item's meta line (ID, use case, plan) is one line cut short with an ellipsis, as in the prototype (nowrap), so a row is at most two title lines and one meta line (82 px, the prototype's 81) and not three lines of meta. EDIT ONLY: shell.css is also the published page's. */
 @media (max-width: 900px) { table.items .c-owner { width: 130px; } #work table.items .tcell .tx { min-width: 0; } #work table.items .tcell .meta { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; } }
