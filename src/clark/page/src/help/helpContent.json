@@ -622,7 +622,8 @@
     "s": [
      "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
      "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your computer’s setting and changes when the computer does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
->>>>>>> origin/main
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+    ],
     "page": [
      "settings"
     ]
