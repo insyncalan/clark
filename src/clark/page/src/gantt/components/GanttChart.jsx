@@ -59,6 +59,8 @@ function grownFor(key) {
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
 
+const printOn = () => { try { return document.documentElement.classList.contains("print-all"); } catch (e) { return false; } };
+
 export function GanttChart({
   lines, edit = false, today, filter: filterProp, onFilter, defaultRows = null, onDefaultRows, hiddenCols = [], projectKey = "",
   onChange, onToggleEye, onAdd, onDelete, addBelowWord = "", eyeWords = {},      // addBelowWord: the Edit-only add button's words (edit/ganttWords.js), given by the page
@@ -83,7 +85,7 @@ export function GanttChart({
   const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
-  const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
+  const [paper, setPaper] = useState(printOn);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
   const gx = useRef(null);
   const dragged = useRef(false);
@@ -174,6 +176,9 @@ export function GanttChart({
     document.addEventListener("pointerdown", onDown, true);
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
   }, [box, menu, showOpen, full, sel]);
+
+  // A Gantt that is drawn after the print began (Ctrl+P swaps in the print stack once beforeprint has fired) misses that event, so each draw fits it too.
+  useLayoutEffect(() => { if (paper && printOn()) fitCharts(document, true); });
 
   useEffect(() => {      // row 1038: the chart is scaled to the paper's width while the browser prints (logic/printFit.js, shell.css)
     const on = () => fitCharts(document, true), off = () => fitCharts(document, false);

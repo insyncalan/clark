@@ -399,6 +399,42 @@ class Table(unittest.TestCase):
         self.assertEqual(self.val("T.calls.slice(-2).map((c) => c[0])"), ["change", "delete"])
         self.assertEqual(self.state()["msg"][:12], "Line GNT-008")
 
+    def test_a_line_added_under_a_filter_that_hides_it_opens_no_edit_box_and_keeps_the_keys_working(self):
+        self.load(filter="phases")
+        names = self.names()
+        self.assertGreater(self.val("T.grid.visibleRows(T.lines, {edit: true, filter: 'phases'}).length"), 1)
+        self.click(0, 1)
+        self.go("T.mouse(T.cell(0, 1), 'contextmenu', {button: 2})")
+        self.go("[...document.querySelectorAll('.gt-menu button')][0].click()")      # Add a task below: a task is hidden by Phases only
+        s = self.state()
+        self.assertFalse(s["editing"], "no edit box opens on the next phase")
+        self.assertEqual(s["msg"][:12], "A line was a")
+        self.assertIn("hides it", s["msg"])
+        self.assertEqual(self.val("T.lines.length"), len(names) + 1)
+        self.assertEqual([n for n in self.names() if n != "New task"], names)
+        self.press("End", meta=True)
+        self.press("Tab")      # the last cell of the last phase: the new task is hidden, so nothing is left in editing
+        self.assertFalse(self.state()["editing"])
+        before = self.state()["act"]
+        self.press("ArrowUp")
+        self.assertNotEqual(self.state()["act"], before, "the arrow keys still move the cell")
+
+    def test_shift_tab_after_escape_leaves_the_table(self):
+        self.load()
+        self.click(1, 1)
+        self.press("Escape")
+        self.press("Shift")      # holding Shift sends its own key first
+        before = self.state()["act"]
+        self.assertFalse(self.val("T.press('Tab', {shift: true})"), "Shift+Tab is left to the browser")
+        self.assertEqual(self.state()["act"], before)
+
+    def test_deleting_from_the_row_menu_leaves_focus_in_the_table(self):
+        self.load()
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        self.go("[...document.querySelectorAll('.gt-menu button')].pop().click()")
+        self.assertEqual(self.val("document.activeElement.classList.contains('gt-scroll') || !!document.activeElement.closest('.gt-scroll')"), True)
+        self.assertEqual(self.val("document.activeElement === document.body"), False)
+
     def test_right_click_on_several_rows_offers_to_delete_them(self):
         self.load()
         self.go("T.mouse(document.querySelector('th[data-row=\"1\"]'), 'mousedown')")
