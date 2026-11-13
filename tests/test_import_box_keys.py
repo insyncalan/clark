@@ -121,3 +121,15 @@ class ImportBox(unittest.TestCase):
         self.js("T.release()")
         self.until("!!document.querySelector('#import-undo')", "Undo this import is offered")
         self.assertEqual(self.js("T.closed"), 0)
+
+
+    def test_the_note_about_the_rest_follows_reject_all_and_accept_all(self):
+        self.to_plan(items(305))
+        note = "document.querySelector('#import-more').textContent"
+        self.assertIn("5 more, of which 5 will be imported", self.js(note))
+        self.click("#import-reject-all")
+        self.until(f"{note}.includes('of which 0 will be')", "the note follows Reject all")
+        self.assertEqual(self.js("document.querySelector('#import-go').disabled"), True)
+        self.click("#import-accept-all")
+        self.until(f"{note}.includes('of which 5 will be')", "the note follows Accept all")
+        self.assertEqual(self.js("document.querySelector('#import-go').textContent"), "Import 305 changes")
