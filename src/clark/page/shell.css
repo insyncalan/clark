@@ -2479,5 +2479,5 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
 .vgb .i { width: 18px; height: 18px; }
 
-/* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
-.crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
+/* A long word with no spaces (a project name in the crumbs or a milestone name in the Milestones sentence, a use case's text when its row is opened) breaks inside its box instead of widening the page. */
+.crumbs, .head > div, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
