@@ -91,7 +91,7 @@ export function UseCasesTab() {
   const pages = d.use_case_pages || [];
   const by = (rows) => Object.fromEntries((rows || []).map((r) => [r.id, r]));
   const cases = by(d.use_cases), steps = by(d.actions), marks = by(d.milestones);
-  const open = uc.value ? ucFor(d, uc.value) : null;                       // row 1111: one use case page, read only
+  const open = uc.value && !printing.value ? ucFor(d, uc.value) : null;     // paper lists every use case; // row 1111: one use case page, read only
   if (open && pages.some((p) => p.id === open.id)) return <UseCaseFilePage id={open.id} />;
   return (
     <section class="frame ucpage" id="usecases-file">
