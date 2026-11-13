@@ -9,7 +9,7 @@
 //   above     the slot above the plan: a later step mounts the Dashboard's sections here (page scope on the sections table)
 //   below     the slot below the plan
 //   today     today as YYYY-MM-DD (default: the computer's)
-import { useEffect, useLayoutEffect, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { mode, fromFile, asAt } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
 import { Fade } from "../../components/Menu.jsx";
@@ -37,6 +37,8 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   const [chosen, setLayout] = useState("chart");              // "chart" | "table": the mode (View or Edit) is kept when this changes
   const [filter, setFilter] = useState("all");                // the chart's names: all | phases | milestones | ticked
   const [showOpen, setShowOpen] = useState(false);
+  const showBtn = useRef(null);
+  const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const editing = !!(tools && tools.Toggle) && mode.value === "edit" && !fromFile.value;
   const Toggle = tools && tools.Toggle && !fromFile.value ? tools.Toggle : null;
   const Title = tools && tools.GanttTitle ? tools.GanttTitle : null;
@@ -118,13 +120,13 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
         </button> : null}
         <span class="gt-sp" />
         {layout === "table" ? (
-          <span class="gt-showwrap" data-gp-showwrap>
+          <span class="gt-showwrap" data-gp-showwrap onKeyDown={(e) => { if (e.key === "Escape" && showOpen) { setShowOpen(false); showBack(); } }}>
             <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${W.show}: ${filterWord(filter)}`} title={`${W.show}: ${filterWord(filter)}`}
-              data-gp-show onClick={() => setShowOpen(!showOpen)}><Icon name="filter" /></button>
+              data-gp-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Icon name="filter" /></button>
             {showOpen ? (
               <Fade class="gt-pop" role="menu" aria-label={W.show} data-gp-showmenu>
                 {filters.map((f) => (
-                  <button type="button" key={f} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); }}>
+                  <button type="button" key={f} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); showBack(); }}>
                     <span class="gt-ck" aria-hidden="true">{filter === f ? "✓" : ""}</span>{filterWord(f)}
                   </button>
                 ))}

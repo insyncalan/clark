@@ -64,14 +64,17 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
 
   // Closing the panel hands focus back to the row button that opened it, so the keyboard does not start again from the top.
   const opener = useRef(null);
-  const closePanel = () => { setPanel(null); const el = opener.current; if (el && el.isConnected) el.focus(); };
+  const asked = useRef(0);                                   // the newest preview asked for; closing the panel makes a late answer stale
+  const closePanel = () => { asked.current += 1; setPanel(null); const el = opener.current; if (el && el.isConnected) el.focus(); };
 
   async function look(name, confirming, e) {
     if (e && e.currentTarget) opener.current = e.currentTarget;
+    const mine = ++asked.current;
     setBusy(true);
     setMsg(null);
     const r = await api.preview(name);
     setBusy(false);
+    if (mine !== asked.current) return;
     if (r.status === 200 && r.body && r.body.ok === true) setPanel({ name, preview: r.body, confirming });
     else { setPanel(null); setMsg({ kind: "error", text: L.answerWords(r.status, r.body) }); }
   }

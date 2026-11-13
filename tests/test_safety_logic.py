@@ -227,6 +227,19 @@ class Card(InBrowser):
         self.assertFalse(self.present("#backup-panel"))
         self.assertEqual(self.val("document.activeElement.hasAttribute('data-restore')"), True)
 
+    def test_closing_the_panel_while_a_preview_loads_does_not_reopen_it(self):
+        self.mount()
+        self.click("[data-backup] [data-preview]")
+        self.assertTrue(self.present("#backup-panel"))
+        self.js("window.release = null; T.replies.preview = () => new Promise(r => { window.release = () => r({status: 200, body: Object.assign({}, %s)}); })" % json.dumps(PREVIEW))
+        self.js("document.querySelectorAll('[data-backup] [data-preview]')[1].click()")
+        self.settle()
+        self.click("#backup-panel [data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.js("window.release()")
+        self.settle()
+        self.assertFalse(self.present("#backup-panel"), "a late answer must not reopen a closed panel")
+
     def test_the_restored_message_is_in_view_and_focused_after_the_reload(self):       # #1122
         self.js("T.logic.rememberDone('Restored the backup.', T.store)")
         self.mount_tall()

@@ -727,6 +727,20 @@ class Line(unittest.TestCase):
             sid = self.load(cdp, s.port, hash_="#work&p=TUL&f=mode:closed;owner:%zz")
             self.assertEqual(cdp.js("location.hash.startsWith('#work&p=TUL')", sid), True)
 
+    def test_the_address_carries_what_the_older_state_cannot_hold_and_a_new_tab_opens_the_same_list(self):
+        # item 1134: several types, is:overdue, a plain word and a repeated field were dropped from the address, so a link opened another list
+        s = self.serve()
+        with shared.page() as cdp:
+            sid = self.load(cdp, s.port)
+            for line in ("type:action,decision", "type:risk", "is:overdue", "book", "is:open type:action,decision book"):
+                self.put(cdp, sid, line)
+                want_chips, want_rows, want_hash = self.chips(cdp, sid), self.shown(cdp, sid), cdp.js("location.hash", sid)
+                self.assertIn("q:", want_hash, f"{line!r}: the older state cannot say it, so the line goes in the address")
+                cdp.js("sessionStorage.clear()", sid)          # a new tab has no memory of the line
+                sid = self.load(cdp, s.port, hash_=want_hash)
+                self.assertEqual(self.chips(cdp, sid), want_chips, f"{line!r}: the line is the same in a new tab")
+                self.assertEqual(self.shown(cdp, sid), want_rows, f"{line!r}: the list is the same in a new tab")
+
     def test_back_and_forward_bring_the_line_back_with_the_page(self):
         s = self.serve()
         with shared.page() as cdp:

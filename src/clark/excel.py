@@ -679,10 +679,13 @@ def from_cell(field, value):
             return None
         value = unescape_text(value)
         if field in DATES:
+            m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", value.strip())     # as excel_import.read_date: - / or .
             try:
-                return datetime.strptime(value.strip(), "%d-%m-%Y").date().isoformat()
+                if m:
+                    return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
             except ValueError:
-                return value  # left as typed; the store's checks report it
+                pass
+            return value  # left as typed; the store's checks report it
     if field in YES_NO:
         if str(value).lower() in ("yes", "y", "1", "true"):
             return 1
