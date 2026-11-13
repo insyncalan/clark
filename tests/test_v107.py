@@ -5,7 +5,7 @@ Run: python3 dev/run_tests.py test_v107
 Same shape as test_v106. COVERED holds the rows merged so far (the first docs batch); the cut bookkeeping adds the rest from the merged list. WAITING and TEST_ONLY start empty.
 The notes' own rules run now against dev/release-notes/1.0.7-plain.md. Everything that reads the hand-check sheet, and the cut
 tests, skip until the cut commit sets 1.0.7 in src/clark/__init__.py; from then on both files must exist, every row in the sheet's
-status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout stays at 20.
+status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout is 24 (steps 21 to 24 came with 1.0.7).
 """
 import ast
 import os
@@ -16,7 +16,7 @@ from _paths import ROOT
 
 TESTS = ROOT / "tests"
 VERSION = "1.0.7"
-SCHEMA = 20              # 1.0.6 ended at layout 20; 1.0.7 stays at 20
+SCHEMA = 24              # 1.0.6 ended at layout 20; 1.0.7 took steps 21 to 24
 
 # Filled with the rows merged so far; the cut bookkeeping adds the rest from the merged list.
 # (item, the check a person would make by eye, the test that covers it: file::Class::test)
@@ -45,7 +45,7 @@ COVERED = [
      'test_menu_icons::Browser::test_status_and_priority_menus_show_the_icon_and_the_same_words'),
     ('1075', 'A message at the foot of the page goes after 5 seconds with a bar that shrinks, and Ctrl+Z still undoes after it.',
      'test_toast_five_seconds::ToastFiveSeconds::test_the_message_is_still_there_at_4_seconds_and_gone_by_6_and_the_bar_shrinks'),
-    ('1076', 'clark opens as a page in an ordinary Chrome window at clark.localhost, and the notes say the saved views start again once.',
+    ('1076', 'The page opens in an ordinary Chrome window at clark.localhost, and the notes say the saved views start again once.',
      'test_launcher::Launch::test_the_address_is_clark_localhost_with_the_port_for_chrome_and_127_0_0_1_for_the_rest'),
     ('1082', 'Show history under Latest update lists the changes, five in view, and reads Hide history while open.',
      'test_peek_history_1082::Browser::test_five_in_view_the_rest_scroll_and_the_link_toggles'),
@@ -71,6 +71,130 @@ COVERED = [
      'test_glance_page::Published::test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts'),
     ('1114', 'In a published file a milestone row, mark or chip opens a read-only peek.',
      'test_publish_ms_open::PublishedMilestonesOpen::test_a_row_a_mark_and_a_chip_open_the_read_only_peek'),
+    ('1021', 'Risks and issues, Open actions and Decisions show one line for each item with a small tinted letter square for the kind and the status colour.',
+     'test_item_one_line::OneLineInView::test_one_line_a_tinted_letter_for_the_kind_and_a_colour_for_the_status'),
+    ('1025', 'Spacing is one setting, Compact or Comfortable, and Comfortable is looser than Compact.',
+     'test_spacing_settings_help::Browser::test_compact_is_what_the_page_had_and_comfortable_is_looser'),
+    ('1060', 'In the Excel file a use case Where it stands holds its words in the cell, with no formatting codes.',
+     'test_excel_plain_1060::ExcelPlainWords::test_each_rich_field_is_its_words_in_the_cell'),
+    ('1061', 'The Commitment choice that said Candidate now says Planned 2026.',
+     'test_store_planned_2026_migration::PlannedTwentySix::test_candidate_becomes_planned_2026_and_other_values_stay'),
+    ('1065', 'A published file has no Weekly snapshot tab, and an old Weekly snapshot address opens the Dashboard.',
+     'test_router::Pure::test_1065_the_retired_client_report_address_falls_back_to_the_dashboard'),
+    ('1066', 'A published page shows no Needs from you section that the editor Dashboard does not have.',
+     'test_published_matches_editor::Matches::test_a_flagged_item_does_not_add_a_needs_section_the_editor_does_not_have'),
+    ('1068', 'A Table section can be added to the Dashboard and draws only the plan table, with one Undo.',
+     'test_gantt_table_section::TheChangeRoute::test_a_table_section_is_added_with_one_undo_and_the_undo_takes_it_away'),
+    ('1069', 'Settings has a Feedback card with a link in its list.',
+     'test_feedback_tab::InSettings::test_settings_draws_the_card_and_a_link_for_it'),
+    ('1070', 'Change owner in an item menu has a search box that finds people.',
+     'test_row_menu::Menu::test_item_1070_change_owner_has_a_search_box_that_finds_people_on_the_register'),
+    ('1071', 'A filter tab can be picked up and dragged left or right and the order is kept.',
+     'test_filter_line_page::Line::test_row_1071_a_tab_is_picked_up_and_dragged_left_or_right_and_the_order_is_kept'),
+    ('1072', 'Group by is one icon button the size of the List and Board icons.',
+     'test_work_items_header::Header::test_row_1072_group_by_is_one_icon_button_the_size_of_table_and_board'),
+    ('1077', 'The words box in a peek is headed Ask clark to update for you and there is no Draft chip.',
+     'test_peek_ruled_1077::Source::test_the_words_box_is_headed_ask_clark_to_update_for_you'),
+    ('1078', 'A milestone peek has the same rows and header line as a work item peek.',
+     'test_milestone_peek_1078::Sources::test_the_editor_draws_the_rows_in_the_ruled_order_with_the_name_as_the_title'),
+    ('1079', 'On a use case page a milestone can be added, with one Undo.',
+     'test_use_case_detail::Detail::test_add_a_milestone_is_one_change_with_one_undo_row_1079'),
+    ('1081', 'On a use case page the Work items card shows one line per item with one tinted status chip.',
+     'test_use_case_detail::Detail::test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081'),
+    ('1084', 'The List, Board and Group by icons follow the clear button and the tabs have the whole row.',
+     'test_work_items_header::Header::test_row_813_no_freshness_pill_and_the_filter_is_still_there_by_typing_and_by_a_saved_view'),
+    ('1085', 'The Use cases page has four tabs over a filter line, with counts that follow the line.',
+     'test_use_cases_list::Narrowing::test_the_tabs_counts_follow_the_line_and_narrow_the_list'),
+    ('1087', 'Published reports has an address of its own and no peek.',
+     'test_router::Pure::test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek'),
+    ('1088', 'The Brands card takes a brand zip of any file name and the name inside the zip names the brand.',
+     'test_brands_zip::Names::test_any_zip_file_name_is_accepted_and_the_manifest_names_the_brand'),
+    ('1099', 'Half-width cards fit in View and in Edit, light and dark.',
+     'test_half_cards_1099::HalfCards::test_half_width_cards_fit_in_view_and_edit_light_and_dark'),
+    ('1100', 'Asking looks for Claude in the npm and nvm places.',
+     'test_ask_claude::NpmAndNvmInstalls::test_the_npm_and_nvm_places_are_looked_in'),
+    ('1104', 'A column width changes by dragging the right edge of its heading and is kept.',
+     'test_col_widths::Widths::test_a_heading_edge_changes_the_width_and_it_is_kept'),
+    ('831', 'The Data card in Settings has Export to Word and Import from Word buttons.',
+     'test_data_card::DataCard::test_C_word_buttons_open_the_profile_menus_boxes_in_view'),
+    ('951', 'The Data card has Excel file layout; it opens a box that says what the exported file holds and sends nothing.',
+     'test_data_card::DataCard::test_C_excel_file_layout_opens_a_box_with_the_three_texts_and_sends_nothing'),
+    ('658', 'Delete in a row menu and in the peek asks first, removes the item, and Undo at the foot of the page brings it back.',
+     'test_row_delete::DeleteItem::test_cancel_does_nothing_delete_removes_the_row_and_undo_brings_it_back'),
+    ('1094', 'While ask clark works, one line from a deck of 150 quips shows, and none comes round again until all have been shown.',
+     'test_ask_quips::QuipDeck::test_150_quips_none_twice_each_with_an_ellipsis'),
+    ('1095', 'New chat, History and Close in the ask clark panel are plain icon buttons, and History keeps the project\'s earlier chats.',
+     'test_ask_icons::AskIcons::test_three_plain_icon_buttons_in_order_at_both_widths_and_themes'),
+    ('1036', 'Export to Word: the milestone plan picture has the lane names and the dates along its axis.',
+     'test_docx_graphics::Labels::test_a_named_lane_has_ink_in_its_own_band_of_the_name_column_and_an_unnamed_one_none'),
+    ('1041', 'Press Quit clark while a save or publish runs: the card says clark is finishing it first and then stops.',
+     'test_quit_card::Card::test_a_running_save_or_publish_is_said_instead_of_the_idle_line'),
+    ('1040', 'Quit clark puts the keyboard focus on its question and gives it back on Cancel or Esc; Help names the key that opens ask clark.',
+     'test_quit_card::Card::test_focus_follows_the_question_and_comes_back'),
+    ('1030', 'Start clark twice: the message does not tell you to press Ctrl+C in a Terminal window, and clark\'s own check agrees with the launcher.',
+     'test_launch_running::Running::test_row_1030_the_words_do_not_send_anyone_to_a_terminal_window'),
+    ('1126', 'The backup box and the client folder messages say "data", and two page messages do not say "request".',
+     'test_page_words::Words::test_the_page_words_say_data_not_database_and_that_not_request'),
+    ('669', 'The At a glance tiles in the editor read the same as in the published file ("None high", "None open", "No date set", "None waiting").',
+     'test_glance_tile_words::Page::test_risks'),
+    ('1117', 'Under every tile, Edit says the words the published file says.',
+     'test_glance_parity::SameWords::test_edit_says_the_words_the_file_says_under_every_tile'),
+    ('1118', 'Set the Project health tile colour by hand: Edit and the published file show the same colour.',
+     'test_glance_parity::SameWords::test_a_colour_set_by_hand_on_project_health_shows_the_same_in_edit_and_in_the_file'),
+    ('936', 'In Edit, the draft email\'s internal note and the rich-text quote have no coloured stripe down one side.',
+     'test_card_borders_936_sidetabs::Source::test_edit_css_quiets_the_two_stripes'),
+    ('1113', 'The Work items section of a Dashboard takes the same filter line as the Work items page; a name that is gone matches nothing.',
+     'test_tpl_workitems::Saved::test_an_owner_or_workstream_or_use_case_that_is_gone_matches_nothing_and_the_filter_stays'),
+    ('1005', 'Client wording, picture captions, Movement words and the Own words of a risk use the same editor as other long text.',
+     'test_one_editor_gate::MovedFields::test_the_row_and_peek_client_wording_have_no_plain_box_of_their_own'),
+    ('1067', 'Work items has no Show archived; is:archived on the filter line lists archived items, read only, and Restore puts one back.',
+     'test_work_archived_filter::ArchivedFilter::test_is_archived_lists_the_archived_items_read_only_and_clearing_brings_back_the_list'),
+    ('1048', 'Draft email from a row menu fills To with the owner\'s address and name from People.',
+     'test_row_menu::Menu::test_row_1048_the_owners_address_and_name_ride_on_the_ask_show_in_the_to_line_and_stay_on_a_changed_option_at_1400_and_900'),
+    ('1058', 'On the filter line, choose a key: its values are listed at once.',
+     'test_filter_line_page::Line::test_typing_offers_fields_then_values_with_arrows_and_enter_choose'),
+    ('1054', 'Archive from a milestone peek: the focus goes to the next row or to Undo; menus and the filter box show a clear ring.',
+     'test_milestone_peek_828::Fields::test_after_archive_in_the_peek_focus_goes_to_the_next_row_or_to_undo'),
+    ('1093', 'On each page, the suggestions under the ask clark box are that page\'s, and the last question changes them.',
+     'test_ask_look::Look::test_row_1093_the_suggestions_follow_the_page_and_the_last_question'),
+    ('1096', 'The ask clark question box is one line, the suggestions hide while you type, and Ask is a round up arrow.',
+     'test_ask_look::Look::test_the_box_is_one_line_the_suggestions_go_while_typing_and_the_send_is_a_round_arrow'),
+    ('1128', 'A cancelled milestone says "No longer going ahead", and the head does not say "No milestones yet." over cancelled rows.',
+     'test_ms_cancelled_words::Words::test_a_cancelled_row_says_no_longer_going_ahead'),
+    ('1026', 'Close the Gantt Show menu, the Gantt table right-click menu and the / list: each fades out.',
+     'test_motion_menu_exit_four::Pins::test_row_1026_each_menu_is_wired_to_the_fade_and_the_css_names_it'),
+    ('1027', 'Publish a Gantt whose owner or baseline date is also named in a section: it publishes.',
+     'test_gantt_markers_bodies::OwnerAndDates::test_an_owner_that_a_section_body_also_names_publishes'),
+    ('1037', 'A long label near the left edge of the Gantt starts inside the chart.',
+     'test_gantt_chart::Chart::test_row_1037_a_long_label_near_the_left_edge_never_starts_left_of_the_chart'),
+    ('1039', 'With Reduce motion on, the Today button on the Gantt jumps at once.',
+     'test_motion_gantt_bars::Bars::test_today_button_jumps_at_once_under_reduced_motion_and_scrolls_smoothly_otherwise_row_1039'),
+    ('1038', 'Print a long Gantt on A4: it is scaled to the page and the timeline is not cut at the right edge.',
+     'test_gantt_print::Print::test_a_long_plan_is_scaled_to_the_page_and_nothing_is_cut'),
+    ('1050', 'With the dark look on, print the Dashboard: it prints light and the look comes back.',
+     'test_appearance::PrintLight::test_1050_printing_is_light_in_dark_and_the_look_comes_back'),
+    ('1032', 'After Group by, Discard changes does not overlap New view at 1400 wide.',
+     'test_work_items_header::Header::test_row_1032_discard_changes_does_not_overlap_new_view_after_group_by'),
+    ('1120', 'In the new-person form of the owner picker, Tab moves between its fields and keeps the picker open.',
+     'test_assign_new_person_live::NewPerson::test_row_1120_tab_in_the_form_moves_between_its_fields_and_keeps_the_picker'),
+    ('1123', 'Drag a column heading on the Work board into the gap between two columns: it goes there.',
+     'test_board_columns::Columns::test_dropping_a_heading_in_the_gap_between_columns_puts_it_there_not_at_the_end'),
+    ('1034', 'The Dashboard does not scroll sideways at 1400 and 900 wide.',
+     'test_row_1034_no_sideways::Dashboard::test_nothing_scrolls_sideways_at_1400_and_900'),
+    ('1028', 'Import an Excel workbook with empty rows far down the sheet: it is read and not turned away.',
+     'test_excel_empty_row::EmptyRow::test_an_empty_row_at_6000_does_not_refuse_the_workbook'),
+    ('1035', 'Export to Word with a project health or use case status that is not plain text: the file builds.',
+     'test_docx_build::HostileHealthAndStatus::test_a_health_or_use_case_status_that_is_not_text_builds'),
+    ('1116', 'Open a published file with a very long unbroken name: no tab scrolls sideways.',
+     'test_view_long_word::LongWord::test_no_tab_of_the_file_scrolls_sideways'),
+    ('1119', 'Ask, leave the page while it thinks, come back: the answer is not in the next chat.',
+     'test_ask_leave_page::LeavePage::test_an_answer_that_arrives_after_leaving_the_page_is_not_shown_in_the_next_chat'),
+    ('1122', 'In Settings, Preview or Restore a backup: the restored message shows and the focus is kept.',
+     'test_safety_logic::Card::test_the_restored_message_is_in_view_and_focused_after_the_reload'),
+    ('1125', 'Double click Import, and its Undo: it happens once, shows no error and Undo stays.',
+     'test_settings_data_page::Card::test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error'),
+    ('1044', 'At 900 wide the leftmost label of the Milestones strip is not clipped.',
+     'test_milestones_dead_css::LeftLabel::test_the_left_most_label_starts_inside_the_strip'),
 ]
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -79,14 +203,14 @@ BULLET_STARTS = {
     '999': 'Each project now uses its own brand in everything clark makes',
     '1023': "A brand's cover picture now shows faintly behind every page",
     '1057': "In a work item's peek, the box for your words stays at the bottom while the peek scrolls.",
-    '1059': 'The type buttons (All, Actions, Risks and issues, Decisions) and the status buttons (Open, Closed, All) above the list are gone.',
+    '1059': 'The type buttons (All, Actions, Risks and issues, Decisions) and the status buttons (Open, Closed, All) above the list are gone in the app.',
     '1062': 'The Asking card in Settings says where a question goes and which account pays for it.',
     '1063': "Import from Word is no longer in the profile circle's menu.",
     '1064': 'The top bar no longer shows the project name.',
     '1073': '"+ New view" makes a view at once, named View 1, View 2 and so on; you can rename it.',
     '1074': 'Each choice in a drop-down of the peek, the table cells and the milestone peek shows a small icon beside its words',
     '1075': 'A message at the foot of the page goes after 5 seconds',
-    '1076': 'clark now opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
+    '1076': 'Now clark opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
     '1082': 'In the peek of an action, "Show history" under Latest update lists the changes to that one field, newest first.',
     '1083': 'In the Milestones list, a light line and a little space separate each milestone from the next.',
     '1089': 'Help has a new guide, "The brand kit guide"',
@@ -99,12 +223,79 @@ BULLET_STARTS = {
     '1111': 'In a published file, a use case opens its own page',
     '1112': 'In a published file, the At a glance tiles that count work items',
     '1114': "In a published file, a milestone's row, mark or chip opens a read-only peek.",
+    '1021': 'Risks and issues, Open actions and Decisions show one line',
+    '1025': 'Spacing is one setting for the whole app',
+    '1060': 'In the Excel file, the Where it stands of a use case',
+    '1061': 'The use case Commitment choice that said Candidate',
+    '1065': 'A published file no longer has the Weekly snapshot tab.',
+    '1066': 'A published page no longer shows a "Needs from you" section',
+    '1068': 'A new Dashboard section, Table',
+    '1069': 'Settings has a Feedback card:',
+    '1070': 'Change owner in an item\'s menu has a search box',
+    '1071': 'Filter tabs can be dragged left or right',
+    '1072': 'Group by is now one icon button',
+    '1077': 'The peek of a work item is flatter',
+    '1078': 'The milestone peek has the same format',
+    '1079': 'On a use case\'s page you can add and remove milestones',
+    '1081': 'On a use case\'s page, the Work items card',
+    '1084': 'The List, Board and Group by icons now follow',
+    '1085': 'The Use cases page now follows the Work items page',
+    '1087': 'Published reports is now a page of its own',
+    '1088': 'The Brands card takes a brand zip of any file name',
+    '1099': 'Half-width cards (Risks and issues, Open actions) now fit',
+    '1100': 'Asking now finds Claude and Codex installed with npm or nvm',
+    '1104': 'You can change a column\'s width by dragging',
+    '831': 'The Data card in Settings has Export to Word and Import',
+    '951': 'The Data card also has "Excel file layout". It opens a b',
+    '658': 'A work item or a decision can be deleted from its "..."',
+    '1094': 'While ask clark is working, it shows a line from a deck',
+    '1095': 'In the ask clark panel, New chat, History and Close are',
+    '1036': 'The milestone plan picture in the Word file has the lane',
+    '1041': 'When a save or publish is running, the Quit card says cl',
+    '1040': 'Quit clark moves the keyboard focus to its question, and',
+    '1030': 'When clark is already running, the message no longer tel',
+    '1126': 'Words on screen say "data" or "set of data" where they s',
+    '669': 'The At a glance tiles in the editor say the same words a',
+    '1117': 'Under every tile, Edit says the words the published file',
+    '1118': 'A colour set by hand on the Project health tile now show',
+    '936': 'In Edit, the draft email\'s internal note and the rich-te',
+    '1113': 'The Work items section of a Dashboard takes the same fil',
+    '1005': 'The Client wording, picture captions, Movement words and',
+    '1067': 'Work items no longer has Show archived. Type is:archived',
+    '1048': 'Draft email fills the To line with the owner\'s address a',
+    '1058': 'On the filter line, choosing a key shows its values at o',
+    '1054': 'After Archive in a milestone\'s peek, the keyboard focus',
+    '1093': 'The suggestions under the ask clark box follow the page',
+    '1096': 'The ask clark question box is one line high, the suggest',
+    '1128': 'A Cancelled milestone says "No longer going ahead", and',
+    '1026': 'Three more menus fade out when they close: the',
+    '1027': 'A Gantt page whose owner or baseline date is also named',
+    '1037': 'A long label near the left edge of the Gantt no longer s',
+    '1039': 'The Today button on the Gantt jumps at once when Reduce',
+    '1038': 'Printing a long Gantt on A4 scales it to the page, so th',
+    '1050': 'Printing is always in the light look, even when the scre',
+    '1032': 'Discard changes no longer overlaps New view after Group',
+    '1120': 'In the new-person form of the owner picker, Tab moves be',
+    '1123': 'A column heading dragged on the Work board into the gap',
+    '1034': 'The Dashboard no longer scrolls sideways when the window',
+    '1028': 'An Excel workbook with empty rows far down a sheet is no',
+    '1035': 'The Word file builds when a project health or a use case',
+    '1116': 'A long unbroken name in a published file no longer makes',
+    '1119': 'An answer from ask clark that comes back after you leave',
+    '1122': 'After Preview or Restore in the Backups card, the restor',
+    '1125': 'A double click on Import, or on its Undo, now counts onc',
+    '1044': 'The leftmost label of the Milestones strip no longer cli',
 }
 
+# Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669).
+NO_BULLET = {'1117'}
+# Bullets for merged work that has no plan row in COVERED: the start of each (1245 in PR 1356; the launcher's synced-folder refusal in PR 1357).
+EXTRA_BULLET_STARTS = ('A Completed item no longer reads as late.', 'The launcher now refuses a data folder inside Dropbox', 'In Docker, when the container shares the computer')
+
 # Merged rows with no visible change.
-NO_VISIBLE_CHANGE = set()
+NO_VISIBLE_CHANGE = {'1080', '1029', '1031', '1055'}   # 1055 changed only the old prototype's Help wording
 # Merged rows that are tests or internal code only: no bullet, no hand check.
-TEST_ONLY = set()
+TEST_ONLY = {'1045', '1047'}
 # No user note, and no hand check, once merged.
 NO_NOTE_WHEN_MERGED = set()
 
@@ -186,15 +377,16 @@ def bullets_are_final(found_version, env=None):
     return found_version == VERSION or (os.environ.get("V107_FINAL") if env is None else env) == "1"
 
 
-def bullet_problems(found, covered, final):
+def bullet_problems(found, covered, final, extra=()):
     """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
     out = []
+    covered = set(covered) - NO_BULLET
     for item in sorted(covered):
         n = sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item]))
         if n > 1 or (final and n == 0):
             out.append("%s has %d bullets, wanted %s" % (item, n, "one" if final else "at most one"))
     if covered:
-        starts = [BULLET_STARTS[i] for i in covered]
+        starts = [BULLET_STARTS[i] for i in covered] + list(extra)
         out += ["a bullet for no merged row: " + b[:40] for b in found if not any(b.startswith("- " + t) for t in starts)]
     if final and not found:
         out.append("the notes hold no bullet")
@@ -354,7 +546,7 @@ class Notes(unittest.TestCase):
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version())), [])
+        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version()), EXTRA_BULLET_STARTS), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
@@ -421,7 +613,7 @@ class Cut(unittest.TestCase):
 
     def test_the_data_layout_is_still_the_one_the_notes_say(self):
         self.cut_made()
-        self.assertEqual(schema_version(), SCHEMA, "1.0.7 stays at layout 20")
+        self.assertEqual(schema_version(), SCHEMA, "1.0.7 ends at layout 24")
 
     def test_a_waiting_row_whose_pull_request_has_landed_has_been_moved_to_covered(self):
         self.cut_made()

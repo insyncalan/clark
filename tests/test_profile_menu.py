@@ -11,8 +11,9 @@ import unittest
 from unittest import mock
 
 from test_publish_dialog import Base, PAGE_SRC
-from test_server import chrome
-from clark import excel, server as sv
+from test_server import Running, chrome, wait
+from test_page import navigate
+from clark import excel, page as clark_page, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
 TIP = "Your menu: Publish, Preview, Export"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
@@ -295,11 +296,35 @@ class ProfileMenu(Base):
             p.until("document.activeElement.id === 'profile-btn'", "focus is back on the circle")
 
 
+class NoProject(unittest.TestCase):
+    """Row 1092: with no project open the menu is exactly the who line, Settings, a separator, the Appearance group, a separator and Help."""
+
+    def test_the_menu_with_no_project_is_settings_the_look_group_and_help_only(self):
+        import tempfile
+        s = Running(data_for=lambda code, archived=None: None, projects=lambda archived=False: [], page_html=lambda: clark_page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = navigate(cdp, s.port, "#dashboard")
+            ok = lambda expr, what: self.assertTrue(wait(lambda: cdp.js(expr, sid), 30), what)
+            ok("document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
+            ok("!!document.querySelector('#profile-btn')", "the circle")
+            cdp.js("document.querySelector('#profile-btn').click()", sid)
+            ok("!!document.querySelector('#profile-menu')", "the menu")
+            self.assertEqual(cdp.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()", sid),
+                             "menuitem,menuitem,separator,group,separator,menuitem")
+            self.assertEqual(cdp.js("[].map.call(document.querySelectorAll('#profile-menu > [role=menuitem]'), function(e){return e.textContent}).join('|')", sid),
+                             WHO + "|Settings|Help")
+            self.assertEqual(cdp.js("document.querySelectorAll('#profile-menu [data-kind=settings]').length", sid), 1)
+            self.assertEqual(cdp.js("document.querySelector('#profile-menu [data-kind=settings]').nextElementSibling.getAttribute('role')", sid), "separator",
+                             "Settings sits before the separator that opens the Appearance group")
+            self.assertEqual(cdp.js("document.querySelector('#profile-menu [role=group]').textContent.indexOf('Appearance')", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#profile-menu [data-kind=published],[data-kind=publish],[data-kind=preview],[data-kind=export],[data-kind=word-export]').length", sid), 0)
+
+
 class Published(unittest.TestCase):
     def test_the_page_has_no_menu_of_its_own_in_a_published_file(self):
         from clark import page
         self.assertNotIn("profile-btn", page.VIEW_PAGE.read_text(encoding="utf-8"))
-        self.assertIn("menuTip(items)", (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

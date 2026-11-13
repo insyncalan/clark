@@ -3,7 +3,7 @@
 import { NONE } from "../filters.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { compileQuery } from "../logic/filterQueryEval.js";
-import { STATUS_WORDS, RAG, ON_WORDS, TABS, tabKeeps, ORDER } from "../logic/useCasesList.js";
+import { STATUS_WORDS, RAG, ON_WORDS, TABS, pickRows } from "../logic/useCasesList.js";
 
 // ---- the filter line (row 1085) ----
 // The page's own line, read by the Work items box (components/FilterLine.jsx LineBox) with this schema and no other: status:, commitment: and
@@ -37,6 +37,5 @@ export function tabCounts(rows, f) {
 
 /** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
 export function shownOf(rows, f) {
-  const test = lineTest(f.line, rows), keeps = tabKeeps(f.tab);
-  return rows.map((r, i) => [r, i]).filter(([r]) => test(r) && keeps(r)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
+  return pickRows(rows, f, lineTest(f.line, rows));
 }

@@ -114,7 +114,7 @@ import zipfile
 import zlib
 from html import unescape
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -215,8 +215,16 @@ def plain(table, msg):
     if m:
         return f"There is no label {m.group(1)} {m.group(2)}"
     m = re.match(r"([a-z_]+) (must be|is not) ", msg)
-    if m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
+    if m and m.group(1) == "review_after_days":
+        msg = "Not reviewed after (days)" + msg[len(m.group(1)):]
+    elif m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
         msg = _label(table, m.group(1)) + msg[len(m.group(1)):]
+    m = re.fullmatch(r"(.*) \(got (.*)\)", msg, re.S)
+    if m:
+        cell = m.group(2)
+        if len(cell) >= 2 and cell[0] == cell[-1] and cell[0] in "'\"":
+            cell = cell[1:-1]
+        msg = f"{m.group(1)} (the cell says {cell})"
     return re.sub(r"\b(\d{4})-(\d{2})-(\d{2}) 00:00:00\b", lambda x: f"{x.group(3)}-{x.group(2)}-{x.group(1)}", msg)
 
 
@@ -236,6 +244,8 @@ def _got(value):
         return writer.shown(value.date().isoformat()) + (value.strftime(" %H:%M") if value.hour or value.minute else "")
     if isinstance(value, date):
         return writer.shown(value.isoformat())
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
     return repr(_short(value, 60)) if isinstance(value, str) else repr(value)
 
 
@@ -465,11 +475,13 @@ def same(a, b):
 
 def read_date(value):
     """A date cell as YYYY-MM-DD: a real Excel date, DD-MM-YYYY text (also / or .), or YYYY-MM-DD text. Raises ValueError."""
-    if isinstance(value, datetime):
-        return value.date().isoformat()
     if isinstance(value, date):
-        return value.isoformat()
+        if (value.date() if isinstance(value, datetime) else value) < date(1900, 3, 1):
+            raise ValueError(value)        # Excel's day 60 (a 29 February 1900 that never was) reads as 28 February, and a negative day as 1899: neither is a date
+        return value.isoformat()[:10]
     s = str(value).strip()
+    if not s.isascii():                      # \d also takes other scripts' digits; refuse them like check_id does
+        raise ValueError(s)
     m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", s)
     if m:
         return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
@@ -500,14 +512,19 @@ def resolve_ref(field, text):
 OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
 
 
-def from_cell(name, value, kind, label=None):
+def from_cell(name, value, kind, label=None, stored=(), table=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
-    the column's name as the person sees it, for the reason given; it defaults to `name`."""
+    the column's name as the person sees it, for the reason given; it defaults to `name`. `stored` is what the item holds now
+    (and held at the export): a long text that is that text, or that text cut to what Excel keeps, is not a change, so it is not
+    refused and comes back as the stored text."""
     label = label or name
     if value is None or (isinstance(value, str) and not value.strip()):
         return None, None
     if isinstance(value, str) and len(value) > MAX_TEXT:
+        for old in stored:
+            if isinstance(old, str) and value in (old, excel.cell_text(old), excel.cell_text(old)[:MAX_CELL_TEXT]):
+                return old, None
         return None, f"{label} is too long ({len(value):,} characters; the most clark will take is {MAX_TEXT:,})"
     if name in writer.DATE_FIELDS:
         try:
@@ -548,6 +565,10 @@ def from_cell(name, value, kind, label=None):
     if isinstance(value, (datetime, date)):
         return None, f"{label} is text, but the cell holds a date ({_got(value)})"
     text = excel.unescape_text(str(cell_text(value)))
+    if table == "use_cases" and name == "owner":                # row 875: the change route's checks on a use case's owner (plain one line, 200 characters)
+        from clark import changes
+        if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
+            return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
         text = resolve_ref(name, text)
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
@@ -605,23 +626,36 @@ def _six_digit_fraction(text):
     return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
 
 
+def _naive(when):
+    """A date-time with any timezone suffix taken to UTC and then dropped, so two of them can always be subtracted."""
+    if when.tzinfo is not None:
+        when = when.astimezone(timezone.utc).replace(tzinfo=None)
+    return when
+
+
+def _read_when(text):
+    """Text as a naive date-time: a trailing Z or an offset is read and stripped. Raises ValueError when it is not a date-time."""
+    text = text.strip().replace("T", " ")
+    if text[-1:] in ("Z", "z"):
+        text = text[:-1] + "+00:00"
+    return _naive(datetime.fromisoformat(_six_digit_fraction(text)))
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
-    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
-    if isinstance(cell, datetime):
-        then, slack = cell, 0.002
-    else:
-        text = str(cell).strip().replace("T", " ")
-        try:
-            then = datetime.fromisoformat(_six_digit_fraction(text))
-        except ValueError:
-            return False
-        slack = 0.002 if "." in text else 1.0
+    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash.
+    A timezone suffix (Z or an offset) is read and dropped; this never raises."""
     try:
-        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
-    except ValueError:
+        if isinstance(cell, datetime):
+            then, slack = _naive(cell), 0.002
+        else:
+            text = str(cell)
+            then = _read_when(text)
+            slack = 0.002 if "." in text else 1.0
+        now = _read_when(str(stored))
+        return abs((now - then).total_seconds()) > slack
+    except (ValueError, TypeError, OverflowError):
         return False
-    return abs((now - then).total_seconds()) > slack
 
 
 # ── Reading the workbook ──────────────────────────────────────────────────────
@@ -923,7 +957,7 @@ class _Reader:
             label = _label(table, f)
             if cell[f] is _FORMULA:
                 continue                                # a formula is not read: neither a value nor a cleared cell
-            v, err = from_cell(f, cell[f], info[f][0], label)
+            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
@@ -1005,7 +1039,7 @@ class _Reader:
         for f in editable:
             if cell[f] is _FORMULA:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], _label(table, f))
+            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn} (new): {err}; the row was left out", sheet, rn, "", f)
                 bad = True
