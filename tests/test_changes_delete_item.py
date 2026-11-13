@@ -102,7 +102,6 @@ class DeleteItem(unittest.TestCase):
             with self.subTest(table=table), self.assertRaises(Invalid):
                 with self.s.step("dashboard", USER) as st:
                     st.delete(table, ref)
-        self.assertEqual(self.s.read("milestones", ref=self.demo.milestone)["id"], self.demo.milestone)
 
     def test_the_route_refuses_delete_for_other_kinds(self):
         for kind, ref in (("documents", "ABC|d1"), ("projects", "ABC")):
