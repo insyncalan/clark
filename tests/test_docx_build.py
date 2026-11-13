@@ -356,6 +356,14 @@ class WhatIsInIt(unittest.TestCase):
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
 
+    def test_an_achieved_milestone_with_no_actual_date_says_achieved_alone(self):
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(status="Done", actual_date=None, state="Reached", state_word="Reached")
+        text = every_text(docx_build.build(p))
+        self.assertIn("Achieved", text)
+        self.assertNotIn("Achieved \u2014", text)
+        self.assertNotIn("Achieved \u2014".replace("\u2014", "-"), text)
+
     def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
         # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
         p = copy.deepcopy(self.p)
@@ -615,6 +623,18 @@ class Refusals(unittest.TestCase):
         self.assertLess(time.process_time() - started, 120)  # CPU time, so a loaded machine does not count against it; a generous ceiling that a real blow-up still fails
         self.assertLess(len(data), docx_build.MAX_BYTES)
         self.assertIn("PUB-A-1999", every_text(data))
+
+
+    def test_the_plan_picture_alt_text_is_capped_at_a_word(self):
+        p = published()
+        base = p["data"]["milestones"][0]
+        p["data"]["milestones"] = [dict(base, id=f"PUB-M-{n:04d}", name=f"Milestone {n} " + "wordy " * 12) for n in range(200)]
+        z = zipfile.ZipFile(io.BytesIO(docx_build.build(p)))
+        doc = z.read("word/document.xml").decode("utf-8")
+        lens = [len(d) for d in re.findall(r'descr="([^"]*)"', doc)]
+        self.assertTrue(lens)
+        self.assertLessEqual(max(lens), 1500)
+        self.assertTrue(any(n > 1000 for n in lens))
 
 
 class MutantsB1(unittest.TestCase):

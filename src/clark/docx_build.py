@@ -445,7 +445,7 @@ def section_milestones(published, ctx, title, sec):
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
             name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
                                  1440, "TableText")
-        when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
+        when = ("Achieved" + (f" {_date(m['actual_date'])}" if m.get("actual_date") else "")) if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
@@ -458,12 +458,17 @@ def section_milestones(published, ctx, title, sec):
         if not drawn:
             return None
         image, lanes = drawn
-        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
-                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        words = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                          f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        if len(words) > PLAN_ALT_MAX:                  # 200 long names would make an alt text of many thousand characters: cut at a word
+            words = words[:PLAN_ALT_MAX].rsplit(" ", 1)[0]
+        return image, words
     chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
     return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
+
+PLAN_ALT_MAX = 1500
 
 GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
 GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")

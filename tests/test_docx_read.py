@@ -285,7 +285,7 @@ class AGoodFile(unittest.TestCase):
                    '<w:tr><w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:t>Spans two</w:t></w:r></w:p></w:tc></w:tr>',
                    TR(TC(P("two"), P("paragraphs")), "x"))
         self.assertEqual(blocks(body), [{"kind": "table", "rows": [
-            ["Head one", "Head two"], ["Outer\nin a | in b", "Right"], ["Spans two"], ["two\nparagraphs", "x"]]}])
+            ["Head one", "Head two"], ["Outer\nin a | in b", "Right"], ["Spans two", ""], ["two\nparagraphs", "x"]]}])
 
     def test_the_strict_namespace_reads_too(self):
         self.assertEqual(blocks(P("strict"), ns="http://purl.oclc.org/ooxml/wordprocessingml/main"),
