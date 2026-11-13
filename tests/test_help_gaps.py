@@ -13,7 +13,7 @@ from _paths import ROOT
 SRC = ROOT / "src" / "clark" / "page" / "src"
 ARCHIVED = "Archived work is not in the list. To see it, type is:archived on the filter line."
 WORK_ITEMS = next(s for s in RAW["reference"]["sections"] if s["id"] == "work-items")
-SCREENS = {"dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"}
+SCREENS = {"dashboard", "dashboard+edit", "work", "milestones", "usecases", "settings", "publish", "preview", "ask"}
 
 
 def paragraphs(section):

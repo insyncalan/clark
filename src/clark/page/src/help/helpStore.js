@@ -19,7 +19,9 @@ export const helpLand = signal(0);               // bumped when a link took the 
 // The screens Help can take you to today. The others (the Publish box, Preview, ask clark) are named in the text but their
 // parts are other items' work: a link to them is drawn as plain words until they exist.
 export const LIVE_SCREENS = ["dashboard", "dashboard+edit", "work", "milestones", "settings"];
-export const canGo = (to) => LIVE_SCREENS.includes(String(to).split("#")[0]);
+// Use cases is a page of its own that a link can open, but "?" has no peek text for it yet, so it is not a LIVE_SCREEN.
+export const GO_SCREENS = [...LIVE_SCREENS, "usecases"];
+export const canGo = (to) => GO_SCREENS.includes(String(to).split("#")[0]);
 
 function lastTab() {
   try { const t = localStorage.getItem("clark.helpTab"); return TABS.some((x) => x.key === t) ? t : "start"; } catch (e) { return "start"; }

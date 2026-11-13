@@ -62,9 +62,9 @@ export const TABS = CONTENT.tabs.map(([key, name]) => ({ key, name }));
 const TAB_KEYS = TABS.map((t) => t.key);
 
 // The screens a "go:" link may take you to. A settings anchor ("settings#personal") is a place on the Settings screen.
-export const SCREENS = ["dashboard", "dashboard+edit", "work", "milestones", "settings", "publish", "preview", "ask"];
+export const SCREENS = ["dashboard", "dashboard+edit", "work", "milestones", "usecases", "settings", "publish", "preview", "ask"];
 export const GO_LABEL = {
-  dashboard: "Open the Dashboard", "dashboard+edit": "Open the Dashboard in Edit", work: "Open Work items", milestones: "Open Milestones",
+  dashboard: "Open the Dashboard", "dashboard+edit": "Open the Dashboard in Edit", work: "Open Work items", milestones: "Open Milestones", usecases: "Open Use cases",
   settings: "Open Settings", publish: "Open the Publish box", preview: "Preview the page", ask: "Open ask clark",
 };
 export const goLabel = (to) => GO_LABEL[to] || (String(to).startsWith("settings#") ? "Open Settings" : "Open it");
