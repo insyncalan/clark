@@ -4,8 +4,9 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
+import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, closePanel, newChat, setWidth, clampWidth, drawQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -69,14 +70,18 @@ export function AskPanel() {
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
-  const seen = useRef({ open: false, bump: 0 });
+  const seen = useRef({ open: false, bump: 0, busy: false, state });
   useEffect(() => {
-    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
-    seen.current = { open, bump: panelFocus.value };
+    const was = seen.current;
+    const fresh = was.open !== open || was.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
+    if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
-  }, [open, state, panelFocus.value]);
+  }, [open, state, panelFocus.value, busy]);
   // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
   useEffect(() => {
     const el = log.current;
@@ -204,7 +209,11 @@ export function AskPanel() {
     e.preventDefault(); closePanel(); show("settings");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
-      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
+        stopRestore();
+        for (let i = 0; i < 12; i++) setTimeout(() => c.scrollIntoView({ block: "start" }), i * 50);
+        const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+      }
       else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
     };
     focusCard(0);
@@ -212,7 +221,7 @@ export function AskPanel() {
 
   return (
     <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
-      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
+      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">

@@ -25,13 +25,13 @@ from clark import launch, platform as pl
 from clark import __main__ as launcher
 from test_main import AS_THE_MAC
 
-RESTORE_SENTENCE = ("Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, "
+RESTORE_SENTENCE = ("Nothing was restored: clark is open with this data. Close its window, wait two minutes for clark to stop, "
                     "then run the restore again.")
 
 
 def already_open(folder, home=None):
     return (f"Nothing was started: clark is already open with the data in {pl.with_tilde(folder, home)}. Switch to its window. If you can't "
-            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+            "find it, wait two minutes and try again: clark stops by itself two minutes after its last window closes.")
 
 
 def cant_check(folder, nothing="Nothing was started", home=None):

@@ -338,6 +338,34 @@ class InThePage(Base):
             p.js(f"document.querySelector('{sec} button[aria-label=\"Remove Book the venue\"]').click()")
             self.assertTrue(wait(lambda: not any(i.get("text") == "Book the venue" for i in self.stored()), 10))
 
+    def test_edit_says_a_linked_line_the_page_leaves_out_is_left_out(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.edit()
+            sec = f'[data-id="{self.ref}"]'
+            p.until(f"!!document.querySelector('{sec} .tple-list')", "the list")
+            subs = p.js(f"[...document.querySelectorAll('{sec} .tple-row')].map(r => [r.querySelector('.tple-name') ? r.querySelector('.tple-name').textContent : '', (r.querySelector('.tple-sub') || {{}}).textContent || ''])")
+            subs = {n: t for n, t in subs}
+            self.assertEqual(subs[f"{MARK} cancelled"], "Left out of the published page, follows the work item", "a cancelled work item")
+            self.assertEqual(subs[f"{MARK} client off"], "Left out of the published page, follows the work item", "a work item the page does not keep")
+            self.assertTrue(subs["Chase the supplier file"].endswith(", to do, follows the work item"), subs)
+
+    def test_escape_in_a_line_puts_the_saved_words_back_and_saves_nothing(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.edit()
+            sec = f'[data-id="{self.ref}"]'
+            box = f"{sec} input[aria-label='Checklist line']"
+            p.until(f"!!document.querySelector({json.dumps(box)})", "the list")
+            before = self.stored()
+            self.fill(p, box, "Typed then cancelled")
+            p.key("Escape", code="Escape", vk=27)
+            p.until(f"document.querySelector({json.dumps(box)}).value === 'Send the plan'", "the saved words are back")
+            import time
+            time.sleep(0.5)
+            self.assertEqual(self.stored(), before)
+            self.assertEqual([w for w, r in self.sent if w == "change"], [], "no save was sent")
+
     def test_a_blur_save_then_a_quick_remove_keeps_both_changes(self):
         import time
         self.failure = lambda req: (time.sleep(1.0), self.real_change(req))[1]               # every save lands a second late

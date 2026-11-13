@@ -15,7 +15,7 @@ export const DENSITIES = [
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
-  ["system", "System", "Follows your Mac's setting."],
+  ["system", "System", "Follows your computer's setting."],
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];
@@ -59,6 +59,7 @@ function AboutYou() {
                alias: ownAlias.current ? (typedIn.current.alias ? t.alias : profile.value.alias || "") : follow(n) };
     });
   }, [profile.value.name, profile.value.email, profile.value.alias, profileRead.value]);
+  const wanted = wantName.value;                                                  // read while drawing, so the link in the menu redraws this box when Settings is already open
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email, typed.alias]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
   useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit

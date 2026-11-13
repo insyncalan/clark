@@ -180,6 +180,15 @@ class Page(InBrowser):
                     self.assertFalse(self.present("#brands-panel"), "the panel closed")
                     self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
 
+    def test_a_refused_or_empty_review_hands_the_focus_back_to_the_button_pressed(self):
+        for what, reply in (("refused", OK(REFUSAL, 409)), ("empty", OK({"ok": True, "review": None}))):
+            with self.subTest(what=what):
+                self.mount()
+                self.replies(review=reply)
+                self.js("document.querySelector('[data-review]').focus()")
+                self.click("[data-review]")
+                self.assertEqual(self.focused(), "button[data-review]", "the focus is back on Review")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()
@@ -216,6 +225,85 @@ class Page(InBrowser):
         self.click("[data-review]")
         self.assertFalse(self.val("!!window.pwned"))
         self.assertFalse(self.present("#brands img"))
+
+    def pick(self, saved, project=True):
+        self.js("T.project = %s" % ("{brand: %s}" % lit(saved) if project else "undefined"))
+        self.mount()
+
+    def test_the_project_picker_lists_generic_and_the_added_brands_and_saves_a_choice(self):
+        self.pick("generic")
+        self.assertEqual(self.val("[...document.querySelectorAll('#brand-pick option')].map(o => [o.value, o.textContent])"),
+                         [["generic", "Generic"], ["example-brand", "Example Brand"]])
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+        self.js("const s = document.querySelector('#brand-pick'); s.value = 'example-brand'; s.dispatchEvent(new Event('change', {bubbles: true}))")
+        self.settle()
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [], "a change alone saves nothing")
+        self.click("[data-brand-save]")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
+
+    def focus_pick(self):
+        self.js("document.querySelector('#brand-pick').focus()")
+
+    def test_arrows_save_nothing_enter_saves_one_step_and_esc_cancels(self):
+        self.pick("generic")
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand")
+        self.press("ArrowUp", 38)
+        self.press("ArrowDown", 40)
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [], "arrows only move")
+        self.press("Escape", 27)
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [], "Esc saved nothing")
+        self.press("ArrowDown", 40)
+        self.press("Enter", 13)
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
+
+    def test_the_save_button_keeps_the_choice_and_is_off_when_nothing_changed(self):
+        self.pick("generic")
+        self.assertTrue(self.val("document.querySelector('[data-brand-save]').disabled"))
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.assertFalse(self.val("document.querySelector('[data-brand-save]').disabled"))
+        self.click("[data-brand-save]")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick').length"), 1)
+
+    def test_a_refused_save_puts_the_select_back_on_the_saved_brand(self):
+        self.pick("generic")      # the fake save changes nothing, as a refused change would
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.press("Enter", 13)
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertTrue(self.val("document.querySelector('[data-brand-save]').disabled"))
+
+    def test_undo_of_a_brand_change_puts_the_select_back_on_the_earlier_brand(self):
+        self.js("T.keep = true")
+        self.pick("generic")
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.press("Enter", 13)
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand", "the kept choice is shown")
+        self.js("T.undoPick('generic')")
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "Undo shows the earlier brand")
+        self.assertTrue(self.val("document.querySelector('[data-brand-save]').disabled"), "nothing left to save")
+
+    def test_the_picker_shows_the_saved_brand(self):
+        self.pick("example-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+
+    def test_a_removed_brand_shows_the_note_and_generic(self):
+        self.pick("gone-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"),
+                         "The brand chosen for this project is no longer available, so this project uses Generic.")
+
+    def test_with_no_project_open_there_is_no_picker(self):
+        self.pick(None, project=False)
+        self.assertFalse(self.present("#brand-pick"))
 
     def test_hunt18_the_focus_stays_on_the_button_while_the_server_answers_and_after_a_refusal(self):
         """Review and Choose were disabled while the server answered, so the focus fell to the page."""

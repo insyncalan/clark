@@ -6,12 +6,14 @@ import { Icon } from "../components/Icon.jsx";
 import { tableOf } from "./itemEdit.js";
 import { duplicateRequest, duplicateWords, rawOf } from "../logic/rowMenu.js";
 
+export function duplicateFromPeek(row) {
+  const raw = rawOf(data.value, row);
+  if (!raw) return undefined;
+  return changeRecord({ ...duplicateRequest(raw, tableOf(row)), place: "peek" }, (reply) => duplicateWords(row, reply.ref))
+    .then((r) => { if (r && r.ref) openPeek(r.ref, "item"); });
+}
+
 export function PeekDuplicate({ row }) {
-  const run = () => {
-    const raw = rawOf(data.value, row);
-    if (!raw) return undefined;
-    return changeRecord({ ...duplicateRequest(raw, tableOf(row)), place: "peek" }, (reply) => duplicateWords(row, reply.ref))
-      .then((r) => { if (r && r.ref) openPeek(r.ref, "item"); });
-  };
+  const run = () => duplicateFromPeek(row);
   return <button type="button" class="pkp-btn" data-pk-dup title="Duplicate" aria-label="Duplicate" onClick={run}><Icon name="plus" /></button>;
 }
