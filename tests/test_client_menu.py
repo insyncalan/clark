@@ -213,6 +213,16 @@ class Menu(unittest.TestCase):
             self.assertEqual(js(f"{MENU}.querySelector('[data-row=past]').lastElementChild.textContent"), "Opens the earlier report if it is in the same folder as this one.")
             self.assertNotIn("No earlier reports.", js(f"{MENU}.innerText"))
 
+    def test_space_on_a_past_report_row_opens_it_at_both_widths(self):
+        past = [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}]
+        for width in (1400, 900):
+            with chrome() as cdp:
+                js = self.show(cdp, {"past_reports": past}, width=width)
+                self.menu(cdp, js)
+                js(f"window.__clicked = 0; {MENU}.querySelector('a').addEventListener('click', (e) => {{ e.preventDefault(); window.__clicked++; }}); {MENU}.querySelector('a').focus()")
+                self.key(cdp, " ", 32)
+                self.assertTrue(wait(lambda: js("window.__clicked") == 1), f"{width}: Space follows the link")
+
     def test_no_past_reports_says_so(self):
         with chrome() as cdp:
             js = self.show(cdp)

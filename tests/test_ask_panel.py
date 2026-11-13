@@ -352,8 +352,8 @@ class Panel(Base):
         self.stub.enabled = False
         with chrome() as cdp:
             p = self.opened(cdp, ready=False)
-            p.until("document.querySelector('#ask-off') && document.querySelector('#ask-status').textContent !== ''", "the off line")
-            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "Ready. Ask about this project.", "row 795: the greeting stays while asking is off")
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            self.assertEqual(p.js("document.querySelector('#ask-status').textContent"), "", "no ready line over the off line")
             self.assertTrue(p.js("document.querySelector('#ask-status').compareDocumentPosition(document.querySelector('#ask-off')) & Node.DOCUMENT_POSITION_FOLLOWING"), "the amber line sits under the status line")
             self.assertEqual(p.js("document.querySelector('#ask-off').firstChild.textContent.trim()"), "Asking is off. Turn it on in Settings.")
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))

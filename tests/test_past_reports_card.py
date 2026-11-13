@@ -236,7 +236,7 @@ class Card(InBrowser):
         latest = self.text("#pubs-latest")
         for part in ("Latest", "Publication 3", "Week ending 23-10-2026", "28-10-2026 at 13:30", "Local folder, Client folder", "Page, PDF", "Sam Example"):
             self.assertIn(part, latest)
-        self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Open', '').trim())"), ["No.", "Week ending", "Published", "Went to", "Files", ""])
+        self.assertEqual(self.val("[...document.querySelectorAll('#pubs thead th')].map(th => th.textContent.replace('Actions', '').trim())"), ["No.", "Week ending", "Published", "Went to", "Files", ""])
         rows = self.val("[...document.querySelectorAll('#pubs tbody tr')].map(tr => [...tr.cells].map(c => c.textContent).join('|'))")
         self.assertEqual(rows, ["2|16-10-2026|21-10-2026 at 12:15by Sam Example|Local folder|Word|Not keptArchive", "1|Not recorded|14-10-2026 at 20:40by Not recorded|Local folder|Page|Not keptArchive"])
         self.assertEqual(self.val("T.calls[0]"), ["list", "PDF"])
@@ -249,6 +249,38 @@ class Card(InBrowser):
         own = self.val(look)
         self.assertEqual(own["bg"], "rgb(12, 99, 34)", "the band takes the project's own colour")
         self.assertIn(pic, own["pic"], "the band shows the project's own picture")
+
+    def test_the_last_column_header_says_actions_not_open_at_both_widths(self):
+        for width in (1400, 900):
+            self.load(width=width)
+            self.replies(list=OK(LIST))
+            self.mount()
+            self.assertEqual(self.text("#pubs thead th:last-child"), "Actions", width)
+
+    def test_the_loading_line_is_a_status_and_the_message_area_has_no_role_of_its_own(self):
+        src = (PAGE_SRC / "edit" / "PublishedReports.jsx").read_text(encoding="utf-8")
+        self.assertRegex(src, r'id="pubs-loading" role="status"')
+        self.assertRegex(src, r'<div class="pub-msg">')
+        said = past_reports.MESSAGES["copy_changed"].format(number=3)
+        for width in (1400, 900):
+            self.load(width=width)
+            self.replies(list=OK(LIST), ready=OK({"ok": False, "code": "copy_changed", "message": said}, 409))
+            self.mount()
+            self.assertIsNone(self.js("document.querySelector('.pub-msg').getAttribute('role')"), width)
+            self.click("[data-pubopen='3']")
+            self.assertEqual(self.js("document.querySelector('.pub-msg p').getAttribute('role')"), "alert", width)
+
+    def test_a_failed_reread_after_archive_keeps_the_list_and_shows_the_error_beside_it(self):
+        for width in (1400, 900):
+            self.load(width=width)
+            self.replies(list=OK(LIST), archive=OK({"ok": True}))
+            self.mount()
+            self.replies(list=OK({"ok": False}, 500))
+            self.click("[data-pubarchive='3']")
+            self.assertTrue(self.present("#pubs [role=alert]"), width)
+            self.assertTrue(self.present("#pubs-latest"), f"{width}: the earlier list stays")
+            self.assertTrue(self.present("#pubs-table"), width)
+            self.assertTrue(self.present("#pubs-archived"), width)
 
     def test_row_1087_a_latest_with_no_week_says_no_week_instead_of_week_ending_not_recorded(self):
         self.replies(list=OK({**LIST, "total": 1, "shown": 1, "publications": [ROWS[2]]}))

@@ -52,6 +52,21 @@ class HelpTabsKeys(Base):
                 from test_help_panel import full_help_from_menu
                 full_help_from_menu(p, "Help opened again")
 
+    def test_every_tab_points_at_a_panel_that_exists_while_searching_too(self):
+        from test_server import chrome
+        with chrome() as cdp:
+            p = self.in_help(cdp)
+            for w in SIZES:
+                set_size(cdp, p, w)
+                p.js("var q = document.querySelector('#hpQ'); q.value = ''; q.dispatchEvent(new Event('input', {bubbles: true}))")
+                p.until("!!document.querySelector('#hpPane') && !document.querySelector('#hpRes')", f"{w}: not searching")
+                self.assertTrue(p.js("[...document.querySelectorAll('.hp-tabs [role=tab]')].every(b => !!document.getElementById(b.getAttribute('aria-controls')))"), f"{w}: tabs point at the pane")
+                p.js("var q = document.querySelector('#hpQ'); q.value = 'help'; q.dispatchEvent(new Event('input', {bubbles: true}))")
+                p.until("!!document.querySelector('#hpRes')", f"{w}: results shown")
+                self.assertTrue(p.js("[...document.querySelectorAll('.hp-tabs [role=tab]')].every(b => !!document.getElementById(b.getAttribute('aria-controls')))"), f"{w}: tabs point at the results while searching")
+                self.assertIsNone(p.js("document.querySelector('#hpRes').getAttribute('aria-live')"), f"{w}: the results box is not a second live region")
+                p.js("var q = document.querySelector('#hpQ'); q.value = ''; q.dispatchEvent(new Event('input', {bubbles: true}))")
+
 
 if __name__ == "__main__":
     unittest.main()
