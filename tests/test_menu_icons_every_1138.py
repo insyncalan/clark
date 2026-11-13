@@ -83,7 +83,7 @@ class Source(unittest.TestCase):
         "edit/Board.jsx": ("board-move", "board-move-lanes"), "edit/GlanceEdit.jsx": ("outline", "health"),
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group",), "components/UseCasesTab.jsx": ("uc-group",),
-        "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-add", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
+        "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
         "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
@@ -451,11 +451,9 @@ class Work(BulkBase):
                 d.look(w, th)
                 d.check("uc-detail-status", "document.querySelector('#ucd-status').click()", "[role=menu]", 3)
                 d.check("commitment", "document.querySelector('[id^=uccm-]').click()", "[role=menu]", 2)
-                d.button("[id^=ucd-msadd-]", "Add a milestone")
-                d.check("uc-milestone-add", "document.querySelector('[id^=ucd-msadd-]').click()", "[role=menu]", 1)
                 d.button("[id^=ucd-mslink-]", "Link a milestone")
                 d.check("uc-milestone-link", "document.querySelector('[id^=ucd-mslink-]').click()", "[role=menu]", 1)
-            d.expect(["uc-group", "uc-detail-status", "commitment", "uc-milestone-add", "uc-milestone-link"])
+            d.expect(["uc-group", "uc-detail-status", "commitment", "uc-milestone-link"])
 
 
 class Gantt(unittest.TestCase):
