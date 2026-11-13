@@ -42,6 +42,7 @@ class Result:
     status: str                  # "ok" or "not_read" / "scanned" / "encrypted"
     reason: str = ""             # a code from REASONS when not ok
     pages: tuple = ()            # ((page number, text), ...)
+    left_out: int = 0            # pages after the output budget that were not read (0 when all were)
 
 
 def _no(reason):
@@ -67,7 +68,7 @@ def read(raw, vendor=None, truncated=False):
         code = said["status"]
         if code == "ok":
             pages = tuple((int(n), str(t)) for n, t in said["pages"] if int(n) >= 1 and str(t).strip())
-            return Result("ok", "", pages) if pages else _no("scanned")
+            return Result("ok", "", pages, max(0, int(said.get("left", 0)))) if pages else _no("scanned")
         return _no(code if code in REASONS else "crash")
     except Exception:                                  # a faulty answer, a missing python: it is "not read", never an error
         return _no("crash")
