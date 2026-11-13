@@ -148,7 +148,7 @@ ITEM_SHOWN = {k: ("id",) + tuple(f for f in CHANGE_KINDS[k][UPDATE] if f not in 
 FLAG_FIELDS = ("hidden", "beside")        # 0 or 1 only: a bool, a float, a string or any other number is refused
 BASE_KEYS = ("project", "kind", "op", "place")
 OP_KEYS = {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before", "flags"), DELETE: ("id",),
-           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm"), HAND_OVER: ("ids", "to", "confirm"),
+           ARCHIVE: ("id",), RESTORE: ("id",), PICK: ("ids",), BULK: ("ids", "changes", "confirm", "from_status"), HAND_OVER: ("ids", "to", "confirm"),
            LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids")}
 MAX_PICK = 100                            # the picker adds at most this many rows in one step
 MAX_BULK = 500                            # #196: a bulk change names at most this many items (the body limit allows about this many)
@@ -203,6 +203,9 @@ BULK_KINDS = "These items are of different kinds."
 BULK_PROJECTS = "These items are in different projects."
 BULK_CONFIRM = "Send confirm as true or false."
 BULK_ARCHIVED = "It is archived. Restore it first."
+BULK_NOT_CLOSED = "It isn't closed, so it stays as it is."       # item 1133: Reopen only undoes a close
+BULK_CANCELLED = "It is cancelled, so it stays cancelled."         # item 1133: Close does not turn Cancelled into Closed
+BULK_NOT_FROM = "Its status isn't one this change applies to, so it stays as it is."
 BULK_DECIDED = "It has been made or withdrawn, so who made it stays as recorded. Record a new decision instead."
 DECIDED = ("Made", "Withdrawn")              # #196: a decision with one of these keeps its `made_by` in a bulk change
 HAND_OVER_DONE = clark_store.CLOSED_STATUSES + DECIDED     # #199: an item with one of these keeps who has it (the page's CLOSED list; a test pins the two)
@@ -1752,6 +1755,18 @@ def _bulk_words(changed, unchanged, left_out):
     return " ".join(lines)
 
 
+def _bulk_from_status(given, table, changes):
+    """Item 1133: the optional `from_status` of a bulk status change: a list of the statuses an item may be in to take it (the page
+    sends Closed and Open for Reopen, so a Delayed or Cancelled item is left out). None when not sent."""
+    if given is None:
+        return None
+    allowed = clark_store.ALLOWED.get((table, "status"), ())
+    if (not isinstance(given, list) or not given or "status" not in changes
+            or any(not isinstance(v, str) or v not in allowed for v in given)):
+        raise Refused(NOT_A_STATUS)
+    return tuple(given)
+
+
 def _do_bulk(store, by_user, req, project, table, columns, place):
     """#196: the same field change to several work items of one kind in THIS project, in ONE step: one safety copy, one Undo,
     and each item's fields logged as a single edit logs them (one history line per item and field). Each item is tried first in a
@@ -1769,9 +1784,15 @@ def _do_bulk(store, by_user, req, project, table, columns, place):
             raise Refused(NOT_A_STATUS if k == "status" else NOT_A_CHOICE)
     _bulk_confirm(req, ids)
     decided = table == "decisions" and "made_by" in changes      # the record of who decided is not rewritten
+    from_status = _bulk_from_status(req.get("from_status"), table, changes)
 
     def kept(table_, row):
-        return BULK_DECIDED if decided and row["status"] in DECIDED else None
+        if decided and row["status"] in DECIDED:
+            return BULK_DECIDED
+        if from_status is not None and row["status"] not in from_status:     # item 1133: only items in these statuses take the change
+            return BULK_CANCELLED if row["status"] == "Cancelled" and changes.get("status") == "Closed" else \
+                BULK_NOT_CLOSED if changes.get("status") == "Open" and "Closed" in from_status else BULK_NOT_FROM
+        return None
     return _bulk_write(store, by_user, project, place, {ref: (table, changes) for ref in ids}, kept)
 
 

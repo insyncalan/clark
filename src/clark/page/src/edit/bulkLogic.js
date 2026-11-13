@@ -71,9 +71,16 @@ export function changesFor(table, id, value) {
   return null;
 }
 
+/** Item 1133: the statuses an item may be in to take Close (not Cancelled) or Reopen (only Closed). null: any. */
+export function fromStatusFor(id) {
+  if (id === "close") return ["Open", "Delayed", "Closed"];
+  if (id === "reopen") return ["Closed", "Open"];
+  return null;
+}
+
 /** The request for clark: one bulk change of `ids` in `table`. */
-export function requestFor(table, ids, changes, { confirm = false, place = "bulk" } = {}) {
-  return { kind: table, op: "bulk", ids: ids.slice(), changes: { ...changes }, place, ...(confirm ? { confirm: true } : {}) };
+export function requestFor(table, ids, changes, { confirm = false, place = "bulk", fromStatus = null } = {}) {
+  return { kind: table, op: "bulk", ids: ids.slice(), changes: { ...changes }, place, ...(confirm ? { confirm: true } : {}), ...(fromStatus ? { from_status: fromStatus.slice() } : {}) };
 }
 
 /** Whether to ask first, and the question: above CONFIRM_ABOVE, counting every item in the request. */
