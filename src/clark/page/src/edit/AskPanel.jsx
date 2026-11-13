@@ -76,7 +76,7 @@ export function AskPanel() {
     const at = document.activeElement, c = document.getElementById("ask-panel");
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
-  }, [open, state, panelFocus.value]);
+  }, [open, state, panelFocus.value, busy]);
   // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
   useEffect(() => {
     const el = log.current;
