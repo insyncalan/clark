@@ -478,6 +478,18 @@ class Detail(unittest.TestCase):
         cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common, "text": "/"}, sid)
         cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
 
+    def test_two_slashes_do_nothing_when_single_key_shortcuts_are_off(self):
+        with chrome() as cdp:
+            sid = page_target(cdp)
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "localStorage.setItem('clark.single-keys', 'off')"}, sid)
+            sid = self.open_detail(cdp)
+            cdp.js("window.seen = 0; document.addEventListener('keydown', e => { if (e.key === '/') window.seen++; })", sid)   # added last: runs after the page's own handler
+            self.slash(cdp, sid)
+            self.slash(cdp, sid)
+            self.until(cdp, sid, "window.seen === 2", "both slashes reached the page")
+            self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "the box stays closed with the switch off")
+
     def test_two_slashes_open_the_words_box_and_enter_is_one_change_with_one_undo(self):
         """Sneak peek on a use case: status, commitment and headline in words; Done asks first; Esc closes the box; View has no box."""
         with chrome() as cdp:

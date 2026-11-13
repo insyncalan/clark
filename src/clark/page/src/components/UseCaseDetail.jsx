@@ -26,6 +26,7 @@ import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
 import { wordsOpen } from "../stores/wordsState.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 
 const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -156,7 +157,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
     const onKey = (e) => {
       if (e.defaultPrevented || e.isComposing) return;
       if (e.key === "Escape") { if (wordsOpen.value) { e.preventDefault(); wordsOpen.value = false; } return; }
-      if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !busy(e.target)) {
+      if (e.key === "/" && singleKeys.value && !e.metaKey && !e.ctrlKey && !e.altKey && !busy(e.target)) {
         if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
       } else if (e.key !== "Shift") last = 0;
     };
