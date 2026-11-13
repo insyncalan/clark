@@ -39,7 +39,7 @@ class UseCaseFields(unittest.TestCase):
         for want in ("Add use case", "Show archived", "Hide archived", "Restore", "archived use case"):     # row 1085: the + says Add use case; Export left the page
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
-        self.assertNotIn("exportExcel", page)        # the page reuses the Work items ExportBtn (it holds exportExcel), not its own copy of the call
+        self.assertNotIn("exportExcel", page)        # the page has no export call of its own
         for gone in ("ImportBtn", "ExportBtn"):      # item 1142: Import and Export are in Settings only, not on the page
             self.assertNotIn(gone, page)
         self.assertIn("exportExcel", text(SRCS / "edit" / "ProfileMenu.jsx"))

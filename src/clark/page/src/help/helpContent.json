@@ -2720,8 +2720,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "From any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card.",
-     "pic": "excel-out-icon"
+     "d": "From any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card."
     },
     {
      "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
@@ -3003,10 +3002,6 @@
   {
    "id": "excel-in-box",
    "alt": "The Import from Excel box, with the Choose a file button ringed."
-  },
-  {
-   "id": "excel-out-icon",
-   "alt": "The Export to Excel icon on the filter line, ringed."
   },
   {
    "id": "excel-out-menu",

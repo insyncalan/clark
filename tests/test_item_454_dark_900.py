@@ -229,31 +229,7 @@ generate(ImportLook, "item_454_check_the_import", ImportLook.run_check)
 generate(ImportLook, "item_454_whole_file_refusal", ImportLook.run_refused)
 
 
-# ---- (4) the Import icon beside Add on Work items ----------------------------------------------------------------------------------------
-
-class ImportIcon(Look, unittest.TestCase):
-    def run_icon(self, w, scheme):
-        demo = DemoStore()
-        self.addCleanup(demo.close)
-        s = Running(data_for=demo.store.data_for, page_html=lambda: page.page_html(tempfile.mkdtemp()))
-        self.addCleanup(s.close)
-        with chrome() as cdp:
-            sid = open_page(cdp, f"http://127.0.0.1:{s.port}/#work&p=ABC", w, scheme)
-            js = lambda e: cdp.js(e, sid)          # noqa: E731
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#impBtn')"), 20), "the Import icon is in View")
-            set_scheme(cdp, sid, scheme)
-            at = f"Import icon {w} {scheme}"
-            self.assertLooks(js, "#impBtn", None, scheme, at, floor=ICON_FLOOR, surface="body")
-            self.assertLooks(js, "#impBtn svg", None, scheme, at + " drawing", floor=ICON_FLOOR)
-            self.assertLooks(js, "#newBtn", None, scheme, at + " Add beside it")
-            self.assertEqual(js("document.querySelector('#impBtn').getAttribute('aria-label')"), "Import from Excel")
-            self.assertEqual(js("document.querySelector('#impBtn').getAttribute('data-tip')"), "Import from Excel")
-            self.assertEqual(js("document.querySelector('#impBtn').disabled"), False, "usable once the project is loaded")
-            self.assertTrue(js("(() => { const a = document.querySelector('#impBtn').getBoundingClientRect(), p = document.querySelector('#work').getBoundingClientRect();"
-                               " return a.left >= p.left - 1 && a.right <= p.right + 1; })()"), f"{at}: inside the Work items page")
-
-
-generate(ImportIcon, "item_454_import_icon", ImportIcon.run_icon)
+# ---- (4) was the Import icon beside Add on Work items: gone with row 1142 (Import is in Settings and the profile menu) ----
 
 # The classes built on above bring their own tests with them; only the generated ones belong to this file, so the others are turned off here.
 for _cls in (PeopleLook, ImportLook):

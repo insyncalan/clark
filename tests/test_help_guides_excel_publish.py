@@ -70,7 +70,7 @@ class TheThreeGuides(unittest.TestCase):
             self.assertRegex(code, pat, b)
 
     def test_the_controls_the_steps_name_are_the_ones_the_page_has(self):
-        """The control names, exactly as the page shows them (ImportWorkbook.jsx, Data.jsx, ExportBtn.jsx, Publish.jsx, dataCard.js, ProfileMenu.jsx)."""
+        """The control names, exactly as the page shows them (ImportWorkbook.jsx, Data.jsx, Publish.jsx, dataCard.js, ProfileMenu.jsx)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
         for name in ("**Settings**", "**Data**", "**Export workbook**", "**Import workbook**", "**Import from Excel**", "**Get the template**",
                      "**Choose a file**", "**Check the import**", "**Import anyway**", "**Undo this import**", "**Close**"):
