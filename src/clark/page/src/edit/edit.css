@@ -1033,8 +1033,15 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 /* row 962: the same for the filter suggestion list, a column's filter box, the Gantt Add menu, the template settings box and the Board's small date and decision boxes. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .gt-pop, .rt-slash, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
 }
+
+/* The fade copy of the Gantt table's menu sits on the body, outside [data-gt], so the shell's `[data-gt] .gt-menu ...` rules (the button look, the red delete, the hr) do not reach it:
+   the same rules for the copy, so it keeps its look while it fades. */
+body > .gt-menu.leaving { min-width: 200px; border: 1px solid var(--border); padding: var(--space-1); }
+body > .gt-menu.leaving button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm); font: inherit; }
+body > .gt-menu.leaving button.gt-danger { color: var(--status-red-text); }
+body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
 
 /* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */
 @media (prefers-reduced-motion: no-preference) {
