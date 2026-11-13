@@ -96,6 +96,16 @@ class Parity(unittest.TestCase):
         self.assertEqual(col(dict(done, status="Open")), "overdue")
         self.assertEqual(col(dict(done, due_date="2030-01-01")), "later")
 
+    def test_the_work_item_list_filter_never_buckets_a_completed_past_due_action_as_overdue(self):
+        from clark.section_kinds import workitems as wk
+        code = bundled(PAGE / "templates" / "workItemsList.js", "WL")
+        rs = [{"id": "A1", "kind": "action", "status": "Completed", "due": "2020-01-01"},
+              {"id": "A2", "kind": "action", "status": "Open", "due": "2020-01-01"}]
+        f = {"mode": "all", "kinds": [], "status": [], "due": ["overdue"], "owner": [], "workstream": [], "use_case": [], "priority": [], "sort": "id", "max": 10}
+        got = node(code + ";console.log(JSON.stringify(WL.matching(%s, %s, %s)))" % (json.dumps(f), json.dumps(rs), json.dumps(TODAY)))
+        self.assertEqual(got, ["A2"])
+        self.assertEqual([r["id"] for r in rs if wk._bucket(r, TODAY) == "overdue"], ["A2"])
+
 
 if __name__ == "__main__":
     unittest.main()
