@@ -1342,7 +1342,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-list .acts { display: flex; gap: var(--space-2); margin-left: auto; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
-.setting p.error { color: var(--status-red-text); }
+.setting p.error { color: var(--status-red-text); overflow-wrap: anywhere; }
 .update-notes { margin: 0 0 6px; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--text); }
 .update-files { margin: 6px 0; }
 .update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
@@ -1520,14 +1520,15 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input { min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .fld input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
-.fld small { color: var(--text-muted); font-size: var(--size-caption); }
+.fld small { color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
+.fld [data-copy-suggestion] { max-width: 100%; height: auto; white-space: normal; overflow-wrap: anywhere; text-align: left; }   /* a long folder path is one word: it wraps inside the button, never past the card */
 .fld.copy-fld { max-width: 640px; }
 /* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
    The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
 .set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; margin-bottom: var(--d-set-fld); }
 .set-cards .fld > label { grid-column: 1; }
 .set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
-.fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
+.fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .fld-bad:empty { display: none; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
