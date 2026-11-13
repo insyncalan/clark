@@ -34,6 +34,7 @@ function ConnectCard() {
   if (conn === "unavailable") return <p id="ai-connect-state" class="muted">Could not check the AI connection just now. Reload the page to try again.</p>;
 
   async function send(request, what) {
+    if (busy) return null;                               // aria-disabled, not disabled, while busy: a disabled control drops keyboard focus
     setBusy(true);
     setMsg(null);
     const r = await request();
@@ -62,26 +63,26 @@ function ConnectCard() {
             <p class="muted">{line}</p>
             {c.why ? <p data-ai-why>{c.why}</p> : null}
             {c.connected
-              ? <button type="button" class="btn sm" data-ai-disconnect={id} disabled={busy} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`)}>Disconnect</button>
-              : <button type="button" class="btn pri sm" data-ai-connect={id} disabled={busy} onClick={() => send(() => aiConnectSend(id), `connect ${name}`)}>Connect</button>}
+              ? <button type="button" class="btn sm" data-ai-disconnect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`)}>Disconnect</button>
+              : <button type="button" class="btn pri sm" data-ai-connect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiConnectSend(id), `connect ${name}`)}>Connect</button>}
           </div>
         );
       })}
     </div>
     <div class="ai-model">
       <label for="ai-model">Model for ask clark</label>{" "}
-      <select id="ai-model" disabled={busy || !conn.models.length} value={conn.model} onChange={(e) => choose(e.currentTarget.value)}>
+      <select id="ai-model" disabled={!conn.models.length} aria-disabled={busy ? "true" : undefined} value={conn.model} onChange={(e) => { if (busy) setConn({ ...conn }); else choose(e.currentTarget.value); }}>
         {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
     </div>
     {weaker ? (
       <div class="ai-msg" role="alert" data-ai-weaker>
         <p>{weaker.text}</p>
-        <button type="button" class="btn sm" data-ai-accept disabled={busy} onClick={() => send(() => aiModelSend(weaker.model, true), "save that choice")}>Use it anyway</button>{" "}
+        <button type="button" class="btn sm" data-ai-accept aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiModelSend(weaker.model, true), "save that choice")}>Use it anyway</button>{" "}
         <button type="button" class="btn sm" data-ai-keep onClick={() => setWeaker(null)}>Keep the model I have</button>
       </div>
     ) : null}
-    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role="status" data-ai-msg>{msg ? msg.text : ""}</p>
+    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role={msg && msg.kind === "error" ? "alert" : "status"} data-ai-msg>{msg ? msg.text : ""}</p>
     </>
   );
 }
