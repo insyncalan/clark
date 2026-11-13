@@ -134,7 +134,7 @@ function useRowMotion(lay) {
   };
 }
 
-function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEnd }) {
+function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMotionEnd }) {
   if (motion === "leave") return <GhostRow row={row} today={today} Eye={Eye} group={group} onMotionEnd={onMotionEnd} />;
   const due = dueCell(row, today), pill = pillOf(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
@@ -172,7 +172,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
       <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
-      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
+      {Eye ? <td class="c-eye"><Eye row={row} />{More ? <More row={row} /> : null}</td> : null}
     </tr>
   );
 }
@@ -199,14 +199,14 @@ function Cols({ eye, hand, cw }) { return <colgroup>{(hand ? ["c-pick"] : []).co
 
 const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove("opening"); if (justOpened === key && !(el.parentNode && el.parentNode.querySelector(".opening"))) justOpened = ""; };   // the group is done once its thead and its tbody have both finished
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
-function Table({ rows, today, type, Cell, Eye, CW }) {
+function Table({ rows, today, type, Cell, Eye, More, CW }) {
   const cw = CW ? CW("work") : NO_WIDTHS;                 // the Edit part's hook, or nothing (stable for as long as the page lives)
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
   let mo = null;
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} motion={mo.motion(r.id)} onMotionEnd={mo.done} />;
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} More={More} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} motion={mo.motion(r.id)} onMotionEnd={mo.done} />;
   const rowsOf = (key, list, stop) => {                                             // the rows, with a deleted row's fading copy back in its old place
     const out = list.map((r) => row(r, stop));
     mo.ghostsFor(key).forEach((d) => out.splice(Math.min(d.at, out.length), 0, <Row key={"gone-" + d.row.id} row={d.row} today={today} Eye={Eye} group={g} motion="leave" onMotionEnd={mo.done} />));
@@ -308,7 +308,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW }) {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Eye, Bulk, HandOver, L, CW }) {
+function List({ Board, Cell, Eye, More, Bulk, HandOver, L, CW }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
@@ -324,7 +324,7 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW }) {
       <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} More={More} CW={CW} />}
     </div>
   );
 }
@@ -336,6 +336,7 @@ export function WorkItems({ tools }) {
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const Eye = tools && tools.Eye && !fromFile.value ? tools.Eye : null;      // the Client-visible column: the page clark serves, never a published file
+  const More = Eye && tools.RowMore ? tools.RowMore : null;      // the row's "More actions" button (#658), beside the eye
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -370,7 +371,7 @@ export function WorkItems({ tools }) {
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
                   <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
-                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
+                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} More={More} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}
     </section>
