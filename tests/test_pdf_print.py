@@ -274,7 +274,7 @@ class Browser(unittest.TestCase):
                 tabs = cdp.js("[...document.querySelectorAll('.tab')].map(t => t.textContent.trim())", sid)
                 self.printed(cdp, sid)
                 titles = cdp.js("[...document.querySelectorAll('.print-tab-title')].map(t => t.textContent.trim())", sid)
-                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Use cases"], "every tab the file has, in print order, Use cases last")
+                self.assertEqual(titles, ["Dashboard", "Work items", "Milestones", "Use cases"], "every tab the file has, in print order")
                 self.assertEqual(len(tabs), len(titles), "the file's tab bar has the same tabs")
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.top')).display", sid), "none")
                 self.assertEqual(cdp.js("document.querySelectorAll('.print-tab').length", sid), len(tabs))
@@ -282,6 +282,23 @@ class Browser(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('.ucp:not([open])').length", sid), 0, "no use case is left closed")
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)), "back to one tab after the print")
+
+    def test_a_shut_work_items_group_is_drawn_open_in_the_print_and_shut_again_after(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, "light")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                cdp.js("[...document.querySelectorAll('.tab')].find(t => /Work items/.test(t.textContent)).click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.grp-b')", sid)), "the Work items tab drew its groups")
+                cdp.js("document.querySelector('.grp-b').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.grp-b').getAttribute('aria-expanded') === 'false'", sid)), "the group is shut")
+                self.assertFalse(cdp.js("document.body.innerText.includes('Shown on the printed page')", sid), "a shut group hides its rows on screen")
+                self.printed(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.print-tab .grp-b')?.getAttribute('aria-expanded') === 'true'", sid)), "drawn open for the print")
+                self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.print-tab')].some(t => t.textContent.includes('Shown on the printed page'))", sid)), "its rows are in the print")
+                cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)), "back to one tab after the print")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.grp-b')?.getAttribute('aria-expanded') === 'false'", sid)), "the group is shut again")
 
     def test_the_print_stack_holds_only_text_the_page_already_draws(self):
         with chrome() as cdp:
