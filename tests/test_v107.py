@@ -98,7 +98,7 @@ COVERED = [
     ('1078', 'A milestone peek has the same rows and header line as a work item peek.',
      'test_milestone_peek_1078::Sources::test_the_editor_draws_the_rows_in_the_ruled_order_with_the_name_as_the_title'),
     ('1079', 'On a use case page a milestone can be added, with one Undo.',
-     'test_use_case_detail::Detail::test_add_a_milestone_is_one_change_with_one_undo_row_1079'),
+     'test_use_case_detail::Detail::test_add_a_milestone_links_it_directly_in_one_change_with_one_undo_row_1141'),
     ('1081', 'On a use case page the Work items card shows one line per item with one tinted status chip.',
      'test_use_case_detail::Detail::test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081'),
     ('1084', 'The List, Board and Group by icons follow the clear button and the tabs have the whole row.',
