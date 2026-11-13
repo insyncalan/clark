@@ -755,6 +755,25 @@ class InThePage(PageBase):
                 self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
 
+    def test_taking_a_choice_off_with_the_keyboard_keeps_the_focus_in_the_filter(self):
+        """The x goes with its chip: the focus goes to the chip that took its place, then to the Filter box when none is left."""
+        for width in (1400, 900):
+            ref = self.add({"status": ["Open"], "kinds": ["risk"]}, title=f"Focus {width}")
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.edit()
+                line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+                xs = f"[data-id=\"{ref}\"] .wil-chip button"
+                p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+                press = lambda: [p.cdp.call("Input.dispatchKeyEvent", {"type": t, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if t == "keyDown" else {})}, p.sid) for t in ("keyDown", "keyUp")]      # text: a button needs the character to be pressed
+                p.js(f"document.querySelector({json.dumps(line)}).focus()")
+                p.key("Tab", code="Tab", vk=9)
+                self.assertEqual(p.js(f"document.activeElement === document.querySelector({json.dumps(xs)})"), True, "Tab reaches the first x")
+                press()
+                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 1 && document.activeElement === document.querySelector({json.dumps(xs)})", "the focus is on the x that took its place")
+                press()
+                p.until(f"document.querySelectorAll({json.dumps(xs)}).length === 0 && document.activeElement === document.querySelector({json.dumps(line)})", "no chip left: the focus is in the Filter box")
+
     def _line_session(self, cdp, width, title):
         ref = self.add({}, title=title)
         p = self.show(cdp, width)
