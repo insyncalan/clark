@@ -1,4 +1,4 @@
-// Settings › Brands › "Brand for this project" (#944): Generic or one of the added brands, the open project's own (projects.brand).
+// Settings › Brands › "Brand for this project" (item 944): Generic or one of the added brands, the open project's own (projects.brand).
 // A choice is one change with Undo and a line in the history (field "brand"). When the saved brand is no longer added, the select shows
 // Generic and the note says why; the server already keeps that project's output on Generic. Edit parts only.
 import { useState } from "preact/hooks";
