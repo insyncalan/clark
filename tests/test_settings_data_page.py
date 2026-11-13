@@ -280,7 +280,7 @@ class Card(Base):
             p.until("!!document.querySelector('#import-box')", "the box opened")
             self.settle(p, "!!document.querySelector('#import-columns')", "the column lists")
             self.assertEqual(p.js("document.querySelector('#import-columns').previousElementSibling.textContent"),
-                             "Columns, in any order (only the name or title is needed):")
+                             "Columns, in any order (the ID column and the name or title are needed):")
             shown = p.js("[...document.querySelectorAll('#import-columns > span')].map(s => [s.querySelector('b').textContent, s.textContent.slice(s.querySelector('b').textContent.length).trim().split(', ')])")
         want = {name: [label for label, field in cols if field == "id" or field not in (set(locked) | excel_import.LOCKED)]
                 for name, _, cols, locked in excel.SHEETS}

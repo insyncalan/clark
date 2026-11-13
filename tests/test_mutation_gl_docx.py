@@ -118,6 +118,14 @@ class WordSections(unittest.TestCase):
         self.assertEqual(rows["PUB-M-001"][-1], "")
         self.assertEqual(rows["PUB-M-002"][-1], "+5 days")
 
+    def test_one_day_of_slip_is_said_in_the_singular(self):             # section_milestones: "+1 day", "+3 days"
+        p = published()
+        p["data"]["milestones"][0].update(status="Planned", slip_days=1)
+        p["data"]["milestones"][1].update(slip_days=3)
+        rows = {r[0]: r for r in table(docx_build.build(p), "ID", "Milestone")[1:]}
+        self.assertEqual(rows["PUB-M-001"][-1], "+1 day")
+        self.assertEqual(rows["PUB-M-002"][-1], "+3 days")
+
     def test_zero_percent_complete_is_still_said(self):                # percent_complete is None, not falsy
         p = published()
         p["data"]["milestones"][0]["percent_complete"] = 0
