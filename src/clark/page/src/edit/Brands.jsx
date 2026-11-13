@@ -18,8 +18,8 @@ export function Brands({ api = REAL }) {
   const [msg, setMsg] = useState(null);
   const heading = useRef(null);
   const opener = useRef("[data-review]");      // the button that opened the panel: the focus goes back to it when the panel closes
-  const back = (sel) => requestAnimationFrame(() => { const b = document.querySelector(`#brands ${sel}`); if (b) b.focus(); });
-  const closeAsk = () => { const id = armed; setArmed(null); back(`li[data-brand="${id}"] [data-remove]`); };      // Cancel or Esc on Remove's question
+  const back = (...sels) => requestAnimationFrame(() => { for (const sel of sels) { const b = document.querySelector(`#brands ${sel}`); if (b) { b.focus(); return; } } });      // the first of these that is on the page
+  const closeAsk = () => { const id = armed; setArmed(null); back(`li[data-brand="${id}"] [data-remove]`, "[data-review]"); };      // Cancel or Esc on Remove's question
   const closePanel = () => { setPanel(null); back(opener.current); };
   const escape = (close) => (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); } };
 
@@ -32,6 +32,7 @@ export function Brands({ api = REAL }) {
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
   async function review(from) {
+    if (busy) return;      // aria-disabled keeps the focus on the button while the server answers; a click then does nothing
     opener.current = from === "file" ? "[data-choose]" : "[data-review]";
     setBusy(true);
     setMsg(null);
@@ -49,16 +50,18 @@ export function Brands({ api = REAL }) {
   }
 
   // Install, Remove and Undo: ask, then read the list again whatever the answer was.
-  async function act(ask) {
+  async function act(ask, ...after) {
+    if (busy) return;
     setBusy(true);
     setMsg(null);
     const r = await ask();
     if (!ok(r)) setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
     await load();
     setBusy(false);
+    if (after.length) back(...after);      // the button that was clicked has gone: the focus goes to the next one that is there
   }
-  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)).then(() => back(opener.current)); };      // the panel and its button are gone: the focus goes back to what opened it
-  const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id)); };
+  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id), opener.current, "[data-review]"); };
+  const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id), `li[data-brand="${id}"] [data-remove]`, "[data-review]"); };
 
   const v = state.view;
   return (
@@ -86,9 +89,9 @@ export function Brands({ api = REAL }) {
             </div>
           ) : null}
           <div class="row">
-            <button type="button" class={v.ready ? "btn pri" : "btn"} data-review aria-describedby="brands-hint" disabled={busy} onClick={() => review("downloads")}>{L.LABELS.review}</button>
-            <button type="button" class="btn" data-choose disabled={busy} onClick={() => review("file")}>{L.LABELS.choose}</button>
-            {v.undo ? <button type="button" class="btn" data-undo disabled={busy} onClick={() => act(() => api.undo())}>{L.LABELS.undo}</button> : null}
+            <button type="button" class={v.ready ? "btn pri" : "btn"} data-review aria-describedby="brands-hint" aria-disabled={busy ? "true" : undefined} onClick={() => review("downloads")}>{L.LABELS.review}</button>
+            <button type="button" class="btn" data-choose aria-disabled={busy ? "true" : undefined} onClick={() => review("file")}>{L.LABELS.choose}</button>
+            {v.undo ? <button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => act(() => api.undo(), "[data-undo]", "[data-review]")}>{L.LABELS.undo}</button> : null}
           </div>
           <p class="muted" id="brands-hint">{L.REVIEW_HINT}</p>
         </>

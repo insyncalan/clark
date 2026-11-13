@@ -84,6 +84,7 @@ export function AskSettings() {
     setBusy(false);
     const b = r.body;
     if (action !== "add") refocusFolders(at);
+    else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       if (b.message) setMsg({ kind: "note", text: b.message });
@@ -97,9 +98,7 @@ export function AskSettings() {
     e.preventDefault();
     const path = typed.trim();
     if (!path) return;
-    const ok = await change("add", path);
-    if (ok) setTyped("");
-    setTimeout(() => { const el = document.getElementById("ask-folder-path"); if (el) el.focus(); }, 0);      // Add folder was disabled while it ran, which drops the focus: it goes to the box
+    if (await change("add", path)) setTyped("");
   }
 
   const list = Array.isArray(folders) ? folders : [];

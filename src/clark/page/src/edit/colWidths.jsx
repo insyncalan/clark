@@ -65,7 +65,14 @@ export function useColWidths(table) {
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
   }, [table]);
-  return { px, style, grip, head };
+  /** The widths to draw in a table `room` px wide (row 1104): the saved widths shrink together when they would leave the first column under `least` px
+   *  next to the columns that have no saved width (`rest`, their drawn px); the saved values themselves are never changed. */
+  const fit = (ids, room, rest, least = 160) => {
+    const own = ids.filter((id) => px(id) !== null), sum = own.reduce((a, id) => a + px(id), 0), free = room - least - rest;
+    return sum > 0 && sum > free ? Math.max(0, free) / sum : 1;
+  };
+  const drawn = (id, k) => (px(id) === null ? undefined : { width: `${k < 1 ? Math.max(MIN_COL, Math.floor(px(id) * k)) : px(id)}px` });
+  return { px, style, grip, head, fit, drawn };
 }
 
 /** A grid template: each default track, with the track of a column that has a chosen width set to that many pixels. `ids` runs along the tracks. */
