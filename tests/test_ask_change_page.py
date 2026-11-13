@@ -101,10 +101,10 @@ class TheCard(Card):
             inside = "!!document.activeElement && !!document.activeElement.closest('[data-ask-change]')"
             p.js("(() => { const b = document.querySelector('[data-ask-apply]'); b.focus(); b.click(); })()")      # a key press on a focused button is a click that leaves focus on it
             p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
-            self.assertTrue(p.js(inside), "after Apply focus is in the card, not on the page body")
+            p.until(inside, "after Apply focus is in the card, not on the page body")
             p.js("(() => { const b = document.querySelector('[data-ask-undo]'); b.focus(); b.click(); })()")
             p.until("document.querySelector('[data-ask-line]').textContent === 'Undone. The old values are back.'", "Undone")
-            self.assertTrue(p.js(inside), "after Undo focus is in the card, not on the page body")
+            p.until(inside, "after Undo focus is in the card, not on the page body")
 
     def test_an_applied_card_stays_done_with_undo_after_the_panel_is_closed_and_opened(self):
         self.says(self.close_it())

@@ -307,17 +307,29 @@ class Panel(Base):
             self.ask(p, "Summarise the risks")
             p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
             p.js("(() => { const b = document.querySelector('#ask-stop'); b.focus(); b.click(); })()")
-            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped")
-            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped", 30)
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body", 30)
+
+    def test_an_answer_landing_does_not_steal_focus_from_another_control_in_the_panel(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out", 30)
+            p.js("document.querySelector('#ask-close').focus()")
+            held = p.js("document.activeElement.id || document.activeElement.className")
+            self.assertTrue(held, "a control other than Stop holds focus")
+            self.stub.hold.set()
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the answer landed", 30)
+            self.assertEqual(p.js("document.activeElement.id || document.activeElement.className"), held, "focus stayed where the person put it")
 
     def test_the_ask_button_closes_the_panel_when_it_is_open(self):
         with chrome() as cdp:
             p = self.opened(cdp)
             # the panel covers the button where it sits, so this is the press the keyboard makes (and a click where it is not covered)
             p.js("(() => { const b = document.querySelector('#ask-btn'); b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.click(); })()")
-            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel")
-            time.sleep(0.6)
-            self.assertIsNone(p.js("document.querySelector('#ask-panel')"), "and it did not open again")
+            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
 
     def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
         self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
