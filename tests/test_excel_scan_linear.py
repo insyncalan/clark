@@ -55,6 +55,13 @@ class ScanLinear(unittest.TestCase):
             with self.subTest(chunk=chunk):
                 self.assertEqual(self.scan(SST % text, chunk=chunk)[0], (0, 0))
 
+    def test_a_self_closed_t_does_not_start_a_text_node(self):
+        # <t/> has no text: the long run of characters after it belongs to no cell, so it is not measured as one
+        data = b"<sst><si><t/>" + b"a" * (xi.MAX_CELL_TEXT + 10) + b"</si></sst>"
+        for chunk in (None, 4096):
+            with self.subTest(chunk=chunk):
+                self.assertEqual(self.scan(data, chunk=chunk)[0], (0, 0))
+
 
 if __name__ == "__main__":
     unittest.main()
