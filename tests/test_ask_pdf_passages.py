@@ -12,7 +12,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-import textwrap
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -173,6 +172,39 @@ class Outcomes(Fake):
         self.assertEqual(got.pages, ((1, "ZQ yyyyyyy"),))
 
 
+    def test_sixty_full_pages_are_read_not_a_crash(self):
+        # 60 pages of about 50,000 characters is 3 MB of output: over the old 2 MB cap (which made it "crash"), so the leading pages must come back.
+        got = self.read(pdf(["ZQ %d " % i + "x" * (pdf_reader.MAX_PAGE_CHARS - 10) for i in range(60)]))
+        self.assertEqual(got.status, "ok")
+        self.assertTrue(10 < len(got.pages) <= 60)
+        self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
+
+    def test_over_the_output_budget_keeps_the_leading_pages_not_a_crash(self):
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 5000):
+            got = self.read(pdf(["ZQ %d " % i + "x" * 900 for i in range(20)]))
+        self.assertEqual(got.status, "ok")
+        self.assertTrue(0 < len(got.pages) < 20)
+        self.assertEqual([n for n, _t in got.pages], list(range(1, len(got.pages) + 1)))
+
+    def test_a_first_page_bigger_than_the_budget_is_still_read(self):
+        # The guard keeps at least one page: a lone page over the budget is returned, not dropped to an empty or failed result.
+        with mock.patch.object(pdf_reader, "OUT_BUDGET", 100):
+            got = self.read(pdf(["ZQ one " + "x" * 400, "ZQ two " + "x" * 400]))
+        self.assertEqual((got.status, got.reason), ("ok", ""))
+        self.assertEqual([n for n, _t in got.pages], [1])
+
+    def test_the_child_sets_memory_and_cpu_limits(self):
+        import importlib.util
+        import resource
+        spec = importlib.util.spec_from_file_location("pdf_child_under_test", pdf_reader.CHILD)
+        child = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(child)
+        with mock.patch.object(resource, "setrlimit") as setr:
+            child._limits()
+        got = {c.args[0]: c.args[1] for c in setr.call_args_list}
+        self.assertEqual(got[resource.RLIMIT_AS], (1024 ** 3, 1024 ** 3))
+        self.assertLessEqual(got[resource.RLIMIT_CPU][0], pdf_reader.SECONDS + 5)
+
 
 class SeparateProcess(Fake):
     def test_the_reader_is_another_process_started_without_the_servers_environment(self):
@@ -316,18 +348,20 @@ class NoNewWords(unittest.TestCase):
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")
 class RealLibrary(unittest.TestCase):
     def test_a_real_text_pdf_is_read_with_its_page(self):
-        raw = textwrap.dedent("""\
-            %PDF-1.4
-            1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj
-            2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj
-            3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj
-            4 0 obj<</Length 44>>stream
-            BT /F1 12 Tf 20 100 Td (Hello from a tiny PDF) Tj ET
-            endstream endobj
-            5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj
-            trailer<</Root 1 0 R/Size 6>>
-            %%EOF
-            """).encode()
+        # A well-formed file (objects, a cross-reference table and a startxref line with true byte offsets): the vendored library
+        # refuses a file with no startxref, so the earlier hand-written fixture without a table was not a readable PDF at all.
+        body = b"BT /F1 12 Tf 20 100 Td (Hello from a tiny PDF) Tj ET"
+        objects = [b"<</Type/Catalog/Pages 2 0 R>>", b"<</Type/Pages/Kids[3 0 R]/Count 1>>",
+                   b"<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>",
+                   b"<</Length %d>>\nstream\n" % len(body) + body + b"\nendstream",
+                   b"<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>"]
+        raw, offsets = b"%PDF-1.4\n", []
+        for number, obj in enumerate(objects, 1):
+            offsets.append(len(raw))
+            raw += b"%d 0 obj\n" % number + obj + b"\nendobj\n"
+        table = len(raw)
+        raw += b"xref\n0 6\n0000000000 65535 f \n" + b"".join(b"%010d 00000 n \n" % o for o in offsets)
+        raw += b"trailer\n<</Root 1 0 R/Size 6>>\nstartxref\n%d\n%%%%EOF\n" % table
         got = pdf_reader.read(raw)
         self.assertEqual(got.status, "ok")
         self.assertEqual(got.pages[0][0], 1)
