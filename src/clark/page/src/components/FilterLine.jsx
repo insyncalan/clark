@@ -119,7 +119,7 @@ function SavedViews({ board }) {
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views);
       chosen.value = { ...chosen.value, [code]: r.id };
-      announce.value = `New view: ${r.views.find((v) => v.id === r.id).name}, now open.`;
+      announce.value = `Saved as ${r.views.find((v) => v.id === r.id).name}. Use Rename view to change the name.`;
       setTimeout(() => { if (!fromNew) focusTab(r.id); }, 0);      // the arrow that had the focus goes with the old open tab: the new tab takes it; + New view keeps its own focus
     }
     else if (id === "rename" && active) setForm({ mode: "rename", name: active.name, error: "" });
