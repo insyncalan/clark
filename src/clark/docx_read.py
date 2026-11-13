@@ -513,11 +513,12 @@ class _Body:
             t["cell"] = None
         elif local == "tr" and self.tables:
             t = self.tables[-1]
-            if any(c.strip() for c in t["row"] or []):
-                t["rows"].append(t["row"])
+            t["rows"].append(t["row"] or [])             # a blank row inside a table is kept; trailing ones go at </tbl>
             t["row"] = None
         elif local == "tbl" and self.tables:
             done = self.tables.pop()
+            while done["rows"] and not any(c.strip() for c in done["rows"][-1]):
+                done["rows"].pop()
             if self.tables:                                  # nested: its text goes into the cell it sits in
                 outer = self.tables[-1]
                 if outer["cell"] is not None:

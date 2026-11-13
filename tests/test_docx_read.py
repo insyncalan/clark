@@ -287,6 +287,11 @@ class AGoodFile(unittest.TestCase):
         self.assertEqual(blocks(body), [{"kind": "table", "rows": [
             ["Head one", "Head two"], ["Outer\nin a | in b", "Right"], ["Spans two"], ["two\nparagraphs", "x"]]}])
 
+    def test_a_blank_row_inside_a_table_is_kept_but_trailing_ones_are_not(self):
+        body = TBL(TR("a", "b"), TR("", ""), TR("c", "d"), TR("", ""), TR("", ""))
+        self.assertEqual(blocks(body), [{"kind": "table", "rows": [["a", "b"], ["", ""], ["c", "d"]]}])
+        self.assertEqual(blocks(TBL(TR("", ""))), [])
+
     def test_the_strict_namespace_reads_too(self):
         self.assertEqual(blocks(P("strict"), ns="http://purl.oclc.org/ooxml/wordprocessingml/main"),
                          [{"kind": "paragraph", "text": "strict"}])
