@@ -109,3 +109,15 @@ class ImportBox(unittest.TestCase):
         self.until("document.querySelector('#import-box').contains(document.activeElement)", "focus is in the box")
         self.esc()
         self.until("T.closed === 1", "Esc closed the box")
+
+    def test_cancel_and_esc_do_nothing_while_the_import_is_applied(self):
+        self.to_plan(items(1), hold=True)
+        self.click("#import-go")
+        self.until("document.querySelector('#import-go').disabled", "the import is on its way")
+        self.click("[data-close]")
+        self.esc("document.querySelector('#import-box')")
+        self.assertEqual(self.js("T.closed"), 0)
+        self.assertTrue(self.js("!!document.querySelector('#import-box')"))
+        self.js("T.release()")
+        self.until("!!document.querySelector('#import-undo')", "Undo this import is offered")
+        self.assertEqual(self.js("T.closed"), 0)
