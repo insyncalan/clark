@@ -1459,7 +1459,7 @@
      [
       "ul",
       [
-       "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
+       "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate**, **Archive** and **Delete**, then **Make this panel fill the screen** and **Close this panel**.",
        "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday** and the date.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",

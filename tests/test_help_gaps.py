@@ -65,5 +65,27 @@ class EveryPlaceHelpPointsAtExists(unittest.TestCase):
                 self.assertIn(c["full"], places())
 
 
+def strings(x):
+    if isinstance(x, str):
+        yield x
+    elif isinstance(x, dict):
+        for v in x.values():
+            yield from strings(v)
+    elif isinstance(x, (list, tuple)):
+        for v in x:
+            yield from strings(v)
+
+
+def one(start):
+    found = [t for t in strings(RAW) if t.startswith(start)]
+    assert len(found) == 1, (start, len(found))
+    return found[0]
+
+
+class WorkItemsHelpMatchesTheCode(unittest.TestCase):
+    def test_peek_top_bar_names_delete(self):
+        self.assertIn("**Delete**", one("At the top: **Previous item** and **Next item**"))
+
+
 if __name__ == "__main__":
     unittest.main()
