@@ -31,6 +31,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
+import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
@@ -239,7 +240,7 @@ function Table({ rows, today, type, Cell, Eye, More, CW }) {
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
-    .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
+    .map((c) => ({ ...c, shut: !printing.value && isCollapsed(st, g, c.key) }));
   const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
   order = shown.map((r) => r.id);
   mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
