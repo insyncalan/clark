@@ -247,14 +247,13 @@ export function closePeek() {
 /** Switch project: one new entry (and any peek and the filters close), so Back returns to the earlier one. */
 export function setProject(code) {
   if (!route.isProject(code)) return;
-  rememberProject(code);
   loadProject({ view: view.value, project: code, item: "", ms: "", f: "" });
 }
 
 // A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
 // hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
 // for the same project, or an address that cannot be set).
-function loadProject(s) {
+function loadProject(s, replace) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
   const since = trouble.n;
@@ -263,7 +262,7 @@ function loadProject(s) {
     if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
     if (!r.ok) { go(s); return; }
     try { beforeReload.forEach((f) => f()); } catch (e) {}
-    location.assign(url);
+    location[replace ? "replace" : "assign"](url);          // the auto-open replaces: Back from it leaves, it does not land on the bare address again
   }, () => go(s));
 }
 
@@ -488,11 +487,14 @@ function nameProject(s) {
 const LAST = "clark.lastProject";
 function lastUsed() { try { return localStorage.getItem(LAST) || ""; } catch (e) { return ""; } }
 export function rememberProject(code) { try { if (code) localStorage.setItem(LAST, code); } catch (e) { /* a private window: not remembered */ } }
+function forgetProject() { try { localStorage.removeItem(LAST); } catch (e) { /* not remembered anyway */ } }
 function autoOpen() {
   const list = projects.value;
   if (projectsState.value !== "ready" || !list.length) return;
   const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
-  if (pick) setProject(pick);
+  if (!pick) { if (list.length > 1 && lastUsed()) forgetProject(); return; }          // a remembered project that is gone is dropped
+  if (!route.isProject(pick)) return;
+  loadProject({ view: view.value, project: pick, item: "", ms: "", f: "" }, true);
 }
 let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
@@ -500,7 +502,6 @@ export async function load() {
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
-  if (code && !published()) rememberProject(code);
   const mine = ++reading;
   if (!code) { status.value = "none"; await loadProjects(); if (first && mine === reading) autoOpen(); return; }
   status.value = "loading";
@@ -510,6 +511,7 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
+    rememberProject(code);          // only a project that opened is remembered as the last used
     if (first) {
       if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
       nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)
