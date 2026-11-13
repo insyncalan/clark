@@ -25,6 +25,17 @@ def walk(x):
             yield from walk(v)
 
 
+def strings(x):
+    if isinstance(x, str):
+        yield x
+    elif isinstance(x, dict):
+        for v in x.values():
+            yield from strings(v)
+    elif isinstance(x, list):
+        for v in x:
+            yield from strings(v)
+
+
 def entry(title):
     found = [e for e in walk(HELP) if e.get("t") == title and "b" in e]
     assert len(found) == 1, (title, len(found))
@@ -42,3 +53,12 @@ class HelpHunt2(unittest.TestCase):
         text = entry("The top bar")
         self.assertNotIn("three screens", text)
         self.assertIn("Use cases", text)
+
+    def test_ask_suggestions_are_not_one_fixed_list(self):
+        text = entry("ask clark")
+        self.assertIn("follow the page that is open", text)
+        words = (ROOT / "src/clark/page/src/edit/askWords.js").read_text(encoding="utf-8")
+        general = re.search(r"export const SUGGESTIONS = \[(.*?)\];", words, re.S).group(1)
+        item = next(i for i in strings(HELP) if i.startswith("The suggestions sit in one row"))
+        for quoted in re.findall(r"\*\*(.+?)\*\*", item):
+            self.assertIn(f'"{quoted}"', general, quoted)
