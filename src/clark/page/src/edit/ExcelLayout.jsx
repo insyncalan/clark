@@ -8,7 +8,7 @@ export function ExcelLayout({ opener, onClose }) {
       foot={<button type="button" class="btn pri" id="excel-layout-close" onClick={onClose}>{D.LAYOUT.close}</button>}>
       <p id="excel-layout-client">{D.LAYOUT.client}</p>
       <dl class="xl-sheets">
-        {[D.LAYOUT.cover, D.LAYOUT.history].map(([name, text]) => <div key={name}><dt><strong>{name}</strong></dt><dd>{text}</dd></div>)}
+        {[D.LAYOUT.cover, D.LAYOUT.gantt, D.LAYOUT.history].map(([name, text]) => <div key={name}><dt><strong>{name}</strong></dt><dd>{text}</dd></div>)}
       </dl>
     </Dialog>
   );
