@@ -137,9 +137,9 @@ def due_field(row):
 
 
 def is_overdue(row, today):
-    """Open, and due before today. Due today is not overdue. (workItems.js dueCell: tone "late")"""
+    """Open, and due before today. Due today is not overdue, and a Completed item is finished work, never overdue. (workItems.js isLate)"""
     a, b = day_number(due_field(row)), day_number(today)
-    return a is not None and b is not None and is_open(row) and a < b
+    return a is not None and b is not None and is_open(row) and row.get("status") != "Completed" and a < b
 
 
 def pill_of(row, today):
@@ -155,7 +155,7 @@ def pill_of(row, today):
     if kind == "action":
         n, t = day_number(row.get("due_date")), day_number(today)
         if n is not None and t is not None and n < t:
-            return {"text": "Overdue", "class": "r"}
+            return {"text": "Open", "class": "b"} if s == "Completed" else {"text": "Overdue", "class": "r"}
         if s == "Delayed":
             return {"text": "Delayed", "class": "a"}
         if n is not None and t is not None and n - t <= SOON_DAYS:
@@ -343,6 +343,8 @@ def _risks_tile(rows):
     colour = "red" if high else "amber" if open_ else "green"          # the page's rule (glanceTiles.js tiles()), item 391
     if not open_:
         detail = "None open"
+    elif not high:
+        detail = "None high"                                         # #669: the page's words
     elif len(open_) == 1:
         detail = "of 1 open risk or issue"
     else:
@@ -360,7 +362,7 @@ def _decisions_tile(rows):
     elif oldest:
         detail = f"Oldest needed by {show_date(oldest)}"
     else:
-        detail = "No date needed by"
+        detail = "No date set"
     return {"tile": "decisions", "title": TILE_TITLES["decisions"], "value": len(pending), "detail": detail,
             "oldest": oldest, "oldest_shown": show_date(oldest) if oldest else "", "auto_colour": "amber" if pending else "green"}
 

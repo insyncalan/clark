@@ -63,8 +63,7 @@ class MilestoneEdges(Base):
                     p.until("!!document.querySelector('#peek .pk-fields')", "the fields")
                     e = json.loads(p.js(f"JSON.stringify({EDGES})"))
                     self.assertAlmostEqual(e["fields"], e["title"], delta=1, msg=str(e))
-                    if e["card"] is not None:   # a milestone's peek draws no field cards (item 1078: plain rows); the item peek below pins the cards strictly
-                        self.assertAlmostEqual(e["card"], e["title"], delta=1, msg=str(e))
+                    self.assertAlmostEqual(e["card"], e["title"], delta=1, msg=str(e))   # the milestone's plain rows (item 1078) are the cards here; none drawn would read Infinity and fail
                     if e["tabs"] is not None:
                         self.assertAlmostEqual(e["tabs"], e["title"], delta=1, msg=str(e))
 

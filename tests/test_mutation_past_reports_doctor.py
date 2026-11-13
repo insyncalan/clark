@@ -146,7 +146,8 @@ class DoctorEdges(DoctorCase):
 
     def test_which_checks_are_required(self):
         required = {doctor.check_id(c): c.required for c in doctor.CHECKS}
-        self.assertEqual(required, {"python": True, "data_folder": True, "data_not_in_onedrive": True, "app_folder": False,
+        self.assertEqual(required, {"python": True, "data_folder": True, "data_not_in_onedrive": True,
+                                    "data_not_in_synced_folder": True, "app_folder": False,
                                     "browser": False, "port": True, "claude": False})
 
     def test_a_port_that_is_not_ours_and_not_a_clark_is_to_fix_even_when_the_data_folder_is_unknown(self):

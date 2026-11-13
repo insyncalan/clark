@@ -235,6 +235,13 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.g(f'chartRange({lit(short)}, "2027-09-15")'), {"start": "2026-11-01", "end": "2027-09-30"})
         self.assertIsNone(self.g(f"chartRange([], null)"))
 
+    def test_a_far_off_year_cannot_stretch_the_range(self):
+        far = [ln("A", "Near", "task", "2026-11-02", "2026-11-10"), ln("B", "Far", "milestone", "5000-01-01", "5000-01-01")]
+        self.assertEqual(self.g(f"chartRange({lit(far)}, {lit(TODAY)})"), {"start": "2026-11-01", "end": "2027-04-30"})
+        self.assertEqual(self.g(f"tidyAll({lit(far)}).length"), 1)
+        self.assertEqual(self.g(f"leftOut({lit(far)}).length"), 1)
+        self.assertIsNone(self.g('dayNum("1999-12-31")'))
+
     def test_fit_gives_every_day_the_same_width_and_never_less_than_the_floor(self):
         rng = {"start": "2026-09-01", "end": "2027-05-31"}
         self.assertAlmostEqual(self.g(f"fitPpd(1006, {lit(rng)})"), 1000 / 273, places=6)
@@ -307,7 +314,7 @@ class Rules(unittest.TestCase):
         self.assertEqual(ce(task, "name", "  Train staff "), {"ok": True, "field": "name", "value": "Train staff"})
         self.assertEqual(ce(task, "name", "  ")["message"], "A line needs a name.")
         self.assertEqual(ce(task, "pct", "75%"), {"ok": True, "field": "pct", "value": 75})
-        for bad in ("101", "-1", "abc", "", "7.5"):
+        for bad in ("101", "-1", "abc", "", "7.5", "1e1", "0x10", "12.0"):
             self.assertEqual(ce(task, "pct", bad)["message"], "Done % is a number from 0 to 100.", bad)
         self.assertEqual(ce(task, "start", "01-11-2026"), {"ok": True, "field": "dates", "value": {"start": "2026-11-01", "end": "2026-12-04"}})
         self.assertEqual(ce(task, "end", "01-12-2026")["value"], {"start": "2026-10-22", "end": "2026-12-01"})
@@ -328,6 +335,13 @@ class Rules(unittest.TestCase):
         self.assertEqual((bad["ok"], bad["field"], bad["message"]), (False, "end", "The end cannot be before the start."))
         self.assertEqual(cb({**form, "start": "soon"})["field"], "start")
         self.assertEqual(cb({**form, "name": ""})["message"], "A line needs a name.")
+
+    def test_a_drag_cannot_leave_the_accepted_years_and_one_day_is_singular(self):
+        t = ln("A", "x", "task", "2100-12-30", "2100-12-31")
+        self.assertEqual(self.g(f"moved({lit(t)}, 5)"), {"start": "2100-12-30", "end": "2100-12-31"})
+        self.assertEqual(self.g(f"resized({lit(t)}, 5)"), {"start": "2100-12-30", "end": "2100-12-31"})
+        one = ln("B", "x", "task", "2026-01-01", "2026-01-01")
+        self.assertEqual(self.g(f"detailOf({lit(one)}, {lit([one])}, {lit(TODAY)})")["when"], "01-01-2026 to 01-01-2026 (1 day)")
 
     def test_the_words_under_a_selected_line(self):
         d = self.g(f"detailOf({lit(LINES[5])}, {lit(LINES)}, {lit(TODAY)})")

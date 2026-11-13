@@ -8,6 +8,7 @@ tests, skip until the cut commit sets 1.0.7 in src/clark/__init__.py; from then 
 status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout stays at 20.
 """
 import ast
+import os
 import re
 import unittest
 
@@ -44,6 +45,8 @@ COVERED = [
      'test_menu_icons::Browser::test_status_and_priority_menus_show_the_icon_and_the_same_words'),
     ('1075', 'A message at the foot of the page goes after 5 seconds with a bar that shrinks, and Ctrl+Z still undoes after it.',
      'test_toast_five_seconds::ToastFiveSeconds::test_the_message_is_still_there_at_4_seconds_and_gone_by_6_and_the_bar_shrinks'),
+    ('1076', 'clark opens as a page in an ordinary Chrome window at clark.localhost, and the notes say the saved views start again once.',
+     'test_launcher::Launch::test_the_address_is_clark_localhost_with_the_port_for_chrome_and_127_0_0_1_for_the_rest'),
     ('1082', 'Show history under Latest update lists the changes, five in view, and reads Hide history while open.',
      'test_peek_history_1082::Browser::test_five_in_view_the_rest_scroll_and_the_link_toggles'),
     ('1083', 'The Milestones list has a light line and space between milestones at 1400 and 900 px.',
@@ -83,6 +86,7 @@ BULLET_STARTS = {
     '1073': '"+ New view" makes a view at once, named View 1, View 2 and so on; you can rename it.',
     '1074': 'Each choice in a drop-down of the peek, the table cells and the milestone peek shows a small icon beside its words',
     '1075': 'A message at the foot of the page goes after 5 seconds',
+    '1076': 'clark now opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
     '1082': 'In the peek of an action, "Show history" under Latest update lists the changes to that one field, newest first.',
     '1083': 'In the Milestones list, a light line and a little space separate each milestone from the next.',
     '1089': 'Help has a new guide, "The brand kit guide"',
@@ -174,6 +178,26 @@ def bullets(notes):
             inside = line in SECTIONS
         elif inside and line.startswith("- "):
             out.append(line)
+    return out
+
+
+def bullets_are_final(found_version, env=None):
+    """True from the cut on: once the version says 1.0.7 every merged row needs its bullet. V107_FINAL=1 asks for it earlier."""
+    return found_version == VERSION or (os.environ.get("V107_FINAL") if env is None else env) == "1"
+
+
+def bullet_problems(found, covered, final):
+    """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
+    out = []
+    for item in sorted(covered):
+        n = sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item]))
+        if n > 1 or (final and n == 0):
+            out.append("%s has %d bullets, wanted %s" % (item, n, "one" if final else "at most one"))
+    if covered:
+        starts = [BULLET_STARTS[i] for i in covered]
+        out += ["a bullet for no merged row: " + b[:40] for b in found if not any(b.startswith("- " + t) for t in starts)]
+    if final and not found:
+        out.append("the notes hold no bullet")
     return out
 
 
@@ -326,19 +350,51 @@ class Notes(unittest.TestCase):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
     def test_a_bullet_is_only_for_a_merged_visible_row_and_none_waits(self):
-        found = bullets(self.text)
+        """A merged row may lack its bullet until the cut; from the cut (version 1.0.7, which this class runs at) exactly one for each is demanded."""
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
-        self.assertTrue(found, "the notes hold no bullet")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        if covered:         # once the bookkeeping has filled COVERED: one bullet for each covered row
-            self.assertEqual(len(found), len(covered), "one bullet for each merged visible row, and no other")
-            for item in covered:
-                self.assertEqual(sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item])), 1, "%s has one bullet" % item)
+        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version())), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
         self.assertNotRegex(self.text, r"(?m)^\| ")
+
+
+class BulletsFinalCheck(unittest.TestCase):
+    """Self-test of the cut-time check: a merged row without a bullet fails with V107_FINAL=1 and passes without it."""
+
+    ROWS = {"1", "2"}
+
+    def setUp(self):
+        self._saved = dict(BULLET_STARTS)
+        BULLET_STARTS.update({"1": "Alpha ", "2": "Beta "})
+
+    def tearDown(self):
+        BULLET_STARTS.clear()
+        BULLET_STARTS.update(self._saved)
+
+    def test_a_missing_bullet_fails_only_when_final(self):
+        found = ["- Alpha one"]
+        self.assertEqual(bullet_problems(found, self.ROWS, False), [])
+        self.assertTrue(bullet_problems(found, self.ROWS, True))
+
+    def test_every_bullet_there_passes_when_final(self):
+        self.assertEqual(bullet_problems(["- Alpha one", "- Beta two"], self.ROWS, True), [])
+
+    def test_a_duplicate_or_stray_bullet_fails_either_way(self):
+        self.assertTrue(bullet_problems(["- Alpha one", "- Alpha again"], self.ROWS, False))
+        self.assertTrue(bullet_problems(["- Alpha one", "- Gamma"], self.ROWS, False))
+
+    def test_the_check_switches_on_by_itself_at_the_cut(self):
+        self.assertTrue(bullets_are_final(VERSION, env=""), "version 1.0.7 demands every bullet, with no env set")
+        self.assertFalse(bullets_are_final("1.0.6", env=""), "before the cut a missing bullet is tolerated")
+        self.assertTrue(bullets_are_final("1.0.6", env="1"), "V107_FINAL=1 asks for it early")
+
+    def test_dropping_a_bullet_fails_in_the_cut_state(self):
+        found = ["- Alpha one"]                      # Beta's bullet dropped
+        self.assertTrue(bullet_problems(found, self.ROWS, bullets_are_final(VERSION, env="")))
+        self.assertEqual(bullet_problems(found, self.ROWS, bullets_are_final("1.0.6", env="")), [])
 
 
 class Cut(unittest.TestCase):

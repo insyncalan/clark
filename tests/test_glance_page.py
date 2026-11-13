@@ -337,6 +337,16 @@ class EditTiles(Setup):
             p.saved()
             self.assertEqual(self.tiles(p)[:2], ["risks", "health"])
 
+    def test_escape_in_the_outline_menu_returns_focus_to_the_grip(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+            p.until("!!document.querySelector('.tilemenu')", "the colour menu")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.tilemenu:not(.leaving)')", "closed")
+            self.assertTrue(p.js("document.activeElement === document.querySelector('[data-tile=overdue] [data-tile-grip]')"))
+
     def test_right_click_sets_the_outline_colour_and_undo_puts_it_back(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -517,6 +527,48 @@ class Published(PublishedFile, Setup):
             p.until("location.hash.startsWith('#work')", "the file's Work items opened")
             p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
             self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), 1, "the one overdue action the file holds")
+
+    def test_row_1112_each_published_tile_opens_the_work_items_it_counts_and_no_others(self):
+        """Each figure tile opens the file's Work items filtered by what ITS number counts: the overdue tile the overdue actions, the
+        risks tile the high risks and issues; and a tile whose number is the count of rows shown."""
+        path = self.publish()
+        seen = {}
+        for width in (1400, 900):
+            for tile in ("overdue", "risks"):
+                with self.subTest(width=width, tile=tile), chrome() as cdp:
+                    p = self.draw(cdp, path, width)
+                    value = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
+                    self.assertGreaterEqual(value, 1, "the fictional file holds something for the tile to open")
+                    p.js(f"document.querySelector('[data-fig={tile}]').click()")
+                    p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                    p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+                    ids = p.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)")
+                    self.assertEqual(len(ids), value, "the rows shown are the ones the tile counted")
+                    seen.setdefault(tile, set()).update(ids)
+        self.assertTrue(seen["overdue"].isdisjoint(seen["risks"]), "the two tiles open different rows")
+
+    def test_row_1112_the_risks_tile_opens_exactly_the_rows_it_counted(self):
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width)
+                want = int(p.js("document.querySelector('[data-fig=risks] .v').textContent"))
+                self.assertEqual(p.js("document.querySelector('[data-fig=risks]').tagName"), "BUTTON")
+                self.assertTrue(p.js("document.querySelector('[data-fig=risks]').getAttribute('aria-label').endsWith('Opens Work items showing these')"), "the spoken name says where it goes")
+                p.js("document.querySelector('[data-fig=risks]').click()")
+                p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                p.until("!!document.querySelector('#work')", "Work items drawn")
+                self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), want, "list and count match")
+                p.js("history.back()")
+                p.until("!!document.querySelector('.glance')", "Back returns to the Dashboard")
+
+    def test_row_1112_a_tile_button_keeps_its_box_on_paper(self):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            p.js("document.documentElement.classList.add('print-all')")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "1px", "the print reset does not strip the tile")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.glance .fig .v')).display === 'none'"), False)
 
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()

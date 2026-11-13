@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
+     "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
@@ -244,7 +244,7 @@
      "Press [[/]] when you aren’t typing in a box and no peek, menu or box is open, or press [[Mod+K]] and choose **ask clark**. It opens down the right-hand side.",
      "Press **Check this report**. It reads the project’s data and says what looks wrong.",
      "An answer may suggest a change to a work item or a milestone as a card that shows it now and as it would be. Nothing is saved until you press **Apply**; **Undo** takes it back. If the change came from one of your files, you tick a box first.",
-     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**.",
+     "Ask anything else in your own words, or press a suggestion: **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week** or **Which use cases need attention?**. The suggestions change with the page that is open (work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about.",
      "**New chat** at the top starts again. **Close**, [[Esc]] or a click outside closes the panel. Drag its left edge to make it wider."
     ],
     "say": [
@@ -342,7 +342,7 @@
     "w": "Work items › the + at the top right",
     "go": "work",
     "s": [
-     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, with no type on the line, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: **Add action**, **Add decision**, **Add risk or issue** (a menu of **Add risk** and **Add issue**) and, with no type on the line, **Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**). You can do this in View as well as in Edit.",
      "The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with **Undo**.",
      "Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.",
      "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.",
@@ -385,9 +385,9 @@
     "s": [
      "The **Group by** button, at the right end of the filter line (the icon after **List** and **Board**), holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
      "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
+     "On the board, the **Group by** button also has **Swimlanes**: rows across the board: choose **No lanes**, **Workstream lanes** or **Type lanes**.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
-     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],
@@ -405,8 +405,8 @@
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
-     "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
+     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
+     "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday** and the date.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
@@ -554,7 +554,7 @@
      "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
      "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
-     "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+     "Right-click a tile in Edit for **Outline colour**: **Automatic**, Green, Amber, Red or **No colour**."
     ],
     "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise.",
     "page": [
@@ -568,7 +568,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -589,8 +589,8 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
-     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
-     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
+     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with the column names **Ref**, **Status** and **Work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
@@ -604,9 +604,9 @@
     "w": "Dashboard › Edit › Supporting documents",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, press **+ Add a document link** at the foot of the report.",
+     "In Edit, press **Add a document link** at the foot of the report.",
      "Give it a title, a kind (Minutes, Actions list, Report, Slides, Plan or Other), the link and a date, then press **Add**.",
-     "**⋯** on a document edits or removes it. The eye takes it off the page; **+ Add back a document** brings it back.",
+     "**⋯** on a document edits or removes it. The eye takes it off the page; **Add back a document** brings it back.",
      "In View, and on the published page, the title and the arrow open the document in a new tab."
     ],
     "page": [
@@ -620,9 +620,9 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
      "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
-     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
      "settings"
@@ -660,7 +660,7 @@
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
+     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
     "page": [
@@ -867,11 +867,14 @@
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
+     "Your data is checked first. Every time it starts, clark looks at your data folder before it opens. If the data has to be brought up to date for this clark, clark makes a copy of it first.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
      "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
+     "If it says to start from the newer clark folder. A newer clark has already used your data, so this clark does not touch it. Nothing was changed. Start clark from the newer clark folder instead.",
+     "If clark does not start and Docker shows it as unhealthy. It stays switched on but does nothing, so it does not keep trying again and again. Type `docker compose -f docker/compose.yaml logs --tail 50` to read why. When you have put it right, stop clark with the Stop line above and start it again.",
      "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
      "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. If clark.command looks empty, you started Docker with another folder."
     ]
@@ -1129,7 +1132,7 @@
        ],
        [
         "Plan summary",
-        "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+        "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
         "Full or half"
        ],
        [
@@ -1284,6 +1287,10 @@
       "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
+      "p",
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
+     ],
+     [
       "tbl",
       [
        "Table column",
@@ -1378,6 +1385,10 @@
      [
       "p",
       "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+     ],
+     [
+      "p",
+      "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
      ]
     ]
    },
@@ -1393,6 +1404,10 @@
      [
       "p",
       "**Movement** is the switch next to **Plan** at the top: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+     ],
+     [
+      "p",
+      "In Edit, the list of milestones has a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**. Drag the right edge of a heading, or press [[Alt+Left]] or [[Alt+Right]] on it, to change that column’s width; double-click the edge to put it back. View and the published page have no heading row."
      ]
     ]
    },
@@ -1417,6 +1432,7 @@
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
+       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list.",
        "Drag its left edge to make it wider."
       ]
      ],
@@ -1443,7 +1459,7 @@
       "ul",
       [
        "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
-       "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday**.",
+       "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday** and the date.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details** (in Edit a tab, with Activity; in View the same fields with no tab): Type, Owner, Due, Priority, Status, Workstream, Milestone, Use case, Shown to client and Client wording. An item’s description is its title.",
@@ -2142,11 +2158,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to View, like the **View** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
@@ -2898,7 +2914,7 @@
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
     },
     {
-     "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
+     "d": "If the box says the backup is of a different set of data, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
     },
     {
      "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. Before it swaps, clark keeps a copy of what you have now, and it shows in the list as Before a restore."

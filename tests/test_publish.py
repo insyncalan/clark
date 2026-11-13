@@ -318,6 +318,28 @@ class Dropped(Plant):
                          '<img src="data:image/gif;base64,R0lG">')
         self.assertEqual(clean('<td colspan="2" rowspan="x">t</td>'), '<td colspan="2">t</td>')
 
+    def test_a_link_that_only_works_inside_the_office_or_carries_a_login_is_not_in_the_file(self):      # client-leak hunt B
+        clean = publish.clean_html
+        for href in ("https://localhost:8766/ZQ-INTERNAL", "https://127.0.0.1/ZQ-INTERNAL", "https://192.168.1.5/ZQ-INTERNAL",
+                     "https://10.0.0.4/ZQ-INTERNAL", "https://intranet/ZQ-INTERNAL", "https://wiki.corp/ZQ-INTERNAL",
+                     "https://mypc.local/ZQ-INTERNAL", "https://user" + ":pw@example.com/ZQ-INTERNAL", "https://user@example.com/ZQ-INTERNAL",
+                     "mailto:a@example.org?cc=b@example.org", "mailto:a@example.org,b@example.org"):
+            self.assertEqual(clean(f'<a href="{href}">t</a>'), '<a rel="noopener noreferrer">t</a>', href)
+        got = clean('<a href="https://example.org/ok?a=1&b=2">t</a>')
+        self.assertIn('href="https://example.org/ok?a=1&amp;b=2"', got, "a genuine outside link stays")
+        self.assertIn('href="#next"', clean('<a href="#next">t</a>'), "a place on the page stays")
+
+    def test_the_real_export_has_no_inside_link_in_any_rich_text(self):      # client-leak hunt B: select() and render(), not clean_html alone
+        bad = '<p><a href="https://intranet/ZQ-INTERNAL-LINK">x</a></p>'
+
+        def plant(p):
+            p["data"]["project"]["current_state"] = bad
+            p["data"]["actions"][0]["latest_update"] = bad
+            p["data"]["use_cases"][0]["standing"] = bad
+            p["data"]["milestones"][0]["description"] = bad
+        _, pub, text = made(plant)
+        self.assertNotIn("ZQ-INTERNAL-LINK", text)
+
 
 class TheFile(Plant):
     def test_no_outside_address_in_attributes_css_or_srcs(self):

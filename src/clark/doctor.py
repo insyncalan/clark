@@ -9,6 +9,7 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - Python is 3.9 or newer and has SQLite (required)
 - the data folder can be made and saved in (required)
 - the data folder isn't inside OneDrive, where the system can say (required)
+- the data folder isn't inside Dropbox, iCloud Drive or Google Drive, where the system can say (required)
 - clark's own folder is in OneDrive (advice: set it to always keep its files on this device)
 - the browser: Chrome found, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
@@ -49,16 +50,18 @@ class Seen:
     """What the checks look at, and the system calls they make. Each is a seam the tests replace."""
 
     def __init__(self, data=None, port=None, environ=None, home=None, on=None, version=None, sqlite_version=None,
-                 data_dir=None, onedrive_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP):
+                 data_dir=None, onedrive_roots=None, synced_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP,
+                 identity=None, page=None):
         self.data, self.port_text, self.home, self.on, self.app = data, port, home, on or platform.system(), Path(app)
         self.environ = os.environ if environ is None else environ
         self.version = tuple(sys.version_info[:3]) if version is None else tuple(version)
         self.sqlite_version = (sqlite3.sqlite_version if sqlite3 else "") if sqlite_version is None else sqlite_version
         self.data_dir = data_dir or (lambda: platform.data_dir(self.home, on=self.on))
         self.onedrive_roots = onedrive_roots or (lambda: platform.onedrive_roots(self.home, on=self.on))
+        self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on, environ=self.environ))
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
-        self.health, self.free = health, free
+        self.health, self.free, self.identity, self.page = health, free, identity, page
         self._folder = self._roots = None
 
     def tilde(self, path):
@@ -112,14 +115,14 @@ def _can_save_in(folder):
 
 def cant_save_line(seen):
     """The 'to fix' line for a data folder that can't be saved in (also used by setup mode for a folder it refuses)."""
-    return Line(FIX, f"Your clark data can't be saved in {seen.tilde(seen.folder())}. Check you can save files there, then "
+    return Line(FIX, f"Your clark data can't be saved in {platform.account_free(seen.tilde(seen.folder()))}. Check you can save files there, then "
                      "start clark again.")
 
 
 def check_data_folder(seen):
     folder = seen.folder()
     if _can_save_in(folder):
-        return Line(READY, f"Your clark data can be saved in {seen.tilde(folder)}.")
+        return Line(READY, f"Your clark data can be saved in {platform.account_free(seen.tilde(folder))}.")
     return cant_save_line(seen)
 
 
@@ -128,11 +131,27 @@ def check_data_not_in_onedrive(seen):
     if platform.inside_onedrive(folder, seen.roots()) is None:
         return Line(READY, "Your clark data isn't inside OneDrive.")
     # The OneDrive folder's own name is not said: on a work computer it holds the organisation's name (PR #80 review).
-    return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside OneDrive. OneDrive copies files "
+    return Line(FIX, f"Your clark data is set to go in {platform.account_free(seen.tilde(folder))}, which is inside OneDrive. OneDrive copies files "
                      "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
                      "doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the Terminal window and press Return. "
                      f"Type {typed.clark('--data')} and a space, drag the folder you chose into the window, and press Return. "
                      "Backups can still go to OneDrive.")
+
+
+def check_data_not_in_synced_folder(seen):
+    """The data folder isn't inside Dropbox, iCloud Drive or Google Drive (OneDrive has its own check above). Inside the container
+    the folder is the one shared in from the Mac (CLARK_DATA_SOURCE), read by name the way check_data_dir reads it, so this check
+    and the refusal at start agree."""
+    shared = platform.container_host_in_synced(seen.environ)
+    if shared is not None:
+        return Line(FIX, platform._synced_refusal(platform.host_shown(seen.environ["CLARK_DATA_SOURCE"]), shared[0]))
+    folder = seen.folder()
+    hit = platform.inside_synced(folder, list(seen.synced_roots()))
+    if hit is None:
+        return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")
+    return Line(FIX, f"Your clark data is in {platform.account_free(seen.tilde(folder))}, which is inside {hit[0]}. {hit[0]} copies files while they are "
+                     f"being written, which damages the database. Move your clark data folder to a folder on this computer that "
+                     f"{hit[0]} doesn't sync, then start clark again.")
 
 
 def check_app_folder(seen):
@@ -145,9 +164,8 @@ def check_app_folder(seen):
 
 def check_browser(seen):
     if seen.find_chrome():
-        return Line(READY, "Chrome is there, so clark opens in its own window.")
-    return Line(ADVICE, "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own "
-                        "window.")
+        return Line(READY, "Chrome is there, so clark opens in Chrome.")
+    return Line(ADVICE, "Chrome wasn't found, so clark will open in your usual browser.")
 
 
 def check_port(seen):
@@ -169,6 +187,9 @@ def check_port(seen):
     if kind == launch.NOTHING:
         return Line(READY, "Nothing else on this computer is in the way of clark starting.")
     if kind == launch.OURS:
+        problem = launch.ours_problem(port, mark, seen.identity or launch.ask_identity, seen.page or launch.ask_page)
+        if problem:                             # row 1030: the launcher would refuse this one, so it is not ready
+            return Line(FIX, problem)
         return Line(READY, "Your clark is already running with this data.")
     if kind == launch.OTHER_DATA and folder is None:
         return Line(READY, "A copy of clark is already running on this computer.")
@@ -210,6 +231,7 @@ CHECKS = (
     Check("The Python check", True, check_python),
     Check("The data folder check", True, check_data_folder),
     Check("The OneDrive check for your data", True, check_data_not_in_onedrive),
+    Check("The Dropbox, iCloud Drive and Google Drive check for your data", True, check_data_not_in_synced_folder),
     Check("The OneDrive check for the clark folder", False, check_app_folder),
     Check("The browser check", False, check_browser),
     Check("The check that nothing is in the way", True, check_port),

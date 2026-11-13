@@ -157,7 +157,7 @@ class Logic(InBrowser):
                          ["This backup is from 02-10-2030 09:14. It holds 1 project, 1 work item and 1 milestone.",
                           "Made by an older version of clark; it is brought up to date when restored."])
         other = {**PREVIEW, "same_database": False}
-        self.assertIn("different database", self.val(f"T.logic.previewLines({lit(other)})")[-1])
+        self.assertIn("different set of data", self.val(f"T.logic.previewLines({lit(other)})")[-1])
         self.assertFalse(self.val(f"T.logic.canRestore({lit(other)})"))
         self.assertEqual(self.val(f"T.logic.confirmLine({lit(PREVIEW)})"), "Put back the backup from 02-10-2030 09:14? What you have now is kept first.")
 
@@ -202,6 +202,30 @@ class Card(InBrowser):
         self.assertEqual(self.text(".pub-msg"), "Restored the backup from 02-10-2030. Your data from before is kept in case you need it.")
         self.mount()
         self.assertEqual(self.text(".pub-msg"), "")
+
+    def tall(self):
+        self.js("document.head.appendChild(Object.assign(document.createElement('style'), {textContent: '#backup-list{margin-bottom:1500px}'}))")
+
+    def in_view(self, selector):
+        return self.val(f"(() => {{ const r = document.querySelector({lit(selector)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }})()")
+
+    def test_preview_result_is_scrolled_into_view_and_takes_focus(self):               # #1122
+        self.mount()
+        self.tall()
+        self.click("[data-backup] [data-restore]")
+        self.assertEqual(self.val("document.activeElement.id"), "backup-panel")
+        self.assertTrue(self.in_view("#backup-panel"))
+
+    def test_the_restored_message_is_in_view_and_focused_after_the_reload(self):       # #1122
+        self.js("T.logic.rememberDone('Restored the backup.', T.store)")
+        self.mount_tall()
+        self.assertEqual(self.text(".pub-msg"), "Restored the backup.")
+        self.assertEqual(self.val("document.activeElement.className"), "pub-msg")
+        self.assertTrue(self.in_view(".pub-msg"))
+
+    def mount_tall(self):
+        self.js("new MutationObserver((_, o) => { if (document.getElementById('backup-list')) { document.head.appendChild(Object.assign(document.createElement('style'), {textContent: '#backup-list{margin-bottom:1500px}'})); o.disconnect(); } }).observe(document.body, {childList: true, subtree: true})")
+        self.mount()
 
     def test_a_refusal_is_one_plain_sentence_and_nothing_reloads(self):
         self.replies(restore=OK({"ok": False, "code": "changed", "message": "x"}, 409))
@@ -287,7 +311,7 @@ class Card(InBrowser):
         self.replies(preview=OK({**PREVIEW, "same_database": False}))
         self.mount()
         self.click("[data-backup] [data-preview]")
-        self.assertIn("different database", self.text("#backup-panel"))
+        self.assertIn("different set of data", self.text("#backup-panel"))
         self.assertFalse(self.present("[data-restore-from-preview]"))
         self.click("[data-backup] [data-restore]")
         self.assertFalse(self.present("[data-put-back]"))
