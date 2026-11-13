@@ -91,7 +91,7 @@ COVERED = [
      'test_row_menu::Menu::test_item_1070_change_owner_has_a_search_box_that_finds_people_on_the_register'),
     ('1071', 'A filter tab can be picked up and dragged left or right and the order is kept.',
      'test_filter_line_page::Line::test_row_1071_a_tab_is_picked_up_and_dragged_left_or_right_and_the_order_is_kept'),
-    ('1072', 'Group by is one icon button the size of the Table and Board icons.',
+    ('1072', 'Group by is one icon button the size of the List and Board icons.',
      'test_work_items_header::Header::test_row_1072_group_by_is_one_icon_button_the_size_of_table_and_board'),
     ('1077', 'The words box in a peek is headed Ask clark to update for you and there is no Draft chip.',
      'test_peek_ruled_1077::Source::test_the_words_box_is_headed_ask_clark_to_update_for_you'),
@@ -101,13 +101,13 @@ COVERED = [
      'test_use_case_detail::Detail::test_add_a_milestone_is_one_change_with_one_undo_row_1079'),
     ('1081', 'On a use case page the Work items card shows one line per item with one tinted status chip.',
      'test_use_case_detail::Detail::test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081'),
-    ('1084', 'The Table, Board and Group by icons follow the clear button and the tabs have the whole row.',
+    ('1084', 'The List, Board and Group by icons follow the clear button and the tabs have the whole row.',
      'test_work_items_header::Header::test_row_813_no_freshness_pill_and_the_filter_is_still_there_by_typing_and_by_a_saved_view'),
     ('1085', 'The Use cases page has four tabs over a filter line, with counts that follow the line.',
      'test_use_cases_list::Narrowing::test_the_tabs_counts_follow_the_line_and_narrow_the_list'),
     ('1087', 'Published reports has an address of its own and no peek.',
      'test_router::Pure::test_row_1087_the_published_reports_page_has_its_own_address_and_no_peek'),
-    ('1088', 'The Brands card takes a brand zip of any file name and the brand manifest names the brand.',
+    ('1088', 'The Brands card takes a brand zip of any file name and the name inside the zip names the brand.',
      'test_brands_zip::Names::test_any_zip_file_name_is_accepted_and_the_manifest_names_the_brand'),
     ('1099', 'Half-width cards fit in View and in Edit, light and dark.',
      'test_half_cards_1099::HalfCards::test_half_width_cards_fit_in_view_and_edit_light_and_dark'),
@@ -131,9 +131,9 @@ COVERED = [
      'test_quit_card::Card::test_a_running_save_or_publish_is_said_instead_of_the_idle_line'),
     ('1040', 'Quit clark puts the keyboard focus on its question and gives it back on Cancel or Esc; Help names the key that opens ask clark.',
      'test_quit_card::Card::test_focus_follows_the_question_and_comes_back'),
-    ('1030', 'Start clark twice: the message does not tell you to press Ctrl+C in a Terminal window, and the doctor agrees with the launcher.',
+    ('1030', 'Start clark twice: the message does not tell you to press Ctrl+C in a Terminal window, and clark\'s own check agrees with the launcher.',
      'test_launch_running::Running::test_row_1030_the_words_do_not_send_anyone_to_a_terminal_window'),
-    ('1126', 'No screen says "database", and the messages do not say "request".',
+    ('1126', 'The backup box and the client folder messages say "data", and two page messages do not say "request".',
      'test_page_words::Words::test_the_page_words_say_data_not_database_and_that_not_request'),
     ('669', 'The At a glance tiles in the editor read the same as in the published file ("None high", "None open", "No date set", "None waiting").',
      'test_glance_tile_words::Page::test_risks'),
@@ -155,8 +155,6 @@ COVERED = [
      'test_filter_line_page::Line::test_typing_offers_fields_then_values_with_arrows_and_enter_choose'),
     ('1054', 'Archive from a milestone peek: the focus goes to the next row or to Undo; menus and the filter box show a clear ring.',
      'test_milestone_peek_828::Fields::test_after_archive_in_the_peek_focus_goes_to_the_next_row_or_to_undo'),
-    ('1055', 'Help names the real way to open it when the ? key is off.',
-     'test_help_key_line::HelpKeyLine::test_the_question_mark_line_points_at_the_profile_menu_not_a_button'),
     ('1093', 'On each page, the suggestions under the ask clark box are that page\'s, and the last question changes them.',
      'test_ask_look::Look::test_row_1093_the_suggestions_follow_the_page_and_the_last_question'),
     ('1096', 'The ask clark question box is one line, the suggestions hide while you type, and Ask is a round up arrow.',
@@ -195,7 +193,7 @@ COVERED = [
      'test_safety_logic::Card::test_the_restored_message_is_in_view_and_focused_after_the_reload'),
     ('1125', 'Double click Import, and its Undo: it happens once, shows no error and Undo stays.',
      'test_settings_data_page::Card::test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error'),
-    ('1044', 'At 420 wide the leftmost label of the Milestones strip is not clipped.',
+    ('1044', 'At 900 wide the leftmost label of the Milestones strip is not clipped.',
      'test_milestones_dead_css::LeftLabel::test_the_left_most_label_starts_inside_the_strip'),
 ]
 
@@ -267,7 +265,6 @@ BULLET_STARTS = {
     '1048': 'Draft email fills the To line with the owner\'s address a',
     '1058': 'On the filter line, choosing a key shows its values at o',
     '1054': 'After Archive in a milestone\'s peek, the keyboard focus',
-    '1055': 'Help names the real way to open it when the ? key is off',
     '1093': 'The suggestions under the ask clark box follow the page',
     '1096': 'The ask clark question box is one line high, the suggest',
     '1128': 'A Cancelled milestone says "No longer going ahead", and',
@@ -290,13 +287,13 @@ BULLET_STARTS = {
     '1044': 'The leftmost label of the Milestones strip no longer cli',
 }
 
-# Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669; 1055 changed only the old prototype's help).
-NO_BULLET = {'1055', '1117'}
+# Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669).
+NO_BULLET = {'1117'}
 # Bullets for merged work that has no plan row in COVERED: the start of each (1245 in PR 1356; the launcher's synced-folder refusal in PR 1357).
-EXTRA_BULLET_STARTS = ('A Completed item no longer reads as late.', 'The launcher now refuses a data folder inside Dropbox')
+EXTRA_BULLET_STARTS = ('A Completed item no longer reads as late.', 'The launcher now refuses a data folder inside Dropbox', 'In Docker, when the container shares the computer')
 
 # Merged rows with no visible change.
-NO_VISIBLE_CHANGE = {'1080', '1029', '1031'}
+NO_VISIBLE_CHANGE = {'1080', '1029', '1031', '1055'}   # 1055 changed only the old prototype's Help wording
 # Merged rows that are tests or internal code only: no bullet, no hand check.
 TEST_ONLY = {'1045', '1047'}
 # No user note, and no hand check, once merged.
