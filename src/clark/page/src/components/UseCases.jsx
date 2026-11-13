@@ -12,6 +12,7 @@ import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { RAIL, railRows } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
+import { printing } from "../stores/print.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -125,8 +126,8 @@ export function UseCases({ tools }) {
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
       </div>
-      <ul class="ucrows plain">{railRows(list, all).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
-      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall aria-expanded={String(all)} onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
+      <ul class="ucrows plain">{railRows(list, all || printing.value).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>

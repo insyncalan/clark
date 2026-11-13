@@ -298,6 +298,26 @@ class Card(Base):
             self.assertIn("can't be read as an Excel workbook", p.js("document.querySelector('#import-problem').textContent"))
             self.assertTrue(p.js("!!document.querySelector('#import-choose') && !document.querySelector('#import-summary')"))
 
+    def test_tab_and_shift_tab_move_on_from_choose_a_file_and_back_1121(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-choose'", "focus on Choose a file")
+                here = "document.activeElement && document.activeElement.id"
+                tab = lambda shift: [p.cdp.call("Input.dispatchKeyEvent", {"type": k, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9, "modifiers": 8 if shift else 0}, p.sid) for k in ("keyDown", "keyUp")]
+                tab(False)
+                self.settle(p, here + " === 'import-template'", "Tab from Choose a file wraps to the first visible control")
+                tab(True)
+                self.settle(p, here + " === 'import-choose'", "Shift+Tab from the first control wraps back to Choose a file")
+                tab(True)
+                self.settle(p, "document.querySelector('#import-box').contains(document.activeElement) && document.activeElement.id !== 'import-choose'", "Shift+Tab moves to the control before it")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#import-box')", "Esc closed it")
+
     def test_escape_closes_the_box_and_focus_goes_back_to_the_button(self):
         with chrome() as cdp:
             p = self.page(cdp)

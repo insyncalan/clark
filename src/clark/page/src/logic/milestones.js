@@ -213,9 +213,10 @@ export function calendarChips(rows) {
   return out;
 }
 
-/** The Legend: the six states in order, then Expected and Today. A published file says the client's word. */
+/** The Legend: the six states in order, then (in the editor only) Cancelled, then Expected and Today. A published file says the client's word and drops Cancelled rows, so it has no Cancelled entry. */
 export function legend(client) {
   const out = STATES.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] : s, colour: LOOK[s][0], mark: LOOK[s][1], means: LOOK[s][2] }));
+  if (!client) out.push({ state: CANCELLED, word: CANCELLED, colour: LOOK[CANCELLED][0], mark: LOOK[CANCELLED][1], means: LOOK[CANCELLED][2] });
   out.push({ state: "Expected", word: "Expected", colour: null, mark: "ghost", means: "Where a slipped milestone is now expected; a dashed line joins it to its agreed date" });
   out.push({ state: "Today", word: "Today", colour: null, mark: "today-line", means: "The line on the timeline; the blue date on the calendar" });
   return out;
