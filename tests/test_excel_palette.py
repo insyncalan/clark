@@ -248,10 +248,6 @@ class PlainWarningWording(unittest.TestCase):
                 self.assertNotIn(word, text)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
 class LastDeclarationNoSemicolon(unittest.TestCase):
     """A brand's last colour with no closing semicolon is valid CSS: it is read, and an unreadable one still gets its warning."""
 
@@ -263,3 +259,7 @@ class LastDeclarationNoSemicolon(unittest.TestCase):
     def test_last_colour_without_semicolon_is_used(self):
         p = ep.palette(css=":root{--brand-blue:#0A7C74}")
         self.assertEqual(p.tokens["brand-blue"], "0A7C74")
+
+
+if __name__ == "__main__":
+    unittest.main()
