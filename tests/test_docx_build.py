@@ -8,6 +8,7 @@ select() dropped is in no part, in four spellings; a field select() did not keep
 text goes through the sanitiser; a value is only ever text in the XML.
 """
 import copy
+from datetime import date
 import io
 import re
 import time
@@ -614,6 +615,69 @@ class Refusals(unittest.TestCase):
         self.assertLess(time.process_time() - started, 120)  # CPU time, so a loaded machine does not count against it; a generous ceiling that a real blow-up still fails
         self.assertLess(len(data), docx_build.MAX_BYTES)
         self.assertIn("PUB-A-1999", every_text(data))
+
+
+class MutantsB1(unittest.TestCase):
+    """Edges the mutation hunt (team-cap-hunt-b1) found no test pinning: each one fails if its line of docx_build.py is changed."""
+
+    def test_escaping_gives_text_and_quoted_attributes(self):
+        self.assertEqual(docx_build.esc("a>b"), "a&gt;b")
+        self.assertEqual(docx_build.esc(None), "")
+        self.assertEqual(docx_build.attr('say "hi"'), "say &quot;hi&quot;")
+
+    def test_a_colour_with_spaces_around_it_still_counts(self):
+        self.assertEqual(docx_build.palette({"brand-navy": "  #112233 "})["brand-navy"], "112233")
+
+    def test_one_address_and_one_picture_are_each_one_relationship_and_a_second_is_another(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        a = ctx.link("https://example.org/a")
+        self.assertEqual(ctx.link("https://example.org/a"), a)
+        self.assertNotEqual(ctx.link("https://example.org/b"), a)
+        one = ctx.image(b"one")
+        self.assertEqual(ctx.image(b"one"), one)
+        self.assertNotEqual(ctx.image(b"two"), one)
+
+    def test_relationship_ids_are_all_different_and_clear_of_the_fixed_four(self):
+        _, both = RichText.render(self, '<p><a href="https://example.org/a">x</a> <a href="https://example.org/b">y</a></p>')
+        ids = re.findall(r'Relationship Id="(rId\d+)"', both["word/_rels/document.xml.rels"].decode())
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(sorted(ids)[:4], ["rId1", "rId2", "rId3", "rId4"])
+        self.assertGreaterEqual(len(ids), 6)
+
+    def test_a_picture_is_never_less_than_one_unit_tall_and_keeps_its_shape(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        self.assertIn('cy="1"', docx_build.picture(ctx, (b"x", 1000, 1), 1, "alt"))
+        tall = docx_build.picture(ctx, (b"y", 100, 200), 100, "alt")
+        self.assertIn('cx="63500" cy="127000"', tall)
+
+    def test_a_task_that_starts_today_is_in_progress_and_one_percent_is_too(self):
+        d = date(2026, 11, 6)
+        r = lambda s, e, p, t="task": {"start": date.fromisoformat(s), "end": date.fromisoformat(e), "pct": p, "type": t}
+        self.assertEqual(docx_build._gantt_status(r("2026-11-06", "2026-11-30", 0), d), "inprogress")
+        self.assertEqual(docx_build._gantt_status(r("2026-12-01", "2026-12-30", 1), d), "inprogress")
+        self.assertEqual(docx_build._gantt_status(r("2026-11-06", "2026-11-06", 0), d), "inprogress")   # ends today: not yet late
+
+    def test_the_limit_message_says_the_limit_in_binary_megabytes(self):
+        big = 30 * 1048576
+        with mock.patch.object(docx_build, "MAX_BYTES", big), mock.patch.object(docx_build, "zip_bytes", return_value=b"x" * (big + 1)):
+            with self.assertRaises(WordError) as caught:
+                docx_build.build(published())
+        self.assertIn("30 MB limit", str(caught.exception))
+        self.assertIn("30.0 MB", str(caught.exception))
+
+    def test_the_documents_title_is_the_project_name_or_else_its_code(self):
+        named = parts(docx_build.build(with_project(published(), name="Zed Name")))["docProps/core.xml"].decode()
+        self.assertIn("<dc:title>Zed Name</dc:title>", named)
+        bare = parts(docx_build.build(with_project(published(), name="")))["docProps/core.xml"].decode()
+        self.assertIn("<dc:title>PUB</dc:title>", bare)
+
+    def test_a_stray_closing_tag_does_not_make_what_follows_bold(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        r = docx_build._Rich(ctx)
+        r.end("strong")
+        self.assertEqual(r.fmt["strong"], 0)
+        r.start("strong", [])
+        self.assertEqual(r.fmt["strong"], 1)
 
 
 class FileName(unittest.TestCase):
