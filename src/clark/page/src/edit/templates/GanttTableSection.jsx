@@ -6,7 +6,7 @@ import { View, isEmpty } from "../../components/GanttTableSection.jsx";
 import { WORDS } from "../../gantt/logic/gantt.js";
 import { NOTE } from "./GanttSection.jsx";
 
-export const LEFT_OUT = "No Gantt line has its eye on, so this section is left out of the published page. Turn an eye on on the Gantt page to include it.";
+export const LEFT_OUT = "No Gantt line has its eye turned on, so this section is left out of the published page. Turn an eye on in the Gantt page to include it.";
 
 export function Edit({ section }) {
   return (

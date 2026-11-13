@@ -9,9 +9,13 @@ const BLANK = { name: "", role: "", email: "", phone: "" };
 const FIELD_WORDS = { name: "Name", role: "Role", email: "Email", phone: "Phone" };
 const MAX = { name: 80, role: 80, email: 120, phone: 40 };
 
+// A row that stands for a person in the file carries this mark (a symbol: it never reaches JSON). A row added here has none until it is saved with a name.
+const IN_FILE = Symbol("inFile");
+const mark = (list) => list.map((p) => (p.name ? { ...p, [IN_FILE]: true } : p));
+
 export function Edit({ section }) {
   const saved = tidyContacts(source(section)).people;
-  const [rows, setRows] = useState(saved);
+  const [rows, setRows] = useState(() => mark(saved));
   const [hint, setHint] = useState("");
   const key = JSON.stringify(saved);
   // Take the saved people again only when they differ from the ones the draft started from: a late first run of this effect must not wipe what is being typed.
@@ -22,18 +26,19 @@ export function Edit({ section }) {
     if (seen.current === key) return;
     seen.current = key;
     if (JSON.stringify(namedOf(draft.current)) === key) return;
-    draft.current = saved;
-    setRows(saved);
+    draft.current = mark(saved);
+    setRows(draft.current);
     setHint("");
   }, [key]);
   const save = (next) => {
-    draft.current = next;
-    setRows(next);
     const used = next.filter((p) => PERSON_FIELDS.some((f) => p[f]));
     const named = namedOf(next);
     // A saved person whose name was cleared must not drop out of the file on the quiet: then nothing is saved, as before. Only people added here, still without a name, wait on their own.
-    const cleared = next.some((p, i) => i < saved.length && !p.name && PERSON_FIELDS.some((f) => p[f]));
-    if (cleared) { setHint("Add a name to save this contact. It isn't saved until it has one."); return null; }
+    const cleared = next.some((p) => p[IN_FILE] && !p.name && PERSON_FIELDS.some((f) => p[f]));
+    if (cleared) { draft.current = next; setRows(next); setHint("Add a name to save this contact. It isn't saved until it has one."); return null; }
+    next = mark(next);
+    draft.current = next;
+    setRows(next);
     setHint(used.length !== named.length ? "Add a name to save this contact. It isn't saved until it has one." : "");
     if (JSON.stringify(named) === key) return null;
     return saveContent(section, { v: 1, people: named }, "Contacts saved.");
