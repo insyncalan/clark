@@ -217,6 +217,35 @@ class Page(InBrowser):
         self.assertFalse(self.val("!!window.pwned"))
         self.assertFalse(self.present("#brands img"))
 
+    def pick(self, saved, project=True):
+        self.js("T.project = %s" % ("{brand: %s}" % lit(saved) if project else "undefined"))
+        self.mount()
+
+    def test_the_project_picker_lists_generic_and_the_added_brands_and_saves_a_choice(self):
+        self.pick("generic")
+        self.assertEqual(self.val("[...document.querySelectorAll('#brand-pick option')].map(o => [o.value, o.textContent])"),
+                         [["generic", "Generic"], ["example-brand", "Example Brand"]])
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+        self.js("const s = document.querySelector('#brand-pick'); s.value = 'example-brand'; s.dispatchEvent(new Event('change', {bubbles: true}))")
+        self.settle()
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
+
+    def test_the_picker_shows_the_saved_brand(self):
+        self.pick("example-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand")
+        self.assertEqual(self.text("[data-brand-gone]"), "")
+
+    def test_a_removed_brand_shows_the_note_and_generic(self):
+        self.pick("gone-brand")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.text("[data-brand-gone]"),
+                         "The brand chosen for this project is no longer available, so this project uses Generic.")
+
+    def test_with_no_project_open_there_is_no_picker(self):
+        self.pick(None, project=False)
+        self.assertFalse(self.present("#brand-pick"))
+
     def test_plain_words_only(self):
         words = self.val("Object.values(T.logic).filter(v => typeof v === 'string')")
         for text in words:

@@ -18,5 +18,6 @@ const api = {
 T.mount = () => {
   const root = document.getElementById("root");
   root.innerHTML = '<div id="host" style="padding:16px"></div>';
-  render(<Brands api={api} />, document.getElementById("host"));
+  const pick = { project: T.project, save: (id, name) => { T.calls.push(["pick", [id, name]]); return Promise.resolve(); } };      // #944: the open project and what saving its brand does
+  render(<Brands api={api} pick={pick} />, document.getElementById("host"));
 };
