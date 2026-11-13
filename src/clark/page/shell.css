@@ -1017,7 +1017,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-st b { font-weight: 500; font-size: var(--size-h3); }
 .hp-steps p { margin: 0; font-size: var(--size-small); line-height: var(--leading); color: var(--text-muted); }
 .hp-gate { margin-top: var(--space-2); font: 500 var(--size-small)/1.2 ui-monospace, Menlo, Consolas, monospace; letter-spacing: .08em; text-transform: uppercase; }
-.hp-ret { display: flex; gap: var(--space-2); align-items: center; margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
+.hp-ret { display: flex; gap: var(--space-2); align-items: center; margin: var(--space-3) 0 0; padding-top: var(--space-3); border-top: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); max-width: 72ch; }   /* item 1043: a readable measure, not the whole panel width */
 .hp-first { list-style: none; margin: var(--space-3) 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--d-hp-grid); }
 .hp-first li, .hp-where-g li, .hp-rules li { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: var(--d-hp-card-y) var(--space-4); }
 .hp-big { display: block; font-size: var(--size-h2); font-weight: var(--weight-medium); color: var(--status-blue-text); line-height: 1; margin-bottom: var(--space-2); }
