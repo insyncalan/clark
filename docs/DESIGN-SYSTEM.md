@@ -27,7 +27,7 @@ An own look may also add rules (a logo picture, a still picture for the home ban
 | Pictures | `--image-cover` `--image-logo` `--image-fade` `--art-home` `--art-home-height` | Empty and flat by default; only an own look fills them. `--image-logo` is the logo at the right of the Client Requested Report View's cover band |
 | Profile circle | `--profile-bg` `--profile-fg` `--profile-ring` `--profile-size` | The initials circle in the header |
 
-**A brand zip carries its pictures inside `tokens.css`.** The zip review refuses any `url()` that is not a `data:` address (a relative `assets/cover.png` included), so embed the cover and logo in `tokens.css` as `data:image/svg+xml` or a small `data:image/png`; the `assets` folder form is for a hand-written local brand folder only (item 1153).
+A brand zip carries its pictures inside tokens.css: the zip review refuses any url() that is not a data: address (a relative assets/cover.png included), so embed the cover and logo as data:image/svg+xml or a small data:image/png.
 
 **Rule: no raw colour in a rule.** A rule in `shell.css` or a component uses a token. A new colour is a new token in the contract, with a dark value.
 
