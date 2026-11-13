@@ -140,7 +140,7 @@ export function installKeys() {
       closeHelp(); return;
     }
     if (typing(e.target) || otherLayerOpen()) return;
-    if (e.key === "?") { e.preventDefault(); if (helpOpen.value) helpFocusSearch.value++; else if (!toggleContext()) openHelp(); }
+    if (e.key === "?" && singleKeys.value) { e.preventDefault(); if (helpOpen.value) helpFocusSearch.value++; else if (!toggleContext()) openHelp(); }
     else if (e.key === "/" && helpOpen.value && singleKeys.value) { e.preventDefault(); e.stopImmediatePropagation(); helpFocusSearch.value++; }
   }, true);
   // A click outside the peek closes it.

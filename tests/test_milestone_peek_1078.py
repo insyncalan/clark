@@ -263,7 +263,28 @@ class Published(unittest.TestCase):
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-002'", sid)
                 self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-002')(document.querySelector('#peek'))", sid)))
                 self.assertEqual(cdp.js(LABELS, sid), [r for r in CLIENT_ROWS if r not in ("Description", "Client wording")])
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Not set")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Progress not set")
+
+    def test_an_empty_owner_and_progress_in_a_files_milestone_peek_header_say_progress_not_set_with_no_bare_dash(self):
+        def bare(plant):
+            for m in plant["data"]["milestones"]:
+                if m["id"] == "PUB-M-002":
+                    m["owner"] = None
+                    m["percent_complete"] = None
+        _plant, _pub, text = tp.made(bare)
+        folder = Path(tempfile.mkdtemp(prefix="clark-1078b-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        from test_server import wait
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, path.as_uri() + "#dashboard&p=PUB&ms=PUB-M-002", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-ms-head=progress]')", sid)), "the peek drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=progress]').textContent.trim()", sid), "Progress not set")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-ms-head=owner]')", sid), None, "no bare dash for an empty owner")
+                self.assertNotIn("\u2014", cdp.js("document.querySelector('#peek .pk-ms-head').textContent", sid))
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek .pk-ms-head .pk-ms-sep').length", sid), 1, "state, progress: one separator")
 
     def test_an_achieved_milestone_in_a_file_reads_achieved_with_its_date_read_only(self):
         plant = fx.load()
