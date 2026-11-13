@@ -331,6 +331,15 @@ class Panel(Base):
             p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
             p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
 
+    def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertTrue(p.js("/^\\d+$/.test(document.querySelector('#ask-grip').getAttribute('aria-valuenow') || '')"))
+            before = int(p.js("document.querySelector('#ask-grip').getAttribute('aria-valuenow')"))
+            p.js("document.querySelector('#ask-grip').focus()")
+            p.key("ArrowLeft", code="ArrowLeft", vk=37)
+            p.until(f"+document.querySelector('#ask-grip').getAttribute('aria-valuenow') > {before}", "the value follows the width")
+
     def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
         self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
         with chrome() as cdp:

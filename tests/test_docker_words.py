@@ -105,5 +105,26 @@ class Dialogs(InDocker):
         self.assertEqual(updater.MESSAGES["dialog"], pl.refusal_words(pl.PlatformError("x"), updater.MESSAGES["dialog"]))
 
 
+class Help(unittest.TestCase):
+    def test_the_connect_and_docker_guides_quote_the_sentence_and_the_command(self):
+        import json
+        raw = json.loads((SRC.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8"))
+        found = {}
+
+        def walk(node):
+            if isinstance(node, dict):
+                if node.get("id") in ("connect-claude-or-chatgpt", "run-clark-with-docker"):
+                    found[node["id"]] = " ".join(node["s"])
+                for v in node.values():
+                    walk(v)
+            elif isinstance(node, list):
+                for v in node:
+                    walk(v)
+        walk(raw)
+        self.assertEqual(2, len(found))
+        for text in found.values():
+            self.assertIn(WORDS, text)
+
+
 if __name__ == "__main__":
     unittest.main()
