@@ -354,6 +354,7 @@ class Card(InBrowser):
         self.click("[data-pubarchive='3']")
         self.assertEqual(self.text(".pub-msg"), said)
         self.assertEqual(self.val("T.toasts"), [])
+        self.assertEqual(self.js("document.activeElement && document.activeElement.dataset.pubarchive"), "3", "a refused Archive keeps the focus on its button")
         self.replies(archive={"status": 0, "body": None})
         self.click("[data-pubarchive='3']")
         self.assertEqual(self.text(".pub-msg"), self.val("T.logic.NOT_ANSWERING"))

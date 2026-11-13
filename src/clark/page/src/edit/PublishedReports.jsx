@@ -51,6 +51,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       return;
     }
     setMsg({ kind: "error", text: L.markWords(r.status, r.body) });
+    refocus(`[data-pubarchive="${number}"]`, `[data-pubrestore="${number}"]`, "#pubs-archived");      // refused: the button was disabled while it worked, so it takes the focus again
   }
 
   // The tab is opened first, while the click still counts (a browser blocks one opened after a wait), then pointed at the kept page.
