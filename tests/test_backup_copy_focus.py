@@ -58,7 +58,7 @@ class BackupCopyFocus(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def open(self, cdp):
+    def shown(self, cdp):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
@@ -70,7 +70,7 @@ class BackupCopyFocus(unittest.TestCase):
     def test_save_by_keyboard_leaves_focus_on_the_save_button(self):
         for k, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
             with chrome() as cdp:
-                sid = self.open(cdp)
+                sid = self.shown(cdp)
                 cdp.js("document.querySelector('[data-copy-save]').focus()", sid)
                 key(cdp, sid, k, code, vk, text)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#safety-copy-said p')", sid)), "the answer came")
@@ -78,7 +78,7 @@ class BackupCopyFocus(unittest.TestCase):
 
     def test_enter_in_the_box_keeps_focus_in_the_box(self):
         with chrome() as cdp:
-            sid = self.open(cdp)
+            sid = self.shown(cdp)
             cdp.js("document.querySelector('[data-copy-folder]').focus()", sid)
             key(cdp, sid, "Enter", "Enter", 13, "\r")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#safety-copy-said p')", sid)), "the answer came")
