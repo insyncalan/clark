@@ -55,6 +55,7 @@ export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
@@ -111,7 +112,7 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
@@ -125,6 +126,7 @@ function apply(s) {
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
+    mv.value = s.mv || "";
     filterText.value = s.f;
   });
   if (s.project !== project.value) {
@@ -140,6 +142,12 @@ function apply(s) {
 // Whether the loaded data has a work item (`milestone` false) or a milestone with this id.
 function known(d, id, milestone) {
   return !!d && (milestone ? d.milestones.some((m) => m.id === id) : [...d.actions, ...d.raid, ...d.decisions].some((r) => r.id === id));
+}
+
+// The published file's Calendar or Timeline choice, kept in the address (`mv`) so a reload brings it back; the entry is rewritten, not added.
+export function setMsView(v) {
+  mv.value = v === "cal" ? "cal" : "";
+  route.navigate(where(), { replace: true });
 }
 
 // Move to `s` through the router and draw it. Drawn from `s` itself (made well-formed as the router makes it), not from the
@@ -390,7 +398,7 @@ const CHANGE_KNOWN = {
     "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
-  "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
+  "Use plain text, with no line breaks or hidden characters.": "That can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",

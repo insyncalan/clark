@@ -107,8 +107,17 @@ export function sortRows(rows, today) { // eslint-disable-line no-unused-vars
     if (isOpen(x) !== isOpen(y)) return isOpen(x) ? -1 : 1;
     const a = key(x), b = key(y);
     if (a !== b) return a === null ? 1 : b === null ? -1 : a < b ? -1 : 1;
-    return x.id < y.id ? -1 : x.id > y.id ? 1 : 0;
+    return idOrder(x.id, y.id);
   });
+}
+
+// Ids tie-break by their letters, then by the number after them, so XYZ-999 sorts before XYZ-1000.
+function idOrder(p, q) {
+  const split = (id) => { const m = /^(.*?)(\d+)$/.exec(String(id)); return m ? [m[1], BigInt(m[2])] : [String(id), null]; };
+  const [pa, na] = split(p), [pb, nb] = split(q);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  if (na === null || nb === null) return na === nb ? 0 : na === null ? -1 : 1;
+  return na < nb ? -1 : na > nb ? 1 : 0;
 }
 
 // One flat list of rows from /api/data: actions, then RAID (its type, lower-cased, is the kind), then decisions.

@@ -498,6 +498,9 @@ class VersionRuleTest(Base):
         self.assertGreater(updates.version_key("1.0.0"), updates.version_key("0.99.99"))
         self.assertGreater(updates.version_key("0.1.0"), updates.version_key("0.1.0.dev0"), "a release beats its dev copy")
         self.assertGreater(updates.version_key("0.1.0.dev3"), updates.version_key("0.0.9"))
+        self.assertLess(updates.version_key("0.2.1.dev1"), updates.version_key("0.2.1.dev2"))
+        self.assertLess(updates.version_key("0.2.1.dev2"), updates.version_key("0.2.1.dev10"))
+        self.assertLess(updates.version_key("0.2.1.dev99"), updates.version_key("0.2.1"), "a dev stays below its release")
         for bad in ("0.1", "a.b.c", "1.2.3.4", "01.2.3", "1.2.3-rc1"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 updates.version_key(bad)
@@ -1202,7 +1205,7 @@ class LongVersionTextTest(Base):
                 with self.assertRaises(ValueError):
                     updates.version_key(text)
                 self.assertFalse(updates.is_release_version(text))
-        self.assertEqual((0, 1, 0, 0), updates.version_key("0.1.0.dev123456789"))
+        self.assertEqual((0, 1, 0, 0, 123456789), updates.version_key("0.1.0.dev123456789"))
 
 
 @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read anything")
