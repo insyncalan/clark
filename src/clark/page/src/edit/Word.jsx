@@ -56,7 +56,7 @@ function Export() {
         ) : (
           <div class="pubopts">
             <p class="muted word-where">The report is saved as a Word file in the folder last used for this project. If there is none yet, a window asks you to choose one.</p>
-            <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="word-client" checked={s.ticked} disabled={!s.saved || working} onChange={(e) => tickClient(e.currentTarget.checked)} />
+            <label class={`pubopt${s.saved ? "" : " off"}`}><input type="checkbox" id="word-client" checked={s.ticked} disabled={!s.saved || working || s.phase === "done"} onChange={(e) => tickClient(e.currentTarget.checked)} />
               <span><b>To client</b><small>{s.saved ? `Also copied to the client folder: ${folderName(s.saved)}` : NO_FOLDER}</small></span></label>
           </div>
         )}
