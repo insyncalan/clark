@@ -1220,3 +1220,7 @@ th[data-cw-head]:focus-visible, .ucl-hd > [data-cw-head]:focus-visible { outline
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols-w); }
 }
 .msl-hc > span:has(> .cgrip) { position: relative; }
+
+/* #1154 (prototype .cover .mark, app-energyai.css): the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right edge. It is drawn from --image-logo, which is none (so nothing is drawn and the band is as it was) until a brand sets it; hidden under 900 px as the prototype has it. Edit only: the published page's one slim bar carries the logo (#1146). */
+.cover::after { content: ""; position: absolute; top: var(--space-5); right: calc(var(--space-6) + var(--space-1)); width: calc(var(--space-8) * 3); height: var(--space-8); pointer-events: none; background: var(--image-logo) right center / contain no-repeat; }
+@media (max-width: 899px) { .cover::after { display: none; } }

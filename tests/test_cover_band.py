@@ -124,6 +124,34 @@ class Picture(Setup):
                 check_fills(self, p.js(PICTURE), True)
 
 
+LOGO = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::after');
+  return {band: [r.width, r.height], display: s.display, image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat,
+          pos: s.backgroundPosition, abs: s.position, w: parseFloat(s.width), h: parseFloat(s.height), top: parseFloat(s.top), right: parseFloat(s.right)}; })()"""
+
+
+class Logo(Setup):
+    """#1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right (the
+    prototype's .cover .mark), in the editor's page at 1400 and 900, light and dark; nothing is drawn without a brand logo."""
+
+    def test_the_brand_logo_sits_at_the_right_of_the_band(self):
+        for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                plain = p.js(LOGO)
+                self.assertEqual(plain["image"], "none", "no brand logo: nothing is drawn")
+                p.js("document.documentElement.style.setProperty('--image-logo', %s)" % json.dumps(artwork()))
+                got = p.js(LOGO)
+                self.assertIn("data:image/png", got["image"])
+                self.assertEqual((got["abs"], got["display"]), ("absolute", "block"))
+                self.assertEqual((got["h"], got["top"], got["right"]), (64, 24, 36))
+                self.assertEqual(got["size"], "contain", "the logo is scaled to fit, never stretched or cropped")
+                self.assertEqual(got["repeat"], "no-repeat")
+                self.assertTrue(got["pos"].startswith("100%"), "against the right edge of its box")
+                self.assertLessEqual(got["w"] + got["right"], got["band"][0], "inside the band")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                self.assertGreaterEqual(min(p.js(LUM)), 4.5, "the text keeps its contrast")
+
+
 class TheWeek(Setup):
     def coming_friday(self):
         d = date.today()
