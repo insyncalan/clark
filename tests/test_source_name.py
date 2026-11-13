@@ -217,6 +217,10 @@ class OnlyARealFileName(unittest.TestCase):
                              ("Excel import, 2026-10-01, clark import template.xlsx", "clark import template.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
 
+    def test_the_last_file_name_among_several_comma_parts_is_the_one_published(self):
+        self.assertEqual(source_name("Word import, first.docx, second.pdf", published=True), "second.pdf")
+        self.assertEqual(source_name("old.xlsx, Added by hand, new.csv", published=True), "new.csv")
+
     def test_only_the_extensions_clark_imports_or_reads_are_published(self):
         """The list: xlsx xlsm xls csv docx doc pdf (what clark imports or reads). The others (pptx txt msg eml md) are not published: a shorter list leaks less."""
         for ext in ("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "XLSX", "Pdf"):

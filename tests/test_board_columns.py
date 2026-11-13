@@ -79,6 +79,25 @@ class Columns(Base):
             self.assertEqual(cdp.js("document.querySelectorAll('.col.shut').length", sid), 0, "the drop is not a click")
             self.assertEqual(self.sent, [])
 
+    def test_dropping_a_heading_in_the_gap_between_columns_puts_it_there_not_at_the_end(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                self.board(cdp, sid, "status")
+                first = self.order(cdp, sid)
+                self.assertGreaterEqual(len(first), 4)
+                x0, y0 = where(cdp, sid, f".lane .col[data-col='{first[0]}'] .col-b")
+                gap = cdp.js(f"(() => {{ const a = document.querySelector(\".col[data-col='{first[1]}']\").getBoundingClientRect(), b = document.querySelector(\".col[data-col='{first[2]}']\").getBoundingClientRect(); return [(a.right + b.left) / 2, b.left - a.right]; }})()", sid)
+                self.assertGreater(gap[1], 1, "there is a gap to drop in")
+                self.assertEqual(cdp.js(f"(() => {{ const e = document.elementFromPoint({gap[0]}, {y0}); return !!(e && e.closest('.col[data-col]')); }})()", sid), False, "the point is in the gap")
+                mouse = lambda kind, x, y, **kw: cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, **kw}, sid)
+                mouse("mouseMoved", x0, y0)
+                mouse("mousePressed", x0, y0, button="left", buttons=1, clickCount=1)
+                mouse("mouseMoved", gap[0], y0, buttons=1)               # straight into the gap: no column was crossed on the way
+                mouse("mouseReleased", gap[0], y0, button="left", buttons=0, clickCount=1)
+                self.until(cdp, sid, f"document.querySelectorAll('.col')[0].dataset.col !== {json.dumps(first[0])}", "the column moved")
+                self.assertEqual(self.order(cdp, sid)[:3], [first[1], first[0], first[2]])
+
     def test_the_grip_resizes_within_260_and_640_and_keys_and_double_click_work(self):
         for width in (1400, 900):
             with chrome() as cdp:

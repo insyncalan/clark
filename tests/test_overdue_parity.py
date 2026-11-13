@@ -101,7 +101,8 @@ class Parity(unittest.TestCase):
         code = bundled(PAGE / "templates" / "workItemsList.js", "WL")
         rs = [{"id": "A1", "kind": "action", "status": "Completed", "due": "2020-01-01"},
               {"id": "A2", "kind": "action", "status": "Open", "due": "2020-01-01"}]
-        f = {"mode": "all", "kinds": [], "status": [], "due": ["overdue"], "owner": [], "workstream": [], "use_case": [], "priority": [], "sort": "id", "max": 10}
+        f = {"mode": "all", "kinds": [], "status": [], "due": ["overdue"], "owner": [], "workstream": [], "use_case": [], "priority": [], "sort": "id", "max": 10,
+             "milestone": [], "not": {k: [] for k in ("kinds", "status", "due", "owner", "workstream", "use_case", "priority", "milestone")}, "has": [], "no": [], "text": []}
         got = node(code + ";console.log(JSON.stringify(WL.matching(%s, %s, %s)))" % (json.dumps(f), json.dumps(rs), json.dumps(TODAY)))
         self.assertEqual(got, ["A2"])
         self.assertEqual([r["id"] for r in rs if wk._bucket(r, TODAY) == "overdue"], ["A2"])

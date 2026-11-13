@@ -26,10 +26,12 @@ export function PeekTitle({ row }) {
     changeCell(tableOf(row), row.id, { [field]: t }, { text: `Title of ${row.id} changed.`, back: `Title of ${row.id} is back as it was.`, place: "peek" })
       .then((reply) => (reply ? refresh() : show(el, now.current)));
   };
+  // Focus goes to the peek's close button when the box lets go of it (not back into the box: the title shown is then not refreshed after an Undo), as the milestone peek refocuses its button.
+  const settle = () => { const b = ref.current.closest("#peek")?.querySelector("[data-pk-close]"); if (b && document.activeElement !== b) b.focus(); };
   const onKeyDown = (e) => {
     if (e.isComposing) return;
-    if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); }
-    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); }
+    if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); settle(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelled.current = true; show(ref.current, now.current); ref.current.blur(); settle(); }
   };
   return plainBox({ ref, class: "pk-title-in", "data-pk-title-in": row.id, "aria-label": `Title of ${row.id}`, onBlur: commit, onKeyDown, spellcheck: true });
 }
