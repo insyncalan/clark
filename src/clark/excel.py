@@ -1452,6 +1452,21 @@ def export_name(project):
     return platform.safe_name(f"{project} work items.xlsx")
 
 
+DOWNLOAD_NAME_CUT = 60          # row 1143: the project name in a download's file name is cut at this many characters
+
+
+def download_name(name, code, when):
+    """Row 1143: the file name the browser is given for a project's workbook, "<name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx", e.g.
+    "ENERGYai(EAI) 2026.11.13 18.52.07.xlsx". `when` is the local date and time; the time has dots as a Mac and Windows name holds
+    no colon. A character a file name cannot hold becomes "-" (platform.safe_name), the name is cut at DOWNLOAD_NAME_CUT, no code
+    leaves out the brackets and no name puts the code in its place (and "work items" when there is neither)."""
+    name = platform.RESERVED_CHARS.sub("-", str(name or "")).strip()[:DOWNLOAD_NAME_CUT].strip()
+    code = platform.RESERVED_CHARS.sub("-", str(code or "")).strip()
+    if not name:
+        name, code = code or "work items", ""
+    return platform.safe_name(f"{name}{f'({code})' if code else ''} {when:%Y.%m.%d %H.%M.%S}.xlsx")
+
+
 def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,
                    branding=None, warnings=None, reuse=None):
     """Export one project from the store (#31): each table's rows with Store.read(kind, project), archived rows left out (as
