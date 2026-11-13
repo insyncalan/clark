@@ -355,7 +355,7 @@ export function WorkItems({ tools }) {
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const Eye = tools && tools.Eye && !fromFile.value ? tools.Eye : null;      // the Client-visible column: the page clark serves, never a published file
-  const More = Eye && tools.RowMore ? tools.RowMore : null;      // the row's "More actions" button (#658), beside the eye
+  const More = Eye && tools.RowMore ? tools.RowMore : null;      // the row's "More actions" button (item 658), beside the eye
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps

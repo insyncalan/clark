@@ -392,7 +392,7 @@ function DraftHost({ d }) {
   );
 }
 
-// The "More actions" button at the end of a table row (#658): the same menu as the right click, opened beside the button. It is a button of its own,
+// The "More actions" button at the end of a table row (item 658): the same menu as the right click, opened beside the button. It is a button of its own,
 // so the row's click (the peek, the selection) and the cell edit never see its press. Shown on row hover or focus; always reachable by Tab.
 export function RowMore({ row }) {
   const s = state.value;
