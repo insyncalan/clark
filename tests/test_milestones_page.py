@@ -546,7 +546,7 @@ class Published(unittest.TestCase):
             # row 1114: a chip opens the file's read only peek too
             cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
-            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('msv') >= 0)", sid), [], "a published file remembers nothing")
+            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('clark.') === 0)", sid), [], "a published file remembers nothing")
             self.assertEqual(cdp.js("document.querySelectorAll('.cal input, .cal textarea, .cal select, .cal [contenteditable]').length", sid), 0, "the calendar is read only")
 
 FAR = ["0001-01-01", "0026-10-01", "0099-12-31", "1999-12-31", "2101-01-01", "2126-03-01", "9999-12-31", "10000-01-01", "2026-02-30", "soon"]
