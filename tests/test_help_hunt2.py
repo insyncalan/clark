@@ -100,3 +100,8 @@ class HelpHunt2(unittest.TestCase):
         self.assertEqual(excel_picture.MAX_PIXELS, 2000)
         self.assertIn("at most 256 KB", text)
         self.assertIn("at most 1 MB and 2000 pixels each way", text)
+
+    def test_brand_kit_guide_says_the_files_sit_in_one_folder_named_after_the_id(self):
+        text = guide("the-brand-kit-guide")
+        self.assertIn("one folder, named with the brand", text)
+        self.assertIn("must match the folder name", text)
