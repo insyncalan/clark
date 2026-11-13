@@ -252,6 +252,15 @@ class AGoodFile(unittest.TestCase):
                 '<w:del w:id="2"><w:r><w:delText>deleted </w:delText></w:r></w:del><w:r><w:t>end</w:t></w:r></w:p>')
         self.assertEqual(blocks(body), [{"kind": "paragraph", "text": "kept added end"}])
 
+    def test_a_tracked_formatting_change_reads_the_current_style_not_the_old_one(self):
+        old = lambda inner: f'<w:pPrChange w:id="1"><w:pPr>{inner}</w:pPr></w:pPrChange>'
+        made_heading = ('<w:p><w:pPr><w:pStyle w:val="Heading1"/>' + old('<w:pStyle w:val="Normal"/>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        made_body = ('<w:p><w:pPr><w:pStyle w:val="Normal"/>' + old('<w:pStyle w:val="Heading1"/>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        was_list = ('<w:p><w:pPr>' + old('<w:numPr><w:ilvl w:val="3"/><w:numId w:val="7"/></w:numPr>') + '</w:pPr><w:r><w:t>Actions</w:t></w:r></w:p>')
+        self.assertEqual(blocks(made_heading), [{"kind": "heading", "level": 1, "text": "Actions"}])
+        self.assertEqual(blocks(made_body), [{"kind": "paragraph", "text": "Actions"}])
+        self.assertEqual(blocks(was_list), [{"kind": "paragraph", "text": "Actions"}])
+
     def test_text_a_person_cannot_see_is_not_read_and_is_noted(self):
         body = (P("seen") + P("secret instructions", hidden=True)
                 + '<w:p><w:r><w:t>box: </w:t></w:r><w:r><mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006">'

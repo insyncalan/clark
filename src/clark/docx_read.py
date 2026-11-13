@@ -62,7 +62,8 @@ OWN_PICTURE = re.compile(re.escape(OWN_PICTURE_NAME) + r"[0-9]{1,6}\Z")         
 OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"      # an older Word file, or an Office file with a password
 
 # Elements whose whole content is not read: deleted text, pictures and drawings, text boxes, the old-style fallback of a drawing.
-SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText"}
+SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText", "pPrChange"}
+# pPrChange holds the paragraph settings from before a tracked formatting change; only the current ones are read
 NOT_TEXT = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 UNSEEN = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿\U000e0000-\U000e007f]")
 SPACES = re.compile(r"[ \t  -   　]+")
