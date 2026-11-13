@@ -2587,6 +2587,11 @@
      "line": "Who is on the project, with their emails and roles."
     },
     {
+     "card": "asking",
+     "title": "Asking",
+     "line": "Turn asking on or off, and choose the Folders asking may read."
+    },
+    {
      "card": "feedback",
      "title": "Feedback",
      "line": "Write what is wrong or what you would suggest, then send it by email."

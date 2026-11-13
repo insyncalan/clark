@@ -81,3 +81,13 @@ class HelpHunt2(unittest.TestCase):
         self.assertIn("Word, PDF, text", text)
         service = (ROOT / "src/clark/ask_service.py").read_text(encoding="utf-8")
         self.assertNotIn("PDF is not supported yet", service)
+
+    def test_settings_help_has_a_card_for_every_named_settings_card(self):
+        views = (ROOT / "src/clark/page/src/components/Views.jsx").read_text(encoding="utf-8")
+        block = re.search(r"const CARDS = \[(.*?)\];", views, re.S).group(1)
+        names = [n for n in re.findall(r'\["\w+", "([^"]*)", "[\w-]+"\]', block) if n]
+        self.assertIn("Asking", names)
+        ctx = next(c for c in walk(HELP) if c.get("page") == "settings")
+        titles = [k["title"] for k in ctx["cards"]]
+        for n in names:
+            self.assertIn(n, titles)
