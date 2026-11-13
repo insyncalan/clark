@@ -625,6 +625,18 @@ class Refusals(unittest.TestCase):
         self.assertIn("PUB-A-1999", every_text(data))
 
 
+    def test_the_plan_picture_alt_text_is_capped_at_a_word(self):
+        p = published()
+        base = p["data"]["milestones"][0]
+        p["data"]["milestones"] = [dict(base, id=f"PUB-M-{n:04d}", name=f"Milestone {n} " + "wordy " * 12) for n in range(200)]
+        z = zipfile.ZipFile(io.BytesIO(docx_build.build(p)))
+        doc = z.read("word/document.xml").decode("utf-8")
+        lens = [len(d) for d in re.findall(r'descr="([^"]*)"', doc)]
+        self.assertTrue(lens)
+        self.assertLessEqual(max(lens), 1500)
+        self.assertTrue(any(n > 1000 for n in lens))
+
+
 class MutantsB1(unittest.TestCase):
     """Edges the mutation hunt found no test pinning: each one fails if its line of docx_build.py is changed."""
 

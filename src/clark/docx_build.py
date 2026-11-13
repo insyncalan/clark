@@ -458,12 +458,17 @@ def section_milestones(published, ctx, title, sec):
         if not drawn:
             return None
         image, lanes = drawn
-        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
-                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        words = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                          f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        if len(words) > PLAN_ALT_MAX:                  # 200 long names would make an alt text of many thousand characters: cut at a word
+            words = words[:PLAN_ALT_MAX].rsplit(" ", 1)[0]
+        return image, words
     chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
     return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
+
+PLAN_ALT_MAX = 1500
 
 GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
 GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
