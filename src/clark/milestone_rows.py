@@ -38,7 +38,7 @@ LOOK = {
     "Forecast": ("blue", "dashed-circle", "A date not yet agreed"),
     CANCELLED: ("grey", "dash", "No longer going ahead"),
 }
-LEGEND_STATES = ms.STATES            # Cancelled is never on the legend: a Cancelled milestone is not drawn on a published page
+LEGEND_STATES = ms.STATES            # the six states; Cancelled is added by legend() for the editor only
 
 ZOOM_MIN, ZOOM_MAX = 0.7, 3.0        # "70% to 300%" (the draft)
 LEAD_DAYS, TAIL_DAYS = 20, 45        # room before the first and after the last date on the timeline (the prototype's)
@@ -435,6 +435,8 @@ def legend(client=False):
     when `client`), with `colour`, `mark` and what it `means`."""
     out = [{"state": s, "word": ms.client_word(s) if client else s, "colour": LOOK[s][0], "mark": LOOK[s][1], "means": LOOK[s][2]}
            for s in LEGEND_STATES]
+    if not client:      # a published page drops Cancelled rows, so only the editor's Legend has the entry
+        out.append({"state": CANCELLED, "word": CANCELLED, "colour": LOOK[CANCELLED][0], "mark": LOOK[CANCELLED][1], "means": LOOK[CANCELLED][2]})
     out.append({"state": "Expected", "word": "Expected", "colour": None, "mark": "ghost",
                 "means": "Where a slipped milestone is now expected; a dashed line joins it to its agreed date"})
     out.append({"state": "Today", "word": "Today", "colour": None, "mark": "today-line",
