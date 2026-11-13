@@ -504,6 +504,14 @@ class Component(InBrowser):
         self.js(f"T.mountEditor({lit(OFFERED)}, {lit(state())}, null, '2026-10-13')")
         self.assertEqual(self.text(".de"), "The email could not be drafted. Close this and open it again.Close")
 
+    def test_a_draft_that_cannot_be_built_takes_focus_and_closes_on_escape(self):
+        self.js(f"T.mountEditor({lit(OFFERED)}, {lit(state())}, null, '2026-10-13')")
+        self.settle()
+        self.assertTrue(self.js("document.querySelector('.de').contains(document.activeElement)"), "focus is inside the dialog")
+        self.cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, self.sid)
+        self.settle()
+        self.assertEqual(self.val("T.closed"), 1)
+
     def test_escape_closes_it(self):
         self.mount()
         self.js("document.querySelector('.de-kinds input').focus()")
