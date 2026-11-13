@@ -55,6 +55,12 @@ const SHOWN = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
 export function dayNum(iso) {
   const m = ISO.exec(String(iso || ""));
   if (!m || +m[1] < YEARS[0] || +m[1] > YEARS[1]) return null;
+  return realDay(iso);
+}
+// The same without the year check: chart arithmetic steps one day past the last accepted day (1 January 2101), which must still count.
+function realDay(iso) {
+  const m = ISO.exec(String(iso || ""));
+  if (!m) return null;
   const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
   const a = new Date(t);
   if (a.getUTCFullYear() !== +m[1] || a.getUTCMonth() !== +m[2] - 1 || a.getUTCDate() !== +m[3]) return null;
@@ -64,7 +70,7 @@ export function isoOf(days) {
   const a = new Date(days * DAY_MS);
   return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
 }
-export const addDays = (iso, n) => isoOf(dayNum(iso) + n);
+export const addDays = (iso, n) => isoOf(realDay(iso) + n);
 // "2026-11-06" -> "06-11-2026"; anything that is not a stored date comes back empty (no bare dashes).
 export function formatDate(iso) {
   return dayNum(iso) === null ? "" : `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
@@ -216,8 +222,13 @@ export function chartRange(lines, today) {
   if (!ok.length) return null;
   const first = monthStart(isoOf(Math.min(...ok)));
   let stop = nextMonth(monthStart(isoOf(Math.max(...ok))));
-  while (daysBetween(first, stop) < 180) stop = nextMonth(stop);
-  return { start: first, end: addDays(stop, -1) };
+  const last = `${YEARS[1] + 1}-01-01`;
+  let start = first;
+  if (realDay(stop) > realDay(last)) stop = last;
+  while (realDay(stop) - realDay(start) < 180) {
+    if (stop === last) { const y = +start.slice(0, 4), m = +start.slice(5, 7); start = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`; } else stop = nextMonth(stop);
+  }
+  return { start, end: addDays(stop, -1) };
 }
 // The pixels one day gets when the whole range fits the width.
 export function fitPpd(width, range) {
@@ -232,33 +243,33 @@ export function ppdFor(scale, fit, zoom) {
   const base = scale === "week" ? Math.max(fit, WEEK_PPD) : fit;
   return base * clampZoom(zoom);
 }
-export const xOf = (iso, range, ppd) => (dayNum(iso) - dayNum(range.start)) * ppd;
+export const xOf = (iso, range, ppd) => (realDay(iso) - realDay(range.start)) * ppd;      // 1 January 2101 (the end of the last header cell) has a place too
 
 // The date header: an upper band and a lower band, each cell { iso, label, to } where `to` is the date the cell stops at (exclusive).
 export function headerCells(scale, range, ppd) {
   const upper = [], lower = [];
   const stop = addDays(range.end, 1);
   if (scale === "quarter") {
-    for (let m = monthStart(range.start); dayNum(m) < dayNum(stop); m = nextMonth(m)) {
+    for (let m = monthStart(range.start); realDay(m) < realDay(stop); m = nextMonth(m)) {
       const mo = +m.slice(5, 7) - 1;
       lower.push({ iso: m, label: MONTHS[mo], to: nextMonth(m) });
       if (mo % 3 === 0 || m === monthStart(range.start)) {
-        let q = m; do { q = nextMonth(q); } while (dayNum(q) < dayNum(stop) && (+q.slice(5, 7) - 1) % 3 !== 0);
-        upper.push({ iso: m, label: `Q${Math.floor(mo / 3) + 1} ${m.slice(0, 4)}`, to: dayNum(q) > dayNum(stop) ? stop : q });
+        let q = m; do { q = nextMonth(q); } while (realDay(q) < realDay(stop) && (+q.slice(5, 7) - 1) % 3 !== 0);
+        upper.push({ iso: m, label: `Q${Math.floor(mo / 3) + 1} ${m.slice(0, 4)}`, to: realDay(q) > realDay(stop) ? stop : q });
       }
     }
     return { upper, lower };
   }
-  for (let m = monthStart(range.start); dayNum(m) < dayNum(stop); m = nextMonth(m)) {
+  for (let m = monthStart(range.start); realDay(m) < realDay(stop); m = nextMonth(m)) {
     upper.push({ iso: m, label: `${MONTHS[+m.slice(5, 7) - 1]} ${m.slice(2, 4)}`, to: nextMonth(m) });
     if (scale === "month" && ppd * 7 >= 28) {
       for (const d of [1, 8, 15, 22]) lower.push({ iso: addDays(m, d - 1), label: String(d).padStart(2, "0"), to: addDays(m, d + 6), edge: d === 1 });
     }
   }
   if (scale === "week") {
-    let t = dayNum(range.start);
+    let t = realDay(range.start);
     t += (8 - ((t + 3) % 7 + 1)) % 7;                // forward to a Monday (1970-01-01 was a Thursday)
-    for (; t < dayNum(stop); t += 7) lower.push({ iso: isoOf(t), label: isoOf(t).slice(8, 10), to: isoOf(t + 7) });
+    for (; t < realDay(stop); t += 7) lower.push({ iso: isoOf(t), label: isoOf(t).slice(8, 10), to: isoOf(t + 7) });
   }
   return { upper, lower };
 }

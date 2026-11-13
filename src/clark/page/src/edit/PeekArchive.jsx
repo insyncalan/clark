@@ -7,7 +7,8 @@ import { Icon } from "../components/Icon.jsx";
 import { tableOf } from "./itemEdit.js";
 import { deleteItem } from "./deleteItem.js";
 
-export function PeekArchive({ row, milestone = false }) {      // row 867: the milestone peek has the same button and words
+// The archive step with its words, shared by the button and the "More actions" menu (PeekMore.jsx).
+export function archiveFromPeek(row, milestone = false) {      // row 867: the milestone peek has the same button and words
   // Row 1054: the milestone peek closes with its item, so focus would drop to the page; it goes to the next row, or to the toast's Undo.
   const nextId = () => { const mine = milestone && document.querySelector(`li.msl-row[data-ms="${row.id}"]`); const n = mine && mine.nextElementSibling; return n ? n.getAttribute("data-ms") : ""; };
   const settle = (next) => setTimeout(() => {
@@ -20,6 +21,11 @@ export function PeekArchive({ row, milestone = false }) {      // row 867: the m
       // after Undo the focus goes to the restored row, as the row menu does
       focus: `tr[data-id="${CSS.escape(row.id)}"], article.bcard[data-id="${CSS.escape(row.id)}"] .bc-main` })
     .then((r) => { if (r) { if (milestone) settle(next); closePeek(); } }); };
+  return run();
+}
+
+export function PeekArchive({ row, milestone = false }) {
+  const run = () => archiveFromPeek(row, milestone);
   return <button type="button" class="pkp-btn" data-pk-archive title="Archive" aria-label="Archive" onClick={run}><Icon name="archive" /></button>;
 }
 
