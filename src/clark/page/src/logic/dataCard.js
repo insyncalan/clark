@@ -19,7 +19,8 @@ export const DATA = {
 export const LAYOUT = {
   title: "Excel file layout",
   client: "This file is for you and your team. It holds internal notes, so do not send it to a client.",
-  cover: ["Cover", "The first sheet: the project, the date it was exported and who exported it, a caution that the file shows the data at that date, and where to send the file back."],
+  cover: ["Cover", "The first sheet: the report as the page shows it (Current state, At a glance and the sections), the date it was exported, who exported it, a caution that the file shows the data at that date, and where to send the file back. Changes made on it are ignored."],
+  gantt: ["Gantt", "The lines of the Gantt, one row each. Days and Status are worked out and never read back."],
   history: ["History", "The changes made to the items. The import leaves this sheet alone."],
   close: "Close",
 };
