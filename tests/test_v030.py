@@ -74,7 +74,7 @@ COVERED = [
     ("#229", "Generated page files merge by rebuilding and equal a fresh build",
      "test_merge_driver::MergeDriverTests::test_with_the_driver_different_sources_merge_and_the_pages_equal_a_fresh_build"),
     ("#238", "Help says PDF files are not read yet, and the panel says how many were skipped",
-     "test_ask_passages::OnTheRoute::test_pdf_is_said_to_be_not_supported_yet"),
+     "test_ask_passages::OnTheRoute::test_a_pdf_that_cannot_be_read_is_said_with_its_reason"),
     ("#98", "The section styles are shown as picture cards (now Spacing: Compact and Comfortable, item 1025)",
      "test_section_style_cards::Cards::test_C_two_cards_each_with_a_drawing_and_one_real_radio_in_a_named_group"),
     ("#78", "The peek shows coloured icons for status, priority and date",
