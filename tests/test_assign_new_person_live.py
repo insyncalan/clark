@@ -135,6 +135,39 @@ class NewPerson(R.Picker):
                 self.until(cdp, sid, "document.activeElement && document.activeElement.matches('[data-pop] [data-new-back]')", "Tab went to Back")
                 self.assertTrue(cdp.js("!!document.querySelector('[data-pop] [data-new-name]')", sid), "the picker and the form stay open")
 
+    def tab(self, cdp, sid, shift=False):
+        common = {"key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9, "modifiers": 8 if shift else 0}
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+
+    def test_row_1120_tab_walks_the_whole_form_both_ways_and_only_its_two_ends_leave(self):
+        at = "document.activeElement && document.activeElement.matches('[data-pop] %s')"
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                self.open_form(cdp, sid, "Zelda Quince")
+                self.tab(cdp, sid)                      # Name -> Email -> Back -> Add and assign: all inside the picker
+                self.until(cdp, sid, at % "[data-new-email]", "Tab: Name to Email")
+                self.tab(cdp, sid)
+                self.until(cdp, sid, at % "[data-new-back]", "Tab: Email to Back")
+                self.tab(cdp, sid)
+                self.until(cdp, sid, at % "[data-new-save]", "Tab: Back to Add and assign")
+                self.tab(cdp, sid, shift=True)          # and back again with Shift+Tab
+                self.until(cdp, sid, at % "[data-new-back]", "Shift+Tab: Save to Back")
+                self.tab(cdp, sid, shift=True)
+                self.until(cdp, sid, at % "[data-new-email]", "Shift+Tab: Back to Email")
+                self.tab(cdp, sid, shift=True)
+                self.until(cdp, sid, at % "[data-new-name]", "Shift+Tab: Email to Name")
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pop] [data-new-name]')", sid), "the picker is still open inside the form")
+                self.tab(cdp, sid, shift=True)          # off the first field: leaves and closes
+                self.until(cdp, sid, "!document.querySelector('[data-pop]')", "Shift+Tab off Name closes the picker")
+            with self.subTest(width=width, end="last"), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                self.open_form(cdp, sid, "Zelda Quince")
+                cdp.js("document.querySelector('[data-pop] [data-new-save]').focus()", sid)
+                self.tab(cdp, sid)                      # off the last button: leaves and closes
+                self.until(cdp, sid, "!document.querySelector('[data-pop]')", "Tab off Add and assign closes the picker")
+
     def test_a_bad_email_is_said_in_the_form_and_nothing_is_sent(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
