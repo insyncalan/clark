@@ -28,8 +28,14 @@ import { ExportBtn } from "./ExportBtn.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
+import { useColWidths, gridTracks } from "./colWidths.jsx";
 
-const kept = {};                                            // project -> state: a browser that refuses storage still narrows the list
+const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
+// The list's heading row and its columns: [width id, heading, class]. The tracks are the stylesheet's own (edit.css), above 1100 px and at or below it (where two columns drop away).
+const HEADS = [["ref", "Ref", ""], ["name", "Use case", ""], ["head", "Where it stands", "ucl-head"], ["st", "Status", ""], ["wi", "Work items", ""], ["ms", "Milestones", "ucl-ms"], ["", "", ""]];
+const SORT_OF = { ref: "ref", st: "status", wi: "open" };      // the headings that sort (row 1085)
+const IDS = HEADS.map((h) => h[0]), NARROW_IDS = ["ref", "name", "st", "wi", ""];
+const WIDE = ["84px", "minmax(0, 1.1fr)", "minmax(0, 1.6fr)", "minmax(112px, max-content)", "92px", "minmax(0, .9fr)", "36px"], NARROW = ["70px", "minmax(0, 1fr)", "112px", "92px", "36px"];
 const tick = signal(0);
 const state = computed(() => { void tick.value; const code = project.value; return kept[code] || recalled(code); });
 const all = computed(() => (data.value ? listOf(data.value, allRows.value) : []));
@@ -134,15 +140,24 @@ function ArchivedUseCases() {
 
 // The column names over the rows (hidden on a phone: each row names its own parts). Row 1085: Ref, Status and Work items carry the sort
 // (Reference, Status, Open work items: SORTS), the current one pressed and marked with a small chevron; the Sort menu went.
-function Hd({ sort }) {
-  const col = (k, word) => {
-    const label = (SORTS.find(([x]) => x === k) || [k, word])[1], on = sort === k;
-    return <button type="button" class="ucl-sort" data-sort={k} aria-pressed={on ? "true" : "false"} aria-label={`Sort by ${label}`} title={`Sort by ${label}`} onClick={() => set({ sort: k })}>{word}{on ? <Icon name="chevdown" /> : null}</button>;
-  };
-  return <div class="ucl-row ucl-hd">{col("ref", "Ref")}<span>Use case</span><span class="ucl-head">Where it stands</span>{col("status", "Status")}{col("open", "Work items")}<span class="ucl-ms">Milestones</span><span></span></div>;
+function Hd({ sort, cw }) {
+  return (
+    <div class="ucl-row ucl-hd">
+      {HEADS.map(([id, word, cls]) => {
+        const k = SORT_OF[id], label = k ? (SORTS.find(([x]) => x === k) || [k, word])[1] : "", on = sort === k;
+        return (
+          <span key={id} class={cls} {...(id ? cw.head(id, word, true) : {})}>
+            {k ? <button type="button" class="ucl-sort" data-sort={k} aria-pressed={on ? "true" : "false"} aria-label={`Sort by ${label}`} title={`Sort by ${label}`} onClick={() => set({ sort: k })}>{word}{on ? <Icon name="chevdown" /> : null}</button> : word}
+            {id ? cw.grip(id, word) : null}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
 function UseCasesList() {
+  const cw = useColWidths("usecases");
   const f = state.value, rows = all.value, kept_ = shownOf(rows, f), n = tabCounts(rows, f);
   // Row 1085: the rows in their groups (one plain group for Nothing); a shut group keeps its heading and its count, its rows are away for the visit.
   const groups = groupsOf(kept_, f.group, commitWords(data.value)).map((g) => ({ ...g, shut: f.group !== "nothing" && shutGroups.value.has(`${f.group}|${g.key}`) }));
@@ -199,14 +214,14 @@ function UseCasesList() {
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
         ) : f.group === "nothing" ? (
-          <div class="ucl-box" ref={list} onKeyDown={keys}>
-            <Hd sort={f.sort} />
+          <div class="ucl-box" ref={list} onKeyDown={keys} style={{ "--ucl-cols": gridTracks(WIDE, IDS, cw), "--ucl-cols-s": gridTracks(NARROW, NARROW_IDS, cw) }}>
+            <Hd sort={f.sort} cw={cw} />
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>
           </div>
         ) : (
-          <div class="ucl-box" ref={list} onKeyDown={keys}>
+          <div class="ucl-box" ref={list} onKeyDown={keys} style={{ "--ucl-cols": gridTracks(WIDE, IDS, cw), "--ucl-cols-s": gridTracks(NARROW, NARROW_IDS, cw) }}>
             {groups.map((g) => (
               <div class="wgroup ucl-group" key={g.key} data-group={g.key}>
                 <div class="ucl-grp">
@@ -216,7 +231,7 @@ function UseCasesList() {
                 </div>
                 {g.shut ? null : (
                   <>
-                    <Hd sort={f.sort} />
+                    <Hd sort={f.sort} cw={cw} />
                     <ul class="ucl-list" aria-label={g.label}>
                       {g.rows.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
                     </ul>

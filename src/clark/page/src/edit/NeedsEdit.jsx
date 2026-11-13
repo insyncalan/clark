@@ -2,6 +2,7 @@
 // leave one out of the published page (or include it again), or remove it. Each is ONE change with one Undo: the whole list is sent
 // as the section's body in a single update (the same route as every other section change), after the page has checked the row in
 // plain words. The page keeps no copy of its own: it draws what clark saved (stores/changes.js reads the project again after a save).
+import { useColWidths } from "./colWidths.jsx";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
@@ -66,7 +67,7 @@ export function NeedsEdit({ section }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const today = needsToday();
-  const sid = section.id;
+  const sid = section.id, cw = useColWidths(`needs.${section.id}`);
 
   const open = (i) => { setAt(i); setDraft(i === NEW ? blank() : draftOf(rows[i])); setError(""); };
   const close = (back) => { setAt(null); setError(""); if (back) focusLater(sid, back); };
@@ -93,7 +94,7 @@ export function NeedsEdit({ section }) {
       {rows.length || at === NEW ? (
         <table class="needs">
           <thead>
-            <tr><th scope="col" class="n-what">{WORDS.what}</th><th scope="col" class="n-from">{WORDS.from}</th><th scope="col" class="n-by">{WORDS.by}</th></tr>
+            <tr><th scope="col" class="n-what" style={cw.style("what")} {...cw.head("what", WORDS.what)}>{WORDS.what}{cw.grip("what", WORDS.what)}</th><th scope="col" class="n-from" style={cw.style("from")} {...cw.head("from", WORDS.from)}>{WORDS.from}{cw.grip("from", WORDS.from)}</th><th scope="col" class="n-by" style={cw.style("by")} {...cw.head("by", WORDS.by)}>{WORDS.by}{cw.grip("by", WORDS.by)}</th></tr>
           </thead>
           <tbody>
             {rows.map((r, i) => {

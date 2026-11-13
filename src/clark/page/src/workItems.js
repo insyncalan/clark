@@ -17,6 +17,9 @@ const DASH = "—";
 let pinned = "";
 export function pinToday(iso) { pinned = /^\d{4}-\d\d-\d\d$/.test(iso || "") ? iso : ""; }
 
+// The moment now in milliseconds, for a stamp that needs the time of day (the earlier chats list). This file is the one place that reads the clock.
+export const nowMs = () => Date.now();
+
 export function todayIso() {
   if (pinned) return pinned;
   const t = new Date();

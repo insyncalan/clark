@@ -24,8 +24,8 @@ export function tiles(rows, today) {
   const risksOpen = open("risk"), openActions = open("action");
   return [
     { key: "overdue", label: "Overdue actions", value: over, detail: openActions ? `of ${plural(openActions, "open action")}` : "No open actions", rag: over ? "r" : "g", filter: FILTERS.overdue },
-    { key: "risks", label: "High risks and issues", value: high, detail: !risksOpen ? "None open" : !high ? "None high" : risksOpen === 1 ? "of 1 open risk or issue" : `of ${risksOpen} open risks and issues`, rag: high ? "r" : risksOpen ? "a" : "g", filter: FILTERS.risks },
-    { key: "decisions", label: "Decisions needed", value: dec.length, detail: dates.length ? `Oldest needed by ${showDate(dates[0])}` : dec.length ? "No date set" : "None waiting", rag: dec.length ? "a" : "g", filter: FILTERS.decisions },
+    { key: "risks", label: "High risks and issues", value: high, detail: !risksOpen ? "None open" : risksOpen === 1 ? "of 1 open risk or issue" : `of ${risksOpen} open risks and issues`, rag: high ? "r" : risksOpen ? "a" : "g", filter: FILTERS.risks },
+    { key: "decisions", label: "Decisions needed", value: dec.length, detail: dates.length ? `Oldest needed by ${showDate(dates[0])}` : dec.length ? "No date needed by" : "None waiting", rag: dec.length ? "a" : "g", filter: FILTERS.decisions },
   ];
 }
 
@@ -96,7 +96,7 @@ export function fileTiles(glance, project) {
   return ((glance && glance.tiles) || []).map((t) => {
     const rag = String(t.colour || "").toLowerCase() || "n";
     return t.tile === "health"
-      ? { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: HEALTH_WORDS[health] || rag, reason: (project && project.health_reason) || "", outline: t.outline || "", word: "" }
+      ? { key: "health", label: TILE_TITLES.health, value: health || "Not set", detail: "", rag: t.outline ? rag : HEALTH_WORDS[health] || rag, reason: (project && project.health_reason) || "", outline: t.outline || "", word: "" }
       : { key: t.tile, label: t.label, value: t.value, detail: t.detail, rag, outline: t.outline || "", word: tileWord(t.tile, rag, t.outline || ""), filter: FILTERS[t.tile] || null };   // row 1112: a published tile opens the file's Work items with the filter it counts by
   });
 }
