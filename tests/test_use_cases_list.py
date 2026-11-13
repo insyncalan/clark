@@ -203,6 +203,8 @@ class Published(Setup):
 
     def test_the_view_build_holds_no_part_of_the_page(self):
         text = (PAGE / "page-view.html").read_text(encoding="utf-8")
+        # The two On the dashboard words ship as unused labels (the list's tabs and groups are shared, row 1114); that they are never
+        # drawn in a published file is held in the browser by test_publish_uc_list_1114.
         for mine in ("ucl-row", "ucl-bar", "ucl-eye", "UseCaseDetail", "Narrow the list", "Showing ", "/api/change"):
             self.assertNotIn(mine, text, mine)
         live = (PAGE / "page.html").read_text(encoding="utf-8")

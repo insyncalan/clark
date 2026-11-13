@@ -43,6 +43,7 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-tab=all] em').textContent"), "2")
             self.assertEqual(js("document.querySelector('[data-tab=risk] em').textContent"), "1")
             self.assertEqual(js("document.querySelector('#ucp-count').textContent"), "2 use cases")
+            self.assertFalse(js("/On the dashboard/i.test(document.body.innerText)"), "no On the dashboard word is drawn in a published file")
             self.assertEqual(js("document.querySelector('.ucp .num').textContent"), "0.5")          # Ref order: 0.5 before the fixture's
             js("document.querySelector('[data-sort=status]').click()")
             self.assertEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")  # High risk first
