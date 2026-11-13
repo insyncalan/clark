@@ -104,7 +104,17 @@ class Source(unittest.TestCase):
         "FilterLine suggestions (components/FilterLine.jsx, the list under the filter box)":
             "they complete what is typed (a field name, an owner, a date word); the View menu beside it is an icon menu and is driven",
         "Command palette (edit/Palette.jsx)": "a search over pages, items and commands by what is typed",
+        "Work items filter value box (components/WorkFilters.jsx, class fbox, role=group)":
+            "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
+        "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
+        "edit/UseCasesEdit.jsx, edit/WeekPicker.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
+        "edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
+            "a native select cannot hold icons: the browser draws its list",
+        "Hand over people datalist (edit/HandOver.jsx)": "a native datalist of names that completes what is typed; the browser draws it, so it cannot hold icons",
     }
+    # A popup that is not a command menu: the filter value box (class fbox), a native select or a datalist. A file that draws one must be
+    # named in a BY_DESIGN key, so a new one is a choice made on purpose.
+    POPUPS = re.compile(r'class=(?:"fbox"|\{`fbox)|<select\b|<datalist\b')
     DRAWS = re.compile(r'<Menu\b|<MenuPanel|role="menu"|role="listbox"|role=menu')
 
     def test_each_menu_file_is_tied_to_a_drive_that_opens_its_menus(self):
@@ -120,7 +130,7 @@ class Source(unittest.TestCase):
         for rel in self.MENUS:
             text = (SRC / rel).read_text(encoding="utf-8")
             self.assertTrue("actionIcon" in text or "groupIcon" in text or "<Icon" in text, rel)
-        self.assertEqual(len(self.BY_DESIGN), 2)
+        self.assertEqual(len(self.BY_DESIGN), 5)
         for what, why in self.BY_DESIGN.items():
             self.assertTrue(why, what)
 
@@ -130,6 +140,13 @@ class Source(unittest.TestCase):
             if rel in self.MENUS or rel in self.OTHER or not self.DRAWS.search(path.read_text(encoding="utf-8")):
                 continue
             self.fail(f"{rel} draws a menu: give each line an icon from menuIcons.js, list the file in MENUS and open its menu in a drive")
+
+    def test_no_file_draws_a_filter_box_or_native_select_that_is_not_listed_by_design(self):
+        keys = " ".join(self.BY_DESIGN)
+        for path in sorted(SRC.rglob("*.jsx")):
+            rel = path.relative_to(SRC).as_posix()
+            if self.POPUPS.search(path.read_text(encoding="utf-8")) and rel not in keys:
+                self.fail(f"{rel} draws a filter value box, a native select or a datalist: name the file in a Source.BY_DESIGN key with the reason")
 
     def test_the_dead_mi_t_class_has_a_rule(self):
         css = (SRC.parent / "shell.css").read_text(encoding="utf-8")
