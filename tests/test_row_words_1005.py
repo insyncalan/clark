@@ -167,6 +167,19 @@ class RowWords(unittest.TestCase):
             self.assertEqual(self.stored("actions", ident), "")
             p.until(f"document.querySelector({row!r} + ' {SHOWN}').textContent.includes('Agree the cut-over plan')", "the title shows")
 
+    def test_the_slash_menu_and_block_buttons_are_not_offered_in_a_wording(self):
+        with chrome() as cdp:
+            p = Pg.at(self, cdp, self.s.port)
+            p.ready()
+            p.edit()
+            ident = id_of(self.store, "Cut-over plan to be agreed")
+            row = self.row("actions", ident)
+            self.open_editor(p, row)
+            self.type(p, "/")
+            time.sleep(0.5)
+            self.assertFalse(p.js("!!document.querySelector('.rt-slash')"), "no / menu in a one-line wording")
+            self.assertEqual(p.js("document.querySelectorAll('.rt-bar [aria-label=\"Divider\"], .rt-bar [aria-label=\"Quote\"], .rt-bar [aria-label=\"Bulleted list\"], .rt-style').length"), 0, "no block buttons")
+
 
 if __name__ == "__main__":
     unittest.main()

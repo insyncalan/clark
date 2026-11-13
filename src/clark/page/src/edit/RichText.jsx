@@ -14,6 +14,7 @@ const BAR = [
   "|", ["bullet", "•", "Bulleted list"], ["numbered", "1.", "Numbered list"], ["checklist", "☑", "Checklist"],
   ["quote", "❝", "Quote"], ["rule", "―", "Divider"], "|", ["link", "Link", "Link"], "|", ["undo", "↶", "Undo"], ["redo", "↷", "Redo"],
 ];
+const BLOCKS = ["bullet", "numbered", "checklist", "quote", "rule"];
 const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"], ["link", "Link", "Link"]];
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
@@ -58,6 +59,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const finishRef = useRef(finish); finishRef.current = finish;
 
   const slashState = (h) => {
+    if (oneLine) return null;
     const { $from, empty } = h.editor.state.selection;
     const para = $from.parent;
     if (empty && para.type.name === "paragraph" && $from.parentOffset === para.content.size && /^\/[a-z0-9 ]{0,20}$/i.test(para.textContent)) {
@@ -163,9 +165,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />
-        {BAR.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
+          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
+        {BAR.filter((b) => !oneLine || b === "|" || !BLOCKS.includes(b[0])).map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
