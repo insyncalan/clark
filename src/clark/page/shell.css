@@ -2536,3 +2536,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
 .crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
+/* Row 1115, S2: the Search settings box in the Settings head. */
+.set-search { display: grid; gap: var(--space-1); margin-top: var(--space-3); max-width: 24rem; }
+.set-search label { font-size: var(--size-caption); color: var(--text-muted); }
+.set-search input { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.set-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.set-cards [hidden] { display: none !important; }
