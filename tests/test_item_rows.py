@@ -383,6 +383,13 @@ class EditRows(unittest.TestCase):
             self.click(p, "document.querySelector('.toast [data-undo]') && document.querySelector('.toast [data-undo]').click()",
                        "document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
 
+    def test_the_edit_owner_cell_carries_the_full_owner_as_its_title_as_view_does(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            row = "[data-type=raid] .wl-row[data-id=%r]" % id_of(self.store, "Supplier delivery may slip")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' .c-owner').title"), p.js(f"document.querySelector({row!r} + ' .nm').textContent.trim()"),
+                             "the owner is cut with an ellipsis, so its title gives it in full")
+
     def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
         gone = id_of(self.store, "Supplier delivery may slip")
         with chrome() as cdp:

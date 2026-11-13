@@ -76,7 +76,7 @@ function EditRow({ row, today, words, type }) {
     <li class="wl-row" data-id={row.id} data-kind={row.kind}>
       <span class="c-ico"><Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, todayOf()).tip}><ItemIcon row={row} pill={pill} plain /></Cell></span>
       <span class="wl-title c-title" title={words[row.id]}><Words row={row} text={words[row.id]} /></span>
-      <span class="c-owner">
+      <span class="c-owner" title={who.initials ? who.text : undefined}>
         <Cell row={row} field="owner" said={who.initials ? who.text : "none"}>
           {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
         </Cell>
