@@ -2035,9 +2035,13 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
-.cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
+.cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
 .asat + .cm-wrap { margin-left: 0; }
 .cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
+.cm-theme { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border-radius: 50%; color: var(--text-muted); cursor: pointer; }
+.cm-theme:hover { color: var(--heading); }
+.cm-theme:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.cm-theme .i { width: 18px; height: 18px; }
 .cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
 .cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .cm-badge .i { width: 18px; height: 18px; }
