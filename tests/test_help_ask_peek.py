@@ -103,7 +103,7 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         row = next(d for k, d in RAW["reference"]["keys"] if k == "[[/]]")
         self.assertIn("no peek, menu or box is open", row)
         self.assertNotRegex(row, r"(?i)ask clark[^.]*Single-key|Like the letter keys")
-        self.assertNotIn("Single-key", row)      # the switch is named only in the V and E rows (test_single_keys); the V and E row says "/" follows it too
+        self.assertNotIn("Single-key", row)      # the switch is named only in the V and E rows (test_single_keys); the Personal › Keys line says "/" and "?" follow it too
         self.assertIn("singleKeys.value", (PAGE / "edit" / "askPanelState.js").read_text(encoding="utf-8"))   # "/" for ask follows that switch
 
     def test_double_slash_is_in_the_peek_code(self):
