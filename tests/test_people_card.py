@@ -110,10 +110,11 @@ class PeopleCard(unittest.TestCase):
             finally:
                 store.close()
             self.assertEqual(steps, 1, "the whole paste is one step")
-            js("document.querySelector('#ppUndo').click()")
+            js("document.querySelector('#ppUndo').focus(); document.querySelector('#ppUndo').click()")
             self.assertTrue(wait(lambda: js("document.querySelector('#ppCount span').innerText") == "2 of 3 people need details", 20))
             self.assertEqual(js("document.querySelector('[data-person=\"Zed Newman\"]').innerText.indexOf('zed@example.com')"), -1)
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppPasteBtn", 10), "Undo took its button away: the focus goes to Paste from Excel")
 
     def test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button(self):
         """Item keys-settings, 1400 px: Esc in the box did nothing, so the only way out was a mouse or a Tab to the button."""

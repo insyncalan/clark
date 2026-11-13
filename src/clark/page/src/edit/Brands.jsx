@@ -29,6 +29,7 @@ export function Brands({ api = REAL }) {
     else setState({ phase: "failed", view: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => { if (armed) back("[data-remove-confirm]"); }, [armed]);      // Remove's question is drawn after the list: the focus goes to it
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
   async function review(from) {
@@ -56,6 +57,7 @@ export function Brands({ api = REAL }) {
     if (!ok(r)) setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
     await load();
     setBusy(false);
+    back("[data-review]");                                       // the clicked button is gone: the focus goes to Review
   }
   const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)); };
   const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id)); };

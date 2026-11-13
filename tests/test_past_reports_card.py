@@ -326,6 +326,7 @@ class Card(InBrowser):
         self.assertEqual(self.val("document.querySelector('#pubs-latest').dataset.latest"), "2")
         self.assertEqual(self.text("#pubs-archived"), "Show archived 2")
         self.assertEqual(self.text(".pub-msg"), "")
+        self.assertEqual(self.js("document.activeElement && document.activeElement.id"), "pubs-archived", "the archived row left the table: the focus goes to Show archived")
 
     def test_show_archived_lists_them_marked_with_restore_and_restore_says_its_words(self):
         self.replies(restore=OK({"ok": True, "code": "restored", "project": "PDF", "number": 2}))

@@ -180,6 +180,24 @@ class Page(InBrowser):
                     self.assertFalse(self.present("#brands-panel"), "the panel closed")
                     self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
 
+    def test_focus_is_not_lost_after_install_remove_undo_and_remove_asks_with_the_focus(self):
+        self.mount()
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.assertEqual(self.focused(), "button[data-remove-confirm]", "Remove's question takes the focus")
+        self.click("[data-remove-confirm]")
+        self.assertEqual(self.focused(), "button[data-review]", "after Remove the focus is on Review")
+        self.click("[data-review]")
+        self.click("[data-install]")
+        self.assertEqual(self.focused(), "button[data-review]", "after Install the focus is on Review")
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-undo]').focus()")
+        self.replies(list=OK(LIST))
+        self.click("[data-undo]")
+        self.assertFalse(self.present("[data-undo]"))
+        self.assertEqual(self.focused(), "button[data-review]", "after Undo the focus is on Review")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()

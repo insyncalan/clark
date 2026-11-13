@@ -34,6 +34,9 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
   }
   useEffect(() => { if (!publishing) load(); }, [code, publishing, showArch]);
 
+  // The button that was pressed is disabled while it works and may leave the table: the focus goes to it again, else to Show archived.
+  const refocus = (...sels) => requestAnimationFrame(() => { const el = sels.map((s) => document.querySelector(`#pubs ${s}`)).find(Boolean); if (el) el.focus(); });
+
   // Archive and Restore (#345): one request, the list read again, and a toast with no Undo (Restore, or Archive, is the way back).
   async function mark(number, archive) {
     if (marking) return;
@@ -43,7 +46,8 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
     setMarking(0);
     if (r.status === 200 && r.body && r.body.ok === true) {
       toast("done", archive ? L.archivedToast(number) : L.restoredToast(number));
-      load();
+      await load();
+      refocus(`[data-pubarchive="${number}"]`, `[data-pubrestore="${number}"]`, "#pubs-archived");
       return;
     }
     setMsg({ kind: "error", text: L.markWords(r.status, r.body) });
@@ -60,6 +64,7 @@ export function PublishedReports({ api = REAL, openTab = openInNewTab, code = pr
       return r.status === 200 && r.body && r.body.ok === true && typeof r.body.url === "string" ? r.body.url : null;
     });
     setBusy(0);
+    refocus(`[data-pubopen="${number}"]`);
     if (opened) return;
     setMsg({ kind: "error", text: r && r.status === 200 ? L.BLOCKED : L.openWords(r ? r.status : 0, r ? r.body : null) });
   }
