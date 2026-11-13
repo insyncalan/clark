@@ -31,8 +31,6 @@ export function Brands({ api = REAL }) {
   useEffect(() => { load(); }, []);
   useEffect(() => { if (armed) back("[data-remove-confirm]"); }, [armed]);      // Remove's question is drawn after the list: the focus goes to it
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
-  // Remove asks first: the Confirm button takes the focus, so the second click is one Enter away.
-  useEffect(() => { if (armed) { const b = document.querySelector("#brands [data-remove-confirm]"); if (b) b.focus(); } }, [armed]);
 
   async function review(from) {
     if (busy) return;      // aria-disabled keeps the focus on the button while the server answers; a click then does nothing
