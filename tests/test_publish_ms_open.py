@@ -76,8 +76,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 self.assertNotIn("mv=", cdp.js("location.hash", sid))
                 cdp.js("document.querySelector('#milestones [data-msvb=cal]').click()", sid)
                 self.assertTrue(wait(lambda: "mv=cal" in cdp.js("location.hash", sid)), "the choice is in the address")
-                cdp.call("Page.reload", {}, sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar is back after a reload")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#milestones .cal-ms').length >= 3", "the Calendar is back after a reload")
                 self.assertEqual(cdp.js("document.querySelector('#milestones [data-msvb=cal]').getAttribute('aria-current')", sid), "true")
 
     def test_a_row_a_mark_and_a_chip_open_the_read_only_peek(self):
