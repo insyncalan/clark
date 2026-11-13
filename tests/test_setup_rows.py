@@ -125,11 +125,10 @@ class Rows(unittest.TestCase):
 
     # Row 20: the browser line, both ways.
     def test_row_20_chrome_found(self):
-        self.both(self.default, "browser", "Ready:", "Chrome is there, so clark opens in its own window.", "ready")
+        self.both(self.default, "browser", "Ready:", "Chrome is there, so clark opens in Chrome.", "ready")
 
     def test_row_20_chrome_not_found(self):
-        words = ("Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own "
-                 "window.")
+        words = "Chrome wasn't found, so clark will open in your usual browser."
         self.both(self.default, "browser", "Worth knowing:", words, "advice", find_chrome=lambda: None)
 
     # Row 22: the port. The launcher's name is the Mac's and the doctor puts the answer on one line.

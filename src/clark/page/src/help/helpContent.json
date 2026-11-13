@@ -589,8 +589,8 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
-     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
-     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
+     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with the column names **Ref**, **Status** and **Work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
