@@ -129,6 +129,22 @@ export function GanttChart({
   useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
     if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
   }, [menu]);
+  // A box or a menu that closes takes the focused button with it: focus goes back to what opened it (a deleted line's bar is gone, so to the first bar).
+  const opener = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!(box || menu || showOpen);
+    if (wasOpen.current && !open && gx.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) {
+        const o = opener.current;
+        const to = o && o.isConnected ? o : (menu === null && !showOpen && gx.current.closest("section").querySelector("[data-g-bar]"));
+        if (to) to.focus({ preventScroll: true });
+      }
+    }
+    if (!open) opener.current = null;
+    wasOpen.current = open;
+  }, [box, menu, showOpen]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -247,11 +263,13 @@ export function GanttChart({
 
   const openBox = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setMenu(null);
     setBox({ id, left: clamp(r.left, 8, window.innerWidth - 330), top: clamp(r.bottom + 6, 8, window.innerHeight - 340) });
   };
   const openAdd = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setBox(null);
     setMenu({ id, left: clamp(r.left, 8, window.innerWidth - 220), top: clamp(r.bottom + 4, 8, window.innerHeight - 150) });
   };
@@ -335,7 +353,7 @@ export function GanttChart({
         <span class="gt-sp" />
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
           {showOpen ? (
             <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu
               onKeyDown={(e) => {
