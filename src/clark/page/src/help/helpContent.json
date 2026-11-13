@@ -1428,7 +1428,7 @@
      [
       "ul",
       [
-       "The suggestions sit in one row above the box (scroll it sideways for the rest). They follow the page that is open, for example overdue work on Work or late milestones on Milestones, and change to match the subject of your last question. On Settings or a published file you see a general set, such as **Check this report** and **Summarise this week**.",
+       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
@@ -1604,7 +1604,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it. Changes that close or finish something (done, closed, cancelled, made, withdrawn, Achieved) ask first: [[Enter]] alone only flashes “This change needs your OK”. Press **Confirm and apply** or [[Mod+Enter]] to make them."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it. Changes that mark something done, achieved, closed, cancelled, made or withdrawn, or move it back out of done, ask first: [[Enter]] alone only flashes “This change needs your OK”. Press **Make the change**, **Confirm and apply** or [[Mod+Enter]] to make them."
      ]
     ]
    },
@@ -2913,7 +2913,7 @@
      "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."
     },
     {
-     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each of daily, before an undo and before an import or change (those two share the count). Before a restore keeps at least 2 and before an update at least 3, whatever the number is. The oldest are removed after that."
+     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each of daily, before an undo and before an import or change. Before an import and before a change share one count. Before a restore and before an update each have their own count, and keep at least 2 and at least 3, whatever the number is. The oldest are removed after that."
     },
     {
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
@@ -2943,7 +2943,7 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file holding one folder, named with the brand’s id. Inside the folder are clark-brand.json and the colours and fonts file. clark-brand.json gives the brand’s name, id and version, and its file list, with every file in the folder. The id in clark-brand.json must match the folder name. A logo and cover pictures are optional. The zip holds no other files. The colours and fonts file is tokens.css."
+     "d": "A brand kit is one zip file holding one folder, named with the brand’s id. Inside the folder are clark-brand.json and the colours and fonts file. clark-brand.json gives the brand’s name, id and version, and its file list, with every other file in the folder. The id in clark-brand.json must match the folder name. A logo and cover pictures are optional. The zip holds no other files. The colours and fonts file is tokens.css."
     },
     {
      "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. The colours and fonts file (tokens.css) can be at most 256 KB. A PNG logo or cover can be at most 1 MB and 2000 pixels each way. No links or paths outside the kit are allowed."

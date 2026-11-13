@@ -90,10 +90,8 @@ class HelpAskAndSneakPeek(unittest.TestCase):
         words = (PAGE / "edit" / "askWords.js").read_text(encoding="utf-8")
         pills = re.findall(r'^  "(.+?)",$', re.search(r"SUGGESTIONS = \[(.*?)\];", words, re.S).group(1), re.M)
         self.assertEqual(len(pills), 6)
-        quoted = re.findall(r"\*\*(.+?)\*\*", next(s for s in re.findall(r'"(The suggestions sit[^"]*)"', entry("reference", "ask-clark"))))
-        self.assertTrue(quoted)
-        for q in quoted:
-            self.assertIn(q, pills)         # Help quotes only suggestions the panel has; the rest follow the open page
+        for pill in pills:
+            self.assertIn(f"**{pill}**", entry("reference", "ask-clark"))
         self.assertIn('NEW_CHAT = "New chat"', words)
         self.assertIn('CLOSE = "Close"', words)
         self.assertNotRegex(ASK, r"\*\*\+\*\*|\*\*×\*\*|What’s overdue|\*\*Next milestone|\*\*Use cases\*\*|Item IDs in an answer open|IDs open the item")

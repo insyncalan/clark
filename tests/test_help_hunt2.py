@@ -54,15 +54,6 @@ class HelpHunt2(unittest.TestCase):
         self.assertNotIn("three screens", text)
         self.assertIn("Use cases", text)
 
-    def test_ask_suggestions_are_not_one_fixed_list(self):
-        text = entry("ask clark")
-        self.assertIn("follow the page that is open", text)
-        words = (ROOT / "src/clark/page/src/edit/askWords.js").read_text(encoding="utf-8")
-        general = re.search(r"export const SUGGESTIONS = \[(.*?)\];", words, re.S).group(1)
-        item = next(i for i in strings(HELP) if i.startswith("The suggestions sit in one row"))
-        for quoted in re.findall(r"\*\*(.+?)\*\*", item):
-            self.assertIn(f'"{quoted}"', general, quoted)
-
     def test_published_page_does_not_claim_three_tabs(self):
         text = entry("The published client page")
         self.assertNotIn("Three tabs", text)
@@ -73,6 +64,8 @@ class HelpHunt2(unittest.TestCase):
         text = entry("Sneak peek")
         self.assertIn("This change needs your OK", text)
         self.assertIn("Confirm and apply", text)
+        self.assertIn("**Make the change**, **Confirm and apply** or", text)
+        self.assertIn("move it back out of done", text)
         self.assertIn("[[Mod+Enter]]", text)
 
     def test_help_says_pdf_files_are_read_and_the_note_does_not_say_unsupported(self):
@@ -111,6 +104,6 @@ class HelpHunt2(unittest.TestCase):
         self.assertEqual(backup.FLOOR, {"restore": 2, "migrate": 3})
         self.assertEqual(backup.FAMILY["changes"], backup.FAMILY["import"])
         for text in (settings.BACKUPS_KEPT_HELP, guide("back-up-and-restore-your-data")):
-            self.assertIn("share the count", text)
+            self.assertIn("share one count", text)
             self.assertIn("at least 2", text)
             self.assertIn("at least 3", text)
