@@ -60,7 +60,7 @@ export function Brands({ api = REAL }) {
       <h2 id="brands-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
-      {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
+      {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {v ? (
         <>
           {v.brands.length ? (
