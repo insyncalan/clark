@@ -114,7 +114,7 @@ import zipfile
 import zlib
 from html import unescape
 from dataclasses import dataclass, field
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -215,8 +215,16 @@ def plain(table, msg):
     if m:
         return f"There is no label {m.group(1)} {m.group(2)}"
     m = re.match(r"([a-z_]+) (must be|is not) ", msg)
-    if m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
+    if m and m.group(1) == "review_after_days":
+        msg = "Not reviewed after (days)" + msg[len(m.group(1)):]
+    elif m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
         msg = _label(table, m.group(1)) + msg[len(m.group(1)):]
+    m = re.fullmatch(r"(.*) \(got (.*)\)", msg, re.S)
+    if m:
+        cell = m.group(2)
+        if len(cell) >= 2 and cell[0] == cell[-1] and cell[0] in "'\"":
+            cell = cell[1:-1]
+        msg = f"{m.group(1)} (the cell says {cell})"
     return re.sub(r"\b(\d{4})-(\d{2})-(\d{2}) 00:00:00\b", lambda x: f"{x.group(3)}-{x.group(2)}-{x.group(1)}", msg)
 
 
@@ -472,6 +480,8 @@ def read_date(value):
             raise ValueError(value)        # Excel's day 60 (a 29 February 1900 that never was) reads as 28 February, and a negative day as 1899: neither is a date
         return value.isoformat()[:10]
     s = str(value).strip()
+    if not s.isascii():                      # \d also takes other scripts' digits; refuse them like check_id does
+        raise ValueError(s)
     m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", s)
     if m:
         return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
@@ -559,6 +569,11 @@ def from_cell(name, value, kind, label=None, stored=(), table=None):
         from clark import changes
         if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
             return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
+    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's "Shown as": plain, 1 to 20 characters
+        from clark import changes
+        shown = unicodedata.normalize("NFC", text).strip()
+        if text.strip() and (not changes._plain_text(shown) or len(shown) > changes.UC_REF_LIMIT):
+            return None, f"{label} must be plain text of at most {changes.UC_REF_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
         text = resolve_ref(name, text)
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
@@ -616,23 +631,36 @@ def _six_digit_fraction(text):
     return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
 
 
+def _naive(when):
+    """A date-time with any timezone suffix taken to UTC and then dropped, so two of them can always be subtracted."""
+    if when.tzinfo is not None:
+        when = when.astimezone(timezone.utc).replace(tzinfo=None)
+    return when
+
+
+def _read_when(text):
+    """Text as a naive date-time: a trailing Z or an offset is read and stripped. Raises ValueError when it is not a date-time."""
+    text = text.strip().replace("T", " ")
+    if text[-1:] in ("Z", "z"):
+        text = text[:-1] + "+00:00"
+    return _naive(datetime.fromisoformat(_six_digit_fraction(text)))
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
-    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
-    if isinstance(cell, datetime):
-        then, slack = cell, 0.002
-    else:
-        text = str(cell).strip().replace("T", " ")
-        try:
-            then = datetime.fromisoformat(_six_digit_fraction(text))
-        except ValueError:
-            return False
-        slack = 0.002 if "." in text else 1.0
+    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash.
+    A timezone suffix (Z or an offset) is read and dropped; this never raises."""
     try:
-        now = datetime.fromisoformat(_six_digit_fraction(str(stored).strip().replace("T", " ")))
-    except ValueError:
+        if isinstance(cell, datetime):
+            then, slack = _naive(cell), 0.002
+        else:
+            text = str(cell)
+            then = _read_when(text)
+            slack = 0.002 if "." in text else 1.0
+        now = _read_when(str(stored))
+        return abs((now - then).total_seconds()) > slack
+    except (ValueError, TypeError, OverflowError):
         return False
-    return abs((now - then).total_seconds()) > slack
 
 
 # ── Reading the workbook ──────────────────────────────────────────────────────
@@ -761,14 +789,23 @@ class _Reader:
         self.held = set()                                    # items whose row was skipped for a changed ID: not "removed"
         self.given = {}                                      # a new row's change number → the values its cells gave (no defaults)
         self.formulas = {}                                   # sheet → workbook rows holding a formula cell
+        self.errors = {}                                     # sheet → workbook rows holding an error cell in a column the import reads
+        self.err_cols = {}                                   # (sheet, workbook row) → the column positions holding an error cell
+        self.unplaced = set()                                # sheets with a row whose ID and title are both errors: no item can be told missing there
 
-    def rows_of(self, ws, min_row):
-        """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted)."""
+    def rows_of(self, ws, min_row, cols=None):
+        """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted). `cols` are the
+        column positions the import reads: an error cell in any other column says nothing."""
         for rn, row in enumerate(ws.iter_rows(min_row=min_row), start=min_row):
             vals = []
-            for c in row:
+            for k, c in enumerate(row):
                 if c.data_type == "f":
                     self.formulas.setdefault(ws.title, set()).add(rn)
+                    vals.append(_FORMULA)
+                elif c.data_type == "e":                     # an error value (#REF!, #N/A): not text the person typed
+                    if cols is None or k in cols:
+                        self.errors.setdefault(ws.title, set()).add(rn)
+                        self.err_cols.setdefault((ws.title, rn), set()).add(k)
                     vals.append(_FORMULA)
                 else:
                     vals.append(c.value)
@@ -812,19 +849,27 @@ class _Reader:
         seen, rows = set(), 0
         self.typed_rows = 0
         self.row_titles = {}                      # id → the title the workbook gives it (to tell a swap from a title edit)
-        for _, row in self.rows_of(ws, 2):
+        for _, row in self.rows_of(ws, 2, set(header.values())):
             i, t = (row[header["id"]] if header["id"] < len(row) else None), None
             if TITLE_OF[table] in header and header[TITLE_OF[table]] < len(row):
                 t = row[header[TITLE_OF[table]]]
             if isinstance(i, str) and i.strip() and isinstance(t, str):
                 self.row_titles.setdefault(i.strip(), _title_key(t))
         snap = self.snapshot.get(table)           # None: no record of what was exported for this sheet
-        for rn, row in self.rows_of(ws, 2):
+        for rn, row in self.rows_of(ws, 2, set(header.values())):
             cell = {c: (row[i] if i < len(row) else None) for c, i in header.items()}
             raw_id = cell["id"]
             if raw_id is _FORMULA:
                 self.held.add(self.other_item(table, cell, db, ""))      # its item is not "removed": only its ID cell is unreadable
-                self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
+                bad = self.err_cols.get((sheet, rn), ())
+                if header["id"] in bad:
+                    if TITLE_OF[table] in header and header[TITLE_OF[table]] in bad:      # nothing says which item this row is: none on the sheet is offered for archiving
+                        self.unplaced.add(sheet)
+                        self.problem(f"{sheet}, row {rn}: the ID and the title are error values; the row was left out and no item on this sheet is offered for archiving", sheet, rn, "", "id")
+                    else:
+                        self.problem(f"{sheet}, row {rn}: the ID is an error value; the row was left out", sheet, rn, "", "id")
+                else:
+                    self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
                 continue
             rid = "" if raw_id is None else str(raw_id).strip()
             placeholder = ""
@@ -848,7 +893,7 @@ class _Reader:
                                    "check this is the right file")
         removed_before = sum(1 for c in self.plan.changes if c.kind == "removed" and c.sheet == sheet)
         for rid, r in db.items():
-            if rid in seen or rid in self.held or r["archived"]:
+            if rid in seen or rid in self.held or r["archived"] or sheet in self.unplaced:
                 continue
             if snap is not None and rid not in snap:
                 self.plan.unchanged += 1             # added in clark after the export: the workbook could not have held it
@@ -970,6 +1015,12 @@ class _Reader:
                                        "agreed date is a rebaseline, which records a decision; do it in clark")
                 continue
             before[f], after[f] = old, v
+        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a "Shown as" another use case already has
+            mine = after["ref"].strip().casefold()
+            taken = [r.get("ref") for i, r in db.items() if i != rid] + [c.after.get("ref") for c in self.plan.changes if c.table == table and c.id != rid]
+            if any(isinstance(x, str) and x.strip().casefold() == mine for x in taken):
+                self.problem(f"{sheet}, row {rn}, {rid}: {_label(table, 'ref')} is already used by another use case; the row was left out", sheet, rn, rid, "ref")
+                bad = True
         if bad:
             return
         if not after:
@@ -1081,11 +1132,12 @@ def _gantt_sheet(self, ws):
     editable = [f for f in header if f != "id"]
     db = {r["id"]: r for r in self.store.read(GANTT, project=self.project)}
     seen, rows = set(), 0
-    for rn, row in self.rows_of(ws, 2):
+    for rn, row in self.rows_of(ws, 2, set(header.values())):
         cell = {f: (row[i] if i < len(row) else None) for f, i in header.items()}
         raw_id = cell["id"]
         if raw_id is _FORMULA:
-            self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
+            what = "an error value" if header["id"] in self.err_cols.get((sheet, rn), ()) else "a formula, which is not read"
+            self.problem(f"{sheet}, row {rn}: the ID is {what}; the row was left out", sheet, rn, "", "id")
             continue
         rid = "" if raw_id is None else str(raw_id).strip()
         placeholder = ""
@@ -1201,9 +1253,9 @@ def _rows_counted(ws, table, cols):
             used = any(not _blank(c.value) for c in row)
         else:
             at = {k: (row[i] if i < len(row) else None) for k, i in header.items()}
-            if at["id"] is not None and at["id"].data_type == "f":
+            if at["id"] is not None and at["id"].data_type in ("f", "e"):
                 continue
-            used = any(c is not None and (c.data_type == "f" or not _blank(c.value)) for c in at.values())
+            used = any(c is not None and (c.data_type in ("f", "e") or not _blank(c.value)) for c in at.values())
         if used:
             rows += 1
             if rows > MAX_ROWS:
@@ -1549,6 +1601,9 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
             rd.plan.notes.append(f"{sheet_name}: a formula cell was ignored in row {shown}; clark reads typed values, not "
                                  "formulas, so type the value instead")
+        for sheet_name, rows_ in rd.errors.items():
+            shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
+            rd.plan.notes.append(f"{sheet_name}: an error cell was ignored in row {shown}; type the value instead")
         rd.plan.changes.sort(key=lambda c: (WRITE_ORDER.index(c.table), ("changed", "new", "removed").index(c.kind), c.row))
         for i, c in enumerate(rd.plan.changes, start=1):
             c.n = i

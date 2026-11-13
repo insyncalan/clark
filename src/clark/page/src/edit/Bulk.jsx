@@ -55,7 +55,7 @@ function refocus(ids, from) {
 export function runBulk(table, ids, control, value, { place = "bulk", from = null, asked = false } = {}) {
   const changes = B.changesFor(table, control, value);
   if (!changes || !ids.length) return Promise.resolve(null);
-  const go = (confirm) => changeBulk(B.requestFor(table, ids, changes, { confirm, place }), B.backWords(ids.length)).then((r) => {
+  const go = (confirm) => changeBulk(B.requestFor(table, ids, changes, { confirm, place, fromStatus: B.fromStatusFor(control, table) }), B.backWords(ids.length)).then((r) => {
     if (r && !r.ok && r.code === "confirm") { ask(B.confirmWords(r.count || ids.length), () => go(true), { ids, from }); return null; }
     if (r && r.ok && r.reply.changed.length) sel.clear();
     setTimeout(() => { if (!bulkOpen.value) refocus(ids, from); }, 0);       // after the bar or the menu has gone

@@ -24,7 +24,7 @@ from openpyxl.utils import get_column_letter, quote_sheetname
 from openpyxl.workbook.defined_name import DefinedName
 from openpyxl.xml.functions import tostring
 
-from clark import excel
+from clark import excel, glance
 from clark import excel_colours as colours
 from clark import platform, publish, sanitise
 
@@ -121,7 +121,7 @@ def title_text(published):
     p = published["data"].get("project") or {}
     week = p.get("week_ending")
     when = excel.to_cell("date", week) if week else None
-    sub = f"Week ending {when if isinstance(when, str) else format(when, '%d-%m-%Y')}" if week else f"As at {published['as_at']}"
+    sub = f"Week ending {when if isinstance(when, str) else format(when, '%d-%m-%Y')}" if week else f"As at {glance.show_date(published['as_at'])}"
     return (p.get("name") or p.get("code") or ""), sub
 
 

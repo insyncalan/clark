@@ -679,10 +679,13 @@ def from_cell(field, value):
             return None
         value = unescape_text(value)
         if field in DATES:
+            m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", value.strip())     # as excel_import.read_date: - / or .
             try:
-                return datetime.strptime(value.strip(), "%d-%m-%Y").date().isoformat()
+                if m:
+                    return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
             except ValueError:
-                return value  # left as typed; the store's checks report it
+                pass
+            return value  # left as typed; the store's checks report it
     if field in YES_NO:
         if str(value).lower() in ("yes", "y", "1", "true"):
             return 1
@@ -913,9 +916,11 @@ def gantt_status(line, today):
     pct = line.get("pct") or 0
     if pct >= 100:
         return "Done"
-    if today and (line.get("end") or "") < today:
+    milestone = line.get("type") == "milestone"
+    end = (line.get("start") if milestone else line.get("end")) or ""
+    if today and end and end < today:
         return "Late"
-    if (today and (line.get("start") or "") <= today) or pct > 0:
+    if pct > 0 or (today and not milestone and line.get("start") and line["start"] <= today):
         return "In progress"
     return "Not started"
 
@@ -923,7 +928,8 @@ def gantt_status(line, today):
 def gantt_sheet_name(name, taken=()):
     """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
     clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
-    if not clean or clean.lower() in {t.lower() for t in taken}:
+    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, *taken}       # the sheets written after the Gantt one are named already
+    if not clean or clean.lower() in {t.lower() for t in reserved}:
         clean = GANTT_DEFAULT_NAME
     return clean
 

@@ -42,8 +42,10 @@ const stillMotion = () => document.documentElement.dataset.motion === "reduce" |
 // Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
 function pillsFor(list, page) {
   const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
-  const said = asked ? asked.text.toLowerCase() : "";
-  const hit = W.PILLS_WORDS.find(([word]) => said.includes(word));
+  const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
+  // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
+  const named = (word) => new RegExp("(^|[^a-z])" + word.replace(/ /g, " ?") + "s?([^a-z]|$)").test(said);
+  const hit = W.PILLS_WORDS.find(([word]) => named(word));
   const subject = hit ? hit[1] : W.PILLS_PAGE[page];
   return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
 }
@@ -56,7 +58,7 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
-  const box = useRef(null), log = useRef(null);
+  const box = useRef(null), log = useRef(null), stopped = useRef(false);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -75,7 +77,14 @@ export function AskPanel() {
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
   }, [open, state, panelFocus.value]);
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
+  // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const last = el.lastElementChild;
+    if (last && last.getAttribute("data-role") === "assistant" && last.offsetHeight > el.clientHeight) el.scrollTop = last.offsetTop - el.offsetTop;
+    else el.scrollTop = el.scrollHeight;
+  }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
     let t = null;
@@ -101,17 +110,25 @@ export function AskPanel() {
     if (state !== "ready" || busy) return;
     const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
-    setNote("");
+    setNote(""); stopped.current = false;
+    histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
-    turns.value = [...list, { role: "user", text: q }];
+    const mine = { role: "user", text: q };
+    turns.value = [...list, mine];
     if (!preset) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
     const epoch = chatEpoch.value;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
+    setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
+    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (!answered && !preset) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
+      setText((t) => t || q);
+      if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it
+    }
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
@@ -165,6 +182,7 @@ export function AskPanel() {
   }
 
   async function stop() {
+    stopped.current = true;
     setNote(W.STOPPING_LINE);
     await post("/api/ask/stop", {});
   }
@@ -257,7 +275,7 @@ export function AskPanel() {
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
           {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"}>
+          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
         </div>

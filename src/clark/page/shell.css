@@ -196,6 +196,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* The Work items list (#36): a table that never scrolls sideways; the Item column takes what the others leave and wraps. */
 .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: var(--size-small); }
 .btn:hover { border-color: var(--grey-500); }
+.btn[aria-disabled="true"] { opacity: .55; cursor: default; }  /* Save and "Use <path>" while a save runs: dimmed, not `disabled`, so the keyboard keeps its place */
+.btn[aria-disabled="true"]:hover { border-color: var(--border); }
 .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .link { all: unset; color: var(--status-blue-text); cursor: pointer; font-size: var(--size-small); }
 .link:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -264,8 +266,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .kb.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .kb.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .kb.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-.tcell { display: flex; align-items: center; gap: 10px; }
-.tcell .tx { min-width: 0; }
+.c-item .tcell { align-items: center; gap: 10px; }   /* the table cell only: the At a glance tiles are .tcell too and stretch to the row */
+.c-item .tcell .tx { min-width: 0; }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
@@ -1300,7 +1302,8 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn.pri.ok { background: var(--status-green-text); border-color: var(--status-green-text); }
 .btn.pri .pub-tick { background: var(--text-on-brand); color: var(--status-green-text); }
 .btn.quiet { background: transparent; }
-.btn { min-height: 32px; }
+.btn { min-height: 32px; overflow-wrap: anywhere; }
+[data-copy-suggestion] { max-width: 100%; text-align: left; }      /* item 1129: a long unbroken copy-folder path wraps inside the card at 900 */
 .btn:disabled { cursor: default; opacity: .6; }
 .btn[aria-disabled="true"] { cursor: default; opacity: .6; }
 .setting { margin-top: var(--d-set-gap); }
@@ -1347,7 +1350,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .backup-list .acts { display: flex; gap: var(--space-2); margin-left: auto; }
 .backup-panel { margin-top: var(--space-3); padding: var(--space-3); border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
 .backup-panel p { margin: 0 0 6px; }
-.setting p.error { color: var(--status-red-text); }
+.setting p.error { color: var(--status-red-text); overflow-wrap: anywhere; }
 .update-notes { margin: 0 0 6px; max-height: 240px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; color: var(--text); }
 .update-files { margin: 6px 0; }
 .update-files ul { margin: 0 0 6px; overflow-wrap: anywhere; }
@@ -1528,14 +1531,14 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .fld input { min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .fld input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .fld input[aria-invalid="true"] { border-color: var(--status-red-text); }
-.fld small { color: var(--text-muted); font-size: var(--size-caption); }
+.fld small { color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .fld.copy-fld { max-width: 640px; }
 /* Settings fields (row 840): a label column at the left and the control beside it, the way the prototype draws them; the hint, a refusal and any buttons stand in the control's column.
    The control is not capped: it takes the rest of the card. The Welcome form keeps its own stacked layout (it is not inside the Settings cards). */
 .set-cards .fld, .set-cards .fld.copy-fld { grid-template-columns: 8rem minmax(0, 1fr); column-gap: var(--space-3); align-items: center; max-width: none; margin-bottom: var(--d-set-fld); }
 .set-cards .fld > label { grid-column: 1; }
 .set-cards .fld > :not(label) { grid-column: 2; min-width: 0; }
-.fld-bad { margin: 0; min-height: 0; color: var(--status-red-text); font-size: var(--size-caption); }
+.fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
 /* Settings › People (item 454): the prototype's People card (system/prototype/app.css: .pp-paste, .pp-acts, .pp-sum, table.set.ppl). */
 .pp-h { display: flex; align-items: center; gap: 12px; margin: 0 0 6px; }
@@ -2007,6 +2010,19 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary .cchip { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.ucp-views { margin-top: 16px; }
+.ucp-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
+.ucp-sorts { margin: 10px 0 0; font-size: var(--size-small); }
+.ucp-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; margin-left: var(--space-2); cursor: pointer; }
+.ucp-sort:hover, .ucp-sort[aria-pressed="true"] { color: var(--text); }
+.ucp-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.ucp-sort .i { width: 12px; height: 12px; flex: none; }
+.ucp-group { margin-top: 10px; }
+.ucp-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
+.ucp-group .ucp { padding-left: var(--space-4); padding-right: var(--space-4); }
+.ucp-empty { margin: 20px 0 4px; overflow-wrap: anywhere; }
+.ucp-empty .btn { margin-top: 4px; }
+.ucp-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }
 .ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
@@ -2079,6 +2095,12 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .gt col { width: auto !important; }
   html.print-all .gt th, html.print-all .gt td { white-space: normal; overflow-wrap: anywhere; overflow: visible; height: auto; padding-right: 4px; }
   html.print-all .gt tr { break-inside: avoid; }
+  /* row 1111: a use case's own page on paper: nothing is cut with an ellipsis (a long line wraps), nothing runs past the page, and the crumb back to the list is left off */
+  html.print-all .ucf-crumb { display: none; }
+  html.print-all .ucf-grid { grid-template-columns: minmax(0, 1fr); }
+  html.print-all .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  html.print-all .ucf-t, html.print-all .ucf-x { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
+  html.print-all .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
 
 .pk-rating { color: var(--text-muted); }   /* a closed risk keeps its rating word beside its Closed pill */
