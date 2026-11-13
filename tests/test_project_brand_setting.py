@@ -5,11 +5,15 @@ The writer: one step with Undo and a history line; an id that is not generic or 
 in the one plain sentence with nothing written. The brand is a gate and never published. The migration is in test_store_brand_migration.
 Fictional data only.
 """
+import shutil
+import tempfile
 import unittest
+from pathlib import Path
 from unittest import mock
 
 from _demo import USER, DemoStore
-from clark import changes, history, publish, store as store_module
+from clark import changes, history, page, publish, store as store_module
+from test_brand_isolation import install
 
 HOSTILE = ["nope", "", " ", "x" * 61, None, 5, True, ["generic"]]
 IDS = lambda: {"generic", "alpha"}
@@ -94,6 +98,54 @@ class Hostile(Base):
                 with self.subTest(value=repr(value)):
                     status, body = self.change(self.req(brand=value))
                     self.assertEqual((status, body["message"]), (400, "That isn't a change clark can make."))
+
+
+class Installed(unittest.TestCase):
+    """The real brand_ids (no stand-in): generic plus what the brand library holds, read at each call."""
+
+    def setUp(self):
+        self.root = Path(tempfile.mkdtemp(prefix="clark-pick-"))
+        self.addCleanup(shutil.rmtree, self.root, True)
+        self.demo = DemoStore()
+        self.addCleanup(self.demo.close)
+        self.s = self.demo.store
+        self.change = changes.make_change(self.s.path, [], USER)
+        patcher = mock.patch.object(page, "BRANDING", self.root / "branding")
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def send(self, value):
+        return self.change({"project": "ABC", "kind": "projects", "op": "update", "changes": {"brand": value}})
+
+    def test_brand_ids_is_generic_alone_then_the_installed_ids(self):
+        self.assertEqual(changes.brand_ids(), {"generic"})
+        install(self.root, "zebra")
+        install(self.root, "quokka")
+        self.assertEqual(changes.brand_ids(), {"generic", "zebra", "quokka"})
+        self.assertEqual(changes.brand_ids(self.root), {"generic", "zebra", "quokka"})
+
+    def test_the_legacy_single_folder_counts_as_local_brand(self):
+        (self.root / "branding").mkdir()
+        (self.root / "branding" / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
+        self.assertIn("local-brand", changes.brand_ids())
+
+    def test_an_installed_brand_is_accepted_and_an_unknown_or_non_string_one_is_refused(self):
+        install(self.root, "zebra")
+        status, body = self.send("zebra")
+        self.assertEqual((status, body["project"]["brand"]), (200, "zebra"), body)
+        for bad in ("quokka", 5, None, ["zebra"], True):
+            with self.subTest(bad=repr(bad)):
+                status, body = self.send(bad)
+                self.assertEqual((status, body["message"]), (400, "That isn't a change clark can make."))
+        self.assertEqual(self.s.read("projects", ref="ABC")["brand"], "zebra")
+
+    def test_a_removed_brand_is_refused_for_a_new_choice_and_the_output_stays_generic(self):
+        folder = install(self.root, "zebra")
+        self.assertEqual(self.send("zebra")[0], 200)
+        shutil.rmtree(folder)
+        self.assertEqual(self.send("zebra")[0], 400)
+        from clark import publish_flow
+        self.assertEqual(publish_flow.brand_of(self.s, "ABC", self.root), page.NO_BRAND)
 
 
 class Published(Base):
