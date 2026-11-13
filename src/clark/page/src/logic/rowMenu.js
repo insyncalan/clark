@@ -74,6 +74,7 @@ export function draftRequest(id, state, who) {
     body = { item: id, mode: o.mode, picked: o.picked, include_update: o.include_update };
     if (o.reply_by) body.reply_by = o.reply_by;
     if (o.unblocks) body.unblocks = o.unblocks;
+    if (o.tone != null) body.tone = o.tone;                                                     // the chase tone the person pressed
   }
   if (who && who.email) { body.email = who.email; if (who.name) body.name = who.name; }      // #1048: the owner, from their People row
   return body;
@@ -81,7 +82,9 @@ export function draftRequest(id, state, who) {
 
 /** The dialog's state from the route's answer: the kind and ticks it chose, with the options as they were (or empty at the first ask). */
 export function draftState(reply, was) {
-  return { mode: reply.mode, picked: reply.picked, replyBy: was ? was.replyBy : "", unblocks: was ? was.unblocks : "", includeUpdate: was ? !!was.includeUpdate : false };
+  const next = { mode: reply.mode, picked: reply.picked, replyBy: was ? was.replyBy : "", unblocks: was ? was.unblocks : "", includeUpdate: was ? !!was.includeUpdate : false };
+  if (was && was.tone != null) next.tone = was.tone;
+  return next;
 }
 
 /** The statuses the Change status list offers (the same as the Status cell's picker), without the one the item has. */
