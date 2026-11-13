@@ -497,10 +497,17 @@ class RichText(unittest.TestCase):
                                 ("list_item", 0, False, "one"), ("list_item", 1, False, "deep"), ("list_item", 2, False, "deeper"),
                                 ("list_item", 0, False, "two"), ("list_item", 0, True, "first"), ("list_item", 0, True, "second")])
 
-    def test_lists_deeper_than_three_levels_stay_at_three(self):
+    def test_lists_deeper_than_four_levels_stay_at_four(self):
         _, both = self.render("<ul><li>a<ul><li>b<ul><li>c<ul><li>d<ul><li>e</li></ul></li></ul></li></ul></li></ul></li></ul>")
         levels = {int(x) for x in re.findall(r'<w:ilvl w:val="(\d+)"/>', both["word/document.xml"].decode())}
-        self.assertEqual(levels, {0, 1, 2})
+        self.assertEqual(levels, {0, 1, 2, 3})
+
+    def test_four_deep_nested_list_round_trips_all_four_levels(self):
+        data, both = self.render("<ul><li>a<ul><li>b<ul><li>c<ul><li>d</li></ul></li></ul></li></ul></li></ul>")
+        levels = [int(x) for x in re.findall(r'<w:ilvl w:val="(\d+)"/>', both["word/document.xml"].decode())]
+        self.assertEqual(levels, [0, 1, 2, 3])
+        got = [(b["level"], b["text"]) for b in blocks(data) if b["kind"] == "list_item" and b["text"] in "abcd"]
+        self.assertEqual(got, [(0, "a"), (1, "b"), (2, "c"), (3, "d")])
 
     def test_a_value_is_only_text_in_the_xml(self):
         nasty = '</w:t></w:r></w:p><w:p><w:r><w:t>INJECTED & "quoted" \x00\x0b\ud800 end'
