@@ -1,7 +1,7 @@
 """Row 999 (guarded): every output takes the brand of the project it is made for, and no other: the web page, the preview, the Excel
 workbook, the client workbook inside the page, the PDF's marker check and the Word file. Run: python3 dev/run_tests.py test_brand_isolation
-Two invented brands (ZEBRA teal, QUOKKA plum) are installed in a temporary folder (system/branding/<id>/ with a manifest); nothing is
-read from the real system/branding. A project on Generic gets the committed look. The brand's id and name appear in no output.
+Two invented brands (ZEBRA teal, QUOKKA plum) are installed in a temporary folder (branding/<id>/ with a manifest); nothing is
+read from the real branding. A project on Generic gets the committed look. The brand's id and name appear in no output.
 """
 import base64
 import io
@@ -27,7 +27,7 @@ IDS = {"generic", "zebra", "quokka"}
 
 
 def install(root, name):
-    d = make_brand(Path(root) / "system" / "branding", name)
+    d = make_brand(Path(root) / "branding", name)
     (d / brands.MANIFEST).write_text(json.dumps({"id": name, "name": name.title() + " Co", "version": "1.0.0"}), encoding="utf-8")
     return d
 
@@ -138,6 +138,28 @@ class Publisher(Rig):
         self.assertEqual(set(map(str, html_with)), {str(self.zebra)})
 
 
+    def test_a_local_publish_rebuilt_for_the_save_folders_earlier_reports_keeps_the_projects_brand(self):
+        # mutation hunt on row 999: the file is made again when the folder the Save window picks holds earlier reports; that second
+        # build was never looked at (the test above publishes to a folder with none)
+        local = self.root / "Local"
+        local.mkdir()
+        (local / "ABC-report-2026-01-01.html").write_text("<html></html>", encoding="utf-8")
+        pub = publish_flow.Publisher(self.s.path, [], choose_save_file=lambda prompt, name, start=None: local / name,
+                                     today=lambda: "2026-10-29", by_user=lambda: USER, data_dir=self.s.path.parent, brand_root=self.root)
+        real_build, built_with = publish.build, []
+
+        def build(store, code, now=None, branding=None, *a, **k):
+            built_with.append((branding, k.get("past_reports")))
+            return real_build(store, code, now, branding, *a, **k)
+        self.set_brand("zebra")
+        with mock.patch.object(publish, "build", build):
+            status, got = pub.publish({"project": "ABC", "to_client": False})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertGreaterEqual(len(built_with), 2, "the folder's earlier report made the file again")
+        self.assertEqual({str(b) for b, _ in built_with}, {str(self.zebra)})
+        self.assertTrue(built_with[-1][1], "and the rebuild saw the earlier report")
+
+
 class Word(Rig):
     def test_each_brand_colours_its_own_word_file_and_not_the_others(self):
         for name in ("zebra", "quokka"):
@@ -170,6 +192,39 @@ class Word(Rig):
         raw = "".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml")).upper()
         self.assertIn(BRANDS["zebra"]["navy"].upper(), raw)
         self.assertNotIn(BRANDS["quokka"]["navy"].upper(), raw)
+
+
+class DefaultRoot(Rig):
+    """Built without brand_root, the flow and the route look in the clark folder that holds branding/: page.BRANDING.parent."""
+    def setUp(self):
+        super().setUp()
+        patch = mock.patch.object(page, "BRANDING", self.root / "branding")
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_the_publisher_defaults_to_the_folder_holding_branding(self):
+        pub = publish_flow.Publisher(self.s.path, [], by_user=lambda: USER, data_dir=self.s.path.parent)
+        self.assertEqual(self.root, pub.brand_root)
+
+    def test_a_word_export_without_brand_root_takes_the_projects_brand(self):
+        self.set_brand("zebra")
+        out = Path(tempfile.mkdtemp(prefix="clark-iso-out-"))
+        self.addCleanup(shutil.rmtree, out, True)
+        seam = word_route.make_word_export(self.s.path, [], USER, today=lambda: "2026-10-29", choose_folder=lambda prompt: out)
+        status, body = seam({"project": "ABC"})
+        self.assertEqual(status, 200, body)
+        z = zipfile.ZipFile(next(out.rglob("*.docx")))
+        raw = "".join(z.read(n).decode("utf-8", "replace") for n in z.namelist() if n.endswith(".xml")).upper()
+        self.assertIn(BRANDS["zebra"]["navy"].upper(), raw)
+
+    def test_the_export_step_without_brand_root_takes_the_projects_brand(self):
+        self.set_brand("zebra")
+        with mock.patch.object(publish_flow, "brand_of", wraps=publish_flow.brand_of) as spy:
+            try:
+                word_route._do_export(self.s, USER, {"project": "ABC"}, lambda: "2026-10-29", None, [])
+            except Exception:
+                pass          # saving needs a folder; only the brand lookup is under test
+        self.assertEqual(self.root, spy.call_args[0][2])
 
 
 class ClientWorkbook(Rig):

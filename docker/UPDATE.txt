@@ -1,0 +1,48 @@
+Updating clark with Docker
+
+Your data is not in the clark folder. It stays where it is. A newer clark
+folder finds it again.
+
+To update:
+  1. Open Terminal (Mac) or PowerShell (Windows) in the clark folder you use
+     now. Type this and press Return:
+        docker compose -f docker/compose.yaml down
+  2. Unzip the new download into a new folder. Do not unzip it over the old one.
+  3. In Terminal or PowerShell, go to the new clark folder. Type cd and a
+     space, drag the new folder into the window and press Return.
+  4. Type this and press Return:
+        docker compose -f docker/compose.yaml up -d
+  5. Open http://localhost:8766 in Chrome.
+
+Sometimes the new clark keeps your data in a newer form than the old one did.
+If so, it first makes a copy of your data. The copy is in the backups folder,
+inside your data folder. Its name ends in -migrate.db. Then it brings your data
+up to date. clark keeps the 14 newest of these copies, or the number you chose under
+"How many backups to keep" in Settings (never fewer than 3).
+
+If clark will not start and the message says "start from the newer clark folder.
+Nothing was changed.", a newer clark has already used your data. Start from
+that newer clark folder instead. To see what Docker said, type this in the
+folder:
+        docker compose -f docker/compose.yaml logs --tail 50
+
+To go back to the old clark:
+  1. Stop the new clark. Type the down command from step 1 in the new folder.
+  2. Check whether the new clark brought your data up to date. If it did, the
+     old clark will not open your data and will tell you so. In that case, put
+     back the copy made before the update. To see the copies, type this in the
+     new folder:
+        docker compose -f docker/compose.yaml run --rm clark python3 -m clark restore --data /data
+     Then type the same line again, with the name of the -migrate.db copy added
+     at the end.
+  3. Type the up command in the old folder to start the old clark.
+
+Update from file in Settings does not work under Docker. The clark folder is
+read-only there. Use the steps above.
+
+Check the download: the release page shows a long number (called SHA-256) for
+the zip. On a Mac, type this:
+        shasum -a 256 clark-<version>-mac.zip
+On Windows, type this in PowerShell:
+        Get-FileHash -Algorithm SHA256 clark-<version>-mac.zip
+The number it shows must match the one on the release page.

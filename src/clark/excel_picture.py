@@ -1,8 +1,8 @@
 """The brand logo on the Excel Cover, with no Pillow and no committed picture (#133).
 
-The logo is part of the user's own brand (system/branding, which is ignored by version control and is not in the public copy). When an
+The logo is part of the user's own brand (branding, which is ignored by version control and is not in the public copy). When an
 export runs it looks for the logo there, the same place the page finds its brand tokens (clark.page.local_tokens): `logo.png`, or
-`design-system/logo.png`, or `assets/logo-*.png`, in system/branding, and for the cover picture (the wave) at `assets/cover-*.png`.
+`design-system/logo.png`, or `assets/logo-*.png`, in branding, and for the cover picture (the wave) at `assets/cover-*.png`.
 Both load ONLY from the branding folder: a file that resolves (symlinks followed) to somewhere outside it is never read. With no
 branding folder at all the Cover shows clark's own committed icon as its logo (through the same safe loader) and no wave; a
 branding folder that exists but holds no logo gives a Cover with no logo (clark's mark never goes on a client's report), and a
@@ -129,7 +129,7 @@ def _first_inside(base, patterns):
 
 def local_logo(branding=None):
     """The path of the user's own brand logo, or None when there isn't one (or there is no branding folder). `branding` defaults
-    to system/branding. Only a file inside the folder counts (see _inside)."""
+    to branding. Only a file inside the folder counts (see _inside)."""
     base = branding_base(branding)
     return None if base is None else _first_inside(base, (*LOCAL_LOGOS, "assets/logo-*.png"))
 

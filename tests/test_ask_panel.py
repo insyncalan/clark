@@ -205,7 +205,7 @@ class Panel(Base):
     def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
         with chrome() as cdp:
             p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-new').textContent"), "New chat")
+            self.assertEqual(p.js("document.querySelector('#ask-new').getAttribute('aria-label')"), "New chat")
             self.ask(p, "When is go-live?")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
             p.js("document.querySelector('#ask-new').click()")

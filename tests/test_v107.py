@@ -8,6 +8,7 @@ tests, skip until the cut commit sets 1.0.7 in src/clark/__init__.py; from then 
 status table is MERGED or DROPPED, and no WAIT heading is left in the notes. The data layout stays at 20.
 """
 import ast
+import os
 import re
 import unittest
 
@@ -44,12 +45,32 @@ COVERED = [
      'test_menu_icons::Browser::test_status_and_priority_menus_show_the_icon_and_the_same_words'),
     ('1075', 'A message at the foot of the page goes after 5 seconds with a bar that shrinks, and Ctrl+Z still undoes after it.',
      'test_toast_five_seconds::ToastFiveSeconds::test_the_message_is_still_there_at_4_seconds_and_gone_by_6_and_the_bar_shrinks'),
+    ('1076', 'clark opens as a page in an ordinary Chrome window at clark.localhost, and the notes say the saved views start again once.',
+     'test_launcher::Launch::test_the_address_is_clark_localhost_with_the_port_for_chrome_and_127_0_0_1_for_the_rest'),
     ('1082', 'Show history under Latest update lists the changes, five in view, and reads Hide history while open.',
      'test_peek_history_1082::Browser::test_five_in_view_the_rest_scroll_and_the_link_toggles'),
     ('1083', 'The Milestones list has a light line and space between milestones at 1400 and 900 px.',
      'test_milestones_spacing::Spacing::test_the_live_page_at_1400_and_900_light_and_dark'),
     ('1089', 'Help has The brand kit guide with what a kit holds, the limits and how to install one.',
      'test_help_guide_brand_kit::TheBrandKitGuide::test_it_says_what_a_kit_holds'),
+    ('1106', 'The window that asks what to import opens with the sheets ticked last time ticked.',
+     'test_import_remembers_sheets::StartSheets::test_only_the_sheets_ticked_last_time_are_ticked'),
+    ('1108', 'The Use case summary shows the first 5 use cases, with Show all and Show the first 5.',
+     'test_uc_summary_five::FirstFive::test_with_more_the_first_five_show_and_the_control_expands_and_reduces_while_the_count_stays'),
+    ('1092', 'Settings is in the profile circle menu and the project menu lists only projects.',
+     'test_profile_menu::ProfileMenu::test_C_the_menu_has_a_separator_before_settings_and_the_appearance_group_below_it'),
+    ('1107', 'A use case page links the use case to a milestone with Link a milestone and Unlink takes it away, each with Undo.',
+     'test_uc_milestones_change::Change::test_remove_keeps_the_row_and_undo_puts_the_link_back'),
+    ('1109', 'When the folder window cannot open, a box to type the folder location appears with Add folder.',
+     'test_ask_settings::Settings::test_when_no_window_can_open_a_box_to_type_the_location_appears'),
+    ('1110', 'In an opened use case row each next step shows at most two lines and a click opens its peek.',
+     'test_next_clamp_1110::NextClamp::test_a_long_step_is_two_lines_with_icon_and_id_beside_it_and_a_click_opens_the_peek'),
+    ('1111', 'In a published file a use case opens its own read only page with its work items and milestones.',
+     'test_publish_uc_page::TheFilesUseCasePage::test_a_client_opens_the_page_and_sees_it_read_only'),
+    ('1112', 'In a published file a tile that counts work items opens the Work items page showing what it counts.',
+     'test_glance_page::Published::test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts'),
+    ('1114', 'In a published file a milestone row, mark or chip opens a read-only peek.',
+     'test_publish_ms_open::PublishedMilestonesOpen::test_a_row_a_mark_and_a_chip_open_the_read_only_peek'),
 ]
 
 # The first sentence of each bullet, to find it by: {row id: start of its bullet}. Filled with COVERED.
@@ -65,9 +86,19 @@ BULLET_STARTS = {
     '1073': '"+ New view" makes a view at once, named View 1, View 2 and so on; you can rename it.',
     '1074': 'Each choice in a drop-down of the peek, the table cells and the milestone peek shows a small icon beside its words',
     '1075': 'A message at the foot of the page goes after 5 seconds',
+    '1076': 'clark now opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
     '1082': 'In the peek of an action, "Show history" under Latest update lists the changes to that one field, newest first.',
     '1083': 'In the Milestones list, a light line and a little space separate each milestone from the next.',
     '1089': 'Help has a new guide, "The brand kit guide"',
+    '1106': 'The window that asks what to import opens with the sheets you ticked last time',
+    '1108': 'The Use case summary shows the first 5 use cases',
+    '1092': "Settings is in the profile circle's menu again",
+    '1107': "On a use case's page you can link the use case straight to a milestone",
+    '1109': 'When the folder window cannot open, Choose folder says so',
+    '1110': 'In an opened use case row, each next step shows at most two lines',
+    '1111': 'In a published file, a use case opens its own page',
+    '1112': 'In a published file, the At a glance tiles that count work items',
+    '1114': "In a published file, a milestone's row, mark or chip opens a read-only peek.",
 }
 
 # Merged rows with no visible change.
@@ -147,6 +178,26 @@ def bullets(notes):
             inside = line in SECTIONS
         elif inside and line.startswith("- "):
             out.append(line)
+    return out
+
+
+def bullets_are_final(found_version, env=None):
+    """True from the cut on: once the version says 1.0.7 every merged row needs its bullet. V107_FINAL=1 asks for it earlier."""
+    return found_version == VERSION or (os.environ.get("V107_FINAL") if env is None else env) == "1"
+
+
+def bullet_problems(found, covered, final):
+    """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
+    out = []
+    for item in sorted(covered):
+        n = sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item]))
+        if n > 1 or (final and n == 0):
+            out.append("%s has %d bullets, wanted %s" % (item, n, "one" if final else "at most one"))
+    if covered:
+        starts = [BULLET_STARTS[i] for i in covered]
+        out += ["a bullet for no merged row: " + b[:40] for b in found if not any(b.startswith("- " + t) for t in starts)]
+    if final and not found:
+        out.append("the notes hold no bullet")
     return out
 
 
@@ -299,19 +350,51 @@ class Notes(unittest.TestCase):
             self.assertNotRegex(text, r"(?i)\bthe head\b")
 
     def test_a_bullet_is_only_for_a_merged_visible_row_and_none_waits(self):
-        found = bullets(self.text)
+        """A merged row may lack its bullet until the cut; from the cut (version 1.0.7, which this class runs at) exactly one for each is demanded."""
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
-        self.assertTrue(found, "the notes hold no bullet")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        if covered:         # once the bookkeeping has filled COVERED: one bullet for each covered row
-            self.assertEqual(len(found), len(covered), "one bullet for each merged visible row, and no other")
-            for item in covered:
-                self.assertEqual(sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item])), 1, "%s has one bullet" % item)
+        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version())), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
         self.assertNotRegex(self.text, r"(?m)^\| ")
+
+
+class BulletsFinalCheck(unittest.TestCase):
+    """Self-test of the cut-time check: a merged row without a bullet fails with V107_FINAL=1 and passes without it."""
+
+    ROWS = {"1", "2"}
+
+    def setUp(self):
+        self._saved = dict(BULLET_STARTS)
+        BULLET_STARTS.update({"1": "Alpha ", "2": "Beta "})
+
+    def tearDown(self):
+        BULLET_STARTS.clear()
+        BULLET_STARTS.update(self._saved)
+
+    def test_a_missing_bullet_fails_only_when_final(self):
+        found = ["- Alpha one"]
+        self.assertEqual(bullet_problems(found, self.ROWS, False), [])
+        self.assertTrue(bullet_problems(found, self.ROWS, True))
+
+    def test_every_bullet_there_passes_when_final(self):
+        self.assertEqual(bullet_problems(["- Alpha one", "- Beta two"], self.ROWS, True), [])
+
+    def test_a_duplicate_or_stray_bullet_fails_either_way(self):
+        self.assertTrue(bullet_problems(["- Alpha one", "- Alpha again"], self.ROWS, False))
+        self.assertTrue(bullet_problems(["- Alpha one", "- Gamma"], self.ROWS, False))
+
+    def test_the_check_switches_on_by_itself_at_the_cut(self):
+        self.assertTrue(bullets_are_final(VERSION, env=""), "version 1.0.7 demands every bullet, with no env set")
+        self.assertFalse(bullets_are_final("1.0.6", env=""), "before the cut a missing bullet is tolerated")
+        self.assertTrue(bullets_are_final("1.0.6", env="1"), "V107_FINAL=1 asks for it early")
+
+    def test_dropping_a_bullet_fails_in_the_cut_state(self):
+        found = ["- Alpha one"]                      # Beta's bullet dropped
+        self.assertTrue(bullet_problems(found, self.ROWS, bullets_are_final(VERSION, env="")))
+        self.assertEqual(bullet_problems(found, self.ROWS, bullets_are_final("1.0.6", env="")), [])
 
 
 class Cut(unittest.TestCase):

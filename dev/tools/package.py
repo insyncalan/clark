@@ -54,6 +54,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import zipfile
 from pathlib import Path
 
@@ -125,7 +126,7 @@ These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.md is this
 page. Double-click clark.command to start clark. docker is for starting clark
-with Docker. system/branding holds your own logo and colours, if you add them.
+with Docker. branding holds your own logo and colours, if you add them.
 The program files are in a hidden folder called .app: you do not need to open
 it.
 
@@ -170,8 +171,9 @@ If you already have clark:
   2. Rename your old clark folder (for example to clark-old) or move it away,
      so the two folders do not clash.
   3. Unzip this download.
-  4. If you added your own logo or colours, copy the system/branding folder
-     from the old clark folder into the new one. An update never changes that
+  4. If you added your own logo or colours, copy the branding folder
+     (an older clark keeps it in system/branding) from the old clark folder into
+     the new one. An update never changes that
      folder, but replacing the whole clark folder by hand removes it.
   5. If you use Docker and your data is in a data folder inside the old clark
      folder, move that data folder out of it before you delete the old folder,
@@ -247,7 +249,8 @@ def version(root=ROOT):
     return found.group(1)
 
 
-GIT_TIMEOUT = 60     # seconds; git is never waited on for ever (a hang reads as 'git cannot say')
+GIT_TIMEOUT = 60     # seconds; every git call in this file is given this limit. A hang reads as 'git cannot say': the
+                     # audience, snapshot and tag checks refuse or fall back, files() and uncommitted() refuse, released_on() uses today
 
 
 def tracked(root, paths):
@@ -266,7 +269,11 @@ def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
-        found = tracked(root, [item]) if item.endswith("/") else [item]
+        try:
+            found = tracked(root, [item]) if item.endswith("/") else [item]
+        except subprocess.TimeoutExpired:
+            raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files under {item} can't be listed. "
+                          "Nothing was written. Try again.") from None
         if not found or not all((Path(root) / zip_source(p, root)).is_file() for p in found):
             raise Refused(MISSING_FILE.format(what=item))
         kept.update(p for p in found if protected(p))
@@ -294,9 +301,9 @@ def with_extra_folders(text, names):
     import textwrap
     head, found, rest = text.partition("What is in this folder:")
     para, blank, tail = rest.partition("\n\n")
-    if not found or "system/branding holds" not in para:
+    if not found or "branding holds" not in para:
         raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
-    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    flat = " ".join(para.split()).replace("branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " branding holds", 1)
     glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
     return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
 
@@ -354,8 +361,11 @@ def snapshot_problem(root):
         return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
-    log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
-                         capture_output=True, text=True)
+    try:
+        log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
+                             capture_output=True, text=True, timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say who made its last commit, so it isn't a public snapshot"
     neutral = [pub.AUTHOR_NAME, pub.AUTHOR_EMAIL] * 2
     if log.returncode != 0 or log.stdout.splitlines() != neutral:
         return "its last commit was not made by the publish tool, so it isn't a public snapshot"
@@ -398,7 +408,11 @@ def schema_version(root=ROOT):
 
 def released_on(root=ROOT):
     """The date of the last commit, YYYY-MM-DD, so two builds of the same commit are byte for byte the same."""
-    out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True)
+    try:
+        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return datetime.date.today().isoformat()
     day = out.stdout.strip()
     return day if out.returncode == 0 and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day) else datetime.date.today().isoformat()
 
@@ -435,7 +449,7 @@ COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
 
 def compose_for_zip(data):
     """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
-    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so branding is still seen);
     anything else about it is refused, so a changed compose file never ships half-changed."""
     text = data.decode("utf-8")
     lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
@@ -455,7 +469,7 @@ def placed_bytes(name, data):
 # Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
 # EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
 EXTRA_MAX_BYTES = 5 * 1024 * 1024
-RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "branding", "clark")
 
 
 def extra_name(path):
@@ -540,15 +554,23 @@ def entries(system, root=ROOT, extra_folders=()):
 
 
 def uncommitted(root, paths):
-    out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
-                         capture_output=True, check=True, text=True).stdout
+    try:
+        out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
+                             capture_output=True, check=True, text=True, timeout=GIT_TIMEOUT).stdout
+    except subprocess.TimeoutExpired:
+        raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files can't be checked for changes that aren't "
+                      "committed. Nothing was written. Try again.") from None
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
 def tag_problem(root, ver):
     """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
     The v0.2.1 download was built from a tree that was not its tag (#400)."""
-    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    try:
+        run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say which tag this folder is at"
     if run.returncode != 0:
         return "git could not say which tag this folder is at"
     if f"v{ver}" not in run.stdout.split():
@@ -755,6 +777,80 @@ def shown(path):
         except ValueError:
             pass
     return str(path)
+
+
+# ---- Image papers (item 637): THIRD-PARTY-IMAGE.txt and an SBOM for the stock container image. Generators only; the build does not call them.
+
+def image_packages(status):
+    """The installed packages in a dpkg status file: [{name, version, arch}], sorted by name."""
+    found = []
+    for block in re.split(r"\n\s*\n", status.strip()):
+        fields = {}
+        for line in block.splitlines():
+            if line[:1] in (" ", "\t") or ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            fields[key.strip().lower()] = value.strip()
+        if "package" in fields and fields.get("status", "").split()[-1:] == ["installed"]:
+            found.append({"name": fields["package"], "version": fields.get("version", ""), "arch": fields.get("architecture", "")})
+    return sorted(found, key=lambda p: p["name"])
+
+
+_GPL_OPTION = re.compile(                                                                                       # a GPL that stands on its own beside LGPL text: a GPL-x token, or "or"/"either" wording joining the two
+    r"(?<![A-Za-z])GPL\b|(?<![/\w])(?:or|either)\s+(?:the\s+)?(?:GNU\s+)?General Public|Lesser General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?General Public|GNU General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?Lesser", re.I)
+
+
+def image_licences(copyright_text):
+    """The licence names a copyright file states: its 'License:' lines, or well-known names found in free text."""
+    names = set()
+    for m in re.finditer(r"^License:\s*(.+)$", copyright_text or "", re.M):
+        names.update(part.strip() for part in re.split(r"\s+(?:and|or)\s+|,", m.group(1)) if part.strip())
+    if not names and copyright_text:
+        for label, rx in (("LGPL", r"GNU (?:Lesser|Library) General Public"), ("GPL", r"GNU General Public"),
+                          ("Apache-2.0", r"Apache License"), ("MIT", r"\bMIT\b|Expat"), ("BSD", r"\bBSD\b"),
+                          ("PSF-2.0", r"Python Software Foundation"), ("public-domain", r"public[- ]domain")):
+            if re.search(rx, copyright_text, re.I):
+                names.add(label)
+        if "LGPL" in names and _GPL_OPTION.search(copyright_text):
+            names.add("GPL")
+        elif "LGPL" in names:
+            names.discard("GPL")  # the LGPL text itself names the GPL; that alone does not make the package GPL
+    return sorted(names)
+
+
+def _purl_part(text, safe=""):
+    """One package-URL segment, percent-encoded as the purl spec asks (+, @, spaces, slashes and so on)."""
+    return urllib.parse.quote(text or "", safe=safe)
+
+
+def image_sbom(packages, copyrights, pip=(), base=""):
+    """A CycloneDX 1.5 document (a dict): the Debian packages, the pip packages and the base image."""
+    components = []
+    for p in packages:
+        comp = {"type": "library", "name": p["name"], "version": p["version"],
+                "purl": f"pkg:deb/debian/{_purl_part(p['name'])}@{_purl_part(p['version'], ':')}?arch={_purl_part(p['arch'])}"}
+        lic = image_licences(copyrights.get(p["name"], ""))
+        if lic:
+            comp["licenses"] = [{"license": {"name": name}} for name in lic]
+        components.append(comp)
+    for item in pip:
+        components.append({"type": "library", "name": item["name"], "version": item["version"],
+                           "purl": f"pkg:pypi/{_purl_part(item['name'].lower().replace('_', '-'))}@{_purl_part(item['version'])}"})
+    return {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+            "metadata": {"component": {"type": "container", "name": base or "image", "version": ""}}, "components": components}
+
+
+def image_third_party(packages, copyrights, pip=(), base=""):
+    """THIRD-PARTY-IMAGE.txt as one string: every package with its version and licences."""
+    lines = ["Third-party software in the container image", "",
+             f"Base image: {base or 'not named'}. Each package keeps its own licence, which applies to that package and not to clark's own code.",
+             "", f"Debian packages ({len(packages)}): name, version, licences", ""]
+    for p in packages:
+        lic = ", ".join(image_licences(copyrights.get(p["name"], ""))) or f"see /usr/share/doc/{p['name']}/copyright in the image"
+        lines.append(f"  {p['name']} {p['version']}: {lic}")
+    if pip:
+        lines += ["", f"Python packages ({len(pip)}):", ""] + [f"  {i['name']} {i['version']}" for i in pip]
+    return "\n".join(lines) + "\n"
 
 
 def build_both(args, notes):

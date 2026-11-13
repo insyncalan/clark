@@ -70,6 +70,18 @@ class TopBarActions(Base):
             p.js("new Promise(r => setTimeout(r, 300))")
             self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "not while a menu is open")
 
+    def test_ctrl_j_does_nothing_while_help_is_open(self):
+        """Help's Mod+J row says it does nothing while Help or another dialog is open (row 1040)."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.key("?", 0, "Slash", 191)
+            p.until("!!document.querySelector('#help-peek')", "the Help peek opened")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+            p.until("!!document.querySelector('#help')", "full Help opened")
+            p.key("j", 2, "KeyJ", 74)
+            p.js("new Promise(r => setTimeout(r, 300))")
+            self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "Ctrl + J must not open ask clark over Help")
+
     def test_the_ask_button_is_not_there_while_asking_is_off(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400, asking=False)

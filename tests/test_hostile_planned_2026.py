@@ -32,6 +32,13 @@ class ReaderHostile(unittest.TestCase):
         for words in ("planned 2026-12-01", "planned 2026/12/01", "planned 2026.5"):
             self.assertEqual(commitment_of(read(words)), [], words)
 
+    def test_the_year_is_a_whole_word_and_so_is_planned(self):
+        # mutation hunt on row 1061: with no word edge after 2026 (or before planned), "planned 20261" and "replanned 2026" read as the flag
+        for words in ("planned 20261", "planned 2026x", "planned 2026a", "replanned 2026", "unplanned 2026", "planned for 20267"):
+            self.assertEqual(commitment_of(read(words)), [], words)
+        self.assertEqual(commitment_of(read("planned 2026")), ["Planned 2026"])
+        self.assertEqual(commitment_of(read("it is planned for 2026.")), ["Planned 2026"])
+
     def test_the_old_word_is_no_longer_read_as_a_flag(self):
         for words in ("candidate", "Candidate", "make it a CANDIDATE"):
             r = read(words)

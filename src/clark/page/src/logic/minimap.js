@@ -90,7 +90,7 @@ export function countOf(section, d, today, client) {
     case "usecases": return some(live(data.use_cases).filter((u) => u.status && !CALM_WORDS.includes(u.status)).length, "flagged");
     case "milestones": return some(milestoneRows(data.milestones, on, !!client).filter((m) => m.slip > 0).length, "slipped");
     case "actions": {
-      const open = live(data.actions).filter(isOpen), late = open.filter((r) => r.due_date && r.due_date < on).length;
+      const open = live(data.actions).filter(isOpen), late = open.filter((r) => r.due_date && r.due_date < on && r.status !== "Completed").length;
       return late ? some(late, "late") : open.length ? { text: String(open.length), hot: false } : null;
     }
     case "raid": {

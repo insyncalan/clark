@@ -990,6 +990,73 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "due cleared")
                 self.assertEqual(self.row("actions", "TUL-A-001")["due_date"], "2026-11-02")
 
+    def test_date_tab_lands_on_the_next_control_when_the_redraw_is_slow_and_the_row_is_drawn_again(self):
+        # The flake behind the date Tab: the redraw lands after the one-shot 60 ms fallback, and the row's date control is replaced, so the
+        # fallback (holding the old control) gave up and focus ended on the body. Made deterministic: after the Tab the page eats the browser's
+        # own step, drops focus, swaps the date control for a copy and holds the main thread for 150 ms.
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cell = "[data-cell='TUL-A-001:due']"
+            cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "Enter opens the date panel")
+            cdp.js("""document.addEventListener('keydown', function f(e) {
+                if (e.key !== 'Tab') return;
+                document.removeEventListener('keydown', f);
+                e.preventDefault();
+                document.activeElement.blur();
+                const c = document.querySelector(%s); c.replaceWith(c.cloneNode(true));
+                const t = performance.now(); while (performance.now() - t < 150) {}
+            });""" % json.dumps(cell), sid)
+            key(cdp, sid, "Tab")
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closes the panel")
+            landed = wait(lambda: cdp.js(ON_PAGE, sid), 10)
+            self.assertTrue(landed, f"focus carried on to the next control, not the body (focus is on: {cdp.js(WHERE, sid)})")
+
+    def tab_eaten_from_the_date(self, shift, replace_cell):
+        """Open the date panel of TUL-A-001's due date, make the page eat the browser's own Tab step (focus dropped to nothing), press Tab (or
+        Shift+Tab); return what the carry-on landed on: [it is the control the first tabbable neighbour of the date cell, what is focused]."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cell = "[data-cell='TUL-A-001:due']"
+            cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "Enter opens the date panel")
+            # Mark the control that should get focus: the nearest tabbable one after (before, for Shift+Tab) the date cell, outside the panel.
+            marked = cdp.js("""(function (cell, back) {
+                const from = document.querySelector(cell);
+                const all = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]")]
+                    .filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length && !n.closest("[data-pop]") && !from.contains(n) && !n.contains(from));
+                const before = all.filter((n) => from.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_PRECEDING);
+                const after = all.filter((n) => from.compareDocumentPosition(n) & Node.DOCUMENT_POSITION_FOLLOWING);
+                const want = back ? before[before.length - 1] : after[0];
+                if (!want) return false;
+                want.setAttribute("data-want-focus", "1");
+                return true;
+            })(%s, %s)""" % (json.dumps(cell), "true" if shift else "false"), sid)
+            self.assertTrue(marked, "something tabbable lies on that side of the date")
+            cdp.js("""document.addEventListener('keydown', function f(e) {
+                if (e.key !== 'Tab') return;
+                document.removeEventListener('keydown', f);
+                e.preventDefault();
+                document.activeElement.blur();
+                if (%s) { const c = document.querySelector(%s); c.replaceWith(c.cloneNode(true)); }
+            });""" % ("true" if replace_cell else "false", json.dumps(cell)), sid)
+            common = {"key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9, **({"modifiers": 8} if shift else {})}
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", **common}, sid)
+            cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", **common}, sid)
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closes the panel")
+            right = wait(lambda: cdp.js("!!document.activeElement && document.activeElement.hasAttribute('data-want-focus')", sid), 10)
+            return right, cdp.js(WHERE, sid)
+
+    def test_date_tab_carries_focus_to_the_next_control_by_hand(self):
+        right, where = self.tab_eaten_from_the_date(shift=False, replace_cell=False)
+        self.assertTrue(right, f"Tab lands on the control after the date, not another (focus is on: {where})")
+
+    def test_date_shift_tab_carries_focus_back_to_the_control_before(self):
+        right, where = self.tab_eaten_from_the_date(shift=True, replace_cell=False)
+        self.assertTrue(right, f"Shift+Tab lands on the control before the date (focus is on: {where})")
+
     def test_every_inline_date_closes_on_one_esc_a_click_away_or_tab_and_changes_nothing(self):
         # #91: an action's due date, a pending decision's needed-by date and a made decision's date. Each is one panel of clark's
         # own (no browser calendar opens over it), so one Esc closes it; a click away and Tab close it too, and none of them sends
@@ -1051,6 +1118,30 @@ class Live(unittest.TestCase):
                         self.until(cdp, sid, "!document.querySelector('[data-pop]') && !(document.activeElement && document.activeElement.closest('[data-pop]'))",
                                    f"{ref}: nothing follows the date, so Tab leaves the panel and the page without a stuck focus")
                     self.assertEqual(self.cell_text(cdp, sid, ref, "due")[:10], f"{was[8:10]}-{was[5:7]}-{was[:4]}", f"{ref}: the row still shows its date")
+
+    def test_tab_out_of_a_date_panel_makes_it_inert_and_lands_on_the_next_control_even_if_focus_is_lost(self):
+        # Row 1391. The other Tab test passes with the fix removed (checked by mutation), so this one pins the two parts of the fix:
+        # the closing panel is made inert at once (the browser's own Tab step cannot land in it), and if focus ends on nothing anyway,
+        # the page carries on from the date to the next control after it, not to any control.
+        ref, cell = "TUL-A-001", "[data-cell='TUL-A-001:due']"
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            click(cdp, sid, cell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "the date panel opened")
+            self.until(cdp, sid, "document.activeElement && !!document.activeElement.dataset.day", "focus is on a day")
+            # The control that must get focus is found by position, again each time it is asked (a redraw replaces nodes, so a mark on one is lost).
+            cdp.js("window.__nextAfter = () => { const c = document.querySelector(%s); if (!c) return null; const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
+                   ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop],[inert]') && !c.contains(e));"
+                   " return all.find(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) || null; }" % json.dumps(cell), sid)
+            self.assertTrue(cdp.js("!!window.__nextAfter()", sid), "something is tabbable after the date (the fixture has it)")
+            cdp.js("window.__inert = false; new MutationObserver(rs => { for (const r of rs) if (r.target.matches && r.target.matches('[data-pop]') && r.target.hasAttribute('inert')) window.__inert = true; })"
+                   ".observe(document.body, {attributes: true, subtree: true, attributeFilter: ['inert']});"
+                   " document.addEventListener('keydown', e => { if (e.key === 'Tab') { let n = 0; const t = setInterval(() => { if (document.activeElement) document.activeElement.blur(); if (++n >= 9) clearInterval(t); }, 5); } });", sid)
+            key(cdp, sid, "Tab")
+            self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closed the panel")
+            self.assertTrue(cdp.js("window.__inert", sid), "the closing panel was made inert")
+            self.until(cdp, sid, "!!document.activeElement && document.activeElement === window.__nextAfter()", "focus was lost, then carried on to the control after the date", 5)
+
 
     def test_a_made_decisions_date_can_change_but_not_be_cleared(self):
         with chrome() as cdp:

@@ -7,7 +7,7 @@ import { project, reread, token } from "../stores/report.js";
 import { sendUndo } from "../api.js";
 import { showDate } from "../workItems.js";
 import { plainText } from "../logic/cleanHtml.js";
-import { panelState } from "./askPanelState.js";
+import { panelState, turns } from "./askPanelState.js";
 import * as W from "./askWords.js";
 
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
@@ -40,16 +40,22 @@ export function ChangeCards({ turn }) {
           ))}
         </div>
       ) : null}
-      {(turn.plans || []).map((plan, i) => <ChangeCard key={i} plan={plan} fromSource={!!turn.fromSource} passages={passages.length} />)}
+      {(turn.plans || []).map((plan, i) => <ChangeCard key={i} plan={plan} turn={turn} index={i} passages={passages.length} />)}
     </div>
   );
 }
 
-function ChangeCard({ plan, passages }) {
-  const [state, setState] = useState("offered");       // offered | saving | done | undoing | undone | failed
+// The card's state (offered | saving | done | undoing | undone | failed, its line and Undo step) lives on the turn, not in the card, so it
+// survives the panel being closed and opened again (the panel draws nothing while closed). The turn is replaced, never changed in place.
+function ChangeCard({ plan, turn, index, passages }) {
+  const kept = (turn.cards && turn.cards[index]) || {};
+  const state = kept.state || "offered", line = kept.line || "", step = kept.step === undefined ? null : kept.step;
   const [ticked, setTicked] = useState(false);
-  const [line, setLine] = useState("");
-  const [step, setStep] = useState(null);
+  const keep = (more) => {                          // found again by its plans, which every copy of the turn shares
+    turns.value = turns.value.map((t) => t.plans !== turn.plans ? t
+      : { ...t, cards: { ...(t.cards || {}), [index]: { ...((t.cards && t.cards[index]) || {}), ...more } } });
+  };
+  const setState = (v) => keep({ state: v }), setLine = (v) => keep({ line: v }), setStep = (v) => keep({ step: v });
   const live = panelState.value === "ready";
 
   if (!plan || plan.ok !== true) {
