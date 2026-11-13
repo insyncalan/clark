@@ -207,10 +207,10 @@ def container_host_in_synced(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
-    for i, part in enumerate(path.parts):
+    parts = [p for p in re.split(r"[\\/]+", host) if p]       # the Mac or Windows path read by name, whatever the separator
+    for i, part in enumerate(parts):
         low = part.casefold()
-        under_storage = i > 0 and path.parts[i - 1].casefold() == "cloudstorage"
+        under_storage = i > 0 and parts[i - 1].casefold() == "cloudstorage"
         if _dropbox_name(part) or (under_storage and low.startswith("dropbox")):
             service = "Dropbox"
         elif low.startswith("googledrive-") or low in ("google drive", "my drive"):
@@ -219,7 +219,7 @@ def container_host_in_synced(environ=None):
             service = "iCloud Drive"
         else:
             continue
-        return service, Path(*path.parts[:i + 1])
+        return service, Path(*parts[:i + 1])
     return None
 
 
@@ -421,7 +421,8 @@ def shown(path, home=None):
         return str(path)
 
 
-_HOST_HOME = re.compile(r"^(?:\\\\\?\\UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|\\\\\?\\|\\\\[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/]))?"
+_HOST_HOME = re.compile(r"^(?:\\\\\?\\UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|\\\\\?\\|\\\\[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])"
+                        r"|/host_mnt(?=/)|/run/desktop/mnt/host(?=/)|/Volumes/[^/]+(?=/Users/)|/mnt(?=/[A-Za-z]/Users/))?"
                         r"(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+|Users[\\/]+[^\\/]+)(?=[\\/]|$)",
                         re.IGNORECASE)
 
@@ -444,7 +445,9 @@ def host_shown(path):
     copied into a report or an email."""
     text = _HOST_HOME.sub("~", str(path), count=1)
     parts = re.split(r"([\\/]+)", text)
-    return "".join(_without_account(x) if i % 2 == 0 else x for i, x in enumerate(parts)).replace("//", "/").replace("/ /", "/")
+    joined = "".join(_without_account(x) if i % 2 == 0 else x for i, x in enumerate(parts))
+    lead = re.match(r"/*", joined).group()                      # a leading "//?/" is left as written; only a gap made by a dropped name closes up
+    return lead + joined[len(lead):].replace("//", "/").replace("/ /", "/")
 
 
 def _synced_refusal(where, service):

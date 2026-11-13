@@ -102,6 +102,30 @@ class RefusalWords(unittest.TestCase):
                 self.assertEqual(pl.host_shown(raw), shown)
                 self.assertNotIn("@", pl.host_shown(raw))
 
+    def test_host_shown_hides_the_name_behind_a_mount_prefix(self):
+        for raw, shown in (("/host_mnt/c/Users/Al/Dropbox/c", "~/Dropbox/c"),
+                           ("/run/desktop/mnt/host/c/Users/Al/Dropbox/c", "~/Dropbox/c"),
+                           ("/Volumes/X/Users/Al/Dropbox/c", "~/Dropbox/c"),
+                           ("/mnt/c/Users/Al/Dropbox/c", "~/Dropbox/c")):
+            with self.subTest(raw=raw):
+                self.assertEqual(pl.host_shown(raw), shown)
+                self.assertNotIn("Al", pl.host_shown(raw))
+
+    def test_host_shown_keeps_a_leading_double_slash(self):
+        self.assertEqual(pl.host_shown("//?/C:/x"), "//?/C:/x")
+        self.assertEqual(pl.host_shown("/Users/sam/sam@example.org/clark"), "~/clark")
+
+    def test_a_windows_host_folder_in_each_service_is_refused(self):
+        for service, path in (("Dropbox", "C:\\Users\\a\\Dropbox\\x"), ("Dropbox", "\\\\?\\C:\\Users\\a\\Dropbox\\x"),
+                              ("Google Drive", "C:\\Users\\a\\Google Drive\\x"), ("Dropbox", "\\\\srv\\share\\Dropbox"),
+                              ("Dropbox", "C:/Users/a/Dropbox/x")):
+            with self.subTest(path=path):
+                with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1"}), \
+                        mock.patch.object(pl.os.path, "exists", side_effect=lambda p: p == "/.dockerenv"):
+                    got = pl.container_host_in_synced({"CLARK_DATA_SOURCE": path})
+                self.assertIsNotNone(got)
+                self.assertEqual(got[0], service)
+
     def test_the_home_folder_is_not_spelled_out_in_it(self):
         self.assertNotIn(str(self.home), self.refuse("Dropbox"))
 
