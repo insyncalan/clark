@@ -415,7 +415,7 @@ def shown(path, home=None):
         return str(path)
 
 
-_HOST_HOME = re.compile(r"^(?:\\\\\?\\|\\\\[^\\/]+[\\/]+(?=Users[\\/]))?"
+_HOST_HOME = re.compile(r"^(?:\\\\\?\\UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|\\\\\?\\|\\\\[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/]))?"
                         r"(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+|Users[\\/]+[^\\/]+)(?=[\\/]|$)",
                         re.IGNORECASE)
 
