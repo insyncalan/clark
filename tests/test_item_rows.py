@@ -390,6 +390,13 @@ class EditRows(unittest.TestCase):
             self.assertEqual(p.js(f"document.querySelector({row!r} + ' .c-owner').title"), p.js(f"document.querySelector({row!r} + ' .nm').textContent.trim()"),
                              "the owner is cut with an ellipsis, so its title gives it in full")
 
+    def test_a_colon_that_is_not_after_a_name_stays_in_the_words(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for text in ("Fix the 10:30 call with the supplier", "Read https://example.com/plan today", "Note: check the dates"):
+                row = self.add_line(p, "[data-add-line=actions]", text, "actions", "description", text)
+                self.assertEqual((row["owner"], row["client_message"]), ("TBC", text), "no owner is known, so the words are whole")
+
     def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
         gone = id_of(self.store, "Supplier delivery may slip")
         with chrome() as cdp:

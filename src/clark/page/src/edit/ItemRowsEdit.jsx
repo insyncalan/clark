@@ -24,12 +24,19 @@ export const WORDS_MAX = __CLARK_ITEM_TITLE_MAX__;      // clark/limits.py ITEM_
 const A = { raid: "a risk", actions: "an action", decisions: "a decision" };
 const PLACEHOLDER = (type) => `+ Add ${A[type]}: type “Owner: what it is”, then Enter`;
 
+const NOT_NAMES = new Set(["note", "notes", "todo", "fyi", "update", "re", "http", "https", "action", "risk", "issue", "decision"]);
+
 // What the add line's text says: "Owner: what it is" gives the owner and the words; with no colon the owner is not known yet.
 export function parseAdd(text) {
   const t = String(text == null ? "" : text).replace(/\s+/g, " ").trim();
   const at = t.indexOf(":");
   if (at < 0) return { owner: "", what: t };
-  return { owner: t.slice(0, at).trim(), what: t.slice(at + 1).trim() };
+  const who = t.slice(0, at).trim();
+  // Only a name before a colon and a space (or the end) is an owner: a time like 10:30, a link or "Note: x" is part of the words.
+  const looksLikeName = who && who.split(" ").length <= 3 && !/\d/.test(who) && !/[/\\@]/.test(who)
+    && (at === t.length - 1 || t[at + 1] === " ") && !NOT_NAMES.has(who.toLowerCase());
+  if (!looksLikeName) return { owner: "", what: t };
+  return { owner: who, what: t.slice(at + 1).trim() };
 }
 
 // The request that adds one row: the words are the row's text and its client wording, because a row with no client wording is
