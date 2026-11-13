@@ -260,3 +260,12 @@ class TheHelpLine(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TheGanttTitle(unittest.TestCase):
+    def test_the_bar_shows_the_gantt_pages_own_title_when_the_file_carries_one(self):
+        top = (SRC / "clark" / "page" / "src" / "components" / "TopBar.jsx").read_text(encoding="utf-8")
+        self.assertIn('data.value.gantt && typeof data.value.gantt.title === "string"', top)
+        self.assertIn('(view.value === "gantt" && ganttTitle) || name', top)
+        gantt = (SRC / "clark" / "page" / "src" / "gantt" / "components" / "GanttPage.jsx").read_text(encoding="utf-8")
+        self.assertIn("settings.gantt_title || project.name", gantt, "the Gantt page still names itself the same way")

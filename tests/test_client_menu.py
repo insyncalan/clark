@@ -230,14 +230,14 @@ class Menu(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
             self.assertEqual(cdp.js("document.documentElement.dataset.theme || 'none'", sid), "dark")
 
-    def test_a_dark_page_prints_light_and_the_bar_with_the_menu_does_not_print(self):
+    def test_a_dark_page_prints_light_with_the_one_bar_and_without_the_menu(self):
         with chrome() as cdp:
             js = self.show(cdp)
             self.switch(cdp, js)
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, self.sid)
             js("window.dispatchEvent(new Event('beforeprint'))")
             self.assertTrue(wait(lambda: js("document.documentElement.classList.contains('print-all')")))
-            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', getComputedStyle(document.querySelector('.top')).display]"), ["none", "none"])
+            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', getComputedStyle(document.querySelector('.top')).display]"), ["none", "flex"], "the file's one bar prints once at the top (issue 1146)")
             self.assertEqual(js("document.querySelector('.cm-wrap').getClientRects().length + ' ' + getComputedStyle(document.body).backgroundColor"), "0 rgb(255, 255, 255)")
             cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
             js("window.dispatchEvent(new Event('afterprint'))")
