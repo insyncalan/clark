@@ -135,7 +135,7 @@ function ArchivedUseCases() {
               <li class="arch" key={u.id} data-arch-uc={u.id}>
                 <button type="button" class="link" onClick={() => openUseCase(u.id)}>{u.ref || "Use case"} · {u.title}</button>
                 <span class="tag arch">Archived</span>
-                <button type="button" class="btn sm" data-restore onClick={() => restore(u)}>Restore</button>
+                <button type="button" class="btn sm" data-restore aria-label={`Restore ${u.ref || "Use case"} · ${u.title}`} onClick={() => restore(u)}>Restore</button>
               </li>
             ))}
           </ul>

@@ -1962,9 +1962,15 @@ def _do_tile_change(store, by_user, req, project, table, columns, op, place):
     return 200, {"ok": True, "apply_id": apply_id, "ref": ref, "tiles": _tiles(store, project)}
 
 
-def brand_ids():
-    """#944: the brand ids a project may take: generic and the installed ones. T1 knows only generic; the brand library fills this in."""
-    return {"generic"}
+def brand_ids(root=None):
+    """#944: the brand ids a project may take: generic and the ones installed in the brand library (the legacy single folder is
+    "local-brand"). `root` is the clark folder that holds branding/; none given, the page's own. Read at each call, so a brand
+    added or removed is seen at once; an unreadable library is Generic alone."""
+    from clark import brands, page          # late: the page module is heavy and only this check needs it
+    try:
+        return {"generic"} | {b["id"] for b in brands.installed(page.BRANDING.parent if root is None else root)}
+    except Exception:       # any unreadable library leaves Generic, never a refusal of Generic itself
+        return {"generic"}
 
 
 def _checked_project_changes(fields):
