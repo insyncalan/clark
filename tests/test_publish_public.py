@@ -922,25 +922,35 @@ class TheWiderSecretsScan(Base):
 
 
 class TheVendoredEncryptionFile(Base):
-    """#891: one bundled file the secrets scan misreads is let past by exact path AND exact SHA-256 only (the real-file checks live with the
-    vendoring change; here the mechanism is shown with stand-in bytes)."""
+    """#891: pypdf's _encryption.py is a lawful file the secrets scan misreads (lines like `password = user_password` are code, not a
+    value). It is let past the secrets scan by exact path AND exact SHA-256 only; any other path, or any changed byte, is scanned."""
     PATH = "vendor/pypdf/_encryption.py"
 
-    def found(self, path, data, pins):
-        with mock.patch.object(pp, "SECRET_SCAN_PINNED", pins):
-            return pp.secret_findings([pp.Entry(1, "100644", "0" * 40, len(data), path)], [data])
+    def setUp(self):
+        self.real = (Path(__file__).resolve().parents[1] / self.PATH).read_bytes()
 
-    def test_the_exact_bytes_at_the_exact_path_pass_and_anything_else_is_scanned(self):
-        data = b'token = "' + b"ghp_" + b"a1B2c3D4" * 3 + b'"\n'
-        pins = {self.PATH: hashlib.sha256(data).hexdigest()}
-        self.assertEqual(self.found(self.PATH, data, pins), [])
-        self.assertTrue(self.found("vendor/pypdf/_other.py", data, pins), "another path is scanned")
-        self.assertTrue(self.found(self.PATH, data + b"\n", pins), "a changed byte is scanned")
+    def found(self, path, data):
+        return pp.secret_findings([pp.Entry(1, "100644", "0" * 40, len(data), path)], [data])
+
+    def test_the_exact_file_at_its_path_passes_the_secrets_scan(self):
+        self.assertTrue(pp.scan_secrets_in(self.real), "the scan misreads it; that is why the pin exists")
+        self.assertEqual(self.found(self.PATH, self.real), [])
+
+    def test_the_same_bytes_at_any_other_path_are_scanned(self):
+        for path in ("vendor/pypdf/_other.py", "vendor/other/_encryption.py", "src/clark/_encryption.py", "Vendor/pypdf/_encryption.py"):
+            with self.subTest(path):
+                self.assertEqual(self.found(path, self.real), ["file #1: a password, key or token value"])
+
+    def test_a_changed_byte_or_an_added_secret_at_its_path_is_scanned(self):
+        for data in (self.real + b"\n", self.real.replace(b"import", b"imp0rt", 1), self.real + b'\ntoken = "' + b"ghp_" + b"a1B2c3D4" * 3 + b'"\n'):
+            with self.subTest(len(data)):
+                self.assertTrue(self.found(self.PATH, data))
 
     def test_only_that_one_file_is_pinned_and_the_plain_allow_list_stays_empty(self):
         self.assertEqual(list(pp.SECRET_SCAN_PINNED), [self.PATH])
-        self.assertRegex(pp.SECRET_SCAN_PINNED[self.PATH], r"^[0-9a-f]{64}$")
         self.assertEqual(pp.SECRET_SCAN_ALLOWED, {})
+        import hashlib
+        self.assertEqual(pp.SECRET_SCAN_PINNED[self.PATH], hashlib.sha256(self.real).hexdigest())
 
 
 class TheSize(Base):
@@ -2412,6 +2422,30 @@ class TheVendorLineAllowances(unittest.TestCase):
         self.assertTrue(all(len(v) == 1 for v in pp.VENDOR_LINE_ALLOWED.values()))
         self.assertFalse(any("*" in p or p.endswith("/") for p in self.PATHS))
 
+    def real(self, path):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, path), "rb") as f:
+            return f.read()
+
+    def test_the_real_vendored_file_passes_in_its_own_path(self):
+        for path in self.PATHS:
+            with self.subTest(path):
+                self.assertEqual(pp.guard_kinds(path, self.real(path)), set())
+
+    def test_the_pins_match_ci_scan_and_the_real_files(self):
+        self.assertEqual(pp.VENDOR_LINE_PINS, ci_scan.VENDORED_PINS)
+        for path in self.PATHS:
+            self.assertEqual(hashlib.sha256(self.real(path)).hexdigest(), pp.VENDOR_LINE_PINS[path])
+
+    def test_a_changed_byte_or_an_executable_file_gets_no_allowance(self):
+        for path in self.PATHS:
+            real = self.real(path)
+            with self.subTest(path):
+                self.assertEqual(pp.guard_kinds(path, real + b"\n"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real.replace(b"a", b"b", 1)), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real, "100755"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()), {"a person's name"})
+
     def test_the_same_line_in_another_path_is_refused(self):
         for path in self.PATHS:
             line = pp.VENDOR_LINE_ALLOWED[path][0]
@@ -2420,6 +2454,14 @@ class TheVendorLineAllowances(unittest.TestCase):
                     if line in pp.VENDOR_LINE_ALLOWED.get(other, ()):
                         continue
                     self.assertTrue(self.kinds(other, line + "\n"))
+
+    def test_each_entry_is_a_whole_line_of_the_real_vendored_file(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            with self.subTest(path):
+                with open(os.path.join(root, path), "rb") as f:
+                    self.assertIn(line.encode("utf-8"), f.read().splitlines())
 
     def test_the_two_name_lines_are_refused_elsewhere(self):
         for path in ("vendor/pypdf/LICENSE", "vendor/pypdf/pagerange.py"):

@@ -67,7 +67,7 @@ export function runBulk(table, ids, control, value, { place = "bulk", from = nul
 
 /** Ask a question with Change and Cancel; `yes` runs on Change. `ids` and `from`: where the keyboard goes back to if what had
  *  it has gone. */
-export function ask(question, yes, { ids = null, from = null } = {}) { bulkOpen.value = { what: "ask", question, yes, ids, from, back: document.activeElement }; }
+export function ask(question, yes, { ids = null, from = null, yesLabel = "Change", cancelFirst = false } = {}) { bulkOpen.value = { what: "ask", question, yes, yesLabel, cancelFirst, ids, from, back: document.activeElement }; }
 
 /** Open a control for `ids`: Close and Reopen act at once, the others open their picker at `at`. */
 export function openControl(control, ids, at, place = "bulk", from = null) {
@@ -160,8 +160,8 @@ function Picker({ open }) {
 }
 
 function Ask({ open }) {
-  const yes = useRef(null);
-  useLayoutEffect(() => { if (yes.current) yes.current.focus({ preventScroll: true }); }, []);
+  const yes = useRef(null), no = useRef(null);
+  useLayoutEffect(() => { const f = open.cancelFirst ? no.current : yes.current; if (f) f.focus({ preventScroll: true }); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
   const keys = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
     else if (e.key === "Tab") {                                   // the keyboard stays in the question
@@ -174,8 +174,8 @@ function Ask({ open }) {
       <div class="bask" role="alertdialog" aria-modal="true" aria-labelledby="bask-q" onKeyDown={keys}>
         <p id="bask-q" class="bask-q">{open.question}</p>
         <div class="bask-b">
-          <button type="button" class="btn pri" ref={yes} data-bask="yes" onClick={() => { const y = open.yes; close(); y(); }}>Change</button>
-          <button type="button" class="btn" data-bask="no" onClick={() => close()}>Cancel</button>
+          <button type="button" class="btn pri" ref={yes} data-bask="yes" onClick={() => { const y = open.yes; close(); y(); }}>{open.yesLabel || "Change"}</button>
+          <button type="button" class="btn" ref={no} data-bask="no" onClick={() => close()}>Cancel</button>
         </div>
       </div>
     </div>

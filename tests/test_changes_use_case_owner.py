@@ -154,13 +154,48 @@ class Owner(unittest.TestCase):
                 self.assertEqual(status, 400, body)
                 self.assertEqual(self.row()["owner"], before)
 
+    def test_a_step_that_only_moves_the_link_is_not_undone_from_the_page(self):
+        """The link may be put back only beside its owner text in the same step: a step with the link alone is refused and nothing moves."""
+        with self.s.step(changes.VIA, USER) as st:
+            st.update("use_cases", self.uc, {"owner_id": self.anna})
+        con = sqlite3.connect(str(self.s.path))
+        apply_id = con.execute("SELECT max(apply_id) FROM applies").fetchone()[0]
+        con.close()
+        self.assertEqual(self.row()["owner_id"], self.anna)
+        before = self.counts()
+        status, body = self.undo({"project": "ABC", "apply_id": apply_id})
+        self.assertNotEqual((status, body.get("ok")), (200, True), body)
+        self.assertEqual(self.row()["owner_id"], self.anna)
+        self.assertEqual(self.counts(), before)
+
+    def hand_step(self, writes):
+        """One step written straight to the store on the dashboard's route: writes is [(use case, fields)]."""
+        with self.s.step("dashboard", USER) as st:
+            for ref, fields in writes:
+                st.update("use_cases", ref, fields)
+            return st.apply_id()
+
+    def test_a_link_beside_the_owner_text_of_another_use_case_is_not_undone_from_here(self):
+        with self.s.step("dashboard", USER) as st:
+            other = st.create("use_cases", {"project": "ABC", "title": "Second case", "status": "On track", "source": "demo"})
+        step = self.hand_step([(self.uc, {"owner_id": self.anna}), (other, {"owner": "Anna Example"})])
+        status, undone = self.undo({"project": "ABC", "apply_id": step})
+        self.assertNotEqual((status, undone.get("ok")), (200, True), undone)
+        self.assertEqual(self.row()["owner_id"], self.anna, "nothing was put back")
+
     def test_an_archived_use_case_is_not_edited(self):
         con = sqlite3.connect(str(self.s.path))
         con.execute("UPDATE use_cases SET archived = 1 WHERE id = ?", (self.uc,))
         con.commit()
         con.close()
+        before = self.counts()
         status, body = self.edit({"owner": "Anna Example"})
         self.assertNotEqual(status, 200)
+        self.assertEqual(body.get("message"), changes.ARCHIVED_USE_CASE, "the fixed archived words, not a generic refusal from the store")
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
+        self.assertEqual(self.counts(), before)
+        # mutation kill (confirmed): deleting the `if row["archived"]: raise Refused(ARCHIVED_USE_CASE)` guard in changes._do_use_case
+        # makes the words assertion above fail ("That value isn't one clark can use." from the store instead).
 
     def test_hostile_input_fuzz_is_either_clean_text_or_a_refusal_and_the_table_survives(self):
         import random
