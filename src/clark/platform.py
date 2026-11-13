@@ -459,7 +459,7 @@ def _without_account(segment):
     """One folder name without an e-mail address: "GoogleDrive-name@example.org" is "GoogleDrive", "Backup name@example.org" is
     "Backup", and a name that is only an address goes."""
     segment = re.sub(r"^(dropbox)(?:\s+\((?!personal\)$).*\)|\s+-\s.*)$", r"\1", segment, flags=re.IGNORECASE)   # "Dropbox (Acme Corp)": the company is not shown
-    segment = re.sub(r"^(onedrive)(?:\s*-\s*(?!personal$).*)$", r"\1", segment, flags=re.IGNORECASE)   # "OneDrive - Contoso", "OneDrive-Contoso": the tenant is not shown
+    segment = re.sub(r"^(onedrive)(?:\s*-\s*(?!\s*personal$).*)$", r"\1", segment, flags=re.IGNORECASE)   # "OneDrive - Contoso", "OneDrive-Contoso": the tenant is not shown; "OneDrive - Personal" is kept. Every folder name in the path is treated so, a deeper "OneDrive - Old" too
     if "@" not in segment:
         return segment
     kept = re.sub(r"^([A-Za-z0-9]+)-[^@]*@.*$", r"\1", segment)

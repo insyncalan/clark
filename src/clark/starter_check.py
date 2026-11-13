@@ -6,6 +6,7 @@ files while they are written, which damages the database. Like the container's c
 folder named like a service is refused (safe). The words are platform.check_data_dir's own for OneDrive; the others name the service.
 Run: python3 src/clark/starter_check.py [--env-file docker/.env] [folder]   (exit 0: allowed; exit 1: the refusal on stderr). Standard library only."""
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -56,8 +57,8 @@ def refusal(path):
     for part in resolved.parts:
         service = _service(part)
         if service:
-            tail = f" ({part})" if service == "OneDrive" else ""
-            return (f"Your data can't be kept in {path} because it is inside {service}{tail}. {service} copies files while they are "
+            shown = re.sub(r"(?i)(?<![^\\/])(onedrive)\s*-\s*(?!personal(?:[\\/]|$))[^\\/]*", r"\1", str(path)) if service == "OneDrive" else path   # the tenant folder is the company: not said
+            return (f"Your data can't be kept in {shown} because it is inside {service}. {service} copies files while they are "
                     f"being written, which damages the database. Choose a folder on this computer that {service} doesn't sync.")
     return None
 

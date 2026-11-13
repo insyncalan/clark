@@ -31,12 +31,14 @@ class Decision(unittest.TestCase):
             with self.subTest(path):
                 text = sc.refusal(path)
                 self.assertIsNotNone(text)
-                self.assertIn(f"kept in {path} because it is inside ", text)
+                self.assertNotIn("Fictional", text, "the tenant folder is the company: not said")
+                shown = path.replace(" - Fictional Ltd", "").replace("-Fictional Ltd", "")
+                self.assertIn(f"kept in {shown} because it is inside ", text)
                 self.assertIn("which damages the database", text)
 
     def test_the_onedrive_words_are_the_existing_ones(self):
         text = sc.refusal("/Users/sam/OneDrive - Fictional Ltd/clark")
-        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive - Fictional Ltd/clark because it is inside OneDrive (OneDrive - Fictional Ltd). "
+        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive/clark because it is inside OneDrive. "
                                "OneDrive copies files while they are being written, which damages the database. Choose a folder on this computer "
                                "that OneDrive doesn't sync.")
 
