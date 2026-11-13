@@ -59,18 +59,14 @@ class SectionHandle(Base):
                     for r in rows:
                         where = f"{w} px, {scheme}, {r['id']}"
                         c = r["ctl"]
-                        side = 28 if w >= GUTTER else 0                        # row 1152: from 1304 px the tiles take the frame's 28 px side room, so the handle sits that far outside it
-                        self.assertGreaterEqual(c[0], outer - side, f"{where}: the handle is inside the card's frame, or the side room beside it")
+                        self.assertGreaterEqual(c[0], outer, f"{where}: the handle is inside the card's frame")
                         if w < GUTTER:
                             want = .85 if scheme == "light" else .75                 # #285: .85 in light, .75 in dark (--sh-rest-narrow, brand/tokens.css)
                             self.assertAlmostEqual(r["rest"], want, delta=.05, msg=f"{where}: rests at about {want} below the gutter width")
                         # nothing of the section's own content, only its padding, is under the handle
                         self.assertLessEqual(c[2], r["heads"][0][0], f"{where}: the handle ends before the heading starts")
-                        if w <= 900:
-                            self.assertGreaterEqual(c[0], r["card"][0], f"{where}: in the card's own left padding")
-                        else:
-                            self.assertLessEqual(c[2], r["card"][0], f"{where}: in the margin beside the card")
-                            self.assertGreaterEqual(c[0], inner - 28 - side, f"{where}: and within the frame's padding")
+                        # row 1152: the tiles run the width of the report band, so at every width the handle sits in the tile's own left padding
+                        self.assertGreaterEqual(c[0], r["card"][0], f"{where}: in the card's own left padding")
 
     def test_the_handle_never_overlaps_a_heading_in_view_or_edit(self):
         with chrome() as cdp:

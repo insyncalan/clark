@@ -485,10 +485,10 @@ html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --size-sec:
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
 .secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--secs-gap); margin-top: var(--secs-mt); padding: var(--secs-pad); overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: var(--sec-inset); position: relative; min-width: 0; padding: var(--sec-pad-t) var(--sec-px) var(--sec-pad-b); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-/* Row 1152: the editor dashboard tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; from 901 to 1303 px
+/* Row 1152: the editor dashboard tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; above 900 px
    Edit's control has no room beside the tile any more, so it sits inside the tile's padding, as it does at 900 px and below. */
 @media (min-width: 901px) { html[data-density="comfortable"] #report-bar + #report .secs { margin-left: -28px; margin-right: -28px; } }
-@media (min-width: 901px) and (max-width: 1303px) { html[data-density="comfortable"] #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } html[data-density="comfortable"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-density="comfortable"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
+@media (min-width: 901px) { html[data-density="comfortable"] #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } html[data-density="comfortable"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-density="comfortable"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
 @media (max-width: 900px) { html[data-density="comfortable"] .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
