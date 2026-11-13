@@ -155,5 +155,20 @@ class TheStartJobs(unittest.TestCase):
         self.assertIn("guide-publish-to-the-client", r["start"])
 
 
+class ImportExportPointAtSettings(unittest.TestCase):
+    """Import and Export are on Settings > Data, not on Work items: the how-to goes there and no legend or step says otherwise."""
+
+    def test_how_to_goes_to_settings_data_and_the_legend_drops_work_items(self):
+        c = RAW
+        howto = [h for h in c["howto"]["tasks"] if h.get("id") == "import-and-export"][0]
+        self.assertEqual(howto["go"], "settings#data")
+        self.assertEqual(howto["page"], ["settings#data"])
+        rows = {r[0]: r for r in c["reference"]["icons"]}
+        for k in ("dl", "ul"):
+            self.assertEqual(rows[k][3], "Settings, the profile circle", k)
+        blob = json.dumps(c)
+        self.assertNotIn("ready for an import", blob)
+
+
 if __name__ == "__main__":
     unittest.main()

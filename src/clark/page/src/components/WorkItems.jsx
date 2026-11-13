@@ -387,7 +387,7 @@ export function WorkItems({ tools }) {
                 </>
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
-                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
+                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
                   {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} More={More} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}

@@ -318,7 +318,7 @@ export const WORK_IDS = { input: "fline-input", list: "fline-list", count: "flin
 // `apply(text)` makes it the page's line, `rows` and `ctx` are what the line reads, `extra` its schema (the Work items line passes none; a page's own
 // schema, filterQueryParse.ownSchema, makes the box know only that page's fields), `ids` its element ids, `label` the box's name, `hints` the Try row
 // (null: no row and no gloss), `meaning(chip)` a chip's plain words for the gloss, `notes(parsed)` more to say under the box, `onClear` what else the x
-// does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items import/export and view icons). The Work items line (FilterLine, below) is this box with its stores.
+// does, `head` what stands over the box inside its focus (the Work items saved views), and `tail` what stands at the right end of the box line (the Work items view icons). The Work items line (FilterLine, below) is this box with its stores.
 export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, ids = WORK_IDS, label, hints = null, meaning = null, notes: moreNotes = null, onClear = null, tail = null }) {
   const first = useRef(null);
   if (first.current === null) first.current = Q.splitLine(line, rows, ctx, extra);
