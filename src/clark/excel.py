@@ -36,6 +36,7 @@ import json
 import logging
 import re
 import threading
+import unicodedata
 import uuid
 import warnings as warnings_lib
 import zipfile
@@ -1455,13 +1456,25 @@ def export_name(project):
 DOWNLOAD_NAME_CUT = 60          # row 1143: the project name in a download's file name is cut at this many characters
 
 
+DOWNLOAD_NAME_BYTES = 120        # and at most this many UTF-8 bytes, cut on a character boundary
+_DOWNLOAD_HIDDEN = re.compile("[\x7f\u0085\u2028\u2029]")
+
+
+def _download_clean(text):
+    """`text` with each character a file name cannot hold made "-", and the invisible ones (bidi marks, zero-width, other
+    format characters, DEL, NEL, line and paragraph separators) taken out, so a name cannot disguise its own ending."""
+    text = "".join(c for c in str(text or "") if unicodedata.category(c) != "Cf")
+    return platform.RESERVED_CHARS.sub("-", _DOWNLOAD_HIDDEN.sub("", text)).strip()
+
+
 def download_name(name, code, when):
     """Row 1143: the file name the browser is given for a project's workbook, "<name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx", e.g.
     "ENERGYai(EAI) 2026.11.13 18.52.07.xlsx". `when` is the local date and time; the time has dots as a Mac and Windows name holds
     no colon. A character a file name cannot hold becomes "-" (platform.safe_name), the name is cut at DOWNLOAD_NAME_CUT, no code
     leaves out the brackets and no name puts the code in its place (and "work items" when there is neither)."""
-    name = platform.RESERVED_CHARS.sub("-", str(name or "")).strip()[:DOWNLOAD_NAME_CUT].strip()
-    code = platform.RESERVED_CHARS.sub("-", str(code or "")).strip()
+    name = _download_clean(name).lstrip(". ")[:DOWNLOAD_NAME_CUT].strip()      # no leading dot: that is a hidden file on a Mac
+    name = name.encode("utf-8")[:DOWNLOAD_NAME_BYTES].decode("utf-8", "ignore").strip()     # a file name holds 255 bytes, not characters
+    code = _download_clean(code)
     if not name:
         name, code = code or "work items", ""
     return platform.safe_name(f"{name}{f'({code})' if code else ''} {when:%Y.%m.%d %H.%M.%S}.xlsx")

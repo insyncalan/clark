@@ -34,6 +34,32 @@ class Name(unittest.TestCase):
         got = excel.download_name("N" * 100, "EAI", WHEN)
         self.assertEqual(got, "N" * 60 + "(EAI) 2026.11.13 18.52.07.xlsx")
 
+    def test_sixty_emoji_are_cut_by_bytes_so_the_file_name_fits_255(self):
+        got = excel.download_name("\U0001F600" * 60, "EAI", WHEN)
+        self.assertLessEqual(len(got.encode("utf-8")), 255)
+        self.assertEqual(got, "\U0001F600" * 30 + "(EAI) 2026.11.13 18.52.07.xlsx")
+
+    def test_a_byte_cut_never_splits_a_character(self):
+        got = excel.download_name("a" + "\u00e9" * 100, "", WHEN)
+        got.encode("utf-8")
+        self.assertEqual(got, "a" + "\u00e9" * 59 + " 2026.11.13 18.52.07.xlsx")
+
+    def test_leading_dots_are_dropped_so_the_file_is_not_hidden(self):
+        self.assertEqual(excel.download_name("..hidden", "EAI", WHEN), "hidden(EAI) 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name(". .", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
+
+    def test_invisible_and_direction_characters_are_removed(self):
+        for ch in "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200b\u200c\u200d\u200e\u200f\ufeff\x7f\x85\u2028\u2029":
+            got = excel.download_name(f"Pl{ch}an", "EAI", WHEN)
+            self.assertEqual(got, "Plan(EAI) 2026.11.13 18.52.07.xlsx", repr(ch))
+
+    def test_a_name_of_only_invisible_characters_falls_back(self):
+        self.assertEqual(excel.download_name("\u202e\u200b", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("\u202e", "", WHEN), "work items 2026.11.13 18.52.07.xlsx")
+
+    def test_safe_name_itself_is_unchanged_for_others(self):
+        self.assertEqual(platform.safe_name("a\u202eb"), "a\u202eb")
+
     def test_without_a_code_there_are_no_brackets(self):
         self.assertEqual(excel.download_name("ENERGYai", "", WHEN), "ENERGYai 2026.11.13 18.52.07.xlsx")
         self.assertEqual(excel.download_name("ENERGYai", None, WHEN), "ENERGYai 2026.11.13 18.52.07.xlsx")
