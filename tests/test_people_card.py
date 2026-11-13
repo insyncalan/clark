@@ -115,6 +115,28 @@ class PeopleCard(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-person=\"Zed Newman\"]').innerText.indexOf('zed@example.com')"), -1)
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
 
+    def test_hunt14_filter_resets_when_none_need_details_and_focus_stays_after_undo(self):
+        """Hunt 14: fixing the last missing email left a stale 'Show only these' button; Undo dropped the focus to the body."""
+        with chrome() as cdp:
+            js = self.show(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)
+            js("document.querySelector('#ppOnly').click()")
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('#ppTable tbody tr').length") == 2, 10))
+            js("document.querySelector('#ppPasteBtn').click()")
+            self.fill(js, PASTE)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppPreview')"), 10))
+            js("document.querySelector('#ppAdd').click()")
+            self.assertTrue(wait(lambda: js("document.querySelector('#ppCount span').innerText") == "0 of 3 people need details", 20))
+            self.assertEqual(js("!!document.querySelector('#ppOnly')"), False, "no button when nobody needs details")
+            self.assertEqual(js("document.querySelectorAll('#ppTable tbody tr').length"), 3)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppUndo')"), 10))
+            js("document.querySelector('#ppUndo').focus(); document.querySelector('#ppUndo').click()")
+            self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppDone", 10), "the focus stays in the card after Undo")
+            self.assertEqual(js("document.querySelector('#ppOnly').innerText"), "Show only these")
+            self.assertEqual(js("document.querySelectorAll('#ppTable tbody tr').length"), 3, "the filter did not come back by itself")
+
     def test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button(self):
         """Item keys-settings, 1400 px: Esc in the box did nothing, so the only way out was a mouse or a Tab to the button."""
         with chrome() as cdp:

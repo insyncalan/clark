@@ -21,7 +21,7 @@ export function People() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);             // {text, step, problem}: what the last paste did, with Undo while its step can be taken back
-  const pasteBtn = useRef(null), box = useRef(null);
+  const pasteBtn = useRef(null), box = useRef(null), doneLn = useRef(null);
   useGrow(box, text);
 
   const load = async () => {
@@ -33,6 +33,7 @@ export function People() {
   const owners = workRows.value.map((r) => r.owner).concat(((data.value && data.value.milestones) || []).map((m) => m.owner));
   const all = peopleRows(list || [], owners);
   const need = needDetails(all).length;
+  useEffect(() => { if (list !== null && need === 0 && only) setOnly(false); }, [list, need, only]);      // nobody left to show: the filter is off, so the button is not left saying the wrong thing
   const filtered = only && need > 0;
   const shown = filtered ? needDetails(all) : all;
   const read = open && text.trim() ? readPaste(text, list || []) : null;
@@ -68,7 +69,10 @@ export function People() {
     setBusy(true);
     const back = await undoPeople(done.step);
     setBusy(false);
-    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); } else setDone({ text: back.message, step: null, problem: true });
+    if (back.ok) {
+      setList(back.people); setDone({ text: "Undone.", step: null, problem: false });
+      setTimeout(() => doneLn.current && doneLn.current.focus(), 0);      // the Undo button is gone: the focus goes to the line that says so, not to the page
+    } else setDone({ text: back.message, step: done.step, problem: true });      // kept, so Undo can be tried again
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);
@@ -111,7 +115,7 @@ export function People() {
           <span class="muted" id="ppMsg" role="status">{msg}</span>
         </div>
       </div>
-      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" role="status" hidden={!done}>
+      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" ref={doneLn} tabIndex={-1} role="status" hidden={!done}>
         {done ? <>{done.text}{done.step !== null ? <> <button type="button" class="link" id="ppUndo" disabled={busy} onClick={undo}>Undo</button></> : null}</> : null}
       </p>
       {list === null ? <p class="muted" id="ppLoading">Reading the people list.</p> : null}
@@ -121,7 +125,7 @@ export function People() {
           <>
             <p class="pp-sum" id="ppCount">
               <span>{countLine(need, all.length)}</span>
-              {need || only ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
+              {need > 0 ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
             </p>
             <table class="pp-table" id="ppTable">
               <thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead>
