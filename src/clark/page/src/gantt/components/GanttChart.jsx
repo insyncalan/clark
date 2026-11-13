@@ -21,7 +21,7 @@ import { reduced } from "../../stores/motion.js";
 import { fitCharts } from "../logic/printFit.js";
 import {
   WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
-  chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
+  MAX_ZOOM, chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
   formatDate, endOf, linesShown,
 } from "../logic/gantt.js";
 
@@ -312,9 +312,9 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomOut(zoom))} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-ib" onClick={() => { if (zoom > 1) setZoom(zoomOut(zoom)); }} aria-disabled={zoom <= 1 ? "true" : undefined} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
         <button type="button" class="gt-zf" onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
+        <button type="button" class="gt-ib" onClick={() => { if (zoom < MAX_ZOOM) setZoom(zoomIn(zoom)); }} aria-disabled={zoom >= MAX_ZOOM ? "true" : undefined} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
           {SCALES.map((s) => (

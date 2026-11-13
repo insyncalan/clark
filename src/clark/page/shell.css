@@ -2305,9 +2305,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-grp .gt-ib { border-radius: 0; border: 0; border-right: 1px solid var(--border); width: 36px; }
 .gt-grp .gt-ib:last-child { border-right: 0; }
 .gt-ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
-.gt-ib:hover:not(:disabled) { background: var(--grey-100); color: var(--text); }
+.gt-ib:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--grey-100); color: var(--text); }
 .gt-ib[aria-pressed="true"] { background: var(--pill-bg); color: var(--pill-fg); }
-.gt-ib:disabled { opacity: .45; cursor: default; }
+.gt-ib:disabled, .gt-ib[aria-disabled="true"] { opacity: .45; cursor: default; }
 .gt-ib:focus-visible, .gt-wd:focus-visible, .gt-zf:focus-visible, .gt-eye:focus-visible, .gt-addb:focus-visible, .gt-btn:focus-visible, .gt-tflag:focus-visible, .gt-b:focus-visible, .gt-ms:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .gt-zf { all: unset; box-sizing: border-box; min-width: 48px; height: 32px; display: inline-grid; place-items: center; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius); }
 .gt-zf:hover { background: var(--grey-100); color: var(--text); }
