@@ -97,7 +97,9 @@ export function AskSettings() {
     e.preventDefault();
     const path = typed.trim();
     if (!path) return;
-    if (await change("add", path)) setTyped("");
+    const ok = await change("add", path);
+    if (ok) setTyped("");
+    setTimeout(() => { const el = document.getElementById("ask-folder-path"); if (el) el.focus(); }, 0);      // Add folder was disabled while it ran, which drops the focus: it goes to the box
   }
 
   const list = Array.isArray(folders) ? folders : [];
