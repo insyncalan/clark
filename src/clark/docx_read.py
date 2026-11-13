@@ -526,6 +526,8 @@ class _Body:
             self.finish_paragraph()
         elif local == "tc" and self.tables:
             t = self.tables[-1]
+            if t["row"] is None:                             # a cell with no row around it: the file is damaged
+                raise _Stop(_damaged(self.name))
             t["row"].append("\n".join(t["cell"] or []))
             t["row"] += [""] * (t["span"] - 1)
             t["cell"] = None

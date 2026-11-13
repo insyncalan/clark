@@ -605,6 +605,19 @@ class MacrosObjectsAndLinks(Refused):
                          [{"kind": "paragraph", "text": "ok"}])
 
 
+class MalformedTables(Refused):
+    """A cell with no row around it is a damaged file: the plain refusal, never a crash."""
+
+    def test_cell_directly_in_a_table(self):
+        self.refused(docx('<w:tbl><w:tc><w:p><w:r><w:t>x</w:t></w:r></w:p></w:tc></w:tbl>'), "could not be opened")
+
+    def test_cell_after_its_row_closed(self):
+        self.refused(docx('<w:tbl><w:tr></w:tr><w:tc><w:p/></w:tc></w:tbl>'), "could not be opened")
+
+    def test_row_directly_inside_a_cell(self):
+        self.refused(docx('<w:tbl><w:tr><w:tc><w:tr><w:tc><w:p/></w:tc></w:tr><w:p/></w:tc></w:tr></w:tbl>'), "could not be opened")
+
+
 class HostileXml(Refused):
     LOL = (HEAD + '<!DOCTYPE lolz [<!ENTITY lol "lol"><!ENTITY lol2 "&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;&lol;">'
            '<!ENTITY lol3 "&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;&lol2;">'
