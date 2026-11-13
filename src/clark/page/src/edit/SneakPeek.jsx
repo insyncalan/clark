@@ -80,7 +80,7 @@ export function SneakPeek({ row, kind = "item" }) {
           </p>
         ) : null}
       </div>
-      <p class="muted sn-foot">Enter applies the changes shown. Shift+Enter applies and keeps this box open. Esc closes it.</p>
+      <p class="muted sn-foot">{found && found.confirm ? "Enter asks you to confirm. Cmd+Enter or Ctrl+Enter applies. Esc closes it." : "Enter applies the changes shown. Shift+Enter applies and keeps this box open. Esc closes it."}</p>
     </section>
   );
 }
