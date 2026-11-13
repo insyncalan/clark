@@ -151,6 +151,16 @@ const KEYS_ON = "Single-key shortcuts are on";
 const KEYS_OFF = "Single-key shortcuts are off";
 
 // The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
+// Appearance and Spacing apply at once too (row 1115 S5): a quiet toast says the new choice, and its Undo puts the old one back.
+function chosen(label, list, set, current, next) {
+  if (next === current) return;
+  const nameOf = (id) => (list.find(([x]) => x === id) || [id, id])[1];
+  set(next);
+  announceSwitch(`${label}: ${nameOf(next)}.`, () => { set(current); return { ok: true }; }, `${label}: ${nameOf(current)}.`);
+}
+const pickAppearance = (next) => chosen("Appearance", APPEARANCES, setAppearance, appearance.value, next);
+const pickDensity = (next) => chosen("Spacing", DENSITIES, setDensity, density.value, next);
+
 function flipKeys() {
   const now = !singleKeys.value;
   setSingleKeys(now);
@@ -166,7 +176,7 @@ function pickByArrow(e) {
   e.preventDefault();
   const at = APPEARANCES.findIndex(([id]) => id === appearance.value), last = APPEARANCES.length - 1;
   const next = APPEARANCES[e.key === "Home" ? 0 : e.key === "End" ? last : (Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
-  setAppearance(next);
+  pickAppearance(next);
   const btn = e.currentTarget.querySelector(`[data-theme-pick="${next}"]`);
   if (btn) btn.focus();
 }
@@ -181,7 +191,7 @@ export function Personal() {
         <legend>Spacing</legend>
         {DENSITIES.map(([id, name, line]) => (
           <label key={id} class={`secpick sk-${id}`}>
-            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => setDensity(id)} />
+            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => pickDensity(id)} />
             <span class="secpick-card">
               <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="secpick-name"><b>{name}</b>
@@ -195,7 +205,7 @@ export function Personal() {
         <legend>Appearance</legend>
         <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
           {APPEARANCES.map(([id, name]) => (
-            <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => setAppearance(id)}>{name}</button>
+            <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => pickAppearance(id)}>{name}</button>
           ))}
         </div>
         <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>

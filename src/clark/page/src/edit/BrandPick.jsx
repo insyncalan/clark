@@ -16,31 +16,25 @@ export function pickState(saved, brands) {
 const saveReal = (id, name) => change({ kind: "projects", op: "update", changes: { brand: id }, place: "menu" }, `Brand: ${name}.`);
 
 export function BrandPick({ brands, project = undefined, save = saveReal }) {
-  const [draft, setDraft] = useState(null);      // what the arrows are on; nothing is saved until Enter or Save
+  const [draft, setDraft] = useState(null);      // what the arrows are on; the choice is saved at once (row 1115 S5), this only holds it while the save is on its way
   const p = project !== undefined ? project : data.value && data.value.project;
   if (!p) return null;          // no project open: nothing to choose for
   const [value, gone] = pickState(p.brand, brands);
   const shown = draft === null ? value : draft;
-  const commit = async () => {
-    const id = shown;
-    if (id === value) return;
+  const commit = async (id) => {
+    if (id === value) { setDraft(null); return; }
     const b = brands.find((x) => x.id === id);
     await save(id, id === "generic" ? "Generic" : (b ? b.name : id));
     setDraft(null);      // the select shows what clark kept (a refused change leaves the old brand)
   };
-  const key = (e) => {
-    if (e.key === "Escape" && draft !== null) { e.preventDefault(); setDraft(null); }
-    else if (e.key === "Enter") { e.preventDefault(); commit(); }
-  };
   return (
     <div class="fld" data-brand-pick>
       <label for="brand-pick">Brand for this project</label>
-      <select id="brand-pick" value={shown} aria-describedby="brand-pick-line" onChange={(e) => setDraft(e.currentTarget.value)} onKeyDown={key}>
+      <select id="brand-pick" value={shown} aria-describedby="brand-pick-line" onChange={(e) => { setDraft(e.currentTarget.value); commit(e.currentTarget.value); }}>
         <option value="generic">Generic</option>
         {brands.map((b) => <option key={b.id} value={b.id}>{b.name}</option>)}
       </select>
-      <button type="button" class="btn" data-brand-save disabled={shown === value} onClick={commit}>Save</button>
-      <small id="brand-pick-line">Enter or Save keeps the choice, Esc puts the saved brand back. The published page, Excel, Word and PDF of this project use it.</small>
+      <small id="brand-pick-line">The choice is kept at once, and Undo puts the old brand back. The published page, Excel, Word and PDF of this project use it.</small>
       <p class="muted" role="status" data-brand-gone>{gone ? GONE : ""}</p>
     </div>
   );

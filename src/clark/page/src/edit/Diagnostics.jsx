@@ -1,6 +1,7 @@
 // Settings: Logs and diagnostics (#110). Normal or Debug, a line on what is never logged, Open folder and Copy diagnostics, and the
 // errors of the last 7 days, each in plain words (the server says them; the technical line stays in the report). The report is made by the server and copied as it is; the page never builds or edits it.
 import { useState, useEffect } from "preact/hooks";
+import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { readDiagnostics, saveLevel, openLogFolder, said, LOAD_FAILED, SAVE_FAILED, OPEN_FAILED } from "./diagnosticsApi.js";
 
 const COPY_FAILED = "The text could not be copied. Reload the page and try again.";
@@ -42,14 +43,23 @@ export function Diagnostics() {
     return null;
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => leaveSwitch, []);
 
   async function choose(level) {
     if (busy || (info && info.level === level)) return;
     setBusy(true);
     setMsg(null);
     const r = await saveLevel(level);
-    if (r.status === 200 && r.body && r.body.ok === true) await load();
-    else setMsg({ kind: "error", text: said(r, SAVE_FAILED) });
+    if (r.status === 200 && r.body && r.body.ok === true) {
+      const before = info && info.level;
+      await load();
+      const nameOf = (l) => (l === "debug" ? "Debug" : "Normal");
+      if (before) announceSwitch(`Logging level: ${nameOf(level)}.`, async () => {
+        const back = await saveLevel(before);
+        if (back.status === 200 && back.body && back.body.ok === true) { await load(); return { ok: true }; }
+        return { ok: false, message: said(back, SAVE_FAILED) };
+      }, `Logging level: ${nameOf(before)}.`);
+    } else setMsg({ kind: "error", text: said(r, SAVE_FAILED) });
     setBusy(false);
   }
 

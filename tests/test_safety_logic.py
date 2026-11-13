@@ -271,29 +271,42 @@ class Card(InBrowser):
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "")
         self.assertEqual(self.text("#safety-copy-line"), safety.FOLDER_HELP)
         self.type_in("/Users/demo/OneDrive-DemoOrg/clark backups")
-        self.click("[data-copy-save]")
+        self.assertFalse(self.present("[data-copy-save]"), "no Save button (row 1115 S5)")
+        self.press_enter()
         self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/OneDrive-DemoOrg/clark backups"])
         self.assertEqual(self.text("#safety-copy-said"), safety.FOLDER_ON)
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/OneDrive-DemoOrg/clark backups")
 
-    def test_the_copy_folder_is_saved_by_enter_and_not_by_leaving_the_box(self):
-        self.replies(copy=OK({"ok": True, "folder": "", "message": safety.FOLDER_OFF}))
-        self.mount()
-        self.type_in("/Users/demo/x")
-        self.js("document.querySelector('#safety-copy-box').dispatchEvent(new Event('blur'))")
-        self.js("document.querySelector('#safety-copy-box').blur()")
-        self.settle()
-        self.assertEqual([c[0] for c in self.val("T.calls")], ["list"], "leaving the box saves nothing")
+    def press_enter(self):
         self.js("document.querySelector('#safety-copy-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}))")
         self.settle()
-        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/x"])
+
+    def test_the_copy_folder_is_saved_by_enter_and_by_leaving_the_box_but_once(self):
+        self.replies(copy=OK({"ok": True, "folder": "/Users/demo/x", "message": safety.FOLDER_ON}))
+        self.mount()
+        self.type_in("/Users/demo/x")
+        self.press_enter()
+        self.js("document.querySelector('#safety-copy-box').blur()")
+        self.settle()
+        self.assertEqual([c[0] for c in self.val("T.calls")], ["list", "copy"], "Enter and then leaving the box sent once")
+        self.type_in("/Users/demo/y")
+        self.js("document.querySelector('#safety-copy-box').dispatchEvent(new Event('blur'))")
+        self.settle()
+        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/y"])
+
+    def test_leaving_the_box_unchanged_saves_nothing(self):
+        self.replies(list=OK({**LIST, "copy_folder": "/Users/demo/copies"}))
+        self.mount()
+        self.js("document.querySelector('#safety-copy-box').dispatchEvent(new Event('blur'))")
+        self.settle()
+        self.assertEqual([c[0] for c in self.val("T.calls")], ["list"])
 
     def test_an_empty_box_turns_it_off_and_says_so(self):
         self.replies(list=OK({**LIST, "copy_folder": "/Users/demo/copies"}), copy=OK({"ok": True, "folder": "", "message": safety.FOLDER_OFF}))
         self.mount()
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/copies")
         self.type_in("")
-        self.click("[data-copy-save]")
+        self.press_enter()
         self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", ""])
         self.assertEqual(self.text("#safety-copy-said"), safety.FOLDER_OFF)
 
@@ -301,7 +314,7 @@ class Card(InBrowser):
         self.replies(copy=OK({"ok": False, "code": "refused", "message": "That is a file, not a folder. Choose a folder. Nothing was changed."}, 400))
         self.mount()
         self.type_in("/Users/demo/a-file")
-        self.click("[data-copy-save]")
+        self.press_enter()
         self.assertEqual(self.text("#safety-copy-said"), "That is a file, not a folder. Choose a folder. Nothing was changed.")
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/a-file")
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').getAttribute('aria-invalid')"), "true")
@@ -311,7 +324,7 @@ class Card(InBrowser):
         self.replies(copy={"status": 0, "body": None})
         self.mount()
         self.type_in("/Users/demo/x")
-        self.click("[data-copy-save]")
+        self.press_enter()
         self.assertEqual(self.text("#safety-copy-said"), self.val("T.logic.NOT_ANSWERING"))
 
     def test_onedrive_folders_found_are_offered_and_fill_the_box_and_the_copy_warning_shows(self):
@@ -321,7 +334,7 @@ class Card(InBrowser):
         self.assertEqual(self.text("#safety-copy-warning"), "Your backup was made, but the copy in ~/x could not be made.")
         self.click("[data-copy-suggestion]")
         self.assertEqual(self.val("document.querySelector('#safety-copy-box').value"), "/Users/demo/OneDrive-DemoOrg/clark backups")
-        self.assertEqual([c[0] for c in self.val("T.calls")], ["list"], "choosing it saves nothing yet")
+        self.assertEqual(self.val("T.calls[T.calls.length - 1]"), ["copy", "/Users/demo/OneDrive-DemoOrg/clark backups"], "choosing it saves at once")
 
     def test_a_server_that_does_not_answer_says_so_and_offers_try_again(self):
         self.replies(list={"status": 0, "body": None})

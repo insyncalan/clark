@@ -2,8 +2,7 @@
 
 Run: python3 dev/run_tests.py test_backup_copy_focus
 The real Settings page over a stand-in server, with the two backup routes answered by the page's own fetch (a listing, then a slow "saved").
-A keyboard user who presses Save (Enter or Space on the button) must still be on the Save button when the answer comes, and the box keeps
-focus after Enter in it. Chrome is required.
+The box saves on Enter or when left (row 1115 S5, no Save button) and keeps focus after Enter in it; the suggestion saves at once. Chrome is required.
 """
 import json
 import shutil
@@ -34,7 +33,7 @@ STUB = r"""(() => {
     return real(url, opts);
   };
 })()"""
-ACTIVE = "(document.activeElement.matches('[data-copy-save]') ? 'save' : document.activeElement.matches('[data-copy-folder]') ? 'box' : document.activeElement.tagName)"
+ACTIVE = "(document.activeElement.matches('[data-copy-folder]') ? 'box' : document.activeElement.tagName)"
 
 
 def tearDownModule():
@@ -70,43 +69,30 @@ class BackupCopyFocus(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-copy-folder]')", sid)), "the box is on the page")
         return sid
 
-    def test_save_by_keyboard_leaves_focus_on_the_save_button(self):
-        for width in (1400, 900):
-            for k, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
-                with self.subTest(width=width, key=code), chrome() as cdp:
-                    sid = self.shown(cdp, width)
-                    cdp.js("document.querySelector('[data-copy-save]').focus()", sid)
-                    key(cdp, sid, k, code, vk, text)
-                    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#safety-copy-said p')", sid)), "the answer came")
-                    self.assertEqual(cdp.js(ACTIVE, sid), "save", f"{code} on Save: focus is still on the Save button")
-
-    def test_enter_in_the_box_keeps_focus_in_the_box(self):
+    def test_there_is_no_save_button_and_enter_in_the_box_keeps_focus_in_the_box(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.shown(cdp, width)
+                self.assertFalse(cdp.js("!!document.querySelector('[data-copy-save]')", sid), "no Save button (row 1115 S5)")
                 cdp.js("document.querySelector('[data-copy-folder]').focus()", sid)
+                cdp.js("(() => { const b = document.querySelector('[data-copy-folder]'); b.value = '/tmp/x'; b.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
                 key(cdp, sid, "Enter", "Enter", 13, "\r")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#safety-copy-said p')", sid)), "the answer came")
                 self.assertEqual(cdp.js(ACTIVE, sid), "box")
 
-    def test_save_and_the_suggestion_are_aria_disabled_and_dimmed_while_busy(self):
+    def test_the_suggestion_saves_at_once_and_is_aria_disabled_and_dimmed_while_busy(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.shown(cdp, width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-copy-suggestion]')", sid)), "the suggestion is drawn")
-                cdp.js("document.querySelector('[data-copy-save]').focus()", sid)
-                key(cdp, sid, "Enter", "Enter", 13, "\r")
-                for sel in ("[data-copy-save]", "[data-copy-suggestion]"):
-                    self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('{sel}').getAttribute('aria-disabled') === 'true'", sid)), sel + " is aria-disabled while it works")
-                    self.assertFalse(cdp.js(f"document.querySelector('{sel}').disabled", sid), sel + " is not disabled (the focus stays)")
-                    self.assertLess(float(cdp.js(f"getComputedStyle(document.querySelector('{sel}')).opacity", sid)), 1, sel + " is dimmed")
-                before = cdp.js("document.querySelector('[data-copy-folder]').value", sid)
                 cdp.js("document.querySelector('[data-copy-suggestion]').click()", sid)
-                self.assertEqual(cdp.js("document.querySelector('[data-copy-folder]').value", sid), before, "a press on the suggestion while busy changes nothing")
+                sel = "[data-copy-suggestion]"
+                self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('{sel}').getAttribute('aria-disabled') === 'true'", sid)), "aria-disabled while it works")
+                self.assertFalse(cdp.js(f"document.querySelector('{sel}').disabled", sid), "not disabled (the focus stays)")
+                self.assertLess(float(cdp.js(f"getComputedStyle(document.querySelector('{sel}')).opacity", sid)), 1, "dimmed")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#safety-copy-said p')", sid)), "the answer came")
-                self.assertTrue(cdp.js("!document.querySelector('[data-copy-save]').hasAttribute('aria-disabled')", sid), "back to normal")
-                cdp.js("document.querySelector('[data-copy-suggestion]').click()", sid)
-                self.assertEqual(cdp.js("document.querySelector('[data-copy-folder]').value", sid), "/tmp/OneDrive", "the suggestion fills the box when idle")
+                self.assertEqual(cdp.js("document.querySelector('[data-copy-folder]').value", sid), "/tmp/OneDrive", "the suggestion was saved")
+                self.assertTrue(cdp.js("!document.querySelector('[data-copy-suggestion]').hasAttribute('aria-disabled')", sid), "back to normal")
 
     def test_esc_while_the_panel_is_busy_does_nothing(self):
         for width in (1400, 900):
