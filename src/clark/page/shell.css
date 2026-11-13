@@ -223,7 +223,8 @@ table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
-table.items .c-status { width: 152px; }
+table.items .c-status { width: 76px; }      /* row 1145: the icon alone */
+table.items.arch .c-status { width: 152px; }      /* the archived list still reads its status in words */
 table.items tr.done .t { color: var(--text-muted); }
 .t { display: block; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
@@ -264,7 +265,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
@@ -1466,15 +1467,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucf-items { margin: 0; padding: 0; }
 .ucf-items li { padding: 0; border-top: 1px solid var(--grey-100); }
 .ucf-items li:first-child { border-top: 0; }
-.ucf-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucf-item { position: relative; display: grid; grid-template-columns: 24px 96px minmax(0, 1fr) minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .ucf-item:hover { background: var(--grey-50); }
+.ucf-item[data-tip]:hover::after, .ucf-item[data-tip]:focus-visible::after { left: 4px; right: auto; }      /* row 1145: the status tip of the icon opens at the row's left */
 .ucf-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
 /* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
-.ucf-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucf-item .pill.r::before { background: var(--tone-red-text); }
-.ucf-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucf-item .pill.a::before { background: var(--tone-amber-text); }
-.ucf-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucf-item .pill.g::before { background: var(--tone-green-text); }
-.ucf-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucf-item .pill.b::before { background: var(--tone-blue-text); }
-.ucf-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucf-item .pill.n::before { background: var(--tone-grey-text); }
 .ucf-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucf-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucf-foot { margin: 0; }
@@ -1488,7 +1485,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .ucf-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .ucf-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--d-uc-detail-b) 72px; }
@@ -1950,7 +1947,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-table .wil-c-id { width: 108px; }
 .wil-table .wil-c-owner { width: 150px; }
 .wil-table .wil-c-due { width: 128px; }
-.wil-table .wil-c-status { width: 120px; }
+.wil-table .wil-c-status { width: 56px; }      /* row 1145: the icon alone */
 .wil-table .wil-c-workstream { width: 140px; }
 .wil-table .type { white-space: nowrap; }
 .wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
@@ -2035,12 +2032,16 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
-.cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
+.cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
 .asat + .cm-wrap { margin-left: 0; }
 .cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
 .cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
 .cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .cm-badge .i { width: 18px; height: 18px; }
+.cm-theme { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border-radius: 50%; color: var(--text-muted); cursor: pointer; }
+.cm-theme:hover { color: var(--heading); }
+.cm-theme:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.cm-theme .i { width: 18px; height: 18px; }
 .ddmenu.cm-menu { min-width: 240px; max-width: calc(100vw - 16px); }
 .ddmenu .cm-row { overflow-wrap: anywhere; }
 .ddmenu a.cm-link { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
@@ -2109,7 +2110,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   /* row 1111: a use case's own page on paper: nothing is cut with an ellipsis (a long line wraps), nothing runs past the page, and the crumb back to the list is left off */
   html.print-all .ucf-crumb { display: none; }
   html.print-all .ucf-grid { grid-template-columns: minmax(0, 1fr); }
-  html.print-all .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  html.print-all .ucf-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   html.print-all .ucf-t, html.print-all .ucf-x { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
   html.print-all .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
@@ -2230,7 +2231,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ico.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); }
 .ico.u { background: var(--tone-urgent); color: var(--tone-on-urgent); }      /* Urgent, also when overdue: a solid maroon tile with a white letter */
 .ico[data-tip]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after { left: 0; right: auto; }
+.irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after, table.items .c-status [data-tip]:hover::after, table.items .c-status [data-tip]:focus-visible::after { left: 0; right: auto; }      /* row 1145: the Work items Status column is first, so its tip opens rightwards */
 .ico-w { font-size: var(--size-caption); color: var(--text); white-space: nowrap; }
 .ico-w.r { color: var(--tone-red-text); } .ico-w.a { color: var(--tone-amber-text); } .ico-w.g { color: var(--tone-green-text); }
 .ico-w.b { color: var(--tone-blue-text); } .ico-w.n { color: var(--tone-grey-text); }
