@@ -73,6 +73,15 @@ def _text(data, name):
         raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} can't be read.") from None
 
 
+def _close(text, tag, name):
+    """Where the closing `tag` of part `name` starts; a part with no closing tag (a self-closed one) is refused in the same words
+    as a part that can't be read."""
+    i = text.rfind(tag)
+    if i < 0:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} can't be read.")
+    return i
+
+
 def wrap(template, built):
     infos, parts = word_template._load(template, NAME)
     for n in sorted(parts):                                # a DOCTYPE or entity is refused in any part, as when reading
@@ -91,7 +100,10 @@ def wrap(template, built):
     m = re.search(r"<w:body(?:\s[^>]*)?>", doc)
     if m is None or "</w:body>" not in doc:
         raise WordRefused(f"{NAME} is not a Word document clark can use: it has no body.")
-    root = re.search(r"<w:document(?:\s[^>]*)?>", doc).group(0)
+    root = re.search(r"<w:document(?:\s[^>]*)?>", doc)
+    if root is None:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part word/document.xml can't be read.")
+    root = root.group(0)
     head = root
     for prefix, uri in (("w", _b.NS_W), ("r", _b.NS_R)):
         if f"xmlns:{prefix}=" not in head:
@@ -119,7 +131,7 @@ def wrap(template, built):
         theirs = _text(parts, "word/styles.xml")
         have = set(STYLE.findall(theirs))
         extra = "".join(m4.group(0) for m4 in STYLE.finditer(ours) if m4.group(1) not in have)
-        i = theirs.rindex("</w:styles>")
+        i = _close(theirs, "</w:styles>", "word/styles.xml")
         out["word/styles.xml"] = (theirs[:i] + extra + theirs[i:]).encode("utf-8")
     else:
         out["word/styles.xml"] = mine["word/styles.xml"]
@@ -135,7 +147,7 @@ def wrap(template, built):
     for typ in ("styles", "numbering"):
         if not re.search(rf'Type="[^"]*/{typ}"', rels):
             add += f'<Relationship Id="{PREFIX}{typ.capitalize()}" Type="{_b.NS_R}/{typ}" Target="{typ}.xml"/>'
-    i = rels.rindex("</Relationships>")
+    i = _close(rels, "</Relationships>", RELS)
     out[RELS] = (rels[:i] + add + rels[i:]).encode("utf-8")
     ct = _text(parts, "[Content_Types].xml")
     add = ""
@@ -144,7 +156,7 @@ def wrap(template, built):
     for part, kind in ((f"/word/{target}", "numbering"), ("/word/styles.xml", "styles")):
         if f'PartName="{part}"' not in ct:
             add += f'<Override PartName="{part}" ContentType="{_b.DOC_TYPE}.{kind}+xml"/>'
-    i = ct.rindex("</Types>")
+    i = _close(ct, "</Types>", "[Content_Types].xml")
     out["[Content_Types].xml"] = (ct[:i] + add + ct[i:]).encode("utf-8")
     for n in ("docProps/core.xml", "docProps/app.xml"):         # the file's author and company are clark's, never the template's
         if n in parts and n in mine:
