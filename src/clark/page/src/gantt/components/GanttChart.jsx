@@ -192,6 +192,9 @@ export function GanttChart({
   useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
     if (drawn && document.documentElement.classList.contains("print-all")) fitCharts(document, true);
   }, [drawn]);
+  useLayoutEffect(() => {      // the beforeprint fit ran before the paper was drawn and measured the chart at its screen zoom; once it is drawn for the paper (paper, ppd) the ratio is taken again
+    if (paper && drawn) fitCharts(document, true);
+  }, [paper, ppd, drawn]);
   const nShown = full ? total : (grip !== null ? grip : rowsShown(total, defaultRows, own, edit));
   const cut = !full && nShown < total;
   const canvasH = total * RH;
