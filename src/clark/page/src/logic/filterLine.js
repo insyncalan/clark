@@ -222,10 +222,11 @@ function nearest(name) {
   return best && best[1] <= 2 ? fieldOf(best[0]) : (n.length >= 2 && names().find((k) => k.startsWith(n))) || null;
 }
 
-/** The sentence for a word before a colon that is not a filter: what the line can filter by, and the nearest field when there is one. */
-export function unknownFilter(name) {
-  const n = nearest(name);
-  return `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list(names().map((x) => `${x}:`))}, or type plain words to search titles.`;
+/** The sentence for a word before a colon that is not a filter: what the line can filter by, and the nearest field when there is one.
+ *  A page with a line of its own (row 1085) passes its field keys and the near miss it found; the sentence is the same. */
+export function unknownFilter(name, keys, near) {
+  const n = keys ? near || null : nearest(name);
+  return `There is no “${name}” filter.${n ? ` Did you mean ${n}?` : ""} You can filter by ${list((keys || names()).map((x) => `${x}:`))}, or type plain words to search titles.`;
 }
 
 /** The sentence for a value that is not one of the choices. */

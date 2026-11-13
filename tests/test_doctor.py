@@ -63,7 +63,7 @@ class AllReady(DoctorCase):
         self.assertIn("Ready: Your clark data can be saved in ~/Library/Application Support/clark.", lines)
         self.assertIn("Ready: Your clark data isn't inside OneDrive.", lines)
         self.assertIn("Ready: Your clark folder isn't in OneDrive.", lines)
-        self.assertIn("Ready: Chrome is there, so clark opens in its own window.", lines)
+        self.assertIn("Ready: Chrome is there, so clark opens in Chrome.", lines)
         self.assertIn("Ready: Nothing else on this computer is in the way of clark starting.", lines)
         self.assertIn("Ready: Claude Code is installed, so you can ask clark for help.", lines)
 
@@ -193,8 +193,7 @@ class Browser(DoctorCase):
         code, lines = self.run_doctor(find_chrome=lambda: None)
         self.assertEqual(code, 0, lines)
         self.assertEqual(self.line(lines, "Worth knowing: Chrome"),
-                         "Worth knowing: Chrome wasn't found, so clark will open in your usual browser. Install Chrome to "
-                         "give clark its own window.")
+                         "Worth knowing: Chrome wasn't found, so clark will open in your usual browser.")
 
     def test_the_named_browser_is_used_on_the_mac(self):
         stub = self.home / "browser"
