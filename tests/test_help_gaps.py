@@ -93,7 +93,7 @@ class WorkItemsHelpMatchesTheCode(unittest.TestCase):
         self.assertIn("Open the peek", text)
 
     def test_single_letter_keys_row_says_single_key_shortcuts_switch(self):
-        row = next(r for r in RAW["keys"] if isinstance(r, list) and "[[O]]" in r[0])
+        row = next(r for r in RAW["reference"]["keys"] if isinstance(r, list) and "[[O]]" in r[0])
         self.assertIn("Single-key shortcuts is off", row[1])
 
 
