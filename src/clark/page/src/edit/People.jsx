@@ -68,7 +68,8 @@ export function People() {
     setBusy(true);
     const back = await undoPeople(done.step);
     setBusy(false);
-    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0); }      // the Undo button is gone: the focus goes back to Paste from Excel else setDone({ text: back.message, step: null, problem: true });
+    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0); }      // the Undo button is gone: the focus goes back to Paste from Excel
+    else setDone({ text: back.message, step: null, problem: true });
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);

@@ -116,6 +116,14 @@ class PeopleCard(unittest.TestCase):
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
             self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppPasteBtn", 10), "Undo took its button away: the focus goes to Paste from Excel")
 
+    def test_a_refused_undo_still_shows_its_message(self):
+        """A trailing comment once swallowed the `else` after the focus line, so a refused Undo said nothing."""
+        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/People.jsx").read_text(encoding="utf-8")
+        lines = src.splitlines()
+        at = next(i for i, l in enumerate(lines) if "back.ok" in l and "Undone." in l)
+        self.assertNotIn("else", lines[at].split("//", 1)[-1] if "//" in lines[at] else "", "the comment must not hold the else")
+        self.assertIn("else setDone({ text: back.message", lines[at + 1], "a refused Undo shows the server's message")
+
     def test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button(self):
         """Item keys-settings, 1400 px: Esc in the box did nothing, so the only way out was a mouse or a Tab to the button."""
         with chrome() as cdp:
