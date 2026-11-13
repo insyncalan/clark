@@ -491,6 +491,7 @@ function forgetProject() { try { localStorage.removeItem(LAST); } catch (e) { /*
 function autoOpen() {
   const list = projects.value;
   if (projectsState.value !== "ready" || !list.length) return;
+  if (view.value === "settings" || view.value === "published") return;          // these pages work without a project: opening one would pull the page away
   const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
   if (!pick) { if (list.length > 1 && lastUsed()) forgetProject(); return; }          // a remembered project that is gone is dropped
   if (!route.isProject(pick)) return;

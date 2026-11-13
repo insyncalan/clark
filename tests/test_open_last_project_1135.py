@@ -104,6 +104,16 @@ class Browser(unittest.TestCase):
                 time.sleep(1.5)                                       # a jump back into TUL would come within this time
                 self.assertTrue(cdp.js("document.querySelectorAll('main ul.choose li').length === 2 && !location.hash.includes('p=') && document.querySelector('main').innerText.includes('No project open')", sid), "still the chooser: no jump")
 
+    def test_settings_and_published_stay_where_they_are(self):
+        s = self.serve({"TUL": "Tulip"})
+        for width in (1400, 900):
+            for view in ("settings", "published"):
+                with self.subTest(width=width, view=view), chrome() as cdp:
+                    sid = self.visit(cdp, s.port, width, f"/#{view}")
+                    self.until(cdp, sid, "document.querySelector('main')", "the page")
+                    time.sleep(2)          # an auto-open would come within this time
+                    self.assertFalse(cdp.js("location.search.includes('project=') || location.hash.includes('p=')", sid), f"{view} stays without a project")
+
     def test_a_blocked_local_storage_still_shows_the_chooser(self):
         s = self.serve({"TUL": "Tulip", "ROS": "Rose"})
         for width in (1400, 900):
