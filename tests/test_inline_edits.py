@@ -796,6 +796,27 @@ class Live(unittest.TestCase):
             self.assertEqual((self.row("raid", "TUL-007")["status"], self.row("raid", "TUL-010")["status"]), ("Cancelled", "Open"), "only the open item changed")
             self.changed_once(before, "one item, from the peek")
 
+    def test_the_peeks_status_button_is_a_tab_stop_and_its_pick_is_logged_as_the_peek(self):
+        """The peek's Status button takes Tab (the table's cells stay out of it), and a pick from it is recorded in Activity as the peek."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's picker is there")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").tabIndex", sid), 0, "Tab reaches the peek's Status button")
+            self.assertEqual(cdp.js("document.querySelector(\"#work [data-cell='TUL-007:status']\").tabIndex", sid), -1, "a table cell stays out of the Tab order")
+            self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+            click(cdp, sid, "[data-pop] [data-value=Cancelled]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
+            st = open_store(self.path, onedrive_roots=[])
+            try:
+                places = [r[0] for r in st.con.execute("SELECT place FROM item_events WHERE item_id = ?", ("TUL-007",))]
+            finally:
+                st.close()
+            self.assertIn("peek", places, places)
+
     def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
         """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; its status picker closed (row 824: the peek edits in View too). The
         published file itself is checked in test_peek.ClosedRiskPublished."""
