@@ -1,6 +1,7 @@
 // One use case's own page in a published file (row 1111): the same layout and classes as the page the editor has (UseCaseDetail), read only.
 // It reads what the file holds (data.use_case_pages names, for each use case the client may see, the next steps and milestones to show),
 // draws no control and no History, and its Details card shows only the fields the file holds (status, commitment), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
+import { useEffect, useRef } from "preact/hooks";
 import { data, rows, project, openWork, openPeek } from "../stores/report.js";
 import { isOpen, pillOf, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
@@ -14,12 +15,14 @@ import { CommitChip } from "./CommitChip.jsx";
 const rag = (status) => ({ "On track": "g", Flag: "a", "High risk": "r", Done: "n" })[status] || "n";
 
 export function UseCaseFilePage({ id }) {
-  const d = data.value;
+  const d = data.value, head = useRef(null);
+  const u = d ? (d.use_cases || []).find((x) => x.id === id) || null : null;
+  // The heading takes the focus when the page is drawn (and again when another use case is opened), never on a later redraw of the same one.
+  useEffect(() => { if (head.current) head.current.focus({ preventScroll: true }); }, [id, !!d]);
   if (!d) return null;
-  const u = (d.use_cases || []).find((x) => x.id === id) || null;
   const listAt = `#usecases&p=${project.value}`;
   const crumb = (label) => <nav class="ucf-crumb" aria-label="You are here"><a href={listAt} data-uc-back>Use cases</a><span aria-hidden="true"> › </span><span>{label}</span></nav>;
-  if (!u) return <div class="ucf" data-ucf data-missing>{crumb("Use case")}<h1 class="ucf-h">That use case isn't in this report</h1><p><a href={listAt}>Go back to the use cases</a>.</p></div>;
+  if (!u) return <div class="ucf" data-ucf data-missing>{crumb("Use case")}<h1 ref={head} tabIndex={-1} class="ucf-h">That use case isn't in this report</h1><p><a href={listAt}>Go back to the use cases</a>.</p></div>;
   const page = (d.use_case_pages || []).find((x) => x.id === u.id) || { next_steps: [], milestones: [] };
   const work = page.next_steps.map((n) => rows.value.find((r) => r.id === n)).filter(Boolean);
   const ms = page.milestones.map((n) => (d.milestones || []).find((m) => m.id === n)).filter(Boolean);
@@ -32,7 +35,7 @@ export function UseCaseFilePage({ id }) {
       {crumb(name)}
       <div class="ucf-head">
         <div class="ucf-titles">
-          <h1 class="ucf-h"><span class="ucf-ref">{name} ·</span><span class="ucf-name ucf-ro" data-ucf-field="title">{u.title}</span></h1>
+          <h1 ref={head} tabIndex={-1} class="ucf-h"><span class="ucf-ref">{name} ·</span><span class="ucf-name ucf-ro" data-ucf-field="title">{u.title}</span></h1>
           <p class="ucf-sub">
             <span class={`ucf-word rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>
             <CommitChip u={u} />
@@ -59,7 +62,7 @@ export function UseCaseFilePage({ id }) {
                   return (
                     <li key={r.id}>
                       <button type="button" class="ucf-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucf-id num">{r.id}</span><span class="ucf-t">{r.client_message || r.title}</span>
+                        <span class="ucf-id num">{r.id}</span><span class="ucf-t" title={r.client_message || r.title}>{r.client_message || r.title}</span>
                         <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucf-x">{extra}</span>
                       </button>
                     </li>
