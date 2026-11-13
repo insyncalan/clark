@@ -93,12 +93,12 @@ class Names(Base):
             with self.subTest(name):
                 self.refused(fn(), UNSAFE_NAME, msg=name)
 
-    def test_the_zip_file_name(self):
-        for name in ("brand.zip", "clark-brand-%s.zip" % bz.BRAND_ID, "clark-brand-UPPER-1.0.0.zip", "clark-brand-%s-1.0.zip" % bz.BRAND_ID,
-                     "clark-update-1.0.0.zip"):
+    def test_any_zip_file_name_is_accepted_and_the_manifest_names_the_brand(self):
+        for name in ("brand.zip", "clark-brand-%s.zip" % bz.BRAND_ID, "clark-brand-UPPER-1.0.0.zip", "My Kit (3).zip",
+                     "clark-brand-another-brand-1.0.0.zip", "clark-update-1.0.0.zip"):
             with self.subTest(name):
-                self.refused(bz.valid(), NAME, name=name, msg=name)
-        self.refused(bz.valid(), NAME, brand_id="another-brand", msg="the name's id and the folder's must agree")
+                got = self.review(bz.valid(), name=name)
+                self.assertEqual((got["id"], got["name"], got["version"]), (bz.BRAND_ID, "Example Brand", "1.0.0"))
 
     def test_duplicates_and_case_clash(self):
         self.refused(bz.duplicate_names(), UNSAFE_NAME, msg="duplicate")

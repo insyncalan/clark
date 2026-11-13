@@ -1,7 +1,7 @@
 // Settings › Safety (#111): the backups, newest first, with Preview and Restore. Edit parts only (a published file has no Settings).
 // The server decides and checks everything; this draws its answers in plain words (logic/safety.js). `api` and `reload` are
 // seams for the tests; the page passes neither.
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
 
@@ -54,6 +54,13 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
     else setState({ phase: "failed", list: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); }, []);
+
+  // The answer is drawn below the list, so it is brought into view and given focus (a screen reader reads it, the keyboard stays there).
+  const panelEl = useRef(null);
+  const msgEl = useRef(null);
+  const shown = (el) => { if (el) { el.focus({ preventScroll: true }); el.scrollIntoView({ block: "nearest" }); } };
+  useEffect(() => { if (panel) shown(panelEl.current); }, [panel && panel.name, panel && panel.confirming]);
+  useEffect(() => { if (msg && state.phase === "ready") shown(msgEl.current); }, [msg, state.phase]);
 
   async function look(name, confirming) {
     setBusy(true);
@@ -112,7 +119,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="backup-panel" role="region" aria-label="Backup preview">
+        <div class="backup-panel" id="backup-panel" ref={panelEl} tabIndex={-1} role="region" aria-label="Backup preview">
           {L.previewLines(panel.preview).map((t) => <p key={t}>{t}</p>)}
           {panel.confirming && L.canRestore(panel.preview) ? (
             <>
@@ -130,7 +137,7 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
           )}
         </div>
       ) : null}
-      <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
+      <div class="pub-msg" ref={msgEl} tabIndex={-1} role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}</p> : null}</div>
     </section>
   );
 }

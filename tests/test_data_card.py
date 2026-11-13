@@ -29,9 +29,19 @@ class DataCard(Base):
                 p.width(w)
                 self.open_settings(p)
                 self.assertEqual(p.js("document.querySelector('#data-card h2').textContent"), "Data")
-                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook", "Excel file layout"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#data-card button')].map(b => b.textContent)"), ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…"])
                 self.assertIn("a sheet each for actions", p.js("document.querySelector('#data-card p').textContent"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
+
+    def test_C_word_buttons_open_the_profile_menus_boxes_in_view(self):          # row 831
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.querySelector('[data-word-export]').click()")
+            p.until("!!document.querySelector('#word-export-dialog[open]')", "the Export to Word box opened")
+            p.js("document.querySelector('#word-export-dialog').close()")
+            p.js("document.querySelector('[data-word-import]').click()")
+            p.until("!!document.querySelector('#word-import-dialog[open]')", "the Import from Word box opened, no Edit needed")
 
     def test_C_pressing_export_downloads_one_workbook_and_says_so(self):
         with chrome() as cdp:

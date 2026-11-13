@@ -279,7 +279,7 @@ class Compose(unittest.TestCase):
             if m["target"] != shared[0]:
                 self.assertFalse(m["target"].startswith(shared[0] + "/"), f"{m['target']} is inside the read-only share {shared[0]}")
         self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}\n        target: /data\n", text)
-        self.assertIn('"--data", "/data"', text, "clark is told the folder that is mounted")
+        self.assertIn("--data /data", text, "clark is told the folder that is mounted")
 
     def test_it_runs_as_an_ordinary_user_not_root(self):
         """item 462: a stock image runs as root, and would write the owner's folder as root."""
@@ -291,7 +291,7 @@ class Compose(unittest.TestCase):
     def test_the_command_starts_clark_as_the_terminal_does_with_the_mounted_data(self):
         """python3 -m clark builds the pages (page.ensure_built, item 495) before it serves, as on the Terminal route."""
         text = self.service()
-        self.assertIn('    command: ["python3", "-m", "clark", "--data", "/data", "--port", "8766"]', text)
+        self.assertIn("exec python3 -m clark --data /data --port 8766", text)
         self.assertTrue((ROOT / "clark" / "__main__.py").is_file(), "the stand-in that python3 -m clark runs from /clark")
         main = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
         self.assertLess(main.index("page.ensure_built()"), main.index("done = serve("))
@@ -335,7 +335,7 @@ class ComposeIsLanSafe(unittest.TestCase):
         address, rest = ports_line.split('"')[1].split(":", 1)
         self.assertEqual(address, "127.0.0.1")
         self.assertEqual(rest, "${CLARK_PORT:-8766}:8766")
-        self.assertIn('"--port", "8766"]', self.CODE)
+        self.assertIn("--data /data --port 8766;", self.CODE)
         self.assertRegex(self.CODE, r'(?m)^      CLARK_PORT: "8766"$')
         for unsafe in ("${CLARK_PORT}", "${CLARK_PORT:-0.0.0.0", "${HOST", "${CLARK_HOST"):
             self.assertNotIn(unsafe, self.CODE, unsafe)

@@ -65,10 +65,7 @@ class Raid(PageBase):
                 p, view, box = self.open_editor(cdp)
                 look(p, width, theme)
                 yield p, view, box
-            for r in self.store.read("report_sections", "ABC"):
-                if r["id"] == self.sec:
-                    with self.store.step("dashboard", USER) as st:
-                        st.delete("report_sections", r["id"]) if hasattr(st, "delete") else None
+            # report_sections rows are never deleted (Step.delete refuses them); seed() makes the next combo's section
 
     def test_400_emoji_save_and_401_emoji_do_not(self):
         for p, view, box in self.each():

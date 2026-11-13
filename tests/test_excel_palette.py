@@ -1,7 +1,7 @@
 """Item 711 (4a): the Excel palette reads the local brand over the committed look (clark.excel_palette), pure and uncached.
 
 Run: python3 dev/run_tests.py test_excel_palette
-Every brand here is invented in a temporary folder; nothing is read from or written to system/branding.
+Every brand here is invented in a temporary folder; nothing is read from or written to branding.
 """
 import shutil
 import tempfile
@@ -232,6 +232,20 @@ class LightOnly(unittest.TestCase):
             self.assertEqual(p.tokens, base.TOKENS)
             self.assertEqual(p.font, ep.look.office_font())
             self.assertEqual(len(w), 1)         # one note that no light block was found, none per dark value
+
+
+class PlainWarningWording(unittest.TestCase):
+    """Warnings reach the page's Excel export unchanged, so they use no file or code words."""
+
+    def test_warnings_use_plain_words(self):
+        w = []
+        ep.palette(css="body{}", warnings=w)
+        w2 = []
+        ep.palette(css=":root { --brand-navy: nonsense; }", warnings=w2)
+        self.assertTrue(w and w2)
+        for text in w + w2:
+            for word in ("tokens", "committed", "not used ("):
+                self.assertNotIn(word, text)
 
 
 if __name__ == "__main__":

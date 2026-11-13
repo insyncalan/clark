@@ -9,6 +9,7 @@ Your git settings are made hostile on purpose (a real-looking identity, signing 
 to show none of it reaches the published commit.
 """
 import base64
+import hashlib
 import io
 import os
 import re
@@ -21,6 +22,7 @@ from pathlib import Path
 from unittest import mock
 
 import _paths  # noqa: F401  (puts dev/tools/ on the path)
+import ci_scan
 import publish_public as pp
 from _growth import assert_growth
 from test_no_real_names import FICTIONAL
@@ -97,7 +99,7 @@ class Base(unittest.TestCase):
         root.mkdir()
         sh("init", "-q", cwd=root)
         sh("symbolic-ref", "HEAD", "refs/heads/main", cwd=root)
-        everything = dict({".gitignore": "comms/\nsystem/branding/\n"}, **files)
+        everything = dict({".gitignore": "comms/\nsystem/branding/\n/branding/\n"}, **files)
         for rel, data in list(everything.items()) + list((ignored or {}).items()) + list((forced or {}).items()):
             (root / rel).parent.mkdir(parents=True, exist_ok=True)
             (root / rel).write_bytes(data if isinstance(data, bytes) else data.encode("utf-8"))
@@ -181,33 +183,33 @@ class TheExclusionList(Base):
     def test_the_list_is_pinned_to_the_issue(self):
         self.assertEqual(pp.EXCLUDED, ("dev/HEAD-LOG.md", "docs/DECISIONS.md", HANDOVER,
                                        HANDOVER_OTHER, "docs/TEAM-AND-ROLES.md", ".claude/",
-                                       "comms/", "system/branding/"))
+                                       "comms/", "system/branding/", "branding/"))
         self.assertEqual((pp.PUBLIC_README_SOURCE, pp.PUBLIC_README, pp.PUBLIC_SOURCE_DIR),
                          ("docs/public/README.md", "README.md", "docs/public/"))
 
     def test_what_matches(self):
         for path in ("dev/HEAD-LOG.md", "docs/DECISIONS.md", ".claude/settings.json", ".claude/skills/x/SKILL.md",
                      ".CLAUDE/x", "docs/TEAM-AND-ROLES.md", "docs/team-and-roles.md", "comms/a.md",
-                     "comms/x/y/z.pptx", "system/branding/logo.png", "system/branding/a/b", "Comms/Notes.md",
+                     "comms/x/y/z.pptx", "system/branding/logo.png", "branding/logo.png", "Branding/a/b", "system/branding/a/b", "Comms/Notes.md",
                      "SYSTEM/Branding/x", "docs/decisions.md", HANDOVER,
                      "docs/public/README.md", "docs/public/x/y.md", "Docs/Public/a"):
             self.assertTrue(pp.is_excluded(path), path)
         for path in ("docs/handoff/a.md", "docs/handoff/x/y.md", "docs/handoff.md", "docs/publicity.md", "docs/public.md",
                      "src/docs/public/a", "x.claude/a", "claude/a", "src/.claude/a", "docs/handoffs/a.md", "xcomms/a.md",
                      "docs/DECISIONS.md.bak", "dev/HEAD-LOG.mdx",
-                     "system/brandingx/a", "system/prototype/branding/a", "docs/RULES.md", "src/comms/a.py"):
+                     "system/brandingx/a", "brandingx/a", "src/branding/a", "docs/branding/a", "system/prototype/branding/a", "docs/RULES.md", "src/comms/a.py"):
             self.assertFalse(pp.is_excluded(path), path)
 
     def test_excluded_files_are_absent_whether_ignored_or_force_added(self):
         self.make_private(dict(GOOD, **dict(NOTES, **KEPT)),
-                          ignored={"system/branding/logo.png": "x", "comms/plan.md": "x"})
+                          ignored={"system/branding/logo.png": "x", "branding/logo.png": "x", "comms/plan.md": "x"})
         code, out = self.go()
         self.assertEqual(code, 0, out)
         self.assertEqual(self.tree(), [".gitignore", "README.md", "docs/RULES.md", "docs/handoff/a.md", "docs/handoff/sub/b.md",
                                        "src/app.py"])
 
     def test_a_force_added_file_under_comms_or_branding_is_a_refusal_not_a_removal(self):
-        for forced in ({"comms/forced.md": "x"}, {"system/branding/forced.css": "x"}, {"Comms/Upper.md": "x"},
+        for forced in ({"comms/forced.md": "x"}, {"system/branding/forced.css": "x"}, {"branding/forced.css": "x"}, {"branding/x": "x"}, {"Comms/Upper.md": "x"},
                        {"comms/deep/er/f.md": "x", "system/branding/a.png": "y"}):
             with self.subTest(sorted(forced)):
                 self.setUp()
@@ -218,7 +220,7 @@ class TheExclusionList(Base):
                     self.assertEqual(code, 1, out)
                     self.assertEqual(self.heads(), [])
                     self.assertIn("REFUSED  nothing private is tracked", out)
-                    self.assertRegex(out, r"file #\d+ is tracked under comms/ or system/branding/")
+                    self.assertRegex(out, r"file #\d+ is tracked under comms/, branding/ or system/branding/")
                     for name in forced:
                         self.assertNotIn(name, out.split("Checks:")[1])
                     self.assertNotIn("Traceback", out)
@@ -242,7 +244,7 @@ class TheExclusionList(Base):
             if not pp.names_listed_word(rule):                     # a file name that holds a person's name is not written in the how-to
                 self.assertIn(rule, how_to)
         self.assertIn("docs/handoff/` is published", how_to)
-        for words in ("refuses", "worktree", "SIGTERM", "comms/", "system/branding/"):
+        for words in ("refuses", "worktree", "SIGTERM", "comms/", "system/branding/", "branding/"):
             self.assertIn(words, how_to)
 
     def test_the_private_repos_name_is_not_written_in_the_published_files(self):
@@ -917,6 +919,38 @@ class TheWiderSecretsScan(Base):
         out = self.refused()
         self.assertRegex(out, r"file #\d+ part #1\.1: a private key \(base64\)")
         self.assertNotIn(base64.b64encode(header).decode()[:20], out)
+
+
+class TheVendoredEncryptionFile(Base):
+    """#891: pypdf's _encryption.py is a lawful file the secrets scan misreads (lines like `password = user_password` are code, not a
+    value). It is let past the secrets scan by exact path AND exact SHA-256 only; any other path, or any changed byte, is scanned."""
+    PATH = "vendor/pypdf/_encryption.py"
+
+    def setUp(self):
+        self.real = (Path(__file__).resolve().parents[1] / self.PATH).read_bytes()
+
+    def found(self, path, data):
+        return pp.secret_findings([pp.Entry(1, "100644", "0" * 40, len(data), path)], [data])
+
+    def test_the_exact_file_at_its_path_passes_the_secrets_scan(self):
+        self.assertTrue(pp.scan_secrets_in(self.real), "the scan misreads it; that is why the pin exists")
+        self.assertEqual(self.found(self.PATH, self.real), [])
+
+    def test_the_same_bytes_at_any_other_path_are_scanned(self):
+        for path in ("vendor/pypdf/_other.py", "vendor/other/_encryption.py", "src/clark/_encryption.py", "Vendor/pypdf/_encryption.py"):
+            with self.subTest(path):
+                self.assertEqual(self.found(path, self.real), ["file #1: a password, key or token value"])
+
+    def test_a_changed_byte_or_an_added_secret_at_its_path_is_scanned(self):
+        for data in (self.real + b"\n", self.real.replace(b"import", b"imp0rt", 1), self.real + b'\ntoken = "' + b"ghp_" + b"a1B2c3D4" * 3 + b'"\n'):
+            with self.subTest(len(data)):
+                self.assertTrue(self.found(self.PATH, data))
+
+    def test_only_that_one_file_is_pinned_and_the_plain_allow_list_stays_empty(self):
+        self.assertEqual(list(pp.SECRET_SCAN_PINNED), [self.PATH])
+        self.assertEqual(pp.SECRET_SCAN_ALLOWED, {})
+        import hashlib
+        self.assertEqual(pp.SECRET_SCAN_PINNED[self.PATH], hashlib.sha256(self.real).hexdigest())
 
 
 class TheSize(Base):
@@ -2361,3 +2395,118 @@ class TheAuthorFlagsAreChecked(Base):
         code, out = self.go("--author-name", "someone", "--author-email", "s@example.invalid")
         self.assertEqual(code, 0, out)
         self.assertRegex(out, r"PASS +author and message are clear")
+
+
+class TheVendorLineAllowances(unittest.TestCase):
+    """Row 891: four exact upstream lines of the vendored pdf library are allowed, each in its own path; nothing wider."""
+    PATHS = tuple(pp.VENDOR_LINE_ALLOWED)
+
+    def kinds(self, path, text):
+        return pp.guard_kinds(path, text.encode("utf-8"))
+
+    def test_the_pins_match_ci_scan(self):
+        self.assertEqual(pp.VENDOR_LINE_PINS, ci_scan.VENDORED_PINS)
+
+    def test_the_allowance_needs_the_pinned_bytes_a_plain_file_and_the_exact_path(self):
+        path = self.PATHS[0]
+        data = (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()
+        with mock.patch.dict(pp.VENDOR_LINE_PINS, {path: hashlib.sha256(data).hexdigest()}):
+            self.assertEqual(pp.guard_kinds(path, data), set())
+            self.assertEqual(pp.guard_kinds(path, data, "100755"), {"a person's name"}, "executable: no allowance")
+            self.assertEqual(pp.guard_kinds(path, data + b"\n"), {"a person's name"}, "a changed byte: no allowance")
+            self.assertEqual(pp.guard_kinds("vendor/pypdf/copy.py", data), {"a person's name"}, "another path: no allowance")
+
+    def test_the_allowance_is_one_use_of_the_line_so_a_second_copy_is_refused(self):
+        path = self.PATHS[0]
+        line = (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()
+        data = line + line
+        with mock.patch.dict(pp.VENDOR_LINE_PINS, {path: hashlib.sha256(data).hexdigest()}):
+            self.assertEqual(pp.guard_kinds(path, data), {"a person's name"}, "the second copy of the line is not allowed")
+
+    def test_guard_findings_passes_the_entry_mode_on_so_an_executable_file_gets_no_allowance(self):
+        path = self.PATHS[0]
+        data = (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()
+        with mock.patch.dict(pp.VENDOR_LINE_PINS, {path: hashlib.sha256(data).hexdigest()}):
+            plain = pp.Entry(3, "100644", "0" * 40, len(data), path)
+            exe = pp.Entry(3, "100755", "0" * 40, len(data), path)
+            self.assertEqual(pp.guard_findings([plain], [data]), [])
+            self.assertEqual(pp.guard_findings([exe], [data]), ["file #3: a person's name"])
+
+    def test_there_are_exactly_four_entries_and_no_wildcard(self):
+        self.assertEqual(sorted(self.PATHS), ["vendor/pypdf/LICENSE", "vendor/pypdf/_codecs/adobe_glyphs.py",
+                                              "vendor/pypdf/constants.py", "vendor/pypdf/pagerange.py"])
+        self.assertTrue(all(len(v) == 1 for v in pp.VENDOR_LINE_ALLOWED.values()))
+        self.assertFalse(any("*" in p or p.endswith("/") for p in self.PATHS))
+
+    def real(self, path):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        with open(os.path.join(root, path), "rb") as f:
+            return f.read()
+
+    def test_the_real_vendored_file_passes_in_its_own_path(self):
+        for path in self.PATHS:
+            with self.subTest(path):
+                self.assertEqual(pp.guard_kinds(path, self.real(path)), set())
+
+    def test_the_pins_match_ci_scan_and_the_real_files(self):
+        self.assertEqual(pp.VENDOR_LINE_PINS, ci_scan.VENDORED_PINS)
+        for path in self.PATHS:
+            self.assertEqual(hashlib.sha256(self.real(path)).hexdigest(), pp.VENDOR_LINE_PINS[path])
+
+    def test_a_changed_byte_or_an_executable_file_gets_no_allowance(self):
+        for path in self.PATHS:
+            real = self.real(path)
+            with self.subTest(path):
+                self.assertEqual(pp.guard_kinds(path, real + b"\n"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real.replace(b"a", b"b", 1)), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, real, "100755"), {"a person's name"})
+                self.assertEqual(pp.guard_kinds(path, (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()), {"a person's name"})
+
+    def test_the_same_line_in_another_path_is_refused(self):
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            for other in [p for p in self.PATHS if p != path] + ["vendor/pypdf/other.py", "src/a.py", "vendor/typing_extensions.py"]:
+                with self.subTest(path=path, other=other):
+                    if line in pp.VENDOR_LINE_ALLOWED.get(other, ()):
+                        continue
+                    self.assertTrue(self.kinds(other, line + "\n"))
+
+    def test_each_entry_is_a_whole_line_of_the_real_vendored_file(self):
+        root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            with self.subTest(path):
+                with open(os.path.join(root, path), "rb") as f:
+                    self.assertIn(line.encode("utf-8"), f.read().splitlines())
+
+    def test_the_two_name_lines_are_refused_elsewhere(self):
+        for path in ("vendor/pypdf/LICENSE", "vendor/pypdf/pagerange.py"):
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            for other in ("vendor/pypdf/constants.py", "vendor/pypdf/__init__.py", "src/a.py"):
+                with self.subTest(path=path, other=other):
+                    self.assertEqual(self.kinds(other, line + "\n"), {"a person's name"})
+        self.assertEqual(self.kinds("vendor/pypdf/pagerange.py", pp.VENDOR_LINE_ALLOWED["vendor/pypdf/LICENSE"][0] + "\n"),
+                         {"a person's name"})
+
+    def test_a_listed_word_on_any_other_line_of_those_files_is_refused(self):
+        hostile = ("Copyright (c) 2014, %s Smith" % BUILDER_N,          # a copyright line with a listed name
+                   "x = %s" % BUILDER_N,                                  # a capitalised listed word
+                   '    LANG = "/%s"' % BUILDER2_N,
+                   "%s and %s" % (OWNER_N.lower(), HEAD_N.lower()),       # a name pair
+                   "%s" % OWNER_N.lower())
+        for path in self.PATHS + ("vendor/pypdf/__init__.py",):
+            allowed = pp.VENDOR_LINE_ALLOWED.get(path, ("",))[0]
+            for bad in hostile:
+                with self.subTest(path=path, bad=bad[:6]):
+                    self.assertEqual(self.kinds(path, "%s\n%s\n" % (allowed, bad)), {"a person's name"})
+                    self.assertEqual(self.kinds(path, "%s\n" % bad), {"a person's name"})
+
+    def test_the_allowed_line_with_anything_added_or_repeated_is_refused(self):
+        for path in self.PATHS:
+            line = pp.VENDOR_LINE_ALLOWED[path][0]
+            if not has_listed(line):
+                continue
+            with self.subTest(path):
+                self.assertTrue(self.kinds(path, line + " more\n"))
+                self.assertTrue(self.kinds(path, "# " + line + "\n"))
+                self.assertTrue(self.kinds(path, line + "\n" + line + "\n"))
