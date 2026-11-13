@@ -254,3 +254,24 @@ for _w in WIDTHS:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TopBarTabKeys(Base):
+    """Roving tabindex and Left/Right/Home/End on the top bar's tabs (as in Help)."""
+
+    def test_roving_and_arrow_keys(self):
+        key = ("function(k){ document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            idx = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.tabIndex)")
+            self.assertEqual(sorted(idx), [-1] * (len(idx) - 1) + [0], f"exactly one tab is in the Tab order: {idx}")
+            self.assertEqual(p.js("document.querySelector('.top .tab[tabindex=\"0\"]').getAttribute('aria-selected')"), "true")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            names = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.dataset.view)")
+            at = "document.activeElement.dataset.view"
+            for k, want in (("ArrowRight", names[1]), ("End", names[-1]), ("ArrowRight", names[0]), ("ArrowLeft", names[-1]), ("Home", names[0])):
+                p.js(f"({key})('{k}')")
+                p.until(f"{at} === '{want}' && document.activeElement.getAttribute('aria-selected') === 'true'", f"{k} moved to and opened the {want} tab")
+                self.assertEqual(p.js("document.querySelectorAll('.top .tab[tabindex=\"0\"]').length"), 1)
