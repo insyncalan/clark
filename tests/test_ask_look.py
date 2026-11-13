@@ -360,13 +360,17 @@ class Look(Base):
                     box = json.loads(p.js("JSON.stringify((function(){var r=document.querySelector('#ask-box').getBoundingClientRect();var s=document.querySelector('#ask-send').getBoundingClientRect();"
                                           "var cs=getComputedStyle(document.querySelector('#ask-send'));"
                                           "return {h:r.height,w:s.width,sh:s.height,left:s.left,boxRight:r.right,radius:cs.borderRadius,txt:document.querySelector('#ask-send').textContent.trim(),"
-                                          "title:document.querySelector('#ask-send').title,label:document.querySelector('#ask-send').getAttribute('aria-label'),svg:!!document.querySelector('#ask-send svg'),"
+                                          "title:document.querySelector('#ask-send').title,label:document.querySelector('#ask-send').getAttribute('aria-label'),svg:!!document.querySelector('#ask-send svg'),d:(document.querySelector('#ask-send svg path')||{getAttribute:function(){return ''}}).getAttribute('d'),"
                                           "bg:cs.backgroundColor,op:cs.opacity};})())"))
                     self.assertLessEqual(box["h"], 44, f"{what}: one line high")
                     self.assertGreaterEqual(min(box["w"], box["sh"]), 24, f"{what}: 24 px hit box")
                     self.assertEqual(box["txt"], "", f"{what}: no word on the button")
                     self.assertEqual((box["title"], box["label"]), ("Ask", "Ask"))
                     self.assertTrue(box["svg"])
+                    self.assertAlmostEqual(box["w"], box["sh"], delta=1, msg=f"{what}: the button is square")
+                    rad = box["radius"]
+                    self.assertTrue(rad == "50%" or float(rad.rstrip("px")) >= box["w"] / 2 - 1, f"{what}: the button is round ({rad})")
+                    self.assertTrue(box["d"].startswith("M8 13V3M3.5 7.5 8 3"), f"{what}: the arrow points up ({box['d']})")
                     self.assertGreaterEqual(box["left"], box["boxRight"] - 1, f"{what}: beside the field")
                     self.assertLess(float(box["op"]), 1, f"{what}: looks disabled while empty")
                     # row 1096: a round arrow in the brand colour (the pill token), not a grey square

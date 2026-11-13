@@ -485,6 +485,30 @@ class Panel(Base):
             self.ask(p, "Hello")
             p.until("!!document.querySelector('#ask-off')", "the panel went to the off line")
 
+    def test_a_question_that_got_no_answer_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (500, {"ok": False, "message": "Something went wrong."})
+            self.ask(p, "Where did it go?")
+            p.until("!!document.querySelector('.ask-turn.problem')", "a reply line came")
+            p.until("document.querySelector('#ask-box').value === 'Where did it go?'", "the question is back in the box")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn.user').length"), 0, "the question is in the box, so it is not also in the transcript")
+
+    def test_a_question_sent_as_asking_went_off_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (409, {"ok": False, "code": "asking_off", "message": "Asking is off."})
+            self.ask(p, "Hello again")
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            p.until("!!document.querySelector('#ask-box') && document.querySelector('#ask-box').value === 'Hello again'", "the question is back in the box")
+
+    def test_escape_during_composition_does_not_close_the_panel(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("document.querySelector('#ask-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', isComposing: true, bubbles: true, cancelable: true}))")
+            time.sleep(0.5)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "Esc that ends a composition leaves the panel open")
+
     def test_not_signed_in_says_so_with_a_link_to_settings(self):
         self.stub.connected = False
         with chrome() as cdp:

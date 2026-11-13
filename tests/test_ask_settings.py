@@ -27,7 +27,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs."
+ON = "Asking is on."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."
@@ -356,6 +356,21 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed")
                 self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
                 self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
+
+    def test_add_folder_keeps_the_focus_in_the_location_box(self):
+        """Add folder is disabled while the request runs and again once the box is emptied: the focus goes to the box, refused or not."""
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+            js("window.__ask.choices = ['/nowin']")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+            put = lambda text: js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(text))
+            for text in ("/bad", "/Example/typed"):
+                put(text)
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').focus(); document.querySelector('[data-ask-add]').click()")
+                self.until(lambda: js("document.activeElement === document.querySelector('#ask-folder-path')"), True, f"{text}: focus is in the box")
 
     def test_the_typed_location_is_trimmed_spaces_alone_add_nothing_and_a_refused_one_stays_in_the_box(self):
         with chrome() as cdp:

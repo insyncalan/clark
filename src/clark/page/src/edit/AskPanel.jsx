@@ -59,7 +59,7 @@ export function AskPanel() {
   const [quip, setQuip] = useState("");
   const showHist = histOpen.value && !busy;
   const saved = showHist ? (histTick.value, chats()) : [];
-  const box = useRef(null), log = useRef(null);
+  const box = useRef(null), log = useRef(null), stopped = useRef(false);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -111,9 +111,11 @@ export function AskPanel() {
     if (state !== "ready" || busy) return;
     const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
-    setNote("");
+    setNote(""); stopped.current = false;
+    histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
-    turns.value = [...list, { role: "user", text: q }];
+    const mine = { role: "user", text: q };
+    turns.value = [...list, mine];
     if (!preset) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
@@ -123,6 +125,11 @@ export function AskPanel() {
     setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
+    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (!answered && !preset) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
+      setText((t) => t || q);
+      if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it
+    }
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
@@ -176,6 +183,7 @@ export function AskPanel() {
   }
 
   async function stop() {
+    stopped.current = true;
     setNote(W.STOPPING_LINE);
     await post("/api/ask/stop", {});
   }

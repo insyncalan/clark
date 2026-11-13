@@ -6,6 +6,7 @@ tests fail, never skip, without it.
 Run: python3 dev/run_tests.py test_top_bar_tabs
 """
 import sqlite3
+import time
 import unittest
 
 from test_inline_67 import size
@@ -40,7 +41,7 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
-            p.until("!!document.querySelector('#ask-btn')", "the ask button shows")
+            p.until("!!document.querySelector('#ask-btn')", "the ask button shows", 30)     # the page reads the ask switch once from the server and shows nothing until it answers: a loaded machine needs longer than 10 s
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
@@ -173,7 +174,7 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, 900, 700)
-            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
+            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show", 30)
             p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Use cases')[0].click()")      # row 976: the last tab (Settings was it before)
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
@@ -254,3 +255,38 @@ for _w in WIDTHS:
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TopBarTabKeys(Base):
+    """Roving tabindex and Left/Right/Home/End on the top bar's tabs (as in Help)."""
+
+    def test_roving_and_arrow_keys(self):
+        key = ("function(k){ document.activeElement.dispatchEvent(new KeyboardEvent('keydown', {key: k, bubbles: true, cancelable: true})); }")
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            idx = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.tabIndex)")
+            self.assertEqual(sorted(idx), [-1] * (len(idx) - 1) + [0], f"exactly one tab is in the Tab order: {idx}")
+            self.assertEqual(p.js("document.querySelector('.top .tab[tabindex=\"0\"]').getAttribute('aria-selected')"), "true")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            names = p.js("[...document.querySelectorAll('.top .tab')].map(t => t.dataset.view)")
+            at = "document.activeElement.dataset.view"
+            for k, want in (("ArrowRight", names[1]), ("End", names[-1]), ("ArrowRight", names[0]), ("ArrowLeft", names[-1]), ("Home", names[0])):
+                p.js(f"({key})('{k}')")
+                p.until(f"{at} === '{want}' && document.activeElement.getAttribute('aria-selected') === 'true'", f"{k} moved to and opened the {want} tab")
+                self.assertEqual(p.js("document.querySelectorAll('.top .tab[tabindex=\"0\"]').length"), 1)
+
+    def test_a_modified_arrow_key_is_left_to_the_browser(self):
+        # Alt+Left is the browser's Back: the tab bar must not swallow it or change the view
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            before = p.js("document.activeElement.dataset.view")
+            for mod in ("altKey", "ctrlKey", "metaKey"):
+                self.assertEqual(p.js(f"(function(){{ var e = new KeyboardEvent('keydown', {{key: 'ArrowRight', {mod}: true, bubbles: true, cancelable: true}}); document.activeElement.dispatchEvent(e); return e.defaultPrevented; }})()"), False, f"{mod}+ArrowRight is not prevented")
+            time.sleep(0.3)
+            self.assertEqual(p.js("document.activeElement.dataset.view"), before)
+            self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), before)

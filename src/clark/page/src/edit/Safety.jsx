@@ -15,6 +15,7 @@ function CopyFolder({ list, api, saved }) {
   const [said, setSaid] = useState(null);                    // null, or {kind: "success" | "error", text}
   const [busy, setBusy] = useState(false);
   async function save() {
+    if (busy) return;                                    // not `disabled` while it works: a disabled button drops the keyboard's focus to the page
     setBusy(true);
     setSaid(null);
     const r = await api.setCopyFolder(typed);
@@ -33,9 +34,9 @@ function CopyFolder({ list, api, saved }) {
         onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
       <small id="safety-copy-line">{list.copy_help}</small>
       {(list.copy_suggestions || []).map((path) => (
-        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} disabled={busy} onClick={() => setTyped(path)}>Use {path}</button>
+        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use {path}</button>
       ))}
-      <div class="row"><button type="button" class="btn sm" data-copy-save disabled={busy} onClick={save}>{L.LABELS.save}</button></div>
+      <div class="row"><button type="button" class="btn sm" data-copy-save aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
       <div id="safety-copy-said" role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
     </div>
   );
@@ -127,7 +128,8 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="backup-panel" ref={panelEl} tabIndex={-1} role="region" aria-label="Backup preview">
+        <div class="backup-panel" id="backup-panel" role="region" aria-label="Backup preview" tabIndex={-1} ref={panelEl}
+             onKeyDown={(e) => { if (e.key === "Escape" && !busy) { e.stopPropagation(); closePanel(); } }}>
           {L.previewLines(panel.preview).map((t) => <p key={t}>{t}</p>)}
           {panel.confirming && L.canRestore(panel.preview) ? (
             <>
