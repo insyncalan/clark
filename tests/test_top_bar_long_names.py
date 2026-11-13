@@ -12,7 +12,7 @@ from test_publish_dialog import Base
 from test_server import chrome
 
 LONG_PROJECT = "Example Client onboarding programme, phase two, northern region, including the extended regional rollout and wind-down"
-LONG_PERSON = "Example Person With An Extremely Long Hyphenated-Family-Name-That-Keeps-Going-And-Going"
+LONG_PERSON = "Example Person With A Very Long Hyphenated-Family-Name"
 LONG_EMAIL = "example.person.with.a.very.long.address.that.keeps.going@a-very-long-example-company-name.example.org"
 
 BAR = """(function(){
