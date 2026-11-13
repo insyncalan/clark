@@ -1707,6 +1707,10 @@
        [
         "The line under it",
         "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it”"
+       ],
+       [
+        "One-line fields",
+        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]

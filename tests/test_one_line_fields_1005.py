@@ -75,5 +75,14 @@ class Own(PageBase):
                 p.until(f"!document.querySelector({json.dumps(box)})", "closed")
 
 
+
+class HelpSaysSo(unittest.TestCase):
+    def test_the_editor_controls_table_names_the_one_line_fields(self):
+        from pathlib import Path
+        text = (Path(__file__).resolve().parent.parent / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) "
+                      "have no / menu and no formatting buttons. Enter or a click away saves.", text)
+
+
 if __name__ == "__main__":
     unittest.main()

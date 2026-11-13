@@ -51,6 +51,11 @@ def plain_only(test, p, where):
          " b.dispatchEvent(new ClipboardEvent('paste', {clipboardData: d, bubbles: true, cancelable: true}));})()")
     p.until(f"{ed}.getText().includes('two')", f"{where}: pasted")
     test.assertEqual(p.js("document.activeElement.innerHTML.replace(/ class=\"[^\"]*\"/g, '')"), "<p>One bold two</p>", f"{where}: a paste is one plain line")
+    p.js(f"{ed}.commands.clearContent()")
+    p.js("(function(){var b = document.activeElement; var d = new DataTransfer(); d.setData('text/plain', 'first\\n\\nsecond   third');"
+         " b.dispatchEvent(new ClipboardEvent('paste', {clipboardData: d, bubbles: true, cancelable: true}));})()")
+    p.until(f"{ed}.getText().includes('third')", f"{where}: text-only pasted")
+    test.assertEqual(p.js("document.activeElement.innerHTML.replace(/ class=\"[^\"]*\"/g, '')"), "<p>first second third</p>", f"{where}: a text-only paste is one plain line too")
 
 
 class RowWords(unittest.TestCase):

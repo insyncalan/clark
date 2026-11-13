@@ -101,6 +101,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
     extensions: bare ? undefined : rich,
     injectCSS: false,
     editorProps: { handleKeyDown: keys, transformPastedHTML: oneLine ? pasteWords : cleanPaste,
+      ...(oneLine ? { transformPastedText: (text) => text.replace(/\s+/g, " ").trim() } : {}),      // text only on the clipboard (a terminal, a plain editor, Shift+paste) is one line too
       attributes: { class: "clark-ed", "aria-label": plain ? "Text" : "Rich text", "aria-multiline": plain ? "false" : "true", role: "textbox" } },
     onUpdate: () => { if (onChange) onChange(handle); },
     onSelectionUpdate: () => { if (onChange) onChange(handle); },
