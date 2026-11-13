@@ -98,9 +98,10 @@ export function linkableMilestones(d, ucId) {
   return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name }));
 }
 
-/** Row 1107: the use cases linked straight to a milestone, in the project's order: [{id, ref, title}]. */
+/** The live use cases that reach a milestone, linked straight to it (row 1107) or through a work item that names both, in the project's order: [{id, ref, title}]. */
 export function usecasesOfMilestone(d, msId) {
   const ids = new Set(((d && d.uc_milestones) || []).filter((l) => l.milestone === msId).map((l) => l.use_case));
+  for (const r of [...((d && d.actions) || []), ...((d && d.raid) || []), ...((d && d.decisions) || [])]) if (r.milestone === msId && r.use_case) ids.add(r.use_case);
   return ((d && d.use_cases) || []).filter((u) => !u.archived && ids.has(u.id)).map((u) => ({ id: u.id, ref: u.ref, title: u.title }));
 }
 
