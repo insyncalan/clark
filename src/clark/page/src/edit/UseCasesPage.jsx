@@ -122,6 +122,13 @@ function StatusFilter({ f }) {
 
 // Row 830: the archived use cases, read with the archived rows (the page's own data leaves them out), under the list: a footer with
 // Show archived, and when on a box with each one's name (it opens read-only), a tag, its linked work items and Restore.
+function restore(u) {      // the Restore button leaves with its row: the footer's toggle (or the restored row's name) takes the focus
+  change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored.").then(() => setTimeout(() => {
+    const el = document.querySelector("#usecases [data-arch-toggle]") || document.querySelector(`#usecases [data-uc="${CSS.escape(u.id)}"] .ucl-go`);
+    if (el) el.focus({ preventScroll: true });
+  }, 120));
+}
+
 function ArchivedUseCases() {
   const code = project.value, d = data.value;
   const [got, setGot] = useState(null);
@@ -144,7 +151,7 @@ function ArchivedUseCases() {
               <li class="arch" key={u.id} data-arch-uc={u.id}>
                 <button type="button" class="link" onClick={() => openUseCase(u.id)}>{u.ref || "Use case"} · {u.title}</button>
                 <span class="tag arch">Archived</span>
-                <button type="button" class="btn sm" data-restore onClick={() => change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored.")}>Restore</button>
+                <button type="button" class="btn sm" data-restore onClick={() => restore(u)}>Restore</button>
               </li>
             ))}
           </ul>
@@ -168,7 +175,10 @@ function UseCasesList() {
     if (el) el.focus({ preventScroll: true });
   }, []);
   const sortWord = (SORTS.find(([k]) => k === f.sort) || SORTS[0])[1];
-  const clear = () => set({ st: [], on: "all", q: "" });
+  const clear = () => {      // the button leaves with the empty state: the search box takes the focus
+    set({ st: [], on: "all", q: "" });
+    setTimeout(() => { const q = document.getElementById("ucl-q"); if (q) q.focus({ preventScroll: true }); }, 60);
+  };
   return (
     <section class="frame ucl" id="usecases">
       <div class="head">
