@@ -145,10 +145,10 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
                 {armed ? (
                   <div onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); dropAsk(); } }}>
                     <p id="update-armed">{armed.line}</p>
-                    <div class="row"><button type="button" class="btn pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
+                    <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
                       {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
                   </div>
-                ) : <div class="row"><button type="button" class="btn" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button></div>}
+                ) : <div class="row"><button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undo}</button></div>}
               </div>
             </>
           ) : null}
