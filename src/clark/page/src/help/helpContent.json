@@ -620,7 +620,7 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
      "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
@@ -2158,11 +2158,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to View, like the **View** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
@@ -2914,7 +2914,7 @@
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
     },
     {
-     "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
+     "d": "If the box says the backup is of a different set of data, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
     },
     {
      "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. Before it swaps, clark keeps a copy of what you have now, and it shows in the list as Before a restore."
