@@ -145,7 +145,7 @@ class AgainstThePage(unittest.TestCase):
 
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(self.HELPCODE)
+        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Summary, This week, Next week) come from the server
         missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
@@ -211,14 +211,14 @@ class AgainstThePage(unittest.TestCase):
         # 41 measured on the take-over of PR 457 (#454) merged with main (42 there): the People card's Organisation column takes one more name off the absent list (42 fails)
         # 40 measured on the rebuild of item 454 on main (main is 41): the People card's Organisation column takes one more name off the absent list (41 fails)
         # 39 measured on the rebuild of item 434 on main (main is 40): the report rows' Edit parts put Help's bold Add from your project record on the page (40 fails)
-        # 39 measured on the merge of main (40) into the project switcher's menu (item 439, 40): Project settings and the People card's Organisation column together (40 fails)
+        # 39 measured on the merge of main (40) into the project switcher's menu (item 439, 40): the menu's project rows and the People card's Organisation column together (40 fails)
         # 38 measured on the merge of main (39) into item 434 (39): both sides' names on the page together (39 fails)
         # 37 measured on the merge of main (39) into the Word screens branch: the Word how-to (written, shown) bolds names that are on the page now, and the absent list is shorter (38 fails)
         # 33 measured on the merge of main (37) into the Settings Data card and Projects table (item 444, 34 on the earlier main): both sides' names on the page together (34 fails)
         # 36 measured on the merge of main (37) into item 434 (38): both sides' names on the page together (37 fails)
         # 32 measured on the merge of main (36) into the Settings Data card and Projects table (item 444, 33): both sides' names on the page together (33 fails)
         # 38 measured on the merge of main (40 there, the People card) into the refreshed Version and updates card: both sides' names on the page together (39 fails)
-        # 40 measured with the project switcher's menu (item 439) on main: Project settings is on the page, so that bold name left the absent list (41 fails)
+        # 40 measured with the project switcher's menu (item 439) on main: the menu's project rows are on the page, so a bold name left the absent list (41 fails)
         # 37 measured on the merge of main (39 there, the project switcher's menu) into the refreshed Version and updates card (38): both sides' names on the page together (38 fails)
         # 35 measured on the merge of main (37 there, the Word screens) into the refreshed Version and updates card (37): both sides' names on the page together (36 fails)
         # 30 measured on the merge of main (32 there, the Settings Data card and Projects table) into the refreshed Version and updates card (35): both sides' names on the page together (31 fails)

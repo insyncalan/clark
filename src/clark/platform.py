@@ -110,12 +110,38 @@ def container_host_in_onedrive(environ=None):
     return None
 
 
+# The one command a person types in Terminal, in the unzipped clark folder, to run clark on the Mac itself (docs: README.md and
+# START-HERE.md; the launcher is clark.command). The Docker front only serves the page; what needs the Mac needs this server.
+TERMINAL_COMMAND = "bash clark.command"
+
+
+def needs_mac_words():
+    """The one sentence every refusal says when clark runs in Docker (item 1100): what needs the Mac, and the exact command to
+    paste in Terminal. Every route that meets a Mac-only refusal takes its words from here, never from its own text."""
+    return f"This needs clark to run on the Mac itself; start it from Terminal: {TERMINAL_COMMAND}"
+
+
+NOT_BUILT_WORDS = "This step is not built for your system yet."
+
+
+def not_built_words():
+    """What a refused Mac-only step says when it did not meet the Docker sentence (item 1100): the Mac sentence in Docker, else the plain
+    not-built line, so a Windows or plain Linux run is never told to start from the Mac's Terminal."""
+    return needs_mac_words() if container_mode() else NOT_BUILT_WORDS
+
+
+def refusal_words(error, fallback):
+    """The words a person sees for a PlatformError `error`: the needs-the-Mac sentence when this system's branch is not there
+    (NotBuiltYet carrying exactly that sentence), else `fallback`. Never a class name, a path or the system's own text."""
+    return needs_mac_words() if isinstance(error, NotBuiltYet) and str(error) == needs_mac_words() else fallback
+
+
 def _only_mac(what, on=None):
     """Raise NotBuiltYet unless `on` (default: this system) is the Mac."""
     on = on or system()
     if on != MAC:
-        if on == "linux" and container_mode():          # item 427: said in the words of the person who started Docker
-            raise NotBuiltYet(mac_only_in_docker(what))
+        if on == "linux" and container_mode():          # item 1100: said in the words of the person who started Docker
+            raise NotBuiltYet(needs_mac_words())
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
 
 
@@ -620,16 +646,29 @@ def open_file(path, run=None, on=None):
 CHROME = "Google Chrome"
 
 
+OPEN_WAIT = 30      # #943: seconds the opener waits for the system's `open` before it gives up (it only hands the file on)
+
+
+def _run_waiting(args, run=None):
+    """_run with a wait limit: a start that does not finish in OPEN_WAIT seconds is stopped and counts as one that failed."""
+    try:
+        return (run or subprocess.run)(list(args), capture_output=True, text=True, check=False, timeout=OPEN_WAIT)
+    except subprocess.TimeoutExpired:
+        return subprocess.CompletedProcess(list(args), 1, "", "")
+
+
 def open_pdf_at(path, url, run=None, on=None):
     """#943: open the PDF `path` at the page named by `url` (pdf_link.pdf_url: file:///...#page=N) in Chrome, whose viewer takes
-    #page=N. If Chrome is not there or refuses, open the file plainly (open_file) so the person still sees it, at its first page."""
+    #page=N. If Chrome is not there, refuses or does not answer in time, open the file plainly so the person still sees it. That
+    plain open (`open <file>`) hands the file to whatever the system uses for PDFs and cannot carry a page, so the fallback
+    shows the first page: this is by design, not a lost page. A plain open that fails or does not answer is a PlatformError."""
     _only_mac("Opening a PDF at a page", on)
     path = _existing(path)
     url = str(url)
     if not re.match(r"file:///[^\s]+\Z", url) or not url.lower().split("#")[0].endswith(".pdf"):
         raise PlatformError("Only the address of a PDF file can be opened here.")
-    if _run(["open", "-a", CHROME, url], run).returncode != 0:
-        open_file(path, run=run, on=on)
+    if _run_waiting(["open", "-a", CHROME, url], run).returncode != 0:
+        _checked(_run_waiting(["open", str(path)], run), f"{path.name} could not be opened")
 
 
 def reveal_file(path, run=None, on=None):
@@ -725,7 +764,8 @@ def _dialog(script, args, run, which):
         if CANCELLED in (done.stderr or ""):
             return None
         raise PlatformError(f"The {which} window could not be opened. {TRY_AGAIN}")
-    return Path(done.stdout.strip())
+    picked = (done.stdout or "").rstrip("\r\n")   # osascript prints one path and a line ending; spaces in the name stay
+    return Path(picked) if picked.strip() else None      # exit 0 with nothing (or only blanks) printed is no pick; Path("") would be "." (the cwd)
 
 
 # File names and replacing files
@@ -936,14 +976,15 @@ def run_python_check(python, code, args=(), timeout=120, run=None):
     return done.returncode, (done.stderr or b"").decode("utf-8", "replace")
 
 
-def open_app_window(url, chrome, popen=None, on=None):
-    """Open `url` in a Chrome app window (no address bar or tabs). It is left running."""
-    _only_mac("Opening an app window", on)
+def open_in_chrome(url, chrome, popen=None, on=None):
+    """Open `url` in Chrome, as a page in an ordinary Chrome window (row 1076; not an app window: the person can install
+    it as a web app from Chrome if they want to). Chrome already running opens it there. It is left running."""
+    _only_mac("Opening Chrome", on)
     url = str(url)
     if not re.match(r"https?://[^\s]+\Z", url):
         raise PlatformError(f"Only web addresses starting http:// or https:// can be opened. You gave {url}.")
     try:
-        (popen or subprocess.Popen)([str(chrome), "--app=" + url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        (popen or subprocess.Popen)([str(chrome), url], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL, start_new_session=True)
     except OSError as e:
         raise PlatformError("Chrome could not be started, so clark's window did not open.") from e

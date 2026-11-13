@@ -45,6 +45,23 @@ class Plain(unittest.TestCase):
                              ("plan.xlsx", "plan.xlsx"), ("/a/b/plan.xlsx", "plan.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
 
+    def test_only_a_known_file_extension_makes_a_listed_file_name(self):
+        for words in ("john.smith", "acme.com", "v1.2", "Import, 2026-11-11, john.smith", "Import, acme.com"):
+            self.assertEqual(source_name(words, published=True), "", words)
+        for words, shown in (("Plan.docx", "Plan.docx"), ("notes.PDF", "notes.PDF"), ("a b.xlsx", "a b.xlsx"), ("Import, a b.xlsx", "a b.xlsx")):
+            self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_the_closed_list_is_only_what_clark_reads_or_writes(self):
+        for name in ("plan.xlsx", "plan.xlsm", "plan.xls", "data.csv", "a.docx", "a.doc", "a.pdf"):
+            self.assertEqual(source_name(name, published=True), name, name)
+            self.assertEqual(source_name("Import, 2026-11-11, " + name, published=True), name, name)
+        for name in ("data.json", "page.html", "script.sh", "tool.py", "site.example", "name.io", "Programme.mpp", "plan.xer", "clip.mp4"):   # unlisted stays refused (mpp and xer: clark cannot read them)
+            self.assertEqual(source_name(name, published=True), "", name)
+
+    def test_a_path_with_a_person_or_domain_name_is_never_a_file(self):
+        for path in ("/a/b/john.smith", "C:\\x\\acme.com"):
+            self.assertEqual(source_name(path, published=True), "", path)
+
     def test_a_huge_value_is_cut_before_it_is_read_the_name_at_the_end_is_kept_when_published(self):
         huge = "x " * 50000
         self.assertEqual(source_name(huge + ", plan.xlsx", published=True), "plan.xlsx")

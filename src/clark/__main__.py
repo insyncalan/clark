@@ -102,6 +102,21 @@ def restore_parser():
     return p
 
 
+class CheckParser(Parser):
+    def error(self, message):
+        print(f"check-data takes only --data FOLDER.\nRun {typed.clark('check-data --help')} to see the options.", file=sys.stderr)
+        raise SystemExit(2)
+
+
+def check_parser():
+    p = CheckParser(prog=typed.clark("check-data"),
+                    description="Check that your data matches this clark before clark starts (Docker does this first). If it matches, nothing "
+                                "happens. If it is older, a copy is kept in the backups folder, then the data is brought up to date. "
+                                "If it is newer, nothing is changed and the exit code is 2. If something goes wrong, the exit code is 1.")
+    p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
+    return p
+
+
 def parser():
     p = Parser(prog=typed.clark(), description="Start clark on this computer. Only this computer can reach it.",
                epilog=f"To list the backups or put one back: {typed.clark('restore --help')}")
@@ -400,6 +415,40 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
         return 1
 
 
+def check_main(argv, out, err, home=None, onedrive_roots=None):
+    """`python3 -m clark check-data [--data FOLDER]`: the exit code. 0: the data is at this version, there is none yet, or it was
+    older and is now brought up to date (after the copy store.bring_up_to_date takes). 2: it needs a newer clark, and nothing was
+    changed (the version is read only, never written). 1: anything else, in plain words, with the data as it was."""
+    args = check_parser().parse_args(argv)
+    try:
+        folder = platform.check_data_dir(Path(args.data).expanduser() if args.data else platform.data_dir(home), onedrive_roots)
+        database = folder / DB_NAME
+        found = clark_store.data_version(database)
+        if found is None:
+            return 0
+        if found > clark_store.SCHEMA_VERSION:
+            print(clark_store.NEWER_FOLDER, file=err, flush=True)
+            return 2
+        if found == clark_store.SCHEMA_VERSION:
+            print("The data is up to date.", file=out, flush=True)
+            return 0
+        held = clark_store.open_store(database, onedrive_roots=onedrive_roots)      # takes the copy first, then updates in one step
+        try:
+            copy = held.migration_backup
+        finally:
+            held.close()
+        named = f" A copy of your data from before the update is in the backups folder. Its name is {Path(copy).name}." if copy else ""
+        print(f"The data was brought up to date.{named}", file=out, flush=True)
+        return 0
+    except (platform.PlatformError, clark_store.Invalid) as e:
+        print(e, file=err, flush=True)
+        return 1
+    except OSError as e:
+        print(f"A file clark needs couldn't be read or written ({backup.plain_reason(e)}). Check the data folder, then try again.",
+              file=err, flush=True)
+        return 1
+
+
 def use_case_ids_on_file(store):
     """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
     tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
@@ -444,8 +493,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
     out, err = out or sys.stdout, err or sys.stderr
     environ = os.environ if environ is None else environ
     given = sys.argv[1:] if argv is None else list(argv)
-    if given[:1] == ["restore"] and same_version.refuse(err, argv=given):
+    if given[:1] in (["restore"], ["check-data"]) and same_version.refuse(err, argv=given):
         return 1
+    if given[:1] == ["check-data"]:
+        return check_main(given[1:], out, err, home, onedrive_roots)
     if given[:1] == ["restore"]:
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()

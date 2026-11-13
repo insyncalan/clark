@@ -48,13 +48,14 @@ export const SUGGESTIONS = [
 // Row 1093: the suggestions follow the page that is open, and then the subject of the last question asked. A page without a list of its
 // own (Settings, a published file) keeps the list above.
 export const PILLS_BY_SUBJECT = {
+  dashboard: ["Is the project on track?", "What is overdue?", "Which risks are red?", "What is the next milestone?", "What needs a decision soon?", "What changed this week?"],
   work: ["What is overdue?", "Which work items are blocked?", "What is due this week?", "Who has the most open work items?", "Which work items have no owner?", "What changed in the work items this week?"],
   milestones: ["What is the next milestone?", "Which milestones are late?", "Which milestones are due this month?", "What is holding up the next milestone?", "Which milestones have no work items?", "How many milestones are done?"],
   usecases: ["Which use cases need attention?", "Which use cases are not started?", "Which use cases have open risks?", "Which use cases are done?", "What changed in the use cases this week?", "Which use cases have no owner?"],
   risks: ["Which risks are red?", "Which risks have no owner?", "Which issues are open?", "What changed in the risks this week?", "Which risks are new this week?", "Which risks are due soon?"],
   gantt: ["What is the next milestone?", "Which work items are running late?", "Which work items hold up the end date?", "Which work items start next week?", "Which milestones are at risk?", "What ends this month?"],
 };
-export const PILLS_PAGE = { work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
+export const PILLS_PAGE = { dashboard: "dashboard", work: "work", milestones: "milestones", usecases: "usecases", gantt: "gantt" };
 // Words in a question that name a subject. The first one found in the last question wins.
 export const PILLS_WORDS = [["milestone", "milestones"], ["use case", "usecases"], ["risk", "risks"], ["issue", "risks"], ["work item", "work"], ["task", "work"]];
 export const WORKING = "Working";

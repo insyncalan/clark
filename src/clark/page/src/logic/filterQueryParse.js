@@ -25,9 +25,15 @@ const low = (s) => String(s == null ? "" : s).toLowerCase();
 /** A name as compared: lower case with spaces, hyphens, underscores and the like taken out ("Use case", use-case, usecase). */
 export const squash = (s) => low(s).replace(/[^a-z0-9]/g, "");
 
+/** Row 1085: `extra` may be a page's own schema in place of the custom-field list: {fields: [{key, name, none?, of(row, ctx), offers?(rows, ctx), tone?(value), icon?, note?}],
+ *  states?: [], text?(row)}. A line read with it knows only those fields (none of the Work items ones) and searches `text(row)` with plain words. */
+export const ownSchema = (extra) => (extra && !Array.isArray(extra) && Array.isArray(extra.fields) ? extra : null);
+
 /** The fields a line may name: [{key, name, custom}], from LINE_FIELDS (all but `is`, which is a qualifier) and `extra` custom fields
- *  [{key, name, none?, of(row, ctx)}]. In the published file only the fields a client may use. */
+ *  [{key, name, none?, of(row, ctx)}]. In the published file only the fields a client may use. With a page's own schema, its fields alone. */
 export function schemaOf(extra = []) {
+  const own = ownSchema(extra);
+  if (own) return { fields: own.fields.map((f) => ({ key: f.key, name: f.name, custom: true })), states: Array.isArray(own.states) ? own.states.slice() : [] };
   const fields = Object.keys(LINE_FIELDS).filter((k) => k !== "is" && (!isPublished() || CLIENT_FIELDS.includes(k)))
     .map((k) => ({ key: k, name: LINE_FIELDS[k].name, custom: false }));
   for (const f of extra || []) if (f && f.key && f.name) fields.push({ key: f.key, name: f.name, custom: true });

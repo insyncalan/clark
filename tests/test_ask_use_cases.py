@@ -106,6 +106,11 @@ class UseCaseChanges(Base):
             with self.subTest(name=name):
                 self.refused({"op": "change", "id": self.uc, name: "x"}, "field_not_allowed")
 
+    def test_row_875_the_facts_of_a_use_case_never_carry_an_owner_even_if_a_row_did(self):
+        """Second line of defence: the claims check's facts for a use case have an empty owner, whatever the row it is given holds."""
+        facts = ask_data.facts_of({"use_cases": [{"id": self.uc, "title": "Invoice matching", "owner": "ZQ-OWNER-FACT-6605 Placeholder"}]})
+        self.assertEqual(facts[self.uc], {"title": "Invoice matching", "owner": ""})
+
     def test_archive_delete_a_new_use_case_and_an_owner_claim_are_still_refused(self):
         for op in ("archive", "delete", "restore", "remove"):
             self.refused({"op": op, "id": self.uc}, "not_yet")

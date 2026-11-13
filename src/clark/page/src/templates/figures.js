@@ -50,13 +50,13 @@ export function liveFigures(d, today) {
   if (kept.raid.length) {
     const live = open.filter((r) => r.kind !== "action" && r.kind !== "decision");
     out.risks = { label: TILE_TITLES.risks, value: by.risks.value, rag: by.risks.rag,      // the tile's own colour: one rule (item 391)
-      detail: !live.length ? "None open" : live.length === 1 ? "of 1 open risk or issue" : `of ${live.length} open risks and issues` };
+      detail: !live.length ? "None open" : !by.risks.value ? "None high" : live.length === 1 ? "of 1 open risk or issue" : `of ${live.length} open risks and issues` };
   }
   if (kept.decisions.length) {
     const pending = rows.filter((r) => r.kind === "decision" && r.status === "Pending");
     const dated = pending.map((r) => r.needed_by).filter((x) => dayNumber(x) !== null).sort();
     out.decisions = { label: TILE_TITLES.decisions, value: by.decisions.value, rag: pending.length ? "a" : "g",
-      detail: !pending.length ? "None waiting" : dated.length ? `Oldest needed by ${showDate(dated[0])}` : "No date needed by" };
+      detail: !pending.length ? "None waiting" : dated.length ? `Oldest needed by ${showDate(dated[0])}` : "No date set" };
   }
   return out;
 }
