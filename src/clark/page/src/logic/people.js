@@ -74,6 +74,8 @@ export const doneLine = (n) => `${n} ${n === 1 ? "person" : "people"} added or u
 
 const isHeading = (cells) => key(cells[0]) === "name" && /mail/i.test(cells[1] || "");
 
+const who_ = (who, name) => (who.length === 1 ? "id:" + who[0].id : "name:" + key(name));
+
 // Rows pasted from Excel (name, email, organisation, role, separated by tabs; a first row of headings is skipped) read against the
 // list. Returns {rows, refused, tooMuch}:
 //   rows    [{line, name, email, org, role, will: "add" | "update" | "same", problem}] for every non-blank line, in order; `line` is
@@ -89,6 +91,7 @@ export function readPaste(text, list) {
   if (lines.length > ROW_LIMIT) return { rows: [], refused: [TOO_MANY], tooMuch: TOO_MANY };
   const live = list.filter((p) => !p.archived);
   const rows = [], refused = [], sawEmail = new Map();      // an email to the line that first had it
+  const sawWho = new Map();                                 // a person (the list's id, else the name) to what the rows so far give them
   for (const { line, cells } of lines) {
     const name = squash(cells[0]), org = squash(cells[2]), role = squash(cells[3]);
     const { email, problem: bad } = cleanEmail(cells[1]);
@@ -104,13 +107,18 @@ export function readPaste(text, list) {
     else {
       const other = email ? live.find((p) => (p.email || "") === email && (!who.length || p.id !== who[0].id)) : null;
       if (other) problem = said(`that email already belongs to ${other.name}. Check the address and try again.`);
-      else if (email && sawEmail.has(email)) problem = said(`that email is already on row ${sawEmail.get(email)}. Check the address and try again.`);
+      else if (email && sawEmail.has(email) && sawEmail.get(email).who !== who_(who, name)) problem = said(`that email is already on row ${sawEmail.get(email).line}. Check the address and try again.`);
     }
     if (!problem) {
-      if (email) sawEmail.set(email, line);
-      if (who.length === 1) {
-        const p = who[0];
-        will = (email && email !== (p.email || "")) || (org && org !== (p.organisation || "")) || (role && role !== (p.role || "")) ? "update" : "same";
+      const id = who_(who, name), before = sawWho.get(id);
+      if (email && !sawEmail.has(email)) sawEmail.set(email, { line, who: id });
+      if (before) {                                          // the same person again: the server keeps one person and gives them these details
+        will = (email && email !== before.email) || (org && org !== before.org) || (role && role !== before.role) ? "update" : "same";
+        sawWho.set(id, { email: email || before.email, org: org || before.org, role: role || before.role });
+      } else {
+        const p = who.length === 1 ? who[0] : null;
+        if (p) will = (email && email !== (p.email || "")) || (org && org !== (p.organisation || "")) || (role && role !== (p.role || "")) ? "update" : "same";
+        sawWho.set(id, { email: email || (p && p.email) || "", org: org || (p && p.organisation) || "", role: role || (p && p.role) || "" });
       }
     }
     rows.push({ line, name, email, org, role, will: problem ? "" : will, problem });

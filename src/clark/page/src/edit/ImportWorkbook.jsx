@@ -99,15 +99,15 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     } finally { busy.current = false; }
   }
 
-  // While the changes are being saved the box stays: Esc, Cancel and the backdrop do nothing, so the result (and Undo this import) is always shown.
-  const leave = () => { if (step.at !== "applying") onClose(); };
-  const cancel = <button type="button" class="btn quiet" data-close aria-disabled={step.at === "applying" ? "true" : undefined} onClick={leave}>{T.cancel}</button>;
+  const applying = step.at === "applying";               // the import carries on whatever is clicked, so nothing may close the box and lose the result and Undo
+  const close = () => { if (!applying) onClose(); };
+  const cancel = <button type="button" class="btn quiet" data-close aria-disabled={applying ? "true" : undefined} onClick={close}>{T.cancel}</button>;
   const fileInput = <input ref={input} type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={chosen} />;
 
   if (step.at === "pick" || step.at === "checking") {
     return (
       <Dialog key="pick" id="import-box" opener={opener} title={T.pickTitle} onClose={onClose} first="#import-choose"
-        foot={<><button type="button" class="btn quiet gb tpl-get" id="import-template" onClick={getTemplate}><Icon name="dl" />{T.template}</button>{cancel}<button type="button" class="btn pri gb" id="import-choose" aria-disabled={step.at === "checking" ? "true" : undefined} onClick={() => step.at !== "checking" && input.current && input.current.click()}><Icon name="ul" />{T.choose}</button></>}>
+        foot={<><button type="button" class="btn quiet gb tpl-get" id="import-template" onClick={getTemplate}><Icon name="dl" />{T.template}</button>{cancel}<button type="button" class="btn pri gb" id="import-choose" disabled={step.at === "checking"} onClick={() => input.current && input.current.click()}><Icon name="ul" />{T.choose}</button></>}>
         <p>{T.pickBody}</p>
         <p class="muted">{L.COLUMNS_INTRO}</p>
         <p class="imp-cols" id="import-columns">{L.IMPORT_COLUMNS.map(([sheet, cols]) => <span key={sheet}><b>{sheet}</b> {cols.join(", ")}<br /></span>)}</p>
@@ -151,9 +151,9 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const setAll = (on) => { const t = {}; for (const i of items) t[i.n] = on && !!i.default && !i.problem; setTicks(t); };
   const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
   return (
-    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={leave} wide first={empty ? "#import-close" : "#import-go"}
-      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button>
-        : <button type="button" class="btn pri" id="import-go" disabled={!count} aria-disabled={step.at === "applying" ? "true" : undefined} onClick={() => step.at !== "applying" && doImport()}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
+    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={close} wide first={empty ? "#import-close" : "#import-go"}
+      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" aria-disabled={applying ? "true" : undefined} onClick={close}>{T.close}</button>
+        : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
       <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>
       <p id="import-sheets">{L.sheetLine(p)}</p>

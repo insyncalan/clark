@@ -569,7 +569,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; **Add a milestone** adds a next step called Reach and the milestone name that points at it, so the use case gets the milestone through its work items; **Remove** (on a milestone it has through its work items) stops those work items naming it, and the milestone itself stays on Milestones. Each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Add a milestone** links it to a milestone and **Unlink** takes the link away; a milestone one of its work items has shows there by itself, as through work items. Each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -622,7 +622,7 @@
     "go": "settings",
     "s": [
      "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
-     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your computer’s setting and changes when the computer does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
@@ -1707,6 +1707,10 @@
        [
         "The line under it",
         "“Cmd+Enter saves. Esc cancels.”"
+       ],
+       [
+        "One-line fields",
+        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]
