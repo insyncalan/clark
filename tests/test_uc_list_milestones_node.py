@@ -56,5 +56,13 @@ class ListRows(unittest.TestCase):
         self.assertEqual(by["U2"]["ms"], ["M2"], "reached both ways, counted once")
 
 
+class Peek(unittest.TestCase):
+    def test_a_milestone_lists_use_cases_reaching_it_through_work_items_too(self):
+        got = run(f"UC.usecasesOfMilestone({json.dumps(DATA)}, 'M2')")
+        self.assertEqual([u["id"] for u in got], ["U2"], "linked both ways once; the archived use case is left out")
+        d = dict(DATA, uc_milestones=[])
+        self.assertEqual([u["id"] for u in run(f"UC.usecasesOfMilestone({json.dumps(d)}, 'M2')")], ["U2"], "through a work item only")
+
+
 if __name__ == "__main__":
     unittest.main()
