@@ -145,9 +145,8 @@ def check_app_folder(seen):
 
 def check_browser(seen):
     if seen.find_chrome():
-        return Line(READY, "Chrome is there, so clark opens in its own window.")
-    return Line(ADVICE, "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own "
-                        "window.")
+        return Line(READY, "Chrome is there, so clark opens in Chrome.")
+    return Line(ADVICE, "Chrome wasn't found, so clark will open in your usual browser.")
 
 
 def check_port(seen):

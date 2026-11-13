@@ -7,6 +7,7 @@ import { recall, remember } from "./remember.js";
 import { commitWord } from "./commitment.js";
 
 export const STATUS_WORDS = ["On track", "Flag", "High risk", "Done"];        // the schema's four, in the order the Status filter lists them
+export const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "b" };  // the tint of each status word's chip (row 1085: Done is blue, the approved colours)
 export const CALM_WORDS = ["On track", "Done"];                                // the two that are not flagged: on track, and finished
 const WORST_FIRST = ["High risk", "Flag", "On track", "Done"];                 // Done is finished: it sorts last
 export const ON_WORDS = "On the dashboard";
@@ -62,30 +63,60 @@ export function listOf(d, all) {
   });
 }
 
-// ---- narrowing, ordering and counts ----
-export const FIRST = { st: [], on: "all", sort: "ref", q: "" };                  // what a project starts with
+const quoteVal = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : String(v));
 
-/** A saved or typed state made well-formed: anything unknown falls back to the start. */
+// ---- the tabs (row 1085) ----
+// Four fixed views over the line, as the Work items saved views are drawn: [id, name, keeps(row)]. At risk is a status of Flag or High risk.
+export const COMMITTED = "Committed";                                            // the commitment word the Committed tab asks for (the server's word)
+export const TABS = [
+  ["all", "All use cases", () => true],
+  ["on", ON_WORDS, (r) => r.on],
+  ["committed", COMMITTED, (r) => r.commitment === COMMITTED],
+  ["risk", "At risk", (r) => r.status === "Flag" || r.status === "High risk"],
+];
+export const tabKeeps = (id) => (TABS.find(([k]) => k === id) || TABS[0])[2];
+
+// ---- Group by (row 1085) ----
+// Status, Commitment, On the dashboard or Nothing (the start): each group a bordered card as the Work items groups are, a group with no row left out.
+const uniq = (xs) => [...new Set(xs.filter(Boolean))];
+export const GROUPS = [["status", "Status"], ["commitment", "Commitment"], ["on", ON_WORDS], ["nothing", "Nothing"]];
+export const groupLabel = (id) => (GROUPS.find(([k]) => k === id) || GROUPS[GROUPS.length - 1])[1];
+export const NONE_LABEL = "None";                                                // the group of the rows with no commitment (the Milestones cell's word)
+/** The groups of `shown` (already narrowed and ordered): [{key, label, rows}] in the group's own order. `words` is the server's commitment list, in its order. */
+export function groupsOf(shown, group, words) {
+  const by = (keys, keyOf, label) => keys.map((k) => ({ key: k, label: label(k), rows: shown.filter((r) => keyOf(r) === k) })).filter((g) => g.rows.length);
+  if (group === "status") return by(uniq([...STATUS_WORDS, ...shown.map((r) => r.status)]), (r) => r.status, (k) => k);
+  if (group === "on") return by(["on", "off"], (r) => (r.on ? "on" : "off"), (k) => (k === "on" ? ON_WORDS : OFF_WORDS));
+  if (group === "commitment") return by([...uniq([...(words || []), ...shown.map((r) => r.commitment)]), ""], (r) => r.commitment || "", (k) => k || NONE_LABEL);
+  return [{ key: "", label: "", rows: shown }];
+}
+
+// ---- narrowing, ordering and counts ----
+export const FIRST = { line: "", tab: "all", group: "nothing", sort: "ref" };    // what a project starts with
+
+// A browser's saved state from before the line held {st, on, sort, q}: the Status choice and the search become one line (row 1085), the
+// status chip first, then the search's words as plain words (one that would read as a field is quoted, so it stays the plain word it was).
+// The switch's On the dashboard is the tab of that name; its Not on the dashboard, which has no tab, is the line's on:no.
+const quoteWord = (w) => (/^-?[A-Za-z][\w-]*:/.test(w) || w.includes('"') ? `"${w.replace(/"/g, "")}"` : w);
+export function lineFromOld(x) {
+  const st = Array.isArray(x.st) ? STATUS_WORDS.filter((w) => x.st.includes(w)) : [];
+  const q = typeof x.q === "string" ? x.q.slice(0, 200) : "";
+  return [...(st.length ? [`status:${st.map(quoteVal).join(",")}`] : []), ...(x.on === "off" ? ["on:no"] : []), ...q.split(/\s+/).filter(Boolean).map(quoteWord)].join(" ");
+}
+
+/** A saved or typed state made well-formed: anything unknown falls back to the start. A state with no `line` is an older one and is read as one. */
 export function tidy(s) {
   const x = s && typeof s === "object" ? s : {};
+  const old = x.line === undefined;
   return {
-    st: Array.isArray(x.st) ? STATUS_WORDS.filter((w) => x.st.includes(w)) : [],
-    on: ["all", "on", "off"].includes(x.on) ? x.on : "all",
+    line: typeof x.line === "string" ? x.line.slice(0, 600) : old ? lineFromOld(x) : "",
+    tab: TABS.some(([k]) => k === x.tab) ? x.tab : old && x.on === "on" ? "on" : "all",
+    group: GROUPS.some(([k]) => k === x.group) ? x.group : "nothing",
     sort: SORTS.some(([k]) => k === x.sort) ? x.sort : "ref",
-    q: typeof x.q === "string" ? x.q.slice(0, 200) : "",
   };
 }
 
-export const narrowed = (f) => f.st.length > 0 || f.on !== "all" || f.q.trim() !== "";
-
-/** The status filter and search without the On / Not on the dashboard switch: what the switch's counts are counted from. */
-const fits = (r, f, skipOn) => (!f.st.length || f.st.includes(r.status)) && (skipOn || f.on === "all" || (f.on === "on") === r.on) && (!f.q.trim() || r.text.includes(f.q.trim().toLowerCase()));
-
-/** Counts for the switch: how many are All, On and Not on the dashboard, with the Status filter and the search applied. */
-export function onCounts(rows, f) {
-  const base = rows.filter((r) => fits(r, f, true));
-  return { all: base.length, on: base.filter((r) => r.on).length, off: base.filter((r) => !r.on).length };
-}
+export const narrowed = (f) => f.tab !== "all" || f.line.trim() !== "";
 
 // Reference order: its numbers one by one ("1.2" before "1.10"); one with no reference last, in the order the data gives.
 const numbers = (r) => String(r.u.ref || "").split(/[^0-9]+/).filter(Boolean).map(Number);
@@ -98,16 +129,12 @@ function byRef(a, b) {
   }
   return String(a.u.ref || "").localeCompare(String(b.u.ref || ""));
 }
-const ORDER = {
+export const ORDER = {
   ref: byRef,
   status: (a, b) => WORST_FIRST.indexOf(a.status) - WORST_FIRST.indexOf(b.status) || byRef(a, b),
   open: (a, b) => b.open - a.open || byRef(a, b),
 };
 
-/** The rows the filters keep, in the chosen order (the sort is stable, so ties keep the data's order). */
-export function shownOf(rows, f) {
-  return rows.map((r, i) => [r, i]).filter(([r]) => fits(r, f)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
-}
 
 /** "Showing 3 of 7 · 4 on the dashboard": how many show, of how many, and how many of all are on the dashboard. */
 export const countWords = (shown, rows) => `Showing ${shown} of ${rows.length} · ${rows.filter((r) => r.on).length} on the dashboard`;

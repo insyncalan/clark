@@ -183,6 +183,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
+            system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
@@ -219,7 +220,7 @@ class Words(unittest.TestCase):
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                                   "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook", "Excel file layout",      # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
@@ -245,7 +246,7 @@ class Words(unittest.TestCase):
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version.",
                                   "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
                                   "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"

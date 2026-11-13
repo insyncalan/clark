@@ -253,8 +253,8 @@ class StartSetup(unittest.TestCase):
         (argv, env, log, cwd), = self.f.started
         self.assertEqual(argv[1:], ["-m", "clark.setup_mode", "--data", str(self.folder), "--port", "8800"])
         self.assertEqual((env["CLARK_LAUNCHED"], env["CLARK_PORT"], env["PYTHONPATH"], env["HOME"]), ("1", "8800", str(SRC), "/nowhere"))
-        self.assertEqual(self.f.windows, [("http://127.0.0.1:8800/", "/stub/browser")])
-        self.assertEqual(self.f.said, ["Opened clark in its own window."])
+        self.assertEqual(self.f.windows, [("http://clark.localhost:8800/", "/stub/browser")])
+        self.assertEqual(self.f.said, ["Opened clark in Chrome."])
 
     def test_the_log_is_in_the_log_folder_and_the_data_folder_is_not_touched(self):
         self.go()

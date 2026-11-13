@@ -237,6 +237,27 @@ class Section(unittest.TestCase):
         self.mount_table(report(), 1400)
         self.assertEqual(self.count(f"{self.TABLE} th[data-k=o]"), 1)
 
+    # mutation hunt (item 1230): the as-at day, the never-hidden columns and the section's ready flag were not pinned
+    def status_of(self, ref):
+        return self.val(f"document.querySelector('{self.TABLE} tr[data-id={ref}] td[data-k=st]').textContent")
+
+    def test_the_table_reads_status_as_at_the_publish_day_in_a_file_and_as_today_otherwise(self):
+        self.look(1400)
+        self.mount_table(self.FILE_DATA, 1400, file=True, asAt="2026-11-05")
+        self.assertEqual(self.status_of("GNT-2"), "In progress", "a file is read as at the day it was published")
+        self.mount_table(self.FILE_DATA, 1400, file=True)
+        self.assertEqual(self.status_of("GNT-2"), "Late", "a file with no day is read as at today")
+
+    def test_the_columns_that_are_never_hidden_stay_when_the_settings_name_them(self):
+        self.look(1400)
+        self.mount_table(report(hidden=("type", "start", "end", "pct", "owner")), 1400)
+        for key in ("t", "s", "e", "pct"):
+            self.assertEqual(self.count(f"{self.TABLE} th[data-k={key}]"), 1, key)
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=o]"), 0, "Owner, which may be hidden, is")
+
+    def test_the_table_section_is_a_ready_template(self):
+        self.assertEqual(self.val("K.templateFor('gantttable').ready"), True)
+
     def test_the_table_section_reads_a_published_file_as_the_gantt_tab_does(self):
         """A file carries data.gantt only (every line in it has its eye on; a column it does not carry is hidden)."""
         self.look(1400)

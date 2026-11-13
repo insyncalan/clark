@@ -143,6 +143,21 @@ class ShardCoversEveryFileOnce(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertAlmostEqual(weights[name] / expected, 1.0, delta=0.10, msg=name)
 
+    def test_the_files_added_by_the_shard_fixes_are_weighted(self):
+        """Mutation audit of PRs 1289 and 1304: those PRs only added lines to shard_times.txt, and deleting any of them (the files then
+        count the 30 s default and the shards skew again) left every test green. Each named file exists and has a line."""
+        names = {f.name for f in everything()}
+        weights = run_tests.shard_weights()
+        for name in ("test_dev_marker.py", "test_brand_isolation.py", "test_hostile_1087.py", "test_hostile_planned_2026.py",
+                     "test_settings_cards_widths_2.py", "test_settings_widths_1.py", "test_spacing_milestones_usecases.py",
+                     "test_spacing_peek_dialogs.py", "test_spacing_report_blocks.py", "test_spacing_settings_help.py",
+                     "test_spacing_work_items.py", "test_store_planned_2026_migration.py", "test_work_pills_killers.py",
+                     "test_work_pills_removed.py", "test_help_wording_107_b.py", "test_gantt_markers_hostile.py",
+                     "test_publish_hidden_section_markers.py"):
+            with self.subTest(name=name):
+                self.assertIn(name, names, "the test file is gone: take its line out of shard_times.txt too")
+                self.assertIn(name, weights, "no line in shard_times.txt")
+
     def test_every_listed_time_is_a_positive_number_on_its_own_line(self):
         """A line that does not parse is dropped silently by shard_weights, so a typo would send a heavy file back to 30 s."""
         lines = [ln for ln in (run_tests.SHARD_TIMES.read_text(encoding="utf-8").splitlines()) if ln and not ln.startswith("#")]
