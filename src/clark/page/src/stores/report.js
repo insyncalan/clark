@@ -337,6 +337,11 @@ const STALE = "This page is out of date because clark was restarted after you op
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
 const NOT_ACCEPTED = "That was not accepted. Reload the page.";
+// Row 1080: in Docker clark never stops by itself and clark.command is not how it is started, so the page says neither. The page
+// knows it is in Docker from data-container="1" on <html> (page.page_html sets it; a published file never has it).
+const NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.";
+export const NOT_ANSWERING_DOCKER = "Nothing is running behind this page. Start clark again the same way you did before.";
+const inDocker = () => typeof document !== "undefined" && document.documentElement.dataset.container === "1";
 const ALLOWED = {
   400: { fallback: "That could not be read. Reload the page.",
          known: { [BAD_CODE]: BAD_CODE } },
@@ -349,11 +354,12 @@ const ALLOWED = {
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
   500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.", known: {} },
+  0: { fallback: NOT_ANSWERING, known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];
   if (!row) return READ_FAILED;
+  if (code === 0 && inDocker()) return NOT_ANSWERING_DOCKER;
   const said = body && typeof body.message === "string" ? body.message : "";
   if (code === 403 && body && body.stale === true) return STALE;
   return Object.prototype.hasOwnProperty.call(row.known, said) ? row.known[said] : row.fallback;

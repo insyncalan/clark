@@ -88,12 +88,38 @@ def container_host_in_onedrive(environ=None):
     return None
 
 
+# The one command a person types in Terminal, in the unzipped clark folder, to run clark on the Mac itself (docs: README.md and
+# START-HERE.md; the launcher is clark.command). The Docker front only serves the page; what needs the Mac needs this server.
+TERMINAL_COMMAND = "bash clark.command"
+
+
+def needs_mac_words():
+    """The one sentence every refusal says when clark runs in Docker (item 1100): what needs the Mac, and the exact command to
+    paste in Terminal. Every route that meets a Mac-only refusal takes its words from here, never from its own text."""
+    return f"This needs clark to run on the Mac itself; start it from Terminal: {TERMINAL_COMMAND}"
+
+
+NOT_BUILT_WORDS = "This step is not built for your system yet."
+
+
+def not_built_words():
+    """What a refused Mac-only step says when it did not meet the Docker sentence (item 1100): the Mac sentence in Docker, else the plain
+    not-built line, so a Windows or plain Linux run is never told to start from the Mac's Terminal."""
+    return needs_mac_words() if container_mode() else NOT_BUILT_WORDS
+
+
+def refusal_words(error, fallback):
+    """The words a person sees for a PlatformError `error`: the needs-the-Mac sentence when this system's branch is not there
+    (NotBuiltYet carrying exactly that sentence), else `fallback`. Never a class name, a path or the system's own text."""
+    return needs_mac_words() if isinstance(error, NotBuiltYet) and str(error) == needs_mac_words() else fallback
+
+
 def _only_mac(what, on=None):
     """Raise NotBuiltYet unless `on` (default: this system) is the Mac."""
     on = on or system()
     if on != MAC:
-        if on == "linux" and container_mode():          # item 427: said in the words of the person who started Docker
-            raise NotBuiltYet(mac_only_in_docker(what))
+        if on == "linux" and container_mode():          # item 1100: said in the words of the person who started Docker
+            raise NotBuiltYet(needs_mac_words())
         raise NotBuiltYet(f"{what} on {'Windows' if on == WINDOWS else on} is not built yet: clark runs on macOS for now")
 
 

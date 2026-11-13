@@ -26,6 +26,7 @@ Quit.chip = "Quit";                                         // the Settings chip
 export function Quit() {
   const [phase, setPhase] = useState("idle");              // idle | ask | busy | done
   const [msg, setMsg] = useState("");
+  const sent = useRef(false);                              // presses before the page redraws all see the same phase; this alone says a request is already out
   const yes = useRef(null);
   const main = useRef(null);
   const focusTo = useRef("");                              // where focus goes after the next draw: the clicked button is swapped out, so it would fall to the page
@@ -38,11 +39,13 @@ export function Quit() {
   function cancel() { if (phase === "ask") { focusTo.current = "main"; setPhase("idle"); } }
   function onKey(e) { if (e.key === "Escape" && phase === "ask") { e.preventDefault(); e.stopPropagation(); cancel(); } }
   async function go() {
-    if (phase !== "ask") return;
+    if (phase !== "ask" || sent.current) return;
+    sent.current = true;
     setPhase("busy");
     setMsg("");
     const r = await quit();
     if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg((r.body.finishing === "save" ? SAVING : r.body.finishing === "publish" ? PUBLISHING : STOPPING) + " " + AGAIN); return; }
+    sent.current = false;
     setMsg(said(r.body));
     focusTo.current = "main";
     setPhase("idle");
