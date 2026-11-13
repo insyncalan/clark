@@ -8,7 +8,7 @@ import { useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
-import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
+import { showDate, subLine, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
 // The date is the first line of the row; its second line (Agreed, or Expected date and days later in red) is `Sub`, a small line under the
@@ -20,12 +20,7 @@ function When({ r }) {
 }
 
 function Sub({ r }) {
-  let text = "", late = false;
-  if (r.state === "Achieved" && r.achieved) text = r.achievedNote || "Achieved";
-  else if (r.state === "Achieved") text = "Achieved, date not recorded";
-  else if (r.state === "Forecast") text = "Forecast, not agreed";
-  else if (r.slip) { text = `Expected ${showDate(r.expected)} · ${r.slipText}`; late = true; }
-  else text = r.baseline ? "Agreed" : "No agreed date";
+  const { text, late } = subLine(r);
   return <small class={`msl-sub${late ? " late" : ""}`}>{text}</small>;
 }
 
