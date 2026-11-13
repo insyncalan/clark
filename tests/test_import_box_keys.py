@@ -94,3 +94,12 @@ class ImportBox(unittest.TestCase):
         self.click("#import-undo")
         self.until("document.querySelector('#import-undo') === null", "the undo finished")
         self.assertEqual(self.js("document.querySelector('#import-result').textContent"), "Put back as it was before the import.")
+
+    def test_after_undo_focus_is_on_close_and_esc_closes_the_box(self):
+        self.to_plan(items(1))
+        self.import_and_wait()
+        self.js("document.querySelector('#import-undo').focus()")      # the keyboard user is on Undo, which then goes away
+        self.click("#import-undo")
+        self.until("document.activeElement && document.activeElement.id === 'import-close'", "focus moved to Close")
+        self.esc()
+        self.until("T.closed === 1", "Esc closed the box")
