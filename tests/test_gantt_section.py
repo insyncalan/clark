@@ -294,6 +294,8 @@ class Section(unittest.TestCase):
                 self.assertEqual(self.count(self.TABLE), 0, "no header-only grid")
                 self.assertEqual(self.count("[data-gantt]"), 0, "no chart either")
                 self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-note]').textContent"), "Lines are chosen on the Gantt page.")
+                self.assertIn("left out of the published page", self.val("document.querySelector('[data-tpl-gantt-left-out]').textContent"))
         self.look(1400)
         self.mount_table(report(), 1400, edit=True)
+        self.assertEqual(self.count("[data-tpl-gantt-left-out]"), 0, "with a line the section is published, so no such note")
         self.assertEqual(self.count("[data-tpl=gantttable] [data-g-none]"), 0, "with a line the table is drawn and the sentence is not")

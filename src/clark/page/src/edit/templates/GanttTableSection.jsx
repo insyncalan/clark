@@ -6,10 +6,13 @@ import { View, isEmpty } from "../../components/GanttTableSection.jsx";
 import { WORDS } from "../../gantt/logic/gantt.js";
 import { NOTE } from "./GanttSection.jsx";
 
+export const LEFT_OUT = "No Gantt line has its eye on, so this section is left out of the published page. Turn an eye on on the Gantt page to include it.";
+
 export function Edit({ section }) {
   return (
     <div class="tple" data-tpl="gantttable">
       {isEmpty(section, data.value) ? <p class="gt-none" data-g-none>{WORDS.noLines}</p> : <View section={section} data={data.value} />}
+      {isEmpty(section, data.value) ? <p class="quiet tple-empty" data-tpl-gantt-left-out>{LEFT_OUT}</p> : null}
       <p class="quiet tple-empty" data-tpl-gantt-note>{NOTE}</p>
     </div>
   );
