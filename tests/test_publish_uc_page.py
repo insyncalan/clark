@@ -184,6 +184,25 @@ class TheFilesUseCasePageOnTheEdges(unittest.TestCase):
             self.assertTrue(js(cdp, sid, "document.activeElement === document.querySelector('[data-item]')"), "the focus is left where it is")
         self.each_width(check)
 
+    def test_esc_leaves_for_the_list_unless_a_field_or_a_peek_has_it(self):
+        esc = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))"
+        listed = "!document.querySelector('[data-ucf]') && !!document.querySelector('[data-uc-page]')"
+
+        def check(cdp, sid, width):
+            self.at(cdp, sid, "1.1")
+            js(cdp, sid, "document.querySelector('[data-item]').click()")
+            self.assertTrue(wait(lambda: js(cdp, sid, "!!document.querySelector('[data-peek]')")))
+            js(cdp, sid, esc)
+            self.assertTrue(js(cdp, sid, "!!document.querySelector('[data-ucf]')"), "an open peek takes the Esc")
+            js(cdp, sid, "document.querySelector('[data-peek]').remove()")
+            js(cdp, sid, "(() => { const i = document.createElement('input'); i.id = 'zz'; document.querySelector('[data-ucf]').appendChild(i); i.focus(); })()")
+            js(cdp, sid, esc)
+            self.assertTrue(js(cdp, sid, "!!document.querySelector('[data-ucf]')"), "a field takes the Esc")
+            js(cdp, sid, "document.getElementById('zz').remove(); document.activeElement.blur()")
+            js(cdp, sid, esc)
+            self.assertTrue(wait(lambda: js(cdp, sid, listed)), "Esc leaves for the use case list")
+        self.each_width(check)
+
     def test_on_paper_nothing_is_cut_nothing_overflows_and_the_crumb_is_left_off(self):
         def check(cdp, sid, width):
             self.at(cdp, sid, "1.7")

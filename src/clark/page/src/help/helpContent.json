@@ -709,9 +709,9 @@
     "w": "Any longer text you click",
     "go": "dashboard+edit",
     "s": [
-     "Click the text. An editor opens where it is, with a bar of headings, bold, italic, strikethrough, lists, a checklist, indent and outdent, a quote, a divider, Link, Unlink, Clear, undo and redo, and **✦ AI**.",
-     "Highlight some words and a small bar floats above them, with the same formatting and the AI menu.",
-     "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote, a divider and the AI options. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
+     "Click the text. An editor opens where it is, with a bar of text style (Text and Headings 1 to 3), bold, italic, strikethrough, lists, a checklist, a quote, a divider, Link, undo and redo.",
+     "Highlight some words and a small bar floats above them, with the same formatting.",
+     "Type [[/]] at the start of a line or after a space for the command menu: Heading 1 to 3, lists, a checklist, a quote and a divider. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
      "Click away, or press [[Mod+Enter]], to keep the text. [[Esc]] cancels the edit."
     ],
     "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back.",
@@ -1694,19 +1694,19 @@
       [
        [
         "The bar",
-        "H1, H2, H3 · Bold, Italic, Strikethrough · Bulleted list, Numbered list, Checklist, Outdent, Indent, Quote, Divider · Link, Unlink, Clear · Undo, Redo · ✦ AI"
+        "Text style (Text, Heading 1, 2, 3) · Bold, Italic, Strikethrough · Bulleted list, Numbered list, Checklist · Quote, Divider · Link · Undo, Redo"
        ],
        [
         "The floating bar (select text)",
-        "Bold, Italic, Strikethrough · Heading, Small heading · Bulleted list, Numbered list, Quote · Link, Clear · the AI part"
+        "Bold, Italic, Strikethrough, Link"
        ],
        [
         "The / menu",
-        "Text, Heading 1, 2 and 3, Bulleted list, Numbered list, Checklist, Quote, Divider, Draft with AI, Rewrite clearly, Shorter, Make it executive, Polish, Ask AI…"
+        "Heading 1, 2 and 3, Bulleted list, Numbered list, Checklist, Quote, Divider"
        ],
        [
         "The line under it",
-        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it”"
+        "“Cmd+Enter saves. Esc cancels.”"
        ]
       ]
      ]
@@ -2044,7 +2044,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order; the ID column and the title or name are needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2187,7 +2187,7 @@
    ],
    [
     "[[Mod+Z]]",
-    "In Edit, on the Dashboard, Work items and Milestones: undo your last change, like the **Undo** button. In an editor or a box: undo your typing, or an accepted AI suggestion"
+    "In Edit, on the Dashboard, Work items and Milestones: undo your last change, like the **Undo** button. In an editor or a box: undo your typing"
    ],
    [
     "Double-click",
@@ -2682,7 +2682,7 @@
      "pic": "excel-in-button"
     },
     {
-     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A Gantt sheet is offered in the next box when the workbook has one. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A Gantt sheet is offered in the next box when the workbook has one. Every sheet needs an ID column. A row whose ID exists updates that item, and a row with that column blank adds a new one. The columns can be in any order; the ID column and the name or title are needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",

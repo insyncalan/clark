@@ -300,15 +300,36 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
 
-    def test_hunt19_focus_stays_in_the_panel_when_stop_is_pressed_and_the_button_goes(self):
+    def test_stop_pressed_puts_focus_back_in_the_question_box(self):
         self.stub.hold.clear()
         with chrome() as cdp:
             p = self.opened(cdp)
             self.ask(p, "Summarise the risks")
-            p.until("!!document.querySelector('#ask-stop')", "Stop appeared")
-            p.js("document.querySelector('#ask-stop').focus(); document.querySelector('#ask-stop').click()")
-            p.until("document.querySelector('#ask-stop') === null", "Stop went")
-            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus went to the box, not the page")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("(() => { const b = document.querySelector('#ask-stop'); b.focus(); b.click(); })()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped", 30)
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body", 30)
+
+    def test_an_answer_landing_does_not_steal_focus_from_another_control_in_the_panel(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out", 30)
+            p.js("document.querySelector('#ask-close').focus()")
+            held = p.js("document.activeElement.id || document.activeElement.className")
+            self.assertTrue(held, "a control other than Stop holds focus")
+            self.stub.hold.set()
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the answer landed", 30)
+            self.assertEqual(p.js("document.activeElement.id || document.activeElement.className"), held, "focus stayed where the person put it")
+
+    def test_the_ask_button_closes_the_panel_when_it_is_open(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            # the panel covers the button where it sits, so this is the press the keyboard makes (and a click where it is not covered)
+            p.js("(() => { const b = document.querySelector('#ask-btn'); b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.click(); })()")
+            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
 
     def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
         with chrome() as cdp:
@@ -537,6 +558,20 @@ class Panel(Base):
             self.assertTrue(p.js("document.querySelector('#ask-box').disabled"))
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
+
+    def test_row_1097_the_open_settings_link_with_no_model_connected_lands_on_the_asking_card(self):
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').textContent.trim()"), "Open Settings")
+            p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').click()")
+            p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1 && !!document.querySelector('#ask-settings')", "Settings, with the Asking card")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading")
+            p.until("(function(){ var t = document.querySelector('#ask-settings').getBoundingClientRect().top; return t >= -2 && t < 200; })()", "the card is scrolled into view at the top, not left below the fold")
+            time.sleep(1)       # the page's own place-restore runs for a moment: it must not set the scroll back
+            top = p.js("document.querySelector('#ask-settings').getBoundingClientRect().top")
+            self.assertTrue(-2 <= top < 200, f"the card is still in view a moment later ({top})")
 
     def test_with_chatgpt_in_use_the_panel_has_no_line_about_where_text_goes(self):
         """#54, #1062: that line lives in Settings now; the panel names neither Claude nor Anthropic nor billing."""

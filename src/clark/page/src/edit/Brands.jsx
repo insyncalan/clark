@@ -29,6 +29,7 @@ export function Brands({ api = REAL }) {
     else setState({ phase: "failed", view: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => { if (armed) back("[data-remove-confirm]"); }, [armed]);      // Remove's question is drawn after the list: the focus goes to it
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
   // Remove asks first: the Confirm button takes the focus, so the second click is one Enter away.
   useEffect(() => { if (armed) { const b = document.querySelector("#brands [data-remove-confirm]"); if (b) b.focus(); } }, [armed]);
@@ -43,12 +44,13 @@ export function Brands({ api = REAL }) {
     const r = await api.review(from);
     setBusy(false);
     // The server answers {ok: true, review: null} when no file was chosen (Cancel in the dialog, or nothing in Downloads).
-    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: from === "downloads" && !r.body.cancelled ? L.NO_BRAND : L.CANCELLED }); return; }
+    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: from === "downloads" && !r.body.cancelled ? L.NO_BRAND : L.CANCELLED }); back(opener.current); return; }
     if (ok(r) && r.body.review) {
       setPanel({ id: text(r.body.review.review_id), view: L.reviewView(r.body.review, state.view ? state.view.brands : []) });
       return;
     }
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    back(opener.current);                                        // refused: the button that was pressed took the focus away while it worked
   }
 
   // Install, Remove and Undo: ask, then read the list again whatever the answer was.
