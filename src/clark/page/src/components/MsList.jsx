@@ -53,7 +53,7 @@ function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = t
   const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
-  const fold = () => { remember(`msDet.${place}`, !det); setDet(!det); };
+  const fold = () => { if (canFold) remember(`msDet.${place}`, !det); setDet(!det); };
   const toggle = () => { if (!fromFile.value) remember(`msAll.${place}`, !all); setAll(!all); };
   return (
     <div class="msl-box" data-place={place} style={vars}>

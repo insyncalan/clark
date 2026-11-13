@@ -473,5 +473,20 @@ class ReadPlan(unittest.TestCase):
             self.assertEqual(any("looks like an ID that was changed" in n for n in plan.notes), looks, given)
 
 
+class MovedTimezone(unittest.TestCase):
+    def test_an_updated_at_cell_with_a_timezone_suffix_never_raises_and_compares_by_the_moment(self):
+        """Without the fix a Z or +00:00 suffix raised TypeError (aware minus naive)."""
+        stored = "2026-10-01 09:30:00"
+        for cell in ("2026-10-01T09:30:00Z", "2026-10-01 09:30:00+00:00", "2026-10-01T09:30:00.000Z",
+                     "2026-10-01T11:30:00+02:00"):
+            self.assertFalse(xi._moved(cell, stored), cell)
+        for cell in ("2026-10-01T09:45:00Z", "2026-10-01 09:45:00+00:00"):
+            self.assertTrue(xi._moved(cell, stored), cell)
+        from datetime import timezone
+        self.assertFalse(xi._moved(datetime(2026, 10, 1, 9, 30, tzinfo=timezone.utc), stored))
+        self.assertFalse(xi._moved("2026-10-01T09:30:00Z", "2026-10-01T09:30:00+00:00"))
+        self.assertFalse(xi._moved("not a time Z", stored))
+
+
 if __name__ == "__main__":
     unittest.main()

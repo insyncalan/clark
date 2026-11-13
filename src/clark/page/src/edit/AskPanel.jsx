@@ -42,8 +42,10 @@ const stillMotion = () => document.documentElement.dataset.motion === "reduce" |
 // Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
 function pillsFor(list, page) {
   const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
-  const said = asked ? asked.text.toLowerCase() : "";
-  const hit = W.PILLS_WORDS.find(([word]) => said.includes(word));
+  const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
+  // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
+  const named = (word) => new RegExp("(^|[^a-z])" + word.replace(/ /g, " ?") + "s?([^a-z]|$)").test(said);
+  const hit = W.PILLS_WORDS.find(([word]) => named(word));
   const subject = hit ? hit[1] : W.PILLS_PAGE[page];
   return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
 }
@@ -75,7 +77,14 @@ export function AskPanel() {
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
   }, [open, state, panelFocus.value]);
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
+  // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const last = el.lastElementChild;
+    if (last && last.getAttribute("data-role") === "assistant" && last.offsetHeight > el.clientHeight) el.scrollTop = last.offsetTop - el.offsetTop;
+    else el.scrollTop = el.scrollHeight;
+  }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
     let t = null;
@@ -111,6 +120,7 @@ export function AskPanel() {
     const epoch = chatEpoch.value;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
+    setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
@@ -258,7 +268,7 @@ export function AskPanel() {
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
           {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"}>
+          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
             <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
           </button>
         </div>
