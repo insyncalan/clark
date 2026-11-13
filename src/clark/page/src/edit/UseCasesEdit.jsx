@@ -330,7 +330,8 @@ function LinkBox({ uc, onClose, opener }) {
     await change({ kind: "use_cases", op: "link", id: uc, ids: picked, place: "report" }, linkedWords(n, name(u)));
   };
   const typed = (e) => {
-    if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); }
+    if (e.isComposing) return;
+    if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); else if (n > 0) submit(e); }
     else if (e.key === "ArrowDown") { e.preventDefault(); const first = list.current && list.current.querySelector("input"); if (first) first.focus(); }
   };
   const title = `Link work items to use case ${name(u)}`;
