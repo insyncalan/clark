@@ -420,9 +420,11 @@ class Choosing(Base):
         self.assertIn("Docker", got[1]["message"])
         self.assertIn("Type the folder's location", got[1]["message"])
         self.assertNotIn("Try Choose folder again", got[1]["message"])
+        self.assertIn("Nothing was changed.", got[1]["message"])
         got = self.choose()
         self.assertNotIn("Docker", got[1]["message"])
         self.assertIn("Add folder", got[1]["message"])
+        self.assertIn("Nothing was changed.", got[1]["message"])
 
     def test_a_typed_location_is_added_when_no_window_can_open(self):
         self.assertEqual(self.post({"project": "ABC", "action": "add", "path": str(self.docs)})[0], 200)

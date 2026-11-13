@@ -18,7 +18,7 @@ import unittest
 from _paths import SRC  # noqa: F401
 
 from clark import source_name as sn
-from clark.source_name import source_name
+from clark.source_name import FILE_EXTENSIONS, source_name
 
 SEPARATORS = ["/", "\\", "\uff0f", "\uff3c", "\u2215", "\u2216", "\ufe68", "\u2571", "\u2572", "\u29f5", "\u29f8", "\u29f9", "\u27cb", "\u2afd", "\u2044",
               "%2F", "%5C", "%252F", "%2f", "%5c", "\uff05\uff12\uff26", "&#47;", "&#x2F;", "&sol;", "&bsol;", "%u002F", "%u005C", "%c0%af", "<", ">"]
@@ -44,6 +44,23 @@ class Plain(unittest.TestCase):
         for words, shown in (("Word import, 2026-11-11, plan.docx, under Risks", "plan.docx"), ("Excel import, 2026-10-01, plan.xlsx", "plan.xlsx"),
                              ("plan.xlsx", "plan.xlsx"), ("/a/b/plan.xlsx", "plan.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_only_a_known_file_extension_makes_a_listed_file_name(self):
+        for words in ("john.smith", "acme.com", "v1.2", "Import, 2026-11-11, john.smith", "Import, acme.com"):
+            self.assertEqual(source_name(words, published=True), "", words)
+        for words, shown in (("Plan.docx", "Plan.docx"), ("notes.PDF", "notes.PDF"), ("a b.xlsx", "a b.xlsx"), ("Import, a b.xlsx", "a b.xlsx")):
+            self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_the_closed_list_is_only_what_clark_reads_or_writes(self):
+        for name in ("plan.xlsx", "plan.xlsm", "plan.xls", "data.csv", "a.docx", "a.doc", "a.pdf"):
+            self.assertEqual(source_name(name, published=True), name, name)
+            self.assertEqual(source_name("Import, 2026-11-11, " + name, published=True), name, name)
+        for name in ("data.json", "page.html", "script.sh", "tool.py", "site.example", "name.io", "Programme.mpp", "plan.xer", "clip.mp4"):   # unlisted stays refused (mpp and xer: clark cannot read them)
+            self.assertEqual(source_name(name, published=True), "", name)
+
+    def test_a_path_with_a_person_or_domain_name_is_never_a_file(self):
+        for path in ("/a/b/john.smith", "C:\\x\\acme.com"):
+            self.assertEqual(source_name(path, published=True), "", path)
 
     def test_a_huge_value_is_cut_before_it_is_read_the_name_at_the_end_is_kept_when_published(self):
         huge = "x " * 50000
@@ -184,6 +201,41 @@ class Property(unittest.TestCase):
             if re.search(r"&#|&\w", words) or re.match(r"[A-Za-z]:", words) or re.search(r":(?![\s\d]|$)", words) or re.search(r"(?<![\d-])\d{4}-\d{2}-\d{2}(?![\d-])", words) or not words:
                 continue
             self.assertEqual(source_name(words), words if len(words) <= 120 else source_name(words), words)
+
+
+class OnlyARealFileName(unittest.TestCase):
+    """Row 1077, hostile: a client's Source is a real file name (a known extension at the end, no space beside a dot); free text with a dot is not."""
+
+    def test_free_text_with_a_dot_is_not_published(self):
+        for words in ("Raised by the PM. Confidential.Salary", "Email re. layoffs.Re", "Call with Acme Corp, www.acme.com", "notes.Salary",
+                      "Raised by the PM. Confidential.xlsx", "Budget .xlsx", "a.b", "", "x" * 5000, "x" * 5000 + ".Salary", "Mr. X, said.Re"):
+            self.assertEqual(source_name(words, published=True), "", words[:40])
+
+    def test_a_real_file_name_is_published(self):
+        for words, shown in (("report.final.docx", "report.final.docx"), ("Plan.XLSX", "Plan.XLSX"), ("r\u00e9union \u4f1a.docx", "r\u00e9union \u4f1a.docx"),
+                             ("Raised by the PM. Confidential, plan.xlsx", "plan.xlsx"), ("See the note, notes.Salary, budget.csv", "budget.csv"),
+                             ("Excel import, 2026-10-01, clark import template.xlsx", "clark import template.xlsx")):
+            self.assertEqual(source_name(words, published=True), shown, words)
+
+    def test_the_last_file_name_among_several_comma_parts_is_the_one_published(self):
+        self.assertEqual(source_name("Word import, first.docx, second.pdf", published=True), "second.pdf")
+        self.assertEqual(source_name("old.xlsx, Added by hand, new.csv", published=True), "new.csv")
+
+    def test_only_the_extensions_clark_imports_or_reads_are_published(self):
+        """The list: xlsx xlsm xls csv docx doc pdf (what clark imports or reads). The others (pptx txt msg eml md) are not published: a shorter list leaks less."""
+        for ext in ("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf", "XLSX", "Pdf"):
+            self.assertEqual(source_name(f"plan.{ext}", published=True), f"plan.{ext}", ext)
+        for ext in ("pptx", "txt", "msg", "eml", "md", "html", "zip", "json"):
+            self.assertEqual(source_name(f"plan.{ext}", published=True), "", ext)
+        self.assertEqual(sorted(FILE_EXTENSIONS), sorted(("xlsx", "xlsm", "xls", "csv", "docx", "doc", "pdf")))
+
+    def test_a_path_gives_the_name_only_and_only_when_it_is_a_real_file(self):
+        self.assertEqual(source_name("C:\\x\\salary.xlsx", published=True), "salary.xlsx")
+        self.assertEqual(source_name("C:\\x\\salary.Salary", published=True), "")
+        self.assertEqual(source_name("/a/b/www.acme.com", published=True), "")
+
+    def test_the_live_peek_is_not_narrowed(self):
+        self.assertEqual(source_name("Call with Acme Corp, www.acme.com"), "Call with Acme Corp, www.acme.com")
 
 
 if __name__ == "__main__":

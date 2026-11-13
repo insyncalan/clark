@@ -11,6 +11,7 @@ import { modeKey } from "@src/edit/keys.js";
 import { GanttPage } from "@src/gantt/components/GanttPage.jsx";
 import { createMemoryHost } from "@src/gantt/logic/ganttHost.js";
 import * as page from "@src/gantt/logic/ganttPage.js";
+import "@src/edit/fadeCopy.js";   // the edit page registers the fade-out copy; the bare page stands in for it
 
 const P = { page };
 window.P = P;

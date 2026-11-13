@@ -62,6 +62,12 @@ class Change(unittest.TestCase):
         self.assertEqual(con.execute("SELECT count(*) FROM use_case_milestones").fetchone()[0], 0)
         con.close()
 
+    def test_a_second_add_says_there_is_nothing_to_undo(self):
+        """Hunt: a no-op add must not offer an Undo (undoable false, not just no apply_id)."""
+        self.change(self.req("msadd", [self.ms]))
+        code, body = self.change(self.req("msadd", [self.ms]))
+        self.assertEqual((code, body["undoable"], body["apply_id"]), (200, False, None))
+
     def test_history_shows_the_link_on_both_items(self):
         self.change(self.req("msadd", [self.ms]))
         self.change(self.req("msremove", [self.ms]))

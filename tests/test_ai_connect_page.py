@@ -74,6 +74,18 @@ class Card(unittest.TestCase):
             self.assertNotIn("Anthropic", js("document.querySelector('#ask-settings').innerText"))
             self.assertIn("billed to the ChatGPT account", js("document.querySelector('#ask-notice').innerText"))
 
+    def test_focus_stays_on_the_model_and_on_connect_while_it_saves(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            js("document.querySelector('#ai-model').focus()")
+            self.pick(js, "opus")
+            self.assertTrue(wait(lambda: settings.ai_read(self.d)["model"] == "opus", 10))
+            self.assertEqual(js("document.activeElement && document.activeElement.id"), "ai-model", "the drop-down keeps focus after saving")
+            js("document.querySelector('[data-ai-disconnect=claude]').focus()")
+            js("document.querySelector('[data-ai-disconnect=claude]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ai-connect=claude]')"), 10))
+            self.assertEqual(js("document.activeElement && document.activeElement.hasAttribute('data-ai-connect')"), True, "focus stays on the button")
+
     def test_not_signed_in_says_what_to_do(self):
         self.claude.signed_in = False
         with chrome() as cdp:

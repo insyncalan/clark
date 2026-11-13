@@ -96,7 +96,7 @@ class Card(Base):
                 self.open_settings(p)
                 self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card .row button')].map(b => b.textContent)"),
-                                 ["Export workbook", "Import workbook", "Excel file layout"])
+                                 ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…"])
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):
@@ -134,6 +134,30 @@ class Card(Base):
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
+
+    def test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                folder = Path(self.tmp.name) / ("dbl" + str(w))
+                folder.mkdir()
+                b64, action, old = workbook(self.rig, folder, "Agree the cut-over plan, version three")
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.choose(p, b64)
+                p.until("!!document.querySelector('#import-go')", "the check")
+                steps = self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+                p.js("(() => { const b = document.querySelector('#import-go'); b.click(); b.click(); })()")
+                p.until("!!document.querySelector('#import-result')", "the result")
+                self.settle(p, "!!document.querySelector('#import-undo')", "Undo offered")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click")
+                self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
+                p.js("(() => { const b = document.querySelector('#import-undo'); b.click(); b.click(); })()")
+                p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click on Undo")
+                self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
 
     def open_box(self, p):
         self.open_settings(p)
@@ -239,6 +263,32 @@ class Card(Base):
             p.until("!!document.querySelector('#import-continue')", "the sheet list")
             self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => li.innerText.trim().split(' (')[0])"),
                              ["Actions", "Risks & Issues", "Milestones", "Use cases"])
+
+    def test_the_sheets_ticked_last_time_are_ticked_again_when_the_box_is_opened_again(self):
+        """#1106, in the browser: Continue keeps exactly the ticked sheets, and the next time the sheet list opens only those are ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        ticks = "[...document.querySelectorAll('#import-sheet-list li')].map(li => li.querySelector('input').checked)"
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_box(p)
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list")
+                self.assertEqual(p.js(ticks), [True] * 5, "nothing remembered: all ticked")
+                p.js("document.querySelector('#import-clear').click()")
+                p.js("document.querySelector('[data-sheet=raid]').click()")
+                p.js("document.querySelector('[data-sheet=milestones]').click()")
+                p.js("document.querySelector('#import-continue').click()")
+                p.until("!!document.querySelector('#import-none') || !!document.querySelector('#import-summary')", "the check")
+                self.assertEqual(p.js("JSON.parse(localStorage.getItem('clark.import.sheets'))"), ["raid", "milestones"], "the ticked tables are kept")
+                p.js("document.querySelector('#import-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+                p.until("!document.querySelector('#import-box')", "Esc closed it")
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened again")
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+                self.assertEqual(p.js(ticks), [False, True, False, True, False], "Risks & Issues and Milestones are ticked again, the rest are not")
 
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import

@@ -77,7 +77,7 @@ class Routes(unittest.TestCase):
         for bad_kind in ("workstreams", "links", "labels", "Report_hidden", "Actions", "actions "):
             self.refused({"project": "ABC", "kind": bad_kind, "op": "archive", "id": mine}, changes.BAD_KIND)
         self.refused({"project": "ABC", "kind": "glance_tiles", "op": "archive", "id": "ABC|risks"}, changes.BAD_OP)   # a tile has no archive
-        self.refused({"project": "ABC", "kind": "actions", "op": "delete", "id": mine}, changes.BAD_OP)
+        self.refused({"project": "ABC", "kind": "milestones", "op": "delete", "id": self.refs["milestones"]}, changes.BAD_OP)   # item 658: an item can be deleted; a milestone cannot
         self.refused({"project": "ABC", "kind": "actions", "op": "cancel", "id": mine}, changes.BAD_OP)
         self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "colour": "red"}, "clark doesn't know 'colour' in that request.")
         self.refused({"project": "ABC", "kind": "actions", "op": "archive", "id": mine, "changes": {"archived": 1}},

@@ -93,7 +93,7 @@ function bucketOf(a, t) {
 }
 function dueKey(row, today) {
   const iso = dueField(row), a = dayNumber(iso), t = dayNumber(today);
-  if (a === null || t === null || decided(row)) return NONE;
+  if (a === null || t === null || decided(row) || (a < t && row.status === "Completed")) return NONE;   // a Completed item is never overdue: with no live date it has no column
   return bucketOf(a, t);
 }
 

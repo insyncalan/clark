@@ -28,7 +28,7 @@ sys.path.insert(0, str(ROOT / "src"))
 from clark import __main__ as launcher  # noqa: E402
 from clark import platform as pl  # noqa: E402
 from clark import __version__ as clark_version  # noqa: E402
-from clark import page, server  # noqa: E402
+from clark import brands, page, server  # noqa: E402
 
 WAIT = 30           # seconds to wait for the address line, or for the process to stop
 
@@ -572,7 +572,7 @@ class InProcess(TempFolder):
     def test_startup_tells_the_server_where_the_brands_live_and_puts_right_a_crash_first(self):
         """#944: without set_brand_paths the brand routes answer 503; a hidden folder a crash left is put right before serving."""
         clark_folder = self.tmp / "clarkfolder"
-        branding = clark_folder / "system" / "branding"
+        branding = clark_folder / "branding"
         (branding / ".clark-brand-old-example").mkdir(parents=True)
         (branding / ".clark-brand-old-example" / "tokens.css").write_text(":root{}", encoding="utf-8")
         seen = []
@@ -589,6 +589,33 @@ class InProcess(TempFolder):
         self.assertEqual(pathlib.Path(paths["root"]), clark_folder)
         self.assertEqual(pathlib.Path(paths["data"]), self.tmp / "d")
         self.assertEqual(names, ["example"], "the hidden old folder was moved back before serve()")
+
+    def test_startup_copies_the_old_brand_folder_before_serving_and_leaves_the_old_one(self):
+        """1.0.6: system/branding is copied to branding/ before the server or the page can read it; the old folder stays."""
+        clark_folder = self.tmp / "clarkfolder2"
+        old = clark_folder / "system" / "branding"
+        old.mkdir(parents=True)
+        (old / "tokens.css").write_text(":root{--mine:1}", encoding="utf-8")
+        seen = []
+
+        def serve(**kw):
+            seen.append(sorted(p.name for p in (clark_folder / "branding").iterdir()) if (clark_folder / "branding").is_dir() else None)
+            return 0
+        with mock.patch.object(page, "BRANDING", clark_folder / "branding"):
+            self.assertEqual(self.run_main("--data", str(self.tmp / "d2"), serve=serve)[0], 0)
+        self.assertEqual([["tokens.css"]], seen)
+        self.assertEqual(":root{--mine:1}", (old / "tokens.css").read_text(encoding="utf-8"))
+
+    def test_a_copy_of_the_old_brand_folder_that_raises_does_not_stop_clark_starting(self):
+        """A very deep old folder raises RecursionError out of the copy: clark still starts, branding/ stays absent (the next start tries again)."""
+        clark_folder = self.tmp / "clarkfolder3"
+        (clark_folder / "system" / "branding").mkdir(parents=True)
+        served = []
+        with mock.patch.object(page, "BRANDING", clark_folder / "branding"), \
+                mock.patch.object(brands, "copy_old_folder", side_effect=RecursionError("deep")):
+            self.assertEqual(self.run_main("--data", str(self.tmp / "d3"), serve=lambda **kw: served.append(1) or 0)[0], 0)
+        self.assertEqual([1], served, "the server was started")
+        self.assertFalse((clark_folder / "branding").exists())
 
     def test_the_launchers_own_store_is_closed_before_serving_so_a_restore_can_take_the_file(self):
         """#111: an open connection would make Restore say another program has the data open; data_for opens its own each time."""
