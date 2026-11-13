@@ -671,9 +671,9 @@ input.sec-title { width: 100%; }
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
 @media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
-.pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
-.pk-edge:hover { background: var(--brand-cyan); opacity: .5; }
-.pk-edge:focus-visible { background: var(--brand-blue); opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
+.pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 24px; cursor: ew-resize; touch-action: none; }      /* a 24 px hit box inside the peek's 24 px side padding; the strip that shows is still 8 px */
+.pk-edge:hover { background: linear-gradient(var(--brand-cyan), var(--brand-cyan)) left / 8px 100% no-repeat; opacity: .5; }
+.pk-edge:focus-visible { background: linear-gradient(var(--brand-blue), var(--brand-blue)) left / 8px 100% no-repeat; opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: var(--d-pk-bar-b); border-bottom: 1px solid var(--grey-100); }
 .pk-sp { flex: 1; }
 .pk-id { color: var(--text-muted); font-size: var(--size-caption); margin-left: 6px; }
@@ -958,6 +958,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp kbd, .hp-keyline kbd { display: inline-block; min-width: 1.6em; text-align: center; font: var(--weight-regular) var(--size-small)/1 var(--font); border: 1px solid var(--grey-300); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 3px 5px; background: var(--surface); color: var(--text); white-space: nowrap; }
 .hp code { font: var(--weight-regular) var(--size-small)/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--grey-100); border-radius: var(--radius-sm); padding: 1px 5px; }
 .hp mark { background: var(--flash); color: inherit; border-radius: 2px; padding: 0 1px; }
+.hp a[href]:not(.hp-job) { display: inline-block; min-height: 24px; line-height: 24px; }      /* a link in Help is a target of 24 px, in a sentence or on its own */
 .hp a.hp-a, .hp .hp-go, .hp .hp-jgo, .hp .hp-jt, .hp .hp-wt[href] { color: var(--status-blue-text); text-decoration: none; cursor: pointer; }
 .hp a.hp-a:hover, .hp .hp-go:hover, .hp .hp-jgo:hover, .hp .hp-jt:hover, .hp .hp-wt[href]:hover { text-decoration: underline; text-underline-offset: 2px; }
 .hp a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
@@ -1049,6 +1050,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
+.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
@@ -1125,7 +1127,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hpk-arts { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
 .hpk-arts .hpk-link { font-size: var(--size-small); text-align: left; }
 .hpk-foot { margin-top: auto; padding: var(--space-3) 0; border-top: 1px solid var(--grey-200); position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--surface); }   /* row 896: with the articles the panel can be taller than the window: the link to the full Help stays in view */
-.hpk-link { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
+.hpk-link { all: unset; display: inline-block; min-height: 24px; line-height: 24px; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
 .hpk-link:hover { text-decoration: underline; }
 .hpk-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 

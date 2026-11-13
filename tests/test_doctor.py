@@ -16,7 +16,7 @@ from unittest import mock
 
 from _paths import ROOT
 
-from clark import doctor, launch, platform as pl
+from clark import __version__, appfiles, doctor, launch, platform as pl
 
 
 class DoctorCase(unittest.TestCase):
@@ -30,7 +30,8 @@ class DoctorCase(unittest.TestCase):
         """A Mac where everything is ready, unless `over` says otherwise."""
         seams = dict(on=pl.MAC, home=self.home, environ={}, app=self.app, version=(3, 9, 6), sqlite_version="3.37.0",
                      find_chrome=lambda: "/fictional/chrome", find_claude=lambda: "/fictional/bin/claude",
-                     health=lambda port, mark: launch.NOTHING, free=lambda port: False)
+                     health=lambda port, mark: launch.NOTHING, free=lambda port: False,
+                     identity=lambda port, mark: (__version__, appfiles.code_mark()), page=lambda port: 200)
         seams.update(over)
         return seams
 
@@ -229,6 +230,26 @@ class Port(DoctorCase):
         code, lines = self.run_doctor(health=lambda port, mark: launch.OURS)
         self.assertEqual(code, 0, lines)
         self.line(lines, "Ready: Your clark is already running with this data.")
+
+    def test_row_1030_ours_but_another_version_or_folder_is_not_ready_and_says_what_the_launcher_says(self):
+        for who in ((None, None), ("0.0.1", appfiles.code_mark()), (__version__, "0" * 16)):
+            code, lines = self.run_doctor(health=lambda port, mark: launch.OURS, identity=lambda port, mark, who=who: who)
+            self.assertEqual(code, 1, lines)
+            self.line(lines, "To fix: " + launch.NOT_THIS_ONE)
+
+    def test_row_1030_ours_whose_page_is_broken_is_not_ready_and_says_what_the_launcher_says(self):
+        for status in (500, None):
+            code, lines = self.run_doctor(health=lambda port, mark: launch.OURS, page=lambda port, status=status: status)
+            self.assertEqual(code, 1, lines)
+            self.line(lines, "To fix: " + launch.BROKEN_PAGE)
+
+    def test_row_1030_the_refusal_words_make_sense_for_someone_who_started_nothing(self):
+        # the doctor shares these words with the launcher: they must not talk about a copy "just started" or a start that was made
+        for words in (launch.NOT_THIS_ONE, launch.BROKEN_PAGE):
+            for phrase in ("just started", "Nothing was", "this one again", "was opened or changed"):
+                self.assertNotIn(phrase, words)
+            self.assertIn("start clark again", words)
+        self.assertIn("not the copy you are trying to start", launch.NOT_THIS_ONE)
 
     def test_the_mark_is_this_data_folders(self):
         from clark import appfiles
