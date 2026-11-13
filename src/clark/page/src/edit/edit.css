@@ -539,6 +539,9 @@ textarea.tpl-field { resize: vertical; }
 /* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
 .tpl-quote { padding: var(--space-2) var(--space-4); border-left: 0; border-radius: var(--radius); background: var(--grey-50); }
 .tpl-lc { border-left: 1px solid var(--grey-200); }
+/* row 936: the draft-email internal note and the rich-text field quote draw no one-side stripe in Edit (a quiet panel and a plain frame instead); amber attention stripes elsewhere stay */
+.de-internal { border-left: 0; border-radius: var(--radius-sm); border: 1px solid var(--grey-200); }
+.rt-host .ProseMirror blockquote { padding: var(--space-1) var(--space-3); border-left: 0; border-radius: var(--radius-sm); background: var(--grey-50); }
 
 /* Section templates, G4 Dates and lists (#96): the Edit parts of Key dates and Checklist. Tokens only. */
 .tple { margin: var(--space-2) 0; min-width: 0; }

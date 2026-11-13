@@ -12,7 +12,9 @@ import io
 import os
 import re
 import zipfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
+from urllib.parse import unquote
 
 from clark import docx_build as _b
 from clark import docx_read as _r
@@ -42,6 +44,67 @@ def body_sect(doc):
                 return doc[m.start():stop]
     return None
 RELS = "word/_rels/document.xml.rels"
+# Client-leak hunt B4: parts of the template the report never draws and the client must never get: review comments (and who made them),
+# custom properties (a sensitivity label, an internal id), the template's first-page preview picture, custom XML and the glossary.
+# The template's own look (page set-up, headers, footers, styles, theme, pictures) is kept.
+DROPPED = re.compile(r"^(word/(comments\w*|people)\.xml|word/glossary/.+|docProps/(custom\.xml|thumbnail\..+)|customXml/.+)$", re.I)
+def _target_of(rels_name, target):
+    """The part a relationship in `rels_name` names (inside the file), as a part name."""
+    src = rels_name.replace("_rels/", "", 1) if rels_name.startswith("_rels/") else rels_name.replace("/_rels/", "/", 1)
+    base = src[:-len(".rels")].rsplit("/", 1)[0] if "/" in src[:-len(".rels")] else ""
+    path = target.lstrip("/") if target.startswith("/") else (base + "/" + target if base else target)
+    out = []
+    for seg in path.replace("\\", "/").split("/"):
+        if seg == "..":
+            out and out.pop()
+        elif seg and seg != ".":
+            out.append(seg)
+    return "/".join(out)
+
+
+def _local(tag):
+    return tag.rsplit("}", 1)[-1]
+
+
+def _parse(data, name):
+    try:
+        return ET.fromstring(data)
+    except ET.ParseError:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} is not well-formed XML.") from None
+
+
+def _unwrite(root):
+    ns = root.tag[1:].split("}")[0] if root.tag.startswith("{") else ""
+    ET.register_namespace("", ns)
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _drop_unwanted(out):
+    """Take the DROPPED parts out of `out` (name -> bytes), with the relationships and content types that name them and the
+    relationships files of the parts that went, so nothing left points at a part that is gone. Part names are compared without
+    regard to case and after percent-decoding (as Word does); the two XML files are parsed, so quoting and empty-element style
+    do not matter."""
+    gone = {n for n in out if DROPPED.search(n)}
+    if not gone:
+        return
+    gone_ci = {n.lower() for n in gone}
+    for n in gone:
+        del out[n]
+    for n in [n for n in out if n.endswith(".rels")]:
+        owner = n.replace("_rels/", "", 1)[:-len(".rels")] if n.startswith("_rels/") else n.replace("/_rels/", "/", 1)[:-len(".rels")]
+        if owner.lower() in gone_ci:
+            del out[n]
+            continue
+        root = _parse(out[n], n)
+        for rel in [r for r in root if _local(r.tag) == "Relationship"]:
+            if rel.get("TargetMode", "").lower() != "external" and _target_of(n, unquote(rel.get("Target", ""))).lower() in gone_ci:
+                root.remove(rel)
+        out[n] = _unwrite(root)
+    root = _parse(out["[Content_Types].xml"], "[Content_Types].xml")
+    for ov in [o for o in root if _local(o.tag) == "Override"]:
+        if unquote(ov.get("PartName", "")).lstrip("/").lower() in gone_ci:
+            root.remove(ov)
+    out["[Content_Types].xml"] = _unwrite(root)
 
 
 def find(branding):
@@ -161,7 +224,8 @@ def wrap(template, built):
     for n in ("docProps/core.xml", "docProps/app.xml"):         # the file's author and company are clark's, never the template's
         if n in parts and n in mine:
             out[n] = mine[n]
-    order = [i.filename for i in infos]
+    _drop_unwanted(out)
+    order = [i.filename for i in infos if i.filename in out]
     order += [n for n in out if n not in parts]
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w") as w:
