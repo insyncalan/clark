@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_open_last_project_1135
 Real server, Chrome at 1400 and 900 px. The browser parts fail, never skip, without Chrome.
 """
 import tempfile
+import time
 import unittest
 
 from clark import page
@@ -83,38 +84,45 @@ class Browser(unittest.TestCase):
 
     def test_back_from_the_auto_opened_project_leaves_the_page(self):
         s = self.serve({"TUL": "Tulip"})
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 1400)
-            self.until(cdp, sid, "location.search.includes('project=TUL') && document.querySelector('main')", "the project")
-            cdp.js("history.back()", sid)
-            self.assertTrue(wait(lambda: not cdp.js("location.href.startsWith('http://127.0.0.1')", sid), 15), "Back leaves; it does not open the bare address and the project again")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width)
+                self.until(cdp, sid, "location.search.includes('project=TUL') && document.querySelector('main')", "the project")
+                cdp.js("history.back()", sid)
+                self.assertTrue(wait(lambda: not cdp.js("location.href.startsWith('http://127.0.0.1')", sid), 15), "Back leaves; it does not open the bare address and the project again")
 
     def test_leaving_the_project_shows_the_chooser_and_does_not_jump(self):
         s = self.serve({"TUL": "Tulip", "ROS": "Rose"})
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 1400, "/#dashboard&p=TUL")
-            self.until(cdp, sid, "localStorage.getItem('clark.lastProject') === 'TUL'", "TUL remembered")
-            cdp.js("location.hash = '#dashboard'", sid)          # the address drops the project: the chooser, with no jump
-            self.until(cdp, sid, "document.querySelector('main').innerText.includes('No project open') || location.search.includes('project=')", "a settled page")
-            self.assertTrue(wait(lambda: bool(cdp.js("document.querySelectorAll('main ul.choose li').length === 2", sid)), 15) or True)
-            self.assertFalse(cdp.js("location.search.includes('project=') && !location.search.includes('TUL')", sid))
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width, "/#dashboard&p=TUL")
+                self.until(cdp, sid, "localStorage.getItem('clark.lastProject') === 'TUL'", "TUL remembered")
+                cdp.js("location.hash = '#dashboard'", sid)          # the address drops the project: the chooser, with no jump
+                self.until(cdp, sid, "document.querySelectorAll('main ul.choose li').length === 2", "the chooser, listing both projects")
+                self.assertTrue(cdp.js("document.querySelector('main').innerText.includes('No project open')", sid))
+                self.assertNotIn("p=", cdp.js("location.hash", sid), "no project in the address")
+                time.sleep(1.5)                                       # a jump back into TUL would come within this time
+                self.assertTrue(cdp.js("document.querySelectorAll('main ul.choose li').length === 2 && !location.hash.includes('p=') && document.querySelector('main').innerText.includes('No project open')", sid), "still the chooser: no jump")
 
     def test_a_blocked_local_storage_still_shows_the_chooser(self):
         s = self.serve({"TUL": "Tulip", "ROS": "Rose"})
-        with chrome() as cdp:
-            sid = page_target(cdp)
-            cdp.call("Page.enable", {}, sid)
-            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "Object.defineProperty(window, 'localStorage', {get() { throw new Error('blocked'); }})"}, sid)
-            cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/"}, sid)
-            self.until(cdp, sid, "document.querySelectorAll('main ul.choose li').length === 2", "the chooser with storage blocked")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = page_target(cdp)
+                cdp.call("Page.enable", {}, sid)
+                cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "Object.defineProperty(window, 'localStorage', {get() { throw new Error('blocked'); }})"}, sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": f"http://127.0.0.1:{s.port}/"}, sid)
+                self.until(cdp, sid, "document.querySelectorAll('main ul.choose li').length === 2", "the chooser with storage blocked")
 
     def test_a_project_in_the_address_is_remembered_and_not_replaced(self):
         s = self.serve({"TUL": "Tulip", "ROS": "Rose"})
-        with chrome() as cdp:
-            sid = self.visit(cdp, s.port, 1400, "/#dashboard&p=TUL")
-            self.until(cdp, sid, "document.querySelector('main')", 'the page')
-            self.until(cdp, sid, "localStorage.getItem('clark.lastProject') === 'TUL'", 'TUL remembered')
-            self.assertIn("p=TUL", cdp.js("location.hash", sid))
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.visit(cdp, s.port, width, "/#dashboard&p=TUL")
+                self.until(cdp, sid, "document.querySelector('main')", 'the page')
+                self.until(cdp, sid, "localStorage.getItem('clark.lastProject') === 'TUL'", 'TUL remembered')
+                self.assertIn("p=TUL", cdp.js("location.hash", sid))
 
 
 if __name__ == "__main__":
