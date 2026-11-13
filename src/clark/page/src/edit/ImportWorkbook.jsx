@@ -95,7 +95,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       const r = await api.undo(project, id);
       if (!r.ok) { setProblem(r.words); return; }
       onDone(r.body);
-      setStep({ at: "undone", message: T.undone });
+      setStep({ at: "undone", message: (r.body && r.body.message) || T.undone });
     } finally { busy.current = false; }
   }
 
@@ -147,6 +147,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       </Dialog>
     );
   }
+  const hidden = items.slice(SHOWN), hiddenOn = L.acceptedNumbers(hidden, ticks).length;
   const empty = p.already_imported || !items.length;
   const setAll = (on) => { const t = {}; for (const i of items) t[i.n] = on && !!i.default && !i.problem; setTicks(t); };
   const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
@@ -180,7 +181,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
           </ul>
         </>
       )}
-      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.</p> : null}
+      {items.length > SHOWN ? <p class="muted" id="import-more">and {hidden.length} more, of which {hiddenOn} will be imported (Accept all takes new and changed rows with no problem; Reject all takes none).</p> : null}
       <p class="error" role="alert" id="import-problem">{problem}</p>
     </Dialog>
   );
