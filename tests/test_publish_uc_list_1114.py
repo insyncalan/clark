@@ -19,7 +19,7 @@ def made(extra=True):
     d = plant["data"]
     if extra:
         row = copy.deepcopy(d["use_cases"][0])
-        row.update(id="PUB-U-006", title="ZQ-SECOND-USECASE", status="High risk", ref="0.5", sort_order=6)
+        row.update(id="PUB-U-006", title="ZQ-SECOND-USECASE", status="High risk", ref="9.9", sort_order=6)
         d["use_cases"].append(row)
     pub = publish.select(fx.inputs(plant))
     return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
@@ -44,9 +44,10 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-tab=risk] em').textContent"), "1")
             self.assertEqual(js("document.querySelector('#ucp-count').textContent"), "2 use cases")
             self.assertFalse(js("/On the dashboard/i.test(document.body.innerText)"), "no On the dashboard word is drawn in a published file")
-            self.assertEqual(js("document.querySelector('.ucp .num').textContent"), "0.5")          # Ref order: 0.5 before the fixture's
+            self.assertEqual(js("[...document.querySelectorAll('.ucp .num')].pop().textContent"), "9.9")   # Ref order: the planted 9.9 is last,
+            self.assertNotEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")   # so it is not first yet
             js("document.querySelector('[data-sort=status]').click()")
-            self.assertEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")  # High risk first
+            self.assertEqual(js("document.querySelector('.ucp-title').textContent"), "ZQ-SECOND-USECASE")  # Status order puts High risk first: the order changed
             js("document.querySelector('[data-tab=risk]').click()")
             self.assertEqual(js("document.querySelectorAll('.ucp').length"), 1)
             self.assertEqual(js("document.querySelector('#ucp-count').textContent"), "1 use case")
