@@ -709,9 +709,9 @@
     "w": "Any longer text you click",
     "go": "dashboard+edit",
     "s": [
-     "Click the text. An editor opens where it is, with a bar of headings, bold, italic, strikethrough, lists, a checklist, indent and outdent, a quote, a divider, Link, Unlink, Clear, undo and redo, and **✦ AI**.",
+     "Click the text. An editor opens where it is, with a bar of headings, bold, italic, strikethrough, lists, a checklist, indent and outdent, a quote, a divider, Link, Unlink, Clear, undo and redo.",
      "Highlight some words and a small bar floats above them, with the same formatting.",
-     "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote, a divider and the AI options. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
+     "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote and a divider. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
      "Click away, or press [[Mod+Enter]], to keep the text. [[Esc]] cancels the edit."
     ],
     "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back.",
