@@ -355,7 +355,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-/* Issue 1137 (Alan: "nothing at all"): the box looks the same with or without the cursor in it. No ring, no coloured border; the text cursor shows where typing goes. The icons stand beside the box, in the row, at the same place as before. */
+/* Issue 1137 (ruling: "nothing at all"): the box looks the same with or without the cursor in it. No ring, no coloured border; the text cursor shows where typing goes. The icons stand beside the box, in the row, at the same place as before. */
 .fline-row { display: flex; align-items: center; gap: var(--space-2); }
 .fline-row > .fline { flex: 1 1 auto; min-width: 0; }
 .fline-tail { flex: none; display: inline-flex; align-items: center; margin-right: 11px; }   /* 11 px: the icons end where they ended inside the box (its 10 px padding and 1 px border) */

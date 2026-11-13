@@ -49,7 +49,7 @@ class FocusRings(unittest.TestCase):
         self.assertIn("outline: 2px solid var(--focus)", m.group(1))
 
     def test_the_filter_box_has_no_focus_ring_rule(self):
-        # Issue 1137, Alan's ruling: the filter field looks the same with or without the cursor in it.
+        # Issue 1137, the ruling: the filter field looks the same with or without the cursor in it.
         self.assertIsNone(rule(".fline:focus-within"))
         self.assertIsNone(re.search(r"\.fline\.on\s*[,{]", CSS))
 

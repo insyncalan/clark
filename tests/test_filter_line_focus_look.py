@@ -1,5 +1,5 @@
 """Issue 1137: the Work items filter line. The filter field keeps its normal look while the cursor is in it (no purple ring, no coloured
-border, no shadow; Alan's ruling: "nothing at all"), and the icons stand beside the box, not inside it, at the place they had.
+border, no shadow; the ruling: "nothing at all"), and the icons stand beside the box, not inside it, at the place they had.
 1400 and 900 px, light and dark.
 
 Run: python3 dev/run_tests.py test_filter_line_focus_look

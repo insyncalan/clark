@@ -18,7 +18,7 @@ K.KEYS.setdefault("ArrowLeft", ("ArrowLeft", 37))
 THEMES = ("light", "dark")
 
 RING = r"""(() => { const a = document.activeElement; if (!a || a === document.body) return JSON.stringify({ body: true });
-  const cs = getComputedStyle(a), field = a.tagName === 'INPUT' && !!a.closest('.fline');   // issue 1137: the filter field shows no focus mark by Alan's ruling (see test_filter_line_focus_look.py)
+  const cs = getComputedStyle(a), field = a.tagName === 'INPUT' && !!a.closest('.fline');   // issue 1137: the filter field shows no focus mark by the ruling (see test_filter_line_focus_look.py)
   return JSON.stringify({ name: a.getAttribute('aria-label') || a.textContent.trim().slice(0, 30), id: a.id || '', visible: a.matches(':focus-visible'), inLine: !!a.closest('.fviews, .fline-wrap'),
     ring: field || (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== '') }); })()"""
 UNNAMED = r"""(() => { const out = [];
