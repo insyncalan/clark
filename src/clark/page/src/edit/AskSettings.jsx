@@ -64,12 +64,26 @@ export function AskSettings() {
     return "That folder could not be saved just now. Wait a moment and try again; if it keeps happening, close clark and start it again.";
   }
 
+  // Choose folder and Remove are disabled while the request runs, which drops the focus: put it back once the list is drawn again.
+  // After a Remove it goes to the Remove button that took its place, or to Choose folder when none is left.
+  function refocusFolders(at) {
+    setTimeout(() => {
+      const root = document.getElementById("ask-settings");
+      if (!root) return;
+      const rm = root.querySelectorAll("[data-ask-remove]");
+      const el = at >= 0 && rm.length ? rm[Math.min(at, rm.length - 1)] : root.querySelector("[data-ask-choose]");
+      if (el) el.focus();
+    }, 0);
+  }
+
   async function change(action, path) {
+    const at = action === "remove" && Array.isArray(folders) ? folders.indexOf(path) : -1;
     setBusy(true);
     setMsg(null);
     const r = action === "choose" ? await askFoldersChoose(code) : await askFoldersChange(code, action, path);
     setBusy(false);
     const b = r.body;
+    if (action !== "add") refocusFolders(at);
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       if (b.message) setMsg({ kind: "note", text: b.message });
