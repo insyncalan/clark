@@ -2104,6 +2104,9 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
 MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
                     "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
 NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+# The same refusal as said by the check run before the server starts in Docker, where the fix is a folder, not an install.
+# NEWER_DATA stays as it is for the Mac (tests pin it).
+NEWER_FOLDER = "This data needs a newer clark. Start from the newer clark folder. Nothing was changed."
 
 # The lowest SQLite the migration code is written for. Stated, not enforced at run time; a test checks the steps use nothing newer.
 MIN_SQLITE = (3, 24, 0)
@@ -2113,6 +2116,31 @@ MIN_SQLITE = (3, 24, 0)
 # a newer file): the server shows these sentences as they are instead of "clark can't read its data".
 MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of clark cannot bring the database",
                           "The database has a version clark does not know", "This data needs a newer clark")
+
+
+def data_version(path):
+    """The schema version written in the data file at `path`, read and nothing else (a read-only connection: no step, no copy,
+    no migration, no table made), or None when there is no file. Raises Invalid when the file is not a clark database or has no
+    usable version. Before the try: Path.is_file and stat (an OSError on an unreadable folder is left to the caller, which says it in words)."""
+    path = Path(path)
+    if not path.is_file() or path.stat().st_size == 0:
+        return None
+    con = None
+    try:
+        con = connect(path, readonly=True)
+        row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    except sqlite3.OperationalError as e:        # a lock, or a read-only folder with no room for the -shm file: not a damaged file
+        if "locked" in str(e) or "busy" in str(e):
+            raise Invalid(_busy(e)) from e
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    except sqlite3.DatabaseError as e:           # a file that isn't a database, a database with no meta table, or one that can't be read
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    finally:
+        if con is not None:
+            con.close()
+    if row is None or not str(row[0]).isdigit():
+        raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
+    return int(row[0])
 
 
 def bring_up_to_date(con, path, onedrive_roots=None):

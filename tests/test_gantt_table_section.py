@@ -111,6 +111,25 @@ class Migrating(unittest.TestCase):
         con.close()
         self.assertEqual((sections_sql(path), section_rows(path)), was)
 
+    # mutation hunt (item 1230): "skip when the table already names gantttable" and "make the table when there is none" were not pinned
+    def test_the_second_run_only_looks_and_touches_no_table(self):
+        path = self.old_file()
+        con = sqlite3.connect(str(path), isolation_level=None)
+        store_module.migrate_gantt_table_section_type(con)
+        said = []
+        con.set_trace_callback(said.append)
+        store_module.migrate_gantt_table_section_type(con)
+        con.close()
+        self.assertTrue(said and all(q.lstrip().upper().startswith("SELECT") for q in said), said)
+
+    def test_a_file_with_no_sections_table_gets_the_new_one(self):
+        con = sqlite3.connect(":memory:", isolation_level=None)
+        store_module.migrate_gantt_table_section_type(con)
+        sql = con.execute("SELECT sql FROM sqlite_master WHERE name = 'report_sections'").fetchone()
+        con.close()
+        self.assertIsNotNone(sql)
+        self.assertIn("'gantttable'", sql[0])
+
     def test_an_older_clark_refuses_the_migrated_file_and_changes_nothing(self):
         path = self.old_file()
         open_store(path, onedrive_roots=[]).close()

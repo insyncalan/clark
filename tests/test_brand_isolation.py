@@ -138,6 +138,28 @@ class Publisher(Rig):
         self.assertEqual(set(map(str, html_with)), {str(self.zebra)})
 
 
+    def test_a_local_publish_rebuilt_for_the_save_folders_earlier_reports_keeps_the_projects_brand(self):
+        # mutation hunt on row 999: the file is made again when the folder the Save window picks holds earlier reports; that second
+        # build was never looked at (the test above publishes to a folder with none)
+        local = self.root / "Local"
+        local.mkdir()
+        (local / "ABC-report-2026-01-01.html").write_text("<html></html>", encoding="utf-8")
+        pub = publish_flow.Publisher(self.s.path, [], choose_save_file=lambda prompt, name, start=None: local / name,
+                                     today=lambda: "2026-10-29", by_user=lambda: USER, data_dir=self.s.path.parent, brand_root=self.root)
+        real_build, built_with = publish.build, []
+
+        def build(store, code, now=None, branding=None, *a, **k):
+            built_with.append((branding, k.get("past_reports")))
+            return real_build(store, code, now, branding, *a, **k)
+        self.set_brand("zebra")
+        with mock.patch.object(publish, "build", build):
+            status, got = pub.publish({"project": "ABC", "to_client": False})
+        self.assertEqual((status, got.get("ok")), (200, True), got)
+        self.assertGreaterEqual(len(built_with), 2, "the folder's earlier report made the file again")
+        self.assertEqual({str(b) for b, _ in built_with}, {str(self.zebra)})
+        self.assertTrue(built_with[-1][1], "and the rebuild saw the earlier report")
+
+
 class Word(Rig):
     def test_each_brand_colours_its_own_word_file_and_not_the_others(self):
         for name in ("zebra", "quokka"):

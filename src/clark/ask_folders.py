@@ -200,8 +200,8 @@ class AskFolders:
             picked = self.choose_folder(PICK_PROMPT, start=start)
         except platform.NotBuiltYet:                         # no window will ever open here: say why, and that a typed location works
             return 409, self.fail("no_window", MESSAGES["no_window_docker" if platform.container_mode() else "no_window"])
-        except platform.PlatformError:
-            return 409, self.fail("dialog_failed")
+        except platform.PlatformError as e:
+            return 409, self.fail("dialog_failed", platform.refusal_words(e, MESSAGES["dialog_failed"]))
         if picked is None:
             return 200, {"ok": True, "folders": now}
         typed = str(picked)

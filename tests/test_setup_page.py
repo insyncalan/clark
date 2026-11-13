@@ -23,11 +23,11 @@ from test_server import Running, chrome, wait  # noqa: E402
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DEMO = ROOT / "tests" / "fixtures" / "setup_demo.jsx"
 READY = {"id": "python", "status": "ready", "words": "Python 3.11.4 is ready."}
-CHROME = {"id": "chrome", "status": "ready", "words": "Chrome is there, so clark opens in its own window."}
+CHROME = {"id": "chrome", "status": "ready", "words": "Chrome is there, so clark opens in Chrome."}
 DATA = {"id": "data", "status": "ready", "words": "Your clark data can be saved in ~/clark-data."}
 ONEDRIVE = {"id": "onedrive", "status": "fix", "words": "Your clark data is set to go in ~/OneDrive/clark, which is inside OneDrive. "
             "OneDrive copies files while they are being written, which damages the data. Choose a folder on this computer that it doesn't sync."}
-NOCHROME = {"id": "chrome", "status": "advice", "words": "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own window."}
+NOCHROME = {"id": "chrome", "status": "advice", "words": "Chrome wasn't found, so clark will open in your usual browser."}
 MIXED = {"id": "versions", "status": "fix", "words": "These clark files are not all from the same version, so clark will not start. "
          "Move the clark folder aside (rename it) and unzip the download again."}
 OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731

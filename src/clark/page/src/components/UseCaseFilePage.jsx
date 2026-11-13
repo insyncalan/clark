@@ -1,6 +1,6 @@
 // One use case's own page in a published file (row 1111): the same layout and classes as the page the editor has (UseCaseDetail), read only.
 // It reads what the file holds (data.use_case_pages names, for each use case the client may see, the next steps and milestones to show),
-// draws no control and no History, and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
+// draws no control and no History, and its Details card shows only the fields the file holds (status, commitment), and asks for nothing. A work item opens the file's read only peek; "Open all" opens the file's Work items.
 import { data, rows, project, openWork, openPeek } from "../stores/report.js";
 import { isOpen, pillOf, dueCell, ownerOf, todayIso, plural, showDate } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
@@ -8,6 +8,7 @@ import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
 import { toneOf } from "./ItemRows.jsx";
+import { commitWord } from "../logic/commitment.js";
 import { CommitChip } from "./CommitChip.jsx";
 
 const rag = (status) => ({ "On track": "g", Flag: "a", "High risk": "r", Done: "n" })[status] || "n";
@@ -69,6 +70,13 @@ export function UseCaseFilePage({ id }) {
           </section>
         </div>
         <div class="ucf-side">
+          <section class="ucf-card" aria-labelledby="ucf-h-det" data-ucf-details>
+            <h2 id="ucf-h-det" class="ucf-ch">Details</h2>
+            <dl class="ucf-kv">
+              <dt>Status</dt><dd data-det-status>{u.status}</dd>
+              {commitWord(u) ? <><dt>Commitment</dt><dd data-det-commit>{commitWord(u)}</dd></> : null}
+            </dl>
+          </section>
           <section class="ucf-card" aria-labelledby="ucf-h-ms">
             <h2 id="ucf-h-ms" class="ucf-ch">Milestones</h2>
             {ms.length ? <ul class="ucf-ms plain">{ms.map((m) => {
