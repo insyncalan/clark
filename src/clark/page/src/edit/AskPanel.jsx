@@ -102,6 +102,7 @@ export function AskPanel() {
     const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
     setNote("");
+    histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
     turns.value = [...list, { role: "user", text: q }];
     if (!preset) setText("");
