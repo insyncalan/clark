@@ -395,6 +395,7 @@ class _Body:
         self.skip = 0                 # the depth of the element being skipped, or 0
         self.para = None              # the paragraph being read
         self.run_hidden = False
+        self.run_why, self.run_counted = None, False
         self.in_run = False
         self.in_t = False
         self.in_ppr = False
@@ -411,6 +412,11 @@ class _Body:
         if self.skip or not self.in_run or self.para is None or not s:
             return
         if self.run_hidden:
+            if s.strip() and not self.run_counted and not (self.run_why == "para" and self.para.get("hidden_counted")):
+                self.counts["hidden"] += 1      # counted when text is really dropped, once per hidden run (once per paragraph for a hidden paragraph style)
+                self.run_counted = True
+                if self.run_why == "para":
+                    self.para["hidden_counted"] = True
             return
         self.para["len"] += len(s)
         self.total += len(s)
@@ -455,7 +461,6 @@ class _Body:
             self.para["style"] = val
             if self.style_hidden(val):
                 self.para["hidden"] = True
-                self.counts["hidden"] += 1
         elif local == "numPr" and self.in_ppr:
             self.in_numpr = True
         elif local == "numId" and self.in_numpr and self.para is not None:
@@ -466,18 +471,19 @@ class _Body:
             self.para["outline"] = _int(val)
         elif local == "r":
             self.in_run = True
-            self.run_hidden = bool(self.para and self.para.get("hidden"))      # hidden by the paragraph's style; counted once there
+            self.run_hidden = bool(self.para and self.para.get("hidden"))      # hidden by the paragraph's style; counted once per paragraph when text is dropped
+            self.run_why = "para" if self.run_hidden else None
+            self.run_counted = False
         elif local == "rStyle" and self.in_run and not self.in_ppr:
             if not self.run_hidden and self.style_hidden(val):
-                self.run_hidden = True
-                self.counts["hidden"] += 1
+                self.run_hidden, self.run_why = True, "run"
         elif local == "vanish" and self.in_run and not self.in_ppr:
             if (val or "true").lower() not in ("0", "false", "off"):
                 if not self.run_hidden:
-                    self.counts["hidden"] += 1
+                    self.run_why = "run"
                 self.run_hidden = True
-            elif not (self.para and self.para.get("hidden")):
-                self.run_hidden = False
+            else:
+                self.run_hidden, self.run_why = False, None      # an explicit "not hidden" on the run wins over a hidden style: Word shows that text
         elif local == "t":
             self.in_t = True
         elif local == "tab" and self.in_run and not self.in_ppr:

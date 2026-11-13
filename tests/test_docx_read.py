@@ -292,6 +292,23 @@ class AGoodFile(unittest.TestCase):
         self.assertEqual(len(got.notes), 1)
         self.assertIn("hidden", got.notes[0])
 
+    def test_a_blank_hidden_style_paragraph_gives_no_hidden_note(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        got = read(docx(P("seen") + '<w:p><w:pPr><w:pStyle w:val="Hid"/></w:pPr></w:p>' + P("  ", style="Hid"), parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["seen"])
+        self.assertEqual(got.notes, [], "nothing was dropped, so nothing is said")
+
+    def test_an_explicit_vanish_off_shows_text_in_a_hidden_style(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style>'
+            '<w:style w:type="character" w:styleId="HidChar"><w:name w:val="HidChar"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        body = ('<w:p><w:pPr><w:pStyle w:val="Hid"/></w:pPr><w:r><w:rPr><w:vanish w:val="0"/></w:rPr><w:t>shown</w:t></w:r><w:r><w:t>hidden</w:t></w:r></w:p>'
+                '<w:p><w:r><w:rPr><w:rStyle w:val="HidChar"/><w:vanish w:val="0"/></w:rPr><w:t>also shown</w:t></w:r></w:p>')
+        got = read(docx(body, parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["shown", "also shown"])
+        self.assertEqual(len(got.notes), 1, "the one hidden run is still noted")
+
     def test_a_link_keeps_its_words_and_loses_its_address(self):
         rels = RELS.format('<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" '
                            'Target="https://example.org/where" TargetMode="External"/>')
