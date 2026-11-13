@@ -69,14 +69,18 @@ export function AskPanel() {
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
-  const seen = useRef({ open: false, bump: 0 });
+  const seen = useRef({ open: false, bump: 0, busy: false, state });
   useEffect(() => {
-    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
-    seen.current = { open, bump: panelFocus.value };
+    const was = seen.current;
+    const fresh = was.open !== open || was.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
+    if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
-  }, [open, state, panelFocus.value]);
+  }, [open, state, panelFocus.value, busy]);
   // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
   useEffect(() => {
     const el = log.current;
