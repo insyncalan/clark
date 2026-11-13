@@ -1,4 +1,4 @@
-"""#1136: the two-finger swipe on a Mac mouse or trackpad (Chrome's swipe to go Back and Forward) works on clark's pages.
+"""item 1136: the two-finger swipe on a Mac mouse or trackpad (Chrome's swipe to go Back and Forward) works on clark's pages.
 
 Run: python3 dev/run_tests.py test_overscroll_swipe
 Chrome turns that swipe off when `overscroll-behavior-x` is none or contain on html, body or the scroller under the pointer.
