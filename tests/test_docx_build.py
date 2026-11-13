@@ -356,6 +356,14 @@ class WhatIsInIt(unittest.TestCase):
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
 
+    def test_an_achieved_milestone_with_no_actual_date_says_achieved_alone(self):
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(status="Done", actual_date=None, state="Reached", state_word="Reached")
+        text = every_text(docx_build.build(p))
+        self.assertIn("Achieved", text)
+        self.assertNotIn("Achieved \u2014", text)
+        self.assertNotIn("Achieved \u2014".replace("\u2014", "-"), text)
+
     def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
         # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
         p = copy.deepcopy(self.p)

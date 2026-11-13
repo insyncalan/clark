@@ -445,7 +445,7 @@ def section_milestones(published, ctx, title, sec):
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
             name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
                                  1440, "TableText")
-        when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
+        when = ("Achieved" + (f" {_date(m['actual_date'])}" if m.get("actual_date") else "")) if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
