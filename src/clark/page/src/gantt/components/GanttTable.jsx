@@ -412,7 +412,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
       </div>
       {menu ? (
         <Fade class="gt-menu" role="menu" boxRef={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
-          onKeyDown={(e) => { if (e.key === "Escape") { setMenu(null); focusBox(); } }}>
+          onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenu(null); focusBox(); } }}>
           {menu.items.map((it, n) => (it === "-" ? <hr key={n} /> : (
             <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[0]}</button>
           )))}
