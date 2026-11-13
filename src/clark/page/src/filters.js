@@ -95,7 +95,7 @@ export function clearAll(state) {
 export function dueBucket(row, today) {
   const a = dayNumber(dueField(row)), t = dayNumber(today);
   if (a === null || t === null) return "none";
-  if (!isOpen(row)) return published ? (a < t ? "past" : "later") : "";
+  if (!isOpen(row) || (a < t && row.status === "Completed")) return published ? (a < t ? "past" : "later") : "";
   return a < t ? "overdue" : a - t <= 7 ? "soon" : "later";
 }
 

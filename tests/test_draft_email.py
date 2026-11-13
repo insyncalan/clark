@@ -43,6 +43,25 @@ def build(**kw):
     return de.build(o)
 
 
+class CompletedIsNotOverdue(unittest.TestCase):
+    """A Completed item with a past due date is finished work: never chased, counted or worded as overdue."""
+    DONE = item("ABC-A-009", "Send the plan", "2026-10-01", status="Completed")
+
+    def test_a_chase_offers_only_the_unfinished_overdue_items(self):
+        got = de.items_for_owner([LATE, self.DONE], "Dana Hart", mode="chase", today=TODAY)
+        self.assertEqual([i["id"] for i in got], ["ABC-A-001"])
+
+    def test_the_peek_mode_counts_and_words_ignore_a_completed_item(self):
+        self.assertEqual(de.mode_for(self.DONE, TODAY), "update_request")
+        self.assertEqual(de.mode_for(LATE, TODAY), "chase")
+        self.assertEqual(de._days_late(self.DONE, TODAY), 0)
+        s = build(mode="update_request", items=[LATE, self.DONE])["subject"]
+        self.assertIn("(1 overdue)", s)
+        d = build(mode="update_request", items=[self.DONE])
+        self.assertNotIn("overdue", d["text"].lower())
+        self.assertEqual([i["id"] for i in de.sort_items([self.DONE, SOON, LATE], TODAY)], ["ABC-A-001", "ABC-A-009", "ABC-A-002"])
+
+
 class Greeting(unittest.TestCase):
     def test_by_the_time_of_day(self):
         self.assertEqual(de.greeting(9, "Dana"), "Good morning, Dana,")
