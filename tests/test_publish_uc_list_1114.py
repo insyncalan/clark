@@ -72,6 +72,8 @@ class RealBrowser(unittest.TestCase):
                 self.assertTrue(js("/^(No open steps|\\d+ next steps?)$/.test(document.querySelector('.ucp > summary .ucsteps').textContent)"))
                 self.assertEqual(js("[...document.querySelectorAll('.ucp > summary')].map(s => (s.innerText.match(/UC/g) || []).length).join()"), "1,1", "UC is said once on a row")
                 self.assertEqual(js("getComputedStyle(document.querySelector('.ucp > summary')).display"), "grid")
+                cols = js("getComputedStyle(document.querySelector('.ucp > summary')).gridTemplateColumns").split()
+                self.assertEqual(cols[-2:], ["124px", "112px" if width == 1400 else "96px"], f"the row's narrow grid wins at {width} px (item 1149)")
                 medium = js("(() => { const e = document.createElement('b'); e.style.fontWeight = 'var(--weight-medium)'; document.body.append(e); const w = getComputedStyle(e).fontWeight; e.remove(); return w; })()")
                 self.assertEqual(js("getComputedStyle(document.querySelector('.ucp > summary .uctitle')).fontWeight"), medium, "the dashboard's title weight")
                 self.assertEqual(js("document.querySelectorAll('.ucp-sorts, .ucp-sort').length"), 0, "the sort is a menu beside Group by")
