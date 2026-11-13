@@ -83,7 +83,7 @@ class ExcelCells(unittest.TestCase):
     def test_the_excel_paragraph(self):
         t = flat(SECS["excel"])
         for sentence in (
-            "On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change.",
+            "On the Actions, Risks & Issues and Decisions sheets, a Milestone cell reads the milestone’s name and a Use case cell reads its reference and title, such as “UC 1.5 Title”; on import clark finds the item by that text (an older “ID: name” or a bare ID still works), so renaming a milestone is not a change.",
             "The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back.",
             "and Priority on Risks & Issues.",
         ):
