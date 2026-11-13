@@ -2231,7 +2231,7 @@
    ],
    [
     "[[O]] [[S]] [[P]] [[T]] [[C]]",
-    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. Single letter keys: they do nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Shift+F10]]",

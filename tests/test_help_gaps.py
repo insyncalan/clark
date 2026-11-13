@@ -92,6 +92,10 @@ class WorkItemsHelpMatchesTheCode(unittest.TestCase):
         self.assertIn('name: "Open the peek"', row_menu)
         self.assertIn("Open the peek", text)
 
+    def test_single_letter_keys_row_says_single_key_shortcuts_switch(self):
+        row = next(r for r in RAW["keys"] if isinstance(r, list) and "[[O]]" in r[0])
+        self.assertIn("Single-key shortcuts is off", row[1])
+
 
 if __name__ == "__main__":
     unittest.main()
