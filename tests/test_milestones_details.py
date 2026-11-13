@@ -5,7 +5,7 @@ The committed page runs from the real server on the demo database (fixed CLARK_N
 skips, without Chrome) at 1400 and 900 px, in light and dark. Laptop widths only. It checks that the toggle is a real button with
 aria-expanded and a visible label, at least 24 px, reachable by keyboard, readable at 4.5:1; that it starts open (as the prototype
 does); that hiding takes the rows and Show all out of sight but never the marks, the switch or the Legend; that the choice is
-remembered for each place; and that a published file has no toggle and shows its list as it is. Every new string is plain words.
+remembered for each place; and that a published file has the toggle, starts open and remembers nothing. Every new string is plain words.
 """
 import json
 import shutil
