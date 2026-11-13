@@ -132,7 +132,7 @@ export function rowsOf(data) {
     uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
     source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
   const rows = [];
-  for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
+  for (const r of data.actions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
     impact: r.impact || null, likelihood: r.likelihood || null });   // item 210: the two a risk's or issue's priority follows from
   for (const r of data.decisions || []) rows.push({ ...common(r), kind: "decision", title: r.decision, owner: r.made_by, priority: null, needed_by: r.needed_by, date: r.date, workstream: "", milestone: "" });

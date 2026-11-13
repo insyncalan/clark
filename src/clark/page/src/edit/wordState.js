@@ -26,7 +26,7 @@ export function closeExport() {
 }
 export function tickClient(on) {
   const s = exportBox.value;
-  if (s && s.saved && ["choose", "error", "done"].includes(s.phase)) setExport({ ticked: !!on });
+  if (s && s.saved && ["choose", "error"].includes(s.phase)) setExport({ ticked: !!on });
 }
 export const pickClash = (choice) => { if (exportBox.value && exportBox.value.phase === "clash") setExport({ choice, confirmed: false }); };
 export const confirmReplace = (on) => { const s = exportBox.value; if (s && s.phase === "clash" && s.choice === "overwrite") setExport({ confirmed: !!on }); };

@@ -3,7 +3,7 @@
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
 // this import takes back. The workbook is sent once (#655: "sheets" lists what it has and the server keeps it; the check then names only the
 // ticked sheets, the only ones the server reads, compares or can archive in). `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { templateRequest, saveBlob } from "./publishApi.js";
@@ -28,6 +28,12 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
   const input = useRef(null);
   const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
+  // Choose a file is off while the file is read, which takes the focus away; when the box is back on its first step, give it back.
+  useEffect(() => {
+    if (step.at !== "pick") return;
+    const b = document.querySelector("#import-box #import-choose");
+    if (b && !document.querySelector("#import-box").contains(document.activeElement)) b.focus();
+  }, [step.at]);
 
   async function chosen(e) {
     const file = e.currentTarget.files && e.currentTarget.files[0];
