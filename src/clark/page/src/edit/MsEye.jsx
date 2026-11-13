@@ -37,6 +37,9 @@ export function keepFocus(e, dash) {
   const give = () => {
     const row = document.querySelector(`.msl-row[data-ms="${CSS.escape(gone)}"]`);
     if (row && row.contains(eye) && ++tries < 60) { requestAnimationFrame(give); return; }
+    if (row && row.contains(eye)) return;      // the press was refused or is slow: the row is still here, and the eye keeps focus
+    const a = document.activeElement;
+    if (a && a !== document.body && a !== eye && eye.isConnected) return;      // the person moved on meanwhile
     const to = (next && document.querySelector(`.msl-row[data-ms="${CSS.escape(next)}"] button[data-ms-eye]`)) || (art && (art.querySelector(".handle") || art.querySelector(".sec-title")));
     if (to) to.focus();
   };

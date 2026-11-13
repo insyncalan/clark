@@ -490,8 +490,9 @@ class Panel(Base):
             p = self.opened(cdp)
             self.stub.ask = lambda body: (500, {"ok": False, "message": "Something went wrong."})
             self.ask(p, "Where did it go?")
-            p.until("!!document.querySelector('.ask-turn[data-kind=problem], .ask-problem, .ask-turn:nth-child(2)')", "a reply line came")
+            p.until("!!document.querySelector('.ask-turn.problem')", "a reply line came")
             p.until("document.querySelector('#ask-box').value === 'Where did it go?'", "the question is back in the box")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn.user').length"), 0, "the question is in the box, so it is not also in the transcript")
 
     def test_a_question_sent_as_asking_went_off_goes_back_in_the_box(self):
         with chrome() as cdp:

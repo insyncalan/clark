@@ -69,7 +69,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   useEffect(() => {      // the Show menu closes on a click anywhere else
     if (!showOpen) return undefined;
     const off = (e) => { if (!e.target.closest("[data-gp-showwrap]")) setShowOpen(false); };
-    const esc = (e) => { if (e.key === "Escape") { setShowOpen(false); if (showBtn.current) showBtn.current.focus(); } };      // Escape hands focus back to the Show button, as the chart's menu does
+    const esc = (e) => { if (e.key === "Escape" && !e.isComposing) { setShowOpen(false); if (showBtn.current) showBtn.current.focus(); } };      // Escape hands focus back to the Show button, as the chart's menu does
     document.addEventListener("pointerdown", off, true);
     document.addEventListener("keydown", esc);
     return () => { document.removeEventListener("pointerdown", off, true); document.removeEventListener("keydown", esc); };

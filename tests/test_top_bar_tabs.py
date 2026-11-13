@@ -6,6 +6,7 @@ tests fail, never skip, without it.
 Run: python3 dev/run_tests.py test_top_bar_tabs
 """
 import sqlite3
+import time
 import unittest
 
 from test_inline_67 import size
@@ -275,3 +276,17 @@ class TopBarTabKeys(Base):
                 p.js(f"({key})('{k}')")
                 p.until(f"{at} === '{want}' && document.activeElement.getAttribute('aria-selected') === 'true'", f"{k} moved to and opened the {want} tab")
                 self.assertEqual(p.js("document.querySelectorAll('.top .tab[tabindex=\"0\"]').length"), 1)
+
+    def test_a_modified_arrow_key_is_left_to_the_browser(self):
+        # Alt+Left is the browser's Back: the tab bar must not swallow it or change the view
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            size(cdp, p, 1400, 700)
+            p.until("document.querySelectorAll('.top .tab').length >= 3", "the tabs show")
+            p.js("document.querySelector('.top .tab[aria-selected=true]').focus()")
+            before = p.js("document.activeElement.dataset.view")
+            for mod in ("altKey", "ctrlKey", "metaKey"):
+                self.assertEqual(p.js(f"(function(){{ var e = new KeyboardEvent('keydown', {{key: 'ArrowRight', {mod}: true, bubbles: true, cancelable: true}}); document.activeElement.dispatchEvent(e); return e.defaultPrevented; }})()"), False, f"{mod}+ArrowRight is not prevented")
+            time.sleep(0.3)
+            self.assertEqual(p.js("document.activeElement.dataset.view"), before)
+            self.assertEqual(p.js("document.querySelector('.top .tab[aria-selected=true]').dataset.view"), before)

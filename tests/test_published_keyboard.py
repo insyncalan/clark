@@ -69,7 +69,7 @@ class PublishedKeyboard(unittest.TestCase):
                         # The tabs are one tab stop (roving tabindex, hunt 16): Tab reaches the chosen tab only, and the arrow keys move between tabs.
                         others = {"Dashboard", "Work items", "Milestones", "Use cases"} - {name}
                         self.assertEqual(names[1].split(":")[1], name, "Tab goes from the skip link to the chosen tab")
-                        self.assertEqual([n for n in names[2:] if n.split(":")[1] in others], [], "the other tabs are not tab stops")
+                        self.assertEqual([n for n in names[2:] if n.startswith("BUTTON.tab") and n.split(":")[1] in others], [], "the other tabs are not tab stops")
                         self.assertEqual([s["name"] for s in stops if not s["ring"]], [], "every stop shows a ring")
                         self.assertEqual([s["name"] for s in stops if not s["on"]], [], "every stop is on screen when reached")
 

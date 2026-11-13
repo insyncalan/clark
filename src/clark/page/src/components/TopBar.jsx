@@ -35,7 +35,7 @@ export function TopBar({ tools }) {
   const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
   const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
     const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");
-    if (i < 0) return;
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey) return;      // Alt+Left is the browser's Back, Ctrl/Cmd+arrows are the system's: not ours
     const j = e.key === "ArrowRight" ? (i + 1) % vs.length : e.key === "ArrowLeft" ? (i + vs.length - 1) % vs.length : e.key === "Home" ? 0 : e.key === "End" ? vs.length - 1 : -1;
     if (j < 0) return;
     e.preventDefault(); show(vs[j]);
