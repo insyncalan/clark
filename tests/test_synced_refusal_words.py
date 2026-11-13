@@ -111,6 +111,32 @@ class RefusalWords(unittest.TestCase):
                 self.assertEqual(pl.host_shown(raw), shown)
                 self.assertNotIn("Al", pl.host_shown(raw))
 
+    def test_host_shown_hides_the_name_in_forward_slash_forms(self):
+        for raw, shown in (("//?/C:/Users/Al/Dropbox/x", "~/Dropbox/x"),
+                           ("//?/UNC/srv/share/Users/Al/Dropbox/x", "~/Dropbox/x"),
+                           ("//srv/share/Users/Al/Dropbox/x", "~/Dropbox/x"),
+                           ("//srv/share/Dropbox", "//srv/share/Dropbox"),
+                           ("/mnt/host/c/Users/Al/Dropbox", "~/Dropbox")):
+            with self.subTest(raw=raw):
+                self.assertNotIn("Al", pl.host_shown(raw))
+                self.assertEqual(pl.host_shown(raw), shown)
+
+    def test_host_shown_does_not_name_the_company_of_a_dropbox_folder(self):
+        for raw, shown in (("/Users/Al/Dropbox (Acme Corp)/c", "~/Dropbox/c"),
+                           ("/Users/Al/Dropbox - Acme Corp/c", "~/Dropbox/c"),
+                           ("/Users/Al/dropbox (Acme Corp)", "~/dropbox")):
+            with self.subTest(raw=raw):
+                self.assertEqual(pl.host_shown(raw), shown)
+                self.assertNotIn("Acme", pl.host_shown(raw))
+
+    def test_the_native_refusal_drops_the_account_address(self):
+        for place, shown in (("Library/CloudStorage/GoogleDrive-al@x.com/My Drive", "~/Library/CloudStorage/GoogleDrive/My Drive/clark"),
+                             ("Library/CloudStorage/Dropbox-Al@x.com", "~/Library/CloudStorage/Dropbox/clark")):
+            with self.subTest(place=place):
+                text = self.refuse(place)
+                self.assertNotIn("@", text)
+                self.assertIn(f"kept in {shown} because", text)
+
     def test_host_shown_keeps_a_leading_double_slash(self):
         self.assertEqual(pl.host_shown("//?/C:/x"), "//?/C:/x")
         self.assertEqual(pl.host_shown("/Users/sam/sam@example.org/clark"), "~/clark")

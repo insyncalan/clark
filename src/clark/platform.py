@@ -207,7 +207,8 @@ def container_host_in_synced(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    parts = [p for p in re.split(r"[\\/]+", host) if p]       # the Mac or Windows path read by name, whatever the separator
+    spans = [(m.group(), m.end()) for m in re.finditer(r"[^\\/]+", host)]   # the Mac or Windows path read by name, whatever the separator
+    parts = [name for name, _ in spans]
     for i, part in enumerate(parts):
         low = part.casefold()
         under_storage = i > 0 and parts[i - 1].casefold() == "cloudstorage"
@@ -219,7 +220,7 @@ def container_host_in_synced(environ=None):
             service = "iCloud Drive"
         else:
             continue
-        return service, Path(*parts[:i + 1])
+        return service, Path(host[:spans[i][1]])            # the path as written up to that name: a leading "/" or a Windows root stays
     return None
 
 
@@ -421,8 +422,9 @@ def shown(path, home=None):
         return str(path)
 
 
-_HOST_HOME = re.compile(r"^(?:\\\\\?\\UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|\\\\\?\\|\\\\[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])"
-                        r"|/host_mnt(?=/)|/run/desktop/mnt/host(?=/)|/Volumes/[^/]+(?=/Users/)|/mnt(?=/[A-Za-z]/Users/))?"
+_HOST_HOME = re.compile(r"^(?:[\\/]{2}\?[\\/]UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|[\\/]{2}\?[\\/]"
+                        r"|[\\/]{2}[^\\/?]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])"
+                        r"|/host_mnt(?=/)|/run/desktop/mnt/host(?=/)|/Volumes/[^/]+(?=/Users/)|/mnt(?:/host)?(?=/[A-Za-z]/Users/))?"
                         r"(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+|Users[\\/]+[^\\/]+)(?=[\\/]|$)",
                         re.IGNORECASE)
 
@@ -430,6 +432,7 @@ _HOST_HOME = re.compile(r"^(?:\\\\\?\\UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?
 def _without_account(segment):
     """One folder name without an e-mail address: "GoogleDrive-name@example.org" is "GoogleDrive", "Backup name@example.org" is
     "Backup", and a name that is only an address goes."""
+    segment = re.sub(r"^(dropbox)(?:\s+\((?!personal\)$).*\)|\s+-\s.*)$", r"\1", segment, flags=re.IGNORECASE)   # "Dropbox (Acme Corp)": the company is not shown
     if "@" not in segment:
         return segment
     kept = re.sub(r"^([A-Za-z0-9]+)-[^@]*@.*$", r"\1", segment)
@@ -443,7 +446,11 @@ def host_shown(path):
     written "~" (any case, a Windows drive, a UNC or \\\\?\\ form) and an account e-mail in a cloud folder's name
     (GoogleDrive-name@example.org) is dropped, so neither the user's name nor the account is ever in a message that might be
     copied into a report or an email."""
-    text = _HOST_HOME.sub("~", str(path), count=1)
+    return account_free(_HOST_HOME.sub("~", str(path), count=1))
+
+
+def account_free(text):
+    """`text`, a path, without an account e-mail (or a Dropbox company name) in any folder name; a gap made by a dropped name closes up."""
     parts = re.split(r"([\\/]+)", text)
     joined = "".join(_without_account(x) if i % 2 == 0 else x for i, x in enumerate(parts))
     lead = re.match(r"/*", joined).group()                      # a leading "//?/" is left as written; only a gap made by a dropped name closes up
@@ -487,7 +494,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
         except (ValueError, RuntimeError, OSError):          # an unresolvable or unreadable path is not a synced one
             hit = None
         if hit is not None:
-            raise PlatformError(_synced_refusal(shown(path), hit[0]))
+            raise PlatformError(_synced_refusal(account_free(shown(path)), hit[0]))
     return Path(path).expanduser().resolve()
 
 

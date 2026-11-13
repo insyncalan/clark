@@ -58,6 +58,12 @@ class ContainerHost(unittest.TestCase):
             with self.subTest(path):
                 self.assertEqual(self.ask(path), (service, Path(root)))
 
+    def test_windows_roots_and_the_leading_separator_are_kept(self):
+        for path, root in (("C:\\Users\\a\\Dropbox\\x", "C:\\Users\\a\\Dropbox"), ("//?/C:/Users/a/Dropbox/x", "//?/C:/Users/a/Dropbox"),
+                           ("//srv/share/Dropbox", "//srv/share/Dropbox"), ("/Users/a/Dropbox/x", "/Users/a/Dropbox")):
+            with self.subTest(path):
+                self.assertEqual(self.ask(path)[1], Path(root))
+
     def test_lookalikes_are_let_through(self):
         for path in ("/Users/sam/Dropbox-old/x", "/Users/sam/Dropboxes/x", "/Users/sam/Library/Application Support/Dropbox2", "/Users/sam/GoogleDrive/x",
                      "/Users/sam/Library/CloudStorage/Box/x", "/Users/sam/Mobile Documents2/x", "/Users/sam/not-Google Drive/x", "/data", "/"):

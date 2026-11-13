@@ -114,14 +114,14 @@ def _can_save_in(folder):
 
 def cant_save_line(seen):
     """The 'to fix' line for a data folder that can't be saved in (also used by setup mode for a folder it refuses)."""
-    return Line(FIX, f"Your clark data can't be saved in {seen.tilde(seen.folder())}. Check you can save files there, then "
+    return Line(FIX, f"Your clark data can't be saved in {platform.account_free(seen.tilde(seen.folder()))}. Check you can save files there, then "
                      "start clark again.")
 
 
 def check_data_folder(seen):
     folder = seen.folder()
     if _can_save_in(folder):
-        return Line(READY, f"Your clark data can be saved in {seen.tilde(folder)}.")
+        return Line(READY, f"Your clark data can be saved in {platform.account_free(seen.tilde(folder))}.")
     return cant_save_line(seen)
 
 
@@ -130,7 +130,7 @@ def check_data_not_in_onedrive(seen):
     if platform.inside_onedrive(folder, seen.roots()) is None:
         return Line(READY, "Your clark data isn't inside OneDrive.")
     # The OneDrive folder's own name is not said: on a work computer it holds the organisation's name (PR #80 review).
-    return Line(FIX, f"Your clark data is set to go in {seen.tilde(folder)}, which is inside OneDrive. OneDrive copies files "
+    return Line(FIX, f"Your clark data is set to go in {platform.account_free(seen.tilde(folder))}, which is inside OneDrive. OneDrive copies files "
                      "while they are being written, which damages the data. Choose a folder on this computer that OneDrive "
                      "doesn't sync. Then open Terminal, type cd and a space, drag clark's folder into the Terminal window and press Return. "
                      f"Type {typed.clark('--data')} and a space, drag the folder you chose into the window, and press Return. "
@@ -148,7 +148,7 @@ def check_data_not_in_synced_folder(seen):
     hit = platform.inside_synced(folder, list(seen.synced_roots()))
     if hit is None:
         return Line(READY, "Your clark data isn't inside Dropbox, iCloud Drive or Google Drive.")
-    return Line(FIX, f"Your clark data is in {seen.tilde(folder)}, which is inside {hit[0]}. {hit[0]} copies files while they are "
+    return Line(FIX, f"Your clark data is in {platform.account_free(seen.tilde(folder))}, which is inside {hit[0]}. {hit[0]} copies files while they are "
                      f"being written, which damages the database. Move your clark data folder to a folder on this computer that "
                      f"{hit[0]} doesn't sync, then start clark again.")
 

@@ -163,6 +163,20 @@ class SharedInFromTheMac(DoctorCase):
         self.assertNotIn("Your data can't be kept in", "\n".join(lines))
 
 
+class NativeSyncedFolder(DoctorCase):
+    def test_the_account_address_in_a_synced_folder_is_not_printed(self):
+        for place in ("Library/CloudStorage/GoogleDrive-al@x.com/My Drive", "Library/CloudStorage/Dropbox-Al@x.com"):
+            with self.subTest(place=place):
+                folder = self.home / place / "c"
+                folder.mkdir(parents=True)
+                code, lines = self.run_doctor(["--data", str(folder)])
+                text = "\n".join(lines)
+                self.assertEqual(code, 1, lines)
+                self.assertIn("Your clark data is in ~/Library/CloudStorage/", text)
+                self.assertNotIn("@", text)
+                self.assertNotIn("x.com", text)
+
+
 class TypedCommands(DoctorCase):
     """issue 694: in a download (clark.command sets CLARK_TYPED) the doctor says bash clark.command; in a checkout, python3 -m."""
 

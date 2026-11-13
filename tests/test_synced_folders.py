@@ -316,7 +316,7 @@ class Doctor(Case):
                 inside.mkdir(parents=True)
                 line = doctor.check_data_not_in_synced_folder(self.seen(inside))
                 self.assertEqual(line.kind, doctor.FIX)
-                self.assertEqual(line.words, f"Your clark data is in {pl.with_tilde(inside, self.home)}, which is inside "
+                self.assertEqual(line.words, f"Your clark data is in {pl.account_free(pl.with_tilde(inside, self.home))}, which is inside "
                                              f"{service}. {service} copies files while they are being written, which damages the "
                                              "database. Move your clark data folder to a folder on this computer that "
                                              f"{service} doesn't sync, then start clark again.")
