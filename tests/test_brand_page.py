@@ -217,6 +217,37 @@ class Page(InBrowser):
         self.assertFalse(self.val("!!window.pwned"))
         self.assertFalse(self.present("#brands img"))
 
+    def test_hunt18_the_focus_stays_on_the_button_while_the_server_answers_and_after_a_refusal(self):
+        """Review and Choose were disabled while the server answered, so the focus fell to the page."""
+        for opener in ("data-review", "data-choose"):
+            with self.subTest(opener):
+                self.mount()
+                self.js("T.replies.review = () => new Promise((ok) => { window.__ok = ok; })")
+                self.js(f"document.querySelector('[{opener}]').focus()")
+                self.click(f"[{opener}]")
+                self.assertEqual(self.focused(), f"button[{opener}]", "the focus stays on the button while it waits")
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').disabled"), False)
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').getAttribute('aria-disabled')"), "true")
+                self.js("window.__ok({status: 409, body: " + lit(REFUSAL) + "})")
+                self.settle()
+                self.assertEqual(self.focused(), f"button[{opener}]", "and after the refusal")
+
+    def test_hunt18_after_install_remove_and_undo_the_focus_is_not_dropped_to_the_page(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-review]').focus()")
+        self.click("[data-review]")
+        self.click("[data-install]")
+        self.settle()
+        self.assertEqual(self.focused(), "button[data-review]", "Install has gone: the focus is on the button that opened the panel")
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.js("document.querySelector('[data-remove-confirm]').focus()")
+        self.replies(list=OK({"ok": True, "brands": [], "undo": True}))
+        self.click("[data-remove-confirm]")
+        self.settle()
+        self.assertNotEqual(self.focused(), "body", "the confirm button has gone: the focus is on a control that is there")
+
     def test_plain_words_only(self):
         words = self.val("Object.values(T.logic).filter(v => typeof v === 'string')")
         for text in words:
