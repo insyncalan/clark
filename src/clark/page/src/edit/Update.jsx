@@ -38,7 +38,9 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   const dropAsk = () => { clearTimeout(disarm.current); setArmed(null); toUndo(); };      // Esc on the question
   useEffect(() => { if (armed) { const b = document.querySelector("#update [data-undo-confirm]"); if (b) b.focus(); } }, [armed]);      // the question opens: the focus moves to its button
 
-  const closePanel = () => { setPanel(null); requestAnimationFrame(() => { const b = document.querySelector("#update " + opener.current); if (b) b.focus(); }); };      // Cancel or Esc: the focus goes back to the button that opened the panel
+  // The focus goes back to a button once it can take it (a disabled button cannot, and Preact enables it a moment after setBusy(false)).
+  const refocus = (sel, left = 10) => requestAnimationFrame(() => { const b = document.querySelector("#update " + sel); if (b && !b.disabled) b.focus(); else if (left > 0) refocus(sel, left - 1); });
+  const closePanel = () => { setPanel(null); refocus(opener.current); };      // Cancel or Esc: the focus goes back to the button that opened the panel
 
   async function review(from, reinstall) {
     opener.current = from === "file" ? "[data-choose]" : "[data-review]";
@@ -48,33 +50,36 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     setPanel(null);
     const r = await api.review(from, reinstall);
     setBusy(false);
-    if (r.status === 200 && r.body && r.body.ok === true && r.body.cancelled) { setMsg({ kind: "info", text: L.CANCELLED }); return; }
+    if (r.status === 200 && r.body && r.body.ok === true && r.body.cancelled) { setMsg({ kind: "info", text: L.CANCELLED }); refocus(opener.current); return; }
     if (r.status === 200 && r.body && r.body.ok === true && r.body.review) {
       setPanel({ id: r.body.review_id, view: L.reviewView(r.body.review), reinstall: !!reinstall });
       return;
     }
     if (r.body && r.body.again === true) setAgain(from);
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    refocus(opener.current);
   }
 
-  async function restarted(r) {
+  async function restarted(r, back) {
     if (r.status === 200 && r.body && r.body.ok === true && r.body.restart === true) {
       setMsg({ kind: "info", text: typeof r.body.message === "string" ? r.body.message.slice(0, 300) : "" });
       const how = await L.waitForRestart(api.who, sleep);
       if (how === "reload") { reload(); return; }
       setBusy(false);
       setMsg({ kind: "error", text: L.SLOW });
+      refocus(back);
       return;
     }
     setBusy(false);
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    refocus(back);
   }
 
   async function install() {
     setBusy(true);
     const id = panel.id;
     setPanel(null);
-    await restarted(await api.install(id));
+    await restarted(await api.install(id), opener.current);
   }
 
   async function arm() {
@@ -96,7 +101,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     const a = armed;
     setArmed(null);
     setBusy(true);
-    await restarted(await api.undo(a.id, a.choice === "app_only"));
+    await restarted(await api.undo(a.id, a.choice === "app_only"), "[data-undo]");
   }
 
   async function copyNotes() {
