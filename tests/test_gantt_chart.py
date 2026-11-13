@@ -470,6 +470,42 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
 
+    def test_focus_goes_back_to_what_opened_a_box_or_menu_when_it_closes(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=True)
+                esc = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))"
+                self.js("document.querySelector('[data-g-add=GNT-004]').focus(); document.querySelector('[data-g-add=GNT-004]').click()")
+                self.until("document.activeElement === document.querySelector('[data-g-addtype=task]')", "the menu has focus")
+                self.js(esc)
+                self.until("!document.querySelector('[data-g-addmenu]')", "the menu closed")
+                self.until("document.activeElement === document.querySelector('[data-g-add=GNT-004]')", "focus is back on the plus button, not the page body")
+                self.js("document.querySelector('[data-g-bar=GNT-005]').focus(); document.querySelector('[data-g-bar=GNT-005]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.activeElement === document.querySelector('[data-g-bn]')", "the box has focus")
+                self.js("document.querySelector('[data-g-bsave]').click()")
+                self.until("!document.querySelector('[data-g-box]')", "saved")
+                self.until("document.activeElement === document.querySelector('[data-g-bar=GNT-005]')", "focus is back on the bar")
+                self.js("document.querySelector('[data-g-bar=GNT-010]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.querySelector('[data-g-bdel]')", "the box")
+                self.js("document.querySelector('[data-g-bdel]').focus(); document.querySelector('[data-g-bdel]').click()")
+                self.until("document.querySelectorAll('[data-g-row]').length === 10", "deleted")
+                self.until("document.activeElement && document.activeElement.hasAttribute('data-g-bar')", "after a delete focus lands on a bar, not the page body")
+                self.js("document.querySelector('[data-g-show]').focus(); document.querySelector('[data-g-show]').click()")
+                self.until("document.querySelector('[data-g-showmenu]')", "the show menu")
+                self.js("document.querySelector('[data-g-filter]').focus(); document.querySelector('[data-g-filter]').click()")
+                self.until("!document.querySelector('[data-g-showmenu]')", "closed")
+                self.until("document.activeElement === document.querySelector('[data-g-show]')", "focus is back on the Show button")
+
+    def test_a_milestone_opens_its_edit_box_from_the_keyboard(self):
+        self.look(1400, "light")
+        self.mount(edit=True)
+        self.js("document.querySelector('[data-g-bar=GNT-003]').focus(); document.querySelector('[data-g-bar=GNT-003]').click()")     # a click with no mouse detail is how Enter and Space arrive
+        self.until("document.querySelector('[data-g-bar=GNT-003]').classList.contains('sel')", "selected")
+        self.assertEqual(self.count("[data-g-box]"), 0)
+        self.js("document.querySelector('[data-g-bar=GNT-003]').click()")
+        self.until("document.querySelector('[data-g-box]')", "the second Enter opens the box, as it does on a bar")
+
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):
             for scheme, shift in (("light", 0), ("dark", 0), ("light", 45), ("dark", 45)):

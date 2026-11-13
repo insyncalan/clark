@@ -124,6 +124,23 @@ export function GanttChart({
     return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
   }, []);
 
+  // A box or a menu that closes takes the focused button with it: focus goes back to what opened it (a deleted line's bar is gone, so to the first bar).
+  const opener = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!(box || menu || showOpen);
+    if (wasOpen.current && !open && gx.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) {
+        const o = opener.current;
+        const to = o && o.isConnected ? o : (menu === null && !showOpen && gx.current.closest("section").querySelector("[data-g-bar]"));
+        if (to) to.focus({ preventScroll: true });
+      }
+    }
+    if (!open) opener.current = null;
+    wasOpen.current = open;
+  }, [box, menu, showOpen]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
@@ -230,11 +247,13 @@ export function GanttChart({
 
   const openBox = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setMenu(null);
     setBox({ id, left: clamp(r.left, 8, window.innerWidth - 330), top: clamp(r.bottom + 6, 8, window.innerHeight - 340) });
   };
   const openAdd = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setBox(null);
     setMenu({ id, left: clamp(r.left, 8, window.innerWidth - 220), top: clamp(r.bottom + 4, 8, window.innerHeight - 150) });
   };
@@ -318,7 +337,7 @@ export function GanttChart({
         <span class="gt-sp" />
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
           {showOpen ? (
             <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu>
               {filters.map((f) => (
@@ -408,7 +427,7 @@ export function GanttChart({
                 return (
                   <div key={l.id}>
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
-                      aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
+                      aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={(e) => { if (dragged.current) return; if (edit && sel === l.id && e.detail === 0) openBox(l.id, e.currentTarget); else setSel(l.id); }}
                       onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }} />
                     {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
