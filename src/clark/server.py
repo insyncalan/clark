@@ -265,12 +265,13 @@ def host_name(host):
     return host.split(":")[0]
 
 
-HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|\[::1\])(?::([0-9]{1,5}))?")
+HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|clark\.localhost|\[::1\])(?::([0-9]{1,5}))?")
 
 
 def host_allowed(host):
-    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost or [::1], with an
-    optional port of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
+    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost, clark.localhost (row
+    1076: the address the launcher opens; Chrome resolves *.localhost to this computer) or [::1], with an optional port
+    of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
     m = HOST_HEADER.fullmatch(host or "")
     return bool(m) and (m.group(2) is None or 1 <= int(m.group(2)) <= 65535)
 
@@ -334,7 +335,7 @@ CSP_END = {"script": re.compile(r"</script[\s/>]", re.I), "style": re.compile(r"
 CSP_TYPE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]*)""", re.I)
 CSP_JS_TYPES = ("", "module", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript")
 CSP_KINDS = ("inline", "eval", "wasm-eval", "trusted-types-policy", "trusted-types-sink")
-CSP_LOOPBACK = ("127.0.0.1", "localhost", "::1")
+CSP_LOOPBACK = ("127.0.0.1", "localhost", "clark.localhost", "::1")
 
 
 def csp_sha(text):
@@ -941,6 +942,13 @@ def open_route(handler, route):
 HERE_ROUTE = "/api/here"
 IDLE = None
 BUSY = {"n": 0}
+BUSY_KINDS = {"save": 0, "publish": 0}   # the running POST routes by kind: a Publish is "publish"; a POST that writes data or a file is "save"; any other is not a kind
+PUBLISH_PATHS = ("/api/publish",)
+SAVE_PATHS = ("/api/change", "/api/section-body", "/api/undo", "/api/section-image", "/api/section-file", "/api/client-folder",
+              "/api/backups/restore", "/api/backups/copy-folder", "/api/ask/change/apply", "/api/ask-folders", "/api/ask-enabled",
+              "/api/profile", "/api/people", "/api/people/undo", "/api/project", "/api/publications/archive", "/api/publications/restore",
+              "/api/draft-email/sent", "/api/word-import", "/api/word-export", "/api/excel-import", "/api/demo/clear",
+              "/api/brands/install", "/api/brands/remove", "/api/brands/undo")     # the POST routes that write project data or a file; the rest (ask, suggest, preview, reads) count as busy only
 BUSY_LOCK = threading.Lock()
 JOB_WAIT_LIMIT = 60.0                  # seconds the server waits for a running job once it has been told to stop
 
@@ -963,6 +971,14 @@ def busy():
         return BUSY["n"] > 0
 
 
+def running_kind():
+    """What the running job is, for the Quit card: "publish" while a Publish runs, else "save" while any other data job runs, else None."""
+    with BUSY_LOCK:
+        if BUSY_KINDS["publish"] > 0:
+            return "publish"
+        return "save" if BUSY_KINDS["save"] > 0 else None
+
+
 def others_busy():
     """Whether a POST route other than the one asking is running: an update's install or undo (itself a POST) waits for these
     to finish before it backs up the data."""
@@ -978,7 +994,7 @@ def page_load_is_ours(headers, port):
     if site is not None and site.strip().lower() not in ("none", "same-origin"):      # an empty value is not a browser's
         return False
     origin = headers.get("Origin")
-    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://clark.localhost:{port}")
 
 
 def here_route(handler, req):
@@ -1253,7 +1269,7 @@ def quit_route(handler, req):
     """POST /api/quit (#836): answer, then stop this server the way an update's restart does (serve() waits for a running job, closes
     the socket and ends; __main__ then lets go of the data folder). The token, the Host, the Origin, JSON only and the length are
     checked before this runs. Nothing is read from the body."""
-    handler.send(200, {"ok": True, "quit": True})
+    handler.send(200, {"ok": True, "quit": True, "finishing": running_kind()})   # "save", "publish" or None: the card says which job is finished first
     threading.Thread(target=handler.server.shutdown, daemon=True).start()
 
 
@@ -1508,9 +1524,15 @@ class Handler(BaseHTTPRequestHandler):
         """Run a route; a fault is a 500 in plain words (code server_error). The class, the text and the stack go to the log
         only: the text could name a path, and a person gets no technical word."""
         counted = self.command == "POST" and route is not here_route       # a POST mid-run keeps the idle stop waiting
+        kind = None
+        if counted and route is not quit_route:
+            where = self.path.split("?")[0]
+            kind = "publish" if where in PUBLISH_PATHS else "save" if where in SAVE_PATHS else None
         if counted:
             with BUSY_LOCK:
                 BUSY["n"] += 1
+                if kind:
+                    BUSY_KINDS[kind] += 1
         try:
             if counted and updating(self, self.path.split("?")[0]):   # the update's flag went up while this request was read
                 return None
@@ -1524,6 +1546,8 @@ class Handler(BaseHTTPRequestHandler):
             if counted:
                 with BUSY_LOCK:
                     BUSY["n"] -= 1
+                    if kind:
+                        BUSY_KINDS[kind] -= 1
 
     def do_OPTIONS(self):
         """Refuse every preflight: no cross-origin call is allowed. (creaite do_OPTIONS, BL-212)"""
