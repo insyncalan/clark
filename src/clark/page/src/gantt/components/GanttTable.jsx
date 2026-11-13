@@ -10,6 +10,7 @@
 //   onUndo()                  when given, Cmd or Ctrl+Z and the Undo button are this (the page's own history), not a list kept here
 // Row numbers are the lines' own places in the plan, so they stay the same when the filter hides lines. Every value is a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
+import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import {
   COLUMNS, DEFAULT_HIDDEN, WORDS, hideable, addLine, cellCount, clampSel, clampZoom, clashes, clearCells, deleteLines, emptyHistory, endSel, enterNext, fillDown,
@@ -410,12 +411,12 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
         </table>
       </div>
       {menu ? (
-        <div class="gt-menu" role="menu" ref={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
+        <Fade class="gt-menu" role="menu" boxRef={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
           onKeyDown={(e) => { if (e.key === "Escape") { setMenu(null); focusBox(); } }}>
           {menu.items.map((it, n) => (it === "-" ? <hr key={n} /> : (
             <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[0]}</button>
           )))}
-        </div>
+        </Fade>
       ) : null}
     </div>
   );

@@ -109,6 +109,64 @@ class HiddenSections(Base):
         self.assertLess(time.monotonic() - t0, 30.0)          # was 145 s before the cap; a slow runner (macOS) stays well inside 30
         self.assertTrue(self.refused(built, got, " ".join("Hostile run number %05d of filler" % i for i in range(8000))))
 
+    # mutation hunt (item 1151): the cases below each failed to catch a changed line of hidden_section_markers / _body_runs
+    def markers(self):
+        built = publish.build(self.s, "ABC", now="2031-06-15")
+        return publish_flow.markers_for(self.s, "ABC", built["published"])
+
+    def test_a_json_body_that_is_a_list_gives_its_strings_as_markers(self):
+        self.section("s-list", "needs", json.dumps(["Zqcorp list item one", ["Zqcorp nested list item"]]), 1)
+        got = self.got()[1]
+        self.assertIn("Zqcorp list item one", got)
+        self.assertIn("Zqcorp nested list item", got)
+
+    def test_character_references_are_read_as_the_characters(self):
+        self.section("s-ent", "text", "<p>Zqcorp &amp; Partners secret plan</p>", 1)
+        got = self.got()[1]
+        self.assertIn("Zqcorp & Partners secret plan", got)
+        self.assertFalse([m for m in got if "&amp;" in m and not m.startswith("<")], "no run keeps the raw reference")
+
+    def test_a_run_is_a_marker_from_exactly_the_minimum_length(self):
+        n = publish_flow.MIN_MARKER
+        self.section("s-edge", "text", "<p>%s</p><p>%s</p>" % ("Q" * (n - 1), "Z" * n), 1)
+        got = self.got()[1]
+        self.assertIn("Z" * n, got)
+        self.assertNotIn("Q" * (n - 1), got)
+
+    def test_a_run_has_its_spaces_and_line_breaks_folded_to_single_spaces(self):
+        self.section("s-ws", "text", "<p>  Zqcorp   spread\n\n words   here </p>", 1)
+        got = self.got()[1]
+        self.assertIn("Zqcorp spread words here", got)
+        self.assertNotIn("Zqcorp   spread\n\n words   here", got)
+
+    def test_the_marker_of_a_run_says_which_section_it_came_from(self):
+        self.section("s-where", "text", "<p>Zqcorp where-from run</p>", 1)
+        self.assertEqual(self.markers().where["Zqcorp where-from run"], "s-where")
+
+    def test_a_hidden_run_equal_to_a_kept_row_value_is_no_marker(self):
+        shown = publish.build(self.s, "ABC", now="2031-06-15")["published"]["data"]["project"]
+        value = next(v for v in shown.values() if isinstance(v, str) and len(v.strip()) >= publish_flow.MIN_MARKER and v == v.strip() and "  " not in v)
+        self.section("s-kept", "text", "<p>%s</p><p>Zqcorp other hidden run</p>" % value, 1)
+        got = self.got()[1]
+        self.assertNotIn(value, got)
+        self.assertIn("Zqcorp other hidden run", got)
+
+    def test_the_character_cap_is_exact_and_stops_the_scan_for_good(self):
+        cap = publish_flow.MAX_RUN_CHARS
+        runs = "".join("<p>%s</p>" % ("Chars run %04d " % i).ljust(1000, "x") for i in range(120))
+        self.section("s-chars", "text", runs, 1)
+        got = [m for m in self.got()[1] if m.startswith("Chars run")]
+        self.assertEqual(len(got), cap // 1000)                      # 100 runs of 1,000 reach the cap exactly: all 100 stay, the 101st goes
+        self.assertEqual(sum(len(m) for m in got), cap)
+
+    def test_a_run_that_does_not_fit_ends_the_scan_even_if_a_later_short_one_would(self):
+        runs = "".join("<p>%s</p>" % ("Fit run %04d " % i).ljust(1000, "x") for i in range(99))
+        runs += "<p>%s</p>" % "Over the line ".ljust(1500, "y") + "<p>Short tail run after the cap</p>"
+        self.section("s-end", "text", runs, 1)
+        got = self.got()[1]
+        self.assertEqual(len([m for m in got if m.startswith("Fit run")]), 99)
+        self.assertNotIn("Short tail run after the cap", got)
+
     def test_a_section_under_the_cap_keeps_every_run(self):
         runs = "".join("<p>Modest run number %02d of filler</p>" % i for i in range(20))
         self.section("s-mid", "text", runs, 1)

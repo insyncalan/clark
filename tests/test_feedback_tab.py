@@ -110,6 +110,10 @@ class Logic(InBrowser):
         got = self.val("T.logic.contextLines({version: '1.0.7', platform: 'MacIntel', secret: 'x', project: 'ABC'})")
         self.assertEqual(got, ["Version of clark: 1.0.7", "System: MacIntel"])
         self.assertEqual(self.val("T.logic.contextLines({})"), ["Version of clark: unknown", "System: unknown"])
+        # mutation hunt on row 1069: a missing context (not yet asked for, or null) is the same unknowns, never a throw
+        self.assertEqual(self.val("T.logic.contextLines()"), ["Version of clark: unknown", "System: unknown"])
+        self.assertEqual(self.val("T.logic.contextLines(null)"), ["Version of clark: unknown", "System: unknown"])
+        self.assertTrue(self.val("T.logic.mail({message: 'Hi'})")["href"])
 
     def test_the_email_text_is_the_words_then_the_contact_then_exactly_the_context_lines(self):
         ctx = "{version: '1.0.7', platform: 'Win32'}"
@@ -139,6 +143,15 @@ class Logic(InBrowser):
         short = self.val("T.logic.mail({message: 'word '.repeat(100), contact: ''}, {})")
         self.assertTrue(short["href"])
         self.assertLessEqual(len(short["href"]), 2000)
+
+    def test_the_system_is_the_browsers_own_words_the_newer_field_first(self):
+        # mutation hunt on row 1069: swapping the two fields, or ignoring the given navigator, went unseen
+        self.assertEqual(self.val("T.logic.platformWords({userAgentData: {platform: 'macOS'}, platform: 'MacIntel'})"), "macOS")
+        self.assertEqual(self.val("T.logic.platformWords({userAgentData: {platform: ''}, platform: 'Win32'})"), "Win32")
+        self.assertEqual(self.val("T.logic.platformWords({platform: 'Linux x86_64'})"), "Linux x86_64")
+        self.assertEqual(self.val("T.logic.platformWords({platform: ' Win\\r\\n32 '})"), "Win 32")
+        self.assertEqual(self.val("T.logic.platformWords({})"), "")
+        self.assertEqual(self.val("T.logic.platformWords()"), self.val("T.logic.platformWords(navigator)"))
 
     def test_the_copy_text_names_the_address_and_the_subject_first(self):
         got = self.val("T.logic.copyText({message: 'Hi', contact: ''}, {version: '1', platform: 'p'})")
