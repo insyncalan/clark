@@ -70,6 +70,27 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+HOST_WINDOWS = "windows"
+ASK_OFF_ON_WINDOWS = "ask clark is not available on Windows yet"
+
+
+def host(environ=None):
+    """item 629: "windows" only when CLARK_HOST=windows is set (by docker/compose.windows.yaml, for a container on a Windows computer,
+    where clark itself sees Linux); anything else, or nothing, is None and clark behaves as it always has."""
+    value = (os.environ if environ is None else environ).get("CLARK_HOST")
+    return HOST_WINDOWS if value == HOST_WINDOWS else None
+
+
+def windows_host(environ=None):
+    """item 629: True when the host computer is Windows (see host)."""
+    return host(environ) == HOST_WINDOWS
+
+
+def _host_form(text):
+    """item 629: `text`, a path written with "/", in the Windows form (with backslashes) when the host is Windows; as it is otherwise."""
+    return text.replace("/", "\\") if windows_host() else text
+
+
 _POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0")       # tunnel devices the kernel makes in every network, not a physical one
 
 
@@ -439,13 +460,13 @@ def shown(path, home=None):
     everything is under it, so nothing is written from "~"."""
     path, home = Path(path), Path(home or Path.home())
     if home == Path(home.anchor) or not path.is_absolute():
-        return str(path)
+        return _host_form(str(path))
     if path == home:
         return "~"
     try:
-        return "~/" + path.relative_to(home).as_posix()
+        return _host_form("~/" + path.relative_to(home).as_posix())
     except ValueError:
-        return str(path)
+        return _host_form(str(path))
 
 
 _HOST_HOME = re.compile(r"^(?:[\\/]{2}\?[\\/]UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|[\\/]{2}\?[\\/]"
@@ -953,7 +974,7 @@ def folder_phrase(path, capital=False):
 def with_tilde(path, home=None):
     """`path` as a person reads it: the home folder written ~, so a message never shows the account's folder name."""
     text, home = str(path), str(Path(home) if home else Path.home())
-    return "~" + text[len(home):] if text == home or text.startswith(home.rstrip("/") + "/") else text
+    return _host_form("~" + text[len(home):]) if text == home or text.startswith(home.rstrip("/") + "/") else _host_form(text)
 
 
 def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
@@ -1002,6 +1023,8 @@ NO_SCRIPTS = (".cmd", ".bat")
 
 def find_claude(which=shutil.which):
     """The Claude command to run, or None if it isn't on the PATH. A .cmd or .bat file is refused with the reason."""
+    if windows_host():                          # item 629: the container's Linux command is not the host's; ask clark is off
+        raise PlatformError(ASK_OFF_ON_WINDOWS)
     found = which(CLAUDE)
     if found and Path(found).suffix.lower() in NO_SCRIPTS:
         raise PlatformError("The copy of Claude Code on this computer can't be used safely by ask clark. Install Claude "
