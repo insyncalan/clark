@@ -124,6 +124,17 @@ class NewPerson(R.Picker):
         cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.focus(); i.select(); return true; })()", sid)
         cdp.call("Input.insertText", {"text": text}, sid)
 
+    def test_row_1120_tab_in_the_form_moves_between_its_fields_and_keeps_the_picker(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_page(cdp, width)
+                self.open_form(cdp, sid, "Zelda Quince")
+                key(cdp, sid, "Tab")
+                self.until(cdp, sid, "document.activeElement && document.activeElement.matches('[data-pop] [data-new-email]')", "Tab went to Email")
+                key(cdp, sid, "Tab")
+                self.until(cdp, sid, "document.activeElement && document.activeElement.matches('[data-pop] [data-new-back]')", "Tab went to Back")
+                self.assertTrue(cdp.js("!!document.querySelector('[data-pop] [data-new-name]')", sid), "the picker and the form stay open")
+
     def test_a_bad_email_is_said_in_the_form_and_nothing_is_sent(self):
         with chrome() as cdp:
             sid = self.open_page(cdp, 1400)
