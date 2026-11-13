@@ -212,7 +212,7 @@ BULLET_STARTS = {
     '1073': '"+ New view" makes a view at once, named View 1, View 2 and so on; you can rename it.',
     '1074': 'Each choice in a drop-down of the peek, the table cells and the milestone peek shows a small icon beside its words',
     '1075': 'A message at the foot of the page goes after 5 seconds',
-    '1076': 'clark now opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
+    '1076': 'Now clark opens as a page in an ordinary Chrome window, at http://clark.localhost:8766/',
     '1082': 'In the peek of an action, "Show history" under Latest update lists the changes to that one field, newest first.',
     '1083': 'In the Milestones list, a light line and a little space separate each milestone from the next.',
     '1089': 'Help has a new guide, "The brand kit guide"',
@@ -240,12 +240,12 @@ BULLET_STARTS = {
     '1078': 'The milestone peek has the same format',
     '1079': 'On a use case\'s page you can add and remove milestones',
     '1081': 'On a use case\'s page, the Work items card',
-    '1084': 'The Table, Board and Group by icons now follow',
+    '1084': 'The List, Board and Group by icons now follow',
     '1085': 'The Use cases page now follows the Work items page',
     '1087': 'Published reports is now a page of its own',
     '1088': 'The Brands card takes a brand zip of any file name',
     '1099': 'Half-width cards (Risks and issues, Open actions) now fit',
-    '1100': 'clark now finds Claude and Codex installed with npm or nvm',
+    '1100': 'Asking now finds Claude and Codex installed with npm or nvm',
     '1104': 'You can change a column\'s width by dragging',
     '831': 'The Data card in Settings has Export to Word and Import',
     '951': 'The Data card also has "Excel file layout". It opens a b',
@@ -271,7 +271,7 @@ BULLET_STARTS = {
     '1093': 'The suggestions under the ask clark box follow the page',
     '1096': 'The ask clark question box is one line high, the suggest',
     '1128': 'A Cancelled milestone says "No longer going ahead", and',
-    '1026': 'Four more menus fade out when they close, among them the',
+    '1026': 'Three more menus fade out when they close: the',
     '1027': 'A Gantt page whose owner or baseline date is also named',
     '1037': 'A long label near the left edge of the Gantt no longer s',
     '1039': 'The Today button on the Gantt jumps at once when Reduce',
@@ -289,6 +289,11 @@ BULLET_STARTS = {
     '1125': 'A double click on Import, or on its Undo, now counts onc',
     '1044': 'The leftmost label of the Milestones strip no longer cli',
 }
+
+# Merged rows whose note is another row's bullet or was left out as untrue: covered, but no bullet of their own (1117 repeats 669; 1055 changed only the old prototype's help).
+NO_BULLET = {'1055', '1117'}
+# Bullets for merged work that has no plan row in COVERED: the start of each (1245 in PR 1356; the launcher's synced-folder refusal in PR 1357).
+EXTRA_BULLET_STARTS = ('A Completed item no longer reads as late.', 'The launcher now refuses a data folder inside Dropbox')
 
 # Merged rows with no visible change.
 NO_VISIBLE_CHANGE = {'1080', '1029', '1031'}
@@ -375,15 +380,16 @@ def bullets_are_final(found_version, env=None):
     return found_version == VERSION or (os.environ.get("V107_FINAL") if env is None else env) == "1"
 
 
-def bullet_problems(found, covered, final):
+def bullet_problems(found, covered, final, extra=()):
     """What is wrong with the bullets: never a duplicate or a bullet for no merged row; with final, also a merged row without one."""
     out = []
+    covered = set(covered) - NO_BULLET
     for item in sorted(covered):
         n = sum(1 for b in found if b.startswith("- " + BULLET_STARTS[item]))
         if n > 1 or (final and n == 0):
             out.append("%s has %d bullets, wanted %s" % (item, n, "one" if final else "at most one"))
     if covered:
-        starts = [BULLET_STARTS[i] for i in covered]
+        starts = [BULLET_STARTS[i] for i in covered] + list(extra)
         out += ["a bullet for no merged row: " + b[:40] for b in found if not any(b.startswith("- " + t) for t in starts)]
     if final and not found:
         out.append("the notes hold no bullet")
@@ -543,7 +549,7 @@ class Notes(unittest.TestCase):
         covered = {i.lstrip("#") for i, _, _ in COVERED}
         self.assertEqual(wait_bullets(self.text), [], "no bullet waits at the cut")
         self.assertNotRegex(self.text, r"(?m)^- Issue \d+ ", "no authoring tag is left in a bullet")
-        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version())), [])
+        self.assertEqual(bullet_problems(bullets(self.text), covered, bullets_are_final(version()), EXTRA_BULLET_STARTS), [])
 
     def test_the_notes_hold_no_status_table_and_no_row_ids(self):
         self.assertNotIn(BEGIN, self.text)
