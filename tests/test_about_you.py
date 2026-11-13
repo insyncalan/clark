@@ -274,6 +274,32 @@ class AboutYou(Base):
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["N" * 61, "sam@example.test"])
             self.assertEqual(self.saved(), {})
 
+    def test_hunt18_enter_then_blur_sends_one_save_and_an_untouched_box_sends_none(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[1500])
+            self.type_into(p, "name", "Sam Lee", leave="enter")
+            p.js("document.querySelector('#about-name').dispatchEvent(new FocusEvent('blur'))")
+            p.until("window.__answered >= 1", "the first save was answered")
+            self.handled(p, "Sam Lee")
+            p.js("document.querySelector('#about-name').dispatchEvent(new FocusEvent('blur'))")
+            time.sleep(0.5)
+            self.assertEqual(p.js("window.__sentn"), 1, "one save for the name, not one per Enter and blur")
+
+    def test_hunt18_closing_the_page_with_a_box_focused_saves_its_text(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.activeElement.blur()")
+            time.sleep(0.3)
+            p.js("window.__posts = 0; const f = window.fetch; window.fetch = (u, o) => { if (String(u).includes('/api/profile') && o && o.method === 'POST') window.__posts++; return f(u, o); }")
+            p.js("(() => { const el = document.querySelector('#about-email'); el.focus(); el.value = 'pat@example.com'; el.dispatchEvent(new Event('input', {bubbles: true})); })()")
+            time.sleep(0.3)
+            self.assertEqual(p.js("window.__posts"), 0, "typing alone sends nothing")
+            p.js("window.dispatchEvent(new Event('pagehide'))")
+            p.until("window.__posts >= 1", "the text was sent on pagehide")
+
     def test_C_text_typed_while_a_save_is_on_its_way_stays_in_the_box(self):
         """The page must not put the saved value back over a box typed in since the save was sent (a person who keeps typing during a slow
         save would see the box go back)."""
