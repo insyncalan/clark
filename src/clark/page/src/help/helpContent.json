@@ -1858,7 +1858,7 @@
     "b": [
      [
       "p",
-      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
+      "A list of links down the left of the cards takes you to a card (in a window narrower than 900 px it is a row of chips under the title): Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback and Quit, in the order the cards are drawn. The link of the card you are reading is marked. Publishing, Freshness and Gantt need an open project."
      ],
      [
       "tbl",
@@ -1867,6 +1867,10 @@
        "What it holds"
       ],
       [
+       [
+        "Essentials",
+        "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+       ],
        [
         "Profile",
         "About you: **Your name**, **Alias** and **Your email**."
@@ -2534,6 +2538,11 @@
    ],
    "full": "howto-find-a-past-publication",
    "cards": [
+    {
+     "card": "essentials",
+     "title": "Essentials",
+     "line": "Your name, Appearance, Spacing, Motion, Single-key shortcuts, Backups, Publishing folder, Asking on or off."
+    },
     {
      "card": "profile",
      "title": "Profile",

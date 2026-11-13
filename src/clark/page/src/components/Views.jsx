@@ -110,7 +110,7 @@ export function Milestones({ tools }) {
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
 // The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
-const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
+const CARDS = [["Essentials", "Essentials", "essentials-h"], ["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
   ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Feedback", "Feedback", "feedback-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
@@ -211,6 +211,7 @@ function SettingsHead({ cards }) {
 export function Settings({ tools }) {
   const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
+  const Essentials = tools && tools.Essentials;        // Essentials (row 1115, S3): the first card and the first chip; the eight settings most people come for, drawn again on the shared row; Edit's page only
   const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
@@ -232,6 +233,7 @@ export function Settings({ tools }) {
     <div class="set-layout">
       <SettingsHead cards={cards} />
       <div class="set-cards">
+      {Essentials ? <Essentials /> : null}
       {Profile ? <Profile /> : null}
       {ClientFolder ? <ClientFolder /> : null}
       {Personal ? <Personal /> : null}
