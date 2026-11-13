@@ -200,14 +200,14 @@
     const over = its.filter(x => x.type === 'A' && C.isOpen(x) && x.due && D.days(x.due) < 0);
     const high = its.filter(x => (x.type === 'R' || x.type === 'I') && C.isOpen(x) && (x.priority === 'Urgent' || x.priority === 'High'));
     const dec = its.filter(x => x.type === 'D' && x.status === 'Pending');
-    const quiet = its.filter(D.notReviewed), openA = its.filter(x => x.type === 'A' && C.isOpen(x)).length, red = high.filter(x => C.ragOf(x) === 'R').length;
+    const quiet = its.filter(D.notReviewed), openA = its.filter(x => x.type === 'A' && C.isOpen(x)).length, openRI = its.filter(x => (x.type === 'R' || x.type === 'I') && C.isOpen(x)).length, dated = dec.map(x => x.due).filter(Boolean).sort();
     /* rag: the tile's automatic colour, from the data; the user can set another with a right-click (Edit mode) */
     return {
       health: { k: 'Project health', rag: p.health },
-      overdue: { v: over.length, k: 'Overdue actions', d: `of ${openA} open actions`, rag: over.length ? 'R' : 'G', go: () => C.workFilter({ type: 'A', due: ['overdue'] }) },
-      risks: { v: high.length, k: 'High risks and issues', d: red ? `${red} red or urgent` : high.length ? 'None red' : 'None open', rag: red ? 'R' : high.length ? 'A' : 'G', go: () => C.workFilter({ type: 'R', priority: ['Urgent', 'High'] }) },
+      overdue: { v: over.length, k: 'Overdue actions', d: openA ? `of ${openA} open actions` : 'No open actions', rag: over.length ? 'R' : 'G', go: () => C.workFilter({ type: 'A', due: ['overdue'] }) },
+      risks: { v: high.length, k: 'High risks and issues', d: !openRI ? 'None open' : !high.length ? 'None high' : openRI === 1 ? 'of 1 open risk or issue' : `of ${openRI} open risks and issues`, rag: high.length ? 'R' : openRI ? 'A' : 'G', go: () => C.workFilter({ type: 'R', priority: ['Urgent', 'High'] }) },
       stale: { v: quiet.length, k: 'Not reviewed', d: `in ${C.dy(D.staleDays(p.code))}`, rag: quiet.length ? 'A' : 'G', go: () => C.workFilter({ fresh: ['stale'] }) },
-      decisions: { v: dec.length, k: 'Decisions needed', d: dec.length ? `Oldest ${D.fd(dec.map(x => x.due).sort()[0])}` : 'None waiting', rag: dec.length ? 'A' : 'G', go: () => C.workFilter({ type: 'D', status: ['Pending'] }) },
+      decisions: { v: dec.length, k: 'Decisions needed', d: dated.length ? `Oldest needed by ${D.fd(dated[0])}` : dec.length ? 'No date set' : 'None waiting', rag: dec.length ? 'A' : 'G', go: () => C.workFilter({ type: 'D', status: ['Pending'] }) },
     };
   };
   /* ── a suggested health (FR-62b, #122): plain rules, shown beside the user's own and never replacing it. At risk when any rule applies, Off track
