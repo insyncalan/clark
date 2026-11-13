@@ -22,6 +22,7 @@ import { OwnerPick } from "./cells/OwnerPick.jsx";
 import { readPeople } from "./peopleApi.js";
 import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, ownerChoices, canAddPerson, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
@@ -133,6 +134,7 @@ function entries(row, level, edit, d, today, reg) {
     { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
     { id: "sep3", sep: true },
     { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
@@ -272,6 +274,7 @@ function Panel({ s }) {
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
+    if (id === "delete") { close("pick"); deleteItem(row, "menu", row.id); return undefined; }
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
@@ -289,7 +292,7 @@ function Panel({ s }) {
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
       {s.pick || s.adding ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
-          <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
+          <button key={it.id} type="button" class={it.danger ? "danger" : undefined} role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
             onPointerEnter={(e) => { if (e.pointerType !== "touch") hover(it.sub ? it.id : ""); }} aria-disabled={it.disabled ? "true" : undefined}
             aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
