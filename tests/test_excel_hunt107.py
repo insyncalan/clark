@@ -23,6 +23,44 @@ class ErrorCells(ImportCase):
         self.assertEqual([c for c in p.changes if c.after.get("description")], [])
         self.assertTrue(any("error cell was ignored" in n and f"row {row}" in n for n in p.notes), p.notes)
 
+    def make_error(self, *fields, unread=False):
+        wb = load_workbook(str(self.path))
+        ws = wb["Actions"]
+        row = wbk._row_of(ws, self.a1)
+        cells = [ws.cell(row, wbk._col(ws, f)) for f in fields]
+        if unread:
+            cells = [ws.cell(row, ws.max_column + 3)]
+        for c in cells:
+            c.value = "#REF!"
+            c.data_type = "e"
+        wb.save(str(self.path))
+        return row
+
+    def test_an_error_in_the_id_cell_says_so_not_formula_and_the_item_is_not_removed(self):
+        row = self.make_error("id")
+        p = self.plan()
+        msgs = [x.message for x in p.problems if f"row {row}" in x.message]
+        self.assertEqual(len(msgs), 1, msgs)
+        self.assertIn("the ID is an error value", msgs[0])
+        self.assertNotIn("formula", msgs[0])
+        self.assertEqual([c.id for c in p.changes if c.kind == "removed"], [], "the item whose ID cell broke is not offered for archiving")
+
+    def test_an_error_in_both_the_id_and_the_title_holds_the_whole_sheet_from_archiving(self):
+        row = self.make_error("id", "description")
+        p = self.plan()
+        self.assertEqual([c for c in p.changes if c.kind == "removed" and c.table == "actions"], [])
+        self.assertTrue(any(f"row {row}" in x.message and "ID and the title are error values" in x.message for x in p.problems), p.problems)
+
+    def test_an_error_in_a_column_the_import_does_not_read_says_nothing(self):
+        self.make_error(unread=True)
+        p = self.plan()
+        self.assertFalse(any("error cell" in n for n in p.notes), p.notes)
+
+    def test_the_error_note_says_type_the_value_instead(self):
+        row = self.make_error("description")
+        p = self.plan()
+        self.assertIn(f"Actions: an error cell was ignored in row {row}; type the value instead", p.notes)
+
 
 class UseCaseShownAs(ImportCase):
     def shown(self, text):
