@@ -99,10 +99,10 @@ function useOpeners() {
 
 const copied = (text, said) => {
   const done = () => { announce.value = said; say("done", said); };
-  const fail = () => {                          // item 612: the ⌘C hint only when there is a selection to copy
+  const fail = () => {                          // item 612: the copy-key hint only when there is a selection to copy
     const sel = typeof window.getSelection === "function" ? String(window.getSelection() || "") : "";
     announce.value = "The browser did not copy it.";
-    say("note", sel.trim() ? "The browser did not copy it. Select the text and press ⌘C instead." : "The browser did not copy it.");
+    say("note", sel.trim() ? "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text." : "The browser did not copy it.");
   };
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };

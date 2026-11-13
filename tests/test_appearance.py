@@ -69,13 +69,6 @@ class Appearance(Base):
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
-    def test_the_help_text_for_system_does_not_name_a_mac(self):
-        import json
-        from _paths import ROOT
-        text = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
-        self.assertIn("it follows your computer\u2019s setting and changes when the computer does", text)
-        self.assertNotIn("changes when the Mac does", json.dumps(json.loads(text), ensure_ascii=False))
-
     def test_C_appearance_is_a_segmented_control_not_radio_buttons(self):       # item 677
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:

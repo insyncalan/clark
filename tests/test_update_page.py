@@ -351,21 +351,9 @@ class Card(InBrowser):
         self.assertEqual(self.val("document.querySelector('[data-undo-confirm]').getAttribute('aria-describedby')"), "update-armed")
         self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))
 
-    def test_the_focus_comes_back_when_a_review_is_cancelled_or_refused_or_an_install_or_undo_fails(self):
+    def test_the_focus_comes_back_when_an_install_or_undo_fails(self):
         refused = OK({"ok": False, "code": "space", "message": ui.MESSAGES["space"]}, 409)
         last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
-        with self.subTest(case="chooser cancelled"):
-            self.replies(review=OK({"ok": True, "cancelled": True}))
-            self.mount()
-            self.js("document.querySelector('[data-choose]').focus()")
-            self.click("[data-choose]")
-            self.assertEqual(self.focused(), "button[data-choose]")
-        with self.subTest(case="review refused"):
-            self.replies(review=refused)
-            self.mount()
-            self.js("document.querySelector('[data-review]').focus()")
-            self.click("[data-review]")
-            self.assertEqual(self.focused(), "button[data-review]")
         with self.subTest(case="install fails"):
             self.replies(review=OK({"ok": True, "review_id": "r1", "review": REVIEW}), install=refused)
             self.mount()

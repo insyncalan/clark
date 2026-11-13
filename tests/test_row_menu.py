@@ -1059,9 +1059,9 @@ class Menu(board.Base):
             self.assertTrue(cdp.js("window.__clip[1]", sid).endswith(f"#work&p=ABC&item={a}"), cdp.js("window.__clip[1]", sid))
             self.assertEqual(self.steps(), before)
 
-    def test_when_the_browser_does_not_copy_the_cmd_c_hint_shows_only_with_a_selection(self):
+    def test_when_the_browser_does_not_copy_the_copy_key_hint_shows_only_with_a_selection(self):
         """Item 612: the note says to select the text and press the keys only when there is a selection to copy."""
-        plain, hint = "The browser did not copy it.", "The browser did not copy it. Select the text and press ⌘C instead."
+        plain, hint = "The browser did not copy it.", "The browser did not copy it. Press Ctrl+C (Cmd+C on a Mac) to copy the selected text."
         toast = "(() => { const t = document.querySelector('.toast[data-kind=note] .toast-text'); return t ? t.textContent : ''; })()"
         with chrome() as cdp:
             sid = self.visit(cdp)
