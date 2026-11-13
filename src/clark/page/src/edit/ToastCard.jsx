@@ -14,12 +14,19 @@ export const startHeld = (clock) => (el) => { if (el && el.matches && el.matches
 /** The focus goes to a toast's Undo as the button is drawn, when the toast asks (`focusUndo`): no timer, and nothing to find in the page by selector. */
 const focusOnDraw = (el) => { if (el && el.focus) el.focus(); };
 
+/** Call before a message goes by Close or Undo: focus that is on the message would drop to the page's top, so it goes to <main> (the next Tab starts there). */
+export function keepFocus() {
+  const a = document.activeElement, m = document.getElementById("main");
+  if (a && a.closest && a.closest(".toast") && m) m.focus({ preventScroll: true });
+}
+const closeToast = () => { keepFocus(); dismiss(); };
+
 export function ToastCard({ t }) {
   return (
     <div class={`toast ${t.kind}`} key={t.id} data-kind={t.kind} role={t.kind === "problem" ? "alert" : undefined} ref={startHeld(toastTimer)} {...holdOn(toastTimer)}>
       <span class="toast-text">{t.text}</span>
-      {t.undo || t.local ? <button type="button" class="toast-btn" data-undo ref={t.focusUndo ? focusOnDraw : undefined} onClick={() => { dismiss(); if (t.local) t.local(); else undo(t.undo, t.code); }}>Undo</button> : null}
-      <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={dismiss}>Close</button>
+      {t.undo || t.local ? <button type="button" class="toast-btn" data-undo ref={t.focusUndo ? focusOnDraw : undefined} onClick={() => { keepFocus(); dismiss(); if (t.local) t.local(); else undo(t.undo, t.code); }}>Undo</button> : null}
+      <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={closeToast}>Close</button>
       <ToastBar kind={t.kind} />
     </div>
   );
