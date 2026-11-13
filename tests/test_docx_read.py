@@ -274,6 +274,24 @@ class AGoodFile(unittest.TestCase):
         self.assertIn("hidden", got.notes[0])
         self.assertEqual(got.notes[1], "2 pictures, drawings or text boxes were not read.")
 
+    def test_old_formatting_in_a_tracked_change_does_not_hide_visible_text(self):
+        body = '<w:p><w:r><w:rPr><w:rPrChange w:id="1"><w:rPr><w:vanish/></w:rPr></w:rPrChange></w:rPr><w:t>visible now</w:t></w:r></w:p>'
+        got = read(docx(body), NAME)
+        self.assertEqual(got.blocks, [{"kind": "paragraph", "text": "visible now"}])
+        self.assertEqual(got.notes, [])
+
+    def test_text_hidden_by_a_paragraph_or_character_style_is_not_read_and_is_noted(self):
+        styles = STYLES.replace("</w:styles>",
+            '<w:style w:type="paragraph" w:styleId="Hid"><w:name w:val="Hid"/><w:basedOn w:val="Normal"/><w:rPr><w:vanish/></w:rPr></w:style>'
+            '<w:style w:type="paragraph" w:styleId="Hid2"><w:name w:val="Hid2"/><w:basedOn w:val="Hid"/></w:style>'
+            '<w:style w:type="character" w:styleId="HidChar"><w:name w:val="HidChar"/><w:rPr><w:vanish/></w:rPr></w:style></w:styles>')
+        body = (P("seen") + P("secret", style="Hid") + P("secret too", style="Hid2")
+                + '<w:p><w:r><w:t>a </w:t></w:r><w:r><w:rPr><w:rStyle w:val="HidChar"/></w:rPr><w:t>secret</w:t></w:r><w:r><w:t>b</w:t></w:r></w:p>')
+        got = read(docx(body, parts={"word/styles.xml": styles}), NAME)
+        self.assertEqual([b["text"] for b in got.blocks], ["seen", "a b"])
+        self.assertEqual(len(got.notes), 1)
+        self.assertIn("hidden", got.notes[0])
+
     def test_a_link_keeps_its_words_and_loses_its_address(self):
         rels = RELS.format('<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink" '
                            'Target="https://example.org/where" TargetMode="External"/>')
