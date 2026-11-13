@@ -83,7 +83,7 @@ CHANGE_KINDS = {
                             "name", "owner", "workstream", "percent_complete", "description"), DELETE: ()},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: (), DELETE: ()},   # item 1148: DELETE removes a use case with nothing pointing at it; #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: (), DELETE: ()},   # item 1148: DELETE removes a use case with nothing pointing at it; item 455: and a NEW one (below); item 485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -94,7 +94,7 @@ KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")},
                 "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
-KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids"), DELETE: ("id",)}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids"), DELETE: ("id",)}    # item 455: a new use case is only `values` (its reference, name, status and headline); no id is sent. item 485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline", "new_person")     # #136: a milestone's agreed date moves with a `rebaseline`; row 986: and an owner may be a new person
 for _k in ("actions", "raid", "decisions"):
     KIND_OP_KEYS[_k][UPDATE] = ("id", "changes", "new_person")     # row 986: the owner update alone takes `new_person` (no other op, no other kind)
