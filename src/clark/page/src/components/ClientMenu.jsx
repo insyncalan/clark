@@ -2,23 +2,23 @@
 // is a published file (components/TopBar.jsx); the editor has its own profile menu and never draws this one. It follows
 // components/Menu.jsx: aria-haspopup and aria-expanded on the badge, Down opens, Up, Down, Home and End move, Esc closes with the
 // focus back on the badge. The rows, in order: Profile, Export to Excel (only when the file holds a workbook), Export to PDF
-// (the browser's print), Past reports, Dark mode. The reader's name and look are kept in their own browser only (stores/reader.js).
+// (the browser's print), Past reports. Light and dark have their own small button beside the badge. The reader's name and look are kept in their own browser only (stores/reader.js).
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { MenuPanel, useMenuState } from "./Menu.jsx";
 import { data } from "../stores/report.js";
 import { printReport } from "../stores/print.js";
-import { readerName, setReaderName, removeReader, initialsOf, look, setLook } from "../stores/reader.js";
+import { readerName, setReaderName, removeReader, initialsOf, look, toggleLook } from "../stores/reader.js";
 import { workbookOf, tooLarge, pastReportsOf, bytesOf } from "../logic/clientMenu.js";
 
 const WORDS = {
-  menu: "Report menu", profile: "Profile", excel: "Export to Excel", pdf: "Export to PDF", past: "Past reports", dark: "Dark mode",
+  menu: "Report menu", profile: "Profile", excel: "Export to Excel", pdf: "Export to PDF", past: "Past reports",
+  theme: "Switch between light and dark",
   boxTitle: "Your profile", field: "Your name", save: "Save", cancel: "Cancel", remove: "Remove my profile",
   kept: "Kept only in this browser. It is never put in the report or sent anywhere.",
   big: "This report is too large to include a spreadsheet.", sameFolder: "Opens the earlier report if it is in the same folder as this one.", none: "No earlier reports.",
 };
-const LOOK_WORDS = [["light", "Light"], ["dark", "Dark"], ["system", "System"]];
 const XLSX = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 // The workbook goes to the reader through a Blob and an object address: no data: address, no library.
@@ -79,7 +79,7 @@ export function ClientMenu() {
   const [box, setBox] = useState(false);
   const btn = useRef(null), back = useRef(false);
   const d = data.value, book = workbookOf(d), big = !book && tooLarge(d), past = pastReportsOf(d);
-  const name = readerName.value, ini = initialsOf(name), mode = look.value;
+  const name = readerName.value, ini = initialsOf(name);
   const close = (how) => { back.current = how === "esc" || how === "pick"; setOpen(false); };
   // Focus goes back to the badge only if nothing took it: the box has put focus in itself, and the menu must not steal it.
   useEffect(() => { if (!open && back.current) { back.current = false; const at = document.activeElement; if (btn.current && (!at || at === document.body || at === btn.current)) btn.current.focus(); } }, [open]);
@@ -89,6 +89,9 @@ export function ClientMenu() {
   const item = (row, label, fn, extra) => <button type="button" class="cm-row" role="menuitem" tabIndex={-1} data-row={row} onClick={run(fn)} {...extra}>{actionIcon(row) ? <Icon name={actionIcon(row)} cls="mi" /> : null}{label}</button>;
   return (
     <span class="cm-wrap">
+      <button type="button" class="cm-theme" id="client-theme-btn" aria-label={WORDS.theme} title={WORDS.theme} data-tip={WORDS.theme} onClick={toggleLook}>
+        <Icon name={look.value === "dark" ? "sun" : "moon"} />
+      </button>
       <button type="button" class="cm-badge" id="client-menu-btn" ref={btn} aria-label={WORDS.menu} title={WORDS.menu} data-tip={WORDS.menu}
         aria-haspopup="menu" aria-expanded={open ? "true" : "false"} aria-controls={open ? "client-menu" : undefined}
         onKeyDown={(e) => { if (e.key === "ArrowDown" && !open) { e.preventDefault(); setOpen(true); } }}
@@ -106,14 +109,6 @@ export function ClientMenu() {
             <div class="lab" role="presentation" id="client-menu-past">{WORDS.past}</div>
             {past.map((r) => <a class="cm-row cm-link" role="menuitem" tabIndex={-1} href={r.href} title={`Report of ${r.date}`} key={r.iso + r.href}><Icon name={actionIcon("pastReport")} cls="mi" />{r.date}</a>)}
             <div class="cm-note" role="presentation">{past.length ? WORDS.sameFolder : WORDS.none}</div>
-          </div>
-          <div class="cm-group" role="group" aria-labelledby="client-menu-dark" data-row="dark">
-            <div class="lab" role="presentation" id="client-menu-dark">{WORDS.dark}</div>
-            {LOOK_WORDS.map(([id, w]) => (
-              <button type="button" class="cm-row" role="menuitemradio" aria-checked={mode === id ? "true" : "false"} tabIndex={-1} data-look={id} key={id} onClick={run(() => setLook(id))}>
-                <span class="ck" aria-hidden="true">{mode === id ? "✓" : ""}</span><Icon name={actionIcon("look" + id[0].toUpperCase() + id.slice(1))} cls="mi" />{w}
-              </button>
-            ))}
           </div>
         </MenuPanel>
       ) : null}
