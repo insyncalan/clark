@@ -41,16 +41,17 @@ function Item({ p, u, steps, marks }) {
 }
 
 function UseCasesList({ d, pages, cases, steps, marks }) {
-  const f = view.value, ids = new Set(pages.map((p) => p.id));
+  const paper = printing.value;                                          // a print shows every use case: no tab chosen, no group shut, no tools
+  const f = paper ? { ...view.value, tab: "all" } : view.value, ids = new Set(pages.map((p) => p.id));
   const rows = listOf(d, []).filter((r) => ids.has(r.id));
   const pageOf = Object.fromEntries(pages.map((p) => [p.id, p]));
   const kept = pickRows(rows, f);
-  const groups = groupsOf(kept, f.group, commitWords(d)).map((g) => ({ ...g, shut: shut.value.has(`${f.group}|${g.key}`) }));
+  const groups = groupsOf(kept, f.group, commitWords(d)).map((g) => ({ ...g, shut: !paper && shut.value.has(`${f.group}|${g.key}`) }));
   const toggle = (g) => { const next = new Set(shut.value), k = `${f.group}|${g.key}`; if (next.has(k)) next.delete(k); else next.add(k); shut.value = next; };
   const items = (rs) => rs.map((r) => <Item key={r.id} p={pageOf[r.id]} u={cases[r.id] || r.u} steps={steps} marks={marks} />);
   return (
     <>
-      <div class="fviews ucp-views">
+      {paper ? null : <div class="fviews ucp-views">
         <div class="fvrow">
           <div class="vtabs" role="group" aria-label="Use case views">
             {TABS_HERE.map(([id, name]) => (
@@ -61,10 +62,10 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
             <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} />
           </span>
         </div>
-      </div>
-      <p class="ucp-sorts muted">Sort by {SORTS_HERE.map(([k, w]) => (
+      </div>}
+      {paper ? null : <p class="ucp-sorts muted">Sort by {SORTS_HERE.map(([k, w]) => (
         <button type="button" key={k} class="ucp-sort" data-sort={k} aria-pressed={f.sort === k ? "true" : "false"} aria-label={`Sort by ${w}`} onClick={() => set({ sort: k })}>{k === "ref" ? "Ref" : w}{f.sort === k ? <Icon name="chevdown" /> : null}</button>
-      ))}</p>
+      ))}</p>}
       {!kept.length ? (
         <div class="ucp-empty" data-empty>
           <p class="muted">No use cases match these filters.</p>
@@ -80,7 +81,7 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
           {g.shut ? null : items(g.rows)}
         </div>
       ))}
-      <p class="ucp-count num" id="ucp-count" role="status">{plural(kept.length, "use case")}</p>
+      {paper ? null : <p class="ucp-count num" id="ucp-count" role="status">{plural(kept.length, "use case")}</p>}
     </>
   );
 }

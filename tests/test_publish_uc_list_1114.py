@@ -22,7 +22,7 @@ def made(extra=True):
         row.update(id="PUB-U-006", title="ZQ-SECOND-USECASE", status="High risk", ref="0.5", sort_order=6)
         d["use_cases"].append(row)
     pub = publish.select(fx.inputs(plant))
-    return publish.render(pub, page.page_html(EMPTY_BRANDING), plant["as_at"], pub["data"]["project"]["name"])
+    return publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
 
 
 class RealBrowser(unittest.TestCase):
@@ -68,14 +68,37 @@ class RealBrowser(unittest.TestCase):
             self.assertEqual(js("document.querySelectorAll('.ucp').length"), 1)
             self.assertEqual(js("document.querySelector('.ucp-group .grp-b').getAttribute('aria-expanded')"), "false")
 
-    def test_a_file_with_no_use_cases_keeps_its_words(self):
+    def test_a_print_shows_every_use_case_with_no_tools(self):
+        # The page's own ?print=1 route (item 438) turns the print mode on and draws every tab; the Use cases tab then has no tools.
+        with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+            path = Path(tmp) / "r.html"
+            path.write_text(made(), encoding="utf-8")
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.enable", {}, sid)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+            cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": "window.__asked = 0; window.print = function () { window.__asked++; };"}, sid)   # no print box in the test
+            cdp.call("Page.navigate", {"url": path.as_uri() + "?print=1"}, sid)
+            js = lambda s: cdp.js(s, sid)  # noqa: E731
+            self.assertTrue(wait(lambda: js("window.__asked") == 1, 20), "the address asked the browser to print once")
+            self.assertTrue(js("document.documentElement.classList.contains('print-all')"))
+            self.assertTrue(wait(lambda: js("document.querySelectorAll('#usecases-file .ucp').length") == 2))
+            self.assertTrue(js("[...document.querySelectorAll('#usecases-file .ucp')].every(d => d.open)"))
+            self.assertEqual(js("document.querySelectorAll('#usecases-file .ucp-views, #usecases-file .ucp-sorts, #ucp-count').length"), 0)
+
+    def test_a_file_with_no_use_cases_has_no_use_cases_tab(self):
         plant = fx.load()
         plant["data"]["use_cases"] = []
         pub = publish.select(fx.inputs(plant))
         self.assertFalse(pub["data"].get("use_case_pages"))
-        # no list, no tabs: the words stay with the component
-        src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/components/UseCasesTab.jsx").read_text(encoding="utf-8")
-        self.assertIn("No use cases are shared in this report.", src)
+        text = publish.render(pub, page.page_html(EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+        with tempfile.TemporaryDirectory() as tmp, chrome() as cdp:
+            path = Path(tmp) / "r.html"
+            path.write_text(text, encoding="utf-8")
+            sid = opened(cdp, path.as_uri())
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-view=usecases]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-tab]').length", sid), 0)
 
 
 if __name__ == "__main__":
