@@ -847,5 +847,48 @@ class ImagePapersTest(unittest.TestCase):
                 self.assertIn(needle, text)
 
 
+def _files_in_zip(listed_items):
+    """The names (as the zip holds them) that a list of items produces from the tracked files."""
+    out = []
+    for item in listed_items:
+        names = tracked(item) if item.endswith("/") else [item]
+        out += [release_files.place(n) for n in names]
+    return out
+
+
+class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
+    """Item 1151: an installed older version checks a new zip against ITS OWN list (updates.check_coverage). Tests used to
+    check the new list against the new zip only, so 1.0.7 (new vendor/pypdf/) was refused by every 1.0.6 computer."""
+
+    @staticmethod
+    def _old_module(tag):
+        r = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/release_files.py"], capture_output=True)
+        if r.returncode != 0:
+            return None
+        import types
+        mod = types.ModuleType("old_release_files")
+        exec(compile(r.stdout, f"{tag}/release_files.py", "exec"), mod.__dict__)
+        return mod
+
+    @staticmethod
+    def unsafe_for(old, system="mac"):
+        """The names this tree's zip would hold that the older list `old` does not cover (what check_coverage calls unsafe)."""
+        return sorted(n for n in _files_in_zip(release_files.listed(system)) if not old.covers(system, n))
+
+    def test_an_older_list_missing_a_path_is_caught(self):
+        import types
+        old = types.SimpleNamespace(covers=lambda system, rel: not rel.startswith(".app/vendor/pypdf/"))
+        found = self.unsafe_for(old)
+        self.assertTrue(found and all(n.startswith(".app/vendor/pypdf/") for n in found))
+
+    def test_the_last_release_list_covers_every_file_of_this_tree(self):
+        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+        if not tags:
+            self.skipTest("no release tag in this clone")
+        old = self._old_module(tags[0])
+        self.assertIsNotNone(old, tags[0])
+        self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
+
+
 if __name__ == "__main__":
     unittest.main()
