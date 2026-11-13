@@ -91,8 +91,8 @@ class Dialogs(InDocker):
         class Log:
             folder = self.dir / "logs"
         status, body = log_routes.Logs(Log()).open_folder()
-        self.assertEqual(503, status)
-        self.assertEqual(WORDS, body["message"])
+        self.assertEqual((200, True), (status, body["ok"]))          # item 632: nothing can be opened here, so the answer says where the folder is
+        self.assertEqual(log_routes.container_log_words(), body["shown"])
 
     def test_choose_the_update_file(self):
         service = updater.Updater(self.dir, self.dir / "a.db", 8765, app_dir=self.dir, system="mac", version="1.0.0", schema=2,
