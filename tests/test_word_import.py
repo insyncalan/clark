@@ -89,6 +89,13 @@ class WhatIsStaged(unittest.TestCase):
         self.assertTrue(any("Weight" in n for n in p.notes))
         self.assertIn("table 1, line 1", a.where)
 
+    def test_a_title_row_above_the_headings_is_skipped(self):
+        t = table(["Weekly actions", "Weekly actions"], ["Action", "Owner"], ["Order the licences", "Sam Okafor"])
+        p = plan([H("Actions"), t])
+        self.assertEqual([i.values["description"] if "description" in i.values else list(i.values.values())[0] for i in p.items][:1],
+                         ["Order the licences"])
+        self.assertEqual(p.items[0].values["owner"], "Sam Okafor")
+
     def test_a_risk_table_and_a_decision_table(self):
         p = plan([H("Risks"), table(["Item", "Impact", "Likelihood"], ["Late delivery", "High", "medium"]),
                   H("Decisions"), table(["Decision", "Status", "Made by", "Date"],

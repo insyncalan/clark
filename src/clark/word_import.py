@@ -316,6 +316,12 @@ class _Stage:
             self.plan.notes.append(f"A table under {heading} has no lines below its headings, so nothing was read from it. Add the lines under the headings and import again.")
             return
         cols = COLUMNS[table]
+        # a full-width title row may sit above the headings: the header is the first of the first three rows with the item's column
+        head = next((n for n, row in enumerate(rows[:3]) if any(cols.get(clean_value(c).lower()) == REQUIRED[table] for c in row)), 0)
+        rows = rows[head:]
+        if len(rows) < 2:
+            self.plan.notes.append(f"A table under {heading} has no lines below its headings, so nothing was read from it. Add the lines under the headings and import again.")
+            return
         used = {}               # column number → the field it fills (the first column of a name wins)
         for i, cell in enumerate(rows[0]):
             name = clean_value(cell).lower()
