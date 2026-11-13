@@ -441,7 +441,7 @@ ALL = _flat(RAW)
 
 
 class HelpWordsMatchScreen(unittest.TestCase):
-    """w20b (Jarvis-approved): Help words each button as the screen does, pinned to the screen's own string read from its source."""
+    """w20b: Help words each button as the screen does, pinned to the screen's own string read from its source."""
     def test_add_a_document_link(self):
         self.assertRegex(DOCS, r'>Add a document link</button>')
         self.assertTrue(any("press **Add a document link** at the foot" in s for s in ALL))
