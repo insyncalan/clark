@@ -390,7 +390,7 @@ const CHANGE_KNOWN = {
     "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
-  "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
+  "Use plain text, with no line breaks or hidden characters.": "That can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
