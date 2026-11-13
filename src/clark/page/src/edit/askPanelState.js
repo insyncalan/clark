@@ -4,6 +4,7 @@
 import { signal, effect } from "@preact/signals";
 import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
 import { chatId, histOpen } from "./askHistory.js";
@@ -129,7 +130,7 @@ export function installAskKeys() {
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     // An open peek, or a use case open in Edit (it has the words box), keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
-    if (e.key === "/" && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
+    if (e.key === "/" && singleKeys.value && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
   }, true);
   document.addEventListener("mousedown", (e) => {
     if (!panelOpen.value) return;
