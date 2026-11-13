@@ -12,7 +12,7 @@ import { plural } from "../../workItems.js";
 import { lineOf, chipsOf, readLine } from "../../templates/workItemsLine.js";
 
 export const SAVED = "Work items list changed.";
-export const NOT_YET = "No filter is saved for this section yet. Save one on Work items and it shows here.";
+export const NOT_YET = "No filter is set for this section yet. Set one below and it shows here.";
 export const NO_MATCH = "No work items match this filter, so this section is left out of the published page. Change the filter to list some.";
 export const ONLY_SHOWN = "Only work items that go in the published page are listed.";
 export const BAD_MAX = `Show between 1 and ${MAX_ROWS} work items. Type a number in that range.`;

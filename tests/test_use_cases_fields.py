@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -185,9 +186,11 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, f"!!document.querySelector('.ucl-arch [data-arch-uc={json.dumps(UC)}] [data-restore]')", "the archived list with Restore")
             self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "Showing 1 archived use case. Hide archived")
             self.no_sideways(cdp, sid)
+            self.assertRegex(cdp.js("document.querySelector('.ucl-arch [data-restore]').getAttribute('aria-label')", sid), r"^Restore .+ · .+")       # each button names its use case
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
             self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ucl-go')", "the last Restore moved the focus to the restored row's name (main's restore())")
             self.assertEqual((self.archived(), self.steps()), (False, before + 1), "Restore is one step")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
@@ -205,6 +208,44 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('.uclink')", "the link box opened")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.uclink')", "Esc closed it")
+
+    def narrow_to_one(self, cdp, sid):
+        """Open the link box on 1.1 and search for the first row's own words, so exactly one row is shown."""
+        self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-link]')", "the link button")
+        click(cdp, sid, "[data-ucd] [data-uc-link]")
+        self.until(cdp, sid, "!!document.querySelector('.uclink .pick input')", "the box with rows")
+        cdp.js("""(() => { const q = document.querySelector('.uclink input[type=search]'), ids = [...document.querySelectorAll('.uclink .pick input')].map((i) => i.value);
+            q.focus(); q.value = ids.find((id) => ids.filter((o) => o.toLowerCase().includes(id.toLowerCase())).length === 1); q.dispatchEvent(new Event('input', {bubbles: true})); })()""", sid)
+        self.until(cdp, sid, "document.querySelectorAll('.uclink .pick input').length === 1", "one row shown")
+
+    def keydown(self, cdp, sid, init):
+        cdp.js(f"document.querySelector('.uclink input[type=search]').dispatchEvent(new KeyboardEvent('keydown', Object.assign({{key: 'Enter', bubbles: true, cancelable: true}}, {json.dumps(init)})))", sid)
+
+    def test_enter_in_the_link_box_ticks_the_one_match_and_does_not_submit(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.narrow_to_one(cdp, sid)
+            before = self.steps()
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "Enter ticked the one match")
+            key(cdp, sid, "Enter")                       # a second Enter does not link (no new behaviour: the Add button does)
+            time.sleep(0.5)
+            self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+
+    def test_enter_while_an_input_method_is_composing_ticks_and_submits_nothing(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.narrow_to_one(cdp, sid)
+            before = self.steps()
+            for init in ({"isComposing": True}, {"keyCode": 229}, {"isComposing": True, "keyCode": 229}):
+                self.keydown(cdp, sid, init)
+                time.sleep(0.3)
+                self.assertFalse(cdp.js("document.querySelector('.uclink .pick input').checked", sid), f"{init}: Enter picked an input-method candidate, not a row")
+                self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+            self.keydown(cdp, sid, {})
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "a plain Enter still ticks it")
 
 
 class Published(unittest.TestCase):

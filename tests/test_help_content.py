@@ -282,11 +282,12 @@ class WordingRound(unittest.TestCase):
         self.assertRegex(jsx, r"to open Help; Esc takes you where you were")
 
     def test_the_help_does_not_offer_import_from_word_in_the_profile_menu(self):            # row 1063 (replaces the #432 wording test: the menu entry is gone)
-        self.assertNotIn("Import from Word", self.ALL)
+        self.assertNotIn("Profile circle › Import from Word", self.ALL)        # 1.0.8: the Data card in Settings is the way in, and Help says so
+        self.assertNotIn("profile menu entry Import from Word", self.ALL)
         self.assertNotIn("bring items in from a Word file", self.ALL)
         self.assertIn("**Export to Word**", self.ALL, "Export to Word stays in Help")
         raw = (HELP / "helpContent.json").read_text(encoding="utf-8")      # the whole source, including the context lines that ALL does not read
-        self.assertNotIn("Import from Word", raw, "no help line, in any section, names the removed menu entry")
+        self.assertNotRegex(raw, r"(?i)profile (circle|menu)[^\n]{0,40}(choose|press) \*\*Import from Word", "no help line names the removed menu entry")
 
     def test_examples_are_real_dates(self):                                                  # MEDIUM
         self.assertIn("due Friday · move to tomorrow · by Friday", self.ALL)      # a date-free example: no made-up date reaches the built page
