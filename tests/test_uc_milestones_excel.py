@@ -127,6 +127,25 @@ class Carry(unittest.TestCase):
         self.assertEqual(self.read().changes, [])
         self.assertEqual(sm.use_case_milestone_ids(self.s.con, self.uc), sorted([self.ms, self.ms2]))
 
+    def test_changing_another_cell_of_a_use_case_leaves_its_links_alone_with_or_without_the_column(self):
+        for drop in (False, True):
+            with self.subTest(column_dropped=drop):
+                excel.export_project(self.s, "ABC", self.path, self.state, on=ON)      # a fresh workbook for each pass
+                wb = load_workbook(str(self.path))
+                ws = wb["Use cases"]
+                head = {c.value: c.column for c in ws[1]}
+                r = next(r for r in range(2, ws.max_row + 1) if ws.cell(r, head["ID"]).value == self.uc)
+                ws.cell(r, head["Use case"]).value = f"Renamed {drop}"
+                if drop:
+                    ws.delete_cols(head["Linked milestones"])
+                wb.save(str(self.path))
+                plan = self.read()
+                self.assertEqual([c.id for c in plan.changes], [self.uc])
+                self.apply(plan)
+                self.assertEqual(self.s.read("use_cases", ref=self.uc)["title"], f"Renamed {drop}")
+                self.assertEqual(sm.use_case_milestone_ids(self.s.con, self.uc), sorted([self.ms, self.ms2]), "the links were not touched")
+                self.assertEqual(len(sm.use_case_milestone_history(self.s.con, self.uc)), 2, "and no link row was ended or made")
+
 
 if __name__ == "__main__":
     unittest.main()

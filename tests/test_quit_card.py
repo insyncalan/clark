@@ -113,6 +113,27 @@ class Card(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('#quit button').disabled", sid), False)
             self.assertEqual(self.stops, [], "neither stopped the server")
 
+    def test_the_question_is_announced_an_old_refusal_goes_and_nothing_can_be_pressed_while_it_is_busy(self):
+        s = self.serve()
+        with chrome() as cdp:
+            sid = self.visit(cdp, s.port)
+            cdp.js("window.fetch = () => Promise.resolve(new Response(JSON.stringify({ok: false, code: 'server_error', message: 'Something went wrong, and nothing was changed.'}), {status: 500}))", sid)
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.querySelector('#quit [role=alert]')", "the question is an alert")
+            self.assertEqual(cdp.js("document.querySelector('#quit [role=alert]').textContent", sid), ASK)
+            self.confirm(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('#quit').innerText.includes('Something went wrong')", "the refusal")
+            # asking again takes the old refusal off before the question shows
+            cdp.js("document.querySelector('#quit button').click()", sid)
+            self.until(cdp, sid, "document.querySelector('#quit-yes')", "the question again")
+            self.assertEqual(cdp.js("document.querySelector('#quit').innerText.includes('Something went wrong')", sid), False)
+            # a reply that is slow: while it is awaited the question is gone and the only button is off
+            cdp.js("window.fetch = () => new Promise(() => {})", sid)
+            cdp.js("document.querySelector('#quit-yes').click()", sid)
+            self.until(cdp, sid, "!document.querySelector('#quit-yes')", "the question to go while busy")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('#quit button')].map(b => b.disabled)", sid), [True])
+            self.assertEqual(cdp.js("!!document.querySelector('#quit-no, #quit [role=alert]')", sid), False)
+
 
 if __name__ == "__main__":
     unittest.main()
