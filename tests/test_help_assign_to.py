@@ -19,6 +19,11 @@ def work_items(content):
 
 
 class AssignToHelp(unittest.TestCase):
+    def test_the_enter_hint_follows_the_new_person_form(self):
+        """Idx 5: with the form open Enter adds and assigns, so the hint must not say it keeps what you typed."""
+        self.assertIn('{form ? "Press Enter to add and assign this person." : "Press Enter to keep what you typed."}', PICK)
+        self.assertEqual(PICK.count("Press Enter to keep what you typed."), 1)
+
     def setUp(self):
         blocks = [b[1] for b in work_items(shown_content())["b"] if b[0] == "p"]
         self.text = " ".join(x for x in blocks if x.startswith("Assign to:"))

@@ -19,13 +19,13 @@ const nothingNew = (plan) => plan.already > 0 ? `Everything in ${plan.file} has 
 export const count = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 
 // A modal dialog that is shown when it mounts, and gives focus back to the profile circle when it goes.
-function useModal(el) {
+function useModal(el, opener) {
   useEffect(() => {
     const dlg = el.current;
     if (dlg && !dlg.open) dlg.showModal();
     return () => {
       if (dlg && dlg.open) dlg.close();
-      const me = document.getElementById("profile-btn");
+      const me = opener && opener.isConnected ? opener : document.getElementById("profile-btn");      // the button that opened the box (Settings › Data), else the profile circle
       if (me) me.focus();
     };
   }, []);
@@ -34,7 +34,7 @@ function useModal(el) {
 function Export() {
   const s = exportBox.value, el = useRef(null);
   const p = data.value && data.value.project;
-  useModal(el);
+  useModal(el, s.opener);
   // Focus: the To client tick when it can be ticked, else the button; the chosen answer when the name is taken.
   useEffect(() => {
     const dlg = el.current;
@@ -77,7 +77,7 @@ function Export() {
 
 function Import() {
   const s = importBox.value, el = useRef(null);
-  useModal(el);
+  useModal(el, s.opener);
   const busy = s.phase === "reading" || s.phase === "adding";
   useEffect(() => {
     const dlg = el.current;
