@@ -41,7 +41,7 @@ export const refOf = (u) => (u.ref ? REF_PREFIX + " " + u.ref : "");
 export function refText(ref) {
   return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
 }
-/** The boxed reference, item 1149: the short form once, then the number ("UC 1.3 + 1.4"); the one string the dashboard, the page and the published tab draw in the box. Empty when there is no reference. */
+/** The boxed reference, item 1149: the short form once, then the number (UC, a space, then 1.3 + 1.4); the one string the dashboard, the page and the published tab draw in the box. Empty when there is no reference. */
 export const refBox = (ref) => (refText(ref) ? REF_PREFIX + " " + refText(ref) : "");
 /** The open next steps of a use case, as its row says them. */
 export const stepsWord = (n) => (n === 1 ? "1 next step" : n ? `${n} next steps` : "No open steps");
