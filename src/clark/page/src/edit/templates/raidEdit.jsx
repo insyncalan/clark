@@ -6,6 +6,7 @@ import { change } from "../../stores/changes.js";
 import { RichField } from "../RichField.jsx";
 import { TOO_LONG } from "../RichText.jsx";
 import { legacyToHtml } from "../../logic/richOrPlain.js";
+import { putCard } from "../../logic/putCard.js";
 import { plainLine } from "../../logic/plainLine.js";
 import { publishable } from "../../logic/publishable.js";
 import { OWN_MAX, SOURCES, bodyOf, kindOfId, kindWords, parse, rowOf, rulesOf, titleOf, wordsOf } from "../../templates/raid.js";
@@ -24,8 +25,7 @@ export function RaidEdit({ section, size }) {
   const slots = Math.min(size, cards.length + 1);
   const put = (i, card, words, named = null) => {
     const now = ((data.value && data.value.report_sections) || []).find((s) => s.id === section.id);      // the body as the page has it now, not as it was drawn
-    const next = parse(now ? now.body : section.body).slice(0, size);
-    if (card) next[i] = card; else next.splice(i, 1);
+    const next = putCard(parse(now ? now.body : section.body).slice(0, size), i, card);
     return save(section, next, words, named);
   };
   const options = (current) => {

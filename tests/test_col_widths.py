@@ -113,6 +113,42 @@ class Widths(unittest.TestCase):
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))
 
 
+    def test_saved_widths_from_a_wide_window_do_not_crush_the_item_column_at_900(self):
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, 900, scheme, "#work&p=TUL&f=mode:all")
+                js = lambda e: cdp.js(e, sid)  # noqa: E731
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('#work tbody tr[data-id]').length > 0"), 20))
+                saved = '{"owner":400,"due":300}'
+                js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
+                got = js("""(() => { const t = document.querySelector('#work table.items'), c = t.parentElement, i = document.querySelector('#work table.items th.c-item, #work table.items thead th');
+                    return {scroll: document.documentElement.scrollWidth, inner: innerWidth, table: t.getBoundingClientRect().width, card: c.clientWidth, item: i.getBoundingClientRect().width,
+                            stored: localStorage.getItem('clark.cols.work')}; })()""")
+                self.assertLessEqual(got["scroll"], got["inner"] + 1, "the page does not scroll sideways")
+                self.assertLessEqual(got["table"], got["card"] + 1, "the table fits its card")
+                self.assertGreaterEqual(got["item"], 150, "the Item column keeps room")
+                self.assertEqual(got["stored"], saved, "the saved widths are left as they were")
+
+    def test_saved_widths_that_fit_are_drawn_as_saved_at_1400_and_shrunk_together_at_900(self):
+        saved = '{"owner":400,"due":300}'
+        drawn = {}
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, "light", "#work&p=TUL&f=mode:all")
+                js = lambda e: cdp.js(e, sid)  # noqa: E731
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('#work tbody tr[data-id]').length > 0"), 20))
+                js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
+                drawn[width] = js("""(() => { const w = (c) => document.querySelector('#work table.items col.c-' + c).getBoundingClientRect().width;
+                    return {owner: w('owner'), due: w('due'), item: w('item')}; })()""")
+        self.assertAlmostEqual(drawn[1400]["owner"], 400, delta=1, msg="room enough: the saved owner width is drawn as saved")
+        self.assertAlmostEqual(drawn[1400]["due"], 300, delta=1, msg="room enough: the saved due width is drawn as saved")
+        self.assertLess(drawn[900]["owner"], 400 - 20, "no room: the saved owner width shrinks")
+        self.assertLess(drawn[900]["due"], 300 - 20, "no room: the saved due width shrinks")
+        self.assertGreaterEqual(drawn[900]["item"], 150, "the Item column keeps its room")
+        self.assertAlmostEqual(drawn[900]["owner"] / drawn[900]["due"], 400 / 300, delta=0.1, msg="and they shrink together, in proportion")
+
     def test_a_drag_writes_the_store_once_when_it_ends_and_starts_from_the_latest_width(self):
         src = (Path(page.__file__).parent / "src" / "edit" / "colWidths.jsx").read_text(encoding="utf-8")
         self.assertIn("now.current", src, "put reads the latest widths, not the render a drag began in")

@@ -209,7 +209,7 @@ function Panel({ s }) {
   const close = (how) => {
     const from = s.from;
     state.value = null;
-    if ((how === "esc" || how === "pick") && from && from.isConnected) from.focus({ preventScroll: true });
+    if ((how === "esc" || how === "pick" || how === "tab") && from && from.isConnected) from.focus({ preventScroll: true });
   };
   useLayoutEffect(() => {                         // inside the window, the same rule the pickers have
     const el = wrap.current;

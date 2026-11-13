@@ -121,7 +121,7 @@ const otherLayer = () => !!document.querySelector("dialog[open], [role=dialog], 
 
 export function installAskKeys() {
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && panelOpen.value) { e.preventDefault(); closePanel(); return; }
+    if (e.key === "Escape" && !e.isComposing && panelOpen.value) { e.preventDefault(); closePanel(); return; }
     // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
     if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
       if (otherLayer() || helpOpen.value) return;

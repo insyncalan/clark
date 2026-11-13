@@ -1650,7 +1650,7 @@
        "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
-       "**The header line**: the state, the **Owner** and the progress. Achieved, with its date, appears only once the milestone is achieved; picking Achieved sets the progress to 100%.",
+       "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
        "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons under the header line. Overdue is shown but cannot be picked.",
        "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, Forecast is a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
        "**Progress**: a slider and a number in the header line, set by hand.",
