@@ -62,7 +62,7 @@ OWN_PICTURE = re.compile(re.escape(OWN_PICTURE_NAME) + r"[0-9]{1,6}\Z")         
 OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"      # an older Word file, or an Office file with a password
 
 # Elements whose whole content is not read: deleted text, pictures and drawings, text boxes, the old-style fallback of a drawing.
-SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText"}
+SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText", "rPrChange"}   # rPrChange holds the OLD formatting of a tracked change
 NOT_TEXT = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 UNSEEN = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿\U000e0000-\U000e007f]")
 SPACES = re.compile(r"[ \t  -   　]+")
@@ -294,7 +294,7 @@ def _own_images(name, raw, names):
 
 
 def _styles(name, raw):
-    """{style id: {"name", "outline", "based", "num"}} from styles.xml (the parts of a style that say heading or list)."""
+    """{style id: {"name", "outline", "based", "num", "hidden"}} from styles.xml (the parts of a style that say heading or list)."""
     out, cur = {}, {}
     flags = {"numpr": False}
 
@@ -305,7 +305,7 @@ def _styles(name, raw):
         val = _attr(attrs, "val")
         if local == "style":
             cur.clear()
-            cur.update(id=_attr(attrs, "styleId"), name="", outline=None, based=None, num=None, ilvl=0)
+            cur.update(id=_attr(attrs, "styleId"), name="", outline=None, based=None, num=None, ilvl=0, hidden=False)
         elif not cur:
             return
         elif local == "name" and depth == 3:
@@ -314,6 +314,8 @@ def _styles(name, raw):
             cur["based"] = val
         elif local == "outlineLvl":
             cur["outline"] = _int(val)
+        elif local == "vanish" and depth == 4:
+            cur["hidden"] = (val or "true").lower() not in ("0", "false", "off")
         elif local == "numPr":
             flags["numpr"] = True
         elif flags["numpr"] and local == "numId":
@@ -445,11 +447,14 @@ class _Body:
             return
         val = _attr(attrs, "val")
         if local == "p":
-            self.para = {"text": [], "len": 0, "style": None, "num": None, "ilvl": 0, "outline": None}
+            self.para = {"text": [], "len": 0, "style": None, "num": None, "ilvl": 0, "outline": None, "hidden": False}
         elif local == "pPr":
             self.in_ppr = True
         elif local == "pStyle" and self.para is not None and self.in_ppr:
             self.para["style"] = val
+            if self.style_hidden(val):
+                self.para["hidden"] = True
+                self.counts["hidden"] += 1
         elif local == "numPr" and self.in_ppr:
             self.in_numpr = True
         elif local == "numId" and self.in_numpr and self.para is not None:
@@ -459,11 +464,19 @@ class _Body:
         elif local == "outlineLvl" and self.in_ppr and self.para is not None:
             self.para["outline"] = _int(val)
         elif local == "r":
-            self.in_run, self.run_hidden = True, False
-        elif local == "vanish" and self.in_run:
-            if (val or "true").lower() not in ("0", "false", "off"):
+            self.in_run = True
+            self.run_hidden = bool(self.para and self.para.get("hidden"))      # hidden by the paragraph's style; counted once there
+        elif local == "rStyle" and self.in_run and not self.in_ppr:
+            if not self.run_hidden and self.style_hidden(val):
                 self.run_hidden = True
                 self.counts["hidden"] += 1
+        elif local == "vanish" and self.in_run and not self.in_ppr:
+            if (val or "true").lower() not in ("0", "false", "off"):
+                if not self.run_hidden:
+                    self.counts["hidden"] += 1
+                self.run_hidden = True
+            elif not (self.para and self.para.get("hidden")):
+                self.run_hidden = False
         elif local == "t":
             self.in_t = True
         elif local == "tab" and self.in_run and not self.in_ppr:
@@ -550,6 +563,10 @@ class _Body:
             out.append(self.styles[style_id])
             style_id = self.styles[style_id].get("based")
         return out
+
+    def style_hidden(self, style_id):
+        """True when the style, or one it is based on, hides its text."""
+        return any(s.get("hidden") for s in self.style_chain(style_id))
 
     def heading_level(self, p, chain):
         if p["outline"] is not None:
