@@ -398,7 +398,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .ucl-name small { display: none; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; }
 .ucl-head, .ucl-ms { min-width: 0; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-head { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.ucl-head, .ucl-ms { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: block; font-size: var(--size-caption); }
 .ucl-st { justify-self: start; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }   /* row 1085: the status chip with the commitment chip beside it */
 .ucl-wi { font-size: var(--size-small); }
@@ -410,13 +410,15 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; }
+.ucl-none p { overflow-wrap: anywhere; }   /* a long search with no spaces wraps instead of widening the page */
 .ucl-none .btn { margin-top: 4px; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 1100px) {
   .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
   .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
-  .ucl-name small { display: block; }
+  .ucl-name small { display: -webkit-box; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
