@@ -657,6 +657,18 @@ class MutantsB1(unittest.TestCase):
         self.assertEqual(docx_build._gantt_status(r("2026-12-01", "2026-12-30", 1), d), "inprogress")
         self.assertEqual(docx_build._gantt_status(r("2026-11-06", "2026-11-06", 0), d), "inprogress")   # ends today: not yet late
 
+    def test_a_task_at_exactly_one_hundred_percent_is_done_even_when_it_ended_before_today(self):
+        """Mutant: pct > 100 for Done."""
+        d = date(2026, 11, 6)
+        r = {"start": date(2026, 10, 1), "end": date(2026, 10, 5), "pct": 100, "type": "task"}
+        self.assertEqual(docx_build._gantt_status(r, d), "done")
+        self.assertEqual(docx_build._gantt_status({**r, "pct": 99}, d), "late")
+
+    def test_a_para_rule_draws_the_line_and_a_plain_para_does_not(self):
+        """Mutant: the rule flag is inverted or ignored."""
+        self.assertIn("<w:pBdr>", docx_build.para("x", rule=True))
+        self.assertNotIn("<w:pBdr>", docx_build.para("x"))
+
     def test_the_limit_message_says_the_limit_in_binary_megabytes(self):
         big = 30 * 1048576
         with mock.patch.object(docx_build, "MAX_BYTES", big), mock.patch.object(docx_build, "zip_bytes", return_value=b"x" * (big + 1)):
