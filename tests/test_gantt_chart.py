@@ -504,6 +504,18 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
 
+    def test_enter_on_a_selected_milestone_opens_the_edit_box_from_the_keyboard(self):
+        self.look(1400, "light")
+        self.mount(edit=True)
+        sel = "[data-g-bar=GNT-007]"
+        self.assertEqual(self.val(f"document.querySelector({lit(sel)}).tagName"), "BUTTON")
+        self.keypress(sel, "Enter")      # not yet selected: selects only
+        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", "selected")
+        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+        self.keypress(sel, "Enter")      # selected: opens the box, as a bar does
+        self.until("document.querySelector('[data-g-box]')", "the box")
+        self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
+
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):
             for scheme, shift in (("light", 0), ("dark", 0), ("light", 45), ("dark", 45)):

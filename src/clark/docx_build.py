@@ -61,7 +61,7 @@ TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use 
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
-MAX_LEVELS = 3                                           # list levels written
+MAX_LEVELS = 4                                           # list levels written
 
 
 class WordError(ValueError):
@@ -712,7 +712,7 @@ def numbering_xml(ordered_lists):
     nums = '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>' + "".join(
         f'<w:num w:numId="{n + 1}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/>'
         "</w:lvlOverride></w:num>" for n in range(1, ordered_lists + 1))
-    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪"[i])
+    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪‣"[i])
                    + abstract(1, "decimal", lambda i: f"%{i + 1}.") + nums + "</w:numbering>")
 
 
