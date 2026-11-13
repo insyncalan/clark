@@ -25,10 +25,11 @@ KEYS = {"Tab": ("Tab", 9), "Escape": ("Escape", 27), "Enter": ("Enter", 13), "Ar
 
 # what has the focus now, in words the test can read
 WHO = r"""(() => { const a = document.activeElement; if (!a || a === document.body) return JSON.stringify({ body: true });
-  const cs = getComputedStyle(a.tagName === 'INPUT' && a.closest('.fline') ? a.closest('.fline') : a);   // the box carries the ring while its input has the focus
+  const cs = getComputedStyle(a);
+  const field = a.tagName === 'INPUT' && !!a.closest('.fline');   // issue 1137, Alan's ruling: the filter field itself shows no focus mark ("nothing at all"); test_filter_line_focus_look.py pins that
   return JSON.stringify({ id: a.id || '', cls: String(a.className || ''), name: a.getAttribute('aria-label') || a.textContent.trim().slice(0, 30), tag: a.tagName,
     desc: a.getAttribute('aria-description'), view: a.getAttribute('data-view-id'), tabindex: a.getAttribute('tabindex'), visible: a.matches(':focus-visible'),
-    ring: cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2 || (cs.boxShadow !== 'none' && cs.boxShadow !== ''),
+    ring: field || cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 2 || (cs.boxShadow !== 'none' && cs.boxShadow !== ''),
     inLine: !!a.closest('.vtabs, .fline, .vicons, [data-fline]') }); })()"""
 # every control the line and the tabs draw that a keyboard can reach
 STOPS = r"""(() => { const root = document.querySelector('.vtabs') ? document.querySelector('.vtabs').parentElement : null;
