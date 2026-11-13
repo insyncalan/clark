@@ -362,6 +362,8 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .fk.k-val.n { background: var(--grey-100); color: var(--grey-700); box-shadow: 0 0 0 2px var(--grey-100); }
 .fk.k-err { pointer-events: auto; cursor: text; text-decoration: underline wavy var(--status-red); text-underline-offset: 4px; }
 .fcount { flex: none; margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+/* every field's placeholder reads at the muted text colour (the browser default grey is 3.1:1 on the dark surface) */
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fline input::placeholder { color: var(--text-muted); }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
