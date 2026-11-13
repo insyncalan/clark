@@ -5,12 +5,13 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as A from "./brandApi.js";
 import * as L from "../logic/brand.js";
+import { BrandPick } from "./BrandPick.jsx";
 
 const REAL = { list: A.listBrands, review: A.reviewBrand, install: A.installBrand, remove: A.removeBrand, undo: A.undoBrand };
 const ok = (r) => r.status === 200 && r.body && r.body.ok === true;
 
 Brands.chip = L.TITLE;
-export function Brands({ api = REAL }) {
+export function Brands({ api = REAL, pick = {} }) {      // `pick` is a test seam for the project's picker ({project, save}); the page passes none
   const [state, setState] = useState({ phase: "loading", view: null, message: "" });
   const [panel, setPanel] = useState(null);           // null, or {id, view}
   const [armed, setArmed] = useState(null);           // null, or the brand id Remove asked about
@@ -29,6 +30,7 @@ export function Brands({ api = REAL }) {
     else setState({ phase: "failed", view: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); }, []);
+  useEffect(() => { if (armed) back("[data-remove-confirm]"); }, [armed]);      // Remove's question is drawn after the list: the focus goes to it
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
   async function review(from) {
@@ -41,12 +43,13 @@ export function Brands({ api = REAL }) {
     const r = await api.review(from);
     setBusy(false);
     // The server answers {ok: true, review: null} when no file was chosen (Cancel in the dialog, or nothing in Downloads).
-    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: from === "downloads" && !r.body.cancelled ? L.NO_BRAND : L.CANCELLED }); return; }
+    if (ok(r) && (r.body.cancelled || r.body.review === null)) { setMsg({ kind: "info", text: from === "downloads" && !r.body.cancelled ? L.NO_BRAND : L.CANCELLED }); back(opener.current); return; }
     if (ok(r) && r.body.review) {
       setPanel({ id: text(r.body.review.review_id), view: L.reviewView(r.body.review, state.view ? state.view.brands : []) });
       return;
     }
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
+    back(opener.current);                                        // refused: the button that was pressed took the focus away while it worked
   }
 
   // Install, Remove and Undo: ask, then read the list again whatever the answer was.
@@ -82,6 +85,7 @@ export function Brands({ api = REAL }) {
               ))}
             </ul>
           ) : <p class="muted" id="brands-list">{L.EMPTY}</p>}
+          <BrandPick brands={v.brands} {...pick} />
           {armed ? (
             <div class="row" onKeyDown={escape(closeAsk)}>
               <button type="button" class="btn pri" data-remove-confirm disabled={busy} onClick={remove}>{L.CONFIRM_REMOVE}</button>

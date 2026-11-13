@@ -21,7 +21,7 @@ import { getArchived } from "../api.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
-import { change, changeBulk, say, toast, undo } from "../stores/changes.js";
+import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
@@ -29,7 +29,7 @@ import { Icon } from "../components/Icon.jsx";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, addableMilestones, milestoneStepValues, milestoneLinks, linkableMilestones } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 
@@ -240,23 +240,7 @@ export function NextStep({ u }) {
   );
 }
 
-/** Row 1079: "Add a milestone": a menu of the project's milestones this use case does not have. A pick is ONE change, a next step ("Reach <name>")
- * that names the use case and the milestone, so the use case has the milestone the way its work items give it one; one Undo takes it back. */
-export function MilestoneAdd({ u }) {
-  const items = addableMilestones(data.value, u.id);
-  const pick = (id) => {
-    const m = items.find((x) => x.id === id);
-    if (m) change({ kind: "actions", op: "new", values: milestoneStepValues(m, u.id), place: "report" }, `${m.name} added to use case ${name(u)}. A next step points at it.`);
-  };
-  return (
-    <span class="ucx-msadd" data-ms-add={u.id} data-edit-only>
-      <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones" id={`ucd-msadd-${u.id}`} btnCls="btn sm" left
-        items={items.map((m) => ({ id: m.id, name: m.name }))} onPick={pick} />
-    </span>
-  );
-}
-
-/** Row 1107: "Link a milestone": a menu of the project's milestones this use case has no direct link to. A pick is ONE change (msadd) that links the
+/** Row 1141: "Add a milestone" (the link of row 1107): a menu of the project's milestones this use case has no direct link to. A pick is ONE change (msadd) that links the
  * use case itself to the milestone, with one Undo. */
 export function MilestoneLink({ u }) {
   const items = linkableMilestones(data.value, u.id);
@@ -266,7 +250,7 @@ export function MilestoneLink({ u }) {
   };
   return (
     <span class="ucx-mslink" data-ms-link={u.id} data-edit-only>
-      <Menu label="Link a milestone" ariaLabel={`Link a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
+      <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
         items={items} onPick={pick} />
     </span>
   );
@@ -277,34 +261,6 @@ export function MilestoneUnlink({ u, m }) {
   const go = () => change({ kind: "use_cases", op: "msremove", id: u.id, ids: [m.id], place: "report" }, `${m.name} unlinked from use case ${name(u)}.`,
     { focus: "[data-ms-link] button" });
   return <button type="button" class="link ucx-msrm" data-ms-unlink={m.id} data-edit-only aria-label={`Unlink ${m.name} from use case ${name(u)}`} onClick={go}>Unlink</button>;
-}
-
-/** Row 1079: "Remove" on a milestone of the use case: the use case's work items stop naming it (the milestone itself is kept, on the Milestones page).
- * One bulk change for its actions and one for its risks and issues (a bulk change is of one kind), and the toast's one Undo takes both back (Cmd or Ctrl+Z goes one step at a time). */
-export function MilestoneRemove({ u, m }) {
-  const busy = useRef(false);
-  const go = async () => {
-    if (busy.current) return;
-    busy.current = true;
-    try {
-      const links = milestoneLinks(data.value, u.id, m.id);
-      const steps = [];
-      for (const table of ["actions", "raid"]) {
-        if (links[table].length) {
-          const r = await changeBulk({ kind: table, op: "bulk", ids: links[table], changes: { milestone: null }, place: "cell", confirm: true }, "");   // confirm: the person pressed Remove, so a long list needs no second ask
-          if (r && r.ok && r.reply && r.reply.undoable === true && r.reply.apply_id) steps.push(r.reply.apply_id);
-        }
-      }
-      // Two steps were made (its actions, its risks and issues) but the toast holds one message: its Undo takes BOTH back (the newest first, each its own undo, so Cmd or Ctrl+Z does not undo the Undo), so the first is not lost.
-      if (steps.length > 1 && toast.value && toast.value.undo === steps[steps.length - 1]) {
-        toast.value = { ...toast.value, text: `${m.name} removed from use case ${name(u)}.`, undo: null, local: () => { for (const st of [...steps].reverse()) undo(st); } };
-      }
-    } finally {
-      busy.current = false;
-      setTimeout(() => { const b = document.querySelector("[data-ms-add] button"); if (b) b.focus({ preventScroll: true }); }, 60);     // the pressed button is gone: the focus goes to Add a milestone
-    }
-  };
-  return <button type="button" class="link ucx-msrm" data-ms-remove={m.id} data-edit-only aria-label={`Remove ${m.name} from use case ${name(u)}`} onClick={go}>Remove</button>;
 }
 
 /** "+ Link an existing work item": opens the box of the open work items that are not yet linked to this use case. */
@@ -330,6 +286,7 @@ function LinkBox({ uc, onClose, opener }) {
     await change({ kind: "use_cases", op: "link", id: uc, ids: picked, place: "report" }, linkedWords(n, name(u)));
   };
   const typed = (e) => {
+    if (e.isComposing || e.keyCode === 229) return;      // an input method is composing (keyCode 229 is Safari's word for it): Enter picks a candidate, not a row
     if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); }
     else if (e.key === "ArrowDown") { e.preventDefault(); const first = list.current && list.current.querySelector("input"); if (first) first.focus(); }
   };
@@ -380,4 +337,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneAdd, MilestoneRemove, MilestoneLink, MilestoneUnlink, Boxes, added };
+export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };

@@ -32,6 +32,8 @@ const ICONS = {
   dl: '<path d="M12 4v10M8 10l4 4 4-4M5 19h14"/>',
   ul: '<path d="M12 20V10M8 14l4-4 4 4M5 5h14"/>',
   user: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/>',
+  moon: '<path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/>',
+  sun: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
   half: '<circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor"/>',
   bars: '<path d="M6 19v-5M12 19v-9M18 19V5"/>',
   flash: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',

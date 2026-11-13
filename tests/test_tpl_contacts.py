@@ -6,7 +6,7 @@ import json
 import unittest
 
 import _tpl_notes as n
-from test_server import chrome
+from test_server import chrome, wait
 
 PEOPLE = [{"name": "Sam Example", "role": "Fictional lead", "email": "sam@example.org", "phone": "+44 20 7946 0000"},
           {"name": "Alex Example", "role": "", "email": "", "phone": ""}]
@@ -61,6 +61,24 @@ class Page(n.PageChecks):
             self.assertIn("Add a name", p.js(f"document.querySelector('{base} p[role=status]').textContent"))
             self.assertEqual(self.body_of(ref), before)
 
+    def test_a_nameless_person_does_not_hold_back_the_save_of_a_named_one(self):
+        ref = self.make(self.GOOD)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            base = f"[data-id={json.dumps(ref)}]"
+            p.until(f"!!document.querySelector('{base} .tpl-person')", "the fields")
+            p.js("[...document.querySelectorAll('" + base + " .btn')].find(b => b.textContent === 'Add a person').click()")
+            p.until(f"document.querySelectorAll('{base} .tpl-person').length === 3", "a blank person")
+            n.fill(p, n.field_js(ref, "Person 3 role"), "Fictional helper")
+            p.until(f"!!document.querySelector('{base} p[role=status]')", "the hint")
+            n.fill(p, n.field_js(ref, "Person 1 name"), "Sam Changed")
+            p.until(f"document.querySelectorAll('{base} .tpl-person').length === 3 && !!document.querySelector('{base} p[role=status]')", "the third person and the hint stay")
+            self.assertTrue(wait(lambda: self.body_of(ref) and json.loads(self.body_of(ref))["people"][0]["name"] == "Sam Changed", 10), "the named person was saved")
+            self.assertEqual(len(json.loads(self.body_of(ref))["people"]), 2, "the nameless person was not")
+            self.assertEqual(p.js(n.field_js(ref, "Person 3 role") + ".value"), "Fictional helper", "its draft is still there")
+            self.assertIn("Add a name", p.js(f"document.querySelector('{base} p[role=status]').textContent"))
+
     def test_add_a_person_and_remove_one(self):
         ref = self.make(self.GOOD)
         with chrome() as cdp:
@@ -74,6 +92,40 @@ class Page(n.PageChecks):
             p.js("document.querySelector('" + base + " [aria-label=\"Remove person 2\"]').click()")
             p.saved()
             self.assertEqual([x["name"] for x in json.loads(self.body_of(ref))["people"]], ["Sam Example"])
+
+    def _add_person(self, p, base, count):
+        p.js("[...document.querySelectorAll('" + base + " .btn')].find(b => b.textContent === 'Add a person').click()")
+        p.until(f"document.querySelectorAll('{base} .tpl-person').length === {count}", "a blank person")
+
+    def test_removing_a_saved_person_saves_while_an_added_nameless_row_waits(self):
+        ref = self.make(self.GOOD)
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            base = f"[data-id={json.dumps(ref)}]"
+            p.until(f"!!document.querySelector('{base} .tpl-person')", "the fields")
+            self._add_person(p, base, 3)
+            n.fill(p, n.field_js(ref, "Person 3 role"), "Fictional helper")
+            p.until(f"!!document.querySelector('{base} p[role=status]')", "the hint")
+            p.js("document.querySelector('" + base + " [aria-label=\"Remove person 1\"]').click()")
+            self.assertTrue(wait(lambda: [x["name"] for x in json.loads(self.body_of(ref))["people"]] == ["Alex Example"], 10), "the removal was saved")
+            self.assertEqual(p.js(n.field_js(ref, "Person 2 role") + ".value"), "Fictional helper", "the nameless row waits")
+
+    def test_editing_a_saved_person_after_a_later_one_was_named_and_saved_with_a_nameless_row_between(self):
+        ref = self.make({"v": 1, "people": PEOPLE[:1]})
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            base = f"[data-id={json.dumps(ref)}]"
+            p.until(f"!!document.querySelector('{base} .tpl-person')", "the fields")
+            self._add_person(p, base, 2)
+            n.fill(p, n.field_js(ref, "Person 2 role"), "Fictional helper")             # X: a role, no name
+            self._add_person(p, base, 3)
+            n.fill(p, n.field_js(ref, "Person 3 name"), "Yan Example")                   # Y: named, saved
+            self.assertTrue(wait(lambda: len(json.loads(self.body_of(ref))["people"]) == 2, 10), "Y was saved")
+            n.fill(p, n.field_js(ref, "Person 1 name"), "Sam Changed")
+            self.assertTrue(wait(lambda: json.loads(self.body_of(ref))["people"][0]["name"] == "Sam Changed", 10), "the edit of the first person was saved")
+            self.assertEqual(len(json.loads(self.body_of(ref))["people"]), 2, "the nameless row was not")
 
 
 if __name__ == "__main__":

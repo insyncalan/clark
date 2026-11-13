@@ -52,13 +52,14 @@ export function listOf(d, all) {
     if (r.use_case) link[r.id] = r.use_case;
     if (r.use_case && r.milestone && msById[r.milestone]) (ms[r.use_case] = ms[r.use_case] || new Set()).add(r.milestone);
   }
+  for (const l of (d.uc_milestones || [])) if (l.use_case && msById[l.milestone]) (ms[l.use_case] = ms[l.use_case] || new Set()).add(l.milestone);   // linked straight to the milestone (row 1107), as the use case's own page counts it
   const when = (m) => m.baseline_date || m.forecast_date || m.actual_date || "9999";
   return liveOf(d).map((u) => {
     const linked = all.filter((r) => link[r.id] === u.id), open = linked.filter(isOpen);
     const mine = [...(ms[u.id] || [])].map((id) => msById[id]).sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : a.name < b.name ? -1 : 1));
     const row = { u, id: u.id, ref: refOf(u), name: nameOf(u), headline: u.headline || "", status: u.status, commitment: commitWord(u), on: isOn(u), total: linked.length, open: open.length,
       ms: mine.map((m) => ({ id: m.id, name: m.name })) };
-    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
+    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, row.status, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
     return row;
   });
 }
