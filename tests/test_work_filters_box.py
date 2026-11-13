@@ -21,7 +21,7 @@ ENTRY = f'''import {{ render }} from "preact"; import {{ FilterBar }} from "{PAG
 import {{ data, openFilter }} from "{PAGE_SRC / "stores" / "report.js"}"; import {{ setFilterState }} from "{PAGE_SRC / "stores" / "report.js"}";
 import {{ decode }} from "{PAGE_SRC / "filters.js"}";
 window.draw = () => {{
-  data.value = {{ actions: [{{ id: "A-1", status: "Open", description: "one", owner: "Ann", priority: "High", due_date: "2026-12-01" }}], raid: [], decisions: [], milestones: [], use_cases: [] }};
+  data.value = {{ actions: [{{ id: "A-1", status: "Open", description: "one", owner: "Owner A", priority: "High", due_date: "2026-12-01" }}], raid: [], decisions: [], milestones: [], use_cases: [] }};
   render(<FilterBar />, document.getElementById("host"));
 }};
 window.start = (text) => setFilterState(decode(text));
@@ -88,14 +88,15 @@ class WorkFiltersBox(unittest.TestCase):
                 self.assertTrue(js("!!document.activeElement.closest('.fbar')"), "the focus is still in the filters")
 
     def test_a_box_that_must_turn_to_the_right_edge_does_not_then_run_off_the_left(self):
-        # Only a window about as narrow as the box can do this (the box is 260 px): so this one case is drawn at 300 px, not at the two product widths.
+        # At 900 px a box wider than its room both runs off the right (so it turns to the right edge) and, turned, off the left: drawn here by widening the box and moving the bar in from the left, not by narrowing the window.
         with chrome() as cdp:
-            sid = self.mount(cdp, 300)
+            sid = self.mount(cdp, 900)
             js = lambda e: cdp.js(e, sid)
+            js("(() => { const s = document.createElement('style'); s.textContent = '.fbox { width: 700px; }'; document.head.appendChild(s); document.getElementById('host').style.marginLeft = '300px'; })()")
             click(cdp, sid, "[data-fb=workstream]")
             self.assertTrue(wait(lambda: js("!!document.querySelector('.fbox')")))
             r = js("(() => { const b = document.querySelector('.fbox').getBoundingClientRect(); return [b.left, b.right, innerWidth]; })()")
-            self.assertGreaterEqual(r[0], 0, f"left edge {r}")
+            self.assertGreaterEqual(r[0], 8, f"left edge {r}")
             self.assertLessEqual(r[1], r[2], f"right edge {r}")
 
 
