@@ -18,6 +18,24 @@ import { MsLegend } from "./MsLegend.jsx";
 // The Dashboard's block (every place but the Milestones page) holds only what is on the page: a milestone taken off it with the eye
 // (report_hidden) or not for the client is not drawn, in View and in Edit, in the timeline, the Calendar and the list alike
 // (system/prototype/views.js:355). The Milestones page keeps every milestone, a left-out one marked in words.
+// Pressing the eye on the Dashboard takes the row off the page, so the button that had focus goes with it. Focus is planned before the press
+// (the next row's eye, else the previous row's, else the section's handle, else its title) and given once the row is gone.
+function keepFocus(e, dash) {
+  const eye = dash && e.target.closest && e.target.closest("button[data-ms-eye]");
+  if (!eye || eye.disabled) return;
+  const box = eye.closest(".msv"), art = box && box.closest("article");
+  const eyes = box ? [...box.querySelectorAll(".msl-row button[data-ms-eye]:not([disabled])")] : [], at = eyes.indexOf(eye);
+  const near = eyes[at + 1] || eyes[at - 1], next = near ? near.dataset.msEye : null, gone = eye.dataset.msEye;
+  let tries = 0;
+  const give = () => {
+    const row = document.querySelector(`.msl-row[data-ms="${CSS.escape(gone)}"]`);
+    if (row && row.contains(eye) && ++tries < 60) { requestAnimationFrame(give); return; }
+    const to = (next && document.querySelector(`.msl-row[data-ms="${CSS.escape(next)}"] button[data-ms-eye]`)) || (art && (art.querySelector(".handle") || art.querySelector(".sec-title")));
+    if (to) to.focus();
+  };
+  requestAnimationFrame(give);
+}
+
 export function MsBlock({ place, tools }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
   const dash = !client && place !== "page";
@@ -31,7 +49,7 @@ export function MsBlock({ place, tools }) {
   const open = (id) => openPeek(id, "milestone");   // row 1114: a published file's marks, labels, chips and rows open the file's read only peek, as the editor's open theirs
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (
-    <div class="msv" data-view={view} data-place={place}>
+    <div class="msv" data-view={view} data-place={place} onClickCapture={(e) => keepFocus(e, dash)}>
       <div class="msv-sw" role="group" aria-label="Milestone view">
         {[["line", "Timeline"], ["cal", "Calendar"]].map(([v, t]) => (
           <button type="button" key={v} class="msv-b" data-msvb={v} aria-label={t} aria-current={String(view === v)} onClick={() => choose(v)}><Icon name={v === "line" ? "tline" : "cal"} /><span>{t}</span></button>
