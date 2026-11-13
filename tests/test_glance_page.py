@@ -521,13 +521,15 @@ class Published(PublishedFile, Setup):
         """Two more of each kind the tiles count: one that is left out of the file (client-off, or taken off the report), so the file holds fewer than the project."""
         with self.store.step("dashboard", USER) as st:
             risk = {"project": "ABC", "type": "Risk", "raised": "2026-10-01", "source": "demo", "impact": "High", "likelihood": "High", "owner": "Pat Demo"}
-            st.create("raid", {**risk, "description": "ZQ-second risk"})
+            st.create("raid", {**risk, "description": "ZQ second risk"})
             st.create("raid", {**risk, "description": "ZQ-client-off risk", "client_visible": 0})
             hidden = st.create("raid", {**risk, "description": "ZQ-hidden risk"})
             st.create("decisions", {"project": "ABC", "decision": "ZQ second decision", "source": "demo", "status": "Pending", "needed_by": "2020-03-01"})
             st.create("decisions", {"project": "ABC", "decision": "ZQ-client-off decision", "source": "demo", "status": "Pending", "client_visible": 0})
             gone = st.create("decisions", {"project": "ABC", "decision": "ZQ-hidden decision", "source": "demo", "status": "Pending"})
-            st.update("glance_tiles", "decisions", {"hidden": 0})
+            if not self.store.read("glance_tiles", "ABC"):
+                st.seed_tiles("ABC")
+            st.update("glance_tiles", "ABC|decisions", {"hidden": 0})
         for item in (hidden, gone):
             self.store.con.execute("INSERT INTO report_hidden (project, item_id) VALUES ('ABC', ?)", (item,))
         self.store.con.commit()

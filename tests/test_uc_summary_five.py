@@ -96,10 +96,10 @@ class PublishedFive(PublishedFile, Setup):
         self.more(4)
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "false")
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None, "Show all carries no aria-expanded")
             p.js("document.querySelector('[data-ucall]').click()")
             p.until(f"{ROWS} === 6", "all shown")
-            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None)
             self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "true", "the choice is remembered")
             reload_to_new_page(p.js, f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
             self.assertEqual(p.js(BUTTON), "Show the first 5")
