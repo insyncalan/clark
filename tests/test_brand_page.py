@@ -96,9 +96,47 @@ class Page(InBrowser):
                 self.replies(review=OK(real))
                 self.mount()
                 self.click("[data-choose]" if source == "file" else "[data-review]")
-                self.assertEqual(self.text(".pub-msg"), "No file was chosen, so nothing was changed.")
+                want = "No file was chosen, so nothing was changed." if source == "file" else "No brand file was found."
+                self.assertEqual(self.text(".pub-msg"), want)
                 self.assertEqual(self.val("document.querySelector('.pub-msg p').className"), "info")
                 self.assertFalse(self.present("#brands-panel"))
+
+    def test_a_brand_with_no_folder_of_its_own_has_no_remove_button_at_1400_and_900(self):
+        listing = {**LIST, "brands": [LIST["brands"][0], {"id": "fabrikam", "name": "Fabrikam", "version": "2.1.0", "own_folder": False},
+                                              {"id": "local-brand", "name": "local-brand", "version": "", "own_folder": False, "alias": "local-brand"}]}
+        for width in up.WIDTHS:
+            with self.subTest(width=width):
+                self.load(width=width, theme="light")
+                self.replies(list=OK(listing))
+                self.mount()
+                self.assertTrue(self.present("#brands-list li[data-brand='example-brand'] [data-remove]"))
+                self.assertTrue(self.present("#brands-list li[data-brand='fabrikam']"))
+                self.assertFalse(self.present("#brands-list li[data-brand='fabrikam'] [data-remove]"))
+                self.assertTrue(self.present("#brands-list li[data-brand='local-brand']"))
+                self.assertFalse(self.present("#brands-list li[data-brand='local-brand'] [data-remove]"))
+
+    def test_the_red_error_can_be_dismissed(self):
+        self.replies(review=OK(REFUSAL, 409))
+        self.mount()
+        self.click("[data-review]")
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').className"), "error")
+        self.assertTrue(self.present(".pub-msg [data-dismiss]"))
+        self.click(".pub-msg [data-dismiss]")
+        self.assertEqual(self.text(".pub-msg"), "")
+        self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+
+    def test_a_calm_line_has_no_dismiss_button(self):
+        self.replies(review=OK({"ok": True, "review": None}))
+        self.mount()
+        self.click("[data-review]")
+        self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+
+    def test_review_is_the_primary_button_only_when_there_is_something_to_review(self):
+        for ready in (False, True):
+            with self.subTest(ready=ready):
+                self.replies(list=OK({**LIST, "review_ready": ready}))
+                self.mount()
+                self.assertEqual(self.val("document.querySelector('[data-review]').classList.contains('pri')"), ready)
 
     def test_choose_asks_for_a_file(self):
         self.mount()
@@ -113,6 +151,35 @@ class Page(InBrowser):
         self.click("[data-remove-confirm]")
         self.assertEqual(self.val("T.calls.slice(-2)[0]"), ["remove", "example-brand"])
 
+    def test_keys_cancel_and_escape_hand_the_focus_back(self):
+        """Item keys-settings: Cancel (or Esc) on Remove's question, and on the review panel, took the focus with it; it now goes back to the
+        button that opened them (that brand's Remove; Review or Choose)."""
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how, what="remove"):
+                self.mount()
+                self.js("document.querySelector('#brands-list [data-remove]').focus()")
+                self.click("#brands-list [data-remove]")
+                self.assertTrue(self.present("[data-remove-confirm]"))
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                if how == "cancel":
+                    self.click("[data-remove-confirm] + button")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("[data-remove-confirm]"), "the question closed")
+                self.assertEqual(self.focused(), "button[data-remove]", "the focus is back on that brand's Remove")
+            for opener in ("data-review", "data-choose"):
+                with self.subTest(how=how, what=opener):
+                    self.mount()
+                    self.js(f"document.querySelector('[{opener}]').focus()")
+                    self.click(f"[{opener}]")
+                    self.assertTrue(self.present("#brands-panel"))
+                    if how == "cancel":
+                        self.click("#brands-panel [data-cancel]")
+                    else:
+                        self.press("Escape", 27)
+                    self.assertFalse(self.present("#brands-panel"), "the panel closed")
+                    self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()
@@ -123,7 +190,7 @@ class Page(InBrowser):
         self.replies(review=OK(REFUSAL, 409))
         self.mount()
         self.click("[data-review]")
-        self.assertEqual(self.text(".pub-msg"), REFUSAL["message"])
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').firstChild.textContent.trim()"), REFUSAL["message"])
         self.assertFalse(self.present("#brands-panel"))
         self.assertEqual(self.calls(), ["list", "review"])
 
@@ -131,7 +198,7 @@ class Page(InBrowser):
         self.replies(review=OK({"ok": False, "code": "damaged"}, 409))
         self.mount()
         self.click("[data-review]")
-        self.assertEqual(self.text(".pub-msg"), self.val("T.logic.GENERIC"))
+        self.assertEqual(self.val("document.querySelector('.pub-msg p').firstChild.textContent.trim()"), self.val("T.logic.GENERIC"))
 
     def test_the_card_holds_no_deny_list_word(self):
         from clark import brands

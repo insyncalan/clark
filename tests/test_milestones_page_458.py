@@ -551,6 +551,34 @@ class Published(unittest.TestCase):
             self.assertEqual(cdp.js("document.querySelector('.msl-all').textContent", sid), "Show the first 5")
             self.assertEqual(cdp.js("document.querySelectorAll('textarea, #mvNote, #mv-recover, #mv-escalate').length", sid), 0)
 
+    def test_the_file_never_writes_the_editors_show_all_keys(self):
+        # hunt 8: ucAll and msAll are the editor's keys, shared by every file on file://; a published file keeps none of them
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        with demo.store.step("dashboard", USER) as step:
+            for n in range(1, 8):
+                step.create("milestones", {"project": "ABC", "name": f"Extra {n}", "baseline_date": f"2027-0{n}-10", "client_visible": 1, "source": "demo"})
+                step.create("use_cases", {"project": "ABC", "title": f"Case {n}", "status": "On track", "source": "demo"})
+        folder = tempfile.mkdtemp(prefix="clark-pub-")
+        self.addCleanup(shutil.rmtree, folder, True)
+        done = publish.publish(demo.store, "ABC", folder, by_user=USER, now=TODAY, branding=EMPTY_BRANDING)
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = page_target(cdp)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.msl-all')", sid)))
+                cdp.js("document.querySelector('.msl-all').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.msl-row').length > 5", sid)))
+                cdp.js("location.hash = '#dashboard'", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucall]')", sid)), "the use cases list has Show all")
+                cdp.js("document.querySelector('[data-ucall]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded') === 'true'", sid)))
+                keys = cdp.js("Object.keys(localStorage).filter(k => /msAll|ucAll/.test(k))", sid)
+                self.assertEqual(keys, [], f"a published file wrote the editor's keys at {width}")
+
 
 if __name__ == "__main__":
     unittest.main()

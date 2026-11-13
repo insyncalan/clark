@@ -147,6 +147,26 @@ class Refuses(unittest.TestCase):
         with self.assertRaises(WordRefused):
             word_brand.wrap(b"not a word file", BUILT)
 
+    def swapped(self, name, text):
+        """The template with one part's text replaced."""
+        p = parts(template())
+        p[name] = text.encode("utf-8")
+        out = io.BytesIO()
+        with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+            for n, d in p.items():
+                z.writestr(zipfile.ZipInfo(n, (2020, 1, 1, 0, 0, 0)), d, zipfile.ZIP_DEFLATED)
+        return out.getvalue()
+
+    def test_a_part_with_no_closing_tag_is_refused_in_words_not_a_bare_error(self):
+        for name, text in (("word/styles.xml", HEAD + f'<w:styles xmlns:w="{W}"/>'),
+                           ("word/_rels/document.xml.rels", HEAD + '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>'),
+                           ("[Content_Types].xml", HEAD + '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"/>'),
+                           ("word/document.xml", HEAD + "<w:body><w:p/></w:body>")):
+            with self.subTest(name):
+                with self.assertRaises(WordRefused) as e:
+                    word_brand.wrap(self.swapped(name, text), BUILT)
+                self.assertIn("The Word template in the branding folder", str(e.exception))
+
 
 class Find(unittest.TestCase):
     def test_found_only_as_a_plain_file_inside_the_folder(self):

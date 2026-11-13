@@ -24,6 +24,7 @@ export function MsBlock({ place, tools }) {
   const Eye = !client && tools && tools.MsEye && isEditing() ? tools.MsEye : null;
   const left = dash || Eye ? new Set(leftOutIds(data.value)) : null;      // #520: the ids left out of the published page, built once (the Dashboard's rows and the Eye's marks both read it)
   const rows = milestoneRows(data.value.milestones, today, client).filter((r) => !dash || (r.clientVisible && !left.has(r.id)));
+  const CW = Eye && tools.colWidths ? tools.colWidths : null;      // row 1104: the Edit part's column widths hook; the published file and View have none
   const AddBack = dash && tools && tools.MsAddBack && isEditing() ? tools.MsAddBack : null;
   const [view, setView] = useState(() => (client ? "line" : recall(`msv.${place}`, "line") === "cal" ? "cal" : "line"));
   const choose = (v) => { if (!client) remember(`msv.${place}`, v); setView(v); };
@@ -39,7 +40,7 @@ export function MsBlock({ place, tools }) {
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
         {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
       </div>
-      <MsList rows={rows} place={place} open={open} canFold={!client} internalTag={!client} Eye={Eye} left={left} legend={<MsLegend client={client} id={place} />} />
+      <MsList CW={CW} rows={rows} place={place} open={open} canFold={!client} internalTag={!client} Eye={Eye} left={left} legend={<MsLegend client={client} id={place} />} />
       {AddBack ? <AddBack /> : null}
     </div>
   );

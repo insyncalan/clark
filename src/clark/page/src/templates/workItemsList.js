@@ -22,6 +22,8 @@ export const DEFAULT_MAX = 10;
 export const MAX_CAPTION = 200;
 const CLOSED = ["Closed", "Cancelled", "Made", "Withdrawn"];
 const FILTERS = ["kinds", "status", "due", "owner", "workstream", "use_case", "priority"];
+export const LEFT_OUT = [...FILTERS, "milestone"];      // what a "not" may name
+export const PRESENT = ["type", "status", "owner", "priority", "due", "workstream", "usecase", "milestone"];      // what has: and no: may name
 const WORK = ["actions", "raid", "decisions"];
 
 // The words a person reads for each choice.
@@ -35,9 +37,10 @@ export const WORDS = {
 };
 
 // The filter a new list starts from: open work items of every kind, soonest due first, ten at most, the default columns.
+const leftOut = () => Object.fromEntries(LEFT_OUT.map((f) => [f, []]));
 export function defaults() {
   return { v: 1, kinds: [], mode: "open", status: [], due: [], owner: [], workstream: [], use_case: [], priority: [], sort: "due",
-    max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "" };
+    max: DEFAULT_MAX, columns: DEFAULT_COLUMNS.slice(), caption: "", milestone: [], not: leftOut(), has: [], no: [], text: [] };
 }
 
 const isList = (v) => Array.isArray(v) && v.every((x) => typeof x === "string");
@@ -51,7 +54,9 @@ export function filterOf(section) {
   try { v = JSON.parse(body); } catch (e) { return null; }
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   const out = defaults();
-  for (const f of [...FILTERS, "columns"]) if (isList(v[f])) out[f] = v[f].slice();
+  for (const f of [...FILTERS, "columns", "milestone", "text"]) if (isList(v[f])) out[f] = v[f].slice();
+  if (v.not && typeof v.not === "object" && !Array.isArray(v.not)) for (const f of LEFT_OUT) if (isList(v.not[f])) out.not[f] = v.not[f].slice();
+  for (const f of ["has", "no"]) if (Array.isArray(v[f])) out[f] = v[f].filter((g) => isList(g) && g.length).map((g) => g.slice());
   if (MODES.includes(v.mode)) out.mode = v.mode;
   if (SORTS.includes(v.sort)) out.sort = v.sort;
   if (Number.isInteger(v.max) && v.max >= 1 && v.max <= MAX_ROWS) out.max = v.max;
@@ -65,19 +70,21 @@ export function bodyOf(filter) { return JSON.stringify(filter); }
 // One flat list for the rules, from the rows of a project's data: as section_kinds/workitems.py rows_of.
 export function ruleRows(data) {
   const out = [];
-  for (const r of (data && data.actions) || []) out.push({ id: r.id, kind: "action", status: r.status, owner: r.owner, workstream: r.workstream, use_case: r.use_case, priority: r.priority, due: r.due_date });
-  for (const r of (data && data.raid) || []) out.push({ id: r.id, kind: String(r.type == null ? "" : r.type).toLowerCase(), status: r.status, owner: r.owner, workstream: r.workstream, use_case: r.use_case, priority: r.priority, due: r.due_date });
-  for (const r of (data && data.decisions) || []) out.push({ id: r.id, kind: "decision", status: r.status, owner: r.made_by, workstream: null, use_case: r.use_case, priority: null, due: r.status === "Pending" ? r.needed_by : r.date });
+  const ms = Object.fromEntries(((data && data.milestones) || []).map((m) => [m.id, tidy(m.name)]));
+  for (const r of (data && data.actions) || []) out.push({ id: r.id, kind: "action", title: r.description, milestone: ms[r.milestone] || "", status: r.status, owner: r.owner, workstream: r.workstream, use_case: r.use_case, priority: r.priority, due: r.due_date });
+  for (const r of (data && data.raid) || []) out.push({ id: r.id, kind: String(r.type == null ? "" : r.type).toLowerCase(), title: r.description, milestone: ms[r.milestone] || "", status: r.status, owner: r.owner, workstream: r.workstream, use_case: r.use_case, priority: r.priority, due: r.due_date });
+  for (const r of (data && data.decisions) || []) out.push({ id: r.id, kind: "decision", title: r.decision, milestone: "", status: r.status, owner: r.made_by, workstream: null, use_case: r.use_case, priority: null, due: r.status === "Pending" ? r.needed_by : r.date });
   return out;
 }
 
+const low = (s) => String(s == null ? "" : s).toLowerCase();
 const isOpen = (r) => !CLOSED.includes(r.status);
 const tidy = (v) => (typeof v === "string" ? v.split(/\s+/).filter(Boolean).join(" ") : "");
 
 function bucket(r, today) {
   const a = dayNumber(r.due), t = dayNumber(today);
   if (a === null || t === null) return "none";
-  if (!isOpen(r)) return "";
+  if (!isOpen(r) || (a < t && r.status === "Completed")) return "";     // closed, or finished work: never Overdue
   return a < t ? "overdue" : a - t <= 7 ? "soon" : "later";
 }
 
@@ -86,7 +93,26 @@ function member(r, field, chosen, today) {
   if (field === "kinds") return chosen.includes(r.kind);
   if (field === "status") return chosen.includes(r.status);
   if (field === "due") return chosen.includes(bucket(r, today));
+  if (field === "milestone") return chosen.some((c) => low(c) === low(tidy(r.milestone) || NONE));
   return chosen.includes(tidy(r[field]) || NONE);
+}
+
+// Nothing in the field, as the page's no: reads it (a type and a status are never empty).
+function emptyIn(r, field, today) {
+  if (field === "due") return dayNumber(r.due) === null || dayNumber(today) === null;
+  const key = field === "usecase" ? "use_case" : field;
+  if (key === "type" || key === "status") return false;
+  return !tidy(r[key]);
+}
+
+// The parts of the filter beyond the choices: milestone, not, has, no and the free words (section_kinds/workitems.py _allowed).
+function allowed(r, f, today) {
+  if (!member(r, "milestone", f.milestone, today)) return false;
+  if (LEFT_OUT.some((k) => f.not[k].length && member(r, k, f.not[k], today))) return false;
+  if (f.has.some((g) => g.every((k) => emptyIn(r, k, today)))) return false;
+  if (f.no.some((g) => !g.some((k) => emptyIn(r, k, today)))) return false;
+  const hay = low(`${r.title || ""} ${r.id || ""}`);
+  return f.text.every((w) => hay.includes(low(w)));
 }
 
 const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
@@ -97,11 +123,37 @@ function byDue(x, y) {
 }
 const rank = (r) => { const i = PRIORITIES.indexOf(r.priority); return i < 0 ? PRIORITIES.length : i; };
 
+// The filter with the owners, workstreams and use cases that no longer exist taken out of its choices; null when a choice list had
+// names and none is left (a name that is gone matches nothing): section_kinds/workitems.py _alive. `live` as liveOf makes it.
+function alive(filter, live) {
+  if (!live) return filter;
+  const ok = {
+    owner: (c) => !(live.goneOwner || []).includes(low(tidy(c))),
+    workstream: (c) => !live.workstream || live.workstream.includes(low(tidy(c))),
+    use_case: (c) => !live.use_case || live.use_case.includes(c),
+  };
+  const out = { ...filter };
+  for (const f of Object.keys(ok)) {
+    if (!filter[f].length) continue;
+    out[f] = filter[f].filter((c) => c === NONE || ok[f](c));
+    if (!out[f].length) return null;
+  }
+  return out;
+}
+
+// What still exists in the data the page has: workstream names, use case ids, and the owners archived from the people list.
+export function liveOf(data) {
+  const some = (k, f) => (Array.isArray(data && data[k]) ? data[k].map(f) : null);
+  return { workstream: some("workstreams", (w) => low(tidy(w.name))), use_case: some("use_cases", (u) => u.id), goneOwner: (data && data.gone_owners) || [] };
+}
+
 // The ids of `rows` (ruleRows' shape) that `filter` lists, sorted and cut to its max: section_kinds/workitems.py matching().
-export function matching(filter, rows, today) {
+export function matching(filter, rows, today, live) {
+  filter = alive(filter, live);
+  if (!filter) return [];
   const hits = rows.filter((r) => typeof r.id === "string" && r.id
     && (filter.mode === "all" || (filter.mode === "open") === isOpen(r))
-    && FILTERS.every((f) => member(r, f, filter[f], today)));
+    && FILTERS.every((f) => member(r, f, filter[f], today)) && allowed(r, filter, today));
   const closedLast = (x, y) => cmp(isOpen(x) ? 0 : 1, isOpen(y) ? 0 : 1);
   if (filter.sort === "id") hits.sort((x, y) => cmp(x.id, y.id));
   else if (filter.sort === "priority") hits.sort((x, y) => closedLast(x, y) || cmp(rank(x), rank(y)) || byDue(x, y) || cmp(x.id, y.id));
@@ -120,6 +172,7 @@ export function publishedOnly(data) {
   const rules = servedRules(data);
   const out = { ...data };
   for (const k of WORK) out[k] = ((data && data[k]) || []).filter((r) => publishable(r, k, rules));
+  out.milestones = ((data && data.milestones) || []).filter((m) => publishable(m, "milestones", rules));      // a client sees a milestone's name only when it is published
   return out;
 }
 
@@ -135,7 +188,7 @@ export function listOf(section, data, today) {
   }
   const filter = filterOf(section);
   if (!filter) return { items: [], columns: DEFAULT_COLUMNS.slice(), caption: "", saved: false };
-  return { items: matching(filter, ruleRows(publishedOnly(data)), today), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
+  return { items: matching(filter, ruleRows(publishedOnly(data)), today, liveOf(data)), columns: filter.columns.length ? filter.columns : DEFAULT_COLUMNS.slice(), caption: filter.caption, saved: true };
 }
 
 // The rows to draw for a list's ids, in the ids' order, from the data (workItems.js rowsOf: title, owner, dates, status).

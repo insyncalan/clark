@@ -43,7 +43,7 @@ class TheFilesUseCasePage(unittest.TestCase):
                         self.assertIn(word, page)
                     # the card headings are read from the headings themselves, so the same words elsewhere on the page do not satisfy this
                     heads = js(cdp, sid, "[...document.querySelectorAll('[data-ucf] .ucf-ch')].map(e => (e.firstElementChild || e).textContent.trim())")
-                    self.assertEqual(heads, ["Where it stands", "Work items", "Milestones"], "the real words, not the uppercased look")
+                    self.assertEqual(heads, ["Where it stands", "Work items", "Details", "Milestones"], "the real words, not the uppercased look")
                     # and the cards are drawn: the file has its own rules for them (an unstyled page has no border, no grid)
                     look = js(cdp, sid, "(() => { const c = getComputedStyle(document.querySelector('[data-ucf] .ucf-card')); const g = getComputedStyle(document.querySelector('[data-ucf] .ucf-grid')); return [c.borderTopWidth, g.display, g.gridTemplateColumns.split(' ').length]; })()")
                     self.assertEqual(look, ["1px", "grid", 2 if width == 1400 else 1], "a bordered card; two columns at 1400, one at 900 (the 1100 px rule)")
@@ -51,6 +51,15 @@ class TheFilesUseCasePage(unittest.TestCase):
                     # every button on the file is one of the navigation openers: a work item tile, a milestone name, the open-all link
                     loose = js(cdp, sid, "[...document.querySelectorAll('[data-ucf] button, [data-ucf] [role=button], [data-ucf] [role=textbox], [data-ucf] [role=combobox]')].filter(b => !b.matches('[data-item], [data-ms-open], [data-open-all]')).length")
                     self.assertEqual(loose, 0, "no button on the file other than the tiles, the milestone names and open-all")
+                    # row 1111: the Details card is read only and holds only what the file carries (status, and commitment when set), never an owner or a last change
+                    uc = pub["data"]["use_cases"][0]
+                    det = js(cdp, sid, "(() => { const c = document.querySelector('[data-ucf-details]'); return c ? {labels: [...c.querySelectorAll('dt')].map(e => e.textContent), text: c.innerText, controls: c.querySelectorAll('input, textarea, select, button, a, [contenteditable=true]').length} : null; })()")
+                    self.assertIsNotNone(det, "a Details card")
+                    self.assertEqual(det["labels"], ["Status"] + (["Commitment"] if uc.get("commitment") else []))
+                    self.assertIn(uc["status"], det["text"])
+                    self.assertEqual(det["controls"], 0, "the Details card is read only")
+                    for word in ("OWNER", "LAST CHANGE", "DASHBOARD"):
+                        self.assertNotIn(word, det["text"].upper(), "a field the file does not carry")
                     self.assertNotIn("HISTORY", page.upper(), "no History in a published file")
                     self.assertNotIn("CHANGE STATUS", page.upper())
                     self.assertEqual(js(cdp, sid, "document.querySelectorAll('[data-item]').length"), 2, "its two shared next steps, as work items")
