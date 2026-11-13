@@ -129,6 +129,17 @@ class InBrowser(unittest.TestCase):
     def present(self, selector):
         return bool(self.js(f"!!document.querySelector({lit(selector)})"))
 
+    def press(self, key, vk):
+        """A real key to the focused element, then a moment for the page to redraw."""
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk}, self.sid)
+        self.settle()
+
+    def focused(self):
+        """Which control holds the focus: its data- attribute names, or its tag, or 'body'."""
+        return self.js("(() => { const e = document.activeElement; if (!e || e === document.body) return 'body'; "
+                       "return e.tagName.toLowerCase() + [...e.attributes].filter(a => a.name.startsWith('data-')).map(a => '[' + a.name + ']').join(''); })()")
+
     def calls(self):
         return self.val("T.calls.map(c => c[0])")
 
@@ -215,6 +226,21 @@ class Card(InBrowser):
         self.click("[data-install]")
         self.assertEqual(self.val("T.calls[2]"), ["install", "r1"])
         self.assertEqual(1, self.val("T.reloads"))
+
+    def test_keys_cancel_and_escape_on_the_review_panel_give_the_focus_back_to_the_button_that_opened_it(self):
+        """Item keys-settings: closing the panel took the focus with it (it fell to the page, so the next Tab began at the top bar)."""
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how):
+                self.mount()
+                self.js("document.querySelector('[data-review]').focus()")
+                self.click("[data-review]")
+                self.assertEqual(self.focused(), "p", "the panel's heading holds the focus once it opens")
+                if how == "cancel":
+                    self.click("[data-cancel]")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("#update-panel"), "the panel closed")
+                self.assertEqual(self.focused(), "button[data-review]", "the focus is back on the button that opened the panel")
 
     def test_copy_puts_the_notes_on_the_clipboard_and_says_so(self):
         self.mount()

@@ -951,7 +951,8 @@ class ThroughTheServer(unittest.TestCase):
         self.assertEqual(status, 500)
         self.assertNotIn("secret", json.dumps(body))
 
-    def test_the_server_module_still_imports_nothing_from_clark(self):
+    def test_the_server_module_imports_no_clark_module(self):
+        # item 1100: the needs-Mac error is found by its class name, so server.py imports no clark module at all (test_updater pins the same)
         import ast
         tree = ast.parse((SRC / "clark" / "server.py").read_text(encoding="utf-8"))
         names = [a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names]
