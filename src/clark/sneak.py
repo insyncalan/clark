@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 
 from clark.changes import (ACHIEVED_DATE, ARCHIVED_MILESTONE, ARCHIVED_USE_CASE, NO_PROJECT, UC_COMMITMENTS, UC_COMMITMENT_WORDS,
                            UC_HEADLINE_WORDS, Refused, _checked_use_case_changes)
+from clark import timefmt
 from clark.edit_ai import unseen
 
 TABLES = (("actions", "action"), ("raid", None), ("decisions", "decision"))
@@ -146,8 +147,7 @@ def phrase_of(words, rx, skip=None):
 
 
 def _dmy(iso):
-    m = re.fullmatch(r"(\d{4})-(\d\d)-(\d\d)", iso or "")
-    return f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else (iso or "—")
+    return timefmt.day_text(iso) if iso else "—"
 
 
 def _statuses_for(words, kind):

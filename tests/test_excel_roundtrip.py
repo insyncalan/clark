@@ -6,11 +6,12 @@ Run: python3 dev/run_tests.py test_excel_roundtrip
 """
 import atexit
 import json
+import re
 import shutil
 import zipfile
 import tempfile
 import unittest
-from datetime import date
+from datetime import date, time
 from pathlib import Path
 
 import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
@@ -167,6 +168,43 @@ class RoundTrip(unittest.TestCase):
         """The usual few edits: an action's owner and due date, a decision's status, a cleared nullable cell."""
         edit(self.path, "Actions", self.a1, Owner="Sam Example", Due=date(2030, 5, 20), **{"Latest update": None})
         edit(self.path, "Decisions", self.d1, Status="Withdrawn")
+
+    # Row 966 follow-up: a long text the store holds is no change when the workbook gives it back; a time or an Excel day 60 is named or refused.
+
+    def long_text(self, n):
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", self.a1, {"description": "x" * n})
+        self.export_again()
+
+    def problems(self):
+        return [p.message for p in self.read().problems]
+
+    def test_an_unchanged_long_text_is_no_change_and_a_changed_one_is_refused(self):
+        for n in (12000, 40000):
+            self.long_text(n)
+            plan = self.read()
+            self.assertEqual([p.message for p in plan.problems], [], n)
+            self.assertEqual(plan.changes, [], n)
+        edit(self.path, "Actions", self.a1, Description="y" * 12000)
+        self.assertTrue(any("too long (12,000 characters" in m for m in self.problems()))
+
+    def test_a_time_in_a_date_cell_is_named_as_a_time(self):
+        edit(self.path, "Actions", self.a1, Due=time(0, 0))
+        self.assertTrue(any("(got 00:00)" in m for m in self.problems()), self.problems())
+
+    def test_excel_day_60_and_a_negative_day_are_not_dates(self):
+        for serial in (60, -5):
+            edit(self.path, "Actions", self.a1, Due=date(2030, 5, 20))
+            with zipfile.ZipFile(self.path) as z:
+                parts = {n: z.read(n) for n in z.namelist()}
+            sheet = "xl/worksheets/sheet%d.xml" % (load_workbook(str(self.path)).sheetnames.index("Actions") + 1)
+            fixed = re.sub(rb"<v>%d</v>" % 47623, b"<v>%d</v>" % serial, parts[sheet])
+            self.assertNotEqual(fixed, parts[sheet])
+            parts[sheet] = fixed
+            with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as z:
+                for n, b in parts.items():
+                    z.writestr(n, b)
+            self.assertTrue(any("must be a date" in m for m in self.problems()), serial)
 
 
 class FormulaGuard(unittest.TestCase):
@@ -945,7 +983,7 @@ class UseCaseDone(RoundTrip):
     def test_a_status_that_is_not_one_of_the_four_is_still_refused(self):
         edit(self.path, "Use cases", self.demo.use_case, Status="Finished")
         p = self.read()
-        self.assertEqual([c.problem for c in p.changes], ["Status must be one of On track, Flag, High risk, Done (got 'Finished')"])
+        self.assertEqual([c.problem for c in p.changes], ["Status must be one of On track, Flag, High risk, Done (the cell says Finished)"])
         p.accept_all()
         xi.apply_import(self.s, p, USER, state_path=self.state)
         self.assertEqual(self.s.read("use_cases", ref=self.demo.use_case)["status"], "On track", "a change with a problem is not applied")

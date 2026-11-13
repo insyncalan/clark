@@ -12,8 +12,10 @@ import _publish_fixture as fx
 from clark import page, publish
 from test_server import chrome, wait
 import test_publish as tp
+from _new_page import reload_to_new_page_cdp
 
 CONTROLS = "button, input, textarea, select, [role=textbox], [role=combobox]"
+PEEK_LABELS = ("Description", "Agreed date", "Forecast date", "Workstream", "Client wording")
 PEEK_ID = "((document.querySelector('#peek') || {dataset: {}}).dataset.peek || '')"  # parenthesised: bare, "x || '' === ''" is always true
 
 
@@ -58,7 +60,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar drew the chips")
                 chips = cdp.js("[...document.querySelectorAll('#milestones .cal-ms')].map(e => e.dataset.ms)", sid)
                 for one in chips:
-                    cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                    cdp.js("location.hash = '#milestones&p=PUB&mv=cal'", sid)      # the Calendar choice is in the address now, so closing the peek this way stays on the Calendar
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
                     cdp.js(f"document.querySelector('#milestones .cal-ms[data-ms=\"{one}\"]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the chip {one} opened {cdp.js(PEEK_ID, sid)}")
@@ -83,6 +85,56 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 cdp.js("document.querySelector('#milestones .cal-ms').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "a chip opened the peek")
 
+    def key(self, cdp, sid, name, vk, code=None):
+        for kind in ("keyDown", "keyUp"):
+            cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": name, "code": code or name, "windowsVirtualKeyCode": vk, **({"text": " "} if name == " " else {})}, sid)
+
+    def test_a_row_opens_from_the_keyboard_and_esc_closes_it_with_focus_back_on_the_row(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.draw(cdp, width)
+                for name, vk, code in (("Enter", 13, "Enter"), (" ", 32, "Space")):
+                    cdp.js("document.querySelector('#milestones .msl-row .msl-cells').focus()", sid)
+                    self.key(cdp, sid, name, vk, code)
+                    self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), f"{code} opened the peek")
+                    self.key(cdp, sid, "Escape", 27)
+                    self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} === ''", sid)), f"Esc closed the peek ({code})")
+                    self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#milestones .msl-row .msl-cells')", sid)), "focus came back to the row")
+
+    def test_the_clients_peek_shows_only_the_whitelisted_labels(self):
+        with chrome() as cdp:
+            sid = self.draw(cdp, 1400)
+            rows = cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid)
+            for i in range(rows):
+                cdp.js(f"document.querySelectorAll('#milestones .msl-row .msl-cells')[{i}].click()", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "the peek opened")
+                labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(e => e.textContent.trim())", sid)
+                self.assertTrue(labels, "the peek lists its fields")
+                self.assertEqual([l for l in labels if l not in PEEK_LABELS], [], "only a client's own labels")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek .tag').length && [...document.querySelectorAll('#peek .tag')].map(e => e.textContent).filter(t => /internal/i.test(t)).length", sid), 0)
+                cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} === ''", sid)), "closed")
+
+    def test_a_file_with_many_milestones_remembers_nothing_not_even_the_show_all_choice(self):
+        plant = fx.load()
+        rows = plant["data"]["milestones"]
+        rows.extend({**rows[i % len(rows)], "id": f"ZQ-extra-{i}", "name": f"Extra step {i}"} for i in range(8))
+        pub = publish.select(fx.inputs(plant))
+        text = publish.render(pub, page.page_html(tp.EMPTY_BRANDING, view=True), plant["as_at"], pub["data"]["project"]["name"])
+        folder = Path(tempfile.mkdtemp(prefix="clark-1114-"))
+        self.addCleanup(__import__("shutil").rmtree, str(folder), ignore_errors=True)
+        (folder / "report.html").write_text(text, encoding="utf-8")
+        with chrome() as cdp:
+            sid = tp.opened(cdp, (folder / "report.html").as_uri() + "#milestones&p=PUB", 1400)
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-msall]')", sid)), "more than five milestones: the Show all button is there")
+            cdp.js("localStorage.setItem('clark.msAll.page', 'true')", sid)
+            reload_to_new_page_cdp(cdp, sid, ready="document.documentElement.dataset.ready === '1' && !!document.querySelector('[data-msall]')", what="drew again")
+            self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 5, "an editor's stored choice does not reach a file")
+            cdp.js("localStorage.removeItem('clark.msAll.page')", sid)
+            cdp.js("document.querySelector('[data-msall]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .msl-row').length > 5", sid)), "Show all worked")
+            cdp.js("document.querySelector('#milestones [data-msvb=cal]').click()", sid)
+            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('clark.') === 0)", sid), [], "nothing under clark. (msAll, msDet, msv)")
 
 if __name__ == "__main__":
     unittest.main()

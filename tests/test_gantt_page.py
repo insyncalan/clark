@@ -373,6 +373,29 @@ class Page(unittest.TestCase):
         self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
         self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
 
+    def test_the_show_menu_hands_focus_back_to_its_button_on_a_pick_and_on_esc(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout]")
+        self.js("document.querySelector('[data-gp-show]').focus()")
+        self.click("[data-gp-show]")
+        self.js("document.querySelector('[data-gp-filter=phases]').focus(); document.querySelector('[data-gp-filter=phases]').click()")
+        self.until("document.querySelectorAll('.gt-scroll tbody tr').length === 2", "phases only")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "a pick returns to the Show button")
+        self.click("[data-gp-show]")
+        self.assertEqual(self.count("[data-gp-showmenu]"), 1)
+        self.key("Escape", target="document.querySelector('[data-gp-show]')")
+        self.until("!document.querySelector('[data-gp-showmenu]') || document.querySelector('[data-gp-show]').getAttribute('aria-expanded') === 'false'", "Esc closes the menu")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "Esc returns to the Show button")
+
+    def test_deleting_a_row_in_the_table_keeps_focus_in_the_table(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout]")
+        self.until("document.querySelector('[data-del]')", "the table")
+        n = self.count(".gt-scroll tbody tr")
+        self.js("document.querySelector('[data-del=\"0\"]').focus(); document.querySelector('[data-del=\"0\"]').click()")
+        self.until(f"document.querySelectorAll('.gt-scroll tbody tr').length === {n - 1}", "the row is gone")
+        self.assertTrue(self.val("document.activeElement === document.querySelector('.gt-scroll')"), "focus stays on the table, not the page top")
+
     # ── changes go to the host ───────────────────────────────────────────────
 
     def test_the_eye_in_the_chart_is_sent_as_one_update_with_its_words(self):

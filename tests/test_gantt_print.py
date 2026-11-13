@@ -103,6 +103,31 @@ class Print(_PageRig):
                         finally:
                             self.done()
 
+    def test_a_dark_look_prints_on_a_white_page_with_dark_readable_words(self):
+        # Row 1050: in the dark look the paper stays white and the words drawn on it (the labels beside the bars and the column heads) are dark.
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "dark")
+                self.mount(width=width - 60)
+                self.printing(width, "dark")
+                # The real print drops the dark attribute at beforeprint (stores/appearance.js, pinned in test_appearance.PrintLight); this bare Gantt page
+                # does not load that store, so the same step is done here by hand and the paper rules are what is measured.
+                self.js("document.documentElement.removeAttribute('data-theme')")
+                self.settle()
+                try:
+                    got = json.loads(self.js("""(function () {
+                      var rgb = function (c) { return (c.match(/\\d+/g) || []).slice(0, 3).map(Number); };
+                      var avg = function (c) { var v = rgb(c); return v.reduce(function (a, b) { return a + b; }, 0) / 3; };
+                      var words = [].slice.call(document.querySelectorAll('.gt-mslab, .gt-hc')).filter(function (e) { return e.textContent.trim(); });
+                      return JSON.stringify({ page: avg(getComputedStyle(document.body).backgroundColor), html: avg(getComputedStyle(document.documentElement).backgroundColor),
+                        words: words.map(function (e) { return [e.textContent.trim(), avg(getComputedStyle(e).color)]; }) }); })()"""))
+                    self.assertGreater(got["page"], 250, f"the printed page is white {got}")
+                    self.assertTrue(got["words"], "the chart has words to read")
+                    for text, light in got["words"]:
+                        self.assertLess(light, 110, f"{text!r} is dark on the white paper {got}")
+                finally:
+                    self.done()
+
     def test_the_full_screen_chart_prints_in_the_flow(self):
         self.look(794, "light")
         self.mount(width=734)

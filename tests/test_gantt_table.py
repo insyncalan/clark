@@ -429,6 +429,15 @@ class Table(unittest.TestCase):
         self.assertTrue(wait(lambda: self.js("!!window.__seen")), "a copy of the closed menu was drawn")
         self.assertEqual(json.loads(self.js("window.__seen")), live)
 
+    def test_escape_in_the_menu_closes_only_the_menu(self):
+        """Esc inside the context menu is the menu's: it is stopped and prevented, so a peek listening on the page keeps its card."""
+        self.load()
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        self.js("(() => { window.__peekSaw = false; document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented) window.__peekSaw = true; }); })()")
+        self.go("document.querySelector('.gt-menu button').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))")
+        self.assertFalse(self.js("window.__peekSaw"), "the peek never saw the Esc")
+        self.assertFalse(self.val("!!document.querySelector('.gt-menu:not(.leaving)')"), "the menu closed")
+
     def test_view_menu_offers_only_copy(self):
         self.load(edit=False)
         self.go("T.mouse(T.cell(0, 1), 'contextmenu', {button: 2})")

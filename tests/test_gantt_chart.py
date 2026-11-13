@@ -304,6 +304,16 @@ class Chart(unittest.TestCase):
         self.assertIn("30% done · In progress", d)
         self.assertIn("On the dashboard: Yes", d)
 
+    def test_zoom_out_hands_focus_to_the_fit_button_when_it_turns_itself_off(self):
+        self.look(1400, "light")
+        self.mount(edit=False)
+        self.js("document.querySelector('[data-g-zin]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '125%'", "zoomed in")
+        self.js("document.querySelector('[data-g-zout]').focus(); document.querySelector('[data-g-zout]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '100%'", "back at fit")
+        self.assertTrue(self.val("document.querySelector('[data-g-zout]').disabled"))
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-fit]')"), "focus did not fall to the page top")
+
     def test_scales_zoom_and_the_height_grip_in_view(self):
         self.look(1400, "light")
         self.mount(edit=False)
@@ -503,6 +513,62 @@ class Chart(unittest.TestCase):
         self.until("window.calls.length === 2", "two changes")
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
+
+    def test_enter_or_space_on_a_milestone_opens_its_edit_box_with_real_keys(self):
+        for width in (1400, 900):
+            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                self.look(width, "light")
+                self.mount(edit=True)
+                sel = "[data-g-bar=GNT-007]"
+                self.js(f"document.querySelector({lit(sel)}).focus()")
+                for press in (1, 2):
+                    for kind in ("keyDown", "keyUp"):
+                        self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                                 **({"text": text} if kind == "keyDown" else {})}, self.sid)
+                    if press == 1:      # first press selects only
+                        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", f"{code} selected at {width}")
+                        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+                self.until("document.querySelector('[data-g-box]')", f"{code} second press opened the box at {width}")
+                self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
+
+    def test_focus_goes_back_to_what_opened_a_box_or_menu_when_it_closes(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=True)
+                esc = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))"
+                self.js("document.querySelector('[data-g-add=GNT-004]').focus(); document.querySelector('[data-g-add=GNT-004]').click()")
+                self.until("document.activeElement === document.querySelector('[data-g-addtype=task]')", "the menu has focus")
+                self.js(esc)
+                self.until("!document.querySelector('[data-g-addmenu]')", "the menu closed")
+                self.until("document.activeElement === document.querySelector('[data-g-add=GNT-004]')", "focus is back on the plus button, not the page body")
+                self.js("document.querySelector('[data-g-bar=GNT-005]').focus(); document.querySelector('[data-g-bar=GNT-005]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.activeElement === document.querySelector('[data-g-bn]')", "the box has focus")
+                self.js("document.querySelector('[data-g-bsave]').click()")
+                self.until("!document.querySelector('[data-g-box]')", "saved")
+                self.until("document.activeElement === document.querySelector('[data-g-bar=GNT-005]')", "focus is back on the bar")
+                self.js("document.querySelector('[data-g-bar=GNT-010]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.querySelector('[data-g-bdel]')", "the box")
+                self.js("document.querySelector('[data-g-bdel]').focus(); document.querySelector('[data-g-bdel]').click()")
+                self.until("document.querySelectorAll('[data-g-row]').length === 10", "deleted")
+                self.until("document.activeElement && document.activeElement.hasAttribute('data-g-bar')", "after a delete focus lands on a bar, not the page body")
+                self.js("document.querySelector('[data-g-show]').focus(); document.querySelector('[data-g-show]').click()")
+                self.until("document.querySelector('[data-g-showmenu]')", "the show menu")
+                self.js("document.querySelector('[data-g-filter]').focus(); document.querySelector('[data-g-filter]').click()")
+                self.until("!document.querySelector('[data-g-showmenu]')", "closed")
+                self.until("document.activeElement === document.querySelector('[data-g-show]')", "focus is back on the Show button")
+
+    def test_enter_on_a_selected_milestone_opens_the_edit_box_from_the_keyboard(self):
+        self.look(1400, "light")
+        self.mount(edit=True)
+        sel = "[data-g-bar=GNT-007]"
+        self.assertEqual(self.val(f"document.querySelector({lit(sel)}).tagName"), "BUTTON")
+        self.keypress(sel, "Enter")      # not yet selected: selects only
+        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", "selected")
+        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+        self.keypress(sel, "Enter")      # selected: opens the box, as a bar does
+        self.until("document.querySelector('[data-g-box]')", "the box")
+        self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
 
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):

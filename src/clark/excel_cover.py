@@ -17,6 +17,7 @@ Nothing else of a project reaches the Cover; every line is built from the fields
 The sentences are constants so that changing one is one edit: CAUTION, RETURN_WITH, RETURN_ANYONE, WHERE_TO_EDIT, IDS, LOCKED_CELLS.
 """
 from clark import sanitise
+from clark import timefmt
 
 CAUTION = "This workbook shows the project as it was on the date above. It does not include changes made in clark since."
 RETURN_WITH = ("If you change anything here, send the file back to {owner}{email}. They then import your changes into clark, "
@@ -82,10 +83,7 @@ def _text(text):
 
 def show_date(iso):
     """DD-MM-YYYY, as the page's band shows a week ending; text that is not a stored day is shown as stored."""
-    text = str(iso or "").strip()
-    if len(text) == 10 and text[4] == text[7] == "-" and text.replace("-", "").isdigit():
-        return f"{text[8:10]}-{text[5:7]}-{text[0:4]}"
-    return text
+    return timefmt.day_text(str(iso or "").strip())
 
 
 def long_date(iso):
