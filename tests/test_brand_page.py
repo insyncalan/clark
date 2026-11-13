@@ -228,14 +228,14 @@ class Page(InBrowser):
 
     def test_focus_follows_the_keyboard_through_remove_install_and_cancel(self):
         self.mount()
-        act = "document.activeElement && (document.activeElement.hasAttribute('data-remove-confirm') ? 'confirm' : document.activeElement.id)"
+        act = "document.activeElement && (document.activeElement.hasAttribute('data-remove-confirm') ? 'confirm' : document.activeElement.hasAttribute('data-remove') ? 'remove' : document.activeElement.hasAttribute('data-review') ? 'review' : document.activeElement.id)"
         self.click("#brands-list [data-remove]")
         self.assertEqual(self.val(act), "confirm", "Remove asks, and the Confirm button has the focus")
         self.click("#brands .row .quiet")
-        self.assertEqual(self.val(act), "brands-h", "the ask is closed; the focus is not lost")
+        self.assertEqual(self.val(act), "remove", "the ask is closed; the focus is back on Remove")
         self.click("[data-review]")
         self.click("[data-cancel]")
-        self.assertEqual(self.val(act), "brands-h", "the panel is closed; the focus is not lost")
+        self.assertEqual(self.val(act), "review", "the panel is closed; the focus is back on the button that opened it")
         self.click("[data-review]")
         self.click("[data-install]")
         self.assertEqual(self.val(act), "brands-h", "after Install the focus is not lost")
