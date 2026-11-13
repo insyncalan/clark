@@ -183,6 +183,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
+            system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
@@ -245,7 +246,7 @@ class Words(unittest.TestCase):
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version.",
                                   "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
                                   "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
