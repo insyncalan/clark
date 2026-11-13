@@ -6,7 +6,7 @@
 import { useEffect, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
-import { isOn, liveOf } from "../logic/useCasesList.js";
+import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.js";
 import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
@@ -33,10 +33,7 @@ export function summary(d, all) {
   });
 }
 
-/** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
-export function refText(ref) {
-  return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
-}
+export { refText };
 
 // A row and "See all" are buttons by role, not <button> elements: a published file has no button but its tabs (and nothing in it edits).
 // In Edit a row holds its own controls (the status button, the headline's box): a press on one of them is theirs, not the row's.
@@ -58,14 +55,14 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
+        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
         {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
         <span class="ucstc">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} />}
         </span>
-        <span class="ucsteps num">{s.steps.length === 1 ? "1 next step" : s.steps.length ? `${s.steps.length} next steps` : "No open steps"}</span>
+        <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>

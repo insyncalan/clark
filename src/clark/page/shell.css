@@ -1407,7 +1407,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); padding: var(--space-1) 0 var(--d-uc-strip-b); font-size: var(--size-body); }
 .uctotal { font-weight: var(--weight-medium); color: var(--heading); }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
-.meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
+.meter { display: flex; gap: 2px; flex: 0 1 auto; width: min(280px, 40%); margin-left: auto; height: 8px; }   /* item 1147: the bars sit at the right end of the tile, on the counts' line; 280 px but never over 40% of the tile */
 .meter i { flex: 1 1 0; border-radius: 2px; background: var(--status-grey); }
 .meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
@@ -1499,7 +1499,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstepl .av { flex: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 .ucstepl [data-stepid] { flex: none; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
-@media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
+@media (max-width: 900px) { .ucbar { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } .meter { width: 80px; } }   /* item 1147: at 900 px the bars shrink to about 80 px and stay on the counts' line (they wrap under only when the line is tight) */
 @media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
@@ -2011,25 +2011,22 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
 .ucp { border-top: 1px solid var(--grey-100); }
-.ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
-.ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
-.ucp summary .cchip { align-self: center; }
+.ucp > summary.ucp-bar { cursor: pointer; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns */
+.ucp > summary.ucp-bar:hover, .ucp[open] > summary.ucp-bar { background: var(--grey-100); }
+.ucp > summary.ucp-bar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .ucp > summary.ucp-bar { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }   /* item 1149: after the base rule above, equal specificity, so the narrow grid wins */
+@media (max-width: 640px) { .ucp > summary.ucp-bar { grid-template-columns: auto minmax(0, 1fr); } .ucp > summary.ucp-bar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }
+.ucp-headline { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-views { margin-top: 16px; }
 .ucp-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
-.ucp-sorts { margin: 10px 0 0; font-size: var(--size-small); }
-.ucp-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; margin-left: var(--space-2); cursor: pointer; }
-.ucp-sort:hover, .ucp-sort[aria-pressed="true"] { color: var(--text); }
-.ucp-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
-.ucp-sort .i { width: 12px; height: 12px; flex: none; }
 .ucp-group { margin-top: 10px; }
 .ucp-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
 .ucp-group .ucp { padding-left: var(--space-4); padding-right: var(--space-4); }
 .ucp-empty { margin: 20px 0 4px; overflow-wrap: anywhere; }
 .ucp-empty .btn { margin-top: 4px; }
 .ucp-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }
-.ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
