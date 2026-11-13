@@ -62,6 +62,21 @@ class ScanLinear(unittest.TestCase):
             with self.subTest(chunk=chunk):
                 self.assertEqual(self.scan(data, chunk=chunk)[0], (0, 0))
 
+    def test_a_text_of_exactly_the_most_excel_keeps_is_let_through_and_one_more_is_refused(self):
+        for chunk in (None, 4096):
+            with self.subTest(chunk=chunk):
+                self.assertEqual(self.scan(SST % (b"a" * xi.MAX_CELL_TEXT), chunk=chunk)[0], (0, 0))
+                with self.assertRaises(xi._TextTooLong):
+                    self.scan(SST % (b"a" * (xi.MAX_CELL_TEXT + 1)), chunk=chunk)
+
+    def test_a_text_or_a_tag_that_never_closes_is_refused_once_it_is_far_too_long_to_be_a_cell(self):
+        # memory stays one chunk plus one node: an opener with no end is cut off at 8 times the cell limit, not read to the end of the part
+        over = b"a" * (8 * xi.MAX_CELL_TEXT + 10)
+        for name, data in (("text", b"<sst><si><t>" + over), ("tag", b"<sst><si><c " + over)):
+            for chunk in (None, 4096):
+                with self.subTest(open=name, chunk=chunk), self.assertRaises(xi._TextTooLong):
+                    self.scan(data, chunk=chunk)
+
 
 if __name__ == "__main__":
     unittest.main()
