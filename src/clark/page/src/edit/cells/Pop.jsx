@@ -66,21 +66,29 @@ export function Pop({ anchor, label, role = "dialog", cls = "", onClose, childre
       // then land on a choice inside the closing panel, and the panel's removal would leave focus on nothing. Inert, it is skipped at once.
       if (box.current) box.current.inert = true;
       // If the browser still leaves focus on nothing (a slow machine, the redraw landing late, the row drawn again so the control is gone),
-      // carry on by hand: watch for up to a second, find the control again by its data-cell, and stop once focus is on a real element.
+      // carry on by hand: watch for up to a second, find the control again by its data-cell, and carry focus on to the control after it.
+      // Focus on a real element is not the end of it: closing the panel puts focus on the date control itself, and a redraw that follows
+      // replaces that node and drops focus to the body. So the watch ends only once focus has stayed on a control other than the date for
+      // a good while (SETTLED ticks in a row); every tick that finds it on the body, or still on the date, carries it on again.
       const from0 = anchor && anchor.current, back = e.shiftKey;
       const cell = from0 && from0.getAttribute && from0.getAttribute("data-cell");
-      let ticks = 0;
+      let ticks = 0, still = 0;
       const poll = setInterval(() => {
-        const a = document.activeElement;
-        if ((a && a !== document.body) || ++ticks > 50) { clearInterval(poll); return; }   // focus settled, or gave up
+        if (++ticks > 100) { clearInterval(poll); return; }                                // gave up
         if (document.querySelector("[data-pop]")) return;                                  // not redrawn yet (or another picker took over)
         const from = from0 && from0.isConnected ? from0 : cell && document.querySelector(`[data-cell="${cell}"]`);
+        const a = document.activeElement;
+        if (a && a !== document.body && a.isConnected && !(from && from.contains(a)) && !a.closest("[inert]")) {
+          if (++still >= 8) clearInterval(poll);                                           // focus has stayed on a real control: settled
+          return;
+        }
+        still = 0;
         if (!from) return;
         const all = [...document.querySelectorAll("a[href],button,input,select,textarea,[tabindex]")]
           .filter((n) => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length && !n.closest("[data-pop],[inert]") && !from.contains(n));
         const rel = (n) => from.compareDocumentPosition(n);
         const next = back ? all.filter((n) => rel(n) & Node.DOCUMENT_POSITION_PRECEDING && !n.contains(from)).pop() : all.find((n) => rel(n) & Node.DOCUMENT_POSITION_FOLLOWING);
-        if (next) { next.focus(); clearInterval(poll); }
+        if (next) next.focus();
       }, 20);
     }
     else if (e.key === "Enter") e.stopPropagation();      // the row behind never takes an Enter meant for the panel
