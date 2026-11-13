@@ -659,7 +659,7 @@ input.sec-title { width: 100%; }
 .sec-add { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px; margin: var(--space-1) 0 6px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .sec-add:hover { border-color: var(--grey-500); color: var(--text); }
 .toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
-.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
+.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: min(var(--radius-pill), 26px); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
 .toast.problem { border-color: var(--status-red); }
 .toast { position: relative; overflow: hidden; }   /* row 1075: the bar under a message is drawn in the Motion block (only where motion is allowed) */
 .toast-bar { display: none; }
@@ -838,7 +838,7 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar { display: flex; align-items: center; gap: var(--space-3); margin: 14px 0 10px; }
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
-.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
@@ -936,7 +936,7 @@ body.board-view:not(.board-full) .frame.work { padding-bottom: 0; }
    filters and the swimlane row are its first lines, so they scroll away. Lane and column headings stay (sticky, above). */
 body.board-full { overflow: hidden; --topbar: 0px; }
 body.board-full .top, body.board-full .crumbs, body.board-full .head, body.board-full .note { display: none; }
-body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior-y: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
 body.board-full .frame { background: transparent; border: 0; box-shadow: none; padding: 0; }
 body.board-full #work-list, body.board-full .wbar { padding-top: 0; }
 body.board-full .boardbox { overflow: visible; max-height: none; }
@@ -1062,7 +1062,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
-.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
+.hp-task, .hp-ref { max-width: 56ch; }   /* a readable measure: under 80 characters of text on a rendered line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
@@ -2076,6 +2076,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .wl-title, html.print-all .irows .wl-title, html.print-all .raid-title { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }   /* a Dashboard row's title is written whole on paper: the peek that shows the rest does not exist there */
+  html.print-all .msl-cells.msl-cells[role=button] { padding: 5px var(--space-2) 5px 18px; }   /* the button reset above strips the row's left room, and the timeline dot lands on the text; given back */
   html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
