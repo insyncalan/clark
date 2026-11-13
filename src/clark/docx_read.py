@@ -475,11 +475,14 @@ class _Body:
         elif local == "hyperlink":
             self.counts["links"] += 1
         elif local == "tbl":
-            self.tables.append({"rows": [], "row": None, "cell": None})
+            self.tables.append({"rows": [], "row": None, "cell": None, "span": 1})
         elif local == "tr" and self.tables:
             self.tables[-1]["row"] = []
         elif local == "tc" and self.tables:
             self.tables[-1]["cell"] = []
+            self.tables[-1]["span"] = 1
+        elif local == "gridSpan" and self.tables and self.tables[-1]["cell"] is not None:
+            self.tables[-1]["span"] = min(max(_int(val) or 1, 1), 64)       # a spanning cell fills this many columns
 
     def text(self, data):
         if self.in_t:
@@ -510,6 +513,7 @@ class _Body:
         elif local == "tc" and self.tables:
             t = self.tables[-1]
             t["row"].append("\n".join(t["cell"] or []))
+            t["row"] += [""] * (t["span"] - 1)
             t["cell"] = None
         elif local == "tr" and self.tables:
             t = self.tables[-1]

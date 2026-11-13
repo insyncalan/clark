@@ -389,6 +389,14 @@ class ReadFromARealFile(unittest.TestCase):
                 + TBL(TR("Action", "Owner", "Due"), TR("Draft the brief", "Sam Okafor", "12-11-2026"))
                 + P("Decisions", style="Heading1") + P("Move go-live to December") + P("Deleted words", hidden=True))
 
+    def test_a_merged_cell_keeps_the_later_cells_in_their_columns(self):
+        span = '<w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:t>Late delivery</w:t></w:r></w:p></w:tc>'
+        body = P("Risks", style="Heading1") + TBL(TR("Item", "Note", "Impact", "Likelihood"), TR(span, "High", "medium"))
+        read = docx_read.read(docx(body), NAME)
+        self.assertEqual([b for b in read.blocks if b["kind"] == "table"][0]["rows"][1], ["Late delivery", "", "High", "medium"])
+        r = stage(read, NAME, ON).items[0]
+        self.assertEqual((r.values["impact"], r.values["likelihood"]), ("High", "Medium"))
+
     def test_a_file_made_by_hand_stages_through_the_reader(self):
         read = docx_read.read(docx(self.body()), NAME)
         p = stage(read, NAME, ON)
