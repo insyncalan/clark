@@ -48,7 +48,7 @@ class Limits(unittest.TestCase):
         got, seen = self.spy(pdf(["ZQ a"]))
         self.assertEqual(got.status, "ok")
         self.assertEqual((seen["limit"], seen["max_out"]), (pdf_reader.SECONDS, pdf_reader.MAX_OUT))
-        self.assertEqual(seen["args"][5:], [str(pdf_reader.MAX_PAGES), str(pdf_reader.MAX_PAGE_CHARS)])
+        self.assertEqual(seen["args"][5:], [str(pdf_reader.MAX_PAGES), str(pdf_reader.MAX_PAGE_CHARS), str(pdf_reader.OUT_BUDGET)])
         self.assertEqual(seen["kw"].get("prefix"), "clark-pdf-")
         self.assertEqual(seen["data"], pdf(["ZQ a"]))
 
