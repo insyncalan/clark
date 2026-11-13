@@ -135,6 +135,30 @@ class Card(Base):
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
+    def test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                folder = Path(self.tmp.name) / ("dbl" + str(w))
+                folder.mkdir()
+                b64, action, old = workbook(self.rig, folder, "Agree the cut-over plan, version three")
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.choose(p, b64)
+                p.until("!!document.querySelector('#import-go')", "the check")
+                steps = self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+                p.js("(() => { const b = document.querySelector('#import-go'); b.click(); b.click(); })()")
+                p.until("!!document.querySelector('#import-result')", "the result")
+                self.settle(p, "!!document.querySelector('#import-undo')", "Undo offered")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click")
+                self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
+                p.js("(() => { const b = document.querySelector('#import-undo'); b.click(); b.click(); })()")
+                p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click on Undo")
+                self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
+
     def open_box(self, p):
         self.open_settings(p)
         p.js("document.querySelector('#import-workbook').click()")
