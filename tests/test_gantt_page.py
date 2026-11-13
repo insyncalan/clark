@@ -362,6 +362,17 @@ class Page(unittest.TestCase):
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 3)
 
+    def test_hunt15_table_show_menu_takes_focus_and_escape_returns_it(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout]")
+        self.click("[data-gp-show]")
+        self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
+        self.key("ArrowDown", "document.activeElement")
+        self.assertEqual(self.js("document.activeElement.dataset.gpFilter"), self.js("document.querySelectorAll('[data-gp-filter]')[1].dataset.gpFilter"), "ArrowDown moves on")
+        self.key("Escape")
+        self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
+        self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
+
     # ── changes go to the host ───────────────────────────────────────────────
 
     def test_the_eye_in_the_chart_is_sent_as_one_update_with_its_words(self):
