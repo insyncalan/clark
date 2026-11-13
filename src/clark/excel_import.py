@@ -180,7 +180,7 @@ def virtual_columns(table):
 
 
 def milestone_ids(text, refs=None):
-    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one name per line (item 1150; an older workbook, 'ID: name');
+    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one 'ID: name' per line (item 1150 left this column as it was);
     a line with no ': ' may hold several ids split by commas. `bad` is the first piece that is not a milestone id."""
     found, bad = set(), ""
     for line in str(text).replace("\r", "\n").split("\n"):
@@ -610,7 +610,7 @@ def _from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
     if name == UC_MILESTONES:                                   # row 1107: the ids, in the one form the export keeps ('ID, ID')
-        ids, bad = milestone_ids(value, refs)
+        ids, bad = milestone_ids(value)
         if bad:
             return None, f"{label} must be milestone IDs, one per line (got {_got(bad)})"
         return ", ".join(ids) or None, None

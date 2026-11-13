@@ -1240,8 +1240,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
-            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one name per line (item 1150; the ids are in the row; the import reads them back)
-                r = {**r, "milestones": "\n".join(names["milestone"].get(i, i) for i in writer_ids(r.get("milestones"))) or None}
+            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one "ID: name" per line (the ids are in the row; the import reads them back; item 1150 left this column as it was)
+                r = {**r, "milestones": "\n".join(f"{i}: {names['milestone'][i]}" if names["milestone"].get(i) else i for i in writer_ids(r.get("milestones"))) or None}
             if table in ("milestones", "use_cases"):
                 r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
             else:
