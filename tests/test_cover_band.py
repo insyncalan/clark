@@ -194,6 +194,40 @@ class BrandLogo(Setup):
                 self.assertEqual(self.show(cdp, width).js(LOGO)["image"], "none")
 
 
+ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.querySelector('h1'), l = c.querySelector('.cover-line'),
+  a = getComputedStyle(c, '::after'), r = c.getBoundingClientRect();
+  const edge = (e) => { const g = document.createRange(); g.selectNodeContents(e); return Math.max(...[...g.getClientRects()].map((x) => x.right)); };
+  return {h1: edge(h), line: edge(l), logoLeft: r.right - parseFloat(a.right) - parseFloat(a.width), pad: getComputedStyle(c).paddingRight,
+          lines: Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight))}; })()"""
+
+
+class LogoRoom(Setup):
+    """#1154: a long project title and cover line wrap before the logo box when a brand logo is set (at 1400 and 900), and
+    the band's padding is what it was with no logo."""
+    serve = BrandLogo.serve
+
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"name": "Example Programme of a very long name that goes on and on " * 3,
+                                          "client_name": "Example Client of a very long name that goes on and on " * 3, "week_ending": "2026-10-23"})
+
+    def test_a_long_title_and_cover_line_stop_before_the_logo(self):
+        self.serve(True)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                got = self.show(cdp, width).js(ROOM)
+                self.assertGreater(got["lines"], 1, "the title is long enough to wrap")
+                self.assertLessEqual(got["h1"], got["logoLeft"], "the title ends at or left of the logo box")
+                self.assertLessEqual(got["line"], got["logoLeft"], "the cover line ends at or left of the logo box")
+
+    def test_with_no_logo_the_band_padding_is_unchanged(self):
+        self.serve(False)
+        for width, pad in ((1400, "28px"), (900, "16px")):
+            with self.subTest(width=width), chrome() as cdp:
+                self.assertEqual(self.show(cdp, width).js(ROOM)["pad"], pad)
+
+
 class BrandLogoPage(unittest.TestCase):
     def folder(self, logo):
         tmp = tempfile.TemporaryDirectory()

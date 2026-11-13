@@ -352,6 +352,11 @@ BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topb
 HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!(?:none|inherit|initial|unset|revert)\b)[^;}\s]", re.I)
 
 
+# #1154: the room the editor's report band keeps free at its right for the logo box (192 px wide, 36 px from the edge), so a long
+# title or cover line wraps before the logo; set only with a logo (the edit.css default is 0px, so no logo leaves the band as it was).
+COVER_LOGO_ROOM = "calc(var(--space-8) * 3 + var(--space-6) + var(--space-1))"
+
+
 def logo_url(brand_id=None):
     """The address the served page draws the brand's logo from (#1154): the same route as the cover picture."""
     return f'url("/assets/{brand_id}/logo.png")' if brand_id else 'url("/assets/logo.png")'
@@ -364,7 +369,7 @@ def layer_brand(html, css, logo=None):
         return html
     css = escape_style(css)
     if logo:
-        css = f":root {{ --image-logo: {logo}; }}\n{css}"
+        css = f":root {{ --image-logo: {logo}; --cover-logo-room: {COVER_LOGO_ROOM}; }}\n{css}"
     extra = BACKDROP_CSS if HAS_PICTURE.search(css) else ""
     i = after_demo_block(html)
     return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n{extra}</style>' + html[i:]
