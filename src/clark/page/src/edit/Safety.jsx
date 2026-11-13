@@ -46,6 +46,17 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
   const [panel, setPanel] = useState(null);                  // null, or {name, preview, confirming}
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(() => { const d = L.takeDone(store); return d ? { kind: "success", text: d } : null; });
+  const back = useRef(null);                               // the row button that opened the panel: where the focus returns when it closes
+  // Keyboard: when the panel closes (Close, Cancel, Esc) the focus goes back to the button that opened it.
+  function closePanel() {
+    const name = panel && panel.name, kind = back.current;
+    setPanel(null);
+    setTimeout(() => {
+      const row = name && document.querySelector('[data-backup="' + name + '"]');
+      const b = row && (row.querySelector(kind === "restore" ? "[data-restore]" : "[data-preview]") || row.querySelector("button"));
+      if (b) b.focus();
+    }, 0);
+  }
 
   async function load() {
     setState((s) => ({ ...s, phase: "loading" }));
@@ -104,8 +115,8 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
                   <li key={v.name} data-backup={v.name}>
                     <span class="when num">{v.when}</span> <span class="kind">{v.kind}</span> <span class="muted size">{v.size}</span>
                     <span class="acts">
-                      <button type="button" class="btn sm" data-preview disabled={busy} onClick={() => look(v.name, false)}>{L.LABELS.preview}</button>
-                      <button type="button" class="btn sm" data-restore disabled={busy} onClick={() => look(v.name, true)}>{L.LABELS.restore}</button>
+                      <button type="button" class="btn sm" data-preview disabled={busy} onClick={() => { back.current = "preview"; look(v.name, false); }}>{L.LABELS.preview}</button>
+                      <button type="button" class="btn sm" data-restore disabled={busy} onClick={() => { back.current = "restore"; look(v.name, true); }}>{L.LABELS.restore}</button>
                     </span>
                   </li>
                 );
@@ -119,20 +130,21 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
         </>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="backup-panel" ref={panelEl} tabIndex={-1} role="region" aria-label="Backup preview">
+        <div class="backup-panel" id="backup-panel" role="region" aria-label="Backup preview" tabIndex={-1} ref={panelEl}
+             onKeyDown={(e) => { if (e.key === "Escape" && !busy) { e.stopPropagation(); closePanel(); } }}>
           {L.previewLines(panel.preview).map((t) => <p key={t}>{t}</p>)}
           {panel.confirming && L.canRestore(panel.preview) ? (
             <>
               <p><b id="backup-confirm">{L.confirmLine(panel.preview)}</b></p>
               <div class="row">
                 <button type="button" class="btn pri" data-put-back disabled={busy} onClick={putBack}>{L.LABELS.putBack}</button>
-                <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+                <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={closePanel}>{L.LABELS.cancel}</button>
               </div>
             </>
           ) : (
             <div class="row">
               {L.canRestore(panel.preview) ? <button type="button" class="btn" data-restore-from-preview disabled={busy} onClick={() => setPanel({ ...panel, confirming: true })}>{L.LABELS.restore}</button> : null}
-              <button type="button" class="btn quiet" data-cancel onClick={() => setPanel(null)}>{L.LABELS.close}</button>
+              <button type="button" class="btn quiet" data-cancel onClick={closePanel}>{L.LABELS.close}</button>
             </div>
           )}
         </div>
