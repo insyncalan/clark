@@ -68,3 +68,9 @@ class HelpHunt2(unittest.TestCase):
         self.assertNotIn("Three tabs", text)
         self.assertIn("Use cases", text)
         self.assertIn("Gantt", text)
+
+    def test_sneak_peek_says_some_changes_ask_first(self):
+        text = entry("Sneak peek")
+        self.assertIn("This change needs your OK", text)
+        self.assertIn("Confirm and apply", text)
+        self.assertIn("[[Mod+Enter]]", text)

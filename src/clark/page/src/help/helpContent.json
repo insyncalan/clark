@@ -1604,7 +1604,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it. Changes that close or finish something (done, closed, cancelled, made, withdrawn, Achieved) ask first: [[Enter]] alone only flashes “This change needs your OK”. Press **Confirm and apply** or [[Mod+Enter]] to make them."
      ]
     ]
    },
