@@ -1111,7 +1111,14 @@ class Live(unittest.TestCase):
                     n, before = len(self.sent), self.steps()
 
                     def opened(how):
-                        self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", f"{ref}: {how} opens the date panel")
+                        # main-fix: this step failed alone in CI (Chrome 157) and never on a box with Chrome 156, so a miss says what the page held
+                        try:
+                            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", f"{ref}: {how} opens the date panel")
+                        except AssertionError as miss:
+                            held = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const r = c && c.getBoundingClientRect(); const at = r && document.elementFromPoint(r.x + Math.min(r.width / 2, 20), r.y + r.height / 2);"
+                                          " return JSON.stringify({win: [innerWidth, innerHeight], cell: r && [r.x, r.y, r.width, r.height], at: at && (at.tagName + '.' + at.className + ' ' + (at.getAttribute('data-cell') || '')),"
+                                          " pops: document.querySelectorAll('[data-pop]').length, leaving: document.querySelectorAll('.cpop.leaving').length, focus: document.activeElement && document.activeElement.tagName, hash: location.hash}); })()", sid)
+                            raise AssertionError(f"{miss} | page held: {held}") from None
                         self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, f"{ref}: one panel")
                         self.assertEqual(cdp.js("document.querySelectorAll('input[type=date], input[type=datetime-local]').length", sid), 0,
                                          f"{ref}: no browser calendar opens with it")
