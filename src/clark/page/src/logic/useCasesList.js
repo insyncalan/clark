@@ -38,7 +38,11 @@ export function ucFor(d, key) {
 export const REF_PREFIX = "UC";
 export const refOf = (u) => (u.ref ? REF_PREFIX + " " + u.ref : "");
 export const nameOf = (u) => String(u.title || "").split("\n").map((t) => t.trim()).filter(Boolean).join(" · ");
-const plainText = (html) => String(html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+// The common entities, decoded after the tags are gone (an encoded < is text, not a tag) and the ampersand last (so &amp;lt; stays &lt;).
+const NAMED = { lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+const codeChar = (n) => (n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : " ");
+const decode = (s) => s.replace(/&(?:#(\d+)|#x([0-9a-f]+)|(lt|gt|quot|apos|nbsp));/gi, (_, dec, hex, name) => (name ? NAMED[name.toLowerCase()] : codeChar(dec ? parseInt(dec, 10) : parseInt(hex, 16)))).replace(/&amp;/gi, "&");
+const plainText = (html) => decode(String(html || "").replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
 
 /** The rows: [{u, id, ref, name, headline, status, on, total, open, ms: [{id, name}], text}]. `all` is workItems.rowsOf(d). */
 export function listOf(d, all) {
