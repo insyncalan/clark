@@ -1471,7 +1471,7 @@ def _download_clean(text):
 
 def download_name(name, code, when):
     """Row 1143: the file name the browser is given for a project's workbook, "<name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx", e.g.
-    "ENERGYai(EAI) 2026.11.13 18.52.07.xlsx". `when` is the local date and time; the time has dots as a Mac and Windows name holds
+    "Northwind(NWD) 2026.11.13 18.52.07.xlsx". `when` is the local date and time; the time has dots as a Mac and Windows name holds
     no colon. A character a file name cannot hold becomes "-" (platform.safe_name), the name is cut at DOWNLOAD_NAME_CUT, no code
     leaves out the brackets and no name puts the code in its place (and "work items" when there is neither)."""
     tail = f" {when:%Y.%m.%d %H.%M.%S}.xlsx"

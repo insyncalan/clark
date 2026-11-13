@@ -20,7 +20,7 @@ WHEN = datetime.datetime(2026, 11, 13, 18, 52, 7)
 
 class Name(unittest.TestCase):
     def test_the_format_is_name_bracketed_code_then_date_and_time_with_dots(self):
-        self.assertEqual(excel.download_name("ENERGYai", "EAI", WHEN), "ENERGYai(EAI) 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("Northwind", "NWD", WHEN), "Northwind(NWD) 2026.11.13 18.52.07.xlsx")
 
     def test_the_time_is_zero_padded(self):
         self.assertEqual(excel.download_name("A", "B", datetime.datetime(2026, 1, 2, 3, 4, 5)), "A(B) 2026.01.02 03.04.05.xlsx")
@@ -31,13 +31,13 @@ class Name(unittest.TestCase):
         self.assertFalse(platform.RESERVED_CHARS.search(got))
 
     def test_a_long_name_is_cut_at_sixty_characters(self):
-        got = excel.download_name("N" * 100, "EAI", WHEN)
-        self.assertEqual(got, "N" * 60 + "(EAI) 2026.11.13 18.52.07.xlsx")
+        got = excel.download_name("N" * 100, "NWD", WHEN)
+        self.assertEqual(got, "N" * 60 + "(NWD) 2026.11.13 18.52.07.xlsx")
 
     def test_sixty_emoji_are_cut_by_bytes_so_the_file_name_fits_255(self):
-        got = excel.download_name("\U0001F600" * 60, "EAI", WHEN)
+        got = excel.download_name("\U0001F600" * 60, "NWD", WHEN)
         self.assertLessEqual(len(got.encode("utf-8")), 255)
-        self.assertEqual(got, "\U0001F600" * 30 + "(EAI) 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(got, "\U0001F600" * 30 + "(NWD) 2026.11.13 18.52.07.xlsx")
 
     def test_a_byte_cut_never_splits_a_character(self):
         got = excel.download_name("a" + "\u00e9" * 100, "", WHEN)
@@ -45,8 +45,8 @@ class Name(unittest.TestCase):
         self.assertEqual(got, "a" + "\u00e9" * 59 + " 2026.11.13 18.52.07.xlsx")
 
     def test_leading_dots_are_dropped_so_the_file_is_not_hidden(self):
-        self.assertEqual(excel.download_name("..hidden", "EAI", WHEN), "hidden(EAI) 2026.11.13 18.52.07.xlsx")
-        self.assertEqual(excel.download_name(". .", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("..hidden", "NWD", WHEN), "hidden(NWD) 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name(". .", "NWD", WHEN), "NWD 2026.11.13 18.52.07.xlsx")
 
     def test_a_300_character_code_is_cut_and_the_name_keeps_its_date_and_extension(self):
         got = excel.download_name("Plan", "C" * 300, WHEN)
@@ -68,22 +68,22 @@ class Name(unittest.TestCase):
 
     def test_invisible_and_direction_characters_are_removed(self):
         for ch in "\u202a\u202b\u202c\u202d\u202e\u2066\u2067\u2068\u2069\u200b\u200c\u200d\u200e\u200f\ufeff\x7f\x85\u2028\u2029":
-            got = excel.download_name(f"Pl{ch}an", "EAI", WHEN)
-            self.assertEqual(got, "Plan(EAI) 2026.11.13 18.52.07.xlsx", repr(ch))
+            got = excel.download_name(f"Pl{ch}an", "NWD", WHEN)
+            self.assertEqual(got, "Plan(NWD) 2026.11.13 18.52.07.xlsx", repr(ch))
 
     def test_a_name_of_only_invisible_characters_falls_back(self):
-        self.assertEqual(excel.download_name("\u202e\u200b", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("\u202e\u200b", "NWD", WHEN), "NWD 2026.11.13 18.52.07.xlsx")
         self.assertEqual(excel.download_name("\u202e", "", WHEN), "work items 2026.11.13 18.52.07.xlsx")
 
     def test_safe_name_itself_is_unchanged_for_others(self):
         self.assertEqual(platform.safe_name("a\u202eb"), "a\u202eb")
 
     def test_without_a_code_there_are_no_brackets(self):
-        self.assertEqual(excel.download_name("ENERGYai", "", WHEN), "ENERGYai 2026.11.13 18.52.07.xlsx")
-        self.assertEqual(excel.download_name("ENERGYai", None, WHEN), "ENERGYai 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("Northwind", "", WHEN), "Northwind 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("Northwind", None, WHEN), "Northwind 2026.11.13 18.52.07.xlsx")
 
     def test_without_a_name_the_code_stands_in_for_it(self):
-        self.assertEqual(excel.download_name("", "EAI", WHEN), "EAI 2026.11.13 18.52.07.xlsx")
+        self.assertEqual(excel.download_name("", "NWD", WHEN), "NWD 2026.11.13 18.52.07.xlsx")
         self.assertEqual(excel.download_name("  ", "", WHEN), "work items 2026.11.13 18.52.07.xlsx")
 
 
