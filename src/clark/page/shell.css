@@ -1303,6 +1303,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .btn { min-height: 32px; overflow-wrap: anywhere; }
 [data-copy-suggestion] { max-width: 100%; text-align: left; }      /* item 1129: a long unbroken copy-folder path wraps inside the card at 900 */
 .btn:disabled { cursor: default; opacity: .6; }
+.btn[aria-disabled="true"] { cursor: default; opacity: .6; }
 .setting { margin-top: var(--d-set-gap); }
 .set-head p { margin: 0; }
 /* The Settings links (item 440, S2; issue 697). At 900 px and wider (item 842) they are a list down the left, the cards at the right; the list stays under the top bar
