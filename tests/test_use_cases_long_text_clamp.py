@@ -17,10 +17,14 @@ class UseCasesLongTextClamp(unittest.TestCase):
         self.assertTrue(any("overflow-wrap: anywhere" in b for b in rule(".ucl-none")))
 
     def test_small_headline_and_milestones_clamp_to_two_lines(self):
-        for sel in (".ucl-name small", ".ucl-ms"):
-            body = " ".join(rule(sel))
+        for sel in (".ucl-name small", ".ucl-head", ".ucl-ms"):
+            bodies = list(rule(sel))
+            body = " ".join(bodies)
             self.assertIn("-webkit-line-clamp: 2", body, sel)
             self.assertIn("overflow: hidden", body, sel)
+            self.assertIn("-webkit-box-orient: vertical", body, sel)
+            # .ucl-name small is hidden in its base rule; the 1100px rule (the last) is the one that shows it, and it must show it as a box
+            self.assertIn("display: -webkit-box", bodies[-1] if sel == ".ucl-name small" else body, sel)
 
 
 if __name__ == "__main__":
