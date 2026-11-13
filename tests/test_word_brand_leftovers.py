@@ -9,7 +9,9 @@ Run: python3 dev/run_tests.py test_word_brand_leftovers
 import io
 import re
 import unittest
+import xml.etree.ElementTree as ET
 import zipfile
+from urllib.parse import unquote
 
 from _paths import ROOT   # noqa: F401
 
@@ -49,6 +51,99 @@ def with_leftovers():
     return out.getvalue()
 
 
+def _norm(base, target):
+    path = target.lstrip("/") if target.startswith("/") else (base + "/" + target if base else target)
+    out = []
+    for seg in path.split("/"):
+        if seg == "..":
+            out and out.pop()
+        elif seg and seg != ".":
+            out.append(seg)
+    return "/".join(out)
+
+
+def assert_no_dangling(case, out):
+    """Every internal relationship target and every Override names a part that is in the file; read with an XML parser, names
+    compared as Word does (percent-decoded, case-blind), so it does not share the code's reading of quotes or tags."""
+    have = {n.lower() for n in out}
+    for name, data in out.items():
+        if not name.endswith(".rels"):
+            continue
+        src = name.replace("_rels/", "", 1)[:-5]
+        base = src.rsplit("/", 1)[0] if "/" in src else ""
+        for rel in ET.fromstring(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            case.assertIn(_norm(base, unquote(rel.get("Target"))).lower(), have, f"{name} points at {rel.get('Target')!r}")
+    for ov in ET.fromstring(out["[Content_Types].xml"]):
+        if ov.tag.endswith("Override"):
+            case.assertIn(unquote(ov.get("PartName")).lstrip("/").lower(), have, f"[Content_Types].xml names {ov.get('PartName')}")
+
+
+VARIANT = {                                 # the same parts under other spellings
+    "word/Comments.xml": COMMENTS.encode(),
+    "word/PEOPLE.xml": b"<people>ZQB4-people</people>",
+    "docProps/Custom.xml": b"<Properties>ZQB4-custom-label</Properties>",
+    "docProps/Thumbnail.JPEG": b"\xff\xd8\xffZQB4-thumbnail",
+    "CustomXml/item1.xml": b"<x>ZQB4-customxml</x>",
+    "word/Glossary/document.xml": b"<g>ZQB4-glossary</g>",
+    "customXml/item 2.xml": b"<x>ZQB4-spaced</x>",
+}
+
+
+def with_variants(rel_text, types_text):
+    p = parts(template())
+    p.update(VARIANT)
+    p["[Content_Types].xml"] = p["[Content_Types].xml"].replace(b"</Types>", types_text.encode() + b"</Types>")
+    p["word/_rels/document.xml.rels"] = p["word/_rels/document.xml.rels"].replace(b"</Relationships>", rel_text.encode() + b"</Relationships>")
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as z:
+        for n, d in p.items():
+            z.writestr(zipfile.ZipInfo(n, (2020, 1, 1, 0, 0, 0)), d, zipfile.ZIP_DEFLATED)
+    return out.getvalue()
+
+
+class Variants(unittest.TestCase):
+    """Other spellings of the same leak: mixed-case part names, single quotes, open-and-close tags, a percent-encoded target."""
+
+    def check(self, rel_text, types_text):
+        out = parts(word_brand.wrap(with_variants(rel_text, types_text), BUILT))
+        for name, data in out.items():
+            self.assertNotIn(b"ZQB4", data, name)
+        for name in VARIANT:
+            self.assertNotIn(name.lower(), {n.lower() for n in out})
+        assert_no_dangling(self, out)
+        self.assertIn("word/header1.xml", out)
+
+    def test_mixed_case_part_names(self):
+        self.check(
+            f'<Relationship Id="rIdV1" Type="{REL}/comments" Target="Comments.xml"/>'
+            f'<Relationship Id="rIdV2" Type="{REL}/people" Target="people.xml"/>',
+            '<Override PartName="/word/Comments.xml" ContentType="application/xml"/>'
+            '<Override PartName="/docProps/Custom.xml" ContentType="application/xml"/>')
+
+    def test_single_quoted_attributes(self):
+        self.check(
+            f"<Relationship Id='rIdV1' Type='{REL}/comments' Target='Comments.xml'/>",
+            "<Override PartName='/word/Comments.xml' ContentType='application/xml'/>"
+            "<Override ContentType='application/xml' PartName='/docProps/Custom.xml'/>")
+
+    def test_open_and_close_tags(self):
+        self.check(
+            f'<Relationship Id="rIdV1" Type="{REL}/comments" Target="Comments.xml"></Relationship>',
+            '<Override PartName="/word/Comments.xml" ContentType="application/xml"></Override>')
+
+    def test_percent_encoded_target(self):
+        self.check(
+            f'<Relationship Id="rIdV1" Type="{REL}/comments" Target="../customXml/item%202.xml"/>',
+            '<Override PartName="/customXml/item%202.xml" ContentType="application/xml"/>')
+
+    def test_a_target_in_the_templates_own_part_set_is_kept(self):
+        out = parts(word_brand.wrap(with_variants("", ""), BUILT))
+        self.assertIn("word/header1.xml", out)
+        self.assertIn(b"header1.xml", out["word/_rels/document.xml.rels"])
+
+
 class Leftovers(unittest.TestCase):
     def setUp(self):
         self.out = parts(word_brand.wrap(with_leftovers(), BUILT))
@@ -63,25 +158,7 @@ class Leftovers(unittest.TestCase):
             self.assertNotIn(name, self.out)
 
     def test_nothing_left_names_a_part_that_is_gone(self):
-        for name, data in self.out.items():
-            if not name.endswith(".rels"):
-                continue
-            base = name.replace("_rels/", "").rsplit("/", 1)[0] if "/" in name.replace("_rels/", "") else ""
-            for target, mode in re.findall(rb'Target="([^"]*)"(?: TargetMode="(\w+)")?', data):
-                if mode == b"External":
-                    continue
-                path = target.decode().lstrip("/") if target.startswith(b"/") else "/".join(
-                    x for x in (base + "/" + target.decode()).split("/") if x)
-                parts_ = []
-                for seg in path.split("/"):
-                    if seg == "..":
-                        parts_ and parts_.pop()
-                    elif seg:
-                        parts_.append(seg)
-                self.assertIn("/".join(parts_), self.out, f"{name} points at {target!r}")
-        types = self.out["[Content_Types].xml"].decode()
-        for part in re.findall(r'PartName="/([^"]+)"', types):
-            self.assertIn(part, self.out, f"[Content_Types].xml names {part}")
+        assert_no_dangling(self, self.out)
 
     def test_the_templates_own_look_is_kept(self):
         kept = parts(template())
