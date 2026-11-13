@@ -558,9 +558,9 @@ _HELD_LOCKS = {}                # data folder -> the open lock file; kept open f
 def already_open(folder, restoring=False):
     """What a person reads when another clark has `folder` open. `restoring`: the words for `clark restore NAME`."""
     if restoring:
-        return "Nothing was restored: clark is open with this data. Close its window, wait a minute for clark to stop, then run the restore again."
+        return "Nothing was restored: clark is open with this data. Close its window, wait two minutes for clark to stop, then run the restore again."
     return (f"Nothing was started: clark is already open with the data in {with_tilde(folder)}. Switch to its window. If you can't "
-            "find it, wait a minute and try again: clark stops by itself a minute after its last window closes.")
+            "find it, wait two minutes and try again: clark stops by itself two minutes after its last window closes.")
 
 
 def cant_check(folder, restoring=False):
