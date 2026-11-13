@@ -181,7 +181,7 @@ export function MilestoneEdit({ m }) {
   return (
     <>
       <MsHead>
-        <MsState m={m} /><MsSep />
+        <MsState m={m} dated={false} /><MsSep />
         <span class="pk-ms-owner" data-ms-head="owner"><Text m={m} field="owner" label="Owner" value={owner === DASH ? "" : owner} /></span><MsSep />
         <span class="pk-ms-progress" data-ms-head="progress"><Progress m={m} /></span>
       </MsHead>
@@ -192,7 +192,7 @@ export function MilestoneEdit({ m }) {
         <Row name="Forecast date" k="forecast"><DateField m={m} field="forecast_date" label="Forecast date" /></Row>
         {m.status === "Done" ? <Row name="Achieved on" k="actual"><DateField m={m} field="actual_date" label="Achieved on" /></Row> : null}
         <Row name="Workstream" k="workstream"><Workstream m={m} /></Row>
-        <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it (the editor only; a use case is linked or unlinked on its own page) */}
+        <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it and those reaching it through their actions, risks, issues and decisions (the editor only; a use case is linked or unlinked on its own page) */}
         <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
         <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
       </dl>

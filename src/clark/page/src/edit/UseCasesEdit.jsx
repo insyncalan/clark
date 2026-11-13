@@ -330,6 +330,7 @@ function LinkBox({ uc, onClose, opener }) {
     await change({ kind: "use_cases", op: "link", id: uc, ids: picked, place: "report" }, linkedWords(n, name(u)));
   };
   const typed = (e) => {
+    if (e.isComposing || e.keyCode === 229) return;      // an input method is composing (keyCode 229 is Safari's word for it): Enter picks a candidate, not a row
     if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); }
     else if (e.key === "ArrowDown") { e.preventDefault(); const first = list.current && list.current.querySelector("input"); if (first) first.focus(); }
   };
