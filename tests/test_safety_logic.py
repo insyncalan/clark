@@ -157,7 +157,7 @@ class Logic(InBrowser):
                          ["This backup is from 02-10-2030 09:14. It holds 1 project, 1 work item and 1 milestone.",
                           "Made by an older version of clark; it is brought up to date when restored."])
         other = {**PREVIEW, "same_database": False}
-        self.assertIn("different database", self.val(f"T.logic.previewLines({lit(other)})")[-1])
+        self.assertIn("different set of data", self.val(f"T.logic.previewLines({lit(other)})")[-1])
         self.assertFalse(self.val(f"T.logic.canRestore({lit(other)})"))
         self.assertEqual(self.val(f"T.logic.confirmLine({lit(PREVIEW)})"), "Put back the backup from 02-10-2030 09:14? What you have now is kept first.")
 
@@ -322,7 +322,7 @@ class Card(InBrowser):
         self.replies(preview=OK({**PREVIEW, "same_database": False}))
         self.mount()
         self.click("[data-backup] [data-preview]")
-        self.assertIn("different database", self.text("#backup-panel"))
+        self.assertIn("different set of data", self.text("#backup-panel"))
         self.assertFalse(self.present("[data-restore-from-preview]"))
         self.click("[data-backup] [data-restore]")
         self.assertFalse(self.present("[data-put-back]"))

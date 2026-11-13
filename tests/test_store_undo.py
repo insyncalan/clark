@@ -398,6 +398,21 @@ class Undo(unittest.TestCase):
         self.assertIsNotNone(self.s.con.execute("SELECT 1 FROM applies WHERE apply_id = ?", (out["step_id"],)).fetchone())
         self.assertEqual({self.s.read("actions", ref=x)["owner"] for x in (a, b)}, {"Sam Example", "TBC"})
 
+    def test_one_item_two_fields_in_one_step_go_back_to_their_first_values_when_the_second_depends_on_the_first(self):
+        with self.s.step("dashboard", USER) as st:
+            r = st.create("raid", {"project": "ABC", "type": "Risk", "description": "d", "raised": "2026-10-01", "source": "demo",
+                                   "impact": "Low", "likelihood": "Low"})
+        before = dict(self.s.read("raid", ref=r))
+        with self.s.step("dashboard", USER) as st:
+            st.update("raid", r, {"impact": "High"})                    # A
+            st.update("raid", r, {"likelihood": "High"})                # B: the priority is worked out from A and B together
+        self.assertEqual(self.s.read("raid", ref=r)["priority"], "Urgent")
+        step = self.demo.last_step()
+        out = self.s.undo(step, USER)
+        row = self.s.read("raid", ref=r)
+        self.assertEqual(out["skipped"], [])
+        self.assertEqual((row["impact"], row["likelihood"], row["priority"]), (before["impact"], before["likelihood"], before["priority"]))
+
 
 class Opening(unittest.TestCase):
     def tearDown(self):

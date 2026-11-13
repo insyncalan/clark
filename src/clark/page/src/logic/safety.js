@@ -45,7 +45,7 @@ export function previewLines(p) {
   const lines = [`This backup is from ${p.when}. It holds ${holds(p.copy)}.`];
   if (p.now) lines.push(`You have ${holds(p.now)} now.`);
   if (p.older && p.older_note) lines.push(p.older_note);
-  if (!p.same_database) lines.push("This is a backup of a different database, so it can't be put back over yours.");
+  if (!p.same_database) lines.push("This is a backup of a different set of data, so it can't be put back over yours.");
   return lines;
 }
 export const canRestore = (p) => !!p && p.same_database !== false;
