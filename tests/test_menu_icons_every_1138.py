@@ -61,7 +61,8 @@ class Source(unittest.TestCase):
     # not drop-down menus of commands: the search suggestions and the command palette are lists of what was typed.
     OTHER = ("edit/cells/MenuPick.jsx", "edit/cells/RatingPick.jsx", "edit/cells/StatusPick.jsx", "edit/cells/PriorityPick.jsx", "edit/PeekPick.jsx",
              "edit/MilestonePeek.jsx", "components/Menu.jsx", "edit/Palette.jsx", "edit/ArchivedPeek.jsx", "edit/PeekActivity.jsx", "edit/ArchivedItems.jsx",
-             "components/UseCases.jsx", "components/Peek.jsx")
+             "components/UseCases.jsx", "components/Peek.jsx",
+             "components/UseCaseFilePage.jsx")      # only a selector that tells when a menu is open (for Esc); it draws none
     DRAWS = re.compile(r'<Menu\b|<MenuPanel|role="menu"|role="listbox"|role=menu')
 
     def test_each_menu_takes_its_icons_from_the_map(self):
