@@ -203,6 +203,30 @@ class Card(InBrowser):
         self.mount()
         self.assertEqual(self.text(".pub-msg"), "")
 
+    def tall(self):
+        self.js("document.head.appendChild(Object.assign(document.createElement('style'), {textContent: '#backup-list{margin-bottom:1500px}'}))")
+
+    def in_view(self, selector):
+        return self.val(f"(() => {{ const r = document.querySelector({lit(selector)}).getBoundingClientRect(); return r.top >= 0 && r.bottom <= window.innerHeight; }})()")
+
+    def test_preview_result_is_scrolled_into_view_and_takes_focus(self):               # #1122
+        self.mount()
+        self.tall()
+        self.click("[data-backup] [data-restore]")
+        self.assertEqual(self.val("document.activeElement.id"), "backup-panel")
+        self.assertTrue(self.in_view("#backup-panel"))
+
+    def test_the_restored_message_is_in_view_and_focused_after_the_reload(self):       # #1122
+        self.js("T.logic.rememberDone('Restored the backup.', T.store)")
+        self.mount_tall()
+        self.assertEqual(self.text(".pub-msg"), "Restored the backup.")
+        self.assertEqual(self.val("document.activeElement.className"), "pub-msg")
+        self.assertTrue(self.in_view(".pub-msg"))
+
+    def mount_tall(self):
+        self.js("new MutationObserver((_, o) => { if (document.getElementById('backup-list')) { document.head.appendChild(Object.assign(document.createElement('style'), {textContent: '#backup-list{margin-bottom:1500px}'})); o.disconnect(); } }).observe(document.body, {childList: true, subtree: true})")
+        self.mount()
+
     def test_a_refusal_is_one_plain_sentence_and_nothing_reloads(self):
         self.replies(restore=OK({"ok": False, "code": "changed", "message": "x"}, 409))
         self.mount()
