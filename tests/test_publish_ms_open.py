@@ -12,6 +12,7 @@ import _publish_fixture as fx
 from clark import page, publish
 from test_server import chrome, wait
 import test_publish as tp
+from _new_page import reload_to_new_page_cdp
 
 CONTROLS = "button, input, textarea, select, [role=textbox], [role=combobox]"
 PEEK_LABELS = ("Description", "Agreed date", "Forecast date", "Workstream", "Client wording")
@@ -127,8 +128,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
             sid = tp.opened(cdp, (folder / "report.html").as_uri() + "#milestones&p=PUB", 1400)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-msall]')", sid)), "more than five milestones: the Show all button is there")
             cdp.js("localStorage.setItem('clark.msAll.page', 'true')", sid)
-            cdp.call("Page.reload", {}, sid)
-            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready === '1' && !!document.querySelector('[data-msall]')", sid)), "drew again")
+            reload_to_new_page_cdp(cdp, sid, ready="document.documentElement.dataset.ready === '1' && !!document.querySelector('[data-msall]')", what="drew again")
             self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row').length", sid), 5, "an editor's stored choice does not reach a file")
             cdp.js("localStorage.removeItem('clark.msAll.page')", sid)
             cdp.js("document.querySelector('[data-msall]').click()", sid)
