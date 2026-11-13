@@ -13,6 +13,7 @@ import { printing } from "../stores/print.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { groupIcon } from "../menuIcons.js";
 
 const view = signal({ ...FIRST });
 const shut = signal(new Set());
@@ -59,7 +60,7 @@ function UseCasesList({ d, pages, cases, steps, marks }) {
             ))}
           </div>
           <span class="ucp-tools">
-            <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} />
+            <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucp-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS_HERE.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} />
           </span>
         </div>
       </div>}

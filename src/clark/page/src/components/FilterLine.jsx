@@ -12,6 +12,7 @@ import * as FL from "../logic/filterLine.js";
 import * as Q from "../logic/filterQueryUi.js";
 import { Menu, Fade } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { actionIcon, groupIcon } from "../menuIcons.js";
 import { work, setWork, announce } from "../stores/work.js";
 import { say, sayLocalUndo } from "../stores/changes.js";
 import { GROUPS, LANE_GROUPS, groupLabel, boardGroup } from "../logic/board.js";
@@ -36,9 +37,9 @@ export function layoutItems(w, board) {
   const onBoard = board && w.view === "board", g = onBoard ? boardGroup(w.group) : w.group;
   const lane = onBoard && w.lane && w.lane !== g && LANE_GROUPS.includes(w.lane) ? w.lane : "none";
   const out = [];
-  out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, checked: x.id === g })));
-  if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", checked: lane === "none" },
-    ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, checked: lane === x })));
+  out.push({ id: "lab-group", lab: "Group by" }, ...GROUPS.filter((x) => !onBoard || x.id !== "nothing").map((x) => ({ id: `group:${x.id}`, name: x.label, icon: groupIcon(x.id), checked: x.id === g })));
+  if (onBoard) out.push({ id: "sep-lanes", sep: true }, { id: "lab-lanes", lab: "Swimlanes" }, { id: "lane:none", name: "No lanes", icon: actionIcon("none"), checked: lane === "none" },
+    ...LANE_GROUPS.filter((x) => x !== g).map((x) => ({ id: `lane:${x}`, name: `${groupLabel(x)} lanes`, icon: groupIcon(x), checked: lane === x })));
   return { items: out, label: `Group by: ${groupLabel(g)}${lane !== "none" ? `, ${groupLabel(lane).toLowerCase()} lanes` : ""}` };
 }
 

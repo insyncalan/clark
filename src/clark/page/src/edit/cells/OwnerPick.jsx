@@ -4,6 +4,8 @@
 // The same props as StatusPick, plus `names`, so the peek (#42) can use it as it is.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Pop, roam } from "./Pop.jsx";
+import { Icon } from "../../components/Icon.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { fieldName } from "../itemEdit.js";
 import { readPeople } from "../peopleApi.js";
 import { project } from "../../stores/report.js";
@@ -86,7 +88,7 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
             <input type="text" class="cp-in" data-new-email value={form.email} autocomplete="off" spellcheck={false} maxLength={254} inputMode="email"
               onInput={(e) => { setForm({ ...form, email: e.currentTarget.value }); setProblem(""); }} onKeyDown={inForm} />
           </label>
-          {already ? <button type="button" class="cp-name" data-use onClick={() => choose(already.name)}><span>Use this one</span></button> : null}
+          {already ? <button type="button" class="cp-name" data-use onClick={() => choose(already.name)}><Icon name={actionIcon("owner")} cls="mi" /><span>Use this one</span></button> : null}
           <div class="cp-acts">
             <button type="button" class="btn" data-new-back onClick={() => { setForm(null); setProblem(""); setAlready(null); box.current && box.current.focus(); }}>Back</button>
             <button type="button" class="btn pri" data-new-save disabled={busy} onClick={save}>Add and assign</button>
@@ -121,11 +123,11 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
         )}
         {offerAdd ? (
           <div class="cp-add">
-            <button type="button" class="cp-name" data-add onClick={() => { setForm({ name: typed.trim(), email: "" }); setProblem(""); }}><span>{`Add ${typed.trim()} as a new person`}</span></button>
-            <button type="button" class="cp-name" data-keep onClick={() => choose(typed)}><span>Keep the name only</span></button>
+            <button type="button" class="cp-name" data-add onClick={() => { setForm({ name: typed.trim(), email: "" }); setProblem(""); }}><Icon name={actionIcon("add")} cls="mi" /><span>{`Add ${typed.trim()} as a new person`}</span></button>
+            <button type="button" class="cp-name" data-keep onClick={() => choose(typed)}><Icon name={actionIcon("draft")} cls="mi" /><span>Keep the name only</span></button>
           </div>
         ) : null}
-        <button type="button" class="cp-name cp-clear" data-clear onClick={() => choose("TBC")}><span>TBC (no one yet)</span></button>
+        <button type="button" class="cp-name cp-clear" data-clear onClick={() => choose("TBC")}><Icon name={actionIcon("none")} cls="mi" /><span>TBC (no one yet)</span></button>
       </div>
       )}
       <p class="cp-hint">{form ? "Press Enter to add and assign this person." : "Press Enter to keep what you typed."}</p>

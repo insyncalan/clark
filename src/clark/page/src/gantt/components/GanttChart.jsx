@@ -384,7 +384,7 @@ export function GanttChart({
               }}>
               {filters.map((f) => (
                 <button type="button" key={f} role="menuitemradio" aria-checked={filter === f || (f === "all" && !filters.includes(filter))} data-g-filter={f} onClick={() => setFilter(f)}>
-                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span>{filterWord(f)}
+                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span><Icon name={actionIcon("filter" + f[0].toUpperCase() + f.slice(1))} cls="mi" />{filterWord(f)}
                 </button>
               ))}
             </div>

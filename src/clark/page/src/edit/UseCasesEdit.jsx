@@ -26,6 +26,7 @@ import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
@@ -144,7 +145,7 @@ export function Status({ u }) {
   return (
     <span class="ucst" data-uc-status={u.id} data-edit-only>
       <Menu label={u.status} labelCls={`ucword rag-${r}`} btnCls="ucw-btn" ariaLabel={`Status: ${u.status}. Change`} menuLabel="Status" id={`ucst-${u.id}`} chevron={false}
-        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, checked: u.status === n }))}
+        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, icon: actionIcon("status"), checked: u.status === n }))}
         onPick={(n) => { if (n !== u.status) send(u, { status: n }, `Use case ${name(u)} set to ${n}.`); }} />
     </span>
   );
@@ -251,7 +252,7 @@ export function MilestoneAdd({ u }) {
   return (
     <span class="ucx-msadd" data-ms-add={u.id} data-edit-only>
       <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones" id={`ucd-msadd-${u.id}`} btnCls="btn sm" left
-        items={items.map((m) => ({ id: m.id, name: m.name }))} onPick={pick} />
+        items={items.map((m) => ({ id: m.id, name: m.name, icon: actionIcon("milestone") }))} onPick={pick} />
     </span>
   );
 }
@@ -267,7 +268,7 @@ export function MilestoneLink({ u }) {
   return (
     <span class="ucx-mslink" data-ms-link={u.id} data-edit-only>
       <Menu label="Link a milestone" ariaLabel={`Link a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
-        items={items} onPick={pick} />
+        items={items.map((m) => ({ ...m, icon: actionIcon("milestone") }))} onPick={pick} />
     </span>
   );
 }

@@ -42,14 +42,43 @@ class Map(unittest.TestCase):
         self.assertNotEqual(m["up"], m["down"])
         self.assertEqual(m["delete"], "trash")
         self.assertEqual(m["exportExcel"], m["exportWord"])
+        self.assertEqual(m["exportExcel"], m["excel"], "Export to Excel and the client menu's Excel are the same action")
+        self.assertNotEqual(m["add"], m["duplicate"], "Add and Duplicate are told apart")
+        self.assertNotEqual(m["show"], m["preview"], "Show and Preview are told apart")
+        self.assertEqual(m["copyId"], m["copyIds"], "Copy ID and Copy IDs are the same action")
+        self.assertEqual(len({m["lookLight"], m["lookDark"], m["lookSystem"]}), 3, "the three looks have three icons")
         self.assertEqual(run_js("console.log(JSON.stringify(M.actionIcon('nonsense') ?? null))"), None)
 
 
 class Source(unittest.TestCase):
+    # Every file that draws a drop-down menu, and so must take its icons from the map. A new file with a menu that is in neither list fails.
+    MENUS = ("edit/Gutter.jsx", "edit/ProfileMenu.jsx", "edit/RowMenu.jsx", "components/ClientMenu.jsx", "gantt/components/GanttTable.jsx",
+             "gantt/components/GanttChart.jsx", "gantt/components/GanttPage.jsx", "edit/Bulk.jsx", "edit/Board.jsx", "edit/GlanceEdit.jsx",
+             "edit/ProjectSwitch.jsx", "components/FilterLine.jsx", "components/WorkItems.jsx", "components/NewTile.jsx", "edit/UseCasesPage.jsx",
+             "components/UseCasesTab.jsx", "edit/UseCasesEdit.jsx", "components/UseCaseDetail.jsx", "edit/CommitMenu.jsx", "edit/RichText.jsx",
+             "edit/cells/OwnerPick.jsx")
+    # Menus that already drew an icon on every line through their own choices (row 1074), checked by test_menu_icons_mutproof_1074, or that are
+    # not drop-down menus of commands: the search suggestions and the command palette are lists of what was typed.
+    OTHER = ("edit/cells/MenuPick.jsx", "edit/cells/RatingPick.jsx", "edit/cells/StatusPick.jsx", "edit/cells/PriorityPick.jsx", "edit/PeekPick.jsx",
+             "edit/MilestonePeek.jsx", "components/Menu.jsx", "edit/Palette.jsx", "edit/ArchivedPeek.jsx", "edit/PeekActivity.jsx", "edit/ArchivedItems.jsx",
+             "components/UseCases.jsx", "components/Peek.jsx")
+    DRAWS = re.compile(r'<Menu\b|<MenuPanel|role="menu"|role="listbox"|role=menu')
+
     def test_each_menu_takes_its_icons_from_the_map(self):
-        for rel in ("edit/Gutter.jsx", "edit/ProfileMenu.jsx", "edit/RowMenu.jsx", "components/ClientMenu.jsx",
-                    "gantt/components/GanttTable.jsx", "gantt/components/GanttChart.jsx"):
-            self.assertIn("actionIcon", (SRC / rel).read_text(encoding="utf-8"), rel)
+        for rel in self.MENUS:
+            text = (SRC / rel).read_text(encoding="utf-8")
+            self.assertTrue("actionIcon" in text or "groupIcon" in text, rel)
+
+    def test_no_file_draws_a_menu_that_is_not_listed(self):
+        for path in sorted(SRC.rglob("*.jsx")):
+            rel = path.relative_to(SRC).as_posix()
+            if rel in self.MENUS or rel in self.OTHER or not self.DRAWS.search(path.read_text(encoding="utf-8")):
+                continue
+            self.fail(f"{rel} draws a menu: give each line an icon from menuIcons.js and list the file in MENUS")
+
+    def test_the_dead_mi_t_class_has_a_rule(self):
+        css = (SRC.parent / "shell.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"(?m)^\.mi-t\s*\{")
 
     def test_the_row_menu_no_longer_names_its_own_icons_for_shared_actions(self):
         text = (SRC / "edit" / "RowMenu.jsx").read_text(encoding="utf-8")
@@ -57,7 +86,48 @@ class Source(unittest.TestCase):
             self.assertNotIn(bad, text)
 
 
+# Every menu the page can open from a plain visit: (address, button to click, what the menu may skip). A line of the menu that is not a
+# note (a heading, a separator, the top "who" line, a disabled explainer) must draw an icon of 15px or more. A menu with a bare line fails.
+REACHABLE = [
+    ("#dashboard&p=ABC", "#profile-btn"),
+    ("#dashboard&p=ABC", "#project-name"),
+    ("#work&p=ABC", "#viewMenu"),
+    ("#work&p=ABC", "#viewTabMenu"),
+    ("#work&p=ABC", "#newBtn"),
+    ("#work&p=ABC", "#group-by"),
+]
+BARE = ("(() => { const m = [...document.querySelectorAll('[role=menu]')].pop(); if (!m) return null;"
+        " return [...m.querySelectorAll('[role=menuitem],[role=menuitemradio]')].filter(b => b.getAttribute('aria-disabled') !== 'true' && !b.closest('.who'))"
+        ".map(b => { const s = b.querySelector('svg.i'); return {t: b.textContent.trim().slice(0, 30), w: s ? s.getBoundingClientRect().width : 0}; }); })()")
+
+
 class Page(Base):
+    def test_every_reachable_menu_has_an_icon_on_every_line(self):
+        seen = 0
+        with chrome() as cdp:
+            for addr, button in REACHABLE:
+                p = self.visit(cdp)
+                p.edit()
+                if addr != "#dashboard&p=ABC":
+                    p.js("document.querySelector('[data-view=work]').click()")
+                    p.until("!!document.querySelector('#work')", "Work items drew")
+                    time.sleep(.5)
+                for w in WIDTHS:
+                    self.at(cdp, p, w)
+                    if not p.js(f"!!document.querySelector('{button}')"):
+                        continue
+                    p.js(f"document.querySelector('{button}').click()")
+                    time.sleep(.4)
+                    got = p.js(BARE)
+                    p.key("Escape", code="Escape", vk=27)
+                    time.sleep(.3)
+                    if got is None:
+                        continue
+                    seen += 1
+                    for g in got:
+                        self.assertGreaterEqual(g["w"], 15, f"{button} at {w}: the line {g['t']!r} has no icon")
+        self.assertGreaterEqual(seen, 6, "the menus were really opened")
+
     def at(self, cdp, p, width):
         cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1400, "deviceScaleFactor": 1, "mobile": False}, p.sid)
         p.until(f"window.innerWidth === {width}", "resized")

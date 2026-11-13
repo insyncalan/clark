@@ -95,7 +95,7 @@ export function ProfileMenu() {
   // The last-published note is hidden from the bar in a narrow window, so the menu says it too; a separator sets the settings apart.
   // Appearance (#179; its group is called Appearance in the menu and in Settings): the same three choices as Settings › Personal, in the same order, below the separator that divides the actions
   // (Publish, Preview, Export) from the settings entries; the one in use is marked. One signal feeds both places.
-  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
+  const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], icon: actionIcon("look" + m[0].toUpperCase() + m.slice(1)), checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };

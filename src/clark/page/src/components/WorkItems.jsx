@@ -31,6 +31,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
+import { groupIcon } from "../menuIcons.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
@@ -277,7 +278,7 @@ function GroupBy({ board }) {
   const g = work.value.group, shown = board ? boardGroup(g) : g;
   return (
     <Menu label={`Group by: ${groupLabel(shown)}`} ariaLabel={`Group by: ${groupLabel(shown)}`} id="group-by" btnCls="btn gb" menuLabel="Group by" left
-      items={GROUPS.filter((x) => !board || x.id !== "nothing").map((x) => ({ id: x.id, name: x.label }))}
+      items={GROUPS.filter((x) => !board || x.id !== "nothing").map((x) => ({ id: x.id, name: x.label, icon: groupIcon(x.id) }))}
       onPick={(id) => { const lane = work.value.lane; setWork({ group: id, lane: lane === id ? null : lane }); announce.value = `Grouped by ${groupLabel(id)}.`; }} />
   );
 }
