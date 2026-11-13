@@ -40,5 +40,9 @@ export const ACTION_ICON = {
 const GROUP_ICON = { workstream: "board", status: "half", due: "cal", owner: "user", priority: "bars", milestone: "flag", type: "tline", nothing: "circleminus", commitment: "check", on: "clock" };
 export function groupIcon(id) { return GROUP_ICON[id] || "circleminus"; }
 
+// Row 1138: the icon for each way of sorting the use case list (Sort by).
+const SORT_ICON = { ref: "doc", status: "half", open: "bars" };
+export function sortIcon(id) { return SORT_ICON[id] || "circleminus"; }
+
 /** The icon name for an action, or undefined when the action has none. */
 export function actionIcon(action) { return ACTION_ICON[action]; }

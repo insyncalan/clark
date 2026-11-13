@@ -379,33 +379,19 @@ table.items td.c-pick { vertical-align: middle; }
 /* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
 .ucl-group { margin-top: 10px; }
 .ucl-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
-.ucl-group .ucl-hd { border-top: 1px solid var(--grey-200); }
 .ucl-group .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }
 .ucl-group .ucl-list .ucl-row:last-child { border-bottom: 0; }
 .ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
 /* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
-.ucl-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
-.ucl-sort:hover, .ucl-sort[aria-pressed="true"] { color: var(--text); }
-.ucl-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
-.ucl-sort .i { width: 12px; height: 12px; flex: none; }
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: var(--ucl-cols, 84px minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(112px, max-content) 92px minmax(0, .9fr) 36px); gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
+.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
-.ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
-.ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-name { min-width: 0; display: flex; flex-direction: column; }
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
 .ucl-go:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.ucl-name small { display: none; font-size: var(--size-caption); color: var(--text-muted); overflow-wrap: anywhere; overflow: hidden; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }   /* item 1131: the same two-line clamp as the headline */
-.ucl-head, .ucl-ms { min-width: 0; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
-.ucl-head, .ucl-ms { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
-.ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: block; -webkit-line-clamp: none; font-size: var(--size-caption); }
-.ucl-st { justify-self: start; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }   /* row 1085: the status chip with the commitment chip beside it */
-.ucl-wi { font-size: var(--size-small); }
-.ucl-wi b { font-weight: var(--weight-medium); }
-.ucl-wi small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
+.ucl-head { min-width: 0; overflow-wrap: anywhere; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }   /* item 1149: where it stands is shown in full on the row, clamped to two lines */
+.ucl-st { justify-self: stretch; }
 .ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
@@ -415,10 +401,8 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-none .btn { margin-top: 4px; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
-@media (max-width: 1100px) {
-  .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
-  .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
-  .ucl-name small { display: -webkit-box; }
+@media (max-width: 900px) {
+  .ucl-row { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
@@ -812,7 +796,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 .uclink .pk-search .seg { flex: 0 1 auto; }
 .uclink .pick li .type { margin-right: 4px; }
 .uclink .pick li .pill { margin-left: 4px; }
-@media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; } }
+@media (max-width: 900px) { .ucrow-ed > .ucbar { grid-template-columns: 32px minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; } }
 @media (max-width: 640px) {      /* the eye, the number and the name share the first line; the headline, the status and the steps each take a full line under it */
   .ucrow-ed > .ucbar { grid-template-columns: 32px auto minmax(0, 1fr); }
   .ucrow-ed > .ucbar > :nth-child(n+4) { grid-column: 1 / -1; min-width: 0; }
@@ -1121,13 +1105,10 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
   .ucl-eye { width: 44px; height: 44px; }
-  .ucl-row { grid-template-columns: 56px minmax(0, 1fr) 44px; gap: 4px 10px; }
-  .ucl-row > .ucl-name { grid-column: 2; }
-  .ucl-row > .ucl-st, .ucl-row > .ucl-wi { grid-column: 2; justify-self: start; }
-  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1 / span 3; align-self: start; justify-self: end; }
-  .ucl-row > .ucl-ref { grid-row: 1; }
-  .ucl-wi small { display: inline; margin-left: 6px; }
-  .ucl-hd { display: none; }   /* no header row on a phone: each row names its own parts */
+  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
+  .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
+  .ucl-row > .ucl-go { grid-column: 2; }
+  .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }
 
 /* Plan 1022 (EDIT ONLY: the published page draws no editable wording): in the Work items rows a long wording is cut with an ellipsis like the View's title, and shows whole, wrapped, while it is being typed in. The row's title is a flex line so the Risk or Issue tag keeps its width and the wording gives way; its overflow stays visible so the focus ring is not cut off. */
@@ -1200,11 +1181,11 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 [data-ms-range] { height: 24px; }      /* the progress slider is a target of 24 px */
 
 /* Row 1104: the right edge of a heading is a handle for the column's width. The hit area is 24 px tall; the line shows on hover and focus. */
-th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }
+th:has(> .cgrip) { position: relative; }
 .cgrip { position: absolute; top: 50%; right: 0; z-index: 2; width: 24px; height: 24px; margin-top: -12px; cursor: col-resize; touch-action: none; }
 .cgrip::after { content: ""; position: absolute; top: 3px; bottom: 3px; right: 4px; width: 2px; border-radius: 1px; background: var(--grey-300); opacity: 0; }
 .cgrip:hover::after { opacity: 1; background: var(--brand-blue); }
-th[data-cw-head]:focus-visible, .ucl-hd > [data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
+th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
 
 /* Row 1104: the Milestones list's heading row and its chosen widths (edit/colWidths.jsx). It lines up with the cells of a row: the rail's 2px, the cells' 22px. Wide layouts only; the narrow stacked layout has no columns. */
 .msl-hd { display: none; }

@@ -60,7 +60,7 @@ class Map(unittest.TestCase):
 
 # The name of every menu the drives below open. Each belongs to a menu file in Source.MENUS (and the other way round).
 DRIVE_NAMES = {
-    "section", "profile", "project-switch", "outline", "health", "uc-status", "commitment", "uc-group", "uc-detail-status",
+    "section", "profile", "project-switch", "outline", "health", "uc-status", "commitment", "uc-group", "uc-sort", "uc-detail-status",
     "uc-milestone-link", "new-tile", "view-tab", "view", "owner-pick", "owner-pick-typed", "cell-Due date", "cell-Priority", "cell-Status",
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
@@ -82,7 +82,7 @@ class Source(unittest.TestCase):
                           "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone"),
         "edit/Board.jsx": ("board-move", "board-move-lanes"), "edit/GlanceEdit.jsx": ("outline", "health"),
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
-        "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group",), "components/UseCasesTab.jsx": ("uc-group",),
+        "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group", "uc-sort"), "components/UseCasesTab.jsx": ("uc-group", "uc-sort"),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
         "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
@@ -485,6 +485,8 @@ class Work(BulkBase):
                 d.look(w, th)
                 d.button("#ucl-group", "Group by")
                 d.check("uc-group", "document.querySelector('#ucl-group').click()", "[role=menu]", 3)
+                d.button("#ucl-sort", "Sort by")
+                d.check("uc-sort", "document.querySelector('#ucl-sort').click()", "[role=menu]", 3)
             d.js("location.hash = '#usecases&p=ABC&uc=ABC-U-001'")
             d.until("document.querySelector('#ucd-status')", "the use case page")
             for w, th in LOOKS:
@@ -493,7 +495,7 @@ class Work(BulkBase):
                 d.check("commitment", "document.querySelector('[id^=uccm-]').click()", "[role=menu]", 2)
                 d.button("[id^=ucd-mslink-]", "Link a milestone")
                 d.check("uc-milestone-link", "document.querySelector('[id^=ucd-mslink-]').click()", "[role=menu]", 1)
-            d.expect(["uc-group", "uc-detail-status", "commitment", "uc-milestone-link"])
+            d.expect(["uc-group", "uc-sort", "uc-detail-status", "commitment", "uc-milestone-link"])
 
 
 class Gantt(unittest.TestCase):
