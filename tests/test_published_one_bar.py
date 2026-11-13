@@ -142,7 +142,7 @@ class InTheFile(Published):
         cdp, p = self.bar(1400, False)
         self.assertEqual(p.js("getComputedStyle(document.querySelector('header.top')).position"), "sticky")
         cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
-        self.assertEqual(p.js("getComputedStyle(document.querySelector('header.top')).position"), "static", "placed once, never stuck or repeated")
+        self.assertEqual(p.js("getComputedStyle(document.querySelector('header.top')).position"), "relative", "placed once in the flow (never stuck or repeated), and positioned so the picture wash stays inside it")
         self.assertNotEqual(p.js("getComputedStyle(document.querySelector('header.top')).display"), "none", "and it is printed")
 
     def test_print_keeps_the_picture_wash_inside_the_bar(self):
