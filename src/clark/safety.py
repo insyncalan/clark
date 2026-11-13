@@ -36,7 +36,7 @@ COPY_LIMIT = 4 * 1024 ** 3                               # a backup larger than 
 MESSAGES = {
     "no_backup": "No backup called {name} is in the backups folder.",
     "folder": "The backups folder can't be read. Check that it is a folder and that you can open it, then try again.",
-    "other_database": "{name} is a backup of a different database, so it wasn't put back.",
+    "other_database": "{name} is a backup of a different set of data, so it wasn't put back.",
     "busy": "Something is being saved. Wait a moment and try again.",
     "in_use": "Another window or program has clark's data open. Close it there and try again.",
     "changed": "Your data changed after you looked. Look at the backup again.",
