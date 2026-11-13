@@ -257,6 +257,23 @@ class DeleteItem(unittest.TestCase):
                 self.assertEqual((status, back["ok"], back["skipped"]), (200, True, []), back)
                 self.assertEqual(dict(self.s.read(kind, ref=ref)), before)
 
+    def test_a_gantt_line_and_a_report_section_hold_no_id_of_either_so_they_do_not_block_and_stay(self):
+        """Item 1148, check 3 of issue 1148: neither gantt_lines nor report_sections has a column that names a use case or a milestone
+        (a Gantt milestone line is its own row; a usecases or milestones section lists the project's rows and stores no id), so no
+        report section or Gantt line can point at either: the delete goes through and those rows stay as they were."""
+        cols = lambda t: {r[1] for r in self.con.execute(f"PRAGMA table_info({t})")}
+        for t in ("gantt_lines", "report_sections"):
+            self.assertFalse({"use_case", "milestone"} & cols(t), t)
+        self.con.execute("INSERT INTO gantt_lines (id, project, type, name, start, end) VALUES ('ABC-GNT-001', 'ABC', 'milestone', 'Go live', '2026-11-02', '2026-11-02')")
+        self.con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) VALUES ('ABC', 'ABC-S-901', 'usecases', 'Use cases', 90), ('ABC', 'ABC-S-902', 'milestones', 'Milestones', 91)")
+        self.con.commit()
+        keep = lambda: (self.count("gantt_lines"), self.count("report_sections"))
+        before = keep()
+        for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
+            status, body = self.delete(kind, ref)
+            self.assertEqual((status, body["ok"]), (200, True), (kind, body))
+        self.assertEqual(keep(), before)
+
     def test_a_work_item_pointing_at_it_refuses_the_delete_and_names_it(self):
         a = self.demo.action(milestone=self.demo.milestone, use_case=self.demo.use_case)
         for kind, ref in (("milestones", self.demo.milestone), ("use_cases", self.demo.use_case)):
