@@ -10,13 +10,13 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 // The controls Tab can reach: a hidden one (the import's file input) is not one, so the wrap lands on a control that takes the focus.
 const tabbable = (r) => Array.from(r.querySelectorAll(FOCUSABLE)).filter((el) => !el.hidden && el.type !== "hidden" && el.offsetParent !== null);
 
-// Focus the first match of `selector`; it may not be drawn yet (the empty screen after a removal), so look again a few times.
-function giveFocusTo(selector, tries) {
+// Focus the first of `selectors` (one, or a list tried in order) that is drawn; it may not be drawn yet (the screen after a removal), so look again a few times.
+function giveFocusTo(selectors, tries) {
   setTimeout(() => {
     if (document.querySelector(".ad-scrim")) return;
-    const el = document.querySelector(selector);
-    if (el && el.focus) el.focus();
-    else if (tries > 0) giveFocusTo(selector, tries - 1);
+    const el = [].concat(selectors).map((s) => document.querySelector(s)).find((x) => x && x.focus);
+    if (el) el.focus();
+    else if (tries > 0) giveFocusTo(selectors, tries - 1);
   }, 25);
 }
 
@@ -32,9 +32,12 @@ export function Dialog({ title, id, onClose, first, wide, children, foot, onSubm
     if (start) start.focus();
     return () => {
       release();
-      const el = back.current;
-      if (el && el.isConnected && el.focus) setTimeout(() => { if (!document.querySelector(".ad-scrim")) el.focus(); }, 0);   // not when another box took its place (the import's next step)
-      else if (later.current) giveFocusTo(later.current, 20);                  // the opener went while the box was open (the demo banner): focus goes to the caller's fallback
+      const el = back.current, fb = later.current;
+      setTimeout(() => {                                                       // looked at after the render, not now: the opener may be removed in the same update that closes the box
+        if (document.querySelector(".ad-scrim")) return;                       // not when another box took its place (the import's next step)
+        if (el && el.isConnected && el.focus) el.focus();
+        else if (fb) giveFocusTo(fb, 20);                                      // the opener went while the box was open (the demo banner): focus goes to the caller's fallback
+      }, 0);
     };
   }, []);
   const onKeyDown = (e) => {

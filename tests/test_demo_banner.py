@@ -83,6 +83,42 @@ class DemoLine(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
             self.assertNotIn("p=TUL", cdp.js("location.hash", sid))
 
+    def own_tul(self):
+        other = clark_store.open_store(self.folder / "clark.db", onedrive_roots=[])      # an edit makes TUL the person's: only MOSS is removed
+        with other.step("dashboard", "someone@example.test") as st:
+            st.create("actions", {"project": "TUL", "description": "Added by the person", "raised": "2026-10-01", "source": "test"})
+        other.close()
+
+    def remove_at(self, cdp, sid, w):
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+        self.until(cdp, sid, "!!document.querySelector('#demo-remove')", "the banner at %d" % w)
+        cdp.js("document.querySelector('#demo-remove').click()", sid)
+        self.until(cdp, sid, "!!document.querySelector('#demo-go')", "the box")
+        cdp.js("document.querySelector('#demo-go').click()", sid)
+        self.until(cdp, sid, "!document.querySelector('#demo-confirm') && document.body.innerText.includes('Demo data removed.')", "the box closed and the message")
+
+    def each_width(self, own, hash_, then):
+        for w in (1400, 900):
+            self.setUp()                                                 # fresh demo data for each width
+            if own:
+                self.own_tul()
+            with chrome() as cdp:
+                sid = navigate(cdp, self.s.port, hash_)
+                self.remove_at(cdp, sid, w)
+                then(cdp, sid, w)
+
+    def test_after_the_removal_with_no_project_left_the_focus_is_on_the_new_project_button_at_both_widths(self):
+        self.each_width(False, "#dashboard", lambda cdp, sid, w: self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'np-empty'", "focus on New project at %d" % w))
+
+    def test_after_the_removal_with_an_own_project_left_and_the_open_one_gone_the_focus_is_on_the_first_project_of_the_list(self):
+        def then(cdp, sid, w):
+            self.until(cdp, sid, "document.querySelector('main').innerText.includes('Choose a project.')", "the list at %d" % w)
+            self.until(cdp, sid, "document.activeElement && document.activeElement.matches('.choose button')", "focus on the first project at %d" % w)
+        self.each_width(True, "#work&p=MOSS", then)
+
+    def test_after_the_removal_with_the_own_project_still_open_the_focus_is_on_the_project_switch(self):
+        self.each_width(True, "#work&p=TUL", lambda cdp, sid, w: self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'project-name'", "focus on the project switch at %d" % w))
+
     def test_a_stale_banner_after_edits_made_elsewhere_says_there_is_nothing_to_remove_and_goes(self):
         with chrome() as cdp:
             sid = navigate(cdp, self.s.port, "#dashboard")

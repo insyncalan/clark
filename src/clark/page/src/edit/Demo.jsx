@@ -12,7 +12,10 @@ import { readDemo, sendDemoRemove } from "./demoApi.js";
 import { DEMO } from "../logic/demoWords.js";
 import * as D from "../logic/dataCard.js";
 
-// The banner (the box's opener) is gone once the demo is removed: focus goes to the empty screen's button, or to the profile circle when no project went.
+// The banner (the box's opener) is gone once the demo is removed: focus goes to the first of these that is drawn: the empty screen's button, the first
+// project of the Choose-a-project list (the person has projects of their own left), the project switch (one of them is open), the profile circle.
+// When no project went, to the profile circle.
+const AFTER_REMOVAL = ["#np-empty", ".choose button", "#project-name", "#profile-btn"];
 
 export const demoOn = signal(false);
 
@@ -38,13 +41,13 @@ export function DemoConfirm({ opener, onClose }) {
     if (!r.ok) { setBusy(false); setProblem(r.message); return; }
     demoOn.value = false;
     if (r.removed === 0) { setNote(DEMO.none); return; }       // an edit had made every demo project the person's: nothing went, the banner goes, and the box says so (Cancel closes it)
+    await loadProjects();                                             // the screen underneath is settled before the box closes, so the fallback finds what is really there
+    if (!projects.value.some((p) => p.code === project.value)) leaveProject();     // the open project went: the empty screen, or the list of the projects left
     closeBox();
-    await loadProjects();
-    if (!projects.value.some((p) => p.code === project.value)) leaveProject();     // the open project went: the empty screen
     sayNote("done", DEMO.removed);                                     // spoken by the menu note: the empty screen is the Dashboard, where the change toast is not drawn
   }
   return (
-    <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel" fallback={note ? "#profile-btn" : "#np-empty"}
+    <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel" fallback={note ? "#profile-btn" : AFTER_REMOVAL}
       foot={<><button type="button" class="btn quiet" id="demo-cancel" onClick={onClose}>{DEMO.cancel}</button><button type="button" class="btn pri" id="demo-go" disabled={busy || !!note} onClick={go}>{DEMO.remove}</button></>}>
       <p>{DEMO.confirmBody}</p>
       <p role="status" id="demo-none">{note}</p>
