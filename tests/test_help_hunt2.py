@@ -91,3 +91,12 @@ class HelpHunt2(unittest.TestCase):
         titles = [k["title"] for k in ctx["cards"]]
         for n in names:
             self.assertIn(n, titles)
+
+    def test_brand_kit_guide_gives_the_stricter_file_limits(self):
+        from clark import brands, excel_picture
+        text = guide("the-brand-kit-guide")
+        self.assertEqual(brands.TOKENS_CAP, 256 * 1024)
+        self.assertEqual(excel_picture.MAX_BYTES, 1024 * 1024)
+        self.assertEqual(excel_picture.MAX_PIXELS, 2000)
+        self.assertIn("at most 256 KB", text)
+        self.assertIn("at most 1 MB and 2000 pixels each way", text)
