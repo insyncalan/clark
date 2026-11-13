@@ -179,9 +179,10 @@ class Browser(unittest.TestCase):
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS].arch')", "the archived row")
             self.assertEqual(cdp.js("document.querySelector('#show-archived').getAttribute('aria-pressed')", sid), "true")
             self.assertEqual([b for r in self.table(cdp, sid) if r["code"] == "MOSS" for b in r["buttons"]], ["Restore"])
-            cdp.js("document.querySelector('tr[data-project=MOSS] [data-restore]').click()", sid)
+            cdp.js("document.querySelector('tr[data-project=MOSS] [data-restore]').focus(); document.querySelector('tr[data-project=MOSS] [data-restore]').click()", sid)
             self.until(cdp, sid, "document.querySelector('tr[data-project=MOSS]:not(.arch)')", "the restored row")
             self.assertEqual(self.sent[-1]["op"], "restore")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'projects-h'", "focus on the Projects heading after Restore")
 
     def test_the_open_project_can_be_archived_and_the_page_opens_the_first_other_live_project(self):       # #444, row 46
         s = self.serve()

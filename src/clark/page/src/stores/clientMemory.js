@@ -15,7 +15,7 @@ export function keepChoices() {
     if (!fromFile.value || status.value !== "ready" || !data.value || restored.peek()) return;
     const st = recall(load(project.peek()), rows.peek(), asAt.peek());
     if (st) {
-      if (!f.peek()) setFilterState({ mode: st.mode, type: st.type, filters: st.filters, not: st.not });
+      if (!f.peek() && view.peek() === "work") setFilterState({ mode: st.mode, type: st.type, filters: st.filters, not: st.not });
       setWork({ group: st.group });
     }
     restored.value = true;
