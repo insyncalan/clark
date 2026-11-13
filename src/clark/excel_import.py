@@ -114,7 +114,7 @@ import zipfile
 import zlib
 from html import unescape
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -236,6 +236,8 @@ def _got(value):
         return writer.shown(value.date().isoformat()) + (value.strftime(" %H:%M") if value.hour or value.minute else "")
     if isinstance(value, date):
         return writer.shown(value.isoformat())
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
     return repr(_short(value, 60)) if isinstance(value, str) else repr(value)
 
 
@@ -465,10 +467,10 @@ def same(a, b):
 
 def read_date(value):
     """A date cell as YYYY-MM-DD: a real Excel date, DD-MM-YYYY text (also / or .), or YYYY-MM-DD text. Raises ValueError."""
-    if isinstance(value, datetime):
-        return value.date().isoformat()
     if isinstance(value, date):
-        return value.isoformat()
+        if (value.date() if isinstance(value, datetime) else value) < date(1900, 3, 1):
+            raise ValueError(value)        # Excel's day 60 (a 29 February 1900 that never was) reads as 28 February, and a negative day as 1899: neither is a date
+        return value.isoformat()[:10]
     s = str(value).strip()
     if not s.isascii():                      # \d also takes other scripts' digits; refuse them like check_id does
         raise ValueError(s)
@@ -502,14 +504,19 @@ def resolve_ref(field, text):
 OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
 
 
-def from_cell(name, value, kind, label=None, table=None):
+def from_cell(name, value, kind, label=None, stored=(), table=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
-    the column's name as the person sees it, for the reason given; it defaults to `name`."""
+    the column's name as the person sees it, for the reason given; it defaults to `name`. `stored` is what the item holds now
+    (and held at the export): a long text that is that text, or that text cut to what Excel keeps, is not a change, so it is not
+    refused and comes back as the stored text."""
     label = label or name
     if value is None or (isinstance(value, str) and not value.strip()):
         return None, None
     if isinstance(value, str) and len(value) > MAX_TEXT:
+        for old in stored:
+            if isinstance(old, str) and value in (old, excel.cell_text(old), excel.cell_text(old)[:MAX_CELL_TEXT]):
+                return old, None
         return None, f"{label} is too long ({len(value):,} characters; the most clark will take is {MAX_TEXT:,})"
     if name in writer.DATE_FIELDS:
         try:
@@ -942,7 +949,7 @@ class _Reader:
             label = _label(table, f)
             if cell[f] is _FORMULA:
                 continue                                # a formula is not read: neither a value nor a cleared cell
-            v, err = from_cell(f, cell[f], info[f][0], label, table)
+            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
@@ -1024,7 +1031,7 @@ class _Reader:
         for f in editable:
             if cell[f] is _FORMULA:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table)
+            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn} (new): {err}; the row was left out", sheet, rn, "", f)
                 bad = True
