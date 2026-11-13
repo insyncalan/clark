@@ -10,6 +10,7 @@ import struct
 import tempfile
 import zlib
 import unittest
+from unittest import mock
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from _demo import USER
 from test_glance_page import Published, Setup
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
+import _testpage as testpage
+from clark import page
+from test_brand_picture import png
 
 BAND = """(() => {
   const c = document.querySelector('header.cover'); if (!c) return null;
@@ -150,6 +154,65 @@ class Logo(Setup):
                 self.assertLessEqual(got["w"] + got["right"], got["band"][0], "inside the band")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                 self.assertGreaterEqual(min(p.js(LUM)), 4.5, "the text keeps its contrast")
+
+
+class BrandLogo(Setup):
+    """#1154: the logo comes from the installed brand's assets/logo.png, through the real wiring (the page text the brand layer
+    builds and the picture route), not from a variable set by hand: at 1400 and 900 it is drawn in the band; a brand with no
+    logo draws nothing."""
+
+    def serve(self, with_logo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        folder = Path(tmp.name)
+        (folder / "assets").mkdir()
+        (folder / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
+        if with_logo:
+            (folder / "assets" / "logo.png").write_bytes(png(40, 12, (200, 30, 120)))
+        hook = mock.patch.object(page, "PAGE", mock.Mock(read_text=lambda **kw: testpage.html()))
+        hook.start()
+        self.addCleanup(hook.stop)
+        self.s.httpd.page_html = lambda: page.page_html(branding=folder, brand_id="one-brand")
+        self.s.httpd.brand_picture = lambda name, brand_id=None: page.brand_picture(name, folder) if brand_id == "one-brand" else None
+
+    def test_the_installed_brand_logo_reaches_the_band(self):
+        self.serve(True)
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                got = p.js(LOGO)
+                self.assertIn("/assets/one-brand/logo.png", got["image"])
+                self.assertEqual((got["display"], got["h"], got["top"], got["right"]), ("block", 64, 24, 36))
+                p.js("window.__logo = 0; const i = new Image(); i.onload = () => { window.__logo = i.naturalWidth; }; i.src = '/assets/one-brand/logo.png';")
+                p.until("window.__logo === 40", "the logo picture loaded from the route")
+                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+    def test_a_brand_without_a_logo_draws_nothing(self):
+        self.serve(False)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.assertEqual(self.show(cdp, width).js(LOGO)["image"], "none")
+
+
+class BrandLogoPage(unittest.TestCase):
+    def folder(self, logo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        d = Path(tmp.name)
+        (d / "assets").mkdir()
+        (d / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
+        if logo:
+            (d / "assets" / "logo.png").write_bytes(png())
+        return d
+
+    def test_only_a_served_page_of_a_brand_with_a_logo_names_it(self):
+        html = '<html><head><style id="brand-demo"></style></head><body></body></html>'
+        with mock.patch.object(page, "PAGE", mock.Mock(read_text=lambda **kw: html)), mock.patch.object(page, "VIEW_PAGE", mock.Mock(read_text=lambda **kw: html)):
+            self.assertIn('--image-logo: url("/assets/b-1/logo.png")', page.page_html(self.folder(True), brand_id="b-1"))
+            self.assertIn('--image-logo: url("/assets/logo.png")', page.page_html(self.folder(True)))
+            self.assertNotIn("--image-logo", page.page_html(self.folder(False), brand_id="b-1"))
+            self.assertNotIn("--image-logo", page.page_html(self.folder(True), view=True, brand_id="b-1"), "the published file carries no address")
+            self.assertNotIn("--image-logo", page.page_html(page.NO_BRAND))
 
 
 class TheWeek(Setup):
