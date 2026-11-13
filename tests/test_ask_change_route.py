@@ -12,6 +12,7 @@ import json
 import re
 import sqlite3
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 from _demo import USER, DemoStore
@@ -324,6 +325,41 @@ class Mutants(Base):
             status, body = self.apply(offer)
         self.assertEqual((status, body["code"]), (409, "asking_off"), "the switch is read again inside the step")
         self.assertEqual(self.status_of(self.action), "Open")
+
+
+class Expiry(Base):
+    """The injected clock moves: a held change lasts REPLY_MINUTES, and no more than MAX_REPLIES are kept."""
+    def setUp(self):
+        super().setUp()
+        self.now = [1000.0]
+        self.service.clock = lambda: self.now[0]
+
+    def test_a_held_change_expires_after_its_minutes_and_not_before(self):
+        limit = ask_service.REPLY_MINUTES * 60
+        edge = self.answer(change_line(op="change", id=self.action, status="Closed"))["reply"]
+        late = self.answer(change_line(op="change", id=self.action, status="Closed"))["reply"]
+        self.now[0] += limit
+        status, body = self.dry(edge)
+        self.assertEqual(status, 200, body)
+        self.now[0] += 1
+        status, body = self.dry(late)
+        self.assertEqual((status, body["code"]), (409, "no_reply"))
+
+    def test_old_replies_are_dropped_when_a_new_one_is_held(self):
+        held = SimpleNamespace(changes=[], cites=())
+        req = SimpleNamespace(passages=())
+        old = self.service.hold("ABC", held, req, set(), {})
+        self.now[0] += ask_service.REPLY_MINUTES * 60 + 1
+        new = self.service.hold("ABC", held, req, set(), {})
+        self.assertEqual(list(self.service.replies), [new])
+        self.assertNotIn(old, self.service.replies)
+
+    def test_only_the_newest_max_replies_are_kept(self):
+        held = SimpleNamespace(changes=[], cites=())
+        req = SimpleNamespace(passages=())
+        keys = [self.service.hold("ABC", held, req, set(), {}) for _ in range(ask_service.MAX_REPLIES + 1)]
+        self.assertEqual(list(self.service.replies), keys[1:])
+        self.assertEqual(len(self.service.replies), ask_service.MAX_REPLIES)
 
 
 class Source(unittest.TestCase):
