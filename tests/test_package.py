@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -678,6 +679,65 @@ class DefaultAudienceTest(unittest.TestCase):
     def test_a_client_zip_has_no_audience_line(self):
         self.assertNotIn(self.TEAM, package.start_here("mac", for_client=True))
         self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))
+
+
+class GitHangTest(unittest.TestCase):
+    """Every git call in package.py is given GIT_TIMEOUT. The git on PATH here is a shim that sleeps, so a call with no
+    timeout would sit for the whole sleep; each call must come back well before it, and files() must not raise
+    TimeoutExpired (it refuses, as Refused, like the other callers)."""
+    SLEEP = 20
+    LIMIT = 8       # seconds a call may take; GIT_TIMEOUT is patched to 1
+
+    def setUp(self):
+        shim = Path(tempfile.mkdtemp(prefix="clark git shim "))
+        self.addCleanup(shutil.rmtree, shim, True)
+        git = shim / "git"
+        git.write_text(f"#!/bin/sh\nexec sleep {self.SLEEP}\n", encoding="utf-8")
+        git.chmod(0o755)
+        env = mock.patch.dict(os.environ, {"PATH": f"{shim}{os.pathsep}{os.environ.get('PATH', '')}"})
+        env.start()
+        self.addCleanup(env.stop)
+        limit = mock.patch.object(package, "GIT_TIMEOUT", 1)
+        limit.start()
+        self.addCleanup(limit.stop)
+
+    def prompt(self, call):
+        began = time.monotonic()
+        try:
+            result = call()
+        except BaseException as e:
+            result = e
+        self.assertLess(time.monotonic() - began, self.LIMIT)
+        return result
+
+    def test_tracked_is_asked_with_the_limit(self):
+        self.assertIsInstance(self.prompt(lambda: package.tracked(ROOT, ["src/clark/"])), subprocess.TimeoutExpired)
+
+    def test_files_refuses_and_does_not_raise_timeout_expired(self):
+        got = self.prompt(lambda: package.files("mac", ROOT))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_the_audience_and_the_snapshot_check_read_a_hang_as_team_only(self):
+        self.assertEqual(package.TEAM_ONLY, self.prompt(lambda: package.audience(ROOT)))
+        self.assertIn("could not list", self.prompt(lambda: package.snapshot_problem(ROOT)))
+
+    def test_the_last_commit_check_alone_comes_back(self):
+        with mock.patch.object(package, "private_paths", return_value=[]):
+            got = self.prompt(lambda: package.snapshot_problem(ROOT))
+        self.assertIn("isn't a public snapshot", got)
+
+    def test_released_on_falls_back_to_today(self):
+        import datetime
+        self.assertEqual(datetime.date.today().isoformat(), self.prompt(lambda: package.released_on(ROOT)))
+
+    def test_uncommitted_refuses(self):
+        got = self.prompt(lambda: package.uncommitted(ROOT, ["README.md"]))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_tag_problem_says_git_could_not(self):
+        self.assertIn("did not say which tag", self.prompt(lambda: package.tag_problem(ROOT, "1.2.3")))
 
 
 class ReleaseFromTagTest(unittest.TestCase):

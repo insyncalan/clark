@@ -249,7 +249,8 @@ def version(root=ROOT):
     return found.group(1)
 
 
-GIT_TIMEOUT = 60     # seconds; git is never waited on for ever (a hang reads as 'git cannot say')
+GIT_TIMEOUT = 60     # seconds; every git call in this file is given this limit. A hang reads as 'git cannot say': the
+                     # audience, snapshot and tag checks refuse or fall back, files() and uncommitted() refuse, released_on() uses today
 
 
 def tracked(root, paths):
@@ -268,7 +269,11 @@ def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
-        found = tracked(root, [item]) if item.endswith("/") else [item]
+        try:
+            found = tracked(root, [item]) if item.endswith("/") else [item]
+        except subprocess.TimeoutExpired:
+            raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files under {item} can't be listed. "
+                          "Nothing was written. Try again.") from None
         if not found or not all((Path(root) / zip_source(p, root)).is_file() for p in found):
             raise Refused(MISSING_FILE.format(what=item))
         kept.update(p for p in found if protected(p))
@@ -356,8 +361,11 @@ def snapshot_problem(root):
         return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
-    log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
-                         capture_output=True, text=True)
+    try:
+        log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
+                             capture_output=True, text=True, timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say who made its last commit, so it isn't a public snapshot"
     neutral = [pub.AUTHOR_NAME, pub.AUTHOR_EMAIL] * 2
     if log.returncode != 0 or log.stdout.splitlines() != neutral:
         return "its last commit was not made by the publish tool, so it isn't a public snapshot"
@@ -400,7 +408,11 @@ def schema_version(root=ROOT):
 
 def released_on(root=ROOT):
     """The date of the last commit, YYYY-MM-DD, so two builds of the same commit are byte for byte the same."""
-    out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True)
+    try:
+        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return datetime.date.today().isoformat()
     day = out.stdout.strip()
     return day if out.returncode == 0 and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day) else datetime.date.today().isoformat()
 
@@ -542,15 +554,23 @@ def entries(system, root=ROOT, extra_folders=()):
 
 
 def uncommitted(root, paths):
-    out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
-                         capture_output=True, check=True, text=True).stdout
+    try:
+        out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
+                             capture_output=True, check=True, text=True, timeout=GIT_TIMEOUT).stdout
+    except subprocess.TimeoutExpired:
+        raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files can't be checked for changes that aren't "
+                      "committed. Nothing was written. Try again.") from None
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
 def tag_problem(root, ver):
     """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
     The v0.2.1 download was built from a tree that was not its tag (#400)."""
-    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    try:
+        run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say which tag this folder is at"
     if run.returncode != 0:
         return "git could not say which tag this folder is at"
     if f"v{ver}" not in run.stdout.split():
