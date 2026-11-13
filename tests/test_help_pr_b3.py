@@ -91,7 +91,7 @@ class ExcelCells(unittest.TestCase):
         self.assertNotIn("Risks and issues", t)
         ex, im = py("excel.py"), py("excel_import.py")
         self.assertIn('("Risks & Issues", "raid"', ex)
-        self.assertIn('return f"{item_id}: {name}"', ex)
+        self.assertIn('text = " ".join(f"{ref or \'\'} {name or \'\'}".split())', ex)
         self.assertIn('("Milestone", "milestone")', ex)
         self.assertIn('if table in ("milestones", "use_cases")', ex)
         self.assertIn("names[f].get(r.get(f), r.get(f)) for f in REF_TABLES", ex)
