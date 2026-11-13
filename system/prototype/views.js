@@ -204,7 +204,7 @@
     /* rag: the tile's automatic colour, from the data; the user can set another with a right-click (Edit mode) */
     return {
       health: { k: 'Project health', rag: p.health },
-      overdue: { v: over.length, k: 'Overdue actions', d: openA ? `of ${openA} open actions` : 'No open actions', rag: over.length ? 'R' : 'G', go: () => C.workFilter({ type: 'A', due: ['overdue'] }) },
+      overdue: { v: over.length, k: 'Overdue actions', d: openA ? `of ${D.plural(openA, 'open action')}` : 'No open actions', rag: over.length ? 'R' : 'G', go: () => C.workFilter({ type: 'A', due: ['overdue'] }) },
       risks: { v: high.length, k: 'High risks and issues', d: !openRI ? 'None open' : !high.length ? 'None high' : openRI === 1 ? 'of 1 open risk or issue' : `of ${openRI} open risks and issues`, rag: high.length ? 'R' : openRI ? 'A' : 'G', go: () => C.workFilter({ type: 'R', priority: ['Urgent', 'High'] }) },
       stale: { v: quiet.length, k: 'Not reviewed', d: `in ${C.dy(D.staleDays(p.code))}`, rag: quiet.length ? 'A' : 'G', go: () => C.workFilter({ fresh: ['stale'] }) },
       decisions: { v: dec.length, k: 'Decisions needed', d: dated.length ? `Oldest needed by ${D.fd(dated[0])}` : dec.length ? 'No date set' : 'None waiting', rag: dec.length ? 'A' : 'G', go: () => C.workFilter({ type: 'D', status: ['Pending'] }) },

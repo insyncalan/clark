@@ -914,9 +914,6 @@ button.cell-pill { border: 0; cursor: pointer; font: inherit; } button.cell-pill
 .glance .fig .sw-G { color: var(--status-green-text); } .glance .fig .sw-A { color: var(--status-amber-text); } .glance .fig .sw-R { color: var(--status-red-text); }
 .glance .fig .k .sw { margin-left: auto; }
 .ragdot { width: 8px; height: 8px; border-radius: 50%; background: var(--status-grey); flex: none; }
-.rag-G .ragdot { background: var(--status-green); }
-.rag-A .ragdot { background: var(--status-amber); }
-.rag-R .ragdot { background: var(--status-red); }
 .glance .rag-N .ragdot { display: none; }
 .glance .health-fig .hrow { margin-top: 10px; }
 .swatch { width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--grey-300); flex: none; background: var(--grey-50); }
@@ -1014,7 +1011,6 @@ button.cell-pill { border: 0; cursor: pointer; font: inherit; } button.cell-pill
 .ask .ask-resize { left: 0; }   /* inside the panel, which now clips its picture */
 
 /* tile colour: option K2: the tile stays neutral; a thin outline in the status colour fades out from the bottom-left corner */
-.glance .fig.rag-G, .glance .fig.rag-A, .glance .fig.rag-R, .glance .fig.rag-N { background: var(--grey-50); }
 .glance .fig { --c: transparent; } .glance .fig.rag-G { --c: var(--status-green); } .glance .fig.rag-A { --c: var(--status-amber); } .glance .fig.rag-R { --c: var(--status-red); }
 .glance .fig::after { content: ""; position: absolute; inset: 0; border-radius: inherit; padding: 1.5px; background: linear-gradient(45deg, var(--c) 0%, transparent 38%); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; pointer-events: none; }
 .glance .fig .ragdot { display: none; }
