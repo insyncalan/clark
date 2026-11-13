@@ -35,10 +35,10 @@ class StatusColour(unittest.TestCase):
             self.assertIn(word, body, (kind, row))
             self.assertEqual(fill, ctx.hexes(colour)[0], (kind, row))
 
-    def test_an_unrated_risk_has_no_fill(self):
-        body, fill, _ = cell({"status": "Open", "priority": None}, "risk")
+    def test_an_unrated_risk_is_grey(self):
+        body, fill, ctx = cell({"status": "Open", "priority": None}, "risk")
         self.assertIn("Not rated", body)
-        self.assertIsNone(fill)
+        self.assertEqual(fill, ctx.hexes("grey")[0])
 
 
 class OtherKindsOfRaidRow(unittest.TestCase):
