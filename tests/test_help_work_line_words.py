@@ -29,7 +29,7 @@ class WorkLineWords(unittest.TestCase):
         self.assertNotIn("**Export to Excel** icon at the right end of the filter line", TEXT)
         self.assertNotIn("are the Import and Export icons", TEXT)
         self.assertIn("At the right end of the filter line are the **List** and **Board** icons and the **Group by** button", TEXT)
-        self.assertIn("the export is in the profile circle menu or in **Settings**, in the **Data** card", TEXT)
+        self.assertIn("With a project open, from any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card", TEXT)
 
     def test_the_icon_list_calls_the_layout_button_list(self):
         self.assertIn('"List",\n    "Work items as a list, in groups"', TEXT)

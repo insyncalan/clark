@@ -2722,7 +2722,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "From any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card."
+     "d": "With a project open, from any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card."
     },
     {
      "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
