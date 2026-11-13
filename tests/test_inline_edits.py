@@ -9,6 +9,7 @@ the store in one step with Undo, Esc leaves the value as it was (one panel, clos
 the item's peek.
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
+import time
 import contextlib
 import json
 import re
@@ -263,7 +264,14 @@ def contrast(fg, bg):
 
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
-    box = cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()", sid)
+    where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"
+    box = cdp.js(where, sid)
+    for _ in range(50):      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
+        time.sleep(0.1)
+        again = cdp.js(where, sid)
+        if again == box:
+            break
+        box = again
     assert box, f"{selector} is not on the page"
     x, y = box
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
@@ -1168,7 +1176,7 @@ class Live(unittest.TestCase):
                     # is anything tabbable after the date cell? Asked before the Tab: when nothing is, Tab leaves the page (the browser takes the
                     # focus, or wraps to the first link, by its own rules) and the page cannot be asked to keep it; when something is, it must land there.
                     onward = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
-                                    ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop]'));"
+                                    ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop],[inert]'));"
                                     " return all.some(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING && !c.contains(e)); })()", sid)
                     key(cdp, sid, "Tab")
                     kept("Tab")
