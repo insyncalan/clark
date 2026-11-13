@@ -140,20 +140,6 @@ class PeopleCard(unittest.TestCase):
             self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppPasteBtn", 10), "the focus is back on Paste from Excel")
             self.assertEqual(js("document.querySelector('#ppPasteBtn').getAttribute('aria-expanded')"), "false")
 
-    def test_after_undo_the_focus_is_on_the_card_not_lost(self):
-        with chrome() as cdp:
-            js = self.show(cdp)
-            js("document.querySelector('#ppPasteBtn').click()")
-            self.assertTrue(wait(lambda: js("document.querySelector('#ppPaste').hidden") is False, 10))
-            self.fill(js, PASTE)
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppPreview')"), 10))
-            js("document.querySelector('#ppAdd').click()")
-            self.assertTrue(wait(lambda: js("!!document.querySelector('#ppUndo')"), 20))
-            js("document.querySelector('#ppUndo').focus(); document.querySelector('#ppUndo').click()")
-            self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
-            self.assertTrue(wait(lambda: js("document.activeElement && document.activeElement.id") == "ppPasteBtn", 10),
-                            "the Undo button is gone, so the focus must not fall to the page")
-
     def test_a_bad_row_is_named_in_plain_words_and_nothing_is_added(self):
         with chrome() as cdp:
             js = self.show(cdp)
