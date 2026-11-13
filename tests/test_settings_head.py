@@ -19,7 +19,7 @@ WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
 CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
-         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
+         ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("AI", "ai-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
 
 
 def ratio(a, b):
@@ -119,7 +119,7 @@ class Head(Base):
                     for name, head_id in CARDS:
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').textContent"), name, "a chip says what its card's heading says")
                         self.assertEqual(p.js(f"document.getElementById('{head_id}').getAttribute('tabindex')"), "-1")
-                    for gone in ("AI", "Client folder", "Published reports"):
+                    for gone in ("Client folder", "Published reports"):
                         self.assertNotIn(gone, self.chips(p), f"no chip for {gone}: there is no such card")
                     self.assertNotIn("Settings are not ready yet.", p.js("document.querySelector('main').innerText"))
 
