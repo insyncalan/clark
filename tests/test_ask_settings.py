@@ -315,6 +315,27 @@ class Settings(unittest.TestCase):
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertEqual(js("window.__ask.calls.map(c => c && c.action).filter(Boolean)"), ["choose", "choose", "choose", "remove"])
 
+    def test_choose_and_remove_keep_the_focus_in_the_folders_part(self):
+        """Choose folder and Remove are disabled while the request runs: the focus comes back to Choose folder, or after a Remove to
+        the Remove button now in that place (Choose folder when none is left). 1400 and 900."""
+        act = "document.activeElement"
+        choose = "document.querySelector('[data-ask-choose]')"
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                js("window.__ask.choices = ['/Example/One', '/Example/Two']")
+                for _ in range(2):
+                    js(f"{choose}.focus(); {choose}.click()")
+                    self.until(lambda: js(f"{act} === {choose}"), True, f"{w}: focus is back on Choose folder")
+                self.until(lambda: js("document.querySelectorAll('[data-ask-remove]').length"), 2, f"{w}: two folders")
+                rm = "document.querySelectorAll('[data-ask-remove]')"
+                js(f"{rm}[0].focus(); {rm}[0].click()")
+                self.until(lambda: js(f"{act} === {rm}[0] && {rm}.length === 1"), True, f"{w}: focus is on the Remove button that took its place")
+                js(f"{rm}[0].focus(); {rm}[0].click()")
+                self.until(lambda: js(f"{act} === {choose} && !document.querySelector('#ask-folders')"), True, f"{w}: none left, focus is on Choose folder")
+
     def test_when_no_window_can_open_a_box_to_type_the_location_appears(self):
         for scheme, width in [(a, b) for a in ("light", "dark") for b in WIDTHS]:
             with chrome() as cdp:

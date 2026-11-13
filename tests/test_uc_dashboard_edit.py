@@ -177,6 +177,21 @@ class Edit(Setup):
                     p.until("document.querySelectorAll('.ucrow').length === %d" % (2 + n), "on the dashboard once its eye is on")
                     self.assertEqual(self.store.read("use_cases", ref=made["id"])["client_visible"], 1)
 
+    def test_esc_closes_the_add_box_while_the_save_is_out(self):
+        """With the save on its way the Add button is disabled and the focus drops to the page: Esc must still close the box."""
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            p.js("window.fetch = (u, o) => (String(u).indexOf('/api/change') >= 0 ? new Promise(() => {}) : Promise.reject(new Error('x')))")
+            self.click(p, "#ucAdd")
+            p.until("!!document.querySelector('#ucF')", "the box")
+            self.type_in(p, "#ucI", "9.9")
+            self.type_in(p, "#ucT", "Slow save")
+            p.js("document.querySelector('#ucF').requestSubmit()")
+            p.until("document.querySelector('#ucF [data-place]').disabled", "the Add button is disabled while the save is out")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ucF')", "Esc closed the box while busy")
+
     def test_an_id_already_used_is_not_added(self):
         with chrome() as cdp:
             p = self.edit(cdp)
