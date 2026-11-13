@@ -470,6 +470,8 @@ def read_date(value):
     if isinstance(value, date):
         return value.isoformat()
     s = str(value).strip()
+    if not s.isascii():                      # \d also takes other scripts' digits; refuse them like check_id does
+        raise ValueError(s)
     m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", s)
     if m:
         return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
