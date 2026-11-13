@@ -62,3 +62,9 @@ class HelpHunt2(unittest.TestCase):
         item = next(i for i in strings(HELP) if i.startswith("The suggestions sit in one row"))
         for quoted in re.findall(r"\*\*(.+?)\*\*", item):
             self.assertIn(f'"{quoted}"', general, quoted)
+
+    def test_published_page_does_not_claim_three_tabs(self):
+        text = entry("The published client page")
+        self.assertNotIn("Three tabs", text)
+        self.assertIn("Use cases", text)
+        self.assertIn("Gantt", text)
