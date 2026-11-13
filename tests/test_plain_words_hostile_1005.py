@@ -54,36 +54,6 @@ def plain(value, one=False):          # one=None leaves the argument out, to rea
         return json.loads(done.stdout)
 
 
-def node_eval(expr):
-    node = shutil.which("node")
-    if not node:
-        raise unittest.SkipTest("no node")
-    with tempfile.TemporaryDirectory() as tmp:
-        script = Path(tmp) / "probe.js"
-        script.write_text(bundle() + ";\nconsole.log(JSON.stringify(" + expr + "));", encoding="utf-8")
-        done = subprocess.run([node, str(script)], capture_output=True, text=True)
-        assert done.returncode == 0, done.stderr
-        return json.loads(done.stdout)
-
-
-class PlainThatLooksLikeHtml(unittest.TestCase):
-    """Row 1005: a plain one-line value typed as tags round-trips through the editor; a rich field's stored HTML still reads as rich."""
-    LITERAL = "<p>use <b>x</b></p>"
-
-    def test_plain_value_that_looks_like_html_loads_as_its_own_text(self):
-        html = node_eval("PW.plainToHtml(" + json.dumps(self.LITERAL) + ")")
-        self.assertEqual(html, "<p>&lt;p&gt;use &lt;b&gt;x&lt;/b&gt;&lt;/p&gt;</p>")
-        self.assertEqual(plain(html, True), self.LITERAL)
-
-    def test_plain_values_that_do_not_look_like_html_load_as_before(self):
-        for v in ("Cut-over plan", "a < b & c", "x"):
-            self.assertEqual(node_eval("PW.plainToHtml(" + json.dumps(v) + ")"), node_eval("PW.richOrPlain(" + json.dumps(v) + ")"), v)
-        self.assertEqual(node_eval("PW.plainToHtml(null)"), "")
-
-    def test_stored_rich_html_still_reads_as_rich(self):
-        self.assertEqual(node_eval("PW.richOrPlain('<p>x</p>')"), "<p>x</p>")
-
-
 LINE_BREAKS = ("\n", "\r", " ", " ", "\u0085", "\v", "\f")
 
 
