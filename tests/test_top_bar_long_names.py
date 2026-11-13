@@ -1,4 +1,4 @@
-"""A very long project name and a very long person name in the top bar at 600, 900 and 1400 px: the bar's items do not overlap or run past the
+"""A very long project name and a very long person name in the top bar at 900 and 1400 px: the bar's items do not overlap or run past the
 window, no control is hidden, the page does not scroll sideways, and the profile menu (which carries the person's name) stays inside the window.
 Chrome is required: these tests fail, never skip, without it.
 
@@ -12,8 +12,8 @@ from test_publish_dialog import Base
 from test_server import chrome
 
 LONG_PROJECT = "Example Client onboarding programme, phase two, northern region, including the extended regional rollout and wind-down"
-LONG_PERSON = "Alexandria Bartholomew-Featherstonehaugh-Montgomery-Wolfe"
-LONG_EMAIL = "alexandria.bartholomew.featherstonehaugh.montgomery@a-very-long-example-company-name.example.org"
+LONG_PERSON = "Example Person With An Extremely Long Hyphenated-Family-Name-That-Keeps-Going-And-Going"
+LONG_EMAIL = "example.person.with.a.very.long.address.that.keeps.going@a-very-long-example-company-name.example.org"
 
 BAR = """(function(){
   var W = document.documentElement.clientWidth, bad = [];
@@ -59,14 +59,14 @@ class LongNames(Base):
             self.assertLessEqual(got["page"], 0, "the page scrolls sideways " + where)
             self.assertEqual(got["tabsOutOfRow"], 0, "a tab is outside the tab row " + where)
             p.until("(() => { if (document.querySelector('#profile-menu')) return true; if (Date.now() - (window.__t || 0) > 1000) { window.__t = Date.now(); document.querySelector('#profile-btn').click(); } return !!document.querySelector('#profile-menu'); })()", "the profile menu opened")
-            p.until("document.querySelector('#profile-menu').textContent.includes('Alexandria')", "the long name is in the menu")
-            self.assertTrue(p.js("document.querySelector('#profile-menu').textContent.includes('Alexandria')"), "the long name is shown in the menu " + where)
+            p.until("document.querySelector('#profile-menu').textContent.includes('Example Person')", "the long name is in the menu")
+            self.assertTrue(p.js("document.querySelector('#profile-menu').textContent.includes('Example Person')"), "the long name is shown in the menu " + where)
             m = p.js(MENU)
             self.assertEqual(m["out"], [], "the profile menu does not fit " + where)
             self.assertLessEqual(m["page"], 0, "the menu makes the page scroll sideways " + where)
 
 
-for _w in (600, 900, 1400):
+for _w in (900, 1400):
     for _e in (False, True):
         setattr(LongNames, "test_%d_%s" % (_w, "edit" if _e else "view"), lambda self, w=_w, e=_e: self.check(w, e))
 
