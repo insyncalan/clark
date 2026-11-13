@@ -145,6 +145,35 @@ def _close(text, tag, name):
     return i
 
 
+def numbering_shift(raw):
+    """(abstractNum shift, num shift): how far the report's list ids move so they sit after every id the template's numbering uses."""
+    text = raw.decode("utf-8", "replace") if raw else ""
+    if "</w:numbering>" not in text:
+        return 0, 0
+    abstract = [int(v) for v in re.findall(r'<w:abstractNum\s[^>]*?w:abstractNumId="(\d+)"', text)]
+    nums = [int(v) for v in re.findall(r'<w:num\s[^>]*?w:numId="(\d+)"', text)]
+    return (max(abstract) + 1 if abstract else 0), (max(nums) if nums else 0)
+
+
+def merged_numbering(raw, mine, shift):
+    """The template's numbering with the report's lists added under shifted ids, so a template style that points at a numId keeps
+    its own list. A template numbering part that can't be read as one is replaced by the report's (as before)."""
+    text = raw.decode("utf-8", "replace") if raw else ""
+    if "</w:numbering>" not in text:
+        return mine.encode("utf-8")
+    ids = lambda d: (lambda m: m.group(1) + str(int(m.group(2)) + d) + '"')       # noqa: E731
+    mine = re.sub(r'(<w:abstractNumId w:val=")(\d+)"', ids(shift[0]), mine)
+    mine = re.sub(r'(<w:abstractNum\s[^>]*?w:abstractNumId=")(\d+)"', ids(shift[0]), mine)
+    mine = re.sub(r'(<w:num\s[^>]*?w:numId=")(\d+)"', ids(shift[1]), mine)
+    abstracts = "".join(re.findall(r"<w:abstractNum\s.*?</w:abstractNum>", mine, re.S))
+    nums = "".join(re.findall(r"<w:num\s.*?</w:num>", mine, re.S))
+    first = re.search(r"<w:num\s", text)
+    at = first.start() if first else text.rindex("</w:numbering>")
+    text = text[:at] + abstracts + text[at:]
+    i = text.rindex("</w:numbering>")
+    return (text[:i] + nums + text[i:]).encode("utf-8")
+
+
 def wrap(template, built):
     infos, parts = word_template._load(template, NAME)
     for n in sorted(parts):                                # a DOCTYPE or entity is refused in any part, as when reading
@@ -171,6 +200,11 @@ def wrap(template, built):
     for prefix, uri in (("w", _b.NS_W), ("r", _b.NS_R)):
         if f"xmlns:{prefix}=" not in head:
             head = head[:-1] + f' xmlns:{prefix}="{uri}">'
+    num = re.search(r'Type="[^"]*/numbering"[^>]*?Target="([^"/][^"]*)"|Target="([^"/][^"]*)"[^>]*?Type="[^"]*/numbering"',
+                    _text(parts, RELS) if RELS in parts else "")
+    target = next((g for g in num.groups() if g), "numbering.xml") if num else "numbering.xml"
+    shift = numbering_shift(parts.get("word/" + target))
+    body = re.sub(r'(<w:numId w:val=")(\d+)"', lambda m5: m5.group(1) + str(int(m5.group(2)) + shift[1]) + '"', body)    # the report's lists after the template's own
     # the report's relationship ids (links and pictures) get a prefix no template uses
     rid = {}
     for m2 in re.finditer(r'<Relationship Id="(rId\d+)" Type="[^"]*/(hyperlink|image)" Target="([^"]*)"(?: TargetMode="External")?/>',
@@ -198,10 +232,7 @@ def wrap(template, built):
         out["word/styles.xml"] = (theirs[:i] + extra + theirs[i:]).encode("utf-8")
     else:
         out["word/styles.xml"] = mine["word/styles.xml"]
-    num = re.search(r'Type="[^"]*/numbering"[^>]*?Target="([^"/][^"]*)"|Target="([^"/][^"]*)"[^>]*?Type="[^"]*/numbering"',
-                    _text(parts, RELS) if RELS in parts else "")
-    target = next((g for g in num.groups() if g), "numbering.xml") if num else "numbering.xml"
-    out["word/" + target] = mine["word/numbering.xml"]           # the report's lists are numbered by the report's own definitions
+    out["word/" + target] = merged_numbering(parts.get("word/" + target), mine["word/numbering.xml"].decode("utf-8"), shift)
     for old, new in media.items():
         out[new] = mine[old]
     # relationships and content types

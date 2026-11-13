@@ -91,6 +91,13 @@ class Setup(Base):
     def refs(self, p):
         return p.js("[...document.querySelectorAll('#usecases .ucl-list .ucl-row')].map(r => r.querySelector('.ucl-ref').textContent)")
 
+    def sort_by(self, p, word):
+        """Item 1149: the sort is a menu beside Group by (the rows have no column names)."""
+        self.click(p, "#ucl-sort")
+        p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Sort by menu")
+        p.js(f"[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].find(b => b.textContent.replace('✓', '').trim() === {json.dumps(word)}).click()")
+        p.until(f"document.querySelector('#ucl-sort').getAttribute('aria-label') === {json.dumps('Sort by: ' + word)}", f"sorted by {word}")
+
     def count(self, p):
         return p.js("document.querySelector('#ucl-count').textContent")
 
@@ -218,7 +225,7 @@ class Dashboard(Setup):
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.until("!!document.querySelector('.uc')", "the summary drew")
             self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucrow .ucref')].map(e => e.textContent)"), ["1.1", "1.2"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucrow .ucref')].map(e => e.textContent)"), ["UC 1.1", "UC 1.2"])
             self.assertEqual(p.js("document.querySelector('[data-uc-more]').textContent"), "2 more on the Use cases page")
             p.js("document.querySelector('[data-uc-more]').click()")
             p.until("location.hash === '#usecases&p=ABC' && !!document.querySelector('#usecases .ucl-row')", "the line links to the page")
@@ -252,17 +259,20 @@ class List(Setup):
                     p = self.show(cdp, width, dark)
                     self.assertEqual(self.refs(p), ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"], "all four, in reference order (1.2 before 1.10)")
                     rows = {r["ref"]: r for r in p.js("""[...document.querySelectorAll('#usecases .ucl-list .ucl-row')].map(r => ({
-                        ref: r.querySelector('.ucl-ref').textContent, name: r.querySelector('.ucl-go').textContent, head: r.querySelector('.ucl-name small').textContent,
+                        ref: r.querySelector('.ucl-ref').textContent, name: r.querySelector('.ucl-go').textContent, head: r.querySelector('.ucl-head').textContent,
                         status: r.querySelector('.ucl-st .pill').textContent, dot: getComputedStyle(r.querySelector('.ucl-st .pill'), '::before').content,
-                        work: r.querySelector('.ucl-wi').innerText.replace(/\\s+/g, ' '), ms: r.querySelector('.ucl-ms-s') ? r.querySelector('.ucl-ms-s').textContent : '',
+                        work: r.querySelector('.ucl-steps').innerText.replace(/\\s+/g, ' '), counts: r.querySelectorAll('.ucl-wi, .ucl-ms, .ucl-ms-s').length, uc: (r.innerText.match(/UC/g) || []).length,
                         eye: r.querySelector('.ucl-eye').title, label: r.querySelector('.ucl-go').getAttribute('aria-label') }))""")}
                     self.assertEqual(rows["UC 1.1"]["name"], "Invoice matching")
                     self.assertEqual(rows["UC 1.1"]["head"], "Matching is live for two suppliers")
                     self.assertEqual(rows["UC 1.1"]["status"], "On track")
                     self.assertEqual(rows["UC 1.1"]["dot"], '""', "the status has its dot as well as its word")
-                    self.assertEqual(rows["UC 1.1"]["work"], "2 linked 1 open")
-                    self.assertEqual(rows["UC 1.2"]["work"], "3 linked 3 open")
-                    self.assertEqual(rows["UC 1.10"]["work"], "None linked")
+                    self.assertEqual(rows["UC 1.1"]["work"], "1 next step", "item 1149: the row says its open next steps, as the dashboard does")
+                    self.assertEqual(rows["UC 1.2"]["work"], "3 next steps")
+                    self.assertEqual(rows["UC 1.10"]["work"], "No open steps")
+                    self.assertEqual([r["counts"] for r in rows.values()], [0, 0, 0, 0], "item 1149: the Work items and Milestones counts sit behind the click, not on the row")
+                    self.assertEqual([r["uc"] for r in rows.values()], [1, 1, 1, 1], "item 1149: UC is said once on a row, in the boxed reference")
+                    self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd, #usecases [data-sort]').length"), 0, "item 1149: a list, no column headings")
                     self.assertEqual(rows["UC 1.1"]["eye"], ON)
                     self.assertEqual(rows["UC 1.10"]["eye"], OFF)
                     self.assertEqual(rows["UC 2.1"]["eye"], OFF)
@@ -270,10 +280,28 @@ class List(Setup):
                     self.assertEqual(rows["UC 1.10"]["label"], f"UC 1.10, Supplier portal, High risk, No work items, {OFF}")
                     self.assertEqual(rows["UC 1.2"]["status"], "Flag")
                     self.assertEqual(rows["UC 1.10"]["status"], "High risk")
-                    ms = p.js("[...document.querySelectorAll('#usecases .ucl-list .ucl-ms')].map(e => e.textContent)")
-                    self.assertEqual(ms, ["Pilot live", "Supplier go-live", "None", "Supplier go-live"], "the milestones its work items point at")
                     self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
                     self.assertFalse(p.js("[...document.querySelectorAll('#usecases .ucl-list .ucl-row')].some(r => r.querySelector('.ucl-ref').textContent === 'UC 9')"))
+
+    def test_a_row_is_laid_out_as_the_dashboard_summary_row_is(self):
+        """Item 1149: the page row has the dashboard summary row's parts: the same boxed reference, the same title weight, the title and where it stands beside the box."""
+        probe = """(() => {
+          const r = document.querySelector('%s'), q = (s) => r.querySelector(s), cs = (e) => getComputedStyle(e);
+          const ref = q('.ucref'), title = q('.uctitle'), head = q('.uchead'), steps = q('.ucsteps');
+          const box = ref.getBoundingClientRect(), t = title.getBoundingClientRect();
+          return { ref: ref.textContent, border: [cs(ref).borderTopWidth, cs(ref).borderTopStyle, cs(ref).borderTopColor], refSize: cs(ref).fontSize, refPad: cs(ref).paddingLeft,
+                   weight: cs(title).fontWeight, color: cs(title).color, headColor: cs(head).color, steps: steps.textContent, stepsSize: cs(steps).fontSize,
+                   gap: Math.round(t.left - box.right), boxW: Math.round(box.width) };
+        })()"""
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width, hash_="#dashboard&p=ABC")
+                dash = p.js(probe % ".ucrow")
+                p.js("window.location.assign('#usecases&p=ABC')")
+                p.until("document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the page drew")
+                page = p.js(probe % "#usecases .ucl-row")
+                self.assertEqual(page, dash, "the same box, title weight, colours, steps word and spacing")
+                self.assertEqual(page["ref"], "UC 1.1")
 
     def test_the_page_is_laid_out_without_sideways_scroll_and_every_control_is_big_enough(self):
         for width in (1400, 900):
@@ -294,8 +322,8 @@ class List(Setup):
                     self.assertGreaterEqual(min(sizes), 13, "no text under 13 px")
 
     def test_text_contrast_is_at_least_4_5_to_1_in_light_and_dark(self):
-        sels = ["#usecases h1", ".ucl-sub", ".ucl-ref", ".ucl-go", ".ucl-name small", ".ucl-head", ".ucl-ms", ".ucl-wi", ".ucl-wi small", ".ucl-st .pill",
-                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".ucl-hd span", ".vtab", ".vtab em", "#ucl-group", ".ucl-hd .ucl-sort", "#ucl-q-count"]
+        sels = ["#usecases h1", ".ucl-sub", ".ucl-ref", ".ucl-go", ".ucl-head", ".ucl-steps", ".ucl-st .pill",
+                ".ucl-eye", ".ucl-row.off .ucl-eye", ".ucl-count", ".vtab", ".vtab em", "#ucl-group", "#ucl-sort", "#ucl-q-count"]
         for width in (1400, 900):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
@@ -335,7 +363,6 @@ class List(Setup):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark, edit=True)
                     self.assertNotIn("home dashboard", p.js("document.querySelector('#usecases .ucl-list').innerText").lower(), "no heading over the eye")
-                    self.assertEqual(p.js("document.querySelector('#usecases .ucl-hd').textContent.toLowerCase().includes('dashboard')"), False)
                     got = p.js("""[...document.querySelectorAll('#usecases .ucl-row[data-uc]')].map(r => { const e = r.querySelector('.ucl-eye'), o = [r.querySelector('.ucl-st .pill'), r.querySelector('.cchip')];
                         const b = e.getBoundingClientRect(), rr = r.getBoundingClientRect();
                         return { words: e.textContent.trim(), shown: e.innerText.trim(), title: e.title, label: e.getAttribute('aria-label'), svg: e.querySelectorAll('svg').length,
@@ -460,7 +487,7 @@ class Narrowing(Setup):
             p = self.show(cdp)
             self.type_in(p, "#ucl-q", "status:Flag ")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "one is Flag")
-            self.assertEqual(p.js("document.querySelectorAll('#ucl-status, .ucl-pop, #usecases .seg, #ucl-sort').length"), 0, "no Status popup, switch or Sort menu beside the line")
+            self.assertEqual(p.js("document.querySelectorAll('#ucl-status, .ucl-pop, #usecases .seg').length"), 0, "no Status popup or switch beside the line")
             self.click(p, "#ucl-q-x")
             self.type_in(p, "#ucl-q", 'status:Flag,"High risk" ')
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 2", "Flag and High risk")
@@ -486,8 +513,7 @@ class Narrowing(Setup):
             self.assertEqual(p.js("getComputedStyle(" + pill + ", '::before').content"), '""', "the dot")
             blue = "(() => { const s = document.createElement('span'); s.style.cssText = 'background:var(--brand-blue-tint);color:var(--status-blue-text)'; document.body.appendChild(s); const c = getComputedStyle(s); const r = [c.backgroundColor, c.color]; s.remove(); return r; })()"
             self.assertEqual(p.js("[getComputedStyle(" + pill + ").backgroundColor, getComputedStyle(" + pill + ").color]"), p.js(blue), "the .pill.b rule paints Done blue, not the unstyled pill")
-            self.click(p, ".ucl-hd [data-sort=status]")
-            p.until("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed') === 'true'", "sorted")
+            self.sort_by(p, "Status")
             self.assertEqual(self.refs(p), ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"], "Flag, then On track, then Done")
             self.type_in(p, "#ucl-q", "status:")
             self.press(p, "ArrowDown")
@@ -539,7 +565,7 @@ class Narrowing(Setup):
         with chrome() as cdp:
             p = self.show(cdp)
             got = p.js("[...document.querySelectorAll('#usecases .fvrow .ucl-tools button')].map(b => [b.id, b.getAttribute('aria-label')])")
-            self.assertEqual(got, [["ucl-group", "Group by: Nothing"], ["ucAddPage", "Add use case"]], "Group by, then the + with the Work items word, at the right end of the tabs row; no Import or Export (item 1142)")
+            self.assertEqual(got, [["ucl-group", "Group by: Nothing"], ["ucl-sort", "Sort by: Reference"], ["ucAddPage", "Add use case"]], "Group by, Sort by, then the + with the Work items word, at the right end of the tabs row; no Import or Export (item 1142)")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .head button').length"), 0, "nothing is left in the head")
             self.assertEqual(p.js("document.querySelectorAll('#impBtn, #expBtn').length"), 0, "no Import or Export icon on the page")
             self.assertGreater(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().left"), p.js("document.querySelector('[data-tab=risk]').getBoundingClientRect().right"), "to the right of the last tab")
@@ -547,21 +573,21 @@ class Narrowing(Setup):
             self.click(p, "#ucAddPage")
             p.until("!!document.querySelector('#ucF')", "Add use case opens the box")
 
-    def test_sort_by_reference_status_and_open_work_items_on_the_column_names(self):
-        """Row 1085: the sort is on the column names (Ref, Status, Work items), the current one pressed and marked; the Sort menu went."""
+    def test_sort_by_reference_status_and_open_work_items_is_a_menu_beside_group_by(self):
+        """Item 1149: the sort moved from the column names to a menu beside Group by; the current one is checked and named on the button."""
         with chrome() as cdp:
             p = self.show(cdp)
-            heads = "[...document.querySelectorAll('#usecases .ucl-hd .ucl-sort')].map(b => [b.dataset.sort, b.getAttribute('aria-label'), b.getAttribute('aria-pressed'), b.querySelectorAll('svg').length])"
-            self.assertEqual(p.js(heads), [["ref", "Sort by Reference", "true", 1], ["status", "Sort by Status", "false", 0], ["open", "Sort by Open work items", "false", 0]], "Reference to start, marked")
-            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-hd > *')].map(e => e.textContent.trim())"), ["Ref", "Use case", "Where it stands", "Status", "Work items", "Milestones", ""], "the column names read as before")
-            for key, word, refs in (("status", "Status", ["UC 1.10", "UC 1.2", "UC 1.1", "UC 2.1"]), ("open", "Open work items", ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"]),
-                                    ("ref", "Reference", ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])):
-                self.click(p, f".ucl-hd [data-sort={key}]")
-                p.until(f"{json.dumps(refs)}.join() === [...document.querySelectorAll('#usecases .ucl-list .ucl-row .ucl-ref')].map(e => e.textContent).join()", f"sorted by {word}")
-                self.assertEqual(p.js(f"document.querySelector('.ucl-hd [data-sort={key}]').getAttribute('aria-pressed')"), "true")
-                self.assertEqual(p.js(f"document.querySelector('.ucl-hd [data-sort={key}]').title"), f"Sort by {word}")
-                self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [aria-pressed=true]').length"), 1, "one column marked")
-            self.assertEqual(p.js("document.querySelectorAll('#ucl-sort').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd, #usecases .ucl-sort').length"), 0, "no column names")
+            self.assertTrue(p.js("document.querySelector('#ucl-group').getBoundingClientRect().right <= document.querySelector('#ucl-sort').getBoundingClientRect().left"), "beside Group by")
+            self.click(p, "#ucl-sort")
+            p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the menu")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ddmenu [role=menuitemradio]')].map(b => [b.textContent.replace('✓', '').trim(), b.getAttribute('aria-checked')])"),
+                             [["Reference", "true"], ["Status", "false"], ["Open work items", "false"]], "Reference to start, checked")
+            self.press(p, "Escape")
+            for word, refs in (("Status", ["UC 1.10", "UC 1.2", "UC 1.1", "UC 2.1"]), ("Open work items", ["UC 1.2", "UC 1.1", "UC 2.1", "UC 1.10"]),
+                               ("Reference", ["UC 1.1", "UC 1.2", "UC 1.10", "UC 2.1"])):
+                self.sort_by(p, word)
+                self.assertEqual(self.refs(p), refs, f"sorted by {word}")
 
     def test_what_was_chosen_is_remembered_for_each_project_and_adds_no_back_entry(self):
         with chrome() as cdp:
@@ -570,14 +596,13 @@ class Narrowing(Setup):
             self.type_in(p, "#ucl-q", "payment")
             p.until("document.querySelectorAll('#usecases .ucl-list .ucl-row').length === 1", "the line applied (about 400 ms after the last key, as on Work items)")
             self.click(p, "[data-tab=on]")
-            self.click(p, ".ucl-hd [data-sort=status]")
-            p.until("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed') === 'true'", "sorted")
+            self.sort_by(p, "Status")
             self.assertEqual(p.js("history.length"), before, "a filter, a search and a sort add no entry")
             self.assertEqual(p.js("location.hash"), "#usecases&p=ABC", "and are not in the address")
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment")
             self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true")
-            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("document.querySelector('#ucl-sort').getAttribute('aria-label')"), "Sort by: Status")
             self.assertEqual(self.refs(p), ["UC 1.2"])
             saved = json.loads(p.js("localStorage.getItem('clark.ucPage')"))
             self.assertEqual(sorted(saved), ["ABC"], "kept under the project's code")
@@ -586,7 +611,7 @@ class Narrowing(Setup):
             self.reload(p)
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "", "a saved value that makes no sense falls back")
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases [data-chip]')].map(e => e.dataset.chip)"), ["status:Flag"])
-            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=ref]').getAttribute('aria-pressed')"), "true")
+            self.assertEqual(p.js("document.querySelector('#ucl-sort').getAttribute('aria-label')"), "Sort by: Reference")
             self.assertEqual(p.js("document.querySelector('[data-tab=all]').getAttribute('aria-pressed')"), "true")
 
 
@@ -730,7 +755,7 @@ class Line(Setup):
             self.assertEqual(self.chips(p), ["status:Flag,Done"])
             self.assertEqual(p.js("document.querySelector('#ucl-q').value"), "payment runs")
             self.assertEqual(p.js("document.querySelector('[data-tab=on]').getAttribute('aria-pressed')"), "true", "the switch's On the dashboard is the tab of that name")
-            self.assertEqual(p.js("document.querySelector('.ucl-hd [data-sort=status]').getAttribute('aria-pressed')"), "true", "the sort is kept as it was")
+            self.assertEqual(p.js("document.querySelector('#ucl-sort').getAttribute('aria-label')"), "Sort by: Status", "the sort is kept as it was")
             self.assertEqual(self.refs(p), ["UC 1.2"])
             self.click(p, "[data-tab=all]")
             p.until("document.querySelector('[data-tab=all]').getAttribute('aria-pressed') === 'true'", "all")
@@ -794,7 +819,7 @@ class GroupBy(Setup):
             self.press(p, "Escape")
             self.pick(p, "Status")
             self.assertEqual(self.groups(p), [["On track", "2 use cases", ["UC 1.1", "UC 2.1"]], ["Flag", "1 use case", ["UC 1.2"]], ["High risk", "1 use case", ["UC 1.10"]]], "the status words in their order; a group with no row is not drawn")
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group .ucl-hd').length"), 3, "each group has its own column names")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-group .ucl-hd').length"), 0, "item 1149: no column names in a group either")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('#usecases .ucl-group')).borderTopStyle"), "solid", "a bordered card")
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .grp-b')].map(b => b.getAttribute('aria-expanded'))"), ["true", "true", "true"])
             self.assertEqual(self.count(p), "Showing 4 of 4 · 2 on the dashboard")
@@ -861,26 +886,26 @@ class Keys(Setup):
                 p = self.show(cdp, edit=edit)
                 ids = p.js("[...document.querySelectorAll('#usecases .ucl-list .ucl-row')].map(r => r.dataset.uc)")
                 self.assertEqual(len(ids), 4)
-                self.assertEqual(self.stops(p), [f"{ids[0]}:ucl-go"], "one tab stop: the first row's name")
+                self.assertEqual(self.stops(p), [f"{ids[0]}:ucl-go uctitle"], "one tab stop: the first row's name")
                 p.js("document.querySelector('#usecases .ucl-go').focus()")
                 self.press(p, "ArrowDown")
-                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go")
-                self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go"], "the tab stop follows the focus")
+                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go uctitle")
+                self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go uctitle"], "the tab stop follows the focus")
                 self.press(p, "End")
-                self.assertEqual(self.focused(p), f"{ids[-1]}:ucl-go")
+                self.assertEqual(self.focused(p), f"{ids[-1]}:ucl-go uctitle")
                 self.press(p, "ArrowDown")
-                self.assertEqual(self.focused(p), f"{ids[-1]}:ucl-go", "Down on the last row stays")
+                self.assertEqual(self.focused(p), f"{ids[-1]}:ucl-go uctitle", "Down on the last row stays")
                 self.press(p, "Home")
-                self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go")
+                self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go uctitle")
                 self.press(p, "ArrowUp")
-                self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go", "Up on the first row stays")
+                self.assertEqual(self.focused(p), f"{ids[0]}:ucl-go uctitle", "Up on the first row stays")
                 self.press(p, "ArrowRight")
                 self.assertEqual(self.focused(p), f"{ids[0]}:ucl-eye", "Right goes to the eye, in View as in Edit (row 819)")
                 self.press(p, "ArrowDown")
                 self.assertEqual(self.focused(p), f"{ids[1]}:ucl-eye", "Down from an eye goes to the next eye")
                 self.press(p, "ArrowLeft")
-                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go", "Left comes back to the name")
-                self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go"])
+                self.assertEqual(self.focused(p), f"{ids[1]}:ucl-go uctitle", "Left comes back to the name")
+                self.assertEqual(self.stops(p), [f"{ids[1]}:ucl-go uctitle"])
                 self.press(p, "Enter")
                 p.until("!!document.querySelector('[data-ucd]')", "Enter opens the use case")
 
@@ -908,10 +933,9 @@ class Keys(Setup):
             p = self.show(cdp, edit=True)
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases button, #usecases input')].filter(e => !(e.getAttribute('aria-label') || e.textContent.trim() || e.labels && e.labels.length)).length"), 0)
             self.assertEqual(p.js("document.querySelector('#usecases .ucl-list').getAttribute('aria-label')"), "Use cases")
-            # row 1085: the column names carry the sort, so the header row is not hidden from a screen reader any more; each sort button says what it does
-            self.assertIsNone(p.js("document.querySelector('#usecases .ucl-hd').getAttribute('aria-hidden')"))
-            self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-hd button')].map(b => b.getAttribute('aria-label'))"), ["Sort by Reference", "Sort by Status", "Sort by Open work items"])
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [tabindex=\"-1\"]').length"), 0, "a keyboard reaches each one")
+            # item 1149: the sort is a menu beside Group by, named by what it does; the rows have no column names
+            self.assertEqual(p.js("document.querySelector('#ucl-sort').getAttribute('aria-label')"), "Sort by: Reference")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd').length"), 0)
             self.assertEqual(p.js("document.querySelector('[data-eye]').getAttribute('aria-label')"),
                              f"UC 1.1 Invoice matching: {ON}. Take it off the dashboard")
             self.assertEqual(p.js("document.querySelector('#ucl-count').getAttribute('role')"), "status")
