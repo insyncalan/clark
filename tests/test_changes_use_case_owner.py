@@ -192,8 +192,10 @@ class Owner(unittest.TestCase):
         status, body = self.edit({"owner": "Anna Example"})
         self.assertNotEqual(status, 200)
         self.assertEqual(body.get("message"), changes.ARCHIVED_USE_CASE, "the fixed archived words, not a generic refusal from the store")
-        self.assertIsNone(self.row()["owner"])
+        self.assertEqual((self.row()["owner"], self.row()["owner_id"]), (None, None))
         self.assertEqual(self.counts(), before)
+        # mutation kill (confirmed): deleting the `if row["archived"]: raise Refused(ARCHIVED_USE_CASE)` guard in changes._do_use_case
+        # makes the words assertion above fail ("That value isn't one clark can use." from the store instead).
 
     def test_hostile_input_fuzz_is_either_clean_text_or_a_refusal_and_the_table_survives(self):
         import random
