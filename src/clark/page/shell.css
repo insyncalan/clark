@@ -264,8 +264,8 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .kb.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .kb.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .kb.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-.tcell { display: flex; align-items: center; gap: 10px; }
-.tcell .tx { min-width: 0; }
+.c-item .tcell { align-items: center; gap: 10px; }   /* the table cell only: the At a glance tiles are .tcell too and stretch to the row */
+.c-item .tcell .tx { min-width: 0; }
 
 /* Work items controls and the Add button (item 64, part a). Colours from the tokens only, so dark mode follows. */
 .head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); }
