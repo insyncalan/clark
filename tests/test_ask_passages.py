@@ -298,12 +298,13 @@ class OnTheRoute(tr.Base):
         self.assertIn("nothing was sent", got["message"])
         self.assertEqual(self.provider.sent, [])
 
-    def test_pdf_is_said_to_be_not_supported_yet(self):
+    def test_a_pdf_that_cannot_be_read_is_said_with_its_reason(self):
         (self.mine / "scan.pdf").write_bytes(b"%PDF-1.4 ZQ-PDF")
         status, got = self.question("What is the cutover plan?")
         self.assertEqual(status, 200, got)
         self.assertNotIn("ZQ-PDF", self.provider.sent[0])
-        self.assertTrue(any("PDF" in n and "not supported yet" in n for n in got["notes"]), got["notes"])
+        self.assertTrue("1 PDF was not read: it could not be read safely." in got["notes"], got["notes"])
+        self.assertFalse(any("not supported" in n for n in got["notes"]), got["notes"])
 
 
 if __name__ == "__main__":
