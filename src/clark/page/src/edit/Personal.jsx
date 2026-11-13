@@ -15,7 +15,7 @@ export const DENSITIES = [
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
-  ["system", "System", "Follows your Mac's setting."],
+  ["system", "System", "Follows your computer's setting."],
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];

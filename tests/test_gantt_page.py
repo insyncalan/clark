@@ -398,6 +398,17 @@ class Page(unittest.TestCase):
         self.assertEqual(ops, [{"op": "update", "id": "GNT-002", "changes": {"owner": "Ada Example"}}])
         self.assertEqual(len(self.calls()), before)
 
+    def test_clearing_cells_in_the_table_says_plan_changed_not_an_empty_id(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('td[data-c]')", "the table")
+        self.js("(function(){ var td = Array.from(document.querySelectorAll('td[data-k=dep]')).find(function(x){ return x.textContent.trim(); }); td.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, button: 0})); document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true})); })()")
+        self.settle()
+        before = len(self.calls())
+        self.key("Delete", "document.querySelector('.gt-scroll')")
+        self.until(f"P.host.calls.length > {before}", "the clear is sent")
+        self.assertEqual(self.calls()[-1][2], "Plan changed.")
+
     def test_a_column_eye_saves_only_hideable_columns_and_the_chart_keeps_its_dates(self):
         self.mount(mode="edit")
         self.assertEqual(self.count("[data-g-coleye]"), 0, "no eye on Start, End or Done")
