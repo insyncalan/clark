@@ -313,7 +313,7 @@ class RealBrowser(BrowserBase, unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.visit(cdp, width, "#milestones&p=TUL")
                 self.assertEqual(cdp.js("[...document.querySelectorAll('[data-legend]')].map(e => e.dataset.legend)", sid),
-                                 ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Expected", "Today"])
+                                 ["Achieved", "On track", "At risk", "Slipped", "Overdue", "Forecast", "Cancelled", "Expected", "Today"])
                 self.assertEqual(cdp.js("getComputedStyle(document.querySelector('.mlg-p')).visibility", sid), "hidden", "closed until hover or focus")
                 cdp.js("document.querySelector('.mlg-b').focus()", sid)
                 self.assertTrue(wait(lambda: cdp.js("getComputedStyle(document.querySelector('.mlg-p')).visibility", sid) == "visible"), "opens on focus")
@@ -532,6 +532,7 @@ class Published(unittest.TestCase):
                 self.assertIn(word, legend)
             self.assertNotIn("Slipped", legend)
             self.assertNotIn("Overdue", legend)
+            self.assertNotIn("Cancelled", legend, "a published file has no Cancelled rows, so its Legend has no Cancelled entry")
             self.assertEqual(cdp.js("document.querySelectorAll('.msl-row .tag').length", sid), 0, "no Internal only tag")
             self.assertEqual(cdp.js("document.querySelector('.msv').dataset.view", sid), "line", "starts on Timeline")
             self.assertIn("Milestone timeline;", cdp.js("document.querySelector('.mv-wrap').getAttribute('aria-label')", sid))
@@ -546,7 +547,7 @@ class Published(unittest.TestCase):
             # row 1114: a chip opens the file's read only peek too
             cdp.js("document.querySelector('[data-scale-b=quarter]').click()", sid)
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('.cal').dataset.scale", sid) == "quarter"))
-            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('msv') >= 0)", sid), [], "a published file remembers nothing")
+            self.assertEqual(cdp.js("Object.keys(window.localStorage).filter(k => k.indexOf('clark.') === 0)", sid), [], "a published file remembers nothing")
             self.assertEqual(cdp.js("document.querySelectorAll('.cal input, .cal textarea, .cal select, .cal [contenteditable]').length", sid), 0, "the calendar is read only")
 
 FAR = ["0001-01-01", "0026-10-01", "0099-12-31", "1999-12-31", "2101-01-01", "2126-03-01", "9999-12-31", "10000-01-01", "2026-02-30", "soon"]

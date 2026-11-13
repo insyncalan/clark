@@ -19,8 +19,6 @@ const REAL = { sheets: listSheets, check: checkSheets, apply: applyWorkbook, und
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
 // The sheets ticked last time are kept in this browser only (#1106): a convenience, so a private window just starts with all ticked.
-const recalled = () => { try { return JSON.parse(localStorage.getItem(L.SHEETS_KEY)); } catch (e) { return null; } };
-const remember = (tables) => { try { localStorage.setItem(L.SHEETS_KEY, JSON.stringify(tables)); } catch (e) { /* only a convenience */ } };
 
 export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
   const [step, setStep] = useState({ at: "pick" });           // pick | checking | sheets | plan | applying | done
@@ -49,18 +47,18 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     const r = await api.sheets(project, file.name, data);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     const sheets = r.body.sheets || [];
-    if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"]); return; }   // none of the five: the check says so
-    setTicked(L.startSheets(sheets, recalled()));
+    if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"], false); return; }   // none of the five: the check says so
+    setTicked(L.startSheets(sheets, L.recalledSheets()));
     setStep({ at: "sheets", file: file.name, key: r.body.file, sheets });
   }
 
   // Check the import of the ticked sheets of the workbook the server is keeping.
-  async function read_(key, tables) {
-    remember(tables);
+  async function read_(key, tables, keep = true) {
     setProblem("");
     setStep({ at: "checking", file: key });
     const r = await api.check(project, key, tables);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
+    if (keep) L.rememberSheets(tables);                  // only a check that went through keeps the choice
     setTicks(L.startTicks(r.body.items));
     setStep({ at: "plan", plan: r.body });
   }

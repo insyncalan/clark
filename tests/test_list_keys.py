@@ -23,8 +23,8 @@ BOARD = (PAGE / "src" / "edit" / "Board.jsx").read_text(encoding="utf-8")
 CSS = (PAGE / "shell.css").read_text(encoding="utf-8")
 HELP = (PAGE / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
 ROWS = "[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)"
-FOCUS = "(document.activeElement.dataset || {}).id || ''"
-CELL_FOCUS = "((document.activeElement && document.activeElement.dataset) || {}).cell || ''"
+FOCUS = "((document.activeElement.dataset || {}).id || '')"
+CELL_FOCUS = "(((document.activeElement && document.activeElement.dataset) || {}).cell || '')"
 
 
 class Source(unittest.TestCase):

@@ -345,7 +345,7 @@ class _Pipe:
     another. No port is opened. Same two calls as _Socket (send_json, recv_json) so one session class serves both."""
 
     def __init__(self, to_chrome, from_chrome, deadline):
-        self.out, self.inp, self.deadline, self.buffer = to_chrome, from_chrome, deadline, b""
+        self.out, self.inp, self.deadline, self.buffer = to_chrome, from_chrome, deadline, bytearray()
 
     def close(self):
         for fd in (self.out, self.inp):
@@ -367,15 +367,20 @@ class _Pipe:
             data = data[n:]
 
     def recv_json(self):
-        while b"\0" not in self.buffer:
+        nul = self.buffer.find(0)          # only what was left over from the last message
+        while nul < 0:
             left = self.deadline - time.monotonic()
             if left <= 0 or not select.select([self.inp], [], [], left)[0]:
                 raise socket.timeout()
             chunk = os.read(self.inp, 1 << 16)
             if not chunk:
                 raise ConnectionError("closed")
+            at = chunk.find(0)             # scan the new chunk only
+            if at >= 0:
+                nul = len(self.buffer) + at
             self.buffer += chunk
-        one, self.buffer = self.buffer.split(b"\0", 1)
+        one = bytes(self.buffer[:nul])
+        del self.buffer[:nul + 1]
         return json.loads(one.decode())
 
 

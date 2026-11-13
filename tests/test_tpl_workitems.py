@@ -786,8 +786,8 @@ class InThePage(PageBase):
                     p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "the chips went")
                     p.clear_toast()
 
-    def test_the_filter_line_modes_open_and_closed_together_no_repeats_no_minus(self):
-        """Mutation hunt: is:open,closed (all), a repeated value saved once, and the minus-sign refusal were not pinned."""
+    def test_the_filter_line_modes_open_and_closed_together_no_repeats_minus(self):
+        """Mutation hunt: is:open,closed (all), a repeated value saved once, and the minus-sign reading were not pinned."""
         with chrome() as cdp:
             p, enter, body, ref = self._line_session(cdp, 1400, "Modes")
             enter("type:risk is:open,closed")
@@ -802,10 +802,10 @@ class InThePage(PageBase):
             p.saved()
             self.assertEqual((body()["status"], body()["kinds"]), (["Open"], ["risk"]), "a repeated value is saved once")
             p.clear_toast()
-            steps = self.demo.last_step()
             enter("-is:open")
-            p.until("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('A minus sign')", "a minus sign is refused in words")
-            self.assertEqual(self.demo.last_step(), steps, "nothing saved")
+            p.saved()
+            self.assertEqual(body()["mode"], "closed", "a minus sign before is:open reads as closed only")
+            p.clear_toast()
 
     def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
         ref = self.add({}, title="Form")

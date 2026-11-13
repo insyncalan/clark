@@ -17,6 +17,7 @@ from dataclasses import dataclass
 
 from clark import publish, sanitise
 from clark import ask
+from clark import timefmt
 from clark.ask import BUDGET, MAX_PASSAGE, Passage
 
 PASSAGE_SIZE = 1200          # characters a passage is cut to, about (one or a few rows)
@@ -59,8 +60,7 @@ def plain(value):
 
 
 def _shown_date(value):
-    s = str(value or "")
-    return f"{s[8:10]}-{s[5:7]}-{s[0:4]}" if re.fullmatch(r"\d{4}-\d{2}-\d{2}.*", s) else s
+    return timefmt.day_text(value, prefix=True)
 
 
 def _field(name, value):

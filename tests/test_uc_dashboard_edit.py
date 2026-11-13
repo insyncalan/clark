@@ -109,6 +109,27 @@ class Edit(Setup):
             self.assertEqual(self.row(self.demo.use_case)["title"], "Invoice matching, live")
             self.assertEqual(p.js("!!document.querySelector('.ucdetail')"), True, "the row stays open after a save")
 
+    def test_add_use_case_with_an_archived_use_cases_id_or_a_blank_id_is_refused_in_the_box(self):
+        """Not the page's "Reload the page" toast: the ID of an archived use case is still taken, and a blank ID is not an ID."""
+        with self.store.step("dashboard", USER) as st:
+            st.archive("use_cases", self.uc3)
+        before = len(self.store.read("use_cases", "ABC"))
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.edit(cdp, width)
+                for ref in ("1.10", "   "):
+                    self.click(p, "#ucAdd")
+                    p.until("!!document.querySelector('#ucF')", "the box")
+                    self.type_in(p, "#ucI", ref)
+                    self.type_in(p, "#ucT", "Another one")
+                    p.js("document.querySelector('#ucF').requestSubmit()")
+                    p.until("!document.querySelector('#ucF [type=submit]').disabled", "the box answered")
+                    self.assertEqual(p.js("!!document.querySelector('#ucF')"), True, "the box stays open")
+                    self.assertNotIn("Reload", p.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
+                    p.key("Escape", code="Escape", vk=27)
+                    p.until("!document.querySelector('#ucF')", "Esc closed the box")
+        self.assertEqual(len(self.store.read("use_cases", "ABC")), before, "nothing was added")
+
     def test_add_use_case_opens_the_box_and_adds_it_hidden_from_the_client(self):
         with chrome() as cdp:
             p = self.edit(cdp)

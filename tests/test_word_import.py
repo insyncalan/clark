@@ -89,6 +89,13 @@ class WhatIsStaged(unittest.TestCase):
         self.assertTrue(any("Weight" in n for n in p.notes))
         self.assertIn("table 1, line 1", a.where)
 
+    def test_a_title_row_above_the_headings_is_skipped(self):
+        t = table(["Weekly actions", "Weekly actions"], ["Action", "Owner"], ["Order the licences", "Sam Okafor"])
+        p = plan([H("Actions"), t])
+        self.assertEqual([i.values["description"] if "description" in i.values else list(i.values.values())[0] for i in p.items][:1],
+                         ["Order the licences"])
+        self.assertEqual(p.items[0].values["owner"], "Sam Okafor")
+
     def test_a_risk_table_and_a_decision_table(self):
         p = plan([H("Risks"), table(["Item", "Impact", "Likelihood"], ["Late delivery", "High", "medium"]),
                   H("Decisions"), table(["Decision", "Status", "Made by", "Date"],
@@ -128,6 +135,32 @@ class NothingChangesAnExistingItem(unittest.TestCase):
         p = stage(read, "report.docx", ON)
         self.assertEqual(p.items, [])
         self.assertTrue(any("existing items" in n for n in p.notes))
+
+
+class TheEmptyLineOfAReportIsNotAnItem(unittest.TestCase):
+    def test_a_report_with_no_actions_risks_or_decisions_comes_back_as_nothing(self):
+        import copy
+        pub = copy.deepcopy(publish.select(fx.inputs(fx.load())))
+        for k in ("actions", "raid", "decisions"):
+            pub["data"][k] = []
+        read = docx_read.read(docx_build.build(pub), "report.docx")
+        self.assertTrue(any(b.get("text") == docx_build.NONE for b in read.blocks))   # the report does write the empty line
+        self.assertEqual(stage(read, "report.docx", ON).items, [])
+
+    def test_the_skipped_line_is_the_one_the_report_writes(self):
+        self.assertEqual(word_import.NONE, docx_build.NONE)
+
+    def test_the_empty_line_is_skipped_under_every_heading_but_other_words_are_kept(self):
+        p = plan([H("Actions"), para(docx_build.NONE), H("Decisions"), item(docx_build.NONE), H("Risks"), para(docx_build.NONE),
+                  H("Actions"), para("None recorded yet, chase Sam")])
+        self.assertEqual([i.values["description"] for i in p.items], ["None recorded yet, chase Sam"])
+
+    def test_a_staged_item_is_described_with_one_full_stop_and_no_double_space(self):
+        for text in ("Send the plan.", "Send the plan..", "Send the plan"):
+            said = plan([H("Actions"), para(text)]).items[0].describe()
+            self.assertIn("Send the plan. Shown to the client", said)
+            self.assertNotIn("..", said)
+            self.assertNotIn("  ", said)
 
 
 class NothingIsDecidedForThePerson(unittest.TestCase):
@@ -388,6 +421,14 @@ class ReadFromARealFile(unittest.TestCase):
         return (P("Weekly notes", style="Heading1") + P("Actions", style="Heading1") + P("Chase the supplier", style="ListBullet")
                 + TBL(TR("Action", "Owner", "Due"), TR("Draft the brief", "Sam Okafor", "12-11-2026"))
                 + P("Decisions", style="Heading1") + P("Move go-live to December") + P("Deleted words", hidden=True))
+
+    def test_a_merged_cell_keeps_the_later_cells_in_their_columns(self):
+        span = '<w:tc><w:tcPr><w:gridSpan w:val="2"/></w:tcPr><w:p><w:r><w:t>Late delivery</w:t></w:r></w:p></w:tc>'
+        body = P("Risks", style="Heading1") + TBL(TR("Item", "Note", "Impact", "Likelihood"), TR(span, "High", "medium"))
+        read = docx_read.read(docx(body), NAME)
+        self.assertEqual([b for b in read.blocks if b["kind"] == "table"][0]["rows"][1], ["Late delivery", "", "High", "medium"])
+        r = stage(read, NAME, ON).items[0]
+        self.assertEqual((r.values["impact"], r.values["likelihood"]), ("High", "Medium"))
 
     def test_a_file_made_by_hand_stages_through_the_reader(self):
         read = docx_read.read(docx(self.body()), NAME)

@@ -62,6 +62,7 @@ import re
 from datetime import date
 
 from clark import publish, sanitise        # select(): the one function that chooses what a client may see (#39)
+from clark import timefmt
 
 HEALTHS = ("On track", "At risk", "Off track")                       # (projects.health, schema.sql)
 HEALTH_COLOUR = {"On track": "green", "At risk": "amber", "Off track": "red"}
@@ -98,8 +99,7 @@ def show_date(iso):
     """DD-MM-YYYY; text that is not a stored day is shown as stored; no date is a dash. (workItems.js showDate)"""
     if not iso:
         return DASH
-    text = str(iso)
-    return f"{text[8:10]}-{text[5:7]}-{text[0:4]}" if _ISO.fullmatch(text) else text
+    return timefmt.day_text(iso)
 
 
 def plural(n, one, many):
