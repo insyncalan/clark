@@ -158,7 +158,7 @@ class AboutYou(Base):
             for w in WIDTHS:
                 p.width(w)
                 self.open_settings(p)
-                time.sleep(0.4)       # opening Settings may still be giving the name box the cursor: let that finish, then move away
+                p.until("document.activeElement && document.activeElement.id === 'about-name'", f"opening Settings gave the name box the cursor at {w}")      # let that finish, then move away
                 p.js("document.querySelector('#profile-btn').focus()")
                 self.assertNotEqual(p.js("document.activeElement.id"), "about-name")
                 self.open_menu(p)
