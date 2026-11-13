@@ -478,7 +478,7 @@ class Header(Base):
     # ---- row 812 ----
     def test_row_812_table_and_board_are_a_two_icon_switch_and_group_by_stays_in_the_view_menu(self):
         def check(cdp, sid, width):
-            pair = ("[...document.querySelectorAll('#work .fline [role=group][aria-label=Layout] button')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent, !!b.querySelector('svg'),"
+            pair = ("[...document.querySelectorAll('#work .fline-row [role=group][aria-label=Layout] button')].map(b => [b.dataset.lay, b.getAttribute('aria-label'), b.title, b.getAttribute('aria-pressed'), b.textContent, !!b.querySelector('svg'),"
                     " Math.round(b.getBoundingClientRect().width), Math.round(b.getBoundingClientRect().height)])")
             got = cdp.js(pair, sid)
             self.assertEqual([g[:6] for g in got], [["table", "List", "List", "true", "", True], ["board", "Board", "Board", "false", "", True]], "icons, not words, named List and Board")
