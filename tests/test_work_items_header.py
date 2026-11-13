@@ -330,6 +330,15 @@ class Header(Base):
                        why=lambda: cdp.js("document.activeElement && (document.activeElement.id || document.activeElement.tagName)", sid))
         self.each(check)
 
+    def test_row_1073_save_as_a_new_view_announces_the_new_name(self):
+        def check(cdp, sid, width):
+            self.until(cdp, sid, "document.querySelector('#viewNew')", "+ New view")
+            click(cdp, sid, "#viewNew")
+            self.until(cdp, sid, "document.querySelector('#work-live').textContent.startsWith('Saved as View ')", "the announcement",
+                       why=lambda: cdp.js("document.querySelector('#work-live').textContent", sid))
+            self.assertIn("Use Rename view to change the name.", cdp.js("document.querySelector('#work-live').textContent", sid))
+        self.each(check)
+
     def test_row_844_save_view_says_what_was_saved_in_the_toast(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
 
