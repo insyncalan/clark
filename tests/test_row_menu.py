@@ -121,6 +121,16 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)}, {json.dumps(st)})"),
                          {"mode": "decision", "picked": ["ABC-D-001"], "replyBy": "2026-11-20", "unblocks": " the go-live ", "includeUpdate": True})
 
+    def test_the_chosen_chase_tone_is_sent_and_kept_in_the_dialogs_state(self):
+        st = {"mode": "chase", "picked": ["ABC-A-001"], "replyBy": "", "unblocks": "", "includeUpdate": False, "tone": 2}
+        got = self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(st)})")
+        self.assertEqual(got.get("tone"), 2, "the tone the person pressed goes to the server")
+        reply = {"mode": "chase", "picked": ["ABC-A-001"]}
+        self.assertEqual(self.js(f"RM.draftState({json.dumps(reply)}, {json.dumps(st)})").get("tone"), 2,
+                         "the pressed tone stays in the state for the next ask")
+        st1 = dict(st, mode="update_request")
+        self.assertNotIn("tone", self.js(f"RM.draftRequest('ABC-A-001', {json.dumps(st1)})"), "only a chase carries a tone")
+
     def test_the_owners_address_and_name_come_from_their_people_row_and_ride_on_both_asks(self):
         ppl = json.dumps([{"id": "P-001", "name": "Ada Quillfeather", "email": " ada@example.com "},
                           {"id": "P-002", "name": "Bo Bad", "email": "a@b.co,c@d.co"}, {"id": "P-003", "name": "Cy None", "email": ""},
