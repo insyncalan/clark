@@ -175,6 +175,8 @@ export function startTicks(items) {
 // a remembered sheet the new workbook lacks is simply not there, never ticked or mentioned. With nothing remembered, or none of it in this
 // workbook, every sheet is ticked as before.
 export const SHEETS_KEY = "clark.import.sheets";
+export const recalledSheets = (store = globalThis.localStorage) => { try { return JSON.parse(store.getItem(SHEETS_KEY)); } catch (e) { return null; } };
+export const rememberSheets = (tables, store = globalThis.localStorage) => { try { store.setItem(SHEETS_KEY, JSON.stringify(tables)); } catch (e) { /* only a convenience */ } };
 export function startSheets(sheets, saved) {
   const mine = Array.isArray(saved) ? saved.filter((n) => typeof n === "string") : [];
   const any = sheets.some((s) => mine.includes(s.table));
