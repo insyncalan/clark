@@ -431,6 +431,40 @@ class Chart(unittest.TestCase):
             self.assertEqual(len(self.calls()), 3, f"{field}: nothing was sent")
         self.assertEqual(self.count('[data-g-edit="GNT-003:end"]'), 0, "a milestone has one date: it has no End cell")
 
+    def test_hunt7_closing_the_show_menu_hands_focus_back_to_its_button(self):
+        for w in (1400, 900):
+            self.look(w, "light")
+            self.mount(edit=False)
+            self.js("document.querySelector('[data-g-show]').click()")
+            self.until("document.querySelector('[data-g-showmenu]')", "the menu")
+            self.js("document.querySelector('[data-g-filter=phases]').focus()")
+            self.keypress("[data-g-showmenu]", "ArrowDown")
+            self.assertEqual(self.val("document.activeElement.dataset.gFilter"), self.val("document.querySelectorAll('[data-g-filter]')[2].dataset.gFilter"), "ArrowDown moves to the next item")
+            def press_escape():      # the key listener is attached just after the menu opens, so press again until it has taken it
+                if self.count("[data-g-showmenu]"):
+                    self.keypress("[data-g-filter]", "Escape")
+                return not self.count("[data-g-showmenu]")
+            self.assertTrue(wait(press_escape, 8), "Escape closes the menu")
+            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"Escape returns focus to Show at {w}")
+            self.js("document.querySelector('[data-g-show]').click()")
+            self.until("document.querySelector('[data-g-showmenu]')", "the menu again")
+            self.js("document.querySelector('[data-g-filter=phases]').focus(); document.querySelector('[data-g-filter=phases]').click()")
+            self.until("!document.querySelector('[data-g-showmenu]')", "choosing closes the menu")
+            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"choosing a view returns focus to Show at {w}")
+
+    def test_hunt7_the_add_menu_does_not_pull_focus_back_when_the_chart_redraws(self):
+        for w in (1400, 900):
+            self.look(w, "light")
+            self.mount(edit=True)
+            self.js("document.querySelector('[data-g-add=GNT-004]').click()")
+            self.until("document.querySelector('[data-g-addmenu]')", "the menu")
+            self.until("document.activeElement && document.activeElement.dataset.gAddtype === 'task'", "the first item takes focus on open")
+            self.js("document.querySelector('[data-g-addtype=phase]').focus()")
+            self.js("document.getElementById('host').style.width = (document.getElementById('host').clientWidth - 37) + 'px'")
+            self.until("document.querySelector('[data-g-addmenu]')", "still open")
+            wait(lambda: False, 0.4)      # let the redraw happen
+            self.assertEqual(self.val("document.activeElement.dataset.gAddtype"), "phase", f"a redraw leaves focus where the person moved it at {w}")
+
     def test_add_a_line_below_asks_what_kind(self):
         self.look(1400, "light")
         self.mount(edit=True)

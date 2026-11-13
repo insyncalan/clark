@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt } from "../stores/report.js";
-import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
+import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
@@ -75,7 +75,7 @@ function Empty({ title, children, action }) {
 // in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
 function MsHead({ Add }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
-  const line = headLine(milestoneRows(data.value.milestones, today, client));
+  const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows);
   return (
     <>
       <p class="crumbs">{data.value.project.name}</p>
@@ -85,7 +85,7 @@ function MsHead({ Add }) {
           <p class="head-sub" id="ms-summary">
             {line
               ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
-              : "No milestones yet."}
+              : emptyHead(rows)}
           </p>
         </div>
         {Add ? <Add /> : null}
