@@ -86,6 +86,12 @@ class WorkItemsHelpMatchesTheCode(unittest.TestCase):
     def test_peek_top_bar_names_delete(self):
         self.assertIn("**Delete**", one("At the top: **Previous item** and **Next item**"))
 
+    def test_right_click_menu_names_open_the_peek(self):
+        text = one("The right-click menu has a small picture")
+        row_menu = (SRC / "edit" / "RowMenu.jsx").read_text(encoding="utf-8")
+        self.assertIn('name: "Open the peek"', row_menu)
+        self.assertIn("Open the peek", text)
+
 
 if __name__ == "__main__":
     unittest.main()
