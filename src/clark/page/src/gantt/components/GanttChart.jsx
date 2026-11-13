@@ -78,6 +78,8 @@ export function GanttChart({
   const [menu, setMenu] = useState(null);               // the add menu: { id, left, top }
   const [showOpen, setShowOpen] = useState(false);
   const showBtn = useRef(null);
+  const fitBtn = useRef(null);
+  const zoomOutTo = () => { const z = zoomOut(zoom); setZoom(z); if (z <= 1 && fitBtn.current) fitBtn.current.focus(); };      // the button turns itself off at fit: focus moves to the fit button, not to the page top
   const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
@@ -140,6 +142,22 @@ export function GanttChart({
   useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
     if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
   }, [menu]);
+  // A box or a menu that closes takes the focused button with it: focus goes back to what opened it (a deleted line's bar is gone, so to the first bar).
+  const opener = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!(box || menu || showOpen);
+    if (wasOpen.current && !open && gx.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) {
+        const o = opener.current;
+        const to = o && o.isConnected ? o : (menu === null && !showOpen && gx.current.closest("section").querySelector("[data-g-bar]"));
+        if (to) to.focus({ preventScroll: true });
+      }
+    }
+    if (!open) opener.current = null;
+    wasOpen.current = open;
+  }, [box, menu, showOpen]);
 
   useEffect(() => {
     const onKey = (e) => {
@@ -258,11 +276,13 @@ export function GanttChart({
 
   const openBox = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setMenu(null);
     setBox({ id, left: clamp(r.left, 8, window.innerWidth - 330), top: clamp(r.bottom + 6, 8, window.innerHeight - 340) });
   };
   const openAdd = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setBox(null);
     setMenu({ id, left: clamp(r.left, 8, window.innerWidth - 220), top: clamp(r.bottom + 4, 8, window.innerHeight - 150) });
   };
@@ -334,8 +354,8 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomOut(zoom))} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
-        <button type="button" class="gt-zf" onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
+        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
         <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
@@ -346,7 +366,7 @@ export function GanttChart({
         <span class="gt-sp" />
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
           {showOpen ? (
             <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu
               onKeyDown={(e) => {
@@ -445,7 +465,7 @@ export function GanttChart({
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
                       aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                       onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }} />
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }} />
                     {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
                   </div>

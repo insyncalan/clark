@@ -400,7 +400,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
                       <button type="button" class="gt-rb" data-add={r} aria-label={addBelowWord} title={addBelowWord}
                         onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t")], ["Add a phase below", () => addBelow(r, "p")], ["Add a milestone below", () => addBelow(r, "m")]]); }}><Icon name="plus" /></button>
                       <button type="button" class="gt-rb gt-del" data-del={r} aria-label="Delete this line" title="Delete this line"
-                        onClick={(e) => { e.stopPropagation(); if (r >= range.r0 && r <= range.r1 && range.r1 > range.r0) removeRows(range.r0, range.r1); else removeRows(r, r); }}><Icon name="x" /></button>
+                        onClick={(e) => { e.stopPropagation(); if (r >= range.r0 && r <= range.r1 && range.r1 > range.r0) removeRows(range.r0, range.r1); else removeRows(r, r); focusBox(); }}><Icon name="x" /></button>
                     </th>
                   ) : null}
                   {cols.map((col, c) => cell(l, i, r, col, c))}
