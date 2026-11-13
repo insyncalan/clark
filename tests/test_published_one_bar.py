@@ -251,5 +251,12 @@ class TheEditor(Setup):
                 self.assertEqual(got["margin"], "0px")
 
 
+class TheHelpLine(unittest.TestCase):
+    def test_the_published_page_help_names_the_top_bar_not_a_cover(self):
+        help_ = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("**The top bar**: the project, the week ending and who it is for.", help_)
+        self.assertNotIn("**The cover**: the project, the week ending and who it is for.", help_)
+
+
 if __name__ == "__main__":
     unittest.main()
