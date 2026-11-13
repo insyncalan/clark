@@ -304,6 +304,16 @@ class Chart(unittest.TestCase):
         self.assertIn("30% done · In progress", d)
         self.assertIn("On the dashboard: Yes", d)
 
+    def test_zoom_out_hands_focus_to_the_fit_button_when_it_turns_itself_off(self):
+        self.look(1400, "light")
+        self.mount(edit=False)
+        self.js("document.querySelector('[data-g-zin]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '125%'", "zoomed in")
+        self.js("document.querySelector('[data-g-zout]').focus(); document.querySelector('[data-g-zout]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '100%'", "back at fit")
+        self.assertTrue(self.val("document.querySelector('[data-g-zout]').disabled"))
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-fit]')"), "focus did not fall to the page top")
+
     def test_scales_zoom_and_the_height_grip_in_view(self):
         self.look(1400, "light")
         self.mount(edit=False)
