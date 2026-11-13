@@ -26,7 +26,7 @@ export function UseCaseFilePage({ id }) {
     const onKey = (e) => {
       if (e.key !== "Escape" || e.defaultPrevented || e.isComposing || e.metaKey || e.ctrlKey || e.altKey) return;
       if (busy(document.activeElement) || busy(e.target) || document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu],[data-peek]")) return;
-      const back = document.querySelector("[data-ucf] [data-uc-back]");
+      const back = document.querySelector("[data-ucf] .ucf-crumb a");
       if (back) back.click();
     };
     document.addEventListener("keydown", onKey);
