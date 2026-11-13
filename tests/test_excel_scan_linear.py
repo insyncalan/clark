@@ -77,6 +77,28 @@ class ScanLinear(unittest.TestCase):
                 with self.subTest(open=name, chunk=chunk), self.assertRaises(xi._TextTooLong):
                     self.scan(data, chunk=chunk)
 
+    def test_the_far_too_long_cut_off_sits_exactly_at_8_times_the_cell_limit(self):
+        cap = 8 * xi.MAX_CELL_TEXT
+        for name, head in (("text", b"<sst><si><t>"), ("tag", b"<sst><si><c ")):
+            base = 0 if name == "text" else len(b"<c ")   # the tag is measured from its '<'
+            for chunk in (None, 4096):
+                with self.subTest(open=name, chunk=chunk):
+                    self.assertEqual(self.scan(head + b"a" * (cap - base), chunk=chunk)[0], (0, 0))
+                    with self.assertRaises(xi._TextTooLong):
+                        self.scan(head + b"a" * (cap - base + 1), chunk=chunk)
+
+    def test_the_cell_limit_counts_characters_after_entities_are_read(self):
+        # raw text past the limit that reads back to no more than the limit is let through; one character more is refused
+        ok = b"&amp;" * (xi.MAX_CELL_TEXT - 1) + b"a"
+        self.assertGreater(len(ok), xi.MAX_CELL_TEXT)
+        for chunk in (None, 4096):
+            with self.subTest(chunk=chunk):
+                self.assertEqual(self.scan(SST % ok, chunk=chunk)[0], (0, 0))
+                with self.assertRaises(xi._TextTooLong):
+                    self.scan(SST % (ok + b"a"), chunk=chunk)
+                with self.assertRaises(xi._TextTooLong):
+                    self.scan(SST % (ok + b"&amp;"), chunk=chunk)
+
 
 if __name__ == "__main__":
     unittest.main()
