@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -185,9 +186,11 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, f"!!document.querySelector('.ucl-arch [data-arch-uc={json.dumps(UC)}] [data-restore]')", "the archived list with Restore")
             self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "Showing 1 archived use case. Hide archived")
             self.no_sideways(cdp, sid)
+            self.assertRegex(cdp.js("document.querySelector('.ucl-arch [data-restore]').getAttribute('aria-label')", sid), r"^Restore .+ · .+")       # each button names its use case
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
             self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.tagName === 'H1'", "the last Restore moved the focus to the heading")
             self.assertEqual((self.archived(), self.steps()), (False, before + 1), "Restore is one step")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
@@ -205,6 +208,24 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('.uclink')", "the link box opened")
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.uclink')", "Esc closed it")
+
+    def test_enter_in_the_link_box_adds_the_ticked_items(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-link]')", "the link button")
+            click(cdp, sid, "[data-ucd] [data-uc-link]")
+            self.until(cdp, sid, "!!document.querySelector('.uclink .pick input')", "the box with rows")
+            click(cdp, sid, ".uclink .pick input")
+            self.until(cdp, sid, "document.querySelector('.uclink .pk-foot button[type=submit]').textContent === 'Add 1'", "one ticked")
+            cdp.js("document.querySelector('.uclink input[type=search]').focus()", sid)
+            before = self.steps()
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!document.querySelector('.uclink')", "Enter added the ticked item and closed the box")
+            for _ in range(50):
+                if self.steps() > before:
+                    break
+                time.sleep(0.1)
+            self.assertEqual(self.steps(), before + 1, "one step")
 
 
 class Published(unittest.TestCase):
