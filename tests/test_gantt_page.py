@@ -372,7 +372,7 @@ class Page(unittest.TestCase):
         self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "a pick returns to the Show button")
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-showmenu]"), 1)
-        self.key("Escape")
+        self.key("Escape", target="document.querySelector('[data-gp-show]')")
         self.until("!document.querySelector('[data-gp-showmenu]') || document.querySelector('[data-gp-show]').getAttribute('aria-expanded') === 'false'", "Esc closes the menu")
         self.assertTrue(self.val("document.activeElement === document.querySelector('[data-gp-show]')"), "Esc returns to the Show button")
 

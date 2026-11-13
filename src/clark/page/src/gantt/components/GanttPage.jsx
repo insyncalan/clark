@@ -67,10 +67,8 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
   useEffect(() => {      // the Show menu closes on a click anywhere else
     if (!showOpen) return undefined;
     const off = (e) => { if (!e.target.closest("[data-gp-showwrap]")) setShowOpen(false); };
-    const esc = (e) => { if (e.key === "Escape") { setShowOpen(false); showBack(); } };
     document.addEventListener("pointerdown", off, true);
-    document.addEventListener("keydown", esc);
-    return () => { document.removeEventListener("pointerdown", off, true); document.removeEventListener("keydown", esc); };
+    return () => document.removeEventListener("pointerdown", off, true);
   }, [showOpen]);
 
   const send = (after, words) => { const ops = diff(stored, after); if (ops.length) host.applyLines(ops, words); };
@@ -122,7 +120,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
         </button> : null}
         <span class="gt-sp" />
         {layout === "table" ? (
-          <span class="gt-showwrap" data-gp-showwrap>
+          <span class="gt-showwrap" data-gp-showwrap onKeyDown={(e) => { if (e.key === "Escape" && showOpen) { setShowOpen(false); showBack(); } }}>
             <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${W.show}: ${filterWord(filter)}`} title={`${W.show}: ${filterWord(filter)}`}
               data-gp-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Icon name="filter" /></button>
             {showOpen ? (
