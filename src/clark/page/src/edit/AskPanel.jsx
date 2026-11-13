@@ -112,6 +112,8 @@ export function AskPanel() {
     pending.value = false;
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
+    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (!answered && !preset) setText((t) => t || q);   // nothing was answered: the question goes back in the box unless something new was typed meanwhile
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
