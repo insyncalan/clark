@@ -228,6 +228,9 @@ class ContainerOneDrive(unittest.TestCase):
                     with self.assertRaises(pl.PlatformError) as e:
                         pl.check_data_dir("/data")
                     self.assertIn("inside OneDrive", str(e.exception))
+                    self.assertNotIn("Fictional", str(e.exception), "no tenant name, and no user name either")
+                    self.assertNotIn("/Users/sam", str(e.exception))
+                    self.assertNotIn("Users", str(e.exception))
                     self.assertIn("clark", str(e.exception)); self.assertNotIn("/data", str(e.exception), "it names the Mac's folder, not the container's")
 
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
@@ -275,19 +278,23 @@ class ShownPath(unittest.TestCase):
         self.assertEqual(pl.shown("/Users/sam/Documents/clark", home="/Users/sam"), "~/Documents/clark")
         self.assertEqual(pl.shown("/Users/sam", home="/Users/sam"), "~")
 
-    def test_the_onedrive_refusal_shows_the_real_path(self):
+    def test_the_onedrive_refusal_shows_the_path_without_the_tenant(self):
         data = "/tmp/clark-v100-run/OneDrive - Test/data"
         with mock.patch.dict("os.environ", {"HOME": "/Users/sam"}), self.assertRaises(pl.PlatformError) as e:
             pl.check_data_dir(data, roots=["/tmp/clark-v100-run/OneDrive - Test"])
-        self.assertIn(f"kept in {data} because", str(e.exception))
+        self.assertIn("kept in /tmp/clark-v100-run/OneDrive/data because", str(e.exception), "the tenant folder is not said")
         self.assertNotIn("~/", str(e.exception))
+
+    def test_a_personal_onedrive_folder_name_is_kept_and_a_deeper_old_tenant_is_shortened_too(self):
+        self.assertEqual(pl.account_free("/Users/a/OneDrive - Personal/x"), "/Users/a/OneDrive - Personal/x")
+        self.assertEqual(pl.account_free("/Users/a/OneDrive - Work/OneDrive - Old/x"), "/Users/a/OneDrive/OneDrive/x")
 
     def test_the_container_refusal_with_a_root_home_names_the_macs_folder_from_the_tilde(self):
         mac = "/Users/sam/OneDrive - Test/clark"
         with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": mac, "HOME": "/"}), markers("/.dockerenv"), \
                 self.assertRaises(pl.PlatformError) as e:
             pl.check_data_dir("/data")
-        self.assertIn("kept in ~/OneDrive - Test/clark because", str(e.exception))
+        self.assertIn("kept in ~/OneDrive/clark because", str(e.exception))
         self.assertNotIn("/Users/sam", str(e.exception))
 
 

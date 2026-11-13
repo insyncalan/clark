@@ -180,7 +180,8 @@ class Refusal(Case):
         root.mkdir(parents=True)
         with self.assertRaises(pl.PlatformError) as caught:
             pl.check_data_dir(root / "clark", roots=[root], synced=[])
-        self.assertIn("because it is inside OneDrive (OneDrive-Fictional Ltd).", str(caught.exception))
+        self.assertIn("because it is inside OneDrive. OneDrive copies", str(caught.exception))
+        self.assertNotIn("Fictional", str(caught.exception))
 
 
 class OneDriveCase(Case):
@@ -201,14 +202,14 @@ class OneDriveCase(Case):
         with self.assertRaises(pl.PlatformError) as caught:
             pl.check_data_dir(inside, roots=[root], synced=[])
         self.assertEqual(str(caught.exception),
-                         f"Your data can't be kept in {pl.shown(inside)} because it is inside OneDrive (OneDrive). OneDrive "
+                         f"Your data can't be kept in {pl.shown(inside)} because it is inside OneDrive. OneDrive "
                          "copies files while they are being written, which damages the database. Choose a folder on "
                          "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings \u203a "
                          "Backups \u203a Copy my backups to): backups can still go to OneDrive.")
         with self.assertRaises(pl.PlatformError) as caught:
             pl.check_data_dir(inside, roots=[root], what="backups", synced=[])
         self.assertEqual(str(caught.exception),
-                         f"Backups can't be kept in {pl.shown(inside)} because it is inside OneDrive (OneDrive). OneDrive "
+                         f"Backups can't be kept in {pl.shown(inside)} because it is inside OneDrive. OneDrive "
                          "copies files while they are being written, which damages a database. Keep them beside the "
                          "database on this computer. To have a copy in OneDrive, choose it in Settings \u203a Backups \u203a Copy my "
                          "backups to.")
