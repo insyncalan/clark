@@ -60,7 +60,7 @@ class OneMenu(Base):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout]').length", sid), 0)
-            self.assertEqual(cdp.js("document.querySelectorAll('.fline .vicons [data-lay]').length", sid), 2, "row 812: the two-icon switch is on the filter box line")
+            self.assertEqual(cdp.js("document.querySelectorAll('.fline-row .vicons [data-lay]').length", sid), 2, "row 812: the two-icon switch is on the filter box line")
             self.only_the_archived_pill_in_the_bar(cdp, sid)
             self.board(cdp, sid, "status")
             self.assertEqual(cdp.js("document.querySelectorAll('#group-by, [data-layout], #swimlanes').length", sid), 0)

@@ -18,6 +18,8 @@ const MARGIN = 2;                               // spare pixels added to every m
 const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
+const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
+
 export function MsTimeline({ rows: all, today, place, open }) {
   const far = farRows(all), rows = all.filter((r) => !far.includes(r));   // a date far outside 2000 to 2100 is named below the line, not drawn
   const wrap = useRef(null), centre = useRef(null);
@@ -120,7 +122,12 @@ export function MsTimeline({ rows: all, today, place, open }) {
       <div class="mv-wrap" ref={wrap} tabindex="0" role="region" data-zoom-pct={Math.round(z * 100)} style={{ height: `${height}px`, maxHeight: `${Math.max(900, height)}px` }}
         aria-label="Milestone timeline; scroll sideways to see all of it; drag the bottom edge to zoom">
         <div class="mv-strip" ref={strip} style={{ width: `${W}px` }}>
-          {months.map((m) => <div class="mv-month" key={m} style={{ left: `${x(m)}px` }}>{MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}{m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}</div>)}
+          {months.map((m) => {
+            const say = `${MONTHS[+m.slice(5, 7) - 1].slice(0, 3)}${m.slice(5, 7) === "01" || months.length < allMonths.length ? ` ${m.slice(0, 4)}` : ""}`;
+            return fit && W - x(m) < MONTH_ROOM         // on paper the last names would run past the box (cut off): they sit just left of their line
+              ? <div class="mv-month mv-month-end" key={m} style={{ left: `${x(m)}px` }}><span>{say}</span></div>
+              : <div class="mv-month" key={m} style={{ left: `${x(m)}px` }}>{say}</div>;
+          })}
           <div class="mv-line" style={{ top: `${LY}px` }} />
           <div class="mv-today" data-today style={{ left: `${x(today)}px` }}><b>Today</b></div>
           {rows.map((r) => {
