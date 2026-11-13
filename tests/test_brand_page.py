@@ -296,6 +296,88 @@ class Page(InBrowser):
         self.pick(None, project=False)
         self.assertFalse(self.present("#brand-pick"))
 
+    def test_hunt18_the_focus_stays_on_the_button_while_the_server_answers_and_after_a_refusal(self):
+        """Review and Choose were disabled while the server answered, so the focus fell to the page."""
+        for opener in ("data-review", "data-choose"):
+            with self.subTest(opener):
+                self.mount()
+                self.js("T.replies.review = () => new Promise((ok) => { window.__ok = ok; })")
+                self.js(f"document.querySelector('[{opener}]').focus()")
+                self.click(f"[{opener}]")
+                self.assertEqual(self.focused(), f"button[{opener}]", "the focus stays on the button while it waits")
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').disabled"), False)
+                self.assertEqual(self.val(f"document.querySelector('[{opener}]').getAttribute('aria-disabled')"), "true")
+                self.js("window.__ok({status: 409, body: " + lit(REFUSAL) + "})")
+                self.settle()
+                self.assertEqual(self.focused(), f"button[{opener}]", "and after the refusal")
+
+    def test_hunt18_after_install_remove_and_undo_the_focus_is_not_dropped_to_the_page(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-review]').focus()")
+        self.click("[data-review]")
+        self.click("[data-install]")
+        self.settle()
+        self.assertEqual(self.focused(), "button[data-review]", "Install has gone: the focus is on the button that opened the panel")
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.js("document.querySelector('[data-remove-confirm]').focus()")
+        self.replies(list=OK({"ok": True, "brands": [], "undo": True}))
+        self.click("[data-remove-confirm]")
+        self.settle()
+        self.assertEqual(self.focused(), "button[data-review]", "the confirm button and that brand's Remove have gone: the focus is on Review")
+
+    def test_hunt18_after_remove_that_leaves_the_brand_the_focus_is_on_its_remove_button(self):
+        self.mount()
+        self.js("document.querySelector('#brands-list [data-remove]').focus()")
+        self.click("#brands-list [data-remove]")
+        self.js("document.querySelector('[data-remove-confirm]').focus()")
+        self.click("[data-remove-confirm]")
+        self.assertEqual(self.focused(), "button[data-remove]", "the brand is still listed: the focus goes to its Remove")
+
+    def test_hunt18_after_undo_the_focus_is_on_undo_while_there_is_more_to_put_back_and_on_review_when_not(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        self.mount()
+        self.js("document.querySelector('[data-undo]').focus()")
+        self.click("[data-undo]")
+        self.assertEqual(self.focused(), "button[data-undo]", "Undo is still there")
+        self.replies(list=OK({**LIST, "undo": False}))
+        self.click("[data-undo]")
+        self.assertFalse(self.present("[data-undo]"))
+        self.assertEqual(self.focused(), "button[data-review]", "Undo has gone: the focus is on Review")
+
+    def test_hunt18_cancel_and_escape_on_remove_fall_back_to_review_when_that_brands_remove_is_gone(self):
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how):
+                self.replies(list=OK({**LIST, "undo": True}))
+                self.mount()
+                self.click("#brands-list [data-remove]")
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                self.replies(list=OK({"ok": True, "brands": [], "undo": True}))
+                self.click("[data-undo]")
+                self.assertFalse(self.present("#brands-list [data-remove]"), "the brand has gone while the question was open")
+                self.assertTrue(self.present("[data-remove-confirm]"))
+                self.js("document.querySelector('[data-remove-confirm]').focus()")
+                if how == "cancel":
+                    self.click("[data-remove-confirm] + button")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("[data-remove-confirm]"))
+                self.assertEqual(self.focused(), "button[data-review]")
+
+    def test_hunt18_a_click_while_the_server_is_answering_does_nothing(self):
+        self.replies(list=OK({**LIST, "undo": True}))
+        for first, others in (("[data-review]", ("[data-review]", "[data-choose]", "[data-undo]")),
+                              ("[data-undo]", ("[data-undo]", "[data-review]", "[data-choose]"))):
+            with self.subTest(first=first):
+                self.mount()
+                self.js("T.calls.length = 0; T.replies.review = () => new Promise(() => {}); T.replies.undo = () => new Promise(() => {})")
+                self.click(first)
+                for other in others:
+                    self.click(other)
+                want = "review" if first == "[data-review]" else "undo"
+                self.assertEqual(self.calls(), [want], "only the first click reached the server")
+
     def test_plain_words_only(self):
         words = self.val("Object.values(T.logic).filter(v => typeof v === 'string')")
         for text in words:

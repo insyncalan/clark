@@ -4,7 +4,7 @@
 import { useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { rows as everyRow, found, query, filterState, setFilterState, openFilter, refusals, asAt, fromFile, filterCtx } from "../stores/report.js";
 import { todayIso } from "../workItems.js";
-import { offeredFields, NAMES, MODES, TYPES, counts, typeCounts, isActive, options, setMode, setType, toggleValue, setNot, removeFilter } from "../filters.js";
+import { offeredFields, FIELDS as FIELDS_ORDER, NAMES, MODES, TYPES, counts, typeCounts, isActive, options, setMode, setType, toggleValue, setNot, removeFilter } from "../filters.js";
 import { searchRows } from "../clientView.js";
 import { Icon } from "./Icon.jsx";
 
@@ -43,8 +43,10 @@ function FilterBox({ field, onClose }) {
   useEffect(() => { const first = box.current && box.current.querySelector("input"); if (first) first.focus({ preventScroll: true }); }, []);
   useLayoutEffect(() => {      // keep the box inside the window: turn it to the right edge when it would run off
     const el = box.current; if (!el) return;
-    el.classList.remove("right");
+    el.classList.remove("right"); el.style.left = "";
     if (el.getBoundingClientRect().right > window.innerWidth - 8) el.classList.add("right");
+    const at = el.getBoundingClientRect();               // turned to the right edge, a box near the left can now run off the left: hold it 8px inside
+    if (at.left < 8) { el.classList.remove("right"); el.style.left = 8 - el.getBoundingClientRect().left + "px"; }
   });
   const set = (next) => setFilterState(next);
   return (
@@ -68,6 +70,13 @@ function FilterBox({ field, onClose }) {
   );
 }
 
+// A tick can take the open filter's field out of offeredFields (the last Freshness value unticked, no row with a date): the field stays
+// listed while its box is open, so the box and the focus inside it are not torn out; it goes when the box closes.
+function fieldsShown(rows, st, open) {
+  const list = offeredFields(rows, st);
+  return open && !list.includes(open) ? FIELDS_ORDER.filter((f) => f === open || list.includes(f)) : list;
+}
+
 export function FilterBar() {
   const st = filterState.value, open = openFilter.value, bar = useRef(null);
   const close = (back) => {
@@ -84,7 +93,7 @@ export function FilterBar() {
     <div class="fbar" role="group" aria-label="Filter by" ref={bar}
       onFocusOut={(e) => { if (open && e.relatedTarget && !e.relatedTarget.closest(".fwrap")) openFilter.value = ""; }}>
       <span class="fl">Filter by</span>
-      {offeredFields(allRows.value, st).map((f) => (
+      {fieldsShown(allRows.value, st, open).map((f) => (
         <span class="fwrap" key={f}>
           <button type="button" class={`fbtn${isActive(st, f) ? " on" : ""}`} data-fb={f} aria-expanded={open === f ? "true" : "false"} aria-controls={open === f ? `fbox-${f}` : undefined}
             aria-label={NAMES[f] + (isActive(st, f) ? ": filtered" : "")}
