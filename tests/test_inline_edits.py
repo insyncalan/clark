@@ -689,7 +689,7 @@ class Live(unittest.TestCase):
             click(cdp, sid, "[data-pop] [data-value=Closed]")
             self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Closed'", "Closed reads Closed")
             self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico b")      # Closed is the blue tile (row 1021)
-            self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Red", "an overdue issue is Red, as in View")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Urgent", "an overdue Urgent issue says Urgent, not Red and Urgent (row 1139)")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-D-016", "status"), "Pending")
 
     def peek_picker(self, width):
