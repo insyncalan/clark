@@ -56,6 +56,22 @@ class FirstFive(Setup):
             self.assertEqual(p.js(BUTTON), "Show the first 5")
             self.assertIsNone(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "the label says the state, so no aria-expanded")
 
+    def test_the_choice_is_kept_in_this_browser_and_the_control_says_whether_all_are_shown(self):
+        self.more(4)
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None, "Show all carries no aria-expanded")
+            p.js("document.querySelector('[data-ucall]').click()")
+            p.until(f"{ROWS} === 6", "all shown")
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None)
+            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "true", "the choice is remembered")
+            reload_to_new_page(p.js, f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
+            self.assertEqual(p.js(BUTTON), "Show the first 5")
+            p.js("document.querySelector('[data-ucall]').click()")
+            p.until(f"{ROWS} === 5", "reduced")
+            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "false")
+            reload_to_new_page(p.js, f"{ROWS} === 5 && !!document.querySelector('[data-ucall]')", "still the first five after a reload")
+
 
 class PublishedFive(PublishedFile, Setup):
     more = FirstFive.more
@@ -90,23 +106,6 @@ class PublishedFive(PublishedFile, Setup):
                 self.assertEqual(p.js("document.querySelectorAll('.meter i').length"), 6)
                 p.js("window.dispatchEvent(new Event('afterprint'))")
                 p.until(f"{ROWS} === 5", "the screen is as it was")
-
-
-    def test_the_choice_is_kept_in_this_browser_and_the_control_says_whether_all_are_shown(self):
-        self.more(4)
-        with chrome() as cdp:
-            p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None, "Show all carries no aria-expanded")
-            p.js("document.querySelector('[data-ucall]').click()")
-            p.until(f"{ROWS} === 6", "all shown")
-            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), None)
-            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "true", "the choice is remembered")
-            reload_to_new_page(p.js, f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
-            self.assertEqual(p.js(BUTTON), "Show the first 5")
-            p.js("document.querySelector('[data-ucall]').click()")
-            p.until(f"{ROWS} === 5", "reduced")
-            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "false")
-            reload_to_new_page(p.js, f"{ROWS} === 5 && !!document.querySelector('[data-ucall]')", "still the first five after a reload")
 
 
 class AddedBeyondFive(Setup):
