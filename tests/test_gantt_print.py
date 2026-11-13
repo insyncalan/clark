@@ -242,6 +242,22 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_a_chart_drawn_while_the_print_is_on_is_still_fitted(self):
+        # Ctrl+P from another tab draws the Gantt inside beforeprint, after the chart's own listener could hear it; it must be fitted on mount.
+        lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",
+                      end=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-20", pct=0, health="", depends=[], owner="", workstream="", priority="",
+                      baseline_start="", baseline_end="", effort="", budget="", deliverable="", show=0, note="", sort_order=i) for i in range(1, 39)]
+        lines.append(dict(lines[0], id="GNT-099", name="Phase 4 close", type="phase", start="2027-10-01", end="2027-12-20", sort_order=99, show=1))
+        self.look(794, "light")
+        self.printing(794, "light")
+        try:
+            self.mount(width=734, lines=lines)
+            self.settle()
+            fit = self.js("getComputedStyle(document.querySelector('.gt-gx')).getPropertyValue('--gt-fit').trim()")
+            self.assertTrue(fit and float(fit) < 1, f"a chart drawn during the print is scaled {fit!r}")
+        finally:
+            self.done()
+
     def test_the_screen_is_the_same_with_the_class_on(self):
         # Screen media with html.print-all on: the print rules sit in @media print, so nothing about the screen moves.
         for width in (1400, 900):

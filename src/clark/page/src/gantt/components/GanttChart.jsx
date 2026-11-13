@@ -158,6 +158,9 @@ export function GanttChart({
   const ppd = ppdFor(scale, fit, zoom);
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
+  useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
+    if (drawn && document.documentElement.classList.contains("print-all")) fitCharts(document, true);
+  }, [drawn]);
   const nShown = full ? total : (grip !== null ? grip : rowsShown(total, defaultRows, own, edit));
   const cut = !full && nShown < total;
   const canvasH = total * RH;

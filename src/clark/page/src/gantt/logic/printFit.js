@@ -2,7 +2,7 @@
 // width on screen; on `beforeprint` GanttChart.jsx measures it and sets --gt-fit on the box, and shell.css zooms the canvas by it
 // (html.print-all .gt-in). `afterprint` clears it. The page is A4 portrait (shell.css @page) with 12 mm side margins: 186 mm = 703 px.
 export const PAGE_PX = 703;
-export const FLOOR = 0.5;      // a very wide plan is not shrunk below half size; past that the empty tail is clipped, never the bars
+export const FLOOR = 0.5;      // a very wide plan is not shrunk below half size; past that the part beyond the page edge is clipped
 
 // The ratio (FLOOR to 1) that makes `natural` pixels fit `page` pixels.
 export function fitRatio(natural, page = PAGE_PX, floor = FLOOR) {
