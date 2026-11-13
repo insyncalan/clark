@@ -32,6 +32,15 @@ export function TopBar({ tools }) {
     later();
     return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [tabs.value.length]);
+  const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
+  const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
+    const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey) return;      // Alt+Left is the browser's Back, Ctrl/Cmd+arrows are the system's: not ours
+    const j = e.key === "ArrowRight" ? (i + 1) % vs.length : e.key === "ArrowLeft" ? (i + vs.length - 1) % vs.length : e.key === "Home" ? 0 : e.key === "End" ? vs.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); show(vs[j]);
+    setTimeout(() => { const b = row.current && row.current.querySelector(`[data-view="${vs[j]}"]`); if (b) b.focus(); }, 0);
+  };
   return (
     <header class="top">
       {fromFile.value
@@ -39,10 +48,10 @@ export function TopBar({ tools }) {
         : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
       <span class="divider"></span>
       {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
-      <nav class="tabs" ref={row} role="tablist" aria-label="Views">
+      <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
           ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
-          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
+          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}

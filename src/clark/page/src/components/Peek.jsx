@@ -97,11 +97,12 @@ export function SourceLine({ text }) {
 // owner and the progress; then the rows, label left and value right. The same line and rows on every peek: the editor's (MilestonePeek.jsx
 // puts its controls in the same places) and a client's (the Dashboard in View, a published file), read only.
 // The state: a published file carries the state it worked out and the client's word for it (publish.select); the live page works it out
-// here (logic/milestones.js, as the Milestones list does). Achieved, with its date, only once the milestone is achieved.
-export function MsState({ m }) {
+// here (logic/milestones.js, as the Milestones list does). Achieved only once the milestone is achieved, with its date in View but not in Edit (the Achieved on row has it).
+// The editor's peek passes dated={false}: its Achieved on row carries the date, so the date is shown once (the client's peek has no such row, so its chip keeps it).
+export function MsState({ m, dated = true }) {
   const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
   const look = LOOK[state] || LOOK.Forecast;
-  const word = m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
+  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
   return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
 }
 export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
