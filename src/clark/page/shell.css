@@ -1674,7 +1674,7 @@ html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: cal
   .top-file .asat { display: none; }
   .top-file .tabs { order: 9; flex: 1 1 100%; margin-left: 0; overflow-x: auto; }
 }
-@media print { .top-file { position: static; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated */
+@media print { .top-file { position: relative; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated; relative (not static) so the picture wash stays inside the bar */
 
 /* reduced motion: no transition and no lift on the main button */
 /* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */

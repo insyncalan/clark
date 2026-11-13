@@ -145,6 +145,19 @@ class InTheFile(Published):
         self.assertEqual(p.js("getComputedStyle(document.querySelector('header.top')).position"), "static", "placed once, never stuck or repeated")
         self.assertNotEqual(p.js("getComputedStyle(document.querySelector('header.top')).display"), "none", "and it is printed")
 
+    def test_print_keeps_the_picture_wash_inside_the_bar(self):
+        wash = """(() => { const h = document.querySelector('header.top'), s = getComputedStyle(h, '::before');
+          return {pos: getComputedStyle(h).position, wash: parseFloat(s.height), bar: h.getBoundingClientRect().height}; })()"""
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                cdp, p = self.bar(width, False)
+                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
+                cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, p.sid)
+                got = p.js(wash)
+                self.assertNotEqual(got["pos"], "sticky", "still not stuck on paper")
+                self.assertGreater(got["bar"], 0)
+                self.assertAlmostEqual(got["wash"], got["bar"], delta=0.5, msg="the wash fills the bar, not the page")
+
     def test_the_picture_is_a_wash_over_the_right_45_percent_and_none_without_it(self):
         wash = """(() => { const s = getComputedStyle(document.querySelector('header.top'), '::before'), b = document.querySelector('header.top').getBoundingClientRect();
           return {image: s.backgroundImage, left: parseFloat(s.left), w: parseFloat(s.width), bar: b.width, opacity: s.opacity, mask: s.maskImage || s.webkitMaskImage, bg: getComputedStyle(document.querySelector('header.top')).backgroundImage}; })()"""
