@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 import zipfile
 from pathlib import Path
@@ -90,7 +91,8 @@ class MacZipTest(unittest.TestCase):
         names = set(self.inside())
         for needed in ("clark.command", ".app/clark/__main__.py", ".app/src/clark/__main__.py", ".app/src/clark/page/page.html",
                        ".app/src/clark/schema.sql", ".app/vendor/openpyxl/__init__.py", ".app/vendor/et_xmlfile/__init__.py",
-                       ".app/vendor/manifest.json", "README.md", "START-HERE.md"):
+                       ".app/vendor/manifest.json", "README.md", "START-HERE.md",
+                       ".app/vendor/pypdf/__init__.py", ".app/vendor/pypdf/LICENSE", ".app/vendor/typing_extensions.py"):
             self.assertIn(needed, names)
 
     def test_the_zips_readme_is_the_zip_readme_and_not_the_repositorys(self):
@@ -310,7 +312,7 @@ class MacZipTest(unittest.TestCase):
         text = package.start_here("mac")
         flat = " ".join(text.split())
         self.assertIn("What is in this folder: README.md says what clark is. START-HERE.md is this page. Double-click clark.command to start clark. "
-                      "docker is for starting clark with Docker. system/branding holds your own logo and colours, if you add them. "
+                      "docker is for starting clark with Docker. branding holds your own logo and colours, if you add them. "
                       "The program files are in a hidden folder called .app: you do not need to open it.", flat)
         self.assertLess(flat.index("These steps are for a Mac."), flat.index("What is in this folder:"))
         self.assertIn("If an earlier Docker start kept your data in a data folder inside the clark folder, move that data folder out of the "
@@ -320,7 +322,7 @@ class MacZipTest(unittest.TestCase):
         self.assertLess(flat.index("What is in this folder:"), flat.index("If your Mac will not open"))
         steps = ["If you already have clark:", "1. Close clark.", "2. Rename your old clark folder (for example to clark-old) or move it away, "
                  "so the two folders do not clash.", "3. Unzip this download.", "4. If you added your own logo or colours, copy the "
-                 "system/branding folder from the old clark folder into the new one. An update never changes that folder, but replacing the "
+                 "branding folder (an older clark keeps it in system/branding) from the old clark folder into the new one. An update never changes that folder, but replacing the "
                  "whole clark folder by hand removes it.", "5. If you use Docker and your data is in a data folder inside the old clark "
                  "folder, move that data folder out of it before you delete the old folder, or start Docker with CLARK_DATA_DIR naming it.",
                  '6. Double-click clark.command. Your Mac may ask you to confirm clark.command again: do as in step 2 under "Without Docker" below.',
@@ -565,7 +567,7 @@ class PlacedLayoutTest(unittest.TestCase):
         self.assertEqual(len(repo), len(made))
         changed = [(a, b) for a, b in zip(repo, made) if a != b]
         self.assertEqual([("    working_dir: /clark", "    working_dir: /clark/.app")], changed)
-        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so system/branding is seen")
+        self.assertIn("        source: ..", made, "the bind stays the whole clark folder, so branding is seen")
         self.assertEqual("    working_dir: /clark", next(ln for ln in repo if "working_dir" in ln), "the repo's own file is untouched")
 
     def test_the_compose_change_is_refused_unless_the_line_is_found_exactly_once(self):
@@ -577,7 +579,7 @@ class PlacedLayoutTest(unittest.TestCase):
                 package.compose_for_zip(bad)
 
     def test_a_tracked_path_under_system_or_data_refuses_the_build(self):
-        for kept in ("system/branding/logo.png", "data/clark.db", "System/x.txt"):
+        for kept in ("branding/logo.png", "system/branding/logo.png", "data/clark.db", "System/x.txt"):
             with self.subTest(kept=kept):
                 root = ForClientTest.snapshot(self, {kept: "mine\n"})
                 out = Path(self.tmp) / ("refused " + kept.replace("/", "-"))
@@ -680,6 +682,65 @@ class DefaultAudienceTest(unittest.TestCase):
         self.assertNotIn(self.PUBLIC, package.start_here("mac", for_client=True))
 
 
+class GitHangTest(unittest.TestCase):
+    """Every git call in package.py is given GIT_TIMEOUT. The git on PATH here is a shim that sleeps, so a call with no
+    timeout would sit for the whole sleep; each call must come back well before it, and files() must not raise
+    TimeoutExpired (it refuses, as Refused, like the other callers)."""
+    SLEEP = 20
+    LIMIT = 8       # seconds a call may take; GIT_TIMEOUT is patched to 1
+
+    def setUp(self):
+        shim = Path(tempfile.mkdtemp(prefix="clark git shim "))
+        self.addCleanup(shutil.rmtree, shim, True)
+        git = shim / "git"
+        git.write_text(f"#!/bin/sh\nexec sleep {self.SLEEP}\n", encoding="utf-8")
+        git.chmod(0o755)
+        env = mock.patch.dict(os.environ, {"PATH": f"{shim}{os.pathsep}{os.environ.get('PATH', '')}"})
+        env.start()
+        self.addCleanup(env.stop)
+        limit = mock.patch.object(package, "GIT_TIMEOUT", 1)
+        limit.start()
+        self.addCleanup(limit.stop)
+
+    def prompt(self, call):
+        began = time.monotonic()
+        try:
+            result = call()
+        except BaseException as e:
+            result = e
+        self.assertLess(time.monotonic() - began, self.LIMIT)
+        return result
+
+    def test_tracked_is_asked_with_the_limit(self):
+        self.assertIsInstance(self.prompt(lambda: package.tracked(ROOT, ["src/clark/"])), subprocess.TimeoutExpired)
+
+    def test_files_refuses_and_does_not_raise_timeout_expired(self):
+        got = self.prompt(lambda: package.files("mac", ROOT))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_the_audience_and_the_snapshot_check_read_a_hang_as_team_only(self):
+        self.assertEqual(package.TEAM_ONLY, self.prompt(lambda: package.audience(ROOT)))
+        self.assertIn("could not list", self.prompt(lambda: package.snapshot_problem(ROOT)))
+
+    def test_the_last_commit_check_alone_comes_back(self):
+        with mock.patch.object(package, "private_paths", return_value=[]):
+            got = self.prompt(lambda: package.snapshot_problem(ROOT))
+        self.assertIn("isn't a public snapshot", got)
+
+    def test_released_on_falls_back_to_today(self):
+        import datetime
+        self.assertEqual(datetime.date.today().isoformat(), self.prompt(lambda: package.released_on(ROOT)))
+
+    def test_uncommitted_refuses(self):
+        got = self.prompt(lambda: package.uncommitted(ROOT, ["README.md"]))
+        self.assertIsInstance(got, package.Refused)
+        self.assertIn("git did not answer", str(got))
+
+    def test_tag_problem_says_git_could_not(self):
+        self.assertIn("did not say which tag", self.prompt(lambda: package.tag_problem(ROOT, "1.2.3")))
+
+
 class ReleaseFromTagTest(unittest.TestCase):
     """A --release zip is built only from the commit tagged for its version (#400)."""
 
@@ -719,6 +780,71 @@ class ReleaseFromTagTest(unittest.TestCase):
         tmp = Path(tempfile.mkdtemp(prefix="clark not git "))
         self.addCleanup(shutil.rmtree, tmp, True)
         self.assertIn("could not say", package.tag_problem(tmp, "1.2.3"))
+
+
+STATUS = """Package: bash
+Status: install ok installed
+Architecture: amd64
+Version: 5.2.15-2+b7
+
+Package: oldthing
+Status: deinstall ok config-files
+Architecture: amd64
+Version: 1.0
+
+Package: libssl3
+Status: install ok installed
+Architecture: amd64
+Version: 3.0.17-1~deb12u2
+"""
+COPYRIGHTS = {"bash": "Files: *\nLicense: GPL-3+\n", "libssl3": "see the Apache License, Version 2.0"}
+
+
+class ImagePapersTest(unittest.TestCase):
+    """Item 637: the generators for THIRD-PARTY-IMAGE.txt and the SBOM (not called by the build)."""
+
+    def test_only_installed_packages_are_read(self):
+        self.assertEqual(["bash", "libssl3"], [p["name"] for p in package.image_packages(STATUS)])
+
+    def test_licences_come_from_license_lines_or_known_names(self):
+        self.assertEqual(["GPL-2+", "LGPL-2.1+"], package.image_licences("Files: *\nLicense: LGPL-2.1+ and GPL-2+\n"))
+        self.assertEqual(["Apache-2.0"], package.image_licences("see the Apache License, Version 2.0"))
+        self.assertEqual([], package.image_licences(""))
+
+    def test_lgpl_text_naming_the_gpl_is_not_also_gpl(self):
+        text = "GNU Lesser General Public License ... you may also use the GNU General Public License"
+        self.assertEqual(["LGPL"], package.image_licences(text))
+        self.assertEqual(["GPL"], package.image_licences("GNU General Public License"))
+
+    def test_dual_gpl_and_lgpl_wording_keeps_both(self):
+        for text in ("GNU Lesser General Public License, or the GNU General Public License",
+                     "under the GNU General Public License or the GNU Lesser General Public License",
+                     "either the GNU Lesser General Public License or, at your option, GPL-2",
+                     "GNU Lesser General Public License; see /usr/share/common-licenses/GPL-2"):
+            self.assertEqual(["GPL", "LGPL"], package.image_licences(text), text)
+        boiler = ("This library is free software; you can redistribute it and/or modify it under the terms of the GNU Lesser General Public "
+                  "License as published by the Free Software Foundation; either version 2.1 of the License. See /usr/share/common-licenses/LGPL-2.1")
+        self.assertEqual(["LGPL"], package.image_licences(boiler))
+
+    def test_purl_percent_encodes_special_characters(self):
+        sbom = package.image_sbom([{"name": "g++", "version": "1:12.2@x y/z", "arch": "amd64"}], {}, [{"name": "A_b", "version": "1+local"}])
+        self.assertEqual("pkg:deb/debian/g%2B%2B@1:12.2%40x%20y%2Fz?arch=amd64", sbom["components"][0]["purl"])
+        self.assertEqual("pkg:pypi/a-b@1%2Blocal", sbom["components"][1]["purl"])
+
+    def test_sbom_is_cyclonedx_with_every_package_and_purl(self):
+        sbom = package.image_sbom(package.image_packages(STATUS), COPYRIGHTS, [{"name": "Pip", "version": "24.0"}], "python:3.12-slim")
+        self.assertEqual(("CycloneDX", "1.5"), (sbom["bomFormat"], sbom["specVersion"]))
+        self.assertEqual(["bash", "libssl3", "Pip"], [c["name"] for c in sbom["components"]])
+        self.assertEqual("pkg:deb/debian/bash@5.2.15-2%2Bb7?arch=amd64", sbom["components"][0]["purl"])
+        self.assertEqual([{"license": {"name": "GPL-3+"}}], sbom["components"][0]["licenses"])
+        self.assertEqual("pkg:pypi/pip@24.0", sbom["components"][-1]["purl"])
+        json.dumps(sbom)
+
+    def test_text_names_every_package_with_licences_and_flags_a_missing_copyright_file(self):
+        text = package.image_third_party(package.image_packages(STATUS), {"bash": COPYRIGHTS["bash"]}, [], "python:3.12-slim")
+        for needle in ("python:3.12-slim", "bash 5.2.15-2+b7: GPL-3+", "libssl3 3.0.17-1~deb12u2: see /usr/share/doc/libssl3/copyright"):
+            with self.subTest(needle=needle):
+                self.assertIn(needle, text)
 
 
 if __name__ == "__main__":

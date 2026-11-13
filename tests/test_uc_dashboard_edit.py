@@ -177,6 +177,21 @@ class Edit(Setup):
                     p.until("document.querySelectorAll('.ucrow').length === %d" % (2 + n), "on the dashboard once its eye is on")
                     self.assertEqual(self.store.read("use_cases", ref=made["id"])["client_visible"], 1)
 
+    def test_esc_closes_the_add_box_while_the_save_is_out(self):
+        """With the save on its way the Add button is disabled and the focus drops to the page: Esc must still close the box."""
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            p.js("window.fetch = (u, o) => (String(u).indexOf('/api/change') >= 0 ? new Promise(() => {}) : Promise.reject(new Error('x')))")
+            self.click(p, "#ucAdd")
+            p.until("!!document.querySelector('#ucF')", "the box")
+            self.type_in(p, "#ucI", "9.9")
+            self.type_in(p, "#ucT", "Slow save")
+            p.js("document.querySelector('#ucF').requestSubmit()")
+            p.until("document.querySelector('#ucF [data-place]').disabled", "the Add button is disabled while the save is out")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ucF')", "Esc closed the box while busy")
+
     def test_an_id_already_used_is_not_added(self):
         with chrome() as cdp:
             p = self.edit(cdp)
@@ -443,9 +458,11 @@ class PublishedFile(Published):
     def test_the_file_has_none_of_edit_for_the_use_cases(self):
         path = self.publish()
         text = path.read_text(encoding="utf-8")
-        for edit_only in ("Add a use case", "Add use case", "from your project record", "uchead-in",   # row 1111: data-uc-back is the use case page crumb, which a file has now
+        for edit_only in ("Add a use case", "Add use case", "from your project record", "uchead-in",
                           "Link an existing work item", "Add a next step", "data-uc-eye", "off the page", "data-uc-step", "data-uc-link"):
             self.assertNotIn(edit_only, text, edit_only)
+        # the use case page in a file has its own crumb back to the list, marked data-uc-back; the editor's back link is not in the file
+        self.assertEqual(text.count("data-uc-back"), 1, "only the file page's own crumb")
         with chrome() as cdp:
             p = self.draw(cdp, path)
             self.assertEqual(p.js("document.querySelectorAll('#ucAdd, [data-uc-status], [data-uc-back], [data-uc-eye], [data-uc-step], [data-uc-link], [data-rich], .uc textarea, .uc button').length"), 0)

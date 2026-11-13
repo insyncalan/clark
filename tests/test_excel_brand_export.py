@@ -1,7 +1,7 @@
 """Item 711 (4b): the workbook is drawn in the local brand's LIGHT values at export (excel_palette threaded through excel.py).
 
 Run: python3 dev/run_tests.py test_excel_brand_export
-Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from system/branding.
+Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from branding.
 """
 import shutil
 import tempfile
@@ -204,7 +204,7 @@ class Polish(Rig):
         ours = [r for r in logs.records if "brand-navy" in r.getMessage()]
         self.assertEqual(len(ours), 1)
         self.assertEqual(ours[0].levelname, "WARNING")
-        self.assertTrue(ours[0].getMessage().startswith("Brand colour brand-navy not used"))
+        self.assertTrue(ours[0].getMessage().startswith("The brand colour brand-navy could not be used"))
 
     def test_a_brand_file_that_is_not_utf8_does_not_block_the_export(self):
         d = self.brand(None)

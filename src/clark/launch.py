@@ -1,4 +1,4 @@
-"""python3 -m clark.launch: start clark if it isn't running, then open it in a Chrome app window (#71).
+"""python3 -m clark.launch: start clark if it isn't running, then open it in Chrome (#71, row 1076).
 
     python3 -m clark.launch [--data FOLDER] [--port N]      (clark.command in clark's folder runs this)
 
@@ -10,10 +10,10 @@ It asks what is on the port first, and never takes over what isn't its own:
 - clark with another data folder, or any other program (creaite also answers /health, without the mark): said in plain words,
   nothing started, nothing opened
 
-The window is Chrome's app window (--app=<address>); if Chrome isn't found, the default browser, and it says so. The logic is
-here and every system call is in platform.py, so a test runs it with fakes and a fake server. Copied from creaite v2.6.9
-system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login agent, restart or starting-file. Standard library
-only, Python 3.9.
+Clark opens as a page in Chrome (at clark.localhost, not a standalone app window); if Chrome isn't found, the default
+browser, and it says so. The logic is here and every system call is in platform.py, so a test runs it with fakes and a
+fake server. Copied from creaite v2.6.9 system/scripts/launch.py (BL-86, BL-212), cut down: no make-launcher, login
+agent, restart or starting-file. Standard library only, Python 3.9.
 """
 import argparse
 import http.client
@@ -98,14 +98,35 @@ def ask_page(port, timeout=ASK_TIMEOUT * 5, connect=http.client.HTTPConnection):
         conn.close()
 
 
-NOT_THIS_ONE = ("clark is already running, but not from this folder or not this version. Nothing was changed. "
-                "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
-BROKEN_PAGE = ("clark is already running, but its page answers with an error. Nothing was opened or changed. "
-               "Quit it first (press Ctrl+C in its Terminal window), then start this one again.")
+# Row 1030: no Terminal window is promised (the other clark may have been started without one), so the words say to close it
+# and, if it can't be found, to restart the computer.
+NOT_THIS_ONE = ("clark is already running, but it is not the copy you are trying to start (it may be from another folder, or "
+                "an older version). Close the clark that is already open, then start clark again. "
+                "If you can't find it, restart your computer.")
+BROKEN_PAGE = ("clark is already running, but its page shows an error. "
+               "Close the clark that is already open, then start clark again. If you can't find it, restart your computer.")
+
+
+def ours_problem(port, mark, identity=ask_identity, page=ask_page):
+    """Row 1030: None if the clark on `port` (which answered as ours) is this folder's and this version's and its page works;
+    else the plain line saying why not. The launcher and the doctor both ask this, so they never disagree."""
+    if identity(port, mark) != (__version__, appfiles.code_mark()):
+        return NOT_THIS_ONE
+    status = page(port)
+    return BROKEN_PAGE if status is None or status >= 500 else None
 
 
 def address(port):
-    """Where clark's window opens. Always 127.0.0.1: Chrome offers to install an app only from a loopback address."""
+    """Where Chrome opens clark (row 1076): clark.localhost, which Chrome resolves to this computer and still counts as
+    a loopback address, so Chrome offers to install it as a web app. Only Chromium and Firefox resolve *.localhost names
+    themselves, so any other browser, and the address a person is told to type, get plain_address. The health checks
+    above ask 127.0.0.1 directly."""
+    return f"http://clark.localhost:{port}/"
+
+
+def plain_address(port):
+    """The address every browser can open: for the default browser when Chrome isn't found, and for the line a person
+    reads."""
     return f"http://127.0.0.1:{port}/"
 
 
@@ -235,7 +256,7 @@ def start_setup(port, folder, reason, say, environ, start, health, wait, find_ch
         except (OSError, AttributeError):
             pass
         return False
-    return open_clark(address(port), say, environ, find_chrome, open_window, open_browser) == 0
+    return open_clark(port, say, environ, find_chrome, open_window, open_browser) == 0
 
 
 def real_setup(say, environ, start, health, wait, find_chrome, open_window, open_browser):
@@ -245,7 +266,7 @@ def real_setup(say, environ, start, health, wait, find_chrome, open_window, open
 
 
 def launch(port, folder, say=print, environ=None, start=platform.start_detached, find_chrome=platform.find_chrome,
-           open_window=platform.open_app_window, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
+           open_window=platform.open_in_chrome, open_browser=platform.open_url, health=ask_health, wait=wait_for_clark,
            free=port_free, finish=finish_update, identity=ask_identity, page=ask_page, setup=None, data_problem=data_problem):
     """Start clark if nothing answers on `port`, then open its window. An update that stopped part way is finished first
     (always back to the version that was there). The exit code: 0 opened, 1 not (the reason is said).
@@ -271,12 +292,8 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
         say(report(seen, port, folder, free))
         return 1
     if seen == OURS:
-        if identity(port, mark) != (__version__, appfiles.code_mark()):     # row 975: this data, but not this folder's clark or not this version
-            say(NOT_THIS_ONE)
-            return 1
-        status = page(port)
-        if status is None or status >= 500:         # it answers /health but not its own page: no window is opened on it
-            say(BROKEN_PAGE)
+        if (problem := ours_problem(port, mark, identity, page)):     # rows 975, 1030: this data, but not this clark, or its page is broken
+            say(problem)
             return 1
         say("It is already running. Opening its window.")
     elif (refusal := lock_refusal(folder)):     # clark is open on this folder (on another port), or that can't be checked: none is started
@@ -301,21 +318,23 @@ def launch(port, folder, say=print, environ=None, start=platform.start_detached,
                     f"{platform.with_tilde(log)} to the clark team. It records what went wrong.")
             return 1
         say("A minute after the last window closes, clark stops by itself.")
-    return open_clark(address(port), say, environ, find_chrome, open_window, open_browser)
+    return open_clark(port, say, environ, find_chrome, open_window, open_browser)
 
 
-def open_clark(url, say, environ, find_chrome, open_window, open_browser):
-    """Open `url` in a Chrome app window; the default browser, with a line saying so, if Chrome isn't found."""
+def open_clark(port, say, environ, find_chrome, open_window, open_browser):
+    """Open clark on `port` in Chrome, at clark.localhost; the default browser, at 127.0.0.1 and with a line saying so,
+    if Chrome isn't found. The address a person is told to open when neither works is the plain one too: their browser
+    may be Safari."""
     chrome = find_chrome(environ)
     try:
         if chrome:
-            open_window(url, chrome)
-            say("Opened clark in its own window.")
+            open_window(address(port), chrome)
+            say("Opened clark in Chrome.")
         else:
-            open_browser(url)
-            say("Chrome wasn't found, so clark opened in your default browser. Install Chrome to give clark its own window.")
+            open_browser(plain_address(port))
+            say("Chrome wasn't found, so clark opened in your default browser.")
     except platform.PlatformError as e:
-        say(f"{e} The clark server is still running. To use it, open this address in your browser: {url}")
+        say(f"{e} The clark server is still running. To use it, open this address in your browser: {plain_address(port)}")
         return 1
     return 0
 

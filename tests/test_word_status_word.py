@@ -8,6 +8,7 @@ or issue reads Red, Amber or Green (its priority); a decision reads Pending, Mad
 """
 import copy
 import json
+import re
 import os
 import re
 import shutil

@@ -6,7 +6,7 @@ Nothing is ever published without the owner's word (RULES.md). The tool never fo
 
 ## What is published, and what is not
 
-Everything git tracks at the commit you name, read from git's own objects. Files that are only on this laptop (anything ignored or not committed, such as `system/branding/` and `comms/`) can never be in it.
+Everything git tracks at the commit you name, read from git's own objects. Files that are only on this laptop (anything ignored or not committed, such as `branding/`, `system/branding/` and `comms/`) can never be in it.
 
 These internal working notes are taken out of the snapshot (the list is `EXCLUDED` in the script, pinned by a test):
 
@@ -17,8 +17,9 @@ These internal working notes are taken out of the snapshot (the list is `EXCLUDE
 - `.claude/`
 - `comms/`
 - `system/branding/`
+- `branding/`
 
-The notes files are expected in the private repo and are removed quietly. `comms/` and `system/branding/` are different: they are meant to stay out of git altogether (`.gitignore`). If a file under either is tracked at the commit, someone force-added it, so the tool refuses (it shows only the file's place number) instead of removing it quietly. Find out why in the private repo, take the file out of git by a normal change, and run again.
+The notes files are expected in the private repo and are removed quietly. `comms/`, `branding/` and `system/branding/` are different: they are meant to stay out of git altogether (`.gitignore`). If a file under any of them is tracked at the commit, someone force-added it, so the tool refuses (it shows only the file's place number) instead of removing it quietly. Find out why in the private repo, take the file out of git by a normal change, and run again.
 
 `docs/handoff/` is published: the tests read it, and it holds technical design notes with no names.
 

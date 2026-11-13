@@ -49,11 +49,13 @@ MESSAGES = {
     "change_bad_request": "That change could not be read. Nothing was changed. Reload the page and ask again.",
     "no_reply": "That answer's changes are no longer waiting. Nothing was changed. Ask again.",
     "shown_already": "Those changes were shown already. Nothing was changed. Ask again to see them afresh.",
+    "open_asking_off": "Asking is off, so this file can't be opened from here. Turn it on in Settings.",   # #943: the open-file click's own sentence
     "file_unavailable": "That file can't be opened from here.",
     "folders_unreadable": "Your folders couldn't be read just now, so nothing was sent. Try again, or remove a folder in Settings.",
 }
 FIELDS = {"project", "question", "earlier"}
 DRY_FIELDS = {"project", "reply"}
+PDF_START = b"%PDF-"      # #943: what a PDF file begins with
 OPEN_FIELDS = {"project", "file", "page"}
 APPLY_FIELDS = {"project", "offer", "confirm"}
 REPLY_MINUTES = ask_apply.OFFER_MINUTES
@@ -195,13 +197,16 @@ class AskService:
     def open_source(self, body):
         """{project, file, page} -> the PDF `file` (a source's `file`: a name inside one of the project's saved folders) opened at
         `page` (a whole number, or null for the file alone) in the system's PDF viewer. The name is mapped back to the saved folder
-        here, judged again by reach and pdf_link (a .pdf, no links, inside the folder), and opened only by platform.open_pdf_at.
-        Nothing is read, sent or changed."""
+        here, judged again by reach and pdf_link (a .pdf, no links, inside the folder, and starting %PDF-), and opened only by platform.open_pdf_at.
+        Nothing is read, sent or changed.
+        Known LOW (#943, note only): if the viewer's start times out here but Chrome launches late, the PDF can open twice."""
         if not isinstance(body, dict) or set(body) != OPEN_FIELDS or not isinstance(body["project"], str) or not isinstance(body["file"], str):
             return 400, self.fail("bad_request")
         code, name, page = body["project"], body["file"], body["page"]
         if not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
+        if not self.enabled():                       # fails closed, like the other ask routes: asking off, nothing is looked at
+            return 409, self.fail("asking_off", MESSAGES["open_asking_off"])   # same code, its own sentence (MESSAGES["asking_off"] is for the other routes)
         if page is not None and (isinstance(page, bool) or not isinstance(page, int)):
             return 400, self.fail("bad_request")
         parts = name.split("/")
@@ -230,9 +235,15 @@ class AskService:
             if kind != "ordinary":
                 continue
             try:
+                start, _more = reach.read_bytes(path, folders, self.data_dir, len(PDF_START), self.home)    # the same reach check as a read
+            except (reach.Never, OSError, ValueError):
+                continue
+            if start != PDF_START:                   # a name ending .pdf is not enough: the file must start like a PDF
+                continue
+            try:
                 self.open_pdf(path, url)
-            except platform.PlatformError as e:
-                return 409, self.fail("file_unavailable", str(e))
+            except (platform.PlatformError, OSError):      # the system's own text is never shown: the route's plain sentence
+                return 409, self.fail("file_unavailable")
             return 200, {"ok": True}
         return 409, self.fail("file_unavailable")
 
