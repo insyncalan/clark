@@ -71,6 +71,12 @@ export function AskPanel() {
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
   }, [open, state, panelFocus.value]);
+  // Hunt 19: Stop is pressed, then it leaves the page: focus would fall to the body, so it returns to the box when it was on the button.
+  const wasBusy = useRef(false);
+  useEffect(() => {
+    if (wasBusy.current && !busy && open && box.current) { const at = document.activeElement; if (!at || at === document.body) box.current.focus(); }
+    wasBusy.current = busy;
+  }, [busy]);
   useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
@@ -166,7 +172,7 @@ export function AskPanel() {
 
   return (
     <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
-      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
+      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin="320" aria-valuemax={Math.max(320, Math.floor(document.documentElement.clientWidth * 0.9))} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">

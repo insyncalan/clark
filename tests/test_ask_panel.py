@@ -300,6 +300,25 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "Stopping. Your question and the earlier answers stay here.")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
 
+    def test_hunt19_focus_stays_in_the_panel_when_stop_is_pressed_and_the_button_goes(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared")
+            p.js("document.querySelector('#ask-stop').focus(); document.querySelector('#ask-stop').click()")
+            p.until("document.querySelector('#ask-stop') === null", "Stop went")
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus went to the box, not the page")
+
+    def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertTrue(p.js("/^\\d+$/.test(document.querySelector('#ask-grip').getAttribute('aria-valuenow') || '')"))
+            before = int(p.js("document.querySelector('#ask-grip').getAttribute('aria-valuenow')"))
+            p.js("document.querySelector('#ask-grip').focus()")
+            p.key("ArrowLeft", code="ArrowLeft", vk=37)
+            p.until(f"+document.querySelector('#ask-grip').getAttribute('aria-valuenow') > {before}", "the value follows the width")
+
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False
         with chrome() as cdp:
