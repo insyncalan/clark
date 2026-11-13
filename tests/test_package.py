@@ -884,7 +884,10 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
     def test_the_last_release_list_covers_every_file_of_this_tree(self):
         tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
         if not tags:
-            self.skipTest("no release tag in this clone")
+            shallow = subprocess.run(["git", "-C", str(ROOT), "rev-parse", "--is-shallow-repository"], capture_output=True, text=True).stdout.strip()
+            if shallow == "true":
+                self.skipTest("shallow clone with no release tags (push runs use depth 1; pull request runs fetch all tags)")
+            self.fail("no v* release tag in a full clone: fetch tags (git fetch --tags)")
         old = self._old_module(tags[0])
         self.assertIsNotNone(old, tags[0])
         self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
