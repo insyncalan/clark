@@ -24,7 +24,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "That request was not accepted. Reload the page."
+NOT_ACCEPTED = "That was not accepted. Reload the page."
 STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
@@ -129,7 +129,7 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
-    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that_request(self):
+    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
         def refuse(handler):
             handler.send(403, {"ok": False, "message": "Not allowed"})
             return False
@@ -143,7 +143,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})
@@ -294,6 +294,25 @@ class Words(unittest.TestCase):
             text = (Path(page.PAGE).parents[1] / name).read_text(encoding="utf-8")
             self.assertNotIn("The folder {folder} isn't there", text)
             self.assertNotIn("was saved in {folder},", text)
+
+    def test_the_page_words_say_data_not_database_and_that_not_request(self):
+        """Item 1126: the refusal and backup words on screen use plain words."""
+        root = SRC / "clark"
+        shown = {
+            "logic/safety.js": ["different set of data"],
+            "stores/report.js": ["That was not accepted.", "That could not be read."],
+            "help/helpContent.json": ["different set of data"],
+        }
+        for name, want in shown.items():
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            for w in want:
+                self.assertIn(w, text, name)
+        for name in ("logic/safety.js", "stores/report.js"):
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            self.assertNotIn("different database", text)
+            self.assertNotIn("That request ", text)
+        client = (root / "to_client.py").read_text(encoding="utf-8")
+        self.assertNotIn("which holds the database", client)
 
     def test_no_text_in_the_page_source_says_report_editor_or_capital_clark(self):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
