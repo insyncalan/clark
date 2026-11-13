@@ -46,7 +46,7 @@ class ProjectSwitch(Base):
             p.width(1400)
             self.assertLessEqual(p.js("document.querySelector('#project-name').getBoundingClientRect().width"), 48)
 
-    def test_C_the_menu_lists_the_projects_with_open_counts_and_Project_settings(self):
+    def test_C_the_menu_lists_the_projects_with_open_counts(self):
         self.rig.httpd.projects = lambda archived=False: TWO
         with chrome() as cdp:
             p = self.page(cdp)
