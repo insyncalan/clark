@@ -959,17 +959,49 @@ class PdfDetailsAreNeutral(unittest.TestCase):
         for num, off in zip((1, 2, 3, 4, 5, 6), offsets):
             self.assertTrue(out[off:].startswith(b"%d 0 obj" % num), num)
 
+    def test_a_link_that_climbs_out_of_the_folder_has_no_file_address_left(self):
+        """A relative link such as ../up/b.pdf is written by Chrome as file:///tmp/up/b.pdf, a place on this computer outside the work folder."""
+        data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>",
+                          4: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (file:///tmp/up/b.pdf)>>>>",
+                          5: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (FILE:///C:/Users/ann/b.pdf)>>>>",
+                          6: b"<</Type /Annot /Subtype /Link /A <</S /URI /URI (https://example.com/ok)>>>>"}, info=3)
+        out = pdf.scrub(data, "T")
+        for leak in (b"file:", b"FILE:", b"/tmp", b"Users", b"b.pdf"):
+            self.assertNotIn(leak, out, leak)
+        self.assertIn(b"/URI (https://example.com/ok)", out)
+
+    def test_a_pdf_that_still_has_a_file_address_is_not_made(self):
+        for hidden in (b"/A <</S /URI /URI (file:///tmp/up/b.pdf)>>", b"/A <</S /URI /URI <" + b"file:///tmp/up/b.pdf".hex().encode() + b">>>"):
+            data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>",
+                              4: b"<<" + hidden + b">>"}, info=3)
+            with mock.patch.object(pdf, "_print_over", return_value=data), mock.patch.object(pdf, "_start_piped", return_value=(mock.Mock(), (0, 1))), \
+                    mock.patch.object(pdf, "_Pipe"), mock.patch.object(pdf, "stop_child"), mock.patch.object(pdf, "scrub", side_effect=lambda d, t: d), \
+                    tempfile.TemporaryDirectory() as d:
+                src = Path(d) / "r.html"
+                src.write_text("<title>T</title>", encoding="utf-8")
+                with self.assertRaises(pdf.PdfError) as caught:
+                    pdf.make_pdf(src, Path(d) / "o.pdf", chrome="/x")
+                self.assertEqual(str(caught.exception), pdf.CANNOT_CLEAN)
+
+    def test_a_link_after_the_word_stream_in_a_dictionary_is_still_cleaned(self):
+        folder = b"file:///tmp/clark-pdf-x7/"
+        data = build_pdf({1: b"<</Type /Catalog /Pages 2 0 R>>", 2: b"<</Type /Pages /Kids [] /Count 0>>", 3: b"<</Creator (x)>>",
+                          4: b"<</Note (a stream of words) /A <</S /URI /URI (" + folder + b"x.pdf)>>>>"}, info=3)
+        out = pdf.scrub(data, "T")
+        self.assertIn(b"/URI (x.pdf)", out)
+        self.assertNotIn(b"clark-pdf-", out)
+
     def test_real_chrome_pdf_of_a_page_with_a_file_link_has_no_temporary_folder(self):
         chrome = chrome_path()
         self.assertTrue(chrome, "Chrome is needed: set CLARK_CHROME or put google-chrome on the PATH")
         page = ("<!doctype html><html><head><meta charset=utf-8><title>T</title></head><body><h1>Harbour plan</h1>"
-                "<p><a href='Report%20files/plan.pdf'>The plan</a> <a href='#'>top</a> <a href='mailto:a.b@clientco.example'>mail</a></p></body></html>")
+                "<p><a href='Report%20files/plan.pdf'>The plan</a> <a href='#'>top</a> <a href='../up/b.pdf'>up</a> <a href='mailto:a.b@clientco.example'>mail</a></p></body></html>")
         with tempfile.TemporaryDirectory() as d:
             src = Path(d) / "report.html"
             src.write_text(page, encoding="utf-8")
             data = pdf.make_pdf(src, Path(d) / "o.pdf", chrome=chrome).read_bytes()
         self.assertIn(b"/URI (Report%20files/plan.pdf)", data, "the link is still there, relative")
-        for leak in (b"clark-pdf-", b"file:", b"/tmp", b"/var/folders"):
+        for leak in (b"clark-pdf-", b"file:", b"/tmp", b"/var/folders", b"up/b.pdf"):
             self.assertNotIn(leak, data, leak)
 
     def test_a_pdf_with_the_temporary_folder_anywhere_else_is_not_made(self):

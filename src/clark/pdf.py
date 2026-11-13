@@ -466,7 +466,14 @@ CLEAN_NAME = "clark"            # the only Creator and Producer a PDF made here 
 CLEAN_TITLE = "Report"          # the Title when the page has none
 CANNOT_CLEAN = "The PDF could not be made safe to share, so it was not made. Leave the PDF box unticked and publish again."
 WORK_PREFIX = "clark-pdf-"      # the start of the throwaway folder's name (make_pdf): a printed link that is relative to the page is written by Chrome as file:///<that folder>/...
-WORK_URI = re.compile(rb"(/URI\s*\()file:(?:\\.|[^\\)])*?/" + re.escape(WORK_PREFIX.encode()) + rb"[A-Za-z0-9_]*/")
+FILE_URI = re.compile(rb"(/URI\s*\()(file:(?:\\.|[^\\)])*)\)", re.I)   # any link Chrome wrote as a file: address (it resolves a relative link against the folder the copy was printed from)
+FILE_URI_LEFT = re.compile(rb"/URI\s*(?:\(\s*file:|<\s*" + b"file:".hex().encode() + rb")", re.I)
+
+
+def _neutral_uri(m):
+    """A file: link keeps only its path relative to the throwaway folder; one that is outside it (a link that climbs out) has no address left."""
+    inside = re.search(rb"/" + re.escape(WORK_PREFIX.encode()) + rb"[A-Za-z0-9_]*/", m.group(2))
+    return m.group(1) + (m.group(2)[inside.end():] if inside else b"") + b")"
 
 
 def title_of(html_text):
@@ -514,15 +521,16 @@ def scrub(data, title=CLEAN_TITLE):
             body[num] = chunk
         gone = set()
         for num, chunk in body.items():
-            dictionary = chunk.split(b"stream", 1)[0]
+            dictionary = re.split(rb">>\s*stream\b", chunk, 1)[0]
             if re.search(rb"/Type\s*/Metadata\b|/Subtype\s*/XML\b", dictionary):
                 gone.add(num)
         for num in gone:
             body[num] = b"%d 0 obj\nnull\nendobj\n" % num
         for num, chunk in list(body.items()):
-            dictionary, mark, rest = chunk.partition(b"stream")
+            parts = re.split(rb"(>>\s*stream\b)", chunk, 1)
+            dictionary, mark, rest = parts if len(parts) == 3 else (chunk, b"", b"")
             cleaned = re.sub(rb"/Metadata\s+\d+\s+0\s+R", b"", dictionary)
-            cleaned = WORK_URI.sub(rb"\1", cleaned)          # a link beside the report ("Report files/x.pdf") keeps its relative address, not this computer's temporary folder
+            cleaned = FILE_URI.sub(_neutral_uri, cleaned)         # a link beside the report ("Report files/x.pdf") keeps its relative address, not this computer's temporary folder
             if cleaned != dictionary:
                 body[num] = cleaned + mark + rest
         info_num = int(info.group(1)) if info else size
@@ -580,7 +588,7 @@ def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, po
             raise PdfError(FAILED)
         data = scrub(data, title_of(Path(page).read_text(encoding="utf-8")))          # nothing about this computer or its browser
         token = WORK_PREFIX.encode()
-        if token in data or token.hex().encode() in data.lower() or Path(work).name.encode() in data:          # a place on this computer left anywhere else: not shared
+        if FILE_URI_LEFT.search(data) or token in data or token.hex().encode() in data.lower() or Path(work).name.encode() in data:          # a place on this computer left anywhere else: not shared
             raise PdfError(CANNOT_CLEAN)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
