@@ -1,5 +1,6 @@
 # Real client brand material: on this laptop only, never committed (RULES.md)
 system/branding/
+/branding/
 
 comms/
 __pycache__/
