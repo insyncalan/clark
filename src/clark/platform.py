@@ -58,6 +58,12 @@ def system():
     return sys.platform
 
 
+def machine():
+    """The machine's architecture as the system names it: "arm64" (Apple silicon), "x86_64" (Intel), or another value."""
+    import platform as std
+    return std.machine()
+
+
 def container_mode():
     """item 427: True only when CLARK_CONTAINER=1 is set (by docker/compose.yaml) AND this really is a container (Docker's
     /.dockerenv or Podman's /run/.containerenv exists). Never true by the setting alone, or by a marker file alone."""
@@ -530,7 +536,8 @@ def _dialog(script, args, run, which):
         if CANCELLED in (done.stderr or ""):
             return None
         raise PlatformError(f"The {which} window could not be opened. {TRY_AGAIN}")
-    return Path(done.stdout.strip())
+    picked = (done.stdout or "").rstrip("\r\n")   # osascript prints one path and a line ending; spaces in the name stay
+    return Path(picked) if picked.strip() else None      # exit 0 with nothing (or only blanks) printed is no pick; Path("") would be "." (the cwd)
 
 
 # File names and replacing files

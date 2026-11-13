@@ -7,7 +7,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
-import { Menu } from "../components/Menu.jsx";
+import { Menu, Fade } from "../components/Menu.jsx";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -180,12 +180,12 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
       {sel && !linkOpen ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
       {slash ? (
-        <div class="rt-slash" ref={slashBox} role="listbox" aria-label="Insert">
+        <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
               onMouseDown={hold} onClick={() => chooseSlash(n)}>{w}</button>
           ))}
-        </div>
+        </Fade>
       ) : null}
     </div>
   );
