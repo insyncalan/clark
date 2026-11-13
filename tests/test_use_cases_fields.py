@@ -40,8 +40,8 @@ class UseCaseFields(unittest.TestCase):
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
         self.assertNotIn("exportExcel", page)        # the page reuses the Work items ExportBtn (it holds exportExcel), not its own copy of the call
-        for want in ("ImportBtn", "ExportBtn"):      # row 1085 ruling: the filter line carries Import and Export beside Group by and the +
-            self.assertIn(want, page)
+        for gone in ("ImportBtn", "ExportBtn"):      # item 1142: Import and Export are in Settings only, not on the page
+            self.assertNotIn(gone, page)
         self.assertIn("exportExcel", text(SRCS / "edit" / "ProfileMenu.jsx"))
         self.assertIn('plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.', page)     # plural() gives "1 archived use case" / "2 archived use cases"
         self.assertIn('Showing ${plural(n, "archived use case")}.', page)
@@ -158,7 +158,7 @@ class Live(unittest.TestCase):
             add = cdp.js("(document.querySelector('#usecases .fvrow #ucAddPage') || {}).getAttribute('aria-label') || ''", sid)
             self.assertEqual(add, "Add use case")
             self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp').length", sid), 0, "the head holds the title alone")
-            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .fvrow #expBtn, #usecases .fvrow #impBtn').length", sid), 2, "Import and Export sit on the tabs row")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .fvrow #expBtn, #usecases .fvrow #impBtn').length", sid), 0, "item 1142: no Import or Export on the tabs row")
             self.no_sideways(cdp, sid)
             rows = cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length", sid)
             before, ref, title = self.steps(), f"9.{n}", f"Row 830 case {n}"

@@ -359,7 +359,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .fline-row { display: flex; align-items: center; gap: var(--space-2); }
 .fline-row > .fline { flex: 1 1 auto; min-width: 0; }
 .fline-tail { flex: none; display: inline-flex; align-items: center; margin-right: 11px; }   /* 11 px: the icons end where they ended inside the box (its 10 px padding and 1 px border) */
-.fline-tail .vicons, .fline-tail .fio { margin-left: 0; }
+.fline-tail .vicons { margin-left: 0; }
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -2514,8 +2514,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* Row 1084: List, Board and Group by are icon buttons at the right end of the filter box line, each 28 px or more across. */
 .vicons { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; padding-left: var(--space-2); }
-.fio { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
-.fio + .vicons { margin-left: 0; }
 .vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
 .btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
 .vgb .i { width: 18px; height: 18px; }

@@ -3,7 +3,6 @@
 // used underlined in red with its words), the match count sits inside the box on the right, an x clears it, and the list changes about 400 ms
 // after the last key, not on Enter. The pure parts (pieces, messages, the rows a line shows) are in logic/filterQueryUi.js; saved views as
 // tabs and the one View menu stay as they were (row 813 took the Freshness menu away; its words stay in the typed line). The list of suggestions (fields, then a field's values) is step 5 of the issue. "/" focuses the line only where nothing took the key first.
-import { ImportExport } from "./ImportExport.jsx";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { rows as allRows, project, filterCtx, fromFile, peek } from "../stores/report.js";
@@ -524,6 +523,6 @@ export function FilterLine({ board, tools }) {
   const meaning = (c) => { const p = FL.parse(c, rows, ctx); return p.errors.length || !p.chips[0] ? c : p.chips[0].say; };      // a chip in plain words, as the prototype says it (the word itself when the line cannot read it)
   return (
     <LineBox head={<SavedViews board={board} />} line={line} now={() => lineText.value} apply={setLine} rows={rows} ctx={ctx} label="Filter work items"
-      tail={<>{tools && !fromFile.value ? <ImportExport tools={tools} line /> : null}<ViewIcons board={board} /></>} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
+      tail={<ViewIcons board={board} />} meaning={meaning} notes={(p) => (Q.wantsMe(p, ctx) ? [Q.NO_ME] : [])} onClear={() => { chosen.value = { ...chosen.value, [code]: "" }; }} />
   );
 }

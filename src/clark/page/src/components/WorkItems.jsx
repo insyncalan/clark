@@ -26,7 +26,6 @@ import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isO
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
-import { ImportExport } from "./ImportExport.jsx";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
@@ -369,7 +368,6 @@ export function WorkItems({ tools }) {
         </div>
         {tools ? (
           <div class="hacts">
-            {!(FilterLine && allRows.value.length) ? <ImportExport tools={tools} /> : null}   {/* row 1084: on the filter line when there is one; with no line (no work items yet) they stay here so an import can start the list */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>

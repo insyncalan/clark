@@ -23,8 +23,6 @@ import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { shownOf, tabCounts, lineParts } from "./useCasesLine.js";
 import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
-import { ImportBtn } from "./ImportBtn.jsx";
-import { ExportBtn } from "./ExportBtn.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
@@ -190,8 +188,6 @@ function UseCasesList() {
   const tools = (
     <span class="ucl-tools">
       {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
-      <ImportBtn />
-      <ExportBtn />
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
     </span>
   );
