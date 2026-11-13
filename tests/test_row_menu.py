@@ -529,6 +529,26 @@ class Menu(board.Base):
             self.until(cdp, sid, f"document.querySelector('.toast-text').textContent === 'Status of {a} is back to Open.'")
             self.assertEqual(self.row(a)["status"], "Open")
 
+    def test_tab_leaves_the_menu_from_the_row_not_from_the_top_of_the_page(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            for deep in (False, True):
+                cdp.js(f"document.querySelector(\"{self.TABLE % a}\").focus()", sid)
+                key(cdp, sid, "ContextMenu")
+                self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
+                self.settled(cdp, sid)
+                if deep:
+                    key(cdp, sid, "ArrowDown")
+                    key(cdp, sid, "ArrowDown")
+                    key(cdp, sid, "ArrowRight")
+                    self.until(cdp, sid, "!!document.querySelector('.rm-fly')", "the list")
+                key(cdp, sid, "Tab")
+                self.shut(cdp, sid)
+                time.sleep(0.3)
+                self.assertNotEqual(cdp.js("document.activeElement.className", sid), "skip", "Tab from the menu must not throw focus to the top of the page")
+                self.assertNotEqual(cdp.js("document.activeElement.tagName", sid), "BODY", "focus is still on the page")
+
     def test_the_keys_open_the_menu_walk_it_and_run_an_entry(self):
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -1552,3 +1572,4 @@ class Menu(board.Base):
 
 if __name__ == "__main__":
     unittest.main()
+

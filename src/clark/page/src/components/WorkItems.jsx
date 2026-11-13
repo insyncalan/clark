@@ -195,7 +195,26 @@ function Heads({ eye, hand, cw }) {
     </>
   );
 }
-function Cols({ eye, hand, cw }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} style={cw.style(c.slice(2))} />)}</colgroup>; }
+function Cols({ eye, hand, cw }) {
+  // Saved widths (dragged at a wider window) shrink together when the table is too narrow to keep the Item column readable; the saved values stay as they are.
+  const ref = useRef(null), [k, setK] = useState(1), names = (hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []);
+  useLayoutEffect(() => {
+    const g = ref.current, t = g && g.parentElement, host = t && t.parentElement;
+    if (!g || !cw.fit) return undefined;
+    const measure = () => {
+      const room = host.clientWidth, cols = Array.from(g.children);
+      const ids = names.map((c) => c.slice(2));
+      const rest = cols.reduce((a, el, i) => (i === names.indexOf("c-item") || cw.px(ids[i]) !== null ? a : a + (parseFloat(getComputedStyle(el).width) || 0)), 0);
+      const next = cw.fit(ids.filter((id) => id !== "item"), room, rest);
+      setK((was) => (Math.abs(was - next) < 0.005 ? was : next));
+    };
+    measure();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    if (ro) ro.observe(host);
+    return () => { if (ro) ro.disconnect(); };
+  });
+  return <colgroup ref={ref}>{names.map((c) => <col key={c} class={c} style={cw.drawn ? cw.drawn(c.slice(2), k) : cw.style(c.slice(2))} />)}</colgroup>;
+}
 
 const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove("opening"); if (justOpened === key && !(el.parentNode && el.parentNode.querySelector(".opening"))) justOpened = ""; };   // the group is done once its thead and its tbody have both finished
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
