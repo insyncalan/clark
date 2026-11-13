@@ -44,7 +44,7 @@ export function useColWidths(table) {
   };
   /** Props for the heading cell: not a tab stop, but it can hold the focus (a click on it, or the code); it says how its width changes. */
   const head = (id, label, hidden) => hidden ? { "data-cw-head": id, "data-cw-table": table } : { tabIndex: -1, "data-cw-head": id, "data-cw-table": table, "aria-description": `Width of the ${label} column. Alt with Left or Right arrow changes it.` };
-  // hidden: the heading row is hidden from a screen reader (the Use cases list), so it holds no focus and no words; the arrows work from a row.
+  // hidden: the heading row is hidden from a screen reader (the Milestones list), so it holds no focus and no words; the arrows work from a row.
   const latest = useRef();
   latest.current = { put };
   useEffect(() => {
