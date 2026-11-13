@@ -207,6 +207,12 @@ class Detail(unittest.TestCase):
     def toast(self, cdp, sid):
         return wait_toast(lambda: cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid))
 
+    def archive(self, cdp, sid):
+        """Item 1148: Archive is in the use case page's More actions menu."""
+        click(cdp, sid, "#ucd-more")
+        self.until(cdp, sid, "!!document.querySelector('.ddmenu [data-kind=archive]')", "the More actions menu opened")
+        click(cdp, sid, ".ddmenu [data-kind=archive]")
+
     def undo(self, cdp, sid):
         before = self.steps()
         click(cdp, sid, "[data-undo]")
@@ -239,8 +245,8 @@ class Detail(unittest.TestCase):
                     self.assertTrue(js("[...document.querySelectorAll('[data-item]')].every(b => b.querySelector('.pill') && b.querySelector('.ucd-x').textContent)"), "each row has a status pill and an owner or due")
                     self.assertEqual(js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms)"), ["TUL-M-005"])
                     self.assertIn("added the use case", js("document.querySelector('[data-history]').textContent"))
-                    self.assertEqual(js("document.querySelector('[data-archive]').textContent"), "Archive this use case (it can be restored; nothing is deleted)")
-                    self.assertFalse(js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText + [...document.querySelectorAll('[data-ucd] [aria-label],[data-ucd] [title]')].map(e => (e.getAttribute('aria-label') || '') + (e.title || '')).join(' '))"), "no Delete anywhere")
+                    self.assertEqual(js("document.querySelector('#ucd-more').getAttribute('aria-label')"), "More actions")      # item 1148: Archive moved into More actions, with Delete
+                    self.assertFalse(js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText + [...document.querySelectorAll('[data-ucd] [aria-label],[data-ucd] [title]')].map(e => (e.getAttribute('aria-label') || '') + (e.title || '')).join(' '))"), "Delete is only inside the closed More actions menu")
                     self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     columns = js("getComputedStyle(document.querySelector('.ucd-grid')).gridTemplateColumns.split(' ').length")
                     self.assertEqual(columns, 2 if width == 1400 else 1, "two columns at 1400 px, one at 900 px")
@@ -297,7 +303,7 @@ class Detail(unittest.TestCase):
                     sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
                     self.assertNotEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the page is not in Edit")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 2, "name and headline are boxes")
-                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] [data-archive]", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
+                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] #ucd-more", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
                         self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(sel)}).length", sid), 1, sel)
 
     def test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825(self):
@@ -332,12 +338,12 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["commitment"], was["commitment"])
             before = self.steps()
-            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered with no Edit mode")
             self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1))
             self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             click(cdp, sid, "[data-restore]")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Restore worked with no Edit mode")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] #ucd-more')", "Restore worked with no Edit mode")
             self.assertEqual(self.row()["archived"], 0)
 
     def test_the_standing_text_saves_with_no_edit_mode_row_825(self):
@@ -621,11 +627,11 @@ class Detail(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
-            click(cdp, sid, "[data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered")
             self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1), "Archive is one step and the row is still there")
             self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "use_cases", "op": "archive", "id": UC, "place": "cell"})
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], [data-archive], #ucd-status').length", sid), 0, "read-only")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], #ucd-more, #ucd-status').length", sid), 0, "read-only")
             self.assertIn("Archived", cdp.js("document.querySelector('.ucd-sub').textContent", sid))
             self.assertIn("read-only", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             self.assertFalse(cdp.js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText)", sid), "no Delete")
@@ -633,13 +639,13 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "document.querySelectorAll('[data-item]').length === 2", "its work items are still listed")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["archived"], 0)
-            self.until(cdp, sid, "!!document.querySelector('[data-archive]') && !document.querySelector('[data-restore]')", "Undo brings it back, editable")
+            self.until(cdp, sid, "!!document.querySelector('#ucd-more') && !document.querySelector('[data-restore]')", "Undo brings it back, editable")
             # archive again, then Restore: one step, one Undo of that
-            click(cdp, sid, "[data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived again")
             before = self.steps()
             click(cdp, sid, "[data-restore]")
-            self.until(cdp, sid, "!!document.querySelector('[data-archive]')", "Restore made it editable again")
+            self.until(cdp, sid, "!!document.querySelector('#ucd-more')", "Restore made it editable again")
             self.assertEqual((self.row()["archived"], self.steps()), (0, before + 1))
             self.until(cdp, sid, "((document.querySelector('.toast-text') || {}).textContent || '') === 'Use case restored.'", "the toast says it was restored")
             self.assertEqual(self.toast(cdp, sid), "Use case restored.")
@@ -654,7 +660,7 @@ class Detail(unittest.TestCase):
             sid = self.open_detail(cdp)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "the archived use case was found and Restore is offered")
             self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-word]').textContent", sid), "Flag")
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-archive]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, #ucd-more').length", sid), 0)
             self.assertEqual(cdp.js("document.querySelector('[data-dash]').textContent", sid), "Archived")
 
     def test_a_use_case_that_is_not_there_says_so_and_leads_back(self):
@@ -901,7 +907,7 @@ class Detail(unittest.TestCase):
     def test_no_milestone_controls_when_archived_or_in_the_file_row_1141(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp, edit=False)
-            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-link], [data-ucd] [data-ms-unlink]').length", sid), 0)
         view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
