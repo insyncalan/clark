@@ -93,7 +93,7 @@ class Words(unittest.TestCase):
 class Title(unittest.TestCase):
     def test_the_sub_title_without_a_week_is_the_published_day(self):
         pub = {"as_at": "2026-10-01", "data": {"project": {"name": "N", "code": "C"}}}
-        self.assertEqual(excel_client.title_text(pub), ("N", "As at 2026-10-01"))
+        self.assertEqual(excel_client.title_text(pub), ("N", "As at 01-10-2026"))
 
     def test_the_title_falls_back_to_the_code_then_to_nothing(self):
         self.assertEqual(excel_client.title_text({"as_at": "2026-10-01", "data": {"project": {"code": "C"}}})[0], "C")

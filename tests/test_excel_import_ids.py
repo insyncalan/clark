@@ -513,12 +513,12 @@ class PlainWords(IdCase):
         return p.report()
 
     def test_writer_messages_use_the_column_names_a_person_sees(self):
-        self.assertEqual(xi.plain("actions", "status must be one of Open, Closed (got 'Sideways')"),
-                         "Status must be one of Open, Closed (got 'Sideways')")
+        self.assertEqual(xi.plain("actions", "status must be one of Open, Closed (the cell says Sideways)"),
+                         "Status must be one of Open, Closed (the cell says Sideways)")
         self.assertEqual(xi.plain("raid", "missing required field(s): type"), "Type is needed")
         self.assertEqual(xi.plain("raid", "missing required field(s): type, description"), "Type and Description are needed")
-        self.assertEqual(xi.plain("milestones", "percent_complete must be a whole number from 0 to 100 (got 101)"),
-                         "% complete must be a whole number from 0 to 100 (got 101)")
+        self.assertEqual(xi.plain("milestones", "percent_complete must be a whole number from 0 to 100 (the cell says 101)"),
+                         "% complete must be a whole number from 0 to 100 (the cell says 101)")
         self.assertEqual(xi.plain("actions", "unknown label 'L0' (labels: none); add it in Settings first"),
                          "There is no label 'L0' (labels: none); add it in Settings first")
 
@@ -641,3 +641,12 @@ class OwnerLink(IdCase):
         self.assertFalse(self.apply(p).applied)
         row = self.s.read("actions", ref=self.a1)
         self.assertEqual((row["description"], row["owner"], row["owner_id"]), ("Draft the cut-over plan", "Pat Oldname", old))
+
+
+class CellSays(IdCase):
+    def test_the_cell_says_and_the_review_days_heading(self):
+        self.assertEqual(xi.plain("actions", "status must be one of Open, Closed (got 'Sideways')"),
+                         "Status must be one of Open, Closed (the cell says Sideways)")
+        self.assertEqual(xi.plain("actions", "x must be a whole number (got 7)"), "x must be a whole number (the cell says 7)")
+        self.assertEqual(xi.plain("projects", "review_after_days must be a whole number from 1 to 365 (got 0)"),
+                         "Not reviewed after (days) must be a whole number from 1 to 365 (the cell says 0)")
