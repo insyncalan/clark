@@ -25,6 +25,10 @@ export function Brands({ api = REAL }) {
   }
   useEffect(() => { load(); }, []);
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
+  // Remove asks first: the Confirm button takes the focus, so the second click is one Enter away.
+  useEffect(() => { if (armed) { const b = document.querySelector("#brands [data-remove-confirm]"); if (b) b.focus(); } }, [armed]);
+  // A button that closes the panel or the ask is gone after the click, and the focus would fall to the page's top: put it on the title.
+  const home = () => setTimeout(() => { const h = document.getElementById("brands-h"); if (h) h.focus(); }, 0);
 
   async function review(from) {
     setBusy(true);
@@ -51,8 +55,8 @@ export function Brands({ api = REAL }) {
     await load();
     setBusy(false);
   }
-  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)); };
-  const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id)); };
+  const install = () => { const id = panel.id; setPanel(null); home(); return act(() => api.install(id)); };
+  const remove = () => { const id = armed; setArmed(null); home(); return act(() => api.remove(id)); };
 
   const v = state.view;
   return (
@@ -76,7 +80,7 @@ export function Brands({ api = REAL }) {
           {armed ? (
             <div class="row">
               <button type="button" class="btn pri" data-remove-confirm disabled={busy} onClick={remove}>{L.CONFIRM_REMOVE}</button>
-              <button type="button" class="btn quiet" disabled={busy} onClick={() => setArmed(null)}>{L.LABELS.cancel}</button>
+              <button type="button" class="btn quiet" disabled={busy} onClick={() => { setArmed(null); home(); }}>{L.LABELS.cancel}</button>
             </div>
           ) : null}
           <div class="row">
@@ -98,7 +102,7 @@ export function Brands({ api = REAL }) {
           ) : null)}
           <div class="row">
             <button type="button" class="btn pri" data-install disabled={busy} onClick={install}>{panel.view.replace ? L.LABELS.replace : L.LABELS.install}</button>
-            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => { setPanel(null); home(); }}>{L.LABELS.cancel}</button>
           </div>
         </div>
       ) : null}

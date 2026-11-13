@@ -67,6 +67,7 @@ export function People() {
     const back = await undoPeople(done.step);
     setBusy(false);
     if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); } else setDone({ text: back.message, step: null, problem: true });
+    setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0);   // the Undo button is gone: the focus goes to the card's one button
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);
