@@ -83,7 +83,7 @@ export function RaidEdit({ section, size }) {
               </select></label>
             {card.source === "own" ? (
               <div class="rce-f rce-own"><span id={`rce-own-${i}`}>Own words</span>
-                <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} /></div>
+                <RichField field="raid_own" value={legacyToHtml(card.own)} label="own words" labelledBy={`rce-own-${i}`} save={commit} oneLine /></div>
             ) : null}
             {found ? <p class="quiet rce-what">{`${kindWords(found.row, found.kind)}: ${cut(titleOf(found.row, found.kind), 100)}`}</p> : null}
             {note ? <p class="quiet rce-note">{note}</p> : null}
