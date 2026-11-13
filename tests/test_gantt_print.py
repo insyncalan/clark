@@ -267,6 +267,38 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_a_zoomed_chart_prints_at_the_page_width_not_at_its_screen_zoom(self):
+        # item 1038 follow-up: the screen zoom (up to 800%) was kept while printing, so a zoomed chart printed several times the page width and the
+        # fit stopped at its half-size floor; the right of the plan was cut. Printing ignores the zoom; afterprint leaves the screen zoom as it was.
+        lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",
+                      end=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-20", pct=0, health="", depends=[], owner="", workstream="", priority="",
+                      baseline_start="", baseline_end="", effort="", budget="", deliverable="", show=1, note="", sort_order=i) for i in range(1, 12)]
+        for w in (900, 1400):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=w, scheme=scheme):
+                    self.look(w, scheme)
+                    self.mount(width=w - 60, lines=lines)
+                    for _ in range(8):
+                        self.click("[data-g-zin]")
+                    self.settle()
+                    zoom = self.text("[data-g-fit]")
+                    self.assertNotEqual(zoom, "100%", "the screen is zoomed in")
+                    self.printing(w, scheme)
+                    try:
+                        self.js("window.dispatchEvent(new Event('beforeprint'))")
+                        self.settle()
+                        got = self.val("""(function () {
+                          var gx = document.querySelector('.gt-gx'), cv = document.querySelector('.gt-canvas').getBoundingClientRect();
+                          return { cvW: Math.round(cv.width), cvR: Math.round(cv.right), gxR: Math.round(gx.getBoundingClientRect().right),
+                            fit: getComputedStyle(gx).getPropertyValue('--gt-fit').trim() }; })()""")
+                        self.assertLessEqual(got["cvR"], got["gxR"] + TAIL, f"the canvas is not cut at the box edge {got}")
+                        self.assertGreaterEqual(float(got["fit"] or 1), 0.5, f"the fit is not squeezed to its floor {got}")
+                        self.js("window.dispatchEvent(new Event('afterprint'))")
+                        self.settle()
+                        self.assertEqual(self.text("[data-g-fit]"), zoom, "afterprint leaves the screen zoom as it was")
+                    finally:
+                        self.done()
+
     def test_a_chart_drawn_while_the_print_is_on_is_still_fitted(self):
         # Ctrl+P from another tab draws the Gantt inside beforeprint, after the chart's own listener could hear it; it must be fitted on mount.
         lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",

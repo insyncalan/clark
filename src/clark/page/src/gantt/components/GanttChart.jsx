@@ -186,7 +186,7 @@ export function GanttChart({
 
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
   const fit = fitPpd(Math.max(200, fitW - leftW), range);
-  const ppd = ppdFor(scale, fit, zoom);
+  const ppd = ppdFor(scale, fit, paper ? 1 : zoom);      // the paper is fitted at the zoom of 100%: a screen zoom would print several pages wide and be clipped at the floor of the fit
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
   useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
