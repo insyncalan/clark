@@ -82,7 +82,7 @@ function ConnectCard() {
         <button type="button" class="btn sm" data-ai-keep onClick={() => setWeaker(null)}>Keep the model I have</button>
       </div>
     ) : null}
-    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role="status" data-ai-msg>{msg ? msg.text : ""}</p>
+    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role={msg && msg.kind === "error" ? "alert" : "status"} data-ai-msg>{msg ? msg.text : ""}</p>
     </>
   );
 }
