@@ -18,15 +18,14 @@ const nothingNew = (plan) => plan.already > 0 ? `Everything in ${plan.file} has 
   : `Nothing new was found in ${plan.file}. Put actions, risks, issues or decisions under a heading with that name, then choose the file again.`;
 export const count = (n, one, many) => `${n} ${n === 1 ? one : many || one + "s"}`;
 
-// A modal dialog that is shown when it mounts, and gives focus back to the button that opened it (else the profile circle) when it goes.
+// A modal dialog that is shown when it mounts, and gives focus back to the profile circle when it goes.
 function useModal(el) {
   useEffect(() => {
     const dlg = el.current;
-    const opener = document.activeElement;                // the button that opened it (Settings › Data): the focus goes back there
     if (dlg && !dlg.open) dlg.showModal();
     return () => {
       if (dlg && dlg.open) dlg.close();
-      const me = opener && opener !== document.body && opener.isConnected && !opener.disabled ? opener : document.getElementById("profile-btn");
+      const me = document.getElementById("profile-btn");
       if (me) me.focus();
     };
   }, []);
