@@ -6,6 +6,7 @@ export const DEMO = {
   confirmBody: "Remove the demo projects? Your own projects are not touched. A safety copy is made first.",
   cancel: "Cancel",
   failed: "The demo data could not be removed. Nothing was changed.",
+  removed: "Demo data removed.",
   none: "There is no demo data to remove.",
   newProject: "New project",
 };

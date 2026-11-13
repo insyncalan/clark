@@ -463,7 +463,7 @@ class Words(unittest.TestCase):
         said = dict(re.findall(r'^\s+(\w+): "([^"]*)",?$', text, re.M))
         self.assertEqual(said, {"banner": "This is demo data.", "remove": "Remove demo data", "confirmTitle": "Remove demo data?",
                                 "confirmBody": "Remove the demo projects? Your own projects are not touched. A safety copy is made first.",
-                                "cancel": "Cancel", "failed": "The demo data could not be removed. Nothing was changed.", "none": "There is no demo data to remove.",
+                                "cancel": "Cancel", "failed": "The demo data could not be removed. Nothing was changed.", "none": "There is no demo data to remove.", "removed": "Demo data removed.",
                                 "newProject": "New project"})
         for name in ("Demo.jsx", "demoApi.js"):
             source = (PAGE_SRC / "edit" / name).read_text(encoding="utf-8")

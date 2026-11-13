@@ -7,9 +7,12 @@ import { loadProjects, projects, project, openProjectAt, leaveProject } from "..
 import { say, toast, undone } from "../stores/changes.js";
 import { Dialog } from "./Dialog.jsx";
 import { openBox, closeBox } from "./boxes.js";
+import { say as sayNote } from "./menuNote.js";
 import { readDemo, sendDemoRemove } from "./demoApi.js";
 import { DEMO } from "../logic/demoWords.js";
 import * as D from "../logic/dataCard.js";
+
+// The banner (the box's opener) is gone once the demo is removed: focus goes to the empty screen's button, or to the profile circle when no project went.
 
 export const demoOn = signal(false);
 
@@ -38,9 +41,10 @@ export function DemoConfirm({ opener, onClose }) {
     closeBox();
     await loadProjects();
     if (!projects.value.some((p) => p.code === project.value)) leaveProject();     // the open project went: the empty screen
+    sayNote("done", DEMO.removed);                                     // spoken by the menu note: the empty screen is the Dashboard, where the change toast is not drawn
   }
   return (
-    <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel"
+    <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel" fallback={note ? "#profile-btn" : "#np-empty"}
       foot={<><button type="button" class="btn quiet" id="demo-cancel" onClick={onClose}>{DEMO.cancel}</button><button type="button" class="btn pri" id="demo-go" disabled={busy || !!note} onClick={go}>{DEMO.remove}</button></>}>
       <p>{DEMO.confirmBody}</p>
       <p role="status" id="demo-none">{note}</p>

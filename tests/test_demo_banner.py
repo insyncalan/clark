@@ -50,6 +50,8 @@ class DemoLine(unittest.TestCase):
             cdp.js("document.querySelector('#demo-go').click()", sid)
             self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
             self.assertIn("No project open", cdp.js("document.querySelector('main').innerText", sid))
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'np-empty'", "focus on the New project button")
+            self.until(cdp, sid, "document.body.innerText.includes('Demo data removed.')", "the done message")
             self.assertEqual(cdp.js("Array.from(document.querySelectorAll('main button')).map(b => b.innerText.trim()).join('|')", sid), "New project")
             cdp.js("document.querySelector('#np-empty').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#project-form')", "the project form")
@@ -96,6 +98,7 @@ class DemoLine(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('#demo-none') && document.querySelector('#demo-none').innerText === 'There is no demo data to remove.'", "the sentence in the box and no banner")
             cdp.js("document.querySelector('#demo-cancel').click()", sid)
             self.until(cdp, sid, "!document.querySelector('#demo-confirm')", "the box closed")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'profile-btn'", "focus on the profile circle")
             self.assertEqual(len(clark_store.open_store(self.folder / "clark.db", onedrive_roots=[]).read("projects")), 2)      # nothing was removed
 
     def test_the_banner_is_hidden_in_print_and_a_published_report_has_no_part_of_it(self):
