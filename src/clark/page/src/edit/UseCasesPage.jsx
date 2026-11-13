@@ -114,9 +114,10 @@ function ArchivedUseCases() {
     return () => { live = false; };
   }, [code, d]);
   const list = got && got.code === code ? got.list : [];
-  const had = useRef(0);
-  useEffect(() => {      // the last one restored removes the box with the focused button: the focus goes to the page heading
-    if (had.current > 0 && list.length === 0) { const h = document.querySelector("#usecases h1") || document.querySelector("h1"); if (h) { h.setAttribute("tabindex", "-1"); h.focus(); } }
+  const had = useRef(0), restoring = useRef(false);
+  useEffect(() => {      // the last one restored removes the box with the focused button: the focus goes to the page heading (only after Restore: a project switch or an Undo empties the list too)
+    if (restoring.current && had.current > 0 && list.length === 0) { const h = document.querySelector("#usecases h1") || document.querySelector("h1"); if (h) { h.setAttribute("tabindex", "-1"); h.focus(); } }
+    if (list.length !== had.current) restoring.current = false;
     had.current = list.length;
   });
   if (!list.length) return null;
@@ -132,7 +133,7 @@ function ArchivedUseCases() {
               <li class="arch" key={u.id} data-arch-uc={u.id}>
                 <button type="button" class="link" onClick={() => openUseCase(u.id)}>{u.ref || "Use case"} · {u.title}</button>
                 <span class="tag arch">Archived</span>
-                <button type="button" class="btn sm" data-restore aria-label={`Restore ${u.ref || "Use case"} · ${u.title}`} onClick={() => change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored.")}>Restore</button>
+                <button type="button" class="btn sm" data-restore aria-label={`Restore ${u.ref || "Use case"} · ${u.title}`} onClick={() => { restoring.current = true; change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored."); }}>Restore</button>
               </li>
             ))}
           </ul>

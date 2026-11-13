@@ -28,6 +28,9 @@ DATA = {
 }
 
 
+STUBS = "globalThis.addEventListener = () => {}; globalThis.window = globalThis;\n"      # UseCaseDetail.jsx pulls in the page's stores, which listen for pagehide on load
+
+
 def run(probe):
     node = shutil.which("node")
     if not node:
@@ -41,7 +44,7 @@ def run(probe):
             _BUNDLE["code"] = out.read_text(encoding="utf-8")
     with tempfile.TemporaryDirectory() as tmp:
         script = Path(tmp) / "probe.js"
-        script.write_text(_BUNDLE["code"] + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
+        script.write_text(STUBS + _BUNDLE["code"] + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
         done = subprocess.run([node, str(script)], capture_output=True, text=True)
         assert done.returncode == 0, done.stderr
         return json.loads(done.stdout)
@@ -62,6 +65,13 @@ class Peek(unittest.TestCase):
         self.assertEqual([u["id"] for u in got], ["U2"], "linked both ways once; the archived use case is left out")
         d = dict(DATA, uc_milestones=[])
         self.assertEqual([u["id"] for u in run(f"UC.usecasesOfMilestone({json.dumps(d)}, 'M2')")], ["U2"], "through a work item only")
+
+
+class Card(unittest.TestCase):
+    def test_a_decision_linked_milestone_is_reached_through_work_items(self):
+        d = dict(DATA, actions=[], uc_milestones=[], decisions=[{"id": "D1", "use_case": "U1", "milestone": "M2"}])
+        got = run(f"UC.milestonesOf({json.dumps(d)}, 'U1')")
+        self.assertEqual([(k["m"]["id"], k["direct"], k["via"]) for k in got], [("M2", False, True)], "a decision counts like an action, risk or issue")
 
 
 if __name__ == "__main__":

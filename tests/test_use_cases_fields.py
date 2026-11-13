@@ -209,23 +209,60 @@ class Live(unittest.TestCase):
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.uclink')", "Esc closed it")
 
-    def test_enter_in_the_link_box_adds_the_ticked_items(self):
+    def narrow_to_one(self, cdp, sid):
+        """Open the link box on 1.1 and search for the first row's own words, so exactly one row is shown."""
+        self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-link]')", "the link button")
+        click(cdp, sid, "[data-ucd] [data-uc-link]")
+        self.until(cdp, sid, "!!document.querySelector('.uclink .pick input')", "the box with rows")
+        cdp.js("""(() => { const q = document.querySelector('.uclink input[type=search]'), ids = [...document.querySelectorAll('.uclink .pick input')].map((i) => i.value);
+            q.focus(); q.value = ids.find((id) => ids.filter((o) => o.toLowerCase().includes(id.toLowerCase())).length === 1); q.dispatchEvent(new Event('input', {bubbles: true})); })()""", sid)
+        self.until(cdp, sid, "document.querySelectorAll('.uclink .pick input').length === 1", "one row shown")
+
+    def keydown(self, cdp, sid, init):
+        cdp.js(f"document.querySelector('.uclink input[type=search]').dispatchEvent(new KeyboardEvent('keydown', Object.assign({{key: 'Enter', bubbles: true, cancelable: true}}, {json.dumps(init)})))", sid)
+
+    def test_enter_in_the_link_box_ticks_the_one_match_and_does_not_submit(self):
         for cdp, window, scheme in self.each():
             sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-link]')", "the link button")
-            click(cdp, sid, "[data-ucd] [data-uc-link]")
-            self.until(cdp, sid, "!!document.querySelector('.uclink .pick input')", "the box with rows")
-            click(cdp, sid, ".uclink .pick input")
-            self.until(cdp, sid, "document.querySelector('.uclink .pk-foot button[type=submit]').textContent === 'Add 1'", "one ticked")
-            cdp.js("document.querySelector('.uclink input[type=search]').focus()", sid)
+            self.narrow_to_one(cdp, sid)
             before = self.steps()
             key(cdp, sid, "Enter")
-            self.until(cdp, sid, "!document.querySelector('.uclink')", "Enter added the ticked item and closed the box")
-            for _ in range(50):
-                if self.steps() > before:
-                    break
-                time.sleep(0.1)
-            self.assertEqual(self.steps(), before + 1, "one step")
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "Enter ticked the one match")
+            key(cdp, sid, "Enter")                       # a second Enter does not link (no new behaviour: the Add button does)
+            time.sleep(0.5)
+            self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+
+    def test_enter_while_an_input_method_is_composing_ticks_and_submits_nothing(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.narrow_to_one(cdp, sid)
+            before = self.steps()
+            for init in ({"isComposing": True}, {"keyCode": 229}, {"isComposing": True, "keyCode": 229}):
+                self.keydown(cdp, sid, init)
+                time.sleep(0.3)
+                self.assertFalse(cdp.js("document.querySelector('.uclink .pick input').checked", sid), f"{init}: Enter picked an input-method candidate, not a row")
+                self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+            self.keydown(cdp, sid, {})
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "a plain Enter still ticks it")
+
+    def test_only_restoring_the_last_archived_use_case_moves_the_focus_to_the_heading(self):
+        for cdp, window, scheme in self.each():
+            if self.archived():
+                continue
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Archive on the detail")
+            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archived-note]')", "archived")
+            cdp.js(f"location.hash = {json.dumps(LIST)}", sid)
+            self.until(cdp, sid, "!!document.querySelector('#usecases [data-archived-uc] [data-arch-toggle]')", "the Show archived footer drew")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
+            cdp.js("document.activeElement && document.activeElement.blur()", sid)
+            click(cdp, sid, "[data-undo]")                # Undo of the archive empties the archived list: not a Restore
+            self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the list")
+            time.sleep(1)
+            self.assertNotEqual(cdp.js("document.activeElement && document.activeElement.tagName", sid), "H1", "Undo of an archive leaves the focus alone")
 
 
 class Published(unittest.TestCase):
