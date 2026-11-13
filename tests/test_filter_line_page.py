@@ -1427,6 +1427,7 @@ class Line(unittest.TestCase):
             click(cdp, sid, "#viewNew")
             self.assertTrue(wait(lambda: "View 1" in cdp.js("[...document.querySelectorAll('.vtab span')].map(e => e.textContent)", sid)), "row 1073: the view is made at once")
             self.assertTrue(wait(lambda: cdp.js("document.activeElement.id", sid) == "viewNew"), "row 1073: the focus stays on + New view after it makes a view")
+            self.assertTrue(wait(lambda: "View 1" in cdp.js("document.getElementById('work-live').textContent", sid)), "a screen reader is told the new view is open")
             click_tab(cdp, sid, ".vtab[data-view-id=core-open]")
             click(cdp, sid, "#viewTabMenu")
             click(cdp, sid, "#viewTabMenuList [data-kind=rename]")
