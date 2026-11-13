@@ -77,7 +77,7 @@ class DockerUpdate(unittest.TestCase):
                 self.assertEqual(proc.wait(timeout=10), 0, "docker stop's TERM ends the hold with 0, not after the sleep")
             finally:
                 try:
-                    os.kill(int(pidfile.read_text().strip()), signal.SIGKILL)      # first: its open pipes would hold communicate()
+                    os.kill(int(pidfile.read_text(encoding="utf-8").strip()), signal.SIGKILL)      # first: its open pipes would hold communicate()
                 except (OSError, ValueError):
                     pass
                 if proc.poll() is None:
