@@ -12,5 +12,5 @@ export function deleteItem(row, place, from = null) {
     const w = deleteWords(row.id);
     changeRecord(deleteRequest(row.id, tableOf(row), place), { text: w.text, back: w.back, focusUndo: true })
       .then((r) => { if (r && peeked.value === row.id) closePeek(); });
-  }, { from, yesLabel: "Delete" });
+  }, { from, yesLabel: "Delete", cancelFirst: true });
 }

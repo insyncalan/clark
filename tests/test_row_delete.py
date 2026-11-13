@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_row_delete
 Drives the committed page against the real server in headless Chrome (set CLARK_CHROME to its path), at 1400 and 900 px, in light and dark.
-The words are the approved ones: the question "Delete <ID>? This removes it from your project record. It cannot be brought back." with Delete and
+The words are the approved ones: the question "Delete <ID>? This removes it from your project record." with Delete and
 Cancel, and the toast "<ID> deleted." with Undo.
 """
 import json
@@ -16,7 +16,7 @@ from test_work_filters import click, set_line  # noqa: E402
 import test_work_board_page as board  # noqa: E402
 import test_multi_select as ms  # noqa: E402
 
-QUESTION = "Delete %s? This removes it from your project record. It cannot be brought back."
+QUESTION = "Delete %s? This removes it from your project record."
 ROW = "tr[data-id='%s']"
 
 
