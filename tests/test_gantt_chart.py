@@ -504,6 +504,23 @@ class Chart(unittest.TestCase):
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
 
+    def test_enter_or_space_on_a_milestone_opens_its_edit_box_with_real_keys(self):
+        for width in (1400, 900):
+            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                self.look(width, "light")
+                self.mount(edit=True)
+                sel = "[data-g-bar=GNT-007]"
+                self.js(f"document.querySelector({lit(sel)}).focus()")
+                for press in (1, 2):
+                    for kind in ("keyDown", "keyUp"):
+                        self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                                 **({"text": text} if kind == "keyDown" else {})}, self.sid)
+                    if press == 1:      # first press selects only
+                        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", f"{code} selected at {width}")
+                        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+                self.until("document.querySelector('[data-g-box]')", f"{code} second press opened the box at {width}")
+                self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
+
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):
             for scheme, shift in (("light", 0), ("dark", 0), ("light", 45), ("dark", 45)):
