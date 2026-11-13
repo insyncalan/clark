@@ -343,6 +343,14 @@ class Card(InBrowser):
         self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 600))", "awaitPromise": True}, self.sid)
         self.assertEqual(self.focused(), "button[data-undo]", "the ask failed and the focus is still on Undo update")
 
+    def test_the_undo_question_is_what_the_confirm_button_is_described_by(self):
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": up.ARMED_FULL.format(to="0.3.0")}))
+        self.mount()
+        self.click("[data-undo]")
+        self.assertEqual(self.val("document.querySelector('[data-undo-confirm]').getAttribute('aria-describedby')"), "update-armed")
+        self.assertEqual(self.text("#update-armed"), up.ARMED_FULL.format(to="0.3.0"))
+
     def test_the_arm_runs_out(self):
         last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
         self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}))
