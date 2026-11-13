@@ -64,6 +64,7 @@ export function Diagnostics() {
   }
 
   async function openFolder() {
+    if (busy) return;
     setBusy(true);
     setMsg(null);
     const r = await openLogFolder();
@@ -72,6 +73,7 @@ export function Diagnostics() {
   }
 
   async function copyReport() {
+    if (busy) return;
     setBusy(true);
     setMsg(null);
     const fresh = await load();                           // the newest errors and lines, not the ones from when the page opened
@@ -85,14 +87,14 @@ export function Diagnostics() {
       <h2 id="diagnostics-h" tabIndex={-1}>Logs and diagnostics</h2>
       <p class="muted">The log is a short record of what clark does, to help find faults. It never records report text, names, email addresses, notes or anything else you wrote: only counts, times and which part of clark was used. Nothing is sent anywhere.</p>
       <div class="row" role="group" aria-label="Logging detail">
-        <button type="button" class={"btn" + (level === "normal" ? " pri" : "")} data-level="normal" aria-pressed={level === "normal"} onClick={() => choose("normal")} disabled={busy || !info}>Normal</button>
-        <button type="button" class={"btn" + (level === "debug" ? " pri" : "")} data-level="debug" aria-pressed={level === "debug"} onClick={() => choose("debug")} disabled={busy || !info}>Debug</button>
+        <button type="button" class={"btn" + (level === "normal" ? " pri" : "")} data-level="normal" aria-pressed={level === "normal"} onClick={() => choose("normal")} disabled={!info} aria-disabled={busy ? "true" : undefined}>Normal</button>
+        <button type="button" class={"btn" + (level === "debug" ? " pri" : "")} data-level="debug" aria-pressed={level === "debug"} onClick={() => choose("debug")} disabled={!info} aria-disabled={busy ? "true" : undefined}>Debug</button>
       </div>
       <p class="muted small">Normal records what happened. Debug adds more detail. Warnings and errors are always recorded.</p>
       {info && info.notice ? <p class="note" id="debug-notice">{info.notice}</p> : null}
       <div class="row">
-        <button type="button" class="btn" data-open-log onClick={openFolder} disabled={busy}>Open folder</button>
-        <button type="button" class="btn" data-copy-diagnostics onClick={copyReport} disabled={busy}>Copy diagnostics</button>
+        <button type="button" class="btn" data-open-log onClick={openFolder} aria-disabled={busy ? "true" : undefined}>Open folder</button>
+        <button type="button" class="btn" data-copy-diagnostics onClick={copyReport} aria-disabled={busy ? "true" : undefined}>Copy diagnostics</button>
       </div>
       <div class="pub-msg" role={msg && msg.kind === "error" ? "alert" : "status"} aria-live="polite">{msg && msg.text ? <p class={msg.kind}>{msg.text}</p> : null}</div>
       {info ? <h3>Errors in the last 7 days</h3> : null}

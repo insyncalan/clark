@@ -1,7 +1,7 @@
 // Settings › Brands › "Brand for this project" (item 944): Generic or one of the added brands, the open project's own (projects.brand).
 // A choice is one change with Undo and a line in the history (field "brand"). When the saved brand is no longer added, the select shows
 // Generic and the note says why; the server already keeps that project's output on Generic. Edit parts only.
-import { useState } from "preact/hooks";
+import { useState, useRef } from "preact/hooks";
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 
@@ -17,15 +17,24 @@ const saveReal = (id, name) => change({ kind: "projects", op: "update", changes:
 
 export function BrandPick({ brands, project = undefined, save = saveReal }) {
   const [draft, setDraft] = useState(null);      // what the arrows are on; the choice is saved at once (row 1115 S5), this only holds it while the save is on its way
+  const saving = useRef(false);
+  const next = useRef(null);
+  const current = useRef(null);
   const p = project !== undefined ? project : data.value && data.value.project;
   if (!p) return null;          // no project open: nothing to choose for
   const [value, gone] = pickState(p.brand, brands);
+  current.current = value;
   const shown = draft === null ? value : draft;
   const commit = async (id) => {
-    if (id === value) { setDraft(null); return; }
+    if (saving.current) { next.current = id; return; }
+    if (id === current.current) { setDraft(null); return; }
     const b = brands.find((x) => x.id === id);
-    await save(id, id === "generic" ? "Generic" : (b ? b.name : id));
+    saving.current = true;
+    try { await save(id, id === "generic" ? "Generic" : (b ? b.name : id)); } finally { saving.current = false; }
+    const queued = next.current;
+    next.current = null;
     setDraft(null);      // the select shows what clark kept (a refused change leaves the old brand)
+    if (queued !== null) commit(queued);
   };
   return (
     <div class="fld" data-brand-pick>

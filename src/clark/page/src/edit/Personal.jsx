@@ -208,7 +208,7 @@ export function Personal() {
             <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => pickAppearance(id)}>{name}</button>
           ))}
         </div>
-        <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
+        <p class="muted appearance-line" data-appearance-line>{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <fieldset class="styles keys">
         <legend>Keys</legend>
