@@ -569,6 +569,11 @@ def from_cell(name, value, kind, label=None, stored=(), table=None):
         from clark import changes
         if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
             return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
+    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's "Shown as": plain, 1 to 20 characters
+        from clark import changes
+        shown = unicodedata.normalize("NFC", text).strip()
+        if text.strip() and (not changes._plain_text(shown) or len(shown) > changes.UC_REF_LIMIT):
+            return None, f"{label} must be plain text of at most {changes.UC_REF_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
         text = resolve_ref(name, text)
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
@@ -784,6 +789,7 @@ class _Reader:
         self.held = set()                                    # items whose row was skipped for a changed ID: not "removed"
         self.given = {}                                      # a new row's change number → the values its cells gave (no defaults)
         self.formulas = {}                                   # sheet → workbook rows holding a formula cell
+        self.errors = {}                                     # sheet → workbook rows holding an error cell
 
     def rows_of(self, ws, min_row):
         """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted)."""
@@ -792,6 +798,9 @@ class _Reader:
             for c in row:
                 if c.data_type == "f":
                     self.formulas.setdefault(ws.title, set()).add(rn)
+                    vals.append(_FORMULA)
+                elif c.data_type == "e":                     # an error value (#REF!, #N/A): not text the person typed
+                    self.errors.setdefault(ws.title, set()).add(rn)
                     vals.append(_FORMULA)
                 else:
                     vals.append(c.value)
@@ -993,6 +1002,12 @@ class _Reader:
                                        "agreed date is a rebaseline, which records a decision; do it in clark")
                 continue
             before[f], after[f] = old, v
+        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a "Shown as" another use case already has
+            mine = after["ref"].strip().casefold()
+            taken = [r.get("ref") for i, r in db.items() if i != rid] + [c.after.get("ref") for c in self.plan.changes if c.table == table and c.id != rid]
+            if any(isinstance(x, str) and x.strip().casefold() == mine for x in taken):
+                self.problem(f"{sheet}, row {rn}, {rid}: {_label(table, 'ref')} is already used by another use case; the row was left out", sheet, rn, rid, "ref")
+                bad = True
         if bad:
             return
         if not after:
@@ -1224,9 +1239,9 @@ def _rows_counted(ws, table, cols):
             used = any(not _blank(c.value) for c in row)
         else:
             at = {k: (row[i] if i < len(row) else None) for k, i in header.items()}
-            if at["id"] is not None and at["id"].data_type == "f":
+            if at["id"] is not None and at["id"].data_type in ("f", "e"):
                 continue
-            used = any(c is not None and (c.data_type == "f" or not _blank(c.value)) for c in at.values())
+            used = any(c is not None and (c.data_type in ("f", "e") or not _blank(c.value)) for c in at.values())
         if used:
             rows += 1
             if rows > MAX_ROWS:
@@ -1572,6 +1587,9 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
             rd.plan.notes.append(f"{sheet_name}: a formula cell was ignored in row {shown}; clark reads typed values, not "
                                  "formulas, so type the value instead")
+        for sheet_name, rows_ in rd.errors.items():
+            shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
+            rd.plan.notes.append(f"{sheet_name}: an error cell was ignored in row {shown}; fix the cell or type the value instead")
         rd.plan.changes.sort(key=lambda c: (WRITE_ORDER.index(c.table), ("changed", "new", "removed").index(c.kind), c.row))
         for i, c in enumerate(rd.plan.changes, start=1):
             c.n = i
