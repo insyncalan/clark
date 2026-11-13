@@ -268,6 +268,19 @@ class Page(InBrowser):
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
         self.assertTrue(self.val("document.querySelector('[data-brand-save]').disabled"))
 
+    def test_undo_of_a_brand_change_puts_the_select_back_on_the_earlier_brand(self):
+        self.js("T.keep = true")
+        self.pick("generic")
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.press("Enter", 13)
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand", "the kept choice is shown")
+        self.js("T.undoPick('generic')")
+        self.settle()
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "Undo shows the earlier brand")
+        self.assertTrue(self.val("document.querySelector('[data-brand-save]').disabled"), "nothing left to save")
+
     def test_the_picker_shows_the_saved_brand(self):
         self.pick("example-brand")
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "example-brand")
