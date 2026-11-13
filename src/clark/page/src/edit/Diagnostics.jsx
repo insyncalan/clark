@@ -57,7 +57,8 @@ export function Diagnostics() {
     setBusy(true);
     setMsg(null);
     const r = await openLogFolder();
-    if (!(r.status === 200 && r.body && r.body.ok === true)) setMsg({ kind: "error", text: said(r, OPEN_FAILED) });
+    if (r.status === 200 && r.body && r.body.ok === true) { if (typeof r.body.shown === "string" && r.body.shown) setMsg({ kind: "note", text: r.body.shown }); }
+    else setMsg({ kind: "error", text: said(r, OPEN_FAILED) });
     setBusy(false);
   }
 

@@ -199,6 +199,7 @@ class Log:
         self.clock = clock or datetime.now
         self.home = home
         self.routes = set(routes) if routes is not None else None
+        self.echo = None                     # item 632: a stream that also gets each line (the container's stdout); None everywhere else
         self._level_cache = (None, NORMAL)
         self._page = []
         self._lock = threading.Lock()
@@ -281,21 +282,31 @@ class Log:
                     self.prune_on_new_day(now.date())
                 size = path.stat().st_size if path.exists() else 0
                 normal_cap = MAX_BYTES - MAX_BYTES // RESERVE_PART
+                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home, keep=self.routes)}"
+                tail = details(pairs, self.routes)
+                lines = [head + ("  " + tail if tail else "")] + ["    " + x for x in extra]
+                text = "\n".join(lines) + "\n"
+                self._echo(text)
                 if size >= MAX_BYTES:
                     if LAST_NOTICE not in self._last_bytes(path):
                         self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {LAST_NOTICE}\n")
                     return
                 if level < 30 and size >= normal_cap:
                     return                             # the rest of the day's file is kept for warnings and errors
-                head = f"{now:%Y-%m-%d %H:%M:%S} {LABELS[level]} {area_of(area):<12} {scrub(message, home=self.home, keep=self.routes)}"
-                tail = details(pairs, self.routes)
-                lines = [head + ("  " + tail if tail else "")] + ["    " + x for x in extra]
-                text = "\n".join(lines) + "\n"
                 self._append(path, text)
                 if size < normal_cap <= size + len(text.encode("utf-8")):
                     self._append(path, f"{now:%Y-%m-%d %H:%M:%S} {LABELS[30]} {'log':<12} {FULL_NOTICE}\n")
         except Exception:
             pass                                       # a log write never raises
+
+    def _echo(self, text):
+        """item 632: in the container the same scrubbed line also goes to this stream (stdout, so `docker logs` shows it)."""
+        if self.echo is not None:
+            try:
+                self.echo.write(text)
+                self.echo.flush()
+            except Exception:
+                pass
 
     def _make_folder_private(self):
         """The log folder owner-only (0o700), once per logger; a folder that is not ours or a system with no modes is left."""

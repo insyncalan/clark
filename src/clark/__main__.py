@@ -482,6 +482,8 @@ def start_log(data_folder, projects, home=None, scratch=None):
         return None, None, None
     routes = set(server.GET_ROUTES) | set(server.POST_ROUTES) | {"/health", server.CSP_REPORT_ROUTE}
     log = clog.Log(folder, data=data_folder, routes=routes)
+    if platform.container_mode() and not scratch:      # item 632: `docker logs` shows the same scrubbed lines as the file in <data>/logs
+        log.echo = sys.stdout
     return log, clog.install(log), log_routes.Logs(log, counts=lambda: {"projects": len(projects())})
 
 

@@ -19,11 +19,19 @@
 </head>
 <body>
 <main>
+  <!--MAC-->
   <h1>Start clark to use this window</h1>
   <p>Nothing is running at this address. Start it the way you started it: double-click <b>@LAUNCHER@</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:</p>
   <code>docker compose -f docker/compose.yaml up -d</code>
   <p>Closing the last clark window stops @LAUNCHER@ after two minutes. Docker keeps running until you stop it with:</p>
   <code>docker compose -f docker/compose.yaml down</code>
+  <!--/MAC-->
+  <!--DOCKER-->
+  <h1>Start clark to use this window</h1>
+  <p>Nothing is running at this address. Start it from Docker Desktop, or open Terminal in your clark folder and type:</p>
+  <code>docker compose -f docker/compose.yaml up -d</code>
+  <p>Your data is safe. It stays in the data folder you chose.</p>
+  <!--/DOCKER-->
   <button type="button" id="again">Check again</button>
   <p id="msg" role="status"></p>
 </main>
@@ -32,7 +40,7 @@
     const msg = document.getElementById("msg");
     msg.textContent = "";
     try { await fetch("/health", {cache: "no-store"}); location.replace("/"); }
-    catch (e) { msg.textContent = "Still not running. Double-click clark.command, then check again."; }
+    catch (e) { msg.textContent = "@STILL@"; }
   };
 </script>
 </body>
