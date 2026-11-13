@@ -12,9 +12,9 @@ from _paths import ROOT, SRC  # noqa: F401
 from clark import host_folders as hf
 
 ENV = {"CLARK_HOST": "windows",
-       "CLARK_SHARE_CLIENT": "C:\\Users\\Sam\\OneDrive - Acme\\Clients",
+       "CLARK_SHARE_CLIENT": "C:\\Users\\User\\OneDrive - Acme\\Clients",
        "CLARK_SHARE_BACKUP": "D:\\Backups",
-       "CLARK_SHARE_FILES": "C:\\Users\\Sam\\Documents\\clark files"}
+       "CLARK_SHARE_FILES": "C:\\Users\\User\\Documents\\clark files"}
 
 
 def container():
@@ -24,9 +24,9 @@ def container():
 class Typed(unittest.TestCase):
     def test_a_typed_windows_path_maps_and_is_shown_back_in_windows_form(self):
         with container():
-            path, shown = hf.to_container("client", "c:/users/sam/onedrive - acme/clients/ABC/", ENV)
+            path, shown = hf.to_container("client", "c:/users/user/onedrive - acme/clients/ABC/", ENV)
         self.assertEqual(path, "/shares/client/ABC")
-        self.assertEqual(shown, "C:\\users\\sam\\onedrive - acme\\clients\\ABC")
+        self.assertEqual(shown, "C:\\users\\user\\onedrive - acme\\clients\\ABC")
         self.assertNotIn("/", shown)
 
     def test_the_shared_folder_itself_maps_to_its_mount(self):
@@ -35,7 +35,7 @@ class Typed(unittest.TestCase):
 
     def test_a_path_that_is_not_shared_in_is_refused_in_plain_words(self):
         with container():
-            for typed in ("C:\\Other", "E:\\Backups", "C:\\Users\\Sam\\OneDrive - Acme\\Clientsold", "C:\\Users\\Sam"):
+            for typed in ("C:\\Other", "E:\\Backups", "C:\\Users\\User\\OneDrive - Acme\\Clientsold", "C:\\Users\\User"):
                 with self.assertRaises(ValueError) as cm:
                     hf.to_container("client", typed, ENV)
                 self.assertTrue(str(cm.exception).endswith("Nothing was changed."), typed)
@@ -43,7 +43,7 @@ class Typed(unittest.TestCase):
 
     def test_a_folder_shared_for_another_use_is_not_taken(self):
         with container(), self.assertRaises(ValueError):
-            hf.to_container("backup", "C:\\Users\\Sam\\OneDrive - Acme\\Clients", ENV)
+            hf.to_container("backup", "C:\\Users\\User\\OneDrive - Acme\\Clients", ENV)
 
     def test_text_that_is_not_a_full_windows_path_is_refused(self):
         bad = ("", "Clients", "/shares/client", "\\\\server\\share\\x", "\\\\?\\C:\\x", "C:", "C:x", "1:\\x", "C:\\a\\..\\b",
@@ -55,7 +55,7 @@ class Typed(unittest.TestCase):
 
     def test_a_dot_dot_cannot_climb_out(self):
         with container(), self.assertRaises(ValueError):
-            hf.to_container("client", "C:\\Users\\Sam\\OneDrive - Acme\\Clients\\..\\..\\Secret", ENV)
+            hf.to_container("client", "C:\\Users\\User\\OneDrive - Acme\\Clients\\..\\..\\Secret", ENV)
 
     def test_a_slot_with_nothing_shared_says_so(self):
         env = {"CLARK_HOST": "windows"}
@@ -82,7 +82,7 @@ class Saved(unittest.TestCase):
         with container():
             said = hf.saved_words("/shares/files/ABC/report.html", ENV)
         self.assertEqual(said, "Saved as ~\\Documents\\clark files\\ABC\\report.html.")
-        self.assertNotIn("Sam", said)
+        self.assertNotIn("User", said)
         self.assertNotIn("/", said)
 
     def test_the_client_copy_is_named_in_the_client_folder_and_never_a_data_folder(self):
@@ -105,7 +105,7 @@ class Saved(unittest.TestCase):
 class Words(unittest.TestCase):
     def test_the_new_sentences_are_plain(self):
         for text in (hf.NOT_SHARED, hf.NOT_A_PATH, hf.NOT_SHARED_AT_ALL, hf.SAVED):
-            self.assertFalse(text.startswith("Clark"))
+            self.assertFalse(text.lower().startswith("clark"))
             self.assertNotRegex(text, r"(?i)docker|container|mount|volume|compose|/shares")
 
     def test_nothing_mac_only_is_in_the_module(self):

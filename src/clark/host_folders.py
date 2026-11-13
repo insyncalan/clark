@@ -21,10 +21,10 @@ SLOTS = {
     "files": ("CLARK_SHARE_FILES", "/shares/files"),
 }
 
-NOT_SHARED = ("clark can only use a folder that was shared with it when it was started, and “{folder}” was not. "
+NOT_SHARED = ("Only a folder that was shared when this was started can be used here, and “{folder}” was not. "
               "Nothing was changed.")
 NOT_A_PATH = "Type the full path of the folder, starting with the drive, for example C:\\Users\\Name\\Documents. Nothing was changed."
-NOT_SHARED_AT_ALL = "No folder has been shared with clark for this yet. Nothing was changed."
+NOT_SHARED_AT_ALL = "No folder has been shared for this yet. Nothing was changed."
 SAVED = "Saved as {path}."
 
 _SEP = re.compile(r"[\\/]+")
