@@ -9,6 +9,7 @@ Run: python3 dev/run_tests.py test_toast_import_keys
 """
 import base64
 import json
+import time
 import unittest
 
 from test_server import chrome
@@ -62,6 +63,20 @@ class Toast(unittest.TestCase):
             cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
             press(cdp, sid, "Escape", "Escape", 27)
             self.until(cdp, sid, "!document.querySelector('.toast-text')", "Esc put the message away (not the 5 seconds)", 2)
+
+    def test_escape_a_page_handler_has_taken_keeps_the_message(self):
+        """The dismissing listener is on the window and skips a key already handled (defaultPrevented)."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            self.change(cdp, sid)
+            cdp.js("document.activeElement && document.activeElement.blur && document.activeElement.blur()", sid)
+            cdp.js("window.__h = e => { if (e.key === 'Escape') e.preventDefault(); }; document.addEventListener('keydown', window.__h)", sid)
+            press(cdp, sid, "Escape", "Escape", 27)
+            time.sleep(0.8)
+            self.assertTrue(cdp.js("!!document.querySelector('.toast-text')", sid), "a handled Esc keeps the message")
+            cdp.js("document.removeEventListener('keydown', window.__h)", sid)
+            press(cdp, sid, "Escape", "Escape", 27)
+            self.until(cdp, sid, "!document.querySelector('.toast-text')", "an unhandled Esc puts it away", 2)
 
     def test_a_three_line_message_keeps_its_text_inside_the_corners(self):
         for w in (1400, 900):
