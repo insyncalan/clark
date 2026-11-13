@@ -70,7 +70,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.draw(cdp, width)
                 self.assertEqual(cdp.js("document.querySelectorAll('#milestones .msl-row.plain, #milestones .mv-mk.plain, #milestones .mv-lab.plain').length", sid), 0, "nothing is plain text now")
-                self.assertEqual(cdp.js("document.querySelectorAll('#milestones [data-msdet]').length", sid), 0, "a file keeps no Hide details toggle")
+                self.assertEqual(cdp.js("document.querySelectorAll('#milestones [data-msdet]').length", sid), 1, "a file has the Hide details toggle, open (row 1114)")
                 cdp.js("document.querySelector('#milestones .msl-row .msl-cells').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js(f"{PEEK_ID} !== ''", sid)), "the row opened the peek")
                 self.assertEqual(cdp.js(f"[...document.querySelectorAll('#peek .pk-body').length ? document.querySelectorAll('#peek .pk-body') : []].reduce((n, b) => n + b.querySelectorAll({CONTROLS!r}).length, 0)", sid), 0, "read only")
