@@ -114,7 +114,7 @@ def _merged(brand_css):
     brand = _declarations(brand_css)
     note = None
     if brand is None:
-        brand, note = {}, "The brand's tokens.css has no block of tokens clark can read; the committed look is used."
+        brand, note = {}, "The brand's colours file could not be read, so clark's standard colours were used in the workbook."
     merged = dict(committed)
     merged.update({k: v.strip() for k, v in brand.items()})
     return ":root {\n" + "\n".join(f"{k}: {v};" for k, v in merged.items()) + "\n}", note
@@ -132,11 +132,11 @@ def _brand_css(branding, notes):
         if path is None:
             return None
         if path.stat().st_size > MAX_BRAND_BYTES:
-            notes.append("The brand's tokens.css is too large to read; the committed look is used.")
+            notes.append("The brand's colours file is too large to read, so clark's standard colours were used in the workbook.")
             return None
         return page.strip_css_comments(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError):
-        notes.append("The brand's tokens.css cannot be read; the committed look is used.")
+        notes.append("The brand's colours file could not be read, so clark's standard colours were used in the workbook.")
         return None
 
 
@@ -157,7 +157,7 @@ def palette(css=None, branding=None, warnings=None):
             try:
                 tokens[name] = look.colour(name, css=merged)
             except look.LookError as e:
-                notes.append(f"Brand colour {name} not used ({e}); the committed colour is used.")
+                notes.append("One of the brand's colours could not be used, so clark's standard colour was used for it in the workbook.")
         for _ in range(len(base.TOKEN_NAMES)):
             bad = [(f, t, what) for f, t, what in _pairs(colours) if contrast_ratio(tokens[f], tokens[t]) < MIN_CONTRAST]
             changed = False
