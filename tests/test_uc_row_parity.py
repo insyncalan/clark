@@ -20,7 +20,7 @@ class Reference(Setup):
             for dark in (False, True):
                 with self.subTest(width=width, dark=dark), chrome() as cdp:
                     p = self.show(cdp, width, dark)
-                    self.assertEqual(p.js("[...document.querySelectorAll('.ucref')].map(e => e.textContent)"), ["1.1", "1.3 + 1.4"])
+                    self.assertEqual(p.js("[...document.querySelectorAll('.ucref')].map(e => e.textContent)"), ["UC 1.1", "UC 1.3 + 1.4"])
                     box = p.js("(() => { const c = getComputedStyle(document.querySelector('.ucref')); return [c.borderTopWidth, c.borderTopStyle, c.borderTopColor]; })()")
                     grey = p.js("(t => { const e = document.createElement('i'); e.style.color = `var(--${t})`; document.body.append(e); const c = getComputedStyle(e).color; e.remove(); return c; })('grey-300')")
                     self.assertEqual(box, ["1px", "solid", grey], "a 1 px box in the grey-300 line colour, not plain text and not any border at all")
@@ -50,7 +50,7 @@ class PublishedFile(Published):
         path = self.publish()
         with chrome() as cdp:
             p = self.draw(cdp, path)
-            self.assertEqual(p.js("[...document.querySelectorAll('.ucref')].map(e => e.textContent)"), ["1.1", "1.3 + 1.4"])
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucref')].map(e => e.textContent)"), ["UC 1.1", "UC 1.3 + 1.4"])
             self.assertEqual(p.js("document.querySelectorAll('[data-uc-export], .uc button').length"), 0, "a published file calls no server")
 
 
