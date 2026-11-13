@@ -66,7 +66,7 @@ export const toneOf = (row, pill) => {
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
   const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue
-  const parts = isUrgent(row) ? [pill.text, "Urgent", late] : own ? [pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says both
+  const parts = isUrgent(row) ? ["Urgent", pill.text === "Overdue" ? "Overdue" : late] : own ? [pill.text, late] : [pill.text];      // an Urgent item that is also late keeps its maroon tile; the tooltip says Urgent (the tile's one level, never Red as well) and Overdue
   const words = parts.filter(Boolean);
   return { name: `${kind}, ${words.join(", ")}`, tip: `${kind} · ${words.join(" · ")}` };
 };
