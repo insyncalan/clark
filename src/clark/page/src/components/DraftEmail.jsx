@@ -57,11 +57,14 @@ export function DraftEmail({ items, state, draft, today, onChange, onSent, sentO
     } catch (e) { setNote(e.message); }
     finally { saveLock.current = false; setSaving(false); }          // a failure leaves it ready to press again
   };
+  // No builder: there is only Close, so focus goes there when the dialog opens and Esc reaches the dialog from it.
+  const closeBtn = useRef(null);
+  useEffect(() => { if (!draft && closeBtn.current) closeBtn.current.focus({ preventScroll: true }); }, [!draft]);
   const keys = (e) => { if (e.key === "Escape") { e.stopPropagation(); if (onClose) onClose(); } };
   if (!draft) {
     return (
-      <div class="de" role="dialog" aria-label={LABELS.title}><p class="muted">{NO_BUILDER}</p>
-        <button type="button" class="pk-btn" onClick={() => onClose && onClose()}>{LABELS.close}</button></div>
+      <div class="de" role="dialog" aria-label={LABELS.title} onKeyDown={keys}><p class="muted">{NO_BUILDER}</p>
+        <button type="button" class="pk-btn" ref={closeBtn} onClick={() => onClose && onClose()}>{LABELS.close}</button></div>
     );
   }
   const none = items.length === 0;                       // nothing is offered: one clear message (a caller may say why in its own words), nothing to tick
