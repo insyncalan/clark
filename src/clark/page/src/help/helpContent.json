@@ -905,7 +905,7 @@
       "ul",
       [
        "The project button (an arrow beside the logo): switch projects. Each shows its count of open items. Adding a project and a project’s settings are in **Settings**.",
-       "**Dashboard**, **Work items** and **Milestones**: the three screens.",
+       "**Dashboard**, **Work items**, **Milestones** and **Use cases**: the screens. A Gantt tab (it carries the project’s own tab name) appears after them when that setting is on.",
        "**The profile circle**: a person icon at the top right that opens the menu. See [The profile circle](#ref-profile-circle)."
       ]
      ],
@@ -1608,7 +1608,7 @@
      ],
      [
       "p",
-      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it."
+      "It reads your words with plain rules on this computer: no model is used and nothing is sent. **Make the change** or [[Enter]] makes the changes shown as one step, with **Undo**; [[Shift+Enter]] makes them and keeps the box open; **Not now** or [[Esc]] closes it. Changes that mark something done, achieved, closed, cancelled, made or withdrawn, or move it back out of done, ask first: [[Enter]] alone only flashes “This change needs your OK”. Press **Make the change**, **Confirm and apply** or [[Mod+Enter]] to make them."
      ]
     ]
    },
@@ -1836,7 +1836,7 @@
       "ul",
       [
        "**The cover**: the project, the week ending and who it is for.",
-       "**Three tabs**: Dashboard, Work items and Milestones.",
+       "**The tabs**: Dashboard always, then Work items and Milestones unless you hid them, then Use cases when the client can see any, and Gantt when its switch is on with at least one line shown.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
@@ -1917,7 +1917,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, PDF, text, Markdown and CSV files; a PDF that cannot be read (scanned pictures, password-protected, damaged, or too big) is skipped, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -2595,6 +2595,11 @@
      "line": "Who is on the project, with their emails and roles."
     },
     {
+     "card": "asking",
+     "title": "Asking",
+     "line": "Turn asking on or off, and choose the Folders asking may read."
+    },
+    {
      "card": "feedback",
      "title": "Feedback",
      "line": "Write what is wrong or what you would suggest, then send it by email."
@@ -2916,7 +2921,7 @@
      "d": "Read the line under the title. It gives the date and time of the latest backup, or says there are no backups yet: the first one is made when you save your first change of the day. If the latest copy is damaged, the line says so."
     },
     {
-     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each kind; the oldest are removed after that."
+     "d": "Read the list, newest first. Each row shows the date and time, the kind (Daily, Before an undo, Before an import, Before a change, Before a restore or Before an update) and the size. Under the list, a line says how many backups are kept of each of daily, before an undo and before an import or change. Before an import and before a change share one count. Before a restore and before an update each have their own count, and keep at least 2 and at least 3, whatever the number is. The oldest are removed after that."
     },
     {
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
@@ -2946,10 +2951,10 @@
    "job": "Know the minimum requirements of a brand kit: what it must hold, the limits, and how to import one.",
    "steps": [
     {
-     "d": "A brand kit is one zip file. It holds clark-brand.json, which gives the brand’s name, id and version and its file list, and the colours and fonts file. A logo and cover pictures are optional. It holds no other files. The colours and fonts file is tokens.css."
+     "d": "A brand kit is one zip file holding one folder, named with the brand’s id. Inside the folder are clark-brand.json and the colours and fonts file. clark-brand.json gives the brand’s name, id and version, and its file list, with every other file in the folder. The id in clark-brand.json must match the folder name. A logo and cover pictures are optional. The zip holds no other files. The colours and fonts file is tokens.css."
     },
     {
-     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. No links or paths outside the kit are allowed."
+     "d": "Keep to the limits: 50 files, 16 MB the zip, 24 MB unpacked, 5 MB a file. The colours and fonts file (tokens.css) can be at most 256 KB. A PNG logo or cover can be at most 1 MB and 2000 pixels each way. No links or paths outside the kit are allowed."
     },
     {
      "d": "Press your profile circle and choose **Settings**, then find the **Brands** card."

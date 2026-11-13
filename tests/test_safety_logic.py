@@ -182,6 +182,16 @@ class Card(InBrowser):
         self.assertEqual(self.text("#safety-status"), LIST["status"])
         self.assertEqual(self.text("#safety-keep"), "14")
 
+    def test_each_rows_buttons_have_their_own_name_starting_with_the_visible_label(self):
+        self.mount()
+        rows = self.val("[...document.querySelectorAll('#backup-list li')].map(li => [li.querySelector('[data-preview]'), li.querySelector('[data-restore]')].map(b => [b.textContent, b.getAttribute('aria-label')]))")
+        self.assertEqual(len(rows), 2)
+        for i, kind in enumerate(("preview", "restore")):
+            names = [r[i][1] for r in rows]
+            self.assertEqual(len(set(names)), 2, names)
+            for r, when in zip(rows, ("02-10-2030 09:14", "01-10-2030 10:15")):
+                self.assertEqual(r[i][1], f"{r[i][0]} {when}")
+
     def test_preview_shows_counts_and_changes_nothing(self):
         self.mount()
         self.click("[data-backup] [data-preview]")
