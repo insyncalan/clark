@@ -755,6 +755,58 @@ class InThePage(PageBase):
                 self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
 
+    def _line_session(self, cdp, width, title):
+        ref = self.add({}, title=title)
+        p = self.show(cdp, width)
+        p.edit()
+        line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+        p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+
+        def enter(text):
+            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
+            p.key("Enter", code="Enter", vk=13)
+
+        def body():
+            return json.loads(self.store.read("report_sections", ref=ref)["body"])
+        return p, enter, body, ref
+
+    def test_the_filter_line_reads_the_due_words_and_their_aliases(self):
+        """Mutation hunt: the due: aliases (next7days, in7days, nodate) and none/later were not read by any test."""
+        with chrome() as cdp:
+            p, enter, body, ref = self._line_session(cdp, 1400, "Due words")
+            for typed, want in (("due:overdue", ["overdue"]), ("due:soon", ["soon"]), ("due:next7days", ["soon"]), ("due:in7days", ["soon"]),
+                                ("due:none", ["none"]), ("due:nodate", ["none"]), ("due:later", ["later"]), ("due:overdue,next7days,nodate", ["overdue", "soon", "none"])):
+                with self.subTest(typed=typed):
+                    enter(typed)
+                    self.assertTrue(wait(lambda: body()["due"] == want), f"{typed}: saved as {body()['due']}, wanted {want}")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length >= 1", "the chip drew")
+                    p.clear_toast()
+                    enter("")
+                    self.assertTrue(wait(lambda: body()["due"] == []), "cleared between words")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "the chips went")
+                    p.clear_toast()
+
+    def test_the_filter_line_modes_open_and_closed_together_no_repeats_no_minus(self):
+        """Mutation hunt: is:open,closed (all), a repeated value saved once, and the minus-sign refusal were not pinned."""
+        with chrome() as cdp:
+            p, enter, body, ref = self._line_session(cdp, 1400, "Modes")
+            enter("type:risk is:open,closed")
+            p.saved()
+            self.assertEqual((body()["kinds"], body()["mode"]), (["risk"], "all"), "open and closed together is the all mode")
+            p.clear_toast()
+            enter("is:open is:closed")
+            p.saved()
+            self.assertEqual(body()["mode"], "all", "two is: words read the same as one with a comma")
+            p.clear_toast()
+            enter("status:Open,Open type:risk,risk")
+            p.saved()
+            self.assertEqual((body()["status"], body()["kinds"]), (["Open"], ["risk"]), "a repeated value is saved once")
+            p.clear_toast()
+            steps = self.demo.last_step()
+            enter("-is:open")
+            p.until("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('A minus sign')", "a minus sign is refused in words")
+            self.assertEqual(self.demo.last_step(), steps, "nothing saved")
+
     def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
         ref = self.add({}, title="Form")
         with chrome() as cdp:
