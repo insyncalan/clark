@@ -277,3 +277,30 @@ class PrintLight(Appearance):
                     p.js("window.dispatchEvent(new Event('afterprint'))")
                     self.assertEqual(p.js("document.documentElement.dataset.theme"), chosen, "the chosen look comes back")
                     self.assertLess(self.lightness(p), 100)
+
+    def test_1050_dashboard_milestones_and_help_print_light_when_the_look_is_dark(self):
+        from test_help_panel import full_help_from_menu
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                scheme(p, "dark")
+                self.open_settings(p)
+                p.js("document.querySelector('#personal [data-theme-pick=dark]').click()")
+                p.until("document.documentElement.dataset.theme === 'dark'", "the dark look is on")
+                for view in ("dashboard", "milestones", "help"):
+                    if view == "help":
+                        full_help_from_menu(p)
+                    else:
+                        p.js(f"document.querySelector('[data-view={view}]').click()")
+                        p.until(f"!!document.querySelector('#{'report' if view == 'dashboard' else view}')", f"{view} drew")
+                    self.assertLess(self.lightness(p), 100, f"{view} is dark on screen")
+                    p.js("window.dispatchEvent(new Event('beforeprint'))")
+                    try:
+                        self.assertIsNone(p.js("document.documentElement.dataset.theme || null"), f"{view}: printing draws no dark attribute")
+                        self.assertGreater(self.lightness(p), 200, f"{view}: white paper while printing")
+                        ink = p.js("(() => { const c = getComputedStyle(document.body).color; return c.match(/\\d+/g).slice(0, 3).map(Number); })()")
+                        self.assertLess(sum(ink) / 3, 120, f"{view}: dark body words on the white paper {ink}")
+                    finally:
+                        p.js("window.dispatchEvent(new Event('afterprint'))")
+                    self.assertEqual(p.js("document.documentElement.dataset.theme"), "dark", f"{view}: the dark look comes back")
