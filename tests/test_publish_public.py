@@ -2416,6 +2416,22 @@ class TheVendorLineAllowances(unittest.TestCase):
             self.assertEqual(pp.guard_kinds(path, data + b"\n"), {"a person's name"}, "a changed byte: no allowance")
             self.assertEqual(pp.guard_kinds("vendor/pypdf/copy.py", data), {"a person's name"}, "another path: no allowance")
 
+    def test_the_allowance_is_one_use_of_the_line_so_a_second_copy_is_refused(self):
+        path = self.PATHS[0]
+        line = (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()
+        data = line + line
+        with mock.patch.dict(pp.VENDOR_LINE_PINS, {path: hashlib.sha256(data).hexdigest()}):
+            self.assertEqual(pp.guard_kinds(path, data), {"a person's name"}, "the second copy of the line is not allowed")
+
+    def test_guard_findings_passes_the_entry_mode_on_so_an_executable_file_gets_no_allowance(self):
+        path = self.PATHS[0]
+        data = (pp.VENDOR_LINE_ALLOWED[path][0] + "\n").encode()
+        with mock.patch.dict(pp.VENDOR_LINE_PINS, {path: hashlib.sha256(data).hexdigest()}):
+            plain = pp.Entry(3, "100644", "0" * 40, len(data), path)
+            exe = pp.Entry(3, "100755", "0" * 40, len(data), path)
+            self.assertEqual(pp.guard_findings([plain], [data]), [])
+            self.assertEqual(pp.guard_findings([exe], [data]), ["file #3: a person's name"])
+
     def test_there_are_exactly_four_entries_and_no_wildcard(self):
         self.assertEqual(sorted(self.PATHS), ["vendor/pypdf/LICENSE", "vendor/pypdf/_codecs/adobe_glyphs.py",
                                               "vendor/pypdf/constants.py", "vendor/pypdf/pagerange.py"])
