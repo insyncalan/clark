@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; PDF is a counted "not supported yet"; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; an unread PDF is counted with its reason; the 40,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
