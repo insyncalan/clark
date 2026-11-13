@@ -309,6 +309,27 @@ class Header(Base):
         self.each(check)
 
     # ---- row 844: the toast ----
+    def test_row_844_save_view_by_keyboard_hands_the_focus_to_the_open_tab(self):
+        saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
+
+        def check(cdp, sid, width):
+            cdp.js("localStorage.setItem('clark.fviews', JSON.stringify({ABC: %s}))" % json.dumps(saved), sid)
+            self.reload(cdp, sid)
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]')", "the made view")
+            click_tab(cdp, sid, ".vtab[data-view-id=risky]")
+            self.until(cdp, sid, "document.querySelector('.vtab[data-view-id=risky]').getAttribute('aria-pressed') === 'true'", "open")
+            click(cdp, sid, "#fline-input")
+            key(cdp, sid, "End")
+            cdp.call("Input.insertText", {"text": " no:owner "}, sid)
+            self.until(cdp, sid, "document.querySelector('#fvSave')", "Save view")
+            cdp.js("document.querySelector('#fvSave').focus()", sid)
+            self.until(cdp, sid, "document.activeElement.id === 'fvSave'", "Save view has the focus")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!document.querySelector('#fvSave')", "saved: the button is gone")
+            self.until(cdp, sid, "document.activeElement === document.querySelector('.vtab[aria-pressed=true]')", "the open tab has the focus",
+                       why=lambda: cdp.js("document.activeElement && (document.activeElement.id || document.activeElement.tagName)", sid))
+        self.each(check)
+
     def test_row_844_save_view_says_what_was_saved_in_the_toast(self):
         saved = [{"id": "risky", "name": "Risky", "line": "is:open type:risk"}]
 
