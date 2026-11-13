@@ -273,8 +273,8 @@ class InAsk(Fake):
         got = self.run_it()
         self.assertEqual((got.pdf, got.pdf_reasons, got.safety), (0, (), 0))
         labels = {p.label: p.text for p in got.passages}
-        self.assertEqual(labels, {"saved/Plan.pdf (page 1)": "ZQ budget is agreed", "saved/Plan.pdf (page 2)": "ZQ deadline is May",
-                                  "saved/Plan.pdf (page 3)": "ZQ risks"})
+        self.assertEqual(labels, {"saved/Plan.pdf, page 1": "ZQ budget is agreed", "saved/Plan.pdf, page 2": "ZQ deadline is May",
+                                  "saved/Plan.pdf, page 3": "ZQ risks"})
         self.assertEqual({(p.file, p.page) for p in got.passages}, {("saved/Plan.pdf", 1), ("saved/Plan.pdf", 2), ("saved/Plan.pdf", 3)})   # #943: the open-at-page fields
 
     # mutation hunt (item 1182): part labels, the part cap, the char and byte budgets and the size cap's source were never pinned
@@ -283,7 +283,7 @@ class InAsk(Fake):
         with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20):
             got = self.run_it()
         labels = [p.label for p in got.passages]
-        self.assertEqual(labels, ["saved/Plan.pdf (page 1)", "saved/Plan.pdf (page 1, part 2)", "saved/Plan.pdf (page 1, part 3)", "saved/Plan.pdf (page 2)"])
+        self.assertEqual(labels, ["saved/Plan.pdf, page 1", "saved/Plan.pdf, page 1, part 2", "saved/Plan.pdf, page 1, part 3", "saved/Plan.pdf, page 2"])
         self.assertEqual([p.page for p in got.passages], [1, 1, 1, 2])
         self.assertEqual("".join(p.text for p in got.passages[:3]), "ZQ " + "a" * 57)
 
@@ -291,7 +291,7 @@ class InAsk(Fake):
         self.put("Plan.pdf", pdf(["ZQ " + "a" * 197]))
         with mock.patch.object(ask_passages.ask_data, "PASSAGE_SIZE", 20), mock.patch.object(ask_passages, "MAX_PDF_PARTS", 4):
             got = self.run_it()
-        self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf (page 1, part 4)")
+        self.assertEqual([p.label for p in got.passages][-1], "saved/Plan.pdf, page 1, part 4")
         self.assertEqual(len(got.passages), 4)
 
     def test_parts_cut_by_the_part_cap_are_counted_as_left_out(self):
@@ -334,7 +334,7 @@ class InAsk(Fake):
         self.put("locked.pdf", pdf(["ZQ x"], encrypted=True))
         self.put("broken.pdf", b"%PDF-1.4 ZQ-BROKEN")
         got = self.run_it()
-        self.assertEqual([p.label for p in got.passages], ["saved/good.pdf (page 1)"])
+        self.assertEqual([p.label for p in got.passages], ["saved/good.pdf, page 1"])
         self.assertEqual(got.pdf, 3)
         self.assertEqual(dict(got.pdf_reasons), {"saved/scan.pdf": "scanned", "saved/locked.pdf": "encrypted", "saved/broken.pdf": "corrupt"})
         self.assertNotIn("ZQ-BROKEN", "\n".join(p.text for p in got.passages))
@@ -359,12 +359,25 @@ class InAsk(Fake):
         self.assertEqual((got.passages, got.safety), ((), 1))
 
 
-class NoNewWords(unittest.TestCase):
-    def test_new_sentences_are_constants_only(self):
-        self.assertTrue(pdf_reader.NEW_WORDS)
-        src = Path(pdf_reader.__file__).parent
-        for name in ("ask_service.py", "ask.py", "ask_data.py"):
-            self.assertNotIn("pdf_reader.NEW_WORDS", (src / name).read_text(encoding="utf-8"))
+class Words(unittest.TestCase):
+    """Row 891: the approved sentences (#1052), for every reason code, in the count form, the per-file form and the source label."""
+    def test_each_reason_has_its_sentence_in_both_forms(self):
+        want = {"scanned": "it holds pictures of pages and no text", "encrypted": "it is protected with a password", "too_big": "it is too big",
+                "too_many_pages": "it has too many pages"}
+        for code in pdf_reader.REASONS:
+            why = want.get(code, "it could not be read safely")
+            self.assertEqual(pdf_reader.count_note(1, code), f"1 PDF was not read: {why}.", code)
+            self.assertEqual(pdf_reader.count_note(3, code), f"3 PDF were not read: {why}.", code)
+            self.assertEqual(pdf_reader.file_note("Plan.pdf", code), f"Plan.pdf was not read: {why}.", code)
+        self.assertEqual(pdf_reader.SOURCE_PAGE.format(name="Plan.pdf", page=2), "Plan.pdf, page 2")
+
+    def test_the_notes_under_an_answer_say_the_reason_for_each_kind(self):
+        from clark import ask_passages, ask_service
+        found = ask_passages.FolderData(pdf=4, pdf_reasons=(("a.pdf", "scanned"), ("b.pdf", "encrypted"), ("c.pdf", "scanned"), ("d.pdf", "crash")))
+        notes = [n for n in ask_service.folder_notes(found) if "PDF" in n]
+        self.assertEqual(notes, ["2 PDF were not read: it holds pictures of pages and no text.", "1 PDF was not read: it is protected with a password.",
+                                 "1 PDF was not read: it could not be read safely."])
+        self.assertFalse(any("not supported" in n for n in ask_service.folder_notes(found)))
 
 
 @unittest.skipUnless((pdf_reader.VENDOR / "pypdf").is_dir(), "the vendored pypdf is not in this checkout")

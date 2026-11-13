@@ -19,7 +19,7 @@ import { appearance, setAppearance, MODES } from "../stores/appearance.js";
 import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
-import { ToastCard, ToastBar, startHeld } from "./ToastCard.jsx";
+import { ToastCard, ToastBar, startHeld, keepFocus } from "./ToastCard.jsx";
 import { Welcome } from "./Welcome.jsx";
 
 export const MENU_NAME = "Your menu";
@@ -36,7 +36,7 @@ export function MenuNote() {
   return n ? (
     <div class={`toast ${n.kind}`} key={n.id} data-kind={n.kind} role={n.kind === "problem" ? "alert" : undefined} ref={startHeld(noteTimer)} {...holdOn(noteTimer)}>
       <span class="toast-text">{n.text}</span>
-      <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={closeNote}>Close</button>
+      <button type="button" class="toast-btn" data-dismiss aria-label="Dismiss this message" onClick={() => { keepFocus(); closeNote(); }}>Close</button>
       <ToastBar kind={n.kind} />
     </div>
   ) : null;
