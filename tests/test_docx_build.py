@@ -618,7 +618,7 @@ class Refusals(unittest.TestCase):
 
 
 class MutantsB1(unittest.TestCase):
-    """Edges the mutation hunt (team-cap-hunt-b1) found no test pinning: each one fails if its line of docx_build.py is changed."""
+    """Edges the mutation hunt found no test pinning: each one fails if its line of docx_build.py is changed."""
 
     def test_escaping_gives_text_and_quoted_attributes(self):
         self.assertEqual(docx_build.esc("a>b"), "a&gt;b")
