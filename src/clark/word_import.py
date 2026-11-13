@@ -28,6 +28,7 @@ import unicodedata
 from dataclasses import dataclass, field
 from datetime import date
 
+NONE = "None recorded."     # the line a Word report writes under an empty section (a test pins it to docx_build.NONE)
 MAX_VALUE = 2000            # characters in one value
 MAX_ITEMS = 500             # rows staged from one file; the rest are noted
 MAX_HEADING = 80            # a heading longer than this is not one of HEADINGS' names, and is never copied whole into a row
@@ -113,8 +114,8 @@ class StagedItem:
 
     def describe(self):
         """The row in plain words, dates as DD-MM-YYYY, and that it is shown to the client."""
-        body = "; ".join(f"{_LABEL.get(f, f)} {shown(f, v)}" for f, v in self.values.items() if f in _SHOWN)
-        return f"New {_noun(self.table, self.values)} ({self.where}): {body}. {SHOWN_TO_CLIENT}"
+        body = "; ".join(f"{_LABEL.get(f, f)} {shown(f, v)}".strip() for f, v in self.values.items() if f in _SHOWN)
+        return f"New {_noun(self.table, self.values)} ({self.where}): {body.rstrip('. ')}. {SHOWN_TO_CLIENT}"
 
 
 _LABEL = {"description": "", "decision": "", "owner": "Owner", "priority": "Priority", "due_date": "Due", "status": "Status",
@@ -285,7 +286,7 @@ class _Stage:
 
     def text_item(self, sec, block, heading):
         text = clean_value(block.get("text"))
-        if not text:
+        if not text or text == NONE:                # the export's own empty-section line is not an item
             return
         kind, table = sec, TABLE_OF[sec]
         where = f"{block['kind'].replace('_', ' ')} under {heading}"

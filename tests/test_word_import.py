@@ -137,6 +137,32 @@ class NothingChangesAnExistingItem(unittest.TestCase):
         self.assertTrue(any("existing items" in n for n in p.notes))
 
 
+class TheEmptyLineOfAReportIsNotAnItem(unittest.TestCase):
+    def test_a_report_with_no_actions_risks_or_decisions_comes_back_as_nothing(self):
+        import copy
+        pub = copy.deepcopy(publish.select(fx.inputs(fx.load())))
+        for k in ("actions", "raid", "decisions"):
+            pub["data"][k] = []
+        read = docx_read.read(docx_build.build(pub), "report.docx")
+        self.assertTrue(any(b.get("text") == docx_build.NONE for b in read.blocks))   # the report does write the empty line
+        self.assertEqual(stage(read, "report.docx", ON).items, [])
+
+    def test_the_skipped_line_is_the_one_the_report_writes(self):
+        self.assertEqual(word_import.NONE, docx_build.NONE)
+
+    def test_the_empty_line_is_skipped_under_every_heading_but_other_words_are_kept(self):
+        p = plan([H("Actions"), para(docx_build.NONE), H("Decisions"), item(docx_build.NONE), H("Risks"), para(docx_build.NONE),
+                  H("Actions"), para("None recorded yet, chase Sam")])
+        self.assertEqual([i.values["description"] for i in p.items], ["None recorded yet, chase Sam"])
+
+    def test_a_staged_item_is_described_with_one_full_stop_and_no_double_space(self):
+        for text in ("Send the plan.", "Send the plan..", "Send the plan"):
+            said = plan([H("Actions"), para(text)]).items[0].describe()
+            self.assertIn("Send the plan. Shown to the client", said)
+            self.assertNotIn("..", said)
+            self.assertNotIn("  ", said)
+
+
 class NothingIsDecidedForThePerson(unittest.TestCase):
     def test_nothing_is_accepted_until_the_person_says(self):
         p = plan([H("Actions"), item("One"), item("Two"), item("Three")])
