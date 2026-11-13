@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; PDF is a counted "not supported yet"; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; an unreadable PDF is a counted note; the 40,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
@@ -303,7 +303,7 @@ class OnTheRoute(tr.Base):
         status, got = self.question("What is the cutover plan?")
         self.assertEqual(status, 200, got)
         self.assertNotIn("ZQ-PDF", self.provider.sent[0])
-        self.assertTrue(any("PDF" in n and "not supported yet" in n for n in got["notes"]), got["notes"])
+        self.assertTrue(any("PDF" in n and "may be scanned, protected, damaged or too big" in n for n in got["notes"]), got["notes"])
 
 
 if __name__ == "__main__":

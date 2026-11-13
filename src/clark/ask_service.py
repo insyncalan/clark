@@ -16,7 +16,7 @@ stale tab or anything else that can reach the route.
 
 WHAT IS SENT. The question, the chat's earlier turns as the page holds them (they are kept nowhere else), and passages built only
 from what the published file would carry (ask_data.py, through publish.select), and passages from the project's own saved
-folders (ask_passages.py, every file opened again through reach.read_bytes; PDF is not supported yet and is counted). The
+folders (ask_passages.py, every file opened again through reach.read_bytes; a PDF that cannot be read is counted). The
 folders are read for the open project only. The reply carries how many files were left out for safety.
 
 READ ONLY. The database is only ever opened read-only here (`connect(path, readonly=True)`), so nothing in this module can write
@@ -344,7 +344,7 @@ def folder_notes(found):
     for label in getattr(found, "secret_labels", ()):         # #215: the file's label only, never what matched
         out.append(f"{label} {secret_screen.REASON}, so it was left out and the answer may be missing something. {secret_screen.NEXT_STEP}")
     if found.pdf:
-        out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: PDF is not supported yet.")
+        out.append(f"{found.pdf} PDF {'file was' if found.pdf == 1 else 'files were'} not read: it may be scanned, protected, damaged or too big.")
     if found.other:
         out.append(f"{found.other} {'file was' if found.other == 1 else 'files were'} not read because of its type.")
     if found.stopped:

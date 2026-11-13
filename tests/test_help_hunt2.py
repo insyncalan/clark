@@ -74,3 +74,10 @@ class HelpHunt2(unittest.TestCase):
         self.assertIn("This change needs your OK", text)
         self.assertIn("Confirm and apply", text)
         self.assertIn("[[Mod+Enter]]", text)
+
+    def test_help_says_pdf_files_are_read_and_the_note_does_not_say_unsupported(self):
+        text = entry("Settings")
+        self.assertNotIn("PDF files are not read yet", text)
+        self.assertIn("Word, PDF, text", text)
+        service = (ROOT / "src/clark/ask_service.py").read_text(encoding="utf-8")
+        self.assertNotIn("PDF is not supported yet", service)
