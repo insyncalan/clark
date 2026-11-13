@@ -502,7 +502,7 @@ def resolve_ref(field, text):
 OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
 
 
-def from_cell(name, value, kind, label=None, stored=()):
+def from_cell(name, value, kind, label=None, stored=(), table=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
     the column's name as the person sees it, for the reason given; it defaults to `name`. `stored` is what the item holds now
@@ -555,6 +555,10 @@ def from_cell(name, value, kind, label=None, stored=()):
     if isinstance(value, (datetime, date)):
         return None, f"{label} is text, but the cell holds a date ({_got(value)})"
     text = excel.unescape_text(str(cell_text(value)))
+    if table == "use_cases" and name == "owner":                # row 875: the change route's checks on a use case's owner (plain one line, 200 characters)
+        from clark import changes
+        if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
+            return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
         text = resolve_ref(name, text)
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
@@ -930,7 +934,7 @@ class _Reader:
             label = _label(table, f)
             if cell[f] is _FORMULA:
                 continue                                # a formula is not read: neither a value nor a cleared cell
-            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None))
+            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
@@ -1012,7 +1016,7 @@ class _Reader:
         for f in editable:
             if cell[f] is _FORMULA:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], _label(table, f))
+            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table)
             if err:
                 self.problem(f"{sheet}, row {rn} (new): {err}; the row was left out", sheet, rn, "", f)
                 bad = True
