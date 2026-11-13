@@ -575,7 +575,7 @@ class Published(unittest.TestCase):
                 cdp.js("location.hash = '#dashboard'", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-ucall]')", sid)), "the use cases list has Show all")
                 cdp.js("document.querySelector('[data-ucall]').click()", sid)
-                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded') === 'true'", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('[data-ucall]').textContent === 'Show the first 5'", sid)))
                 keys = cdp.js("Object.keys(localStorage).filter(k => /msAll|ucAll/.test(k))", sid)
                 self.assertEqual(keys, [], f"a published file wrote the editor's keys at {width}")
 
