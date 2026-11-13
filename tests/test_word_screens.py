@@ -241,6 +241,18 @@ class Export(Screens):
             self.open_export(p)
             self.assertFalse(p.js("document.querySelector('#word-client').checked"), "reopened: unticked, never remembered")
 
+    def test_after_the_export_is_saved_to_client_can_no_longer_be_ticked(self):
+        with chrome() as cdp:
+            self.start()
+            p = self.page(cdp)
+            self.open_export(p)
+            p.js("document.querySelector('[data-go]').click()")
+            p.until("document.querySelector('[data-go]').innerText === 'Close'", "it was saved")
+            self.assertTrue(p.js("document.querySelector('#word-client').disabled"))
+            p.js("document.querySelector('#word-client').click()")
+            self.assertFalse(p.js("document.querySelector('#word-client').checked"))
+            self.assertNotIn("The client will see this report.", self.text(p, "word-export-dialog"))
+
     def test_with_no_client_folder_to_client_is_off_and_says_so(self):
         with chrome() as cdp:
             self.start(saved=False)

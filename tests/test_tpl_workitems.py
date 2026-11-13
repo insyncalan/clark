@@ -562,7 +562,7 @@ class InThePage(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]')", "the start line")
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]').textContent"),
-                             "No filter is saved for this section yet. Save one on Work items and it shows here.")
+                             "No filter is set for this section yet. Set one below and it shows here.")
             steps = self.demo.last_step()
             p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-field=kinds] input[value=risk]').click()")
             p.saved()
