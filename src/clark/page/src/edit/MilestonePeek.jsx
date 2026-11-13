@@ -181,7 +181,7 @@ export function MilestoneEdit({ m }) {
   return (
     <>
       <MsHead>
-        <MsState m={m} /><MsSep />
+        <MsState m={m} dated={false} /><MsSep />
         <span class="pk-ms-owner" data-ms-head="owner"><Text m={m} field="owner" label="Owner" value={owner === DASH ? "" : owner} /></span><MsSep />
         <span class="pk-ms-progress" data-ms-head="progress"><Progress m={m} /></span>
       </MsHead>

@@ -105,6 +105,13 @@ function keys(e) {
 
 // Row 830: the archived use cases, read with the archived rows (the page's own data leaves them out), under the list: a footer with
 // Show archived, and when on a box with each one's name (it opens read-only), a tag, its linked work items and Restore.
+function restore(u) {      // the Restore button leaves with its row: the footer's toggle (or the restored row's name) takes the focus
+  change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored.").then(() => setTimeout(() => {
+    const el = document.querySelector("#usecases [data-arch-toggle]") || document.querySelector(`#usecases [data-uc="${CSS.escape(u.id)}"] .ucl-go`);
+    if (el) el.focus({ preventScroll: true });
+  }, 120));
+}
+
 function ArchivedUseCases() {
   const code = project.value, d = data.value;
   const [got, setGot] = useState(null);
@@ -114,12 +121,6 @@ function ArchivedUseCases() {
     return () => { live = false; };
   }, [code, d]);
   const list = got && got.code === code ? got.list : [];
-  const had = useRef(0), restoring = useRef(false);
-  useEffect(() => {      // the last one restored removes the box with the focused button: the focus goes to the page heading (only after Restore: a project switch or an Undo empties the list too)
-    if (restoring.current && had.current > 0 && list.length === 0) { const h = document.querySelector("#usecases h1") || document.querySelector("h1"); if (h) { h.setAttribute("tabindex", "-1"); h.focus(); } }
-    if (list.length !== had.current) restoring.current = false;
-    had.current = list.length;
-  });
   if (!list.length) return null;
   const on = archShown.value, n = list.length;
   const linked = (u) => ((d.actions || []).concat(d.raid || [], d.decisions || [])).filter((r) => r.use_case === u.id).length;
@@ -133,7 +134,7 @@ function ArchivedUseCases() {
               <li class="arch" key={u.id} data-arch-uc={u.id}>
                 <button type="button" class="link" onClick={() => openUseCase(u.id)}>{u.ref || "Use case"} · {u.title}</button>
                 <span class="tag arch">Archived</span>
-                <button type="button" class="btn sm" data-restore aria-label={`Restore ${u.ref || "Use case"} · ${u.title}`} onClick={() => { restoring.current = true; change({ kind: "use_cases", op: "restore", id: u.id, place: "cell" }, "Use case restored."); }}>Restore</button>
+                <button type="button" class="btn sm" data-restore aria-label={`Restore ${u.ref || "Use case"} · ${u.title}`} onClick={() => restore(u)}>Restore</button>
               </li>
             ))}
           </ul>
@@ -179,7 +180,10 @@ function UseCasesList() {
     const el = list.current && list.current.querySelector(`[data-uc="${CSS.escape(from)}"] .ucl-go`);
     if (el) el.focus({ preventScroll: true });
   }, []);
-  const clear = () => set({ line: "", tab: "all" });
+  const clear = () => {      // the button leaves with the empty state: the search box takes the focus
+    set({ line: "", tab: "all" });
+    setTimeout(() => { const q = document.getElementById("ucl-q"); if (q) q.focus({ preventScroll: true }); }, 60);
+  };
   const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
   // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Group by, Import, Export and Add use case
   // (the growing +) at its right end (the ruling: Import is the up arrow, Export the down arrow, as on Work items); the filter line under it. The tabs' counts follow the line.

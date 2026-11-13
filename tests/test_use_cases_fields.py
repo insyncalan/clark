@@ -190,7 +190,7 @@ class Live(unittest.TestCase):
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
             self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
-            self.until(cdp, sid, "document.activeElement && document.activeElement.tagName === 'H1'", "the last Restore moved the focus to the heading")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ucl-go')", "the last Restore moved the focus to the restored row's name (main's restore())")
             self.assertEqual((self.archived(), self.steps()), (False, before + 1), "Restore is one step")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
@@ -246,23 +246,6 @@ class Live(unittest.TestCase):
             self.assertEqual(self.steps(), before, "nothing was linked")
             self.keydown(cdp, sid, {})
             self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "a plain Enter still ticks it")
-
-    def test_only_restoring_the_last_archived_use_case_moves_the_focus_to_the_heading(self):
-        for cdp, window, scheme in self.each():
-            if self.archived():
-                continue
-            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Archive on the detail")
-            click(cdp, sid, "[data-ucd] [data-archive]")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archived-note]')", "archived")
-            cdp.js(f"location.hash = {json.dumps(LIST)}", sid)
-            self.until(cdp, sid, "!!document.querySelector('#usecases [data-archived-uc] [data-arch-toggle]')", "the Show archived footer drew")
-            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "the toast offers Undo")
-            cdp.js("document.activeElement && document.activeElement.blur()", sid)
-            click(cdp, sid, "[data-undo]")                # Undo of the archive empties the archived list: not a Restore
-            self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the list")
-            time.sleep(1)
-            self.assertNotEqual(cdp.js("document.activeElement && document.activeElement.tagName", sid), "H1", "Undo of an archive leaves the focus alone")
 
 
 class Published(unittest.TestCase):
