@@ -4,52 +4,39 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { listBackups, previewBackup, restoreBackup, setCopyFolder } from "./safetyApi.js";
 import * as L from "../logic/safety.js";
-import { announceSwitch, leaveSwitch } from "./switchToast.js";
 
 const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup, setCopyFolder };
 
-// Copy my backups to (row 1115 S5): one optional folder, off until a path is saved. It is saved when the box is left or on Enter, and when
-// a suggested folder is chosen: no Save button. A quiet toast says it with an Undo that puts the folder before back. An empty box turns it
-// off. The server decides; a refusal is shown under the box and the box keeps what was typed. Saving makes the folder when it isn't there.
+// Copy my backups to (#622): one optional folder, off until a path is saved. Saved by the Save button or Enter (never by leaving the box,
+// because saving makes the folder when it isn't there). An empty box turns it off. The server decides; a refusal is shown under the box
+// and the box keeps what was typed. The OneDrive folders it found are offered as one-press choices that fill the box.
 function CopyFolder({ list, api, saved }) {
   const [typed, setTyped] = useState(list.copy_folder || "");
   const [said, setSaid] = useState(null);                    // null, or {kind: "success" | "error", text}
   const [busy, setBusy] = useState(false);
-  const kept = useRef(list.copy_folder || "");               // the folder clark has now
-  const flying = useRef(false);
-  const box = useRef(null);
-  async function save(value) {
-    const sent = typeof value === "string" ? value : box.current ? box.current.value : typed;
-    if (flying.current || sent === kept.current) return;       // nothing changed, or one is on its way: Enter and then the blur must not send twice
-    flying.current = true;
+  async function save() {
+    if (busy) return;                                    // not `disabled` while it works: a disabled button drops the keyboard's focus to the page
     setBusy(true);
     setSaid(null);
-    const r = await api.setCopyFolder(sent);
-    flying.current = false;
+    const r = await api.setCopyFolder(typed);
     setBusy(false);
     if (r.status === 200 && r.body && r.body.ok === true) {
-      const before = kept.current;
-      kept.current = r.body.folder;
       setTyped(r.body.folder);
       saved(r.body.folder);
       setSaid({ kind: "success", text: r.body.message });
-      announceSwitch(r.body.message, async () => {
-        const back = await api.setCopyFolder(before);
-        if (back.status === 200 && back.body && back.body.ok === true) { kept.current = back.body.folder; setTyped(back.body.folder); saved(back.body.folder); setSaid(null); return { ok: true }; }
-        return { ok: false, message: L.answerWords(back.status, back.body) };
-      }, before ? `Backups are copied to ${before} again.` : "Copying backups is off again.");
     } else setSaid({ kind: "error", text: L.answerWords(r.status, r.body) });
   }
   return (
     <div class="fld copy-fld" id="safety-copy">
       <label for="safety-copy-box">{list.copy_label}</label>
-      <input id="safety-copy-box" ref={box} type="text" value={typed} autocomplete="off" spellcheck={false} data-copy-folder aria-describedby="safety-copy-line safety-copy-said"
+      <input id="safety-copy-box" type="text" value={typed} autocomplete="off" spellcheck={false} data-copy-folder aria-describedby="safety-copy-line safety-copy-said"
         aria-invalid={said && said.kind === "error" ? "true" : undefined}
-        onInput={(e) => setTyped(e.currentTarget.value)} onBlur={() => save()} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); save(); } }} />
+        onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
       <small id="safety-copy-line">{list.copy_help}</small>
       {(list.copy_suggestions || []).map((path) => (
-        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) { setTyped(path); save(path); } }}>Use {path}</button>
+        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use {path}</button>
       ))}
+      <div class="row"><button type="button" class="btn sm" data-copy-save aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
       <div id="safety-copy-said" role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
     </div>
   );
@@ -68,7 +55,6 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
     else setState({ phase: "failed", list: null, message: L.answerWords(r.status, r.body) });
   }
   useEffect(() => { load(); }, []);
-  useEffect(() => leaveSwitch, []);
 
   // The answer is drawn below the list, so it is brought into view and given focus (a screen reader reads it, the keyboard stays there).
   const panelEl = useRef(null);

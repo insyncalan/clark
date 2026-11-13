@@ -1,5 +1,5 @@
-"""Row 1115, S5: every setting saves at once. Appearance and Spacing say their new choice in a quiet toast with one Undo; no Settings card has a
-Save button. In a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_save_1115
+"""Row 1115, S5: every setting saves at once. Appearance and Spacing say their new choice in a quiet toast with one Undo; the Brand choice has no Save
+button and the Backups copy-folder keeps its Save (a half-typed path must not be saved). In a real browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_save_1115
 Chrome is required: these tests fail, never skip, without it."""
 import unittest
 
@@ -40,13 +40,13 @@ class SaveAtOnce(Head):
             p.settled("nothing to say")
             self.assertFalse(p.js("!!document.querySelector('.toast')"))
 
-    def test_S5_no_settings_card_has_a_save_button(self):
+    def test_S5_the_only_save_left_is_the_backups_copy_folder_which_must_not_save_half_a_path(self):
         for w in WIDTHS:
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 self.open_settings(p, w)
-                self.assertEqual(p.js("[...document.querySelectorAll('.set-cards button')].filter(b => /^save\\b/i.test(b.textContent.trim())).map(b => b.textContent)"), [])
-                self.assertEqual(p.js("document.querySelectorAll('[data-brand-save], [data-copy-save]').length"), 0)
+                self.assertEqual(p.js("[...document.querySelectorAll('.set-cards button')].filter(b => /^save\\b/i.test(b.textContent.trim())).filter(b => !b.matches('[data-copy-save]')).map(b => b.textContent)"), [])
+                self.assertEqual(p.js("document.querySelectorAll('[data-brand-save]').length"), 0, "choosing a brand saves at once")
 
 
 if __name__ == "__main__":
