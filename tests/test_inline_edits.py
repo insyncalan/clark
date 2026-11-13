@@ -15,6 +15,7 @@ import re
 import shutil
 import sys
 import tempfile
+import time
 import unittest
 from _editor_checks import for_url
 from pathlib import Path
@@ -308,6 +309,21 @@ class Live(unittest.TestCase):
             return st.data_for(code)
         finally:
             st.close()
+
+    def settled_click(self, cdp, sid, selector, ref):
+        """Main-fix (CI run 43517892226): a click on a date cell landed on the open peek of another row (DIV.pk-last at the click point, hash item=TUL-D-013),
+        so the panel never opened. Say at once if a peek is open, and click only once the cell has held the same box over two looks 0.1 s apart."""
+        self.assertNotIn("item=", cdp.js("location.hash", sid), f"{ref}: a peek is open before the click ({cdp.js('location.hash', sid)})")
+        cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
+        look = f"JSON.stringify(document.querySelector({json.dumps(selector)}).getBoundingClientRect())"
+        before = None
+        for _ in range(30):
+            now = cdp.js(look, sid)
+            if now == before:
+                break
+            before = now
+            time.sleep(0.1)
+        click(cdp, sid, selector)
 
     def row(self, table, ref):
         st = open_store(self.path, onedrive_roots=[])
@@ -1131,7 +1147,7 @@ class Live(unittest.TestCase):
                         self.assertEqual(cdp.js("!!document.querySelector('[data-undo]')", sid), False, f"{ref}: {how} leaves nothing to undo")
 
                     # one Esc, after moving the day and the month: closed, as it was, focus back on the row's date
-                    click(cdp, sid, cell)
+                    self.settled_click(cdp, sid, cell, ref)
                     opened("a click")
                     key(cdp, sid, "ArrowRight")
                     key(cdp, sid, "PageDown")
@@ -1139,7 +1155,7 @@ class Live(unittest.TestCase):
                     kept("one Esc")
                     self.assertEqual(self.focused(cdp, sid), f"{ref}:due", f"{ref}: focus is back on the row's date")
                     # a click away
-                    click(cdp, sid, cell)
+                    self.settled_click(cdp, sid, cell, ref)
                     opened("a click")
                     key(cdp, sid, "ArrowLeft")
                     click(cdp, sid, "h1")
