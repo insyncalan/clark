@@ -113,6 +113,23 @@ class Widths(unittest.TestCase):
         self.assertNotIn(col, js(f"localStorage.getItem('clark.cols.{name}')"))
 
 
+    def test_saved_widths_from_a_wide_window_do_not_crush_the_item_column_at_900(self):
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.visit(cdp, 900, scheme, "#work&p=TUL&f=mode:all")
+                js = lambda e: cdp.js(e, sid)  # noqa: E731
+                self.assertTrue(wait(lambda: js("document.querySelectorAll('#work tbody tr[data-id]').length > 0"), 20))
+                saved = '{"owner":400,"due":300}'
+                js(f"localStorage.setItem('clark.cols.work', {json.dumps(saved)})")
+                reload_to_new_page_cdp(cdp, sid, "document.querySelectorAll('#work tbody tr[data-id]').length > 0", "the table is back")
+                got = js("""(() => { const t = document.querySelector('#work table.items'), c = t.parentElement, i = document.querySelector('#work table.items th.c-item, #work table.items thead th');
+                    return {scroll: document.documentElement.scrollWidth, inner: innerWidth, table: t.getBoundingClientRect().width, card: c.clientWidth, item: i.getBoundingClientRect().width,
+                            stored: localStorage.getItem('clark.cols.work')}; })()""")
+                self.assertLessEqual(got["scroll"], got["inner"] + 1, "the page does not scroll sideways")
+                self.assertLessEqual(got["table"], got["card"] + 1, "the table fits its card")
+                self.assertGreaterEqual(got["item"], 150, "the Item column keeps room")
+                self.assertEqual(got["stored"], saved, "the saved widths are left as they were")
+
     def test_a_drag_writes_the_store_once_when_it_ends_and_starts_from_the_latest_width(self):
         src = (Path(page.__file__).parent / "src" / "edit" / "colWidths.jsx").read_text(encoding="utf-8")
         self.assertIn("now.current", src, "put reads the latest widths, not the render a drag began in")
