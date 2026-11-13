@@ -54,14 +54,25 @@ class Paths(unittest.TestCase):
         with env(ON):
             self.assertEqual(pl.shown("/home/ann/Reports/a.pdf", home="/home/ann"), "~\\Reports\\a.pdf")
             self.assertEqual(pl.shown("/home/ann", home="/home/ann"), "~")
-            self.assertEqual(pl.shown("/srv/x", home="/home/ann"), "\\srv\\x")
             self.assertEqual(pl.with_tilde("/home/ann/Reports", home="/home/ann"), "~\\Reports")
-            self.assertEqual(pl.with_tilde("/srv/x", home="/home/ann"), "\\srv\\x")
 
-    def test_folder_phrase_reads_a_windows_path_either_way(self):
+    def test_on_container_paths_outside_the_home_keep_their_slashes(self):
+        with env(ON):
+            self.assertEqual(pl.shown("/data", home="/home/ann"), "/data")
+            self.assertEqual(pl.shown("/data/x", home="/"), "/data/x")
+            self.assertEqual(pl.with_tilde("/data/x", home="/home/ann"), "/data/x")
+
+    def test_with_tilde_with_a_home_of_slash_writes_no_tilde(self):
         for setting in ({}, ON):
             with env(setting):
-                self.assertEqual(pl.folder_phrase("C:\\Users\\Ann\\Reports"), "the folder “Reports”")
+                self.assertEqual(pl.with_tilde("/data/x", home="/"), "/data/x")
+                self.assertEqual(pl.with_tilde("/", home="/"), "/")
+
+    def test_folder_phrase_is_the_same_on_and_off_for_a_container_path(self):
+        """item 629: folder_phrase names the last folder and does not go through the host form."""
+        for setting in ({}, ON):
+            with env(setting):
+                self.assertEqual(pl.folder_phrase("/data/Reports"), "the folder “Reports”")
 
 
 class AskClark(unittest.TestCase):

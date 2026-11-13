@@ -87,7 +87,8 @@ def windows_host(environ=None):
 
 
 def _host_form(text):
-    """item 629: `text`, a path written with "/", in the Windows form (with backslashes) when the host is Windows; as it is otherwise."""
+    """item 629: `text`, a home-relative path written with "~/", in the Windows form (with backslashes) when the host is Windows; as it is
+    otherwise. Only the home folder is the host's: a path outside it (such as /data in the container) is the container's and stays as it is."""
     return text.replace("/", "\\") if windows_host() else text
 
 
@@ -460,13 +461,13 @@ def shown(path, home=None):
     everything is under it, so nothing is written from "~"."""
     path, home = Path(path), Path(home or Path.home())
     if home == Path(home.anchor) or not path.is_absolute():
-        return _host_form(str(path))
+        return str(path)
     if path == home:
         return "~"
     try:
         return _host_form("~/" + path.relative_to(home).as_posix())
     except ValueError:
-        return _host_form(str(path))
+        return str(path)
 
 
 _HOST_HOME = re.compile(r"^(?:[\\/]{2}\?[\\/]UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|[\\/]{2}\?[\\/]"
@@ -974,7 +975,9 @@ def folder_phrase(path, capital=False):
 def with_tilde(path, home=None):
     """`path` as a person reads it: the home folder written ~, so a message never shows the account's folder name."""
     text, home = str(path), str(Path(home) if home else Path.home())
-    return _host_form("~" + text[len(home):]) if text == home or text.startswith(home.rstrip("/") + "/") else _host_form(text)
+    if not home.rstrip("/"):                    # item 629: a home of "/" holds everything, so nothing is written from "~"
+        return text
+    return _host_form("~" + text[len(home):]) if text == home or text.startswith(home.rstrip("/") + "/") else text
 
 
 def start_detached(argv, env, log_path, cwd=None, popen=None, on=None):
