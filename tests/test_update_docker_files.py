@@ -1,4 +1,4 @@
-"""#633: the Docker route's update words and the compose start that runs the data check first.
+"""The Docker route's update words and the compose start that runs the data check first.
 
 Run: python3 dev/run_tests.py test_update_docker_files
 Reads files only. No server, no Docker.
@@ -52,6 +52,37 @@ class DockerUpdate(unittest.TestCase):
             self.assertIn("HELD", done.stdout, "unless-stopped restarts any exit, 0 included, so a refusal must not exit")
             self.assertNotIn("SERVER", done.stdout)
             self.assertEqual(done.stderr.count("clark did not start"), 1)
+
+    def test_a_held_container_stops_at_once_on_the_stop_signal_even_while_sleep_is_still_running(self):
+        import os, signal, subprocess, tempfile, time
+        line = re.search(r'^\s*command: \["sh", "-c", "(.+)"\]$', COMPOSE, re.M).group(1).replace("\\\"", '"').replace("$$", "$")
+        with tempfile.TemporaryDirectory() as d:
+            fake = Path(d) / "python3"
+            fake.write_text("#!/bin/sh\nexit 2\n", encoding="utf-8")
+            fake.chmod(0o755)
+            up, pidfile = Path(d) / "up", Path(d) / "sleep.pid"
+            idle = Path(d) / "sleep"      # a long-running sleep, as the real one is: it never ends by itself during the test
+            idle.write_text('#!/bin/sh\necho $$ > "%s"\ntouch "%s"\nexec /bin/sleep 60\n' % (pidfile, up), encoding="utf-8")
+            idle.chmod(0o755)
+            env = dict(os.environ, PATH=d + os.pathsep + os.environ["PATH"])
+            proc = subprocess.Popen(["sh", "-c", line], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env)
+            try:
+                for _ in range(100):
+                    if up.exists():
+                        break
+                    time.sleep(0.05)
+                self.assertTrue(up.exists(), "the hold began")
+                self.assertIsNone(proc.poll(), "held, not exited")
+                proc.send_signal(signal.SIGTERM)
+                self.assertEqual(proc.wait(timeout=10), 0, "docker stop's TERM ends the hold with 0, not after the sleep")
+            finally:
+                try:
+                    os.kill(int(pidfile.read_text().strip()), signal.SIGKILL)      # first: its open pipes would hold communicate()
+                except (OSError, ValueError):
+                    pass
+                if proc.poll() is None:
+                    proc.kill()
+                proc.communicate()
 
     def test_any_other_check_code_is_passed_on_so_docker_restarts_it(self):
         for code in (137, 3):

@@ -47,7 +47,7 @@ from clark.store import Invalid
 KEEP = 14
 TAGS = ("daily", "undo", "import", "changes", "restore", "migrate")
 FAMILY = {"daily": "daily", "undo": "undo", "import": "import", "changes": "import", "restore": "restore", "migrate": "migrate"}     # each family is counted on its own
-FLOOR = {"restore": 2, "migrate": 3}       # the fewest of a family kept whatever `keep` is; #633: a person can go back three updates
+FLOOR = {"restore": 2, "migrate": 3}       # the fewest of a family kept whatever `keep` is; a person can go back three updates
 KIND_WORDS = {"daily": "daily", "undo": "before an undo", "import": "before an import", "changes": "before a change",
               "restore": "restored copy", "migrate": "before an update"}     # what the restore list shows a person for each tag
 ROUTE_TAG = {"undo": "undo", "excel": "import", "team": "changes"}          # the routes that always take a copy; none takes "migrate" (#126's migration calls make(..., family="migrate") itself)

@@ -1,4 +1,4 @@
-"""#633: `python3 -m clark check-data --data FOLDER`, the check run before the server starts in Docker: the data is at this
+"""`python3 -m clark check-data --data FOLDER`, the check run before the server starts in Docker: the data is at this
 version (nothing happens), older (a copy is taken, then it is brought up to date) or newer (refused, nothing changed, exit 2).
 
 Run: python3 dev/run_tests.py test_check_data
@@ -100,6 +100,30 @@ class SameData(Base):
         code, out, err = run(self.dir)
         self.assertEqual((code, err), (0, ""))
         self.assertEqual(list(self.dir.iterdir()), [])
+
+
+class EmptyAndMixed(Base):
+    def test_an_empty_data_file_is_no_data_yet_exit_0_and_untouched(self):
+        path = self.dir / "clark.db"
+        path.write_bytes(b"")
+        self.assertIsNone(store_module.data_version(path))
+        before = names(self.dir)
+        code, out, err = run(self.dir)
+        self.assertEqual((code, err), (0, ""))
+        self.assertEqual((path.stat().st_size, names(self.dir)), (0, before))
+
+    def test_an_older_file_with_a_newer_looking_copy_beside_it_is_brought_up_to_date_and_the_copy_is_left_alone(self):
+        path = make_v1(self.dir)
+        (self.dir / "backups").mkdir()
+        stray = self.dir / "backups" / "clark-20990101T000000Z-daily.db"
+        shutil.copyfile(path, stray)
+        set_version(stray, store_module.SCHEMA_VERSION + 5)
+        stray_before = sha(stray)
+        code, out, err = run(self.dir)
+        self.assertEqual((code, err), (0, ""), out)
+        self.assertEqual(version(path), str(store_module.SCHEMA_VERSION))
+        self.assertEqual(sha(stray), stray_before)
+        self.assertEqual(len(copies(self.dir, "migrate")), 1)
 
 
 class LockedData(Base):

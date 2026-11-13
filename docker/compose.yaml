@@ -17,7 +17,7 @@ services:
     image: python:3.12.12-slim-bookworm
     working_dir: /clark
     # The same start as the Terminal route's: python3 -m clark checks the pages (and in a checkout would build them), then serves.
-    # First the data check (#633): it reads the data's version, takes a pre-update copy when this clark is newer than the data, and refuses
+    # First the data check: it reads the data's version, takes a pre-update copy when this clark is newer than the data, and refuses
     # (exit 2, "start from the newer clark folder. Nothing was changed.") when the data is newer than this clark. Only then the server.
     # restart is unless-stopped (item 1080), which restarts on ANY exit, 0 included, so a refusal must not end the container: it would loop,
     # and a data that failed half way would take a new pre-update copy on each loop. So a refusal (exit 1 or 2) prints the words once and

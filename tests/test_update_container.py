@@ -1,4 +1,4 @@
-"""#633: in the Docker container Settings > Update offers nothing to install: the clark folder is shared in read-only, so an
+"""In the Docker container Settings > Update offers nothing to install: the clark folder is shared in read-only, so an
 update is a newer clark folder started in its place. Status says so in the Update row's own words (the page then hides Update
 from file and Undo update); review, install and Undo update refuse in the same words and touch nothing.
 

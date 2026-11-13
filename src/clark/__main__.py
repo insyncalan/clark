@@ -410,7 +410,7 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
 
 
 def check_main(argv, out, err, home=None, onedrive_roots=None):
-    """`python3 -m clark check-data [--data FOLDER]` (#633): the exit code. 0: the data is at this version, there is none yet, or it was
+    """`python3 -m clark check-data [--data FOLDER]`: the exit code. 0: the data is at this version, there is none yet, or it was
     older and is now brought up to date (after the copy store.bring_up_to_date takes). 2: it needs a newer clark, and nothing was
     changed (the version is read only, never written). 1: anything else, in plain words, with the data as it was."""
     args = check_parser().parse_args(argv)

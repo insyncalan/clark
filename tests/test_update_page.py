@@ -195,7 +195,7 @@ class Card(InBrowser):
         self.assertEqual(self.text("#update-blocked"), updates.MESSAGES["git"])
         self.assertFalse(self.present("[data-review]") or self.present("[data-choose]"))
 
-    def test_633_in_docker_the_update_row_says_so_and_neither_the_file_row_nor_undo_is_drawn(self):
+    def test_in_docker_the_update_row_says_so_and_neither_the_file_row_nor_undo_is_drawn(self):
         self.replies(status=OK({**STATUS, "available": None, "blocked": up.CONTAINER, "last": None}))
         self.mount()
         self.assertEqual(self.text("#update-blocked"), up.CONTAINER)

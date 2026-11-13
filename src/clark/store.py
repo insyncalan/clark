@@ -2068,7 +2068,7 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
 MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
                     "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
 NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
-# #633: the same refusal as said by the check run before the server starts in Docker, where the fix is a folder, not an install.
+# The same refusal as said by the check run before the server starts in Docker, where the fix is a folder, not an install.
 # NEWER_DATA stays as it is for the Mac (tests pin it).
 NEWER_FOLDER = "This data needs a newer clark. Start from the newer clark folder. Nothing was changed."
 
@@ -2083,7 +2083,7 @@ MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of cla
 
 
 def data_version(path):
-    """#633: the schema version written in the data file at `path`, read and nothing else (a read-only connection: no step, no copy,
+    """The schema version written in the data file at `path`, read and nothing else (a read-only connection: no step, no copy,
     no migration, no table made), or None when there is no file. Raises Invalid when the file is not a clark database or has no
     usable version. Before the try: Path.is_file and stat (an OSError on an unreadable folder is left to the caller, which says it in words)."""
     path = Path(path)
