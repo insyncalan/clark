@@ -14,6 +14,7 @@ import re
 import socket
 import threading
 import unittest
+from unittest import mock
 from importlib import import_module
 from pathlib import Path
 
@@ -65,10 +66,51 @@ class Route(unittest.TestCase):
     def test_a_good_call_answers_then_stops_the_server_once(self):
         status, _, body = self.quit()
         self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body), {"ok": True, "quit": True})
+        self.assertEqual(json.loads(body), {"ok": True, "quit": True, "finishing": None})
         self.assertTrue(self.s.stops.acquire(timeout=WAIT), "the server was told to stop")
         self.assertTrue(self.not_stopped(), "and only once")
         self.assertEqual(self.s.count, 1)
+
+    def quit_while(self, path):
+        """Quit while a POST to `path` is still running (its route waits until released); answers the quit's body."""
+        started, release = threading.Event(), threading.Event()
+
+        def slow(handler, req):
+            started.set()
+            release.wait(10)
+            handler.send(200, {"ok": True})
+        self.addCleanup(release.set)
+        with mock.patch.dict(sv.POST_ROUTES, {path: slow}):
+            t = threading.Thread(target=lambda: self.s.api("POST", path, b"{}"))
+            t.start()
+            self.assertTrue(started.wait(WAIT), "the job is running")
+            status, _, body = self.quit()
+            release.set()
+            t.join(WAIT)
+        self.assertEqual(status, 200)
+        return json.loads(body)
+
+    def test_a_running_save_is_named_so_the_card_can_say_it_finishes_first(self):
+        self.assertEqual(self.quit_while("/api/change"), {"ok": True, "quit": True, "finishing": "save"})
+
+    def test_a_running_publish_is_named_so_the_card_can_say_it_finishes_first(self):
+        self.assertEqual(self.quit_while("/api/publish"), {"ok": True, "quit": True, "finishing": "publish"})
+
+    def test_a_request_that_writes_nothing_is_not_named_a_save(self):
+        for path in ("/api/ask", "/api/preview", "/api/ai/suggest", "/api/sneak/read", "/api/providers/connect"):
+            with self.subTest(path=path):
+                self.assertEqual(self.quit_while(path), {"ok": True, "quit": True, "finishing": None})
+                self.assertEqual(sv.BUSY_KINDS, {"save": 0, "publish": 0})
+
+    def test_every_request_that_writes_data_or_a_file_is_named_a_save(self):
+        for path in ("/api/section-body", "/api/undo", "/api/section-image", "/api/backups/restore", "/api/client-folder",
+                     "/api/word-import", "/api/excel-import"):
+            with self.subTest(path=path):
+                self.assertEqual(self.quit_while(path), {"ok": True, "quit": True, "finishing": "save"})
+
+    def test_after_a_job_ends_the_quit_is_idle_again(self):
+        self.quit_while("/api/change")
+        self.assertEqual(sv.running_kind(), None)
 
     def test_no_token_or_a_wrong_one_stops_nothing(self):
         self.assertEqual(self.quit(token="")[0], 403)
@@ -122,7 +164,7 @@ class AProcess(TempFolder):
         self.assertEqual(post(port, "/api/quit", {}, {"X-Clark-Token": "wrong"})[0], 403)
         self.assertEqual(get(port, "/health")[0], 200, "a refused call leaves it running")
         status, body = post(port, "/api/quit", {}, {"X-Clark-Token": token})
-        self.assertEqual((status, body), (200, {"ok": True, "quit": True}))
+        self.assertEqual((status, body), (200, {"ok": True, "quit": True, "finishing": None}))
         code, seen, errors = p.finish()
         self.assertEqual(code, 0)
         self.assertEqual(errors, [])

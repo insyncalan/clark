@@ -5,6 +5,7 @@ import { render } from "preact";
 import { useState } from "preact/hooks";
 import { GanttTable } from "@src/gantt/components/GanttTable.jsx";
 import * as grid from "@src/gantt/logic/grid.js";
+import "@src/edit/fadeCopy.js";   // the edit page registers the fade-out copy; the bare page stands in for it
 
 const T = { grid, calls: [], lines: [], props: {} };
 window.T = T;

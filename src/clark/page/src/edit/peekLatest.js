@@ -23,7 +23,7 @@ export function warnFor(row, today) {
     return { kind: "weekend", text: `Due on a ${NAMES[wd]} (${showDate(due)}): a working day is usually meant`,
       moves: [{ label: `Move to Friday ${showDate(fri)}`, date: fri }, { label: `Move to Monday ${showDate(mon)}`, date: mon }] };
   }
-  if (row.kind === "action" && n < t) {
+  if (row.kind === "action" && n < t && row.status !== "Completed") {
     const fri = quickDates(today)[2][1], week = addDays(today, 7);
     return { kind: "overdue", text: `${plural(t - n, "day")} overdue (due ${showDate(due)})`,
       moves: [{ label: `Move to Friday ${showDate(fri)}`, date: fri }, { label: "Move a week on", date: week }] };

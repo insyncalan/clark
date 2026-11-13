@@ -42,7 +42,7 @@ FIRST_SLICE_DESCRIPTIONS = [
     {"id": "needs", "description": "What the project needs from the client: decisions, information and dates, each with who it is from and when it is needed by."},
     {"id": "link-preview", "description": "A web page shown as a card you write: a dashboard, a news item, a recording."},
     {"id": "current-state", "description": "The state of the project in a few lines, to sit beside another section."},
-    {"id": "plan-summary", "description": "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in."},
+    {"id": "plan-summary", "description": "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in."},
     {"id": "one-doc", "description": "A single file to read."},
     {"id": "text", "description": "Words under a heading, written in clark’s one editor."},
     {"id": "table", "description": "Anything with rows: a budget line, a cut-over plan, a training schedule."},
@@ -145,7 +145,7 @@ class Logic(unittest.TestCase):
             "image-caption": ("One picture with its caption.", ["Heading", "Image", "Caption"], ["half", "full"]),
             "gallery": ("Pictures in a grid, each with a caption.", ["Heading", "Image", "Caption", "Image", "Caption", "Image"], ["full"]),
             "current-state": ("The state of the project in a few lines, to sit beside another section.", ["Heading", "Text"], ["full", "half"]),
-            "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links", "AI menu"], ["full", "half"]),
+            "plan-summary": ("Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.", ["Heading", "Rich text: headings, lists, quote, links"], ["full", "half"]),
             "gantt": ("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The Gantt chart"], ["full"]),
             "gantt-table": ("The plan as a table, from your Gantt lines. Only lines put in the client view show.", ["Heading", "The plan table"], ["full", "half"]),      # row 1068: a template section, full or half (the owner's ruling)
             "one-doc": ("A single file to read.", ["Heading", "File", "Text"], ["half", "full"]),

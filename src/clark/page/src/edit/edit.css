@@ -540,6 +540,9 @@ textarea.tpl-field { resize: vertical; }
 /* #936: the Quote and the Link preview draw no coloured side stripe in Edit (a quiet panel, a plain frame); the published file keeps its own. Tokens only. */
 .tpl-quote { padding: var(--space-2) var(--space-4); border-left: 0; border-radius: var(--radius); background: var(--grey-50); }
 .tpl-lc { border-left: 1px solid var(--grey-200); }
+/* row 936: the draft-email internal note and the rich-text field quote draw no one-side stripe in Edit (a quiet panel and a plain frame instead); amber attention stripes elsewhere stay */
+.de-internal { border-left: 0; border-radius: var(--radius-sm); border: 1px solid var(--grey-200); }
+.rt-host .ProseMirror blockquote { padding: var(--space-1) var(--space-3); border-left: 0; border-radius: var(--radius-sm); background: var(--grey-50); }
 
 /* Section templates, G4 Dates and lists (#96): the Edit parts of Key dates and Checklist. Tokens only. */
 .tple { margin: var(--space-2) 0; min-width: 0; }
@@ -1034,8 +1037,15 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
 }
 /* row 962: the same for the filter suggestion list, a column's filter box, the Gantt Add menu, the template settings box and the Board's small date and decision boxes. */
 @media (prefers-reduced-motion: no-preference) {
-  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
+  :root:not([data-motion="reduce"]) :is(.flist, .fbox, .gt-menu, .gt-pop, .rt-slash, .tset, .dpick).leaving { pointer-events: none; animation: m-out var(--dur-instant) var(--ease-exit) forwards; }
 }
+
+/* The fade copy of the Gantt table's menu sits on the body, outside [data-gt], so the shell's `[data-gt] .gt-menu ...` rules (the button look, the red delete, the hr) do not reach it:
+   the same rules for the copy, so it keeps its look while it fades. */
+body > .gt-menu.leaving { min-width: 200px; border: 1px solid var(--border); padding: var(--space-1); }
+body > .gt-menu.leaving button { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: var(--text); padding: 6px 10px; border-radius: var(--radius-sm); font: inherit; }
+body > .gt-menu.leaving button.gt-danger { color: var(--status-red-text); }
+body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); margin: var(--space-1) 0; }
 
 /* row 938-6: a Gantt task or phase bar drawn for the first time grows from its start (GanttChart.jsx puts .gt-grow on it until the animation ends; never on a dragged bar or a milestone). Edit.css only: shell.css is the published page's. Same gate as the Motion block. */
 @media (prefers-reduced-motion: no-preference) {

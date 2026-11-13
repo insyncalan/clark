@@ -4,14 +4,15 @@
 import { render } from "preact";
 import * as gantt from "@src/gantt/logic/gantt.js";
 import * as section from "@src/gantt/logic/section.js";
-import { data, fromFile } from "@src/stores/report.js";
+import { data, fromFile, asAt } from "@src/stores/report.js";
 import { templateFor, templateEmpty } from "@src/templates/index.js";
 import { templateEdit } from "@src/edit/templates/index.js";
 
-window.K = { gantt, section, templateEmpty };
+window.K = { gantt, section, templateEmpty, templateFor };
 window.mountSection = (d, opts = {}) => {
   data.value = d;
   fromFile.value = !!opts.file;
+  asAt.value = opts.asAt || "";
   const type = opts.type || "gantt";
   const sec = { id: "S-1", type, title: type === "gantt" ? "Gantt" : "Table", body: "" };
   const root = document.getElementById("root");
