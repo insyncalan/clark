@@ -485,9 +485,9 @@ html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --size-sec:
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
 .secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--secs-gap); margin-top: var(--secs-mt); padding: var(--secs-pad); overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: var(--sec-inset); position: relative; min-width: 0; padding: var(--sec-pad-t) var(--sec-px) var(--sec-pad-b); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
-/* Row 1152: the section tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; from 901 to 1303 px
+/* Row 1152: the editor dashboard tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; from 901 to 1303 px
    Edit's control has no room beside the tile any more, so it sits inside the tile's padding, as it does at 900 px and below. */
-@media (min-width: 901px) { html[data-density="comfortable"] .frame.report .secs { margin-left: -28px; margin-right: -28px; } }
+@media (min-width: 901px) { html[data-density="comfortable"] #report-bar + #report .secs { margin-left: -28px; margin-right: -28px; } }
 @media (min-width: 901px) and (max-width: 1303px) { html[data-density="comfortable"] #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } html[data-density="comfortable"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-density="comfortable"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
@@ -499,7 +499,9 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-head { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
 /* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
 .sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
-.sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-sec); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+.sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+/* Row 1152: only the editor dashboard (the report bar sits before its #report) takes the prototype tile heading; a published file keeps --size-h2. --size-sec is defined once, per density, above. */
+#report-bar + #report .sec-h { font-size: var(--size-sec); }
 .quiet { margin: 6px 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
 .sec-body { margin: var(--space-2) 0 var(--space-2); min-width: 0; overflow-wrap: anywhere; color: var(--text); }

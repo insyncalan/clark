@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_dash_tiles_header
 """
 import unittest
 
+from _publish import PublishedFile
 from test_glance_page import Setup
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
@@ -33,6 +34,16 @@ class TileWidth(Setup):
             p = self.show(cdp, 1400, standard=True)
             self.assertEqual(p.js("document.documentElement.dataset.density"), "compact")
             self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec-h')).fontSize"), "18px")
+
+
+
+class PublishedHeading(PublishedFile, Setup):
+    def test_published_page_heading_stays_24px(self):
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width)
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('.sec-h')).fontSize"), "24px")
 
 
 if __name__ == "__main__":
