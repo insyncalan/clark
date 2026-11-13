@@ -112,8 +112,8 @@ export function Safety({ api = REAL, reload = () => window.location.reload(), st
                   <li key={v.name} data-backup={v.name}>
                     <span class="when num">{v.when}</span> <span class="kind">{v.kind}</span> <span class="muted size">{v.size}</span>
                     <span class="acts">
-                      <button type="button" class="btn sm" data-preview disabled={busy} onClick={(e) => look(v.name, false, e)}>{L.LABELS.preview}</button>
-                      <button type="button" class="btn sm" data-restore disabled={busy} onClick={(e) => look(v.name, true, e)}>{L.LABELS.restore}</button>
+                      <button type="button" class="btn sm" data-preview aria-label={`${L.LABELS.preview} ${v.when}`} disabled={busy} onClick={(e) => look(v.name, false, e)}>{L.LABELS.preview}</button>
+                      <button type="button" class="btn sm" data-restore aria-label={`${L.LABELS.restore} ${v.when}`} disabled={busy} onClick={(e) => look(v.name, true, e)}>{L.LABELS.restore}</button>
                     </span>
                   </li>
                 );
