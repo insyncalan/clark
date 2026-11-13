@@ -29,6 +29,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [ticks, setTicks] = useState({});
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
   const input = useRef(null);
+  const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
 
   async function chosen(e) {
     const file = e.currentTarget.files && e.currentTarget.files[0];
@@ -69,22 +70,29 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   async function doImport() {
     const p = step.plan;
     const accept = L.acceptedNumbers(p.items, ticks);
-    if (!accept.length) return;
-    setProblem("");
-    setStep({ at: "applying", plan: p });
-    const r = await api.apply(project, p.plan, accept, p.unrecorded);
-    if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
-    onDone(r.body);
-    setStep({ at: "done", message: r.body.message, applyId: r.body.apply_id });
+    if (!accept.length || busy.current) return;
+    busy.current = true;
+    try {
+      setProblem("");
+      setStep({ at: "applying", plan: p });
+      const r = await api.apply(project, p.plan, accept, p.unrecorded);
+      if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
+      onDone(r.body);
+      setStep({ at: "done", message: r.body.message, applyId: r.body.apply_id });
+    } finally { busy.current = false; }
   }
 
   async function undo() {
     const id = step.applyId;
-    setProblem("");
-    const r = await api.undo(project, id);
-    if (!r.ok) { setProblem(r.words); return; }
-    onDone(r.body);
-    setStep({ at: "undone", message: T.undone });
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      setProblem("");
+      const r = await api.undo(project, id);
+      if (!r.ok) { setProblem(r.words); return; }
+      onDone(r.body);
+      setStep({ at: "undone", message: T.undone });
+    } finally { busy.current = false; }
   }
 
   // While the changes are being saved the box stays: Esc, Cancel and the backdrop do nothing, so the result (and Undo this import) is always shown.

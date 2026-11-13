@@ -232,7 +232,7 @@ class ContainerOneDrive(unittest.TestCase):
 
     def test_an_ordinary_folder_and_a_name_that_only_contains_onedrive_are_let_through(self):
         for path in ("/Users/sam/Library/Application Support/clark", "/Users/sam/clark-data", "/Users/sam/Documents/not-OneDrive-really/clark",
-                     "/Users/sam/Library/CloudStorage/Dropbox/clark", "/data"):
+                     "/Users/sam/Library/CloudStorage/Box/clark", "/data"):
             with self.subTest(path):
                 a, b = self.host(path)
                 with a, b:
@@ -282,12 +282,13 @@ class ShownPath(unittest.TestCase):
         self.assertIn(f"kept in {data} because", str(e.exception))
         self.assertNotIn("~/", str(e.exception))
 
-    def test_the_container_refusal_with_a_root_home_names_the_macs_folder_as_it_is(self):
+    def test_the_container_refusal_with_a_root_home_names_the_macs_folder_from_the_tilde(self):
         mac = "/Users/sam/OneDrive - Test/clark"
         with mock.patch.dict("os.environ", {"CLARK_CONTAINER": "1", "CLARK_DATA_SOURCE": mac, "HOME": "/"}), markers("/.dockerenv"), \
                 self.assertRaises(pl.PlatformError) as e:
             pl.check_data_dir("/data")
-        self.assertIn(f"kept in {mac} because", str(e.exception))
+        self.assertIn("kept in ~/OneDrive - Test/clark because", str(e.exception))
+        self.assertNotIn("/Users/sam", str(e.exception))
 
 
 class StartLine(Case):

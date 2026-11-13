@@ -2,7 +2,7 @@
 container shares in as the data folder (CLARK_DATA_SOURCE), and hides "Choose a folder" (the folder window needs the Mac).
 Run: python3 dev/run_tests.py test_setup_docker
 
-The Terminal doctor is NOT changed (doctor.CHECKS keeps its seven checks): the row is added by the setup service only inside a
+The Terminal doctor is NOT changed (doctor.CHECKS keeps its eight checks): the row is added by the setup service only inside a
 container. Words: the refusal sentences are starter_check's and cloud_folder's, unchanged; the one ready line is a PROPOSAL
 (listed in the strings file for the row, not approved). Fictional paths; every system call is a fake. No server, no browser.
 """
@@ -61,7 +61,7 @@ class Check(unittest.TestCase):
                 self.assertNotIn(bad, words)
 
     def test_the_terminal_doctor_is_unchanged(self):
-        self.assertEqual(len(doctor.CHECKS), 7)
+        self.assertEqual(len(doctor.CHECKS), 8)
         self.assertNotIn("docker", [doctor.check_id(c) for c in doctor.CHECKS])
         self.assertEqual(doctor.check_id(doctor.Check("x", True, doctor.check_docker)), "docker")
 

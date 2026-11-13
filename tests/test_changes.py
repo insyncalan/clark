@@ -91,7 +91,7 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over
+                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
                              | ({"link", "msadd", "msremove"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
@@ -1117,7 +1117,7 @@ class Items(Api):
     def test_the_fields_are_columns_and_priority_and_archived_are_never_in_the_wrong_list(self):
         columns = {k: set(store_module.columns(self.s.con, k)) for k in changes.ITEM_KINDS}
         for kind, fields in ITEM_FIELDS.items():
-            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover"}, kind)      # #67: + new; #196: + bulk; #199: + handover
+            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover", "delete"}, kind)      # #67: + new; #196: + bulk; #199: + handover
             self.assertTrue(set(changes.CHANGE_KINDS[kind]["bulk"]) <= columns[kind], kind)
             for never in ("archived", "id", "project", "type", "client_visible", "closed", "description", "decision"):
                 self.assertNotIn(never, changes.CHANGE_KINDS[kind]["bulk"], (kind, never))
@@ -1254,9 +1254,9 @@ class Items(Api):
 
     # the words for what a work item never takes
 
-    def test_no_delete_or_move_for_a_work_item(self):      # #67: `new` is allowed now (tests/test_changes_hidden.py)
+    def test_no_move_or_cancel_for_a_work_item(self):      # #67: `new` is allowed now (tests/test_changes_hidden.py); item 658: so is delete (tests/test_changes_delete_item.py)
         for kind, ref in (("actions", self.a), ("raid", self.r), ("decisions", self.d)):
-            for op, more in (("delete", {"id": ref}), ("move", {"id": ref, "before": None}),
+            for op, more in (("move", {"id": ref, "before": None}),
                              ("cancel", {"id": ref}), ("", {})):
                 with self.subTest(kind=kind, op=op):
                     self.no({"project": "ABC", "kind": kind, "op": op, **more}, changes.BAD_OP)

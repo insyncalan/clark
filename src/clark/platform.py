@@ -70,6 +70,28 @@ def container_mode():
     return os.environ.get("CLARK_CONTAINER") == "1" and (os.path.exists("/.dockerenv") or os.path.exists("/run/.containerenv"))
 
 
+_POD_INTERFACES = ("tunl0", "sit0", "ip6tnl0", "gre0", "gretap0", "erspan0", "ip_vti0", "ip6_vti0", "ip6gre0")       # tunnel devices the kernel makes in every network, not a physical one
+
+
+def _extra_pod_interface(name):
+    """net1, net2...: the extra interfaces a cluster adds to a pod (not the host's)."""
+    return name.startswith("net") and name[3:].isdigit()
+
+
+def container_on_host_network(net_dir="/sys/class/net"):
+    """item 575: True when this container seems to share the host's network (docker run --network host). A container on Docker's own
+    bridge sees only its loopback and its ethN; the host's network shows its other interfaces too (wlan0, en0, docker0, br-...).
+    Read from the kernel's list of interfaces, never a name from a request; False when the list can't be read or not in a container."""
+    if not container_mode():
+        return False
+    try:
+        names = os.listdir(net_dir)
+    except OSError:
+        return False
+    return any(n != "lo" and not (n.startswith("eth") and n[3:].isdigit()) and n not in _POD_INTERFACES and not _extra_pod_interface(n)
+               for n in names)
+
+
 def container_host_in_onedrive(environ=None):
     """item 427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
     CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`
@@ -196,6 +218,118 @@ def onedrive_roots(home=None, on=None):
     return sorted(p for p in found if p.is_dir())
 
 
+def _dropbox_name(name):
+    """Whether a name in the home folder is Dropbox's own: "Dropbox", "Dropbox (Personal)" or "Dropbox - Company"."""
+    name = name.casefold()
+    return name == "dropbox" or name.startswith("dropbox (") or name.startswith("dropbox -")
+
+
+def container_host_in_synced(environ=None):
+    """The Mac folder shared in as the data folder (CLARK_DATA_SOURCE), as (service, Path to the synced folder) when a part of it is
+    Dropbox's, iCloud Drive's or Google Drive's own folder name (the same names synced_roots looks for, letter case ignored), else
+    None. Never outside a container, and nothing is known without the variable. Like container_host_in_onedrive it reads names, not the disk."""
+    if not container_mode():
+        return None
+    host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
+    if not host:
+        return None
+    spans = [(m.group(), m.end()) for m in re.finditer(r"[^\\/]+", host)]   # the Mac or Windows path read by name, whatever the separator
+    parts = [name for name, _ in spans]
+    for i, part in enumerate(parts):
+        low = part.casefold()
+        under_storage = i > 0 and parts[i - 1].casefold() == "cloudstorage"
+        if _dropbox_name(part) or (under_storage and low.startswith("dropbox")):
+            service = "Dropbox"
+        elif low.startswith("googledrive-") or low in ("google drive", "my drive"):
+            service = "Google Drive"
+        elif low == "mobile documents":
+            service = "iCloud Drive"
+        else:
+            continue
+        return service, Path(host[:spans[i][1]])            # the path as written up to that name: a leading "/" or a Windows root stays
+    return None
+
+
+def _windows_dropbox_roots(environ):
+    """Dropbox on Windows: %USERPROFILE%\\Dropbox (and its named forms), and the personal / business folders that Dropbox itself
+    records in info.json under %APPDATA%\\Dropbox or %LOCALAPPDATA%\\Dropbox. A missing or unreadable info.json refuses nothing."""
+    import json
+    found = []
+    profile = environ.get("USERPROFILE")
+    if profile and Path(profile).is_dir():
+        found += [p for p in Path(profile).glob("Dropbox*") if _dropbox_name(p.name)]
+    for var in ("APPDATA", "LOCALAPPDATA"):
+        if not environ.get(var):
+            continue
+        try:
+            info = json.loads((Path(environ[var]) / "Dropbox" / "info.json").read_text(encoding="utf-8"))
+        except (OSError, ValueError, RecursionError):      # a file nested deeper than the parser allows is not a usable file
+            continue
+        for kind in (info.values() if isinstance(info, dict) else ()):
+            where = kind.get("path") if isinstance(kind, dict) else None
+            if isinstance(where, str) and where:
+                found.append(Path(where))
+    return sorted(("Dropbox", p) for p in set(found) if p.is_dir())
+
+
+def _icloud_desktop_documents(home):
+    """With "Desktop & Documents Folders" on, the Mac keeps the real Desktop and Documents in
+    ~/Library/Mobile Documents/com~apple~CloudDocs/. A link from ~/Desktop is followed by resolve() and lands inside the iCloud
+    root already. Where ~/Desktop is itself a folder, it counts as iCloud only when it is the very same folder as the CloudDocs one
+    (same device and inode). LIMIT: a pure-python check cannot read the iCloud setting itself, so a ~/Desktop that is a separate
+    folder is never refused, even while CloudDocs/Desktop exists."""
+    found = []
+    cloud = home / "Library" / "Mobile Documents" / "com~apple~CloudDocs"
+    for name in ("Desktop", "Documents"):
+        mine, theirs = home / name, cloud / name
+        try:
+            if mine.is_dir() and theirs.is_dir() and os.path.samestat(mine.stat(), theirs.stat()):
+                found.append(("iCloud Drive", mine))
+        except OSError:
+            pass
+    return found
+
+
+def synced_roots(home=None, on=None, environ=None):
+    """The Dropbox, iCloud Drive and Google Drive folders on this machine, as (service, folder) pairs, sorted,
+    only those that exist. Like OneDrive's they are looked for by their usual places: Dropbox in ~/Dropbox, ~/Dropbox (...), ~/Dropbox - ... and
+    ~/Library/CloudStorage/Dropbox*; iCloud Drive in ~/Library/Mobile Documents (which holds com~apple~CloudDocs and every
+    app's iCloud folder), plus ~/Desktop and ~/Documents when they are the iCloud ones; Google Drive in
+    ~/Library/CloudStorage/GoogleDrive-*, ~/Google Drive and ~/My Drive. On Windows only Dropbox is looked for (OneDrive has its
+    own check). Inside the shipped container there is nothing to find (an empty list); on any other system it raises NotBuiltYet."""
+    if (on or system()) == "linux" and container_mode():
+        return []
+    if (on or system()) == WINDOWS:
+        return _windows_dropbox_roots(os.environ if environ is None else environ)
+    _only_mac("Finding Dropbox, iCloud Drive and Google Drive", on)
+    try:
+        home = Path(home or Path.home())
+    except RuntimeError:                                     # no HOME to be found: nothing can be looked for, and nothing must crash
+        return []
+    storage = home / "Library" / "CloudStorage"
+    # In the home folder Dropbox is "Dropbox" or "Dropbox (Name)" / "Dropbox - Name", not any name that starts with it (Dropbox-old).
+    found = [("Dropbox", p) for p in list(storage.glob("Dropbox*")) + [q for q in home.glob("Dropbox*") if _dropbox_name(q.name)]]
+    found += [("iCloud Drive", home / "Library" / "Mobile Documents")] + _icloud_desktop_documents(home)
+    found += [("Google Drive", p) for p in list(storage.glob("GoogleDrive-*")) + [home / "Google Drive", home / "My Drive"]]
+    return sorted((service, p) for service, p in found if p.is_dir())
+
+
+def inside_synced(path, roots=None):
+    """The (service, folder) pair from `synced_roots` that `path` is inside (after following links), or None.
+    OneDrive is not here: inside_onedrive is its own check."""
+    try:
+        path = Path(path).expanduser().resolve()
+    except (ValueError, RuntimeError):                     # a NUL byte, a loop of links, an unknown ~user: not a place that can be synced
+        return None
+    below = [part.casefold() for part in path.parts]       # the Mac disk ignores letter case, and resolve() does not fix it
+    for service, root in synced_roots() if roots is None else roots:
+        root = Path(root).resolve()
+        top = [part.casefold() for part in root.parts]
+        if below[:len(top)] == top:
+            return service, root
+    return None
+
+
 # Windows' data folder (item 836 slice 4): pure functions over text, so they are tested with made-up strings and need no Windows.
 # They are not wired in: data_dir above still says "not built yet" on Windows. The answer is a problem code (for the page's words
 # to come later), never words, and never a disk or environment read: the caller passes the environment in.
@@ -287,11 +421,13 @@ def never_read_places(on=None):
 
 
 def inside_onedrive(path, roots=None):
-    """The OneDrive root that `path` is inside (after following links), or None."""
+    """The OneDrive root that `path` is inside (after following links), or None. Letter case is ignored, as the Mac disk does."""
     path = Path(path).expanduser().resolve()
+    below = [part.casefold() for part in path.parts]
     for root in onedrive_roots() if roots is None else roots:
         root = Path(root).resolve()
-        if path == root or root in path.parents:
+        top = [part.casefold() for part in root.parts]
+        if below[:len(top)] == top:
             return root
     return None
 
@@ -312,7 +448,48 @@ def shown(path, home=None):
         return str(path)
 
 
-def check_data_dir(path, roots=None, what="data"):
+_HOST_HOME = re.compile(r"^(?:[\\/]{2}\?[\\/]UNC[\\/]+[^\\/]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])|[\\/]{2}\?[\\/]"
+                        r"|[\\/]{2}[^\\/?]+[\\/]+(?:[^\\/]+[\\/]+)?(?=Users[\\/])"
+                        r"|/host_mnt(?=/)|/run/desktop/mnt/host(?=/)|/Volumes/[^/]+(?=/Users/)|/mnt(?:/host)?(?=/[A-Za-z]/Users/))?"
+                        r"(?:/Users/[^/]+|/home/[^/]+|/[A-Za-z]/Users/[^/]+|[A-Za-z]:[\\/]+Users[\\/]+[^\\/]+|Users[\\/]+[^\\/]+)(?=[\\/]|$)",
+                        re.IGNORECASE)
+
+
+def _without_account(segment):
+    """One folder name without an e-mail address: "GoogleDrive-name@example.org" is "GoogleDrive", "Backup name@example.org" is
+    "Backup", and a name that is only an address goes."""
+    segment = re.sub(r"^(dropbox)(?:\s+\((?!personal\)$).*\)|\s+-\s.*)$", r"\1", segment, flags=re.IGNORECASE)   # "Dropbox (Acme Corp)": the company is not shown
+    if "@" not in segment:
+        return segment
+    kept = re.sub(r"^([A-Za-z0-9]+)-[^@]*@.*$", r"\1", segment)
+    if "@" in kept:
+        kept = re.sub(r"\S*@\S*", "", kept).strip(" -_")
+    return kept
+
+
+def host_shown(path):
+    """The Mac's data folder (CLARK_DATA_SOURCE, which only a container sees) as a person reads it in a message: the home folder is
+    written "~" (any case, a Windows drive, a UNC or \\\\?\\ form) and an account e-mail in a cloud folder's name
+    (GoogleDrive-name@example.org) is dropped, so neither the user's name nor the account is ever in a message that might be
+    copied into a report or an email."""
+    return account_free(_HOST_HOME.sub("~", str(path), count=1))
+
+
+def account_free(text):
+    """`text`, a path, without an account e-mail (or a Dropbox company name) in any folder name; a gap made by a dropped name closes up."""
+    parts = re.split(r"([\\/]+)", text)
+    joined = "".join(_without_account(x) if i % 2 == 0 else x for i, x in enumerate(parts))
+    lead = re.match(r"/*", joined).group()                      # a leading "//?/" is left as written; only a gap made by a dropped name closes up
+    return lead + joined[len(lead):].replace("//", "/").replace("/ /", "/")
+
+
+def _synced_refusal(where, service):
+    return (f"Your data can't be kept in {where} because it is inside {service}. {service} copies files while they are being "
+            "written, which damages the database. Nothing has been changed. Move your clark data folder to a folder on this "
+            f"computer that {service} doesn't sync, then start clark again.")
+
+
+def check_data_dir(path, roots=None, what="data", synced=None):
     """`path`, resolved, if clark may keep its database there. A folder inside OneDrive is refused with the reason:
     OneDrive syncs a database part-way through a write and can't lock it, so the data would be damaged. `what="backups"`
     words the refusal for the backups folder (#86), where "backups can still go to OneDrive" would read wrongly. The way to have copies in
@@ -321,7 +498,7 @@ def check_data_dir(path, roots=None, what="data"):
     if root is None and what == "data":
         root = container_host_in_onedrive()                  # item 427: inside the container the Mac's OneDrive can't be seen, so the Mac's path is told
         if root is not None:
-            path = os.environ["CLARK_DATA_SOURCE"]           # and the Mac's folder is what the person must change, not the container's /data
+            path = host_shown(os.environ["CLARK_DATA_SOURCE"])   # (written without the user's name) and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {shown(path)} because it is inside OneDrive ({root.name}). OneDrive "
@@ -332,6 +509,18 @@ def check_data_dir(path, roots=None, what="data"):
                             "copies files while they are being written, which damages the database. Choose a folder on "
                             "this computer that OneDrive doesn't sync, and choose a backup folder in OneDrive instead (Settings › "
                             "Backups › Copy my backups to): backups can still go to OneDrive.")
+    if what == "data" and synced is None and container_host_in_synced() is not None:
+        service, _ = container_host_in_synced()              # the Mac's folder is named, as for OneDrive above
+        raise PlatformError(_synced_refusal(host_shown(os.environ["CLARK_DATA_SOURCE"]), service))
+    if what == "data":                                       # Dropbox, iCloud Drive and Google Drive, after OneDrive's check
+        try:
+            hit = inside_synced(path, synced)
+        except NotBuiltYet:                                  # no such app to find on this system: nothing to refuse
+            hit = None
+        except (ValueError, RuntimeError, OSError):          # an unresolvable or unreadable path is not a synced one
+            hit = None
+        if hit is not None:
+            raise PlatformError(_synced_refusal(account_free(shown(path)), hit[0]))
     return Path(path).expanduser().resolve()
 
 

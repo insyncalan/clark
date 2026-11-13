@@ -139,7 +139,7 @@ def port_number(text, where):
 
 
 def port_free(port):
-    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (#575) the
+    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (item 575) the
     container's own bind address, so a listener on any of the container's addresses counts."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if os.name == "posix":
@@ -177,6 +177,10 @@ def shown_port(port):
     return port
 
 
+HOST_NETWORK_WARNING = ("Warning: this container shares the computer's network, so clark listens on every address of this computer, "
+                        "not only this one. Start it with docker/compose.yaml, which publishes the port to this computer only.")
+
+
 def start_line(address):
     if platform.container_mode():      # #696: in Docker there is no window to leave open, and Ctrl+C is not how it is stopped
         return f"Open {address} to use clark. Stop it with: docker compose -f docker/compose.yaml down"
@@ -198,6 +202,8 @@ class ServerOutput:
         self.done = True
         address = address_for(shown_port(int(found.group(1))), self.code)
         self.out.write(start_line(address))
+        if platform.container_on_host_network():      # item 575: a 0.0.0.0 bind on the host's own network is reachable from the LAN
+            print(HOST_NETWORK_WARNING, file=self.err, flush=True)
         if self.opener:
             try:
                 self.opener(address)

@@ -84,8 +84,8 @@ for name, call in (("outside_addresses", lambda: publish.outside_addresses(text)
 
 
 def workers(cpus):
-    """How many children run at once: at most four, and at most half the cores, so a small or loaded runner is not starved."""
-    return min(4, max(1, (cpus or 1) // 2))
+    """How many children run at once: at most eight, and at most half the cores, so a small or loaded runner is not starved."""
+    return min(8, max(1, (cpus or 1) // 2))
 
 
 def child_limit(cpus):
@@ -106,7 +106,7 @@ def run_shape(expr, n):
 
 def run_all(shapes):
     """{key: run_shape(expr, n)} for every (key, expr, n) in `shapes`, the children running side by side (they are separate
-    processes, so threads waiting on them are enough). Each child's own limits are unchanged. Four at a time at most, so a
+    processes, so threads waiting on them are enough). Each child's own limits are unchanged. Eight at a time at most, so a
     small runner is not starved, and the CPU seconds each child measures for itself stay the same."""
     shapes = list(shapes)
     with ThreadPoolExecutor(max_workers=workers(os.cpu_count())) as pool:
@@ -119,8 +119,8 @@ class Parallelism(unittest.TestCase):
             with self.subTest(cpus=cpus):
                 self.assertGreaterEqual(child_limit(cpus), HARD * workers(cpus))
                 self.assertGreaterEqual(child_limit(cpus), HARD)
-        self.assertEqual(workers(16), 4)
-        self.assertEqual(child_limit(16), HARD * 4)
+        self.assertEqual(workers(16), 8)
+        self.assertEqual(child_limit(16), HARD * 8)
         self.assertEqual(child_limit(2), HARD)
 
     def test_a_small_runner_is_not_oversubscribed(self):
@@ -128,7 +128,7 @@ class Parallelism(unittest.TestCase):
         for cpus in (1, 2, 3, 4, 8, 16):
             with self.subTest(cpus=cpus):
                 self.assertLessEqual(workers(cpus), max(1, cpus // 2))
-                self.assertLessEqual(workers(cpus), 4)
+                self.assertLessEqual(workers(cpus), 8)
 
 
 class Fast(unittest.TestCase):

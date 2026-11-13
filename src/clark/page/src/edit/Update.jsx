@@ -105,7 +105,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
       <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
-      {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
+      {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {st ? (
         <div class="upd-rows">
           <p class="upd-l" id="update-installed-l">{L.ROWS.installed}</p>

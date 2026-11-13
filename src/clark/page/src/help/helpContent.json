@@ -342,7 +342,7 @@
     "w": "Work items › the + at the top right",
     "go": "work",
     "s": [
-     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: **Add action**, **Add decision**, **Add risk or issue** (a menu of Risk and Issue) and, with no type on the line, **Add item** (a menu of Action, Risk, Issue and Decision). You can do this in View as well as in Edit.",
+     "On **Work items**, press the **+** at the top right. Point at it and it shows what it adds, following the type on the filter line: **Add action**, **Add decision**, **Add risk or issue** (a menu of **Add risk** and **Add issue**) and, with no type on the line, **Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**). You can do this in View as well as in Edit.",
      "The new item is made at once and opens in the peek with its title selected: type over it. A message at the foot of the page says it was added, with **Undo**.",
      "Its due date (a week from today; a decision’s needed-by date is today), and an action’s priority, are placeholders. Change them in the list or in the peek.",
      "A new item is shown to the client to start with. While one still has its placeholder title, the Publish box warns you. Rename it, or turn off its eye, before you publish.",
@@ -385,9 +385,9 @@
     "s": [
      "The **Group by** button, at the right end of the filter line (the icon after **List** and **Board**), holds the grouping. It chooses the groups: Workstream, Status, Due, Owner, Priority, Milestone, Type, or Nothing (the table only). In the table, a group’s heading collapses it, and clark remembers.",
      "The two icons before the **Group by** button, **List** and **Board**, switch between the list and the board. The board’s columns follow Group by (Status when it is Nothing).",
-     "On the board, the **Group by** button also has **Swimlanes**: rows across the board by No lanes, Workstream or Type.",
+     "On the board, the **Group by** button also has **Swimlanes**: rows across the board: choose **No lanes**, **Workstream lanes** or **Type lanes**.",
      "Drag a card to another column to change that field. **Due** asks for the new date (never a past one); **Overdue** isn’t a place to drop; **No date** clears it. A move across a lane and a column changes both in one step.",
-     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from **Move to…**: the columns, then the lanes.",
+     "From the keyboard, or for a precise move, press the three-dots button on a card and choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes.",
      "Press a column’s heading to collapse it, and again to open it. The full-screen icon gives the board the whole window; [[Esc]] leaves it.",
      "Every move has **Undo** in the message. Click a card, or press [[Enter]] on it, to open it."
     ],
@@ -406,7 +406,7 @@
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
      "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
-     "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
+     "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday** and the date.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
      "In Edit, **Details** is a tab and lists the Type, Workstream, Milestone and Use case (click one to choose another), then Shown to client and Client wording. In View the same fields are listed under the title with no tabs.",
@@ -554,7 +554,7 @@
      "Next to **Project health** are the counts: **Overdue actions**, **High risks and issues** and **Decisions needed** (hidden to start with).",
      "Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.",
      "In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.",
-     "Right-click a tile in Edit for **Outline colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**."
+     "Right-click a tile in Edit for **Outline colour**: **Automatic**, Green, Amber, Red or **No colour**."
     ],
     "n": "The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or an open risk or issue is rated Urgent or High, amber when something waits, and green otherwise.",
     "page": [
@@ -568,7 +568,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -604,9 +604,9 @@
     "w": "Dashboard › Edit › Supporting documents",
     "go": "dashboard+edit",
     "s": [
-     "In Edit, press **+ Add a document link** at the foot of the report.",
+     "In Edit, press **Add a document link** at the foot of the report.",
      "Give it a title, a kind (Minutes, Actions list, Report, Slides, Plan or Other), the link and a date, then press **Add**.",
-     "**⋯** on a document edits or removes it. The eye takes it off the page; **+ Add back a document** brings it back.",
+     "**⋯** on a document edits or removes it. The eye takes it off the page; **Add back a document** brings it back.",
      "In View, and on the published page, the title and the arrow open the document in a new tab."
     ],
     "page": [
@@ -620,9 +620,9 @@
     "w": "Settings › Personal",
     "go": "settings",
     "s": [
-     "In **Settings**, the **Personal** card has **Spacing**, which is yours alone: **Compact** (the standard) or **Comfortable**.",
+     "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
      "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
-     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others) do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
+     "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
      "settings"
@@ -660,7 +660,7 @@
      "The calendar shows **Week**, **Month** (the standard) or **Quarter**, with the arrows and **Today**. In Quarter, click a month’s name to open that month.",
      "With the keyboard, [[Tab]] reaches the calendar once, on today (or the first day when today is not shown). [[Left]] and [[Right]] move a day at a time, and [[Up]] and [[Down]] a week. [[Enter]] on a day with milestones goes to the first of them, and [[Shift+Tab]] or [[Esc]] comes back to the day.",
      "**Legend**, at the right under the milestones, explains every mark when you point at it or tab to it.",
-     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
+     "Under the Legend, the list shows each milestone with its date, state and progress. The first five show; **Show all N milestones** shows the rest. **Hide milestone details** folds the list away and **Show milestone details** brings it back. Your choice is kept."
     ],
     "n": "On the published page, Slipped reads “Expected later” and Overdue reads “Late”.",
     "page": [
@@ -1385,6 +1385,10 @@
      [
       "p",
       "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+     ],
+     [
+      "p",
+      "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
      ]
     ]
    },
@@ -1455,7 +1459,7 @@
       "ul",
       [
        "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
-       "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday**.",
+       "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday** and the date.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
        "**Details** (in Edit a tab, with Activity; in View the same fields with no tab): Type, Owner, Due, Priority, Status, Workstream, Milestone, Use case, Shown to client and Client wording. An item’s description is its title.",
@@ -2154,11 +2158,11 @@
    ],
    [
     "[[V]]",
-    "Switches to View, like the **View** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to View, like the **View** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[E]]",
-    "Switches to Edit, like the **Edit** button. Works on the Dashboard only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
+    "Switches to Edit, like the **Edit** button. Works on the Dashboard and the Gantt page only, and not while you are typing in a box. A single letter key: it does nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Alt+Up]] [[Alt+Down]]",
@@ -2910,7 +2914,7 @@
      "d": "To look inside a copy, press **Preview** on its row. A box says when the backup is from and how many projects, work items and milestones it holds, then how many you have now. Nothing is changed by looking."
     },
     {
-     "d": "If the box says the backup is of a different database, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
+     "d": "If the box says the backup is of a different set of data, it cannot be put back over yours and there is no **Restore** button. Press **Close** to leave it."
     },
     {
      "d": "To put a copy back, press **Restore** on its row, or on the preview box. The box asks, for example, “Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first.” Your current data is replaced by the copy, so everything you saved after that copy was made is no longer in your pages. Before it swaps, clark keeps a copy of what you have now, and it shows in the list as Before a restore."
