@@ -91,7 +91,8 @@ class MacZipTest(unittest.TestCase):
         names = set(self.inside())
         for needed in ("clark.command", ".app/clark/__main__.py", ".app/src/clark/__main__.py", ".app/src/clark/page/page.html",
                        ".app/src/clark/schema.sql", ".app/vendor/openpyxl/__init__.py", ".app/vendor/et_xmlfile/__init__.py",
-                       ".app/vendor/manifest.json", "README.md", "START-HERE.md"):
+                       ".app/vendor/manifest.json", "README.md", "START-HERE.md",
+                       ".app/vendor/pypdf/__init__.py", ".app/vendor/pypdf/LICENSE", ".app/vendor/typing_extensions.py"):
             self.assertIn(needed, names)
 
     def test_the_zips_readme_is_the_zip_readme_and_not_the_repositorys(self):

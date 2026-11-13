@@ -509,7 +509,7 @@
    "writable": true,
    "expect": {
     "ok": false,
-    "message": "That folder is inside clark's own data folder, which holds the database. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
+    "message": "That folder is inside clark's own data folder, which holds your data. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
    },
    "exists": true
   },
@@ -520,7 +520,7 @@
    "writable": true,
    "expect": {
     "ok": false,
-    "message": "That folder is inside clark's own data folder, which holds the database. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
+    "message": "That folder is inside clark's own data folder, which holds your data. Files put there can't reach the client. Choose the folder OneDrive syncs for the client."
    },
    "exists": true
   },
@@ -531,7 +531,7 @@
    "writable": true,
    "expect": {
     "ok": false,
-    "message": "That folder contains clark's own data folder, which holds the database. Choose a folder made for the client's files."
+    "message": "That folder contains clark's own data folder, which holds your data. Choose a folder made for the client's files."
    },
    "exists": true
   },

@@ -34,9 +34,9 @@ class Publish(unittest.TestCase):
         seen = []
         real = section_bodies.Context
 
-        def spy(data, as_at):
+        def spy(data, as_at, *rest):          # row 1113: Context also takes the live names
             seen.append(copy.deepcopy(data))
-            return real(data, as_at)
+            return real(data, as_at, *rest)
         with mock.patch.object(section_bodies, "Context", spy):
             pub = publish.select(fx.inputs(planted()))
         said = [m["client_message"] for m in seen[0]["milestones"] if m.get("client_message")]

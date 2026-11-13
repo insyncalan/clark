@@ -17,7 +17,7 @@
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, mode, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
 import { change, changeBulk, say, toast, undo } from "../stores/changes.js";
@@ -64,6 +64,12 @@ function Modal({ onClose, opener, children }) {
       release();
       if (opener && opener.isConnected && opener.focus) opener.focus();
     };
+  }, []);
+  // Esc also on the document: while a save is out the Add button is disabled, the focus drops to the page, and a key there never reaches the box's own handler.
+  useEffect(() => {
+    const esc = (e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
   }, []);
   const keys = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); return; }

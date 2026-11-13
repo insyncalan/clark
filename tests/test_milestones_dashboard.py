@@ -20,7 +20,7 @@ from test_server import Running, chrome, wait
 from test_work_items import FIXED_DATE, load_demo, page_target
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
-PERCENTS = {"TUL-M-001": 100, "TUL-M-004": 60, "TUL-M-002": 0, "TUL-M-003": 20}      # TUL-M-005 has none: "Not set"
+PERCENTS = {"TUL-M-001": 100, "TUL-M-004": 60, "TUL-M-002": 0, "TUL-M-003": 20}      # TUL-M-005 has none: "Progress not set"
 SHOWN = ["TUL-M-001", "TUL-M-004", "TUL-M-002", "TUL-M-003", "TUL-M-005"]        # the first five rows, in the list's own order
 
 # What the block's rows look like to a person: for each row its name, the bar (if any), its figure as text and the spoken name.
@@ -112,7 +112,7 @@ class Block(unittest.TestCase):
                 self.assertGreaterEqual(r["numVsRow"], 4.5, f"{label} {ident}: the figure reads at 4.5:1")
             else:
                 self.assertFalse(r["bar"], f"{label} {ident}: no figure, no bar")
-                self.assertTrue(r["notSet"] and r["text"] == "Not set", f"{label} {ident}: it says so in words")
+                self.assertTrue(r["notSet"] and r["text"] == "Progress not set", f"{label} {ident}: it says so in words")
 
     def test_the_dashboard_block_is_the_milestones_block_with_a_bar_and_a_figure_on_each_row(self):
         for width in (1400, 900):
@@ -172,7 +172,7 @@ class PublishedFile(unittest.TestCase):
             self.assertEqual(by[with_pct]["text"], "Progress 50%")
             self.assertLessEqual(abs(by[with_pct]["pct"] - 50), 2)
             self.assertFalse(by[without]["bar"], "no figure in the file: no bar")
-            self.assertEqual(by[without]["text"], "Not set")
+            self.assertEqual(by[without]["text"], "Progress not set")
             self.assertEqual([b["name"] for b in seen["buttons"]], ["Timeline", "Calendar"])
             self.assertEqual(cdp.js("document.querySelectorAll('.msv .msl-prog button, .msv .msl-prog a, .msv .msl-prog input').length", sid), 0,
                              "the file's progress holds no control")
