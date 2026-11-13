@@ -129,6 +129,18 @@ class OneLineInView(Base):
                     self.assertTrue(got, t)
                     self.assertEqual(set(got), {"400"}, "the %s titles are normal weight at %d" % (t, w))
 
+    def test_the_published_file_list_titles_are_normal_weight_too(self):
+        path = self.published()
+        with chrome() as cdp:
+            tid = next(t["targetId"] for t in cdp.call("Target.getTargets")["targetInfos"] if t["type"] == "page")
+            sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
+            cdp.call("Page.navigate", {"url": path.as_uri()}, sid)
+            self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.wl-row .wl-title').length > 0", sid)))
+            for w in (1400, 900):
+                width(cdp, sid, w)
+                got = cdp.js("[...document.querySelectorAll('.wl-row .wl-title')].map(e => getComputedStyle(e).fontWeight)", sid)
+                self.assertEqual(set(got), {"400"}, "the published list titles are normal weight at %d" % w)
+
     def test_a_long_title_is_cut_with_dots_and_its_title_attribute_holds_all_of_it(self):
         with chrome() as cdp:
             p = Pg.at(self, cdp, self.served().port)
