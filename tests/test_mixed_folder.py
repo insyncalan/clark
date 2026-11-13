@@ -85,7 +85,15 @@ class Download(unittest.TestCase):
         env.pop("CLARK_PORT", None)
         cmd = [sys.executable, "-m", module, "--port", str(port)] + ([] if demo else ["--data", str(self.data)]) + list(extra)
         proc = subprocess.Popen(cmd, cwd=str(self.top), env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        self.addCleanup(self.reap, proc)
         return proc, port
+
+    @staticmethod
+    def reap(proc):
+        """Whatever the test did, never leave the child running."""
+        if proc.poll() is None:
+            proc.kill()
+        proc.communicate()
 
     def refused(self, module="clark"):
         proc, port = self.start(module)
@@ -118,6 +126,14 @@ class Download(unittest.TestCase):
 
 
 class Folder(Download):
+    def test_child_is_killed_after_timeout(self):
+        proc, port = self.start(extra=("--demo",), demo=True)
+        with self.assertRaises(subprocess.TimeoutExpired):
+            proc.communicate(timeout=0.05)
+        self.assertIsNone(proc.poll(), "still running before cleanup")
+        self.doCleanups()
+        self.assertIsNotNone(proc.poll(), "cleanup killed the child")
+
     def test_matching_folder_starts(self):
         self.assertFalse(same_version._mixed(self.app))
         self.starts()
