@@ -50,6 +50,13 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
     setAlready(r && r.code === "person_exists" && r.person ? r.person : null);
   };
   const inForm = (e) => { if (e.key === "Enter") { e.preventDefault(); save(); } };
+  // Row 1120: Tab walks the form's own fields and buttons; only Tab off its last one (or Shift+Tab off its first) leaves, and closes, the panel.
+  const inNew = (e) => {
+    if (e.key !== "Tab") return;
+    const all = Array.from(e.currentTarget.querySelectorAll("input,button:not([disabled])"));
+    const edge = e.shiftKey ? all[0] : all[all.length - 1];
+    if (all.length && e.target !== edge) e.stopPropagation();
+  };
   const options = () => Array.from(list.current ? list.current.querySelectorAll("button") : []);
   const inBox = (e) => {
     if (e.key === "Enter") { e.preventDefault(); choose(typed); }
@@ -70,7 +77,7 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
       </label>
       {problem ? <p class="cp-problem" id={`own-p-${row.id}`} role="alert">{problem}</p> : null}
       {form ? (
-        <div class="cp-new" data-new-person>
+        <div class="cp-new" data-new-person onKeyDown={inNew}>
           <label class="cp-l"><span class="cp-sec">Name</span>
             <input ref={nameBox} type="text" class="cp-in" data-new-name value={form.name} autocomplete="off" spellcheck={false} maxLength={200}
               onInput={(e) => { setForm({ ...form, name: e.currentTarget.value }); setProblem(""); setAlready(null); }} onKeyDown={inForm} />

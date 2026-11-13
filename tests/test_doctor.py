@@ -147,6 +147,37 @@ class DataFolder(DoctorCase):
         self.assertNotIn("(OneDrive-Fictional Ltd)", "\n".join(lines), "the OneDrive folder's own name isn't said")
 
 
+class SharedInFromTheMac(DoctorCase):
+    def test_a_container_data_source_inside_dropbox_is_a_fix(self):
+        env = {"CLARK_DATA_SOURCE": "/Users/someone/Dropbox/clark-data"}
+        with mock.patch.object(pl, "container_mode", lambda: True):
+            code, lines = self.run_doctor(environ=env)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.line(lines, "To fix: Your data can't be kept in"),
+                         "To fix: " + pl._synced_refusal("~/Dropbox/clark-data", "Dropbox"))
+        self.assertNotIn("/Users/someone", "\n".join(lines))                  # the Mac's user name is never printed (the refusal says it from "~")
+
+    def test_a_container_data_source_outside_synced_folders_is_ready(self):
+        env = {"CLARK_DATA_SOURCE": "/Users/someone/clark-data"}
+        with mock.patch.object(pl, "container_mode", lambda: True):
+            _, lines = self.run_doctor(environ=env)
+        self.assertNotIn("Your data can't be kept in", "\n".join(lines))
+
+
+class NativeSyncedFolder(DoctorCase):
+    def test_the_account_address_in_a_synced_folder_is_not_printed(self):
+        for place in ("Library/CloudStorage/GoogleDrive-al@x.com/My Drive", "Library/CloudStorage/Dropbox-Al@x.com"):
+            with self.subTest(place=place):
+                folder = self.home / place / "c"
+                folder.mkdir(parents=True)
+                code, lines = self.run_doctor(["--data", str(folder)])
+                text = "\n".join(lines)
+                self.assertEqual(code, 1, lines)
+                self.assertIn("Your clark data is in ~/Library/CloudStorage/", text)
+                self.assertNotIn("@", text)
+                self.assertNotIn("x.com", text)
+
+
 class TypedCommands(DoctorCase):
     """issue 694: in a download (clark.command sets CLARK_TYPED) the doctor says bash clark.command; in a checkout, python3 -m."""
 

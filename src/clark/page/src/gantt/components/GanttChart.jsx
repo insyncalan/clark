@@ -77,6 +77,8 @@ export function GanttChart({
   const [box, setBox] = useState(null);                 // the edit box: { id, left, top }
   const [menu, setMenu] = useState(null);               // the add menu: { id, left, top }
   const [showOpen, setShowOpen] = useState(false);
+  const showBtn = useRef(null);
+  const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
   const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
@@ -93,7 +95,7 @@ export function GanttChart({
   const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
-  const setFilter = (f) => { setShowOpen(false); if (onFilter) onFilter(f); else setOwnFilter(f); };
+  const setFilter = (f) => { setShowOpen(false); showBack(); if (onFilter) onFilter(f); else setOwnFilter(f); };
   const cols = ["start", "end", "pct"].filter((k) => edit || !hiddenCols.includes(k));      // no eye on these in Edit (the data layer refuses them as hidden); an older file may still leave one out
 
   // The lines with a bar being dragged drawn where it is now, so the clash marks and the arrows follow the pointer.
@@ -124,10 +126,14 @@ export function GanttChart({
     return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
   }, []);
 
+  useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
+    if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
+  }, [menu]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      if (box) setBox(null); else if (menu) setMenu(null); else if (showOpen) setShowOpen(false); else if (full) setFull(false);
+      if (box) setBox(null); else if (menu) setMenu(null); else if (showOpen) { setShowOpen(false); showBack(); } else if (full) setFull(false);
     };
     const onDown = (e) => {
       if (showOpen && !e.target.closest("[data-g-showwrap]")) setShowOpen(false);
@@ -318,9 +324,16 @@ export function GanttChart({
         <span class="gt-sp" />
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show ref={showBtn} onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
           {showOpen ? (
-            <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu>
+            <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+                const items = [...e.currentTarget.querySelectorAll("[role=menuitemradio]")];
+                const at = items.indexOf(document.activeElement);
+                e.preventDefault();
+                items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+              }}>
               {filters.map((f) => (
                 <button type="button" key={f} role="menuitemradio" aria-checked={filter === f || (f === "all" && !filters.includes(filter))} data-g-filter={f} onClick={() => setFilter(f)}>
                   <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span>{filterWord(f)}
@@ -471,7 +484,7 @@ export function GanttChart({
       {menu ? (
         <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
-            <button type="button" role="menuitem" key={t} data-g-addtype={t} ref={(el) => { if (el && i === 0) el.focus(); }}
+            <button type="button" role="menuitem" key={t} data-g-addtype={t} 
               onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
           ))}
         </Fade>
