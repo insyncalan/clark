@@ -65,9 +65,16 @@ class Appearance(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)"), ORDER)
                 self.assertEqual(self.in_settings(p), ["system"])
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"),
-                                 "Follows your Mac's setting.", "the chosen one's line is under the control")
+                                 "Follows your computer's setting.", "the chosen one's line is under the control")
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+
+    def test_the_help_text_for_system_does_not_name_a_mac(self):
+        import json
+        from _paths import ROOT
+        text = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("it follows your computer\u2019s setting and changes when the computer does", text)
+        self.assertNotIn("changes when the Mac does", json.dumps(json.loads(text), ensure_ascii=False))
 
     def test_C_appearance_is_a_segmented_control_not_radio_buttons(self):       # item 677
         for w in WIDTHS:
@@ -247,7 +254,7 @@ class Source(unittest.TestCase):
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ('["system", "System", "Follows your Mac\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
+        for words in ('["system", "System", "Follows your computer\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
                       "<legend>Appearance</legend>"):
             self.assertIn(words, text)
         self.assertIn('lab: "Appearance"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
