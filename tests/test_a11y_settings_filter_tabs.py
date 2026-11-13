@@ -18,11 +18,13 @@ K.KEYS.setdefault("ArrowLeft", ("ArrowLeft", 37))
 THEMES = ("light", "dark")
 
 RING = r"""(() => { const a = document.activeElement; if (!a || a === document.body) return JSON.stringify({ body: true });
-  const cs = getComputedStyle(a.tagName === 'INPUT' && a.closest('.fline') ? a.closest('.fline') : a);
+  const box = a.tagName === 'INPUT' && a.closest('.fline'), cs = getComputedStyle(box || a);
+  let edge = false;   // item 1137: the filter box has no ring; a border darker than its resting one is its mark of focus
+  if (box) { const rest = box.cloneNode(false); box.after(rest); edge = getComputedStyle(rest).borderTopColor !== cs.borderTopColor; rest.remove(); }
   return JSON.stringify({ name: a.getAttribute('aria-label') || a.textContent.trim().slice(0, 30), id: a.id || '', visible: a.matches(':focus-visible'), inLine: !!a.closest('.fviews, .fline-wrap'),
-    ring: (cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== '') }); })()"""
+    ring: edge || (!box && ((cs.outlineStyle !== 'none' && parseFloat(cs.outlineWidth) >= 1) || (cs.boxShadow !== 'none' && cs.boxShadow !== ''))) }); })()"""
 UNNAMED = r"""(() => { const out = [];
-  for (const e of document.querySelectorAll('.fviews button, .fline button, .fline input, .vicons button, .set-bar button, .ddmenu [role^=menuitem]')) {
+  for (const e of document.querySelectorAll('.fviews button, .fline-row button, .fline input, .vicons button, .set-bar button, .ddmenu [role^=menuitem]')) {
     if (!e.getClientRects().length) continue;
     const name = (e.getAttribute('aria-label') || e.textContent || '').trim();
     if (!name) out.push(e.outerHTML.slice(0, 80));

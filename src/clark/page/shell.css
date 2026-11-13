@@ -349,8 +349,10 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fline:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }   /* the box has a 2 px ring while the input has the focus */
+.fline-row { display: flex; align-items: center; gap: var(--space-2); }   /* item 1137: the box and, beside it, the icons that are not part of the filter box */
+.fline-row > .fline { flex: 1 1 0; min-width: 0; }
+.fline-row > .fio, .fline-row > .vicons { margin-right: 11px; }   /* the icons keep the place they had inside the box: its 1 px border and 10 px padding */
+.fline:focus-within { border-color: var(--menu-border); }   /* item 1137: no purple ring while typing; a quiet darker border (3:1 or more) keeps focus visible */
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }

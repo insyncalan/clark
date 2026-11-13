@@ -462,6 +462,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
       onFocusIn={() => setFocused(true)}
       onFocusOut={(e) => { if (!e.relatedTarget || !box.current.contains(e.relatedTarget)) leave(); }}>
       {head}
+      <div class="fline-row">
       <div class={`fline${focused ? " on" : ""}${words.length ? " bad" : ""}`} data-fline data-line={Q.joinLine(chips, draft)}>
         {chips.length ? (
           <span class="fchips" data-fchips>
@@ -494,6 +495,7 @@ export function LineBox({ head, line, now, apply: applyLine, rows, ctx, extra, i
         </div>
         <span class="fcount num" id={ids.count} data-fcount>{`${matches} of ${rows.length}`}</span>
         {draft || chips.length ? <button type="button" class="fx" id={ids.x} aria-label="Clear filter" title="Clear filter" onMouseDown={(e) => e.preventDefault()} onClick={clear}>{"×"}</button> : null}
+      </div>
         {tail}
       </div>
       {notes.length ? null : suggestions}

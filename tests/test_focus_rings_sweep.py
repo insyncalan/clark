@@ -48,20 +48,27 @@ class FocusRings(unittest.TestCase):
         self.assertIsNotNone(m, "menu items have a ring rule of their own")
         self.assertIn("outline: 2px solid var(--focus)", m.group(1))
 
-    def test_the_filter_box_shows_a_two_pixel_ring_while_the_input_has_focus(self):
+    def test_the_filter_box_has_no_ring_but_a_quiet_darker_border_while_the_input_has_focus(self):
+        # item 1137 (pending Alan's yes/no): no purple ring; the border alone shows the focus
         body = rule(".fline:focus-within")
         self.assertIsNotNone(body)
-        self.assertIn("outline: 2px solid var(--focus)", body)
+        self.assertIn("border-color: var(--menu-border)", body)
+        self.assertNotIn("outline", body)
+        self.assertNotIn("box-shadow", body)
+        self.assertNotIn("brand-blue", body)
+        self.assertIsNone(re.search(r"(?m)^\.fline\.on[ ,{][^{]*\{[^}]*(brand-blue|box-shadow)", CSS), "the .on state draws no purple either")
 
 
 BROWSER_RING = r"""(() => {
-  const ring = (el) => { const cs = getComputedStyle(el); return { visible: el.matches(':focus-visible, :focus-within'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), color: cs.outlineColor }; };
+  const ring = (el) => { const cs = getComputedStyle(el); return { visible: el.matches(':focus-visible, :focus-within'), style: cs.outlineStyle, width: parseFloat(cs.outlineWidth), color: cs.outlineColor, border: cs.borderTopColor, shadow: cs.boxShadow }; };
   const item = document.querySelector('#profile-menu [role=menuitem]');
   item.focus({ preventScroll: true });
   const menuItem = ring(item);
   const input = document.querySelector('#fline-input');
+  document.activeElement.blur();
+  const before = getComputedStyle(input.closest('.fline')).borderTopColor;
   input.focus({ preventScroll: true });
-  return JSON.stringify({ menuItem, active: document.activeElement === input, box: ring(input.closest('.fline')) });
+  return JSON.stringify({ menuItem, active: document.activeElement === input, box: ring(input.closest('.fline')), before });
 })()"""
 
 
@@ -84,11 +91,17 @@ class FocusRingsDrawn(_Base):
                 cdp.js("document.querySelector('#profile-btn').click()", sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu [role=menuitem]')", sid)), "the profile menu opened")
                 got = json.loads(cdp.js(BROWSER_RING, sid))
-                for name, r in (("menu item", got["menuItem"]), ("filter box", got["box"])):
-                    where = f"{width} px, {name}"
-                    self.assertTrue(r["visible"], where + ": has focus")
-                    self.assertEqual(r["style"], "solid", where)
-                    self.assertGreaterEqual(r["width"], 2, where + ": the ring is drawn, 2 px or more")
+                r = got["menuItem"]
+                where = f"{width} px, menu item"
+                self.assertTrue(r["visible"], where + ": has focus")
+                self.assertEqual(r["style"], "solid", where)
+                self.assertGreaterEqual(r["width"], 2, where + ": the ring is drawn, 2 px or more")
+                b = got["box"]       # item 1137: the filter box has no ring; its border gets darker
+                where = f"{width} px, filter box"
+                self.assertTrue(b["visible"], where + ": has focus")
+                self.assertTrue(b["style"] == "none" or b["width"] == 0, where + ": no outline ring")
+                self.assertEqual(b["shadow"], "none", where + ": no purple halo")
+                self.assertNotEqual(b["border"], got["before"], where + ": the border changes with focus")
                 self.assertTrue(got["active"], "the filter input has the focus")
 
 
