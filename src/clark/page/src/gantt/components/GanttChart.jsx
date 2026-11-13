@@ -83,6 +83,7 @@ export function GanttChart({
   const [width, setWidth] = useState(900);
   const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
+  const [mine, setMine] = useState({});                // columns the person has dragged: their width is kept as set, never capped again
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
@@ -92,7 +93,8 @@ export function GanttChart({
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
   const fitW = paper ? Math.min(width, PAPER_W) : width;      // the screen is unchanged: only a print narrows it
   const narrow = fitW < 1000;
-  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
+  const capW = { name: 120, start: 94, end: 94, pct: 44 };
+  const cwN = narrow ? Object.fromEntries(Object.keys(cw0).map((k) => [k, mine[k] ? cw0[k] : Math.min(cw0[k], capW[k])])) : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
   const setFilter = (f) => { setShowOpen(false); showBack(); if (onFilter) onFilter(f); else setOwnFilter(f); };
@@ -198,7 +200,7 @@ export function GanttChart({
     e.preventDefault(); e.stopPropagation();
     const el = e.currentTarget, x0 = e.clientX, w0 = cw[key];
     el.setPointerCapture(e.pointerId);
-    el.onpointermove = (m) => setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) }));
+    el.onpointermove = (m) => { setMine((o) => ({ ...o, [key]: true })); setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) })); };
     const stop = cancellable(el, () => setCw((c) => ({ ...c, [key]: w0 })), () => {});
     el.onpointerup = () => { stop(); };
   };
@@ -466,7 +468,7 @@ export function GanttChart({
       </div>
 
       <div class="gt-grip" role="separator" aria-orientation="horizontal" aria-label={WORDS.gripLabel} aria-valuemin={1} aria-valuemax={total} aria-valuenow={cut ? nShown : total}
-        tabindex="0" title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
+        tabindex="0" aria-disabled={full ? "true" : undefined} title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
         <i />{grip !== null ? <span class="gt-gl2">{grip} of {total}</span> : null}
       </div>
 
