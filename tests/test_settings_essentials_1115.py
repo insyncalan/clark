@@ -107,6 +107,21 @@ class Essentials(Head):
                     self.assertFalse(p.js("document.documentElement.scrollWidth > document.documentElement.clientWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('[id]')].map(e => e.id).filter((id, i, a) => a.indexOf(id) !== i)"), [], "no id is on the page twice")
 
+    def test_S3_motion_follows_the_computers_reduced_motion_setting_until_it_is_chosen(self):
+        # (system asks to reduce?, remembered value, switch shown on?, page reduced?)
+        for system, kept, shown, reduced in (("reduce", None, "false", True), ("no-preference", None, "true", False),
+                                             ("reduce", "on", "true", False), ("no-preference", "off", "false", True)):
+            with self.subTest(system=system, kept=kept), chrome() as cdp:
+                p = self.page(cdp)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": system}]}, p.sid)
+                p.js("localStorage.removeItem('clark.motion'); " + ("localStorage.setItem('clark.motion', %r); " % kept if kept else "") + "window.__before = 1; location.reload()")
+                p.until("!window.__before && document.readyState === 'complete'", "the page reloaded under the emulated setting")
+                p.js(STUB)
+                self.open_settings(p, 1400, "light")
+                self.drawn(p)
+                self.assertEqual(p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')"), shown)
+                self.assertEqual(p.js("document.documentElement.dataset.motion === 'reduce'"), reduced)
+
     def test_S3_the_originals_stay_in_their_cards_and_the_rows_are_searchable(self):
         with chrome() as cdp:
             p = self.settings(cdp, 1400, "light")
