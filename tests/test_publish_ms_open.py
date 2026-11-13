@@ -65,6 +65,21 @@ class PublishedMilestonesOpen(unittest.TestCase):
                     cdp.js(f"document.querySelector('#milestones .cal-ms[data-ms=\"{one}\"]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the chip {one} opened {cdp.js(PEEK_ID, sid)}")
 
+    def test_row_1132_a_file_opened_with_mv_cal_shows_the_calendar_and_the_choice_survives_a_reload(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, self.path.as_uri() + "#milestones&p=PUB&mv=cal", width)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "opened on the Calendar")
+                self.assertEqual(cdp.js("document.querySelector('#milestones [data-msvb=cal]').getAttribute('aria-current')", sid), "true", "Calendar is the chosen view")
+                cdp.js("document.querySelector('#milestones [data-msvb=line]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length === 0", sid)), "the Timeline shows")
+                self.assertNotIn("mv=", cdp.js("location.hash", sid))
+                cdp.js("document.querySelector('#milestones [data-msvb=cal]').click()", sid)
+                self.assertTrue(wait(lambda: "mv=cal" in cdp.js("location.hash", sid)), "the choice is in the address")
+                cdp.call("Page.reload", {}, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar is back after a reload")
+                self.assertEqual(cdp.js("document.querySelector('#milestones [data-msvb=cal]').getAttribute('aria-current')", sid), "true")
+
     def test_a_row_a_mark_and_a_chip_open_the_read_only_peek(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
