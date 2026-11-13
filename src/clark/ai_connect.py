@@ -37,6 +37,42 @@ NO_PROVIDER = "That isn't something clark can connect."
 NOT_CONNECTED = "Connect it first."
 
 
+def log_check(name, provider):
+    """The Debug-level line for a Connect that failed: which check the provider's command failed, in fixed plain words. Nothing from
+    the command, the computer or the person is in it (no path, no output, no name), so one line is always one line. Written for any
+    provider that says which check failed (failed_check), and for no other."""
+    try:
+        code = provider.failed_check()
+    except Exception:  # noqa: BLE001
+        return
+    if code == "not_found":
+        LOG.debug("ai: connect failed, the command was not found")
+    elif code == "not_mac":
+        LOG.debug("ai: connect failed, the command is not a Mac program")
+    elif code == "owner":
+        LOG.debug("ai: connect failed, the command has the wrong owner or can be changed by others")
+    elif code == "unreadable":
+        LOG.debug("ai: connect failed, the command could not be read")
+    elif code == "version_flags":
+        LOG.debug("ai: connect failed, the command's version or options are not supported")
+    elif code == "untested":
+        LOG.debug("ai: connect failed, the command's version has not been tested with clark")
+    elif code == "no_login":
+        LOG.debug("ai: connect failed, the command is not signed in with the account clark can use")
+    elif code == "api_key":
+        LOG.debug("ai: connect failed, the command is signed in with an API key")
+    elif code == "login_unreadable":
+        LOG.debug("ai: connect failed, the sign-in check gave no usable answer")
+    elif code == "container":
+        LOG.debug("ai: connect failed, clark is running in a container")
+    elif code == "not_mac_os":
+        LOG.debug("ai: connect failed, this computer is not a Mac")
+    elif code == "odd_home":
+        LOG.debug("ai: connect failed, the home folder is not where macOS keeps it")
+    elif code is not None:
+        LOG.debug("ai: connect failed, a check did not pass")
+
+
 def fail(status, code, message):
     return status, {"ok": False, "code": code, "message": message}
 
@@ -100,6 +136,7 @@ class AiConnect:
             return fail(400, "no_provider", NO_PROVIDER)
         st = ask.answer_status(self.providers[name])
         if not st["connected"]:
+            log_check(name, self.providers[name])
             return fail(409, "not_signed_in", st["why"])
         with self.lock:
             saved = settings.ai_read(self.data_dir)

@@ -104,7 +104,7 @@ export const allWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} us
 
 export function UseCases({ tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
-  const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));
+  const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));       // a published file never reads or writes the editor's key
   const toggleAll = () => { if (!fromFile.value) remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;

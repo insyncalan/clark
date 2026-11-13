@@ -810,6 +810,16 @@ class SavedViews(Line):
         self.assertEqual(ok["errors"], [], "the Edit page answers is:archived")
         self.assertTrue(self.parse("is:archived", OFF)["errors"], "a page that cannot answer it says so, never silently matches")
 
+    def test_archivedReady_turns_on_is_archived_and_nothing_else(self):
+        """Mutation audit of PR 1333: archivedReady is the Edit page saying it can answer is:archived. It must not also switch on
+        is:needed (which waits for isReady); a flag that opened every held-back word survived the old tests."""
+        on = dict(OFF, archivedReady=True)
+        self.assertTrue(self.val(f"T.fl.isOn('archived', {lit(on)}, [])"))
+        self.assertFalse(self.val(f"T.fl.isOn('archived', {lit(OFF)}, [])"))
+        self.assertFalse(self.val(f"T.fl.isOn('needed', {lit(on)}, [])"), "archivedReady does not answer is:needed")
+        self.assertTrue(self.parse("is:needed", on)["errors"], "is:needed is still an unknown state without isReady")
+        self.assertEqual(self.parse("is:archived", on)["errors"], [])
+
 
 class Memory(Line):
     """Storage is passed in. Here a plain object stands in for it; a broken one stands in for a private window."""

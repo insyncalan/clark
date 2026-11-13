@@ -8,7 +8,8 @@ import { useState } from "preact/hooks";
 import { Icon } from "./Icon.jsx";
 import { MsMark } from "./MsMark.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
-import { showDate, railRows, railWord, RAIL } from "../logic/milestones.js";
+import { fromFile } from "../stores/report.js";
+import { showDate, subLine, railRows, railWord, RAIL } from "../logic/milestones.js";
 import { recall, remember } from "../logic/remember.js";
 
 // The date is the first line of the row; its second line (Agreed, or Expected date and days later in red) is `Sub`, a small line under the
@@ -20,12 +21,7 @@ function When({ r }) {
 }
 
 function Sub({ r }) {
-  let text = "", late = false;
-  if (r.state === "Achieved" && r.achieved) text = r.achievedNote || "Achieved";
-  else if (r.state === "Achieved") text = "Achieved, date not recorded";
-  else if (r.state === "Forecast") text = "Forecast, not agreed";
-  else if (r.slip) { text = `Expected ${showDate(r.expected)} · ${r.slipText}`; late = true; }
-  else text = r.baseline ? "Agreed" : "No agreed date";
+  const { text, late } = subLine(r);
   return <small class={`msl-sub${late ? " late" : ""}`}>{text}</small>;
 }
 
@@ -34,19 +30,33 @@ function Sub({ r }) {
 // The milestone peek's header line draws the same (Peek.jsx, row 1078).
 export function MsProgress({ value }) {
   const n = value === null || value === undefined || value === "" ? NaN : Number(value);
-  if (!Number.isFinite(n)) return <span class="muted">Not set</span>;
+  if (!Number.isFinite(n)) return <span class="muted">Progress not set</span>;
   const pct = Math.max(0, Math.min(100, Math.round(n)));
   return <><span class="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span><span class="num"><span class="sr">Progress </span>{pct}%</span></>;
 }
 
-export function MsList({ rows, place, open, internalTag, Eye, left, legend, canFold = true }) {
-  const [all, setAll] = useState(() => canFold && !!recall(`msAll.${place}`, false));
+// Edit only (row 1104): a heading row over the columns, each with a drag handle (edit/colWidths.jsx), and `--msl-cols` set to the chosen widths.
+// `CW` is that hook; with none (a published file, View) the list is drawn as it was, with no heading row.
+const HEADS = [["date", "Date"], ["name", "Milestone"], ["state", "State"], ["prog", "Progress"]];
+const WIDE = ["minmax(150px, 190px)", "minmax(160px, 1fr)", "150px", "130px"], WIDER = ["minmax(240px, 17rem)", "minmax(160px, 1fr)", "150px", "130px"];
+const tracks = (def, ids, cw) => def.map((t, i) => (cw.px(ids[i]) !== null ? `${cw.px(ids[i])}px` : t)).join(" ");      // a chosen width in place of the default track
+function Sized({ CW, place, children }) {
+  const cw = CW("milestones");
+  const ids = HEADS.map((h) => h[0]), set = ids.some((id) => cw.px(id) !== null);
+  const vars = set ? { "--msl-cols": tracks(WIDE, ids, cw), "--msl-cols-w": tracks(WIDER, ids, cw) } : undefined;
+  return children(vars, <div class={`msl-hd${set ? " set" : ""}`} aria-hidden="true" data-msl-hd={place}><div class="msl-hc">{HEADS.map(([id, w]) => <span key={id} {...cw.head(id, w, true)}>{w}{cw.grip(id, w)}</span>)}</div></div>);
+}
+
+export function MsList({ CW, ...rest }) { return CW ? <Sized CW={CW} place={rest.place}>{(vars, hd) => <MsRows {...rest} vars={vars} hd={hd} />}</Sized> : <MsRows {...rest} />; }
+
+function MsRows({ rows, place, open, internalTag, Eye, left, legend, canFold = true, vars, hd }) {
+  const [all, setAll] = useState(() => !fromFile.value && !!recall(`msAll.${place}`, false));
   const shown = railRows(rows, all);
   const [det, setDet] = useState(() => !canFold || recall(`msDet.${place}`, true) !== false);
   const fold = () => { if (canFold) remember(`msDet.${place}`, !det); setDet(!det); };
-  const toggle = () => { if (canFold) remember(`msAll.${place}`, !all); setAll(!all); };
+  const toggle = () => { if (!fromFile.value) remember(`msAll.${place}`, !all); setAll(!all); };
   return (
-    <div class="msl-box" data-place={place}>
+    <div class="msl-box" data-place={place} style={vars}>
       <div class="msl-bar">
         {canFold ? (
           <button type="button" class="msl-det" data-msdet={place} aria-expanded={String(det)} aria-controls={`msl-${place}`} onClick={fold}>
@@ -56,6 +66,7 @@ export function MsList({ rows, place, open, internalTag, Eye, left, legend, canF
         {legend}
       </div>
       <div id={`msl-${place}`} hidden={!det}>
+      {hd}
       <ul class="msl">
         {shown.map((r) => {
           const out = !!(Eye && left && left.has(r.id));          // left out of the published page: said in words, never by colour alone

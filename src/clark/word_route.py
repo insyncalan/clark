@@ -533,7 +533,7 @@ def _colours(branding):
 
 
 def brand_colours(store, code, root):
-    """The Word colours of project `code`'s own brand (installed under `root`/system/branding), the committed ones for Generic."""
+    """The Word colours of project `code`'s own brand (installed under `root`/branding), the committed ones for Generic."""
     return _colours(publish_flow.brand_of(store, code, root))
 
 
@@ -555,7 +555,7 @@ def _do_export(store, who, req, today, chosen, roots, branding=None, brand_root=
     try:
         published = publish.select(publish.read_inputs(store, code, as_at))
         if branding is None:                           # the project's own brand, looked up here (the code is checked above)
-            branding = publish_flow.brand_of(store, code, brand_root or page.BRANDING.parent.parent)
+            branding = publish_flow.brand_of(store, code, brand_root or page.BRANDING.parent)
         data = docx_build.build(published, colours=_colours(branding))
         data = word_brand.on_template(data, branding)
     except (publish.PublishError, docx_build.WordError) as e:
@@ -655,7 +655,7 @@ def make_word_export(path, onedrive_roots=None, by_user=None, today=None, choose
     folder to save in yet, the seam asks `choose_folder(prompt)` (default: the system's folder dialog) with no lock held; it
     returns a folder or None for Cancel. `today` and `choose_folder` are seams for tests."""
     today = today or milestones.today
-    root = Path(brand_root) if brand_root else page.BRANDING.parent.parent         # #944: the clark folder that holds system/branding
+    root = Path(brand_root) if brand_root else page.BRANDING.parent         # #944: the clark folder that holds branding/
     ask = choose_folder or (lambda prompt: platform.choose_folder(prompt))
     asking = threading.Lock()                           # one folder window at a time; the lock is never held while the store is
 

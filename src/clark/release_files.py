@@ -25,6 +25,8 @@ SHARED = (
     "vendor/licenses/",
     "vendor/manifest.json",
     "vendor/openpyxl/",
+    "vendor/pypdf/",            # #891: reads the text of a PDF (BSD-3, pure Python)
+    "vendor/typing_extensions.py",   # pypdf's one dependency on Python 3.9 and 3.10 (PSF-2.0; licence in vendor/licenses/)
 ) + (("dev/demo_data.py",) if INCLUDE_DEMO else ())
 
 # What each system adds. Windows will add clark.cmd and python\ here; nothing else changes.
@@ -59,7 +61,7 @@ def source(rel):
 
 
 # Top-level names that belong to the person. They are never in a zip, never listed, backed up, replaced or removed.
-PROTECTED = ("system", "data")
+PROTECTED = ("system", "data", "branding")
 # Extra top-level folders a release may carry beside the program files (issue 716): files the Head puts in at build time
 # (dev/tools/package.py --extra-folder), never tracked by git. The allow-list is closed: a reader accepts a folder only if
 # its exact name is here, so a stray folder in a download is still refused as outside the list.

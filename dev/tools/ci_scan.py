@@ -190,6 +190,24 @@ def pinned_ok(mode, path, size, data):
     return any(pin and size == pin[1] and digest == pin[0] for pin in (ALLOWED_PUBLIC_FILES.get(path), NEXT_PUBLIC_FILES.get(path)))
 
 
+# Third-party code bundled unchanged (#891, pypdf): four of its files hold listed words (its authors, its licence, a glyph table), so the
+# listed-word scan does not read the CONTENT of those files, and only those. A file is skipped ONLY if it is a plain file (mode 100644)
+# whose exact path is a key here AND whose SHA-256 is that value (the same hashes vendor/manifest.json holds); a changed byte, the same
+# bytes at another path, an executable file, or any other file under vendor/pypdf/ is scanned in full. The path is still read, and the
+# size limit, links, archives and programs, secrets and the commit checks all still apply. Add or change a pin only in a reviewed change
+# to this protected file, after running the scan without it to see which file hits.
+VENDORED_PINS = {
+    "vendor/pypdf/LICENSE": "a97ac230e5f33ef10a5367a850eb01f91f1a0b064e34742c7794d2294557f524",
+    "vendor/pypdf/_codecs/adobe_glyphs.py": "69ac4e46ea50409ee46cb0c76e35a280b67aa60f06f7fe5ea832a2349c72923e",
+    "vendor/pypdf/constants.py": "579bd3b09defab4b63ac63f7effb4713ade10722c8c7799b8566aa80917c3624",
+    "vendor/pypdf/pagerange.py": "0209c3144e2959cf34d1800cfec3dc1afcb6f747f70f93588abaf6e478753b46",
+}
+
+
+def vendored(mode, path, data):
+    return mode == "100644" and VENDORED_PINS.get(path) == hashlib.sha256(data).hexdigest()
+
+
 PICTURES = {".png": _png_ok, ".jpg": _jpeg_ok, ".jpeg": _jpeg_ok, ".gif": _gif_ok, ".webp": _webp_ok, ".ico": _ico_ok,
             ".woff": _woff_ok(b"wOFF", 24), ".woff2": _woff_ok(b"wOF2", 28)}     # edit here, in a reviewed change
 
@@ -291,6 +309,7 @@ class Scan:
         scanned = ([e for e, _ in kept], [d for _, d in kept])
         self.add("no secrets", pp.secret_findings(*scanned))
         listed = [d.replace(PDF_LANG_KEY, b"") if e.index in pinned and e.path.endswith(".pdf") else d for e, d in kept]
+        listed = [b"" if vendored(e.mode, e.path, raw) else d for (e, raw), d in zip(kept, listed)]      # its path is still read by the scan
         self.add("no listed words (people, private repos, hosting)", pp.guard_findings(scanned[0], listed))
         self.identity()
         self.workflows(text, by_number)

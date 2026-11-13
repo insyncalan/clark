@@ -1,0 +1,40 @@
+# The web server in front of clark (item 1100). The Docker image fills in CLARK_PORT (the port you open, the one the browser
+# shows) and CLARK_SERVER_PORT (the port clark's own server listens on, on this Mac) from compose.front.yaml, then starts nginx.
+# This proxy holds no clark code, no data and no logic. It only passes each request to the Mac's server at host.docker.internal.
+#
+# The server checks that a request is for the address it listens on. The browser shows the front's port, so the Host and the
+# Origin are changed from the front's port to the server's port, and ONLY when they are exactly this computer's own address on the
+# front's port. Anything else (another host, another site's Origin, another port, another spelling) is passed on unchanged and the
+# server refuses it. No Origin stays no Origin. Nothing is added that the server could trust (no forwarded-for line).
+map $http_host $clark_host {
+    default "$http_host";
+    "127.0.0.1:${CLARK_PORT}" "127.0.0.1:${CLARK_SERVER_PORT}";
+    "localhost:${CLARK_PORT}" "localhost:${CLARK_SERVER_PORT}";
+}
+map $http_origin $clark_origin {
+    default "$http_origin";
+    "http://127.0.0.1:${CLARK_PORT}" "http://127.0.0.1:${CLARK_SERVER_PORT}";
+    "http://localhost:${CLARK_PORT}" "http://localhost:${CLARK_SERVER_PORT}";
+}
+
+server {
+    listen 8080;
+    server_tokens off;
+    client_max_body_size 100m;          # the server has its own, smaller limits per route and answers for them
+
+    location / {
+        proxy_pass http://host.docker.internal:${CLARK_SERVER_PORT};
+        proxy_http_version 1.1;
+        proxy_set_header Host $clark_host;
+        proxy_set_header Origin $clark_origin;
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+        proxy_intercept_errors off;
+        error_page 502 503 504 @down;
+    }
+
+    location @down {
+        default_type text/html;
+        return 502 "<!doctype html><meta charset=utf-8><title>clark is not running</title><body style='font-family:sans-serif;max-width:40em;margin:3em auto'><h1>clark is not running</h1><p>This page only passes clark on from Docker. clark itself runs on your Mac, and nothing is answering there.</p><p>Open Terminal in the clark folder and type: <code>bash docker/front.command server</code></p><p>Then reload this page.</p></body>";
+    }
+}

@@ -3,10 +3,12 @@
 Run: python3 dev/run_tests.py test_uc_summary_five
 Same harness and fictional data as test_glance_page. Laptop widths only: 1400 and 900 px.
 """
+import json
 import unittest
 
 from _publish import PublishedFile
 from test_glance_page import Setup, USER, tearDownModule  # noqa: F401
+from _new_page import reload_to_new_page
 from test_server import chrome
 
 ROWS = "document.querySelectorAll('.ucrows > .ucrow').length"
@@ -88,6 +90,65 @@ class PublishedFive(PublishedFile, Setup):
                 self.assertEqual(p.js("document.querySelectorAll('.meter i').length"), 6)
                 p.js("window.dispatchEvent(new Event('afterprint'))")
                 p.until(f"{ROWS} === 5", "the screen is as it was")
+
+
+    def test_the_choice_is_kept_in_this_browser_and_the_control_says_whether_all_are_shown(self):
+        self.more(4)
+        with chrome() as cdp:
+            p = self.show(cdp)
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "false")
+            p.js("document.querySelector('[data-ucall]').click()")
+            p.until(f"{ROWS} === 6", "all shown")
+            self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "true")
+            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "true", "the choice is remembered")
+            reload_to_new_page(p.js, f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
+            self.assertEqual(p.js(BUTTON), "Show the first 5")
+            p.js("document.querySelector('[data-ucall]').click()")
+            p.until(f"{ROWS} === 5", "reduced")
+            self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "false")
+            reload_to_new_page(p.js, f"{ROWS} === 5 && !!document.querySelector('[data-ucall]')", "still the first five after a reload")
+
+
+class AddedBeyondFive(Setup):
+    """A use case put on the page that sorts after the fifth is not left out of sight: the list opens to show it."""
+
+    more = FirstFive.more
+
+    def click(self, p, selector):
+        p.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})")
+        x, y, _ = p.box(selector)
+        p.mouse("mouseMoved", x, y)
+        p.mouse("mousePressed", x, y, 1)
+        p.mouse("mouseReleased", x, y)
+
+    def type_in(self, p, selector, text):
+        p.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); e.focus(); e.select(); }})()")
+        p.cdp.call("Input.insertText", {"text": text}, p.sid)
+
+    def test_a_use_case_added_and_put_on_the_page_past_the_fifth_opens_the_whole_list(self):
+        self.more(4)                                                  # 6 on the page, the first five show
+        for n, width in enumerate((1400, 900)):                      # the store is shared by the two widths: 7, then 8 on the page
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.show(cdp, width)
+                p.js("document.querySelector('[data-mode=edit]').click()")
+                p.until("!!document.querySelector('#ucAdd')", "Edit")
+                self.assertEqual(p.js(ROWS), 5)
+                self.click(p, "#ucAdd")
+                p.until("!!document.querySelector('#ucF')", "the box")
+                ref = f"9.{width}"
+                self.type_in(p, "#ucI", ref)
+                self.type_in(p, "#ucT", f"Late {ref}")
+                p.js("document.querySelector('#ucF').requestSubmit()")
+                p.until("!document.querySelector('#ucF')", "the box closed")
+                p.until("(document.querySelector('.toast-text') || {}).textContent.indexOf('added, hidden') > 0", "the added toast")
+                made = {r["ref"]: r for r in self.store.read("use_cases", "ABC")}[ref]
+                self.click(p, "[data-uc-back]")
+                p.until("!!document.querySelector('form.picker')", "the picker")
+                p.js("document.querySelector('form.picker .pick input[value=\"%s\"]').click()" % made["id"])
+                p.js("document.querySelector('form.picker button[type=submit]').click()")
+                p.until("!document.querySelector('form.picker')", "the picker closed")
+                p.until(f"{ROWS} === {7 + n}", "all are shown, so the new one is not out of sight")
+                self.assertEqual(p.js(BUTTON), "Show the first 5")
 
 
 if __name__ == "__main__":
