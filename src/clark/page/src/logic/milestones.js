@@ -248,3 +248,19 @@ export function headLine(rows) {
   const dated = live.filter((r) => r.baseline || r.forecast), last = (dated.length ? dated : live).slice(-1)[0], achieved = live.filter((r) => r.state === "Achieved").length;
   return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
 }
+
+/** The second line of a list row under its date: what the date means for this state. A cancelled milestone is not described as agreed. */
+export function subLine(r) {
+  if (r.state === "Achieved" && r.achieved) return { text: r.achievedNote || "Achieved", late: false };
+  if (r.state === "Achieved") return { text: "Achieved, date not recorded", late: false };
+  if (r.state === CANCELLED) return { text: "No longer going ahead", late: false };
+  if (r.state === "Forecast") return { text: "Forecast, not agreed", late: false };
+  if (r.slip) return { text: `Expected ${showDate(r.expected)} \u00b7 ${r.slipText}`, late: true };
+  return { text: r.baseline ? "Agreed" : "No agreed date", late: false };
+}
+
+/** The Milestones head when headLine gives nothing: 'No milestones yet.' only when there are no rows to draw; if every row is cancelled, say so. */
+export function emptyHead(rows) {
+  const n = (rows || []).length;
+  return n ? (n === 1 ? "The only milestone is cancelled." : `All ${n} milestones are cancelled.`) : "No milestones yet.";
+}

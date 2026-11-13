@@ -52,7 +52,7 @@ main { position: relative; max-width: var(--max-width); margin: 0 auto; padding:
 .cover { margin: -24px -28px 20px; padding: var(--space-5) 28px 20px; background: var(--brand-navy); color: var(--white); border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
 .cover { position: relative; overflow: hidden; isolation: isolate; }      /* row 1003: the brand picture is laid behind the band, filling it (the prototype's cover::before); --image-cover is none without an own look, so the plain band is unchanged */
 .cover::before { content: ""; position: absolute; inset: 0 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .85; }
-.frame .cover h1 { margin: 0 0 6px; color: var(--white); }
+.frame .cover h1 { margin: 0 0 6px; color: var(--white); min-width: 0; overflow-wrap: anywhere; }      /* a long name with no spaces breaks inside the band instead of being cut off */
 .cover-line { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) 10px; font-size: var(--size-small); color: var(--white); }
 .cover-line span + span::before, .cover-kind + span::before { content: "\00b7"; margin-right: 10px; }
 .cover-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
@@ -362,6 +362,8 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .fk.k-val.n { background: var(--grey-100); color: var(--grey-700); box-shadow: 0 0 0 2px var(--grey-100); }
 .fk.k-err { pointer-events: auto; cursor: text; text-decoration: underline wavy var(--status-red); text-underline-offset: 4px; }
 .fcount { flex: none; margin-left: auto; font-size: var(--size-small); color: var(--text-muted); white-space: nowrap; }
+/* every field's placeholder reads at the muted text colour (the browser default grey is 3.1:1 on the dark surface) */
+input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
 .fline input::placeholder { color: var(--text-muted); }
 .fchip { display: inline-flex; align-items: center; gap: 4px; padding: 0 2px 0 10px; min-height: 26px; border-radius: var(--radius-pill); background: var(--brand-blue-tint); color: var(--status-blue-text); font-size: var(--size-small); }
 .fchip.word { background: var(--grey-100); color: var(--text); }
@@ -450,7 +452,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .ddmenu:focus { outline: none; }
 .ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
 .ddmenu .sep { height: 1px; margin: 6px 0; background: var(--border); }
-.ddmenu .who { padding: var(--space-2) 14px 6px; max-width: 280px; }
+.ddmenu .who { display: block; padding: var(--space-2) 14px 6px; max-width: 280px; }
 .ddmenu .who b { display: block; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
@@ -671,9 +673,9 @@ input.sec-title { width: 100%; }
 .peek.leaving { pointer-events: none; animation: pk-out var(--dur-instant) var(--ease-exit) forwards; }
 @keyframes pk-out { to { transform: translateX(104%); } }
 @media (prefers-reduced-motion: reduce) { .peek.leaving { display: none; } }
-.pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 8px; cursor: ew-resize; touch-action: none; }
-.pk-edge:hover { background: var(--brand-cyan); opacity: .5; }
-.pk-edge:focus-visible { background: var(--brand-blue); opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
+.pk-edge { position: absolute; left: 0; top: 0; bottom: 0; width: 24px; cursor: ew-resize; touch-action: none; }      /* a 24 px hit box inside the peek's 24 px side padding; the strip that shows is still 8 px */
+.pk-edge:hover { background: linear-gradient(var(--brand-cyan), var(--brand-cyan)) left / 8px 100% no-repeat; opacity: .5; }
+.pk-edge:focus-visible { background: linear-gradient(var(--brand-blue), var(--brand-blue)) left / 8px 100% no-repeat; opacity: 1; outline: 2px solid var(--focus); outline-offset: -2px; }   /* a ring, not only a faint fill, so the keyboard user sees the handle has focus */
 .pk-bar { display: flex; align-items: center; gap: 6px; padding-bottom: var(--d-pk-bar-b); border-bottom: 1px solid var(--grey-100); }
 .pk-sp { flex: 1; }
 .pk-id { color: var(--text-muted); font-size: var(--size-caption); margin-left: 6px; }
@@ -958,6 +960,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp kbd, .hp-keyline kbd { display: inline-block; min-width: 1.6em; text-align: center; font: var(--weight-regular) var(--size-small)/1 var(--font); border: 1px solid var(--grey-300); border-bottom-width: 2px; border-radius: var(--radius-sm); padding: 3px 5px; background: var(--surface); color: var(--text); white-space: nowrap; }
 .hp code { font: var(--weight-regular) var(--size-small)/1.4 ui-monospace, "SF Mono", Menlo, Consolas, monospace; background: var(--grey-100); border-radius: var(--radius-sm); padding: 1px 5px; }
 .hp mark { background: var(--flash); color: inherit; border-radius: 2px; padding: 0 1px; }
+.hp a[href]:not(.hp-job) { display: inline-block; min-height: 24px; line-height: 24px; }      /* a link in Help is a target of 24 px, in a sentence or on its own */
 .hp a.hp-a, .hp .hp-go, .hp .hp-jgo, .hp .hp-jt, .hp .hp-wt[href] { color: var(--status-blue-text); text-decoration: none; cursor: pointer; }
 .hp a.hp-a:hover, .hp .hp-go:hover, .hp .hp-jgo:hover, .hp .hp-jt:hover, .hp .hp-wt[href]:hover { text-decoration: underline; text-underline-offset: 2px; }
 .hp a:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: 3px; }
@@ -1049,6 +1052,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
+.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
@@ -1125,7 +1129,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hpk-arts { margin: 0; padding: 0; list-style: none; display: grid; gap: var(--space-2); }
 .hpk-arts .hpk-link { font-size: var(--size-small); text-align: left; }
 .hpk-foot { margin-top: auto; padding: var(--space-3) 0; border-top: 1px solid var(--grey-200); position: sticky; bottom: calc(-1 * var(--space-4)); background: var(--surface); }   /* row 896: with the articles the panel can be taller than the window: the link to the full Help stays in view */
-.hpk-link { all: unset; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
+.hpk-link { all: unset; display: inline-block; min-height: 24px; line-height: 24px; box-sizing: border-box; cursor: pointer; font-size: var(--size-body); color: var(--status-blue-text); text-underline-offset: 2px; }
 .hpk-link:hover { text-decoration: underline; }
 .hpk-link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 
@@ -2048,6 +2052,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
+  html.print-all table.items .c-owner, html.print-all table.items .c-due, html.print-all table.items .c-prio, html.print-all table.items .c-status { width: 14%; }   /* the screen's fixed pixel widths leave the Item column about 144 px of an A4 page; percentages give Item about half */
   html.print-all a { color: inherit; text-decoration: none; }
   /* row 990: the Gantt on paper. No toolbar, menu or hover control; the chart and the table are drawn whole to the page width (no box to scroll, nothing sticky or fixed); the bars, the Today flag and the swatches keep their colour; a row is not split across two pages. */
   html.print-all .gp-tools, html.print-all .rbar, html.print-all .gt-bar, html.print-all .gt-pop, html.print-all .gt-menu, html.print-all .gt-box, html.print-all .gt-grip, html.print-all .gt-addb, html.print-all .gt-rz, html.print-all .gt-cr { display: none; }
@@ -2487,3 +2492,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
 .btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
 .vgb .i { width: 18px; height: 18px; }
+
+/* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
+.crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }

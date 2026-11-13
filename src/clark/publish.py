@@ -167,6 +167,19 @@ def safe_href(value):
     return v.startswith(("https://", "mailto:", "#"))
 
 
+def reachable_href(value):
+    """A link in the editor's text that a client may be given: a place on the page (#), or an address the one link rule
+    (doclinks.check_link) accepts. That rule refuses a user name or password, localhost, a number or name that only works inside a
+    network (192.168.x, intranet, .corp, .local) and a mailto with a second recipient or a header, which safe_href alone lets by."""
+    if re.sub(r"[\x00-\x20]+", "", value or "").startswith("#"):
+        return True
+    try:
+        doclinks.check_link(value)
+    except doclinks.LinkError:
+        return False
+    return True
+
+
 class _Cleaner(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -186,7 +199,7 @@ class _Cleaner(HTMLParser):
             value = given.get(name)
             if value is None:
                 continue
-            if name == "href" and not safe_href(value):
+            if name == "href" and not (safe_href(value) and reachable_href(value)):
                 continue
             if name == "src" and not DATA_IMAGE.fullmatch(value.strip()):
                 return                                            # an image that isn't embedded is dropped whole
@@ -593,7 +606,10 @@ def select(inputs):
                                 for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
     for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
                                    for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
-    ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
+    live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
+            "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
+            "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
+    ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
     listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)

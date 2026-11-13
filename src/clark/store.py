@@ -230,7 +230,8 @@ REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "r
                ("links", "to_item"), ("item_labels", "item_id"),
                ("gantt_lines", "parent"),                                                   # row 926: a phase with lines under it (depends is a list: see referred_to)
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
-               ("item_labels", "label"))                                                # clark: a label still on an item
+               ("item_labels", "label"),                                                # clark: a label still on an item
+               ("use_case_milestones", "milestone"), ("use_case_milestones", "use_case"))   # row 1107: a live link between a use case and a milestone
 
 
 class Invalid(Exception):
@@ -1199,8 +1200,8 @@ def write_item(con, item, step):
     reverting = bool(item.get("revert"))
     if not reverting:
         refuse_archived_field(item)
-    if op not in ("new", "update", "cancel", "archive", "restore"):
-        raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
+    if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
+        raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -1216,6 +1217,8 @@ def write_item(con, item, step):
         _refuse_label_on_archived(con, table, current)
     if op == "cancel" and table in DELETED_ON_CANCEL:
         return delete_row(con, table, key, current, step)
+    if op == "delete":
+        return delete_item(con, table, key, current, step)
     changes = _cancel_changes(table) if op == "cancel" else dict(item.get("changes") or {})
     return _update_row(con, table, item, key, current, changes, cols, step)
 
@@ -1524,10 +1527,10 @@ def all_sections_deleted(con, code):
     return not con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone() and sections_were_made(con, code)
 
 
-def delete_row(con, table, key, current, step):
-    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row. The row is kept in
-    change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL:
+def delete_row(con, table, key, current, step, item=False):
+    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
+    is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
+    if table not in DELETED_ON_CANCEL and not (item and table in DELETABLE_ITEMS):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1541,6 +1544,42 @@ def delete_row(con, table, key, current, step):
     con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
     log(con, step, table, key, REMOVED, json.dumps(current, ensure_ascii=False), None, "update")
     return key
+
+
+DELETABLE_ITEMS = ("actions", "raid", "decisions")     # item 658: the work items a person may delete (not by cancel: cancel closes them); milestones and use cases are never deleted
+
+
+def item_pointer(con, key):
+    """(table, the referring row's key) where another record names this item and the delete cannot take that pointer with it
+    (a decision's 'replaces'), or None. A link, a label on it and its hiding from the report go with the item, so they are not pointers."""
+    for table, col in REVERT_REFS:
+        if table in ("links", "item_labels") or col not in columns(con, table):
+            continue
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+        if r:
+            return table, key_of(table, r)
+    return None
+
+
+def delete_item(con, table, key, current, step):
+    """Item 658: delete one action, RAID item or decision, with its links, its labels and its hiding from the report, in the
+    caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
+    Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
+    (next_id reads change_log)."""
+    if table not in DELETABLE_ITEMS:
+        raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
+    _refuse_if_archived(table, key, current)
+    if con.execute("SELECT 1 FROM projects WHERE code = ? AND archived = 1", (current["project"],)).fetchone():
+        raise Invalid(f"{current['project']} is archived. Restore it first.")
+    pointer = item_pointer(con, key)
+    if pointer:
+        raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
+    for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
+                     ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
+        for r in rows_:
+            delete_row(con, t, key_of(t, r), dict(r), step)
+    return delete_row(con, table, key, current, step, item=True)
 
 
 # ---------- updates and cancels ----------
@@ -1725,10 +1764,39 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     return row
 
 
+def _carry_filter_names(step, field, old, new, project=None):
+    """Row 1113: a saved Work items filter names an owner or a workstream by its words. A rename changes those words in every such
+    filter (a person: every project's; a workstream: its project's), in the same step, so the section follows the live name."""
+    same = lambda x: isinstance(x, str) and " ".join(x.split()).casefold() == " ".join(old.split()).casefold()
+    sql, args = "SELECT id, body FROM report_sections WHERE type = 'workitems'", ()
+    if project:
+        sql, args = sql + " AND project = ?", (project,)
+    for sid, body in step.con.execute(sql, args).fetchall():
+        try:
+            v = json.loads(body or "")
+        except ValueError:
+            continue
+        if not isinstance(v, dict):
+            continue
+        changed = False
+        for part in (v, v.get("not")):
+            got = part.get(field) if isinstance(part, dict) else None
+            if isinstance(got, list) and any(same(x) for x in got):
+                out = []
+                for x in got:
+                    x = new if same(x) else x
+                    if x not in out:
+                        out.append(x)
+                part[field], changed = out, True
+        if changed:
+            step.update("report_sections", sid, {"body": json.dumps(v)})
+
+
 def _carry_workstream_rename(con, current, diff, step):
     """A rename carries the project's items with it (clark: milestones too, as they name a workstream)."""
     if "name" not in diff:
         return
+    _carry_filter_names(step, "workstream", current["name"], diff["name"], current["project"])
     for t in ("actions", "raid", "milestones"):
         for r in con.execute(f"SELECT id, workstream, updated_at FROM {_table(t)} WHERE project = ? AND "
                              "workstream = ? COLLATE NOCASE", (current["project"], current["name"])).fetchall():
@@ -1823,7 +1891,8 @@ def referred_to(con, key):
     decision it replaces, a use case), or None."""
     for table, col in REVERT_REFS:
         if col in columns(con, table):
-            r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+            rows = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?", (key,)).fetchall()
+            r = next((x for x in rows if not (table == "use_case_milestones" and x["removed_at"])), None)      # a link taken off is not a reference
             if r:
                 return table, key_of(table, r)
     if GANTT_ID.fullmatch(str(key)):          # row 926: a Gantt line another line depends on (a comma list, so it is read, not matched)
@@ -1885,6 +1954,41 @@ def revert_plan(con, rows, step, undoing_a_revert):
     return done, skipped
 
 
+def _link_end_gone(con, old):
+    """Item 658: whether either work item a removed link joined is not in the project now."""
+    for end in (old.get("from_item"), old.get("to_item")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS + ("milestones", "use_cases")):
+            return True
+    return False
+
+
+def _return_links(con, step, key, undoing):
+    """Item 658: an item came back by Undo: put back each link to it that its own delete (or the delete of the item at the other end)
+    took away while the other end was still gone, now that both ends are there. A link taken away by hand, or put back already, is left."""
+    out = []
+    for r in con.execute("SELECT rowid, * FROM change_log WHERE tbl = 'links' AND field = ? ORDER BY rowid", (REMOVED,)).fetchall():
+        old = json.loads(r["old_value"])
+        if key not in (old.get("from_item"), old.get("to_item")) or _link_end_gone(con, old):
+            continue
+        if r["apply_id"] == undoing:
+            continue                                               # the step being undone puts its own links back itself
+        lk = r["item_id"]
+        if fetch(con, "links", lk) is not None:
+            continue
+        if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
+            continue                                               # the link was put back, or taken away again, since
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions')",
+                           (r["apply_id"], REMOVED)).fetchone():
+            continue                                               # not removed by a delete of an item
+        back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}
+        check_row(con, "links", dict(back), set(back))
+        _insert_sql(con, "links", back)
+        for f, v in back.items():
+            log(con, step, "links", lk, f, None, v, OP_MADE, undoes=r["rowid"])
+        out.append({"rowid": r["rowid"], "ref": lk, "field": REMOVED, "change": "put back"})
+    return out
+
+
 def revert_group(con, apply_id, table, key, rows_, step):
     """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
     def entry(r, **k):
@@ -1908,6 +2012,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
             return [], [entry(rows_[0], field=None, by_step=None,
                               why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
         current = fetch(con, table, key)
+        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+        elif table == "use_cases":
+            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
         con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
         log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
             undoes=made[0]["rowid"])
@@ -1918,6 +2026,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if fetch(con, table, key) is not None:
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
+        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
         before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
         for x in rows_:
@@ -1928,7 +2038,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
         _insert_sql(con, table, back)
         for f, v in back.items():
             log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        return [entry(x, change="put back") for x in rows_], []
+        out = [entry(x, change="put back") for x in rows_]
+        if table in DELETABLE_ITEMS:
+            out += _return_links(con, step, key, apply_id)
+        return out, []
     done, skipped, changes, undoes = [], [], {}, {}
     row = fetch(con, table, key)
     if row is None:
@@ -1973,7 +2086,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
-              "item_labels": "a label on an item"}   # named with the referring row's key
+              "item_labels": "a label on an item",
+              "use_case_milestones": "a use case and milestone link"}   # named with the referring row's key
 
 
 def _typed(con, table, changes):
@@ -2068,6 +2182,9 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
 MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
                     "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
 NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+# The same refusal as said by the check run before the server starts in Docker, where the fix is a folder, not an install.
+# NEWER_DATA stays as it is for the Mac (tests pin it).
+NEWER_FOLDER = "This data needs a newer clark. Start from the newer clark folder. Nothing was changed."
 
 # The lowest SQLite the migration code is written for. Stated, not enforced at run time; a test checks the steps use nothing newer.
 MIN_SQLITE = (3, 24, 0)
@@ -2077,6 +2194,31 @@ MIN_SQLITE = (3, 24, 0)
 # a newer file): the server shows these sentences as they are instead of "clark can't read its data".
 MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of clark cannot bring the database",
                           "The database has a version clark does not know", "This data needs a newer clark")
+
+
+def data_version(path):
+    """The schema version written in the data file at `path`, read and nothing else (a read-only connection: no step, no copy,
+    no migration, no table made), or None when there is no file. Raises Invalid when the file is not a clark database or has no
+    usable version. Before the try: Path.is_file and stat (an OSError on an unreadable folder is left to the caller, which says it in words)."""
+    path = Path(path)
+    if not path.is_file() or path.stat().st_size == 0:
+        return None
+    con = None
+    try:
+        con = connect(path, readonly=True)
+        row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    except sqlite3.OperationalError as e:        # a lock, or a read-only folder with no room for the -shm file: not a damaged file
+        if "locked" in str(e) or "busy" in str(e):
+            raise Invalid(_busy(e)) from e
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    except sqlite3.DatabaseError as e:           # a file that isn't a database, a database with no meta table, or one that can't be read
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    finally:
+        if con is not None:
+            con.close()
+    if row is None or not str(row[0]).isdigit():
+        raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
+    return int(row[0])
 
 
 def bring_up_to_date(con, path, onedrive_roots=None):
@@ -3236,6 +3378,11 @@ class Store:
         where = "" if archived is None else (" WHERE archived = 1" if archived else " WHERE archived = 0")
         return [dict(r) for r in self.con.execute("SELECT * FROM people" + where + " ORDER BY id")]
 
+    def gone_owners(self):
+        """Row 1113: the names (lower case, spaces tidied) of archived people that no live person also has: an owner that is no longer on
+        the list, so a Work items filter naming it matches nothing."""
+        return gone_owner_names(self.con)
+
     def resolve_owner(self, text):
         """What an owner name typed on a work item points at (#115), read only. The one resolver: the same answer for the page's
         edit, an Excel import and a teammate's file. Returns people.resolve's dict (status blank, one, many, archived or none, and
@@ -3321,6 +3468,7 @@ class Store:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
             attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
+            out["gone_owners"] = gone_owner_names(con)             # row 1113: an owner archived from the people list, for a Work items filter
             out["commitments"] = list(COMMITMENTS)                 # #709: the flag's words, so the page never writes them itself
             return out
         finally:
@@ -3384,6 +3532,7 @@ class Store:
                         "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                         "ORDER BY sort_order, id", (code,))],
                     "sections_deleted": all_sections_deleted(con, code),
+                    "gone_owners": gone_owner_names(con),
                     "glance_tiles": [dict(r) for r in con.execute(           # #45: the same query as data_for's, in this transaction
                         "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                         "ORDER BY sort_order, tile", (code,))],
@@ -3900,6 +4049,14 @@ class Store:
 OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
 
 
+def gone_owner_names(con):
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
+        return []
+    tidy = lambda n: " ".join(str(n or "").split()).casefold()
+    live = {tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 0")}
+    return sorted({tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 1")} - live - {""})
+
+
 def _live_person(con, ref):
     row = fetch(con, "people", ref)
     if row is None:
@@ -4003,9 +4160,10 @@ class Step:
     def rename_person(self, ref, new_name):
         """#115: a new name for a person and, in this one step, on every live work item that points at them. Returns the number of
         items changed. Archived items keep the name they had."""
-        _live_person(self.con, ref)
+        was = _live_person(self.con, ref)["name"]
         self.update("people", ref, {"name": new_name})
         name = fetch(self.con, "people", ref)["name"]
+        _carry_filter_names(self, "owner", was, name)
         return _repoint_owner_text(self, ref, ref, name)
 
     def merge_people(self, source, target):
@@ -4022,6 +4180,7 @@ class Step:
             self.update("people", source, {"email": None})
         self.update("people", target, {"aliases": aliases or None})
         n = _repoint_owner_text(self, source, target, tgt["name"])
+        _carry_filter_names(self, "owner", src["name"], tgt["name"])
         write_item(self.con, {"table": "people", "op": "archive", "id": source}, self)
         return n
 
@@ -4032,6 +4191,10 @@ class Step:
     def restore(self, kind, ref):
         """Bring an archived record back, as it was (#126)."""
         return write_item(self.con, {"table": kind, "op": "restore", "id": ref}, self)
+
+    def delete(self, kind, ref):
+        """Item 658: delete an action, RAID item or decision with its links and labels: one step, one Undo."""
+        return write_item(self.con, {"table": kind, "op": "delete", "id": ref}, self)
 
     def cancel(self, kind, ref):
         """Close a row as cancelled (work items, projects, workstreams), or remove a link, label or item label."""

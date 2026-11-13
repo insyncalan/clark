@@ -45,7 +45,10 @@ class OldReader(unittest.TestCase):
 
     def flat_zip(self, start_file):
         """The old flat shape with the one start file named `start_file`; nothing else differs between two such zips."""
-        files = {(start_file if rel == release_files.START_HERE else rel): body for rel, body in listed_files("1.0.1").items()}
+        # The list is the SAVED 1.0.0 list, not today's: a zip made for 1.0.0 holds what 1.0.0 knew (nothing bundled since is in it).
+        files = {item + "x.py" if item.endswith("/") else item: f"# fictional {item}\n".encode() for item in self.old.release_files.listed("mac")}
+        files["src/clark/__init__.py"] = b'__version__ = "1.0.1"\n'
+        files[start_file] = b"Getting started.\n"
         return make_zip(self.tmp, version="1.0.1", files=files, placed=False)
 
     def test_the_saved_reader_still_reads_the_shape_it_shipped_with(self):

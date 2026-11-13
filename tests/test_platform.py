@@ -139,6 +139,23 @@ class Dialogs(unittest.TestCase):
         with self.assertRaisesRegex(pl.PlatformError, "The Open window could not be opened"):
             pl.choose_zip_file("Choose", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
 
+    def test_an_empty_pick_is_no_pick_not_the_current_folder(self):
+        # osascript can exit 0 with nothing on stdout; Path("") equals "." and would save the cwd as the chosen folder.
+        for out in ("", "\n", "  \t\n"):
+            for call in (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),
+                         lambda r: pl.choose_open_file("Open", run=r, on=pl.MAC), lambda r: pl.choose_zip_file("Open", run=r, on=pl.MAC)):
+                self.assertIsNone(call(FakeRun(0, stdout=out)), repr(out))
+        self.assertEqual(pl.choose_folder("Pick", run=FakeRun(0, stdout="/Users/demo/Reports/\n"), on=pl.MAC), Path("/Users/demo/Reports"))
+
+    def test_a_pick_keeps_the_spaces_in_its_name(self):
+        # osascript prints one path and a line ending; only that line ending goes, not a space that is part of the folder's name.
+        calls = (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),
+                 lambda r: pl.choose_open_file("Open", run=r, on=pl.MAC), lambda r: pl.choose_zip_file("Open", run=r, on=pl.MAC))
+        for out, want in (("/Users/demo/ x\n", "/Users/demo/ x"), ("/Users/demo/x \n", "/Users/demo/x "),
+                          ("/Users/demo/x \r\n", "/Users/demo/x "), ("/Users/demo/Reports\n", "/Users/demo/Reports")):
+            for call in calls:
+                self.assertEqual(call(FakeRun(0, stdout=out)), Path(want), repr(out))
+
     def test_the_downloads_folder(self):
         self.assertEqual(Path("/Users/demo/Downloads"), pl.downloads_dir(home="/Users/demo", on=pl.MAC))
 

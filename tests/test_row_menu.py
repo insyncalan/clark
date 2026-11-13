@@ -195,6 +195,43 @@ class Rules(unittest.TestCase):
                          [{"id": "friday", "name": "Friday", "day": "2026-10-30", "line": "30-10-2026"},
                           {"id": "week", "name": "A week on", "day": "2026-11-05", "line": "05-11-2026"}])
 
+    def test_item_1070_hostile_text_in_the_change_owner_search_never_throws_and_markup_is_only_text(self):
+        """Hostile pass: control characters, markup, quotes, a huge string, unicode and odd register rows (null, numbers) are only text to the search."""
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Ada Quillfeather"}, None, {"name": None}, {"name": 42, "aliases": 7}, {"name": "\u00dcn\u00ef \u540d\u524d"}])
+        names = json.dumps(["Zelda Quince"])
+        typed = ["<script>alert(1)</script>", "\u0000\u0007bell", "'\"`\\", "x" * 100000, "\u00e9\u00e9", "%", "*", ".", "a;b", "\u202eevil"]
+        got = self.js(f"{json.dumps(typed)}.map((t) => [RM.ownerChoices({reg}, {names}, {row}, t), RM.canAddPerson({reg}, {names}, {row}, t)])")
+        for t, (found, can) in zip(typed, got):
+            self.assertEqual(found, [], repr(t[:20]))
+            self.assertEqual(can, True, repr(t[:20]) + ": an unknown name is offered as text; the save's own checks refuse hidden characters")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, '\u540d')"), ["\u00dcn\u00ef \u540d\u524d"])
+        self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, '  ADA   quillfeather ')"), False, "spacing and case do not make a known name new")
+
+    def test_item_1070_typing_in_change_owner_searches_the_register_and_the_projects_names_and_offers_to_add_only_an_unknown_name(self):
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Ada Quillfeather", "email": "ada@example.com"}, {"name": "Bryony Castellan", "aliases": "Bry C"},
+                          {"name": "Cedric Dunmore", "role": "Supplier lead"}, {"name": "Old Hand", "archived": 1}])
+        names = json.dumps(["Ada Quillfeather", "Zelda Quince"])
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, '')"), ["Zelda Quince"], "no text: the list as it was, without the owner")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'bry')"), ["Bryony Castellan"], "the register is searched, an alias too")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'SUPPLIER')"), ["Cedric Dunmore"], "role")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'quil')"), [], "the current owner is never offered")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'zel')"), ["Zelda Quince"], "a name in the project that is not on the register")
+        self.assertEqual(self.js(f"RM.ownerChoices({reg}, {names}, {row}, 'old')"), [], "an archived person is not found")
+        for typed, want in (("Wilhelmina Frost", True), ("  Wilhelmina   Frost ", True), ("", False), ("   ", False), ("tbc", False),
+                            ("Bryony Castellan", False), ("bry c", False), ("Zelda Quince", False), ("Ada Quillfeather", False)):
+            self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, {json.dumps(typed)})"), want, typed)
+
+    def test_item_1070_an_archived_persons_name_is_known_so_it_is_not_offered_as_new_and_the_current_owner_is_never_offered_even_when_the_project_lacks_them(self):
+        row = json.dumps(self.ACTION)
+        reg = json.dumps([{"name": "Old Hand", "aliases": "Oldie", "archived": 1}, {"name": "Bryony Castellan"}])
+        names = json.dumps(["Zelda Quince"])
+        for typed in ("Old Hand", "old   hand", "Oldie"):
+            self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, {json.dumps(typed)})"), False, typed + ": the picker counts an archived name as known")
+        self.assertEqual(self.js(f"RM.canAddPerson({reg}, {names}, {row}, 'Old Hander')"), True, "a different name is still offered")
+        self.assertEqual(self.js(f"RM.canAddPerson([], {names}, {row}, 'Ada Quillfeather')"), False, "the owner, though the project's names and the register lack them")
+
     def test_a_pick_is_the_cells_own_change_and_an_unchanged_value_is_nothing(self):
         row = json.dumps(self.ACTION)
         got = self.js(f"RM.pickChange({row}, 'status', 'Closed', {json.dumps(TODAY)})")
@@ -279,11 +316,11 @@ class Menu(board.Base):
             self.assertEqual(cdp.js("document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label')", sid), f"Actions for {a}")
             got = self.entries(cdp, sid)
             self.assertEqual([e[1] for e in got], ["Draft email to Sara Khan", "Open the peek", "Change status", "Move due date", "Change owner",
-                                                   "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive"])
+                                                   "Hide from the client", "Copy link to this item", "Copy ID", "Duplicate", "Archive", "Delete"])
             by = {e[0]: e for e in got}
             self.assertEqual(by["draft"][2:], [False, "Sara Khan has no email on the People list, so the To line is left empty."],
                              "open, with the To line's reason in words (#1048: the People list is read when the menu opens)")
-            self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive")))
+            self.assertFalse(any(by[k][2] for k in ("draft", "eye", "peek", "status", "due", "owner", "link", "copyid", "dup", "archive", "delete")))
             self.assertEqual(by["eye"][3], "", "the eye has nothing to explain in Edit")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft", "focus is on the first entry that can be used")
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
@@ -311,7 +348,7 @@ class Menu(board.Base):
             control = cdp.js("(() => { const b = document.body.appendChild(document.createElement('b')); const w = getComputedStyle(b).fontWeight; b.remove(); return w; })()", sid)
             self.assertIn(control, ("700", "bold"), "the control: a plain <b> is bold, so a weight of 400 below is the rule's doing")
             got = cdp.js(weights % ".rowmenu [role=menuitem] .rm-t b", sid)
-            self.assertEqual(len(got), 10, "every entry of the menu was read")
+            self.assertEqual(len(got), 11, "every entry of the menu was read (Delete is the eleventh)")
             self.assertEqual(set(got), {"400"}, "the menu's entries are regular weight")
             cdp.js("document.querySelector('.rowmenu [data-rm=status]').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list beside Change status")
@@ -330,7 +367,7 @@ class Menu(board.Base):
             got = cdp.js("Object.fromEntries([...document.querySelectorAll('.rowmenu > .ddmenu [role=menuitem]')].map(b => { const i = b.querySelector('svg.rm-ic'); "
                          "return [b.dataset.rm, i ? [i.dataset.icn, i.getBoundingClientRect().width, i.getBoundingClientRect().height, getComputedStyle(i).color, "
                          "!!(i.compareDocumentPosition(b.querySelector('.rm-t')) & Node.DOCUMENT_POSITION_FOLLOWING), i.getAttribute('aria-hidden'), b === document.activeElement || b.matches(':hover')] : null]; }))", sid)
-            self.assertEqual(len(got), 10, "ten entries")
+            self.assertEqual(len(got), 11, "eleven entries")
             self.assertTrue(all(got.values()), "an icon for every entry")
             self.assertEqual({k: got[k][0] for k in want}, want, "the icons, by name")
             self.assertIn(got["eye"][0], ("eye", "eyeoff"))
@@ -508,7 +545,7 @@ class Menu(board.Base):
             key(cdp, sid, "ArrowDown")
             self.assertEqual((first, cdp.js("document.activeElement.dataset.rm", sid)), ("draft", "peek"))
             key(cdp, sid, "End")
-            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "archive")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "delete")
             key(cdp, sid, "Home")
             self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "draft")
             key(cdp, sid, "ArrowDown")                                  # Open the peek
@@ -569,6 +606,231 @@ class Menu(board.Base):
             self.assertEqual(self.row(a)["owner"], "Priya Nair")
             self.open_menu(cdp, sid, self.TABLE % a)
             self.assertEqual(self.entries(cdp, sid)[0][1], "Draft email to Priya Nair", "the draft entry follows the owner")
+
+    def add_register(self, *people):
+        from _demo import USER
+        for name, email in people:
+            with self.store.step("dashboard", USER) as w:
+                w.add_person(name=name, source="test", **({"email": email} if email else {}))
+
+    def search_box(self, cdp, sid):
+        self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", "the search box in the owner list")
+
+    # The menu reads the people before it opens, so the first read fails here (the menu opens with no list); the owner list then reads again, and that read is held.
+    HOLD_PEOPLE = """(() => { const real = window.fetch.bind(window); let go, first = true; const held = new Promise((r) => { go = r; }); window.__peopleGo = go;
+        window.fetch = (u, ...a) => { const get = String(u).indexOf('/api/people') === 0 && !(a[0] && a[0].method && a[0].method !== 'GET');
+          if (get && first) { first = false; return Promise.resolve(new Response('{}', { status: 500 })); }
+          return get ? held.then(() => real(u, ...a)) : real(u, ...a); }; })()"""
+
+    def people_loaded(self, cdp, sid):
+        """Item 1070: the owner list has read the people (the list marks itself while it has not)."""
+        self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]') && !document.querySelector('.rowmenu .rm-fly[data-rm-loading]')", "the people list to load")
+
+    def type_in(self, cdp, sid, text):
+        cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+        cdp.call("Input.insertText", {"text": text}, sid)
+
+    def test_item_1070_change_owner_has_a_search_box_that_finds_people_on_the_register(self):
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a = self.id_of("Order the laptops")
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.people_loaded(cdp, sid)
+            self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').placeholder", sid), "Type a name")
+            self.assertEqual(cdp.js("document.activeElement.matches('input[data-rm-search]')", sid), True, "a click opens it on the box")
+            self.type_in(cdp, sid, "cedric dunmore")
+            self.until(cdp, sid, "[...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].length === 1", "the list narrowed", why=lambda: cdp.js("JSON.stringify([...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].map(b=>b.textContent))", sid))
+            self.assertEqual([e[1] for e in self.fly(cdp, sid)], ["Cedric Dunmore"])
+            self.assertEqual(cdp.js("!!document.querySelector('.rm-fly [data-rm=addp]')", sid), False, "a name on the register offers no add, as the picker does not")
+            key(cdp, sid, "ArrowDown")
+            self.assertEqual(cdp.js("document.activeElement.dataset.rm", sid), "o:Cedric Dunmore")
+            key(cdp, sid, "Enter")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Cedric Dunmore.")
+            self.assertEqual(self.row(a)["owner"], "Cedric Dunmore")
+
+    def test_item_1070_a_name_typed_before_the_people_list_loads_never_offers_add_for_a_person_who_exists(self):
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                cdp.js(self.HOLD_PEOPLE, sid)
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=owner]")
+                self.search_box(cdp, sid)
+                cdp.js("window.__addSeen = false; new MutationObserver(() => { if (document.querySelector('.rm-fly [data-rm=addp]')) window.__addSeen = true; })"
+                       ".observe(document.body, {subtree: true, childList: true, characterData: true})", sid)
+                self.type_in(cdp, sid, "cedric dunmore")
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === 'cedric dunmore'", "the typing")
+                time.sleep(0.6)
+                self.assertEqual(cdp.js("!!document.querySelector('.rm-fly [data-rm=addp]')", sid), False, "no add while the list loads")
+                self.assertEqual(cdp.js("!!document.querySelector('.rm-fly[data-rm-loading]')", sid), True, "still loading")
+                cdp.js("window.__peopleGo()", sid)
+                self.people_loaded(cdp, sid)
+                self.until(cdp, sid, "[...document.querySelectorAll('.rowmenu .rm-fly [role=menuitem]')].some(b => b.textContent.trim() === 'Cedric Dunmore')", "the person found after the load")
+                self.assertEqual([e[1] for e in self.fly(cdp, sid)], ["Cedric Dunmore"])
+                self.assertEqual(cdp.js("window.__addSeen", sid), False, "an add entry was never in the page, at any moment")
+
+    def test_item_1070_a_name_that_is_not_known_can_be_added_as_a_person_and_assigned_in_one_step_with_one_undo(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            self.assertEqual(cdp.js("document.querySelector('.rm-fly [data-rm=addp]').textContent.trim()", sid), "Add Wilhelmina Frost as a new person")
+            click(cdp, sid, ".rm-fly [data-rm=addp]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "the new person form")
+            self.assertEqual(cdp.js("document.querySelector('[data-pop] [data-new-name]').value", sid), "Wilhelmina Frost")
+            click(cdp, sid, "[data-pop] [data-new-email]")
+            cdp.call("Input.insertText", {"text": "not an email"}, sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-problem')", "the shared email rule refuses it")
+            self.assertEqual(self.steps(), before, "nothing was saved")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-email]'); i.value = 'wilhelmina@example.com'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Wilhelmina Frost, added as a new person.")
+            self.assertEqual(self.row(a)["owner"], "Wilhelmina Frost")
+            self.assertEqual(self.steps() - before, 1, "one step")
+            self.assertEqual([r[0] for r in self.query("SELECT email FROM people WHERE name = ?", "Wilhelmina Frost")], ["wilhelmina@example.com"])
+
+    def test_item_1070_a_list_opened_by_hover_keeps_a_focused_or_typed_search_when_the_pointer_leaves_and_still_closes_on_escape(self):
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                click(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                cdp.call("Input.insertText", {"text": "Wilh"}, sid)
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)      # off the menu and its list
+                time.sleep(0.7)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays: the box has focus and text")
+                self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value", sid), "Wilh")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=link]")
+                time.sleep(0.7)
+                self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "text typed and not yet used is kept even unfocused")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape closes the list")
+                self.open_menu(cdp, sid, self.TABLE % self.id_of("Order the laptops")) if cdp.js("!document.querySelector('.rowmenu')", sid) else None
+                self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+                self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+                cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 3, "y": 3}, sid)
+                self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "an empty, unfocused search still closes on leaving")
+
+    def hover_owner_list(self, cdp, sid):
+        a = self.id_of("Order the laptops")
+        self.open_menu(cdp, sid, self.TABLE % a)
+        self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=owner]")
+        self.search_box(cdp, sid)
+        self.until(cdp, sid, "document.getAnimations().length === 0", "the list to finish opening")
+        self.hover(cdp, sid, ".rowmenu .rm-fly input[data-rm-search]")
+
+    def test_item_1070_search_guard_edges_focus_alone_blank_text_swap_timing_and_a_list_opened_by_key(self):
+        away = {"type": "mouseMoved", "x": 3, "y": 3}
+        has_fly = "!!document.querySelector('.rowmenu .rm-fly')"
+        for width in (1400, 900):
+            with self.subTest(width=width, case="focused, empty"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').focus()", sid)
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js(has_fly, sid), "a focused search box keeps the list though it holds no text")
+            with self.subTest(width=width, case="blank text, unfocused"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    self.type_in(cdp, sid, "   ")
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertFalse(cdp.js(has_fly, sid), "spaces only are no text: the list closes about 250 ms after the pointer leaves")
+            with self.subTest(width=width, case="swap held"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    self.hover_owner_list(cdp, sid)
+                    self.type_in(cdp, sid, "Wilh")
+                    cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').blur()", sid)
+                    self.hover(cdp, sid, ".rowmenu > [role=menu] [data-rm=status]")
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly input[data-rm-search]')", sid), "typed text is not swapped away by resting on another entry")
+            with self.subTest(width=width, case="list opened by a click survives the pointer leaving"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    a = self.id_of("Order the laptops")
+                    self.open_menu(cdp, sid, self.TABLE % a)
+                    click(cdp, sid, "[data-rm=status]")
+                    self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list")
+                    cdp.call("Input.dispatchMouseEvent", away, sid)
+                    time.sleep(0.7)
+                    self.assertTrue(cdp.js(has_fly, sid), "a list taken by click or key stays when the pointer leaves")
+            with self.subTest(width=width, case="Escape from an entry"):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, width=width)
+                    a = self.id_of("Order the laptops")
+                    self.open_menu(cdp, sid, self.TABLE % a)
+                    cdp.js("document.querySelector('.rowmenu > [role=menu] [data-rm=status]').focus()", sid)
+                    key(cdp, sid, "ArrowRight")
+                    self.until(cdp, sid, "!!document.querySelector('.rowmenu .rm-fly [role=menuitem]')", "the list")
+                    self.until(cdp, sid, "!!document.activeElement.closest('.rm-fly')", "focus in the list")
+                    key(cdp, sid, "Escape")
+                    self.until(cdp, sid, "!document.querySelector('.rowmenu .rm-fly')", "Escape on a name closes the list")
+
+    def test_item_1070_search_enter_and_add_form_edges_blank_enter_does_nothing_enter_adds_the_new_name_the_menu_gives_way_and_focus_returns(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.until(cdp, sid, "document.activeElement.matches('input[data-rm-search]')", "focus on the box")
+            key(cdp, sid, "Enter")
+            time.sleep(0.5)
+            self.assertEqual(self.steps(), before, "Enter on an empty box takes no name")
+            self.assertTrue(cdp.js("!!document.querySelector('.rowmenu .rm-fly')", sid), "the list stays")
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "Enter on the add entry opens the form")
+            self.assertEqual(cdp.js("document.querySelector('[data-pop] [data-new-name]').value", sid), "Wilhelmina Frost")
+            self.assertEqual(cdp.js("!!document.querySelector('.rowmenu > [role=menu]')", sid), False, "the menu gives way to the form")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.value = 'Wilhelmina Frost'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.assertEqual(self.wait_toast(cdp, sid, "done")["text"], f"Owner of {a} changed to Wilhelmina Frost, added as a new person.")
+            self.until(cdp, sid, f"document.activeElement && document.activeElement.matches('tr[data-id=\"{a}\"]')", "focus back on the row",
+                       why=lambda: cdp.js("document.activeElement ? document.activeElement.outerHTML.slice(0, 80) : 'none'", sid))
+
+    def test_item_1070_the_add_form_naming_the_current_owner_saves_nothing_and_closes(self):
+        with chrome() as cdp:
+            sid = self.visit(cdp)
+            a, before = self.id_of("Order the laptops"), self.steps()
+            owner = self.row(a)["owner"]
+            self.open_menu(cdp, sid, self.TABLE % a)
+            click(cdp, sid, "[data-rm=owner]")
+            self.search_box(cdp, sid)
+            self.type_in(cdp, sid, "Wilhelmina Frost")
+            self.until(cdp, sid, "!!document.querySelector('.rm-fly [data-rm=addp]')", "the add entry")
+            click(cdp, sid, ".rm-fly [data-rm=addp]")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-new-name]')", "the form")
+            cdp.js("(() => { const i = document.querySelector('[data-pop] [data-new-name]'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(owner), sid)
+            click(cdp, sid, "[data-pop] [data-new-save]")
+            self.until(cdp, sid, "!document.querySelector('[data-pop]') && !document.querySelector('.rowmenu > [role=menu]')", "the form and the menu closed",
+                       why=lambda: cdp.js("document.body.innerHTML.length", sid))
+            self.assertEqual(self.steps(), before)
 
     def test_archive_hides_the_item_and_undo_brings_it_back_nothing_is_deleted(self):
         with chrome() as cdp:
@@ -1221,6 +1483,34 @@ class Menu(board.Base):
             self.open_menu(cdp, sid, self.TABLE % rows[-1])
             box = cdp.js("(() => { const b = document.querySelector('.rowmenu').getBoundingClientRect(); return [b.left, b.top, b.right, b.bottom]; })()", sid)
             self.assertTrue(box[0] >= 0 and box[1] >= 0 and box[2] <= 900 and box[3] <= 500, box)
+
+    def test_item_1070_typing_in_the_owner_list_moves_nothing_and_a_hostile_text_stays_inside_the_window_at_1400_and_900(self):
+        """Movement pass: while text is typed (the list narrows to nothing and to the add entry) the menu and the list's box keep their place
+        and the list stays inside the window; markup typed is shown as text, never as elements."""
+        self.add_register(("Bryony Castellan", ""), ("Cedric Dunmore", "cedric@example.com"))
+        box = "(() => { const r = document.querySelector('.rowmenu .rm-fly').getBoundingClientRect(); const m = document.querySelector('.rowmenu .ddmenu').getBoundingClientRect(); return [r.left, r.top, r.width, m.left, m.top, m.width, m.height, r.right <= window.innerWidth, r.bottom <= window.innerHeight, r.left >= 0, r.top >= 0]; })()"
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width=width)
+                a = self.id_of("Order the laptops")
+                self.open_menu(cdp, sid, self.TABLE % a)
+                click(cdp, sid, "[data-rm=owner]")
+                self.search_box(cdp, sid)
+                self.people_loaded(cdp, sid)
+                before = cdp.js(box, sid)
+                self.type_in(cdp, sid, "q" * 500)
+                self.until(cdp, sid, "document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length > 0", "the typing")
+                self.assertEqual(cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value.length", sid), 200, "a huge paste stops at 200 characters")
+                cdp.js("document.querySelector('.rowmenu .rm-fly input[data-rm-search]').select()", sid)
+                for text in ("ced", "<img src=x onerror=alert(1)>" + "w" * 150, "Zed Nobody"):
+                    self.type_in(cdp, sid, text)
+                    self.until(cdp, sid, f"document.querySelector('.rowmenu .rm-fly input[data-rm-search]').value === {json.dumps(text)}", "the typing")
+                    time.sleep(0.3)
+                    now = cdp.js(box, sid)
+                    self.assertEqual((now[1], now[3:7]), (before[1], before[3:7]), f"{width}: the menu and the list's top do not move or resize while typing")
+                    self.assertEqual(now[7:], [True] * 4, f"{width}: the list stays inside the window")
+                    self.assertEqual(cdp.js("document.querySelectorAll('.rm-fly img, .rm-fly script').length", sid), 0, "markup is only text")
+                    cdp.js("(() => { const i = document.querySelector('.rowmenu .rm-fly input[data-rm-search]'); i.select(); })()", sid)
 
     def test_no_dead_draft_email_event_is_left(self):
         for f in ("edit/RowMenu.jsx", "logic/rowMenu.js"):

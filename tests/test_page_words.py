@@ -24,7 +24,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "That request was not accepted. Reload the page."
+NOT_ACCEPTED = "That was not accepted. Reload the page."
 STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
@@ -118,8 +118,15 @@ class Words(unittest.TestCase):
 
         def page_then_stop():
             """Serves the page, then clark's window closes: the page's own request for the data finds nobody."""
-            threading.Thread(target=lambda: (self.s.httpd.shutdown(), self.s.httpd.server_close()), daemon=True).start()
-            time.sleep(0.5)
+            mine = threading.get_ident()
+            def close():
+                self.s.httpd.shutdown()
+                self.s.httpd.server_close()
+                self.s.httpd.drop_connections(keep=mine)      # Chrome's spare connections, accepted before the close, would still answer the page's request for the data
+            closing = threading.Thread(target=close, daemon=True)
+            closing.start()
+            closing.join(10)      # the server is closed before the page is given out, not after a guess of how long that takes
+            self.assertFalse(closing.is_alive(), "the server closed")
             return page.page_html(tempfile.mkdtemp())
         self.s.httpd.page_html = page_then_stop
         with chrome() as cdp:
@@ -139,7 +146,7 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
-    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that_request(self):
+    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
         def refuse(handler):
             handler.send(403, {"ok": False, "message": "Not allowed"})
             return False
@@ -153,7 +160,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})
@@ -186,6 +193,7 @@ class Words(unittest.TestCase):
             cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
             cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
+            system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
                                   "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
@@ -222,7 +230,7 @@ class Words(unittest.TestCase):
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                                   "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook", "Excel file layout",      # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
@@ -248,7 +256,7 @@ class Words(unittest.TestCase):
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
                                   "AI suggestions come in a later version.",
                                   "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
-                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", "System: Linux",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
                                   "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
                                   "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
@@ -304,6 +312,25 @@ class Words(unittest.TestCase):
             text = (Path(page.PAGE).parents[1] / name).read_text(encoding="utf-8")
             self.assertNotIn("The folder {folder} isn't there", text)
             self.assertNotIn("was saved in {folder},", text)
+
+    def test_the_page_words_say_data_not_database_and_that_not_request(self):
+        """Item 1126: the refusal and backup words on screen use plain words."""
+        root = SRC / "clark"
+        shown = {
+            "logic/safety.js": ["different set of data"],
+            "stores/report.js": ["That was not accepted.", "That could not be read."],
+            "help/helpContent.json": ["different set of data"],
+        }
+        for name, want in shown.items():
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            for w in want:
+                self.assertIn(w, text, name)
+        for name in ("logic/safety.js", "stores/report.js"):
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            self.assertNotIn("different database", text)
+            self.assertNotIn("That request ", text)
+        client = (root / "to_client.py").read_text(encoding="utf-8")
+        self.assertNotIn("which holds the database", client)
 
     def test_no_text_in_the_page_source_says_report_editor_or_capital_clark(self):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]

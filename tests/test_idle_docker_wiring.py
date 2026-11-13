@@ -1,7 +1,7 @@
 """Row 1080, mutation sweep: the launcher's wiring of the idle watch (the one line of __main__ that gives server.set_idle a
 watcher). With the launcher's mark in Docker the server is given no watcher at all; outside Docker the mark gives one, with the
 environment's times; without the mark there is never one, in or out of Docker. Headless: server.serve and server.set_idle are
-stood in for, the container check is patched, no port is probed.
+stood in for, the container and host-network checks are patched (a machine whose own network has many interfaces would print the host-network warning), no port is probed.
 
 Run: python3 dev/run_tests.py test_idle_docker_wiring
 """
@@ -35,6 +35,7 @@ class IdleWiring(unittest.TestCase):
         """What main handed server.set_idle for a run with this environment, in or out of a container."""
         out, err = io.StringIO(), io.StringIO()
         with mock.patch.object(launcher.platform, "container_mode", lambda: in_container), \
+                mock.patch.object(launcher.platform, "container_on_host_network", lambda: False), \
                 mock.patch.object(launcher.server, "set_idle") as set_idle:
             code = launcher.main(["--data", str(self.tmp / "data"), "--port", "8123"], out=out, err=err, serve=FakeServe(),
                                  home=self.tmp, onedrive_roots=[], environ=environ, is_free=lambda port: True)

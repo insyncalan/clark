@@ -41,10 +41,12 @@ The safety steps, each one tested in tests/test_ask_claude.py with a fake comman
 - NO CONTENT IN LOGS OR ERRORS: no question, passage, reply, path or error text from the command is kept; failures are fixed
   sentences. The reply text is handed back to ask.ask_provider, which reads it with the reply reader and claims check.
 """
+import glob
 import json
 import os
 import pwd
 import re
+import shutil
 import stat
 import threading
 import time
@@ -54,7 +56,10 @@ from pathlib import Path
 from clark import ask, platform
 
 PROVIDER = "claude"
-PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude")
+# An npm global or nvm install is looked for too (a "*" stands for one nvm node version). Its `claude` is a link: it is followed to the file
+# it names, and that file must still be a Mac program (the native package's own binary); a script is refused as before.
+PLACES = ("~/.local/bin/claude", "~/.claude/local/claude", "/opt/homebrew/bin/claude", "/usr/local/bin/claude",
+          "~/.npm-global/bin/claude", "~/.nvm/versions/node/*/bin/claude")
 OTHER_ROOTS = ("/opt/homebrew", "/usr/local")       # besides the home folder, where the file a place names may be
 NEEDED_FLAGS = ("--print", "--safe-mode", "--disable-slash-commands", "--tools", "--strict-mcp-config", "--setting-sources",
                 "--no-session-persistence", "--system-prompt", "--output-format", "--max-budget-usd")
@@ -113,6 +118,10 @@ MODEL_UNAVAILABLE = "Claude says that model can't be used with this sign-in. Cho
 LIMIT_REACHED = "Claude says the limit for this model has been reached, so nothing more was sent."
 LIMIT_OFFER = "You could ask again with {others}. clark doesn't switch unless you choose to."
 BUSY = "Another question is being answered. Wait for it, or press Stop."
+NOT_ELSEWHERE = ("Claude works in Terminal, but clark can't use it from where it is installed. Install it with its own installer "
+                 "from claude.com/claude-code, then ask again.")
+# Which words say "not found", by case: nowhere on this computer, or only somewhere clark does not look.
+NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_ELSEWHERE}
 # Hints: added after the status sentence when this computer's set-up is one questions can't follow.
 PROXY_HINT = ("This computer reaches the internet through a proxy or its own security certificates. Questions don't use those "
               "settings, so Claude may not answer here. If questions fail, ask whoever runs your network for a way to reach Claude "
@@ -187,21 +196,22 @@ def _ancestor_problem(folder):
     return False
 
 
-def native_problem(real, roots):
+def native_reason(real, roots):
     """None when `real` (a resolved absolute path) is a Mac program this user owns that nobody else can change, inside `roots`,
-    in a folder nobody else can write to, below folders nobody else can use to swap the path; otherwise True. Reads the first
-    four bytes only."""
+    in a folder nobody else can write to, below folders nobody else can use to swap the path. Otherwise which check failed, as a
+    short code: "unreadable", "owner" (wrong owner, not a plain runnable file, writable by others, outside the allowed folders)
+    or "not_mac" (the first four bytes are not a Mac program's). Reads the first four bytes only."""
     try:
         st = os.stat(str(real), follow_symlinks=False)
         folder = os.stat(str(real.parent))
     except OSError:
-        return True
+        return "unreadable"
     if not stat.S_ISREG(st.st_mode) or not (st.st_mode & stat.S_IXUSR) or st.st_uid != os.getuid():
-        return True
+        return "owner"
     if st.st_mode & (stat.S_IWGRP | stat.S_IWOTH) or folder.st_mode & (stat.S_IWGRP | stat.S_IWOTH):
-        return True
+        return "owner"
     if not _inside(real, roots) or _ancestor_problem(real.parent):
-        return True
+        return "owner"
     try:
         fd = os.open(str(real), os.O_RDONLY | os.O_NOFOLLOW | getattr(os, "O_NONBLOCK", 0))
         try:
@@ -209,25 +219,58 @@ def native_problem(real, roots):
         finally:
             os.close(fd)
     except OSError:
-        return True
-    return None if head in MACH_O else True
+        return "unreadable"
+    return None if head in MACH_O else "not_mac"
+
+
+def native_problem(real, roots):
+    """None when `real` passes every check of native_reason, otherwise True."""
+    return None if native_reason(real, roots) is None else True
+
+
+def _version_key(path):
+    """Sort key by the numbers in a path (v20.1.0 -> 20, 1, 0), so v10 and v20 come after v9; a name with no number sorts lowest."""
+    nums = tuple(int(n) for n in re.findall(r"\d+", path))
+    return (1, nums) if nums else (0, ())
+
+
+def _expand(places):
+    """Each place as an absolute path; a "*" in one is every match, the highest name first (the newest nvm node version)."""
+    for place in places:
+        p = os.path.expanduser(place)
+        if "*" in p and os.path.isabs(p):
+            yield from sorted(glob.glob(p), key=_version_key, reverse=True)
+        else:
+            yield p
+
+
+def missing_case(name="claude"):
+    """"elsewhere" when the person's PATH holds a command of this name that is not in a place clark looks (it works in Terminal,
+    but clark never runs a command found by PATH), else "missing". Only looked up, never run."""
+    return "elsewhere" if shutil.which(name) else "missing"
 
 
 def find_command(places=PLACES, roots=None):
     """(the resolved absolute Path of the command, None), or (None, plain reason). The first place that holds anything decides."""
+    path, why, _code = find_checked(places, roots)
+    return path, why
+
+
+def find_checked(places=PLACES, roots=None):
+    """find_command with a third item: the short code of the check that failed (None when it was found)."""
     roots = roots_for() if roots is None else tuple(roots)
-    for place in places:
-        p = Path(os.path.expanduser(place))
+    for place in _expand(places):
+        p = Path(place)
         if not p.is_absolute() or not os.path.lexists(str(p)):
             continue
         try:
             real = p.resolve(strict=True)
         except (OSError, RuntimeError):
-            return None, NOT_NATIVE
+            return None, NOT_NATIVE, "unreadable"
         if native_problem(real, roots):
-            return None, NOT_NATIVE
-        return real, None
-    return None, NOT_INSTALLED
+            return None, NOT_NATIVE, native_reason(real, roots) or "owner"
+        return real, None, None
+    return None, NOT_INSTALLED, "not_found"
 
 
 def listed_flags(text):
@@ -343,6 +386,8 @@ class ClaudeCommand(ask.Provider):
     command); clark itself uses the defaults."""
     provider = PROVIDER
     models = MODELS                            # what `model` may be; a command for another provider has its own list
+    command_name = "claude"
+    not_found_words = NOT_FOUND_WORDS
 
     def __init__(self, places=PLACES, env=None, limit=TIME_LIMIT, max_out=MAX_OUT, check_limit=CHECK_LIMIT, roots=None):
         self.places, self.limit, self.max_out, self.check_limit = tuple(places), limit, max_out, check_limit
@@ -354,23 +399,33 @@ class ClaudeCommand(ask.Provider):
         self.owner = None                      # who asked for the run now going (ask.Request.owner), set and cleared under the guard
         self.model_listed = False              # #54: whether the checked command's --help lists MODEL_FLAG
         self.checked = {}                      # (path, size, mtime, inode, device) -> the version and flag check, once per file
+        self.failed = None                     # the short code of the check that last failed (see command and login_problem), None when none did
         self.passed = None                     # (path, when) of the last sign-in check status() passed, used once by ask()
 
     # ----- the checks -----
     def command(self):
         """(path, None) when the command is found, native and passes the version and flag check, else (None, plain reason)."""
+        self.failed = None
+        if platform.container_mode():                   # item 1100: in Docker the server has no command; say where to start clark
+            self.failed = "container"
+            return None, platform.needs_mac_words()
         if platform.system() != platform.MAC:           # the fixed places, the process handling and the sign-in are the Mac's
+            self.failed = "container" if platform.container_mode() else "not_mac_os"
             return None, MAC_ONLY
-        path, why = find_command(self.places, self.roots)
+        path, why, code = find_checked(self.places, self.roots)
         if path is None:
-            return None, why
+            self.failed = code
+            return None, (self.not_found_words[missing_case(self.command_name)] if why == NOT_INSTALLED else why)
         try:
             st = path.stat()
             key = (str(path), st.st_size, st.st_mtime_ns, st.st_ino, st.st_dev)
         except OSError:
+            self.failed = "not_found"
             return None, NOT_INSTALLED
         if key not in self.checked:
             self.checked = {key: self._flags_ok(path)}
+        if not self.checked[key]:
+            self.failed = "version_flags"
         return (path, None) if self.checked[key] else (None, CANT_USE)
 
     def _flags_ok(self, path):
@@ -385,7 +440,13 @@ class ClaudeCommand(ask.Provider):
         return set(NEEDED_FLAGS) <= listed
 
     def login_problem(self, path):
-        """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question."""
+        """None when the command reports a Claude sign-in; otherwise the plain reason nothing is sent. Asked before every question.
+        The check that failed is kept in `failed`."""
+        why = self._login_problem(path)
+        self.failed = None if why is None else ("api_key" if why == API_KEY_LOGIN else "no_login" if why in (NOT_SIGNED_IN, OTHER_LOGIN) else "login_unreadable")
+        return why
+
+    def _login_problem(self, path):
         status, out, code = run([str(path), *AUTH_ARGS], b"", self.env, self.check_limit, MAX_AUTH)
         if status not in ("ok", "failed") or code is None:
             return CANT_USE
