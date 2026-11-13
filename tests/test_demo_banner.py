@@ -51,7 +51,6 @@ class DemoLine(unittest.TestCase):
             self.until(cdp, sid, "!document.querySelector('#demo-banner') && document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
             self.assertIn("No project open", cdp.js("document.querySelector('main').innerText", sid))
             self.until(cdp, sid, "document.activeElement && document.activeElement.id === 'np-empty'", "focus on the New project button")
-            self.until(cdp, sid, "document.body.innerText.includes('Demo data removed.')", "the done message")
             self.assertEqual(cdp.js("Array.from(document.querySelectorAll('main button')).map(b => b.innerText.trim()).join('|')", sid), "New project")
             cdp.js("document.querySelector('#np-empty').click()", sid)
             self.until(cdp, sid, "!!document.querySelector('#project-form')", "the project form")
@@ -95,7 +94,7 @@ class DemoLine(unittest.TestCase):
         cdp.js("document.querySelector('#demo-remove').click()", sid)
         self.until(cdp, sid, "!!document.querySelector('#demo-go')", "the box")
         cdp.js("document.querySelector('#demo-go').click()", sid)
-        self.until(cdp, sid, "!document.querySelector('#demo-confirm') && document.body.innerText.includes('Demo data removed.')", "the box closed and the message")
+        self.until(cdp, sid, "!document.querySelector('#demo-confirm')", "the box closed")
 
     def each_width(self, own, hash_, then):
         for w in (1400, 900):

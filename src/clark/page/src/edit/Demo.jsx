@@ -7,7 +7,6 @@ import { loadProjects, projects, project, openProjectAt, leaveProject } from "..
 import { say, toast, undone } from "../stores/changes.js";
 import { Dialog } from "./Dialog.jsx";
 import { openBox, closeBox } from "./boxes.js";
-import { say as sayNote } from "./menuNote.js";
 import { readDemo, sendDemoRemove } from "./demoApi.js";
 import { DEMO } from "../logic/demoWords.js";
 import * as D from "../logic/dataCard.js";
@@ -44,7 +43,6 @@ export function DemoConfirm({ opener, onClose }) {
     await loadProjects();                                             // the screen underneath is settled before the box closes, so the fallback finds what is really there
     if (!projects.value.some((p) => p.code === project.value)) leaveProject();     // the open project went: the empty screen, or the list of the projects left
     closeBox();
-    sayNote("done", DEMO.removed);                                     // spoken by the menu note: the empty screen is the Dashboard, where the change toast is not drawn
   }
   return (
     <Dialog id="demo-confirm" opener={opener} title={DEMO.confirmTitle} onClose={onClose} first="#demo-cancel" fallback={note ? "#profile-btn" : AFTER_REMOVAL}
