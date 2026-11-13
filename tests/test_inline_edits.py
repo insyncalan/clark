@@ -837,6 +837,18 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, "document.querySelector(\"tr[data-id='TUL-007'] .c-prio\").textContent === 'High'", "Undo draws it Red again")
             self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]])
 
+    def test_a_rating_pick_that_drops_the_row_from_a_priority_filter_keeps_focus_in_the_table(self):
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400, hash_="#work&p=TUL&f=mode:all;priority:High")
+            self.until(cdp, sid, "!!document.querySelector(\"tr[data-id='TUL-007']\")", "the Red risk is listed under Priority High")
+            click(cdp, sid, "[data-cell='TUL-007:status']")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
+            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
+            self.until(cdp, sid, "!document.querySelector(\"tr[data-id='TUL-007']\")", "the row left the filtered list")
+            self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement !== document.body && !!document.activeElement.closest('#work')", sid)),
+                            "focus stays in the Work items table, not on the page body")
+
     def test_a_rating_pick_with_two_rows_selected_changes_only_that_row(self):
         mod = 4 if sys.platform == "darwin" else 2                       # Cmd on a Mac, Ctrl elsewhere
         with chrome() as cdp:
