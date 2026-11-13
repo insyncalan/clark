@@ -22,7 +22,9 @@ import { selecting, ownClick, noTextRange, pickClick, pickOpen, pickKeys, drawnO
 import { SelectBar, GroupTick } from "./SelectBar.jsx";
 import { itemRows } from "../stores/work.js";
 import { handing, ticks } from "../stores/handover.js";
-import { KIND_WORDS, kindLetter, sortRows, dueCell, pillOf, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
+import { ItemIcon, iconWords } from "./ItemRows.jsx";                 // row 1145: the dashboard lists' tinted letter icon, alone, is the Status column
+import { clientPill } from "../logic/sectionRows.js";
+import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso } from "../workItems.js";
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
@@ -31,6 +33,7 @@ import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
 import { Icon } from "./Icon.jsx";
+import { printing } from "../stores/print.js";
 import { work, setWork, announce, contextFor } from "../stores/work.js";
 import { GROUPS, groupLabel, boardGroup, columnsFor, cellOf, isCollapsed, toggleCollapsed } from "../logic/board.js";
 
@@ -95,14 +98,14 @@ function focusRow(tr, id, cell) {
 
 // #970: a row deleted in Edit keeps its place for the fade (a copy with no id and no role, inert, hidden from a screen reader), then leaves the DOM.
 function GhostRow({ row, today, Eye, group, onMotionEnd }) {
-  const due = dueCell(row, today), pill = pillOf(row, today), o = ownerOf(row.owner);
+  const due = dueCell(row, today), pill = clientPill(row, today), o = ownerOf(row.owner);
   return (
     <tr class="leaving" role="presentation" aria-hidden="true" inert onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "m-out") onMotionEnd(row.id); }}>
-      <td class="c-item"><div class="tcell"><span class={`kb k-${row.kind}`} aria-hidden="true">{kindLetter(row.kind)}</span><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group)}</span></span></div></td>
+      <td class="c-status"><ItemIcon row={row} pill={pill} today={today} plain /></td>
+      <td class="c-item"><div class="tcell"><span class="tx"><span class="t">{row.title}</span><span class="meta">{metaOf(row, group)}</span></span></div></td>
       <td class="c-owner">{o.text}</td>
       <td class="c-due"><span class="num">{due.date}</span>{due.words ? <span class="due-l">{due.words}</span> : null}</td>
       <td class="c-prio">{row.priority || ""}</td>
-      <td class="c-status"><span class={`pill ${pill.class}`}>{pill.text}</span></td>
       {Eye ? <td class="c-eye" /> : null}
     </tr>
   );
@@ -134,9 +137,9 @@ function useRowMotion(lay) {
   };
 }
 
-function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEnd }) {
+function Row({ row, today, Cell, Eye, More, stop, pos, size, group, motion, onMotionEnd }) {
   if (motion === "leave") return <GhostRow row={row} today={today} Eye={Eye} group={group} onMotionEnd={onMotionEnd} />;
-  const due = dueCell(row, today), pill = pillOf(row, today);
+  const due = dueCell(row, today), pill = clientPill(row, today);
   const cell = (field, said, content) => (Cell ? <Cell row={row} field={field} said={said}>{content}</Cell> : content);
   const hand = handing(), can = isOpen(row), ticked = hand && ticks.ids.value.includes(row.id);
   const on = selecting() && !hand, picked = on && sel.ids.value.includes(row.id);
@@ -159,9 +162,9 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
           </label> : null}
         </td>
       ) : null}
+      <td class="c-status">{Cell ? <Cell row={row} field="status" said={pill.text} keep tip={iconWords(row, pill, today).tip}><ItemIcon row={row} pill={pill} today={today} plain /></Cell> : <ItemIcon row={row} pill={pill} today={today} />}</td>
       <td class="c-item">
         <div class="tcell">
-          <span class={`kb k-${row.kind}`} role="img" aria-label={KIND_WORDS[row.kind] || row.kind} title={KIND_WORDS[row.kind] || row.kind}>{kindLetter(row.kind)}</span>
           <span class="tx">
             <span class="t">{row.title}</span>
             <span class="meta">{metaOf(row, group)}{isChanged(row.id) ? <span class="tag chg">{WORD}</span> : null}</span>
@@ -171,8 +174,7 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
       <td class="c-owner">{cell("owner", ownerOf(row.owner).text === "—" ? "none" : ownerOf(row.owner).text, <Owner name={row.owner} />)}</td>
       <td class="c-due">{cell("due", due.date === "—" ? "none" : due.date, <><span class="num">{due.date}</span>{due.words ? <span class={`due-l${due.tone ? " " + due.tone : ""}`}>{due.words}</span> : null}</>)}</td>
       <td class="c-prio">{cell("priority", row.priority || "none", row.priority || <span class="muted">{"—"}</span>)}</td>
-      <td class="c-status">{cell("status", pill.text, <span class={`pill ${pill.class}`}>{pill.text}</span>)}</td>
-      {Eye ? <td class="c-eye"><Eye row={row} /></td> : null}
+      {Eye ? <td class="c-eye"><Eye row={row} />{More ? <More row={row} /> : null}</td> : null}
     </tr>
   );
 }
@@ -183,30 +185,49 @@ function Row({ row, today, Cell, Eye, stop, pos, size, group, motion, onMotionEn
 // the Client-visible eye. A published file has no eye column, and its code holds none of the eye's words: the client is shown nothing about what is internal.
 // A group with no rows is not drawn here (the board draws every column). The table's one tab stop (#80) is the row last focused
 // while it is drawn, else the first row drawn.
-const COLS = ["c-item", "c-owner", "c-due", "c-prio", "c-status"];
+const COLS = ["c-status", "c-item", "c-owner", "c-due", "c-prio"];
 const NO_WIDTHS = { style: () => undefined, grip: () => null, head: () => ({}) };      // a published file: the default widths, no handles
 function Heads({ eye, hand, cw }) {
   const g = (id, name) => cw.grip(id, name), h = (id, name) => cw.head(id, name);
   return (
     <>
       {hand ? <th scope="col" class="c-pick"><span class="sr">Hand over</span></th> : null}
-      <th scope="col" class="c-item" {...h("item", "Item")}>Item{g("item", "Item")}</th><th scope="col" class="c-owner" {...h("owner", "Owner")}>Owner{g("owner", "Owner")}</th><th scope="col" class="c-due" {...h("due", "Due")}>Due{g("due", "Due")}</th><th scope="col" class="c-prio" {...h("prio", "Priority")}>Priority{g("prio", "Priority")}</th><th scope="col" class="c-status" {...h("status", "Status")}>Status{g("status", "Status")}</th>
+      <th scope="col" class="c-status" {...h("status", "Status")}>Status{g("status", "Status")}</th><th scope="col" class="c-item" {...h("item", "Item")}>Item{g("item", "Item")}</th><th scope="col" class="c-owner" {...h("owner", "Owner")}>Owner{g("owner", "Owner")}</th><th scope="col" class="c-due" {...h("due", "Due")}>Due{g("due", "Due")}</th><th scope="col" class="c-prio" {...h("prio", "Priority")}>Priority{g("prio", "Priority")}</th>
       {eye ? <th scope="col" class="c-eye"><span class="sr">{eye.heading}</span></th> : null}
     </>
   );
 }
-function Cols({ eye, hand, cw }) { return <colgroup>{(hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []).map((c) => <col key={c} class={c} style={cw.style(c.slice(2))} />)}</colgroup>; }
+function Cols({ eye, hand, cw }) {
+  // Saved widths (dragged at a wider window) shrink together when the table is too narrow to keep the Item column readable; the saved values stay as they are.
+  const ref = useRef(null), [k, setK] = useState(1), names = (hand ? ["c-pick"] : []).concat(COLS, eye ? ["c-eye"] : []);
+  useLayoutEffect(() => {
+    const g = ref.current, t = g && g.parentElement, host = t && t.parentElement;
+    if (!g || !cw.fit) return undefined;
+    const measure = () => {
+      const room = host.clientWidth, cols = Array.from(g.children);
+      const ids = names.map((c) => c.slice(2));
+      const rest = cols.reduce((a, el, i) => (i === names.indexOf("c-item") || cw.px(ids[i]) !== null ? a : a + (parseFloat(getComputedStyle(el).width) || 0)), 0);
+      const next = cw.fit(ids.filter((id) => id !== "item"), room, rest);
+      setK((was) => (Math.abs(was - next) < 0.005 ? was : next));
+    };
+    measure();
+    const ro = typeof ResizeObserver === "function" ? new ResizeObserver(measure) : null;
+    if (ro) ro.observe(host);
+    return () => { if (ro) ro.disconnect(); };
+  });
+  return <colgroup ref={ref}>{names.map((c) => <col key={c} class={c} style={cw.drawn ? cw.drawn(c.slice(2), k) : cw.style(c.slice(2))} />)}</colgroup>;
+}
 
 const opened = (key) => (e) => { const el = e.currentTarget; el.classList.remove("opening"); if (justOpened === key && !(el.parentNode && el.parentNode.querySelector(".opening"))) justOpened = ""; };   // the group is done once its thead and its tbody have both finished
 let justOpened = "";                               // row 880: the group whose rows were just drawn by opening it (they glide in once)
-function Table({ rows, today, type, Cell, Eye, CW }) {
+function Table({ rows, today, type, Cell, Eye, More, CW }) {
   const cw = CW ? CW("work") : NO_WIDTHS;                 // the Edit part's hook, or nothing (stable for as long as the page lives)
   const hand = handing(), st = work.value, g = st.group, on = selecting(), grid = on ? { role: "grid", "aria-multiselectable": "true", "aria-label": hand ? "Work items to hand over" : "Work items" } : {};
   const n = COLS.length + (Eye ? 1 : 0) + (hand ? 1 : 0);
   const stopOf = (drawn) => stopOfIds(drawn.map((r) => r.id));
   let order = [];                                  // the rows drawn, in order: each one's place for a screen reader ("3 of 12")
   let mo = null;
-  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} motion={mo.motion(r.id)} onMotionEnd={mo.done} />;
+  const row = (r, stop) => <Row key={r.id} row={r} today={today} Cell={Cell} Eye={Eye} More={More} stop={r.id === stop} pos={order.indexOf(r.id) + 1} size={order.length} group={g} motion={mo.motion(r.id)} onMotionEnd={mo.done} />;
   const rowsOf = (key, list, stop) => {                                             // the rows, with a deleted row's fading copy back in its old place
     const out = list.map((r) => row(r, stop));
     mo.ghostsFor(key).forEach((d) => out.splice(Math.min(d.at, out.length), 0, <Row key={"gone-" + d.row.id} row={d.row} today={today} Eye={Eye} group={g} motion="leave" onMotionEnd={mo.done} />));
@@ -220,7 +241,7 @@ function Table({ rows, today, type, Cell, Eye, CW }) {
   }
   const ctx = contextFor(today, type);
   const groups = columnsFor(g, rows, ctx).map((c) => ({ ...c, rows: sortRows(rows.filter((r) => cellOf(g, r, ctx) === c.key), today) })).filter((c) => c.rows.length > 0)
-    .map((c) => ({ ...c, shut: isCollapsed(st, g, c.key) }));
+    .map((c) => ({ ...c, shut: !printing.value && isCollapsed(st, g, c.key) }));
   const shown = groups.flatMap((c) => (c.shut ? [] : c.rows)), stop = stopOf(shown);
   order = shown.map((r) => r.id);
   mo = useRowMotion(groups.map((c) => ({ key: c.key, rows: c.shut ? [] : c.rows })));
@@ -308,7 +329,7 @@ function PublishedList({ Board, Cell, Eye, Bulk, CW }) {
 }
 
 // The part a filter change redraws: the count, the chips with Clear all, and the table or the board.
-function List({ Board, Cell, Eye, Bulk, HandOver, L, CW }) {
+function List({ Board, Cell, Eye, More, Bulk, HandOver, L, CW }) {
   const today = todayIso(), v = L.view(itemRows.value, filterCtx());
   const st = v.state, filtered = v.rows, clear = v.clear, can = v.can;
   const hand = handing() && !!HandOver, board = !!Board && work.value.view === "board" && !hand;      // #199: Hand over is drawn as the table
@@ -324,7 +345,7 @@ function List({ Board, Cell, Eye, Bulk, HandOver, L, CW }) {
       <span id="work-count" class="sr num" key={countText(filtered.length, st.mode)}>{countText(filtered.length, st.mode)}</span>
       {filtered.length === 0
         ? <div class="empty"><p class="muted">{v.empty.none}</p>{can ? <button type="button" class="link" id="clearFilter" onClick={clear}>{v.empty.clear}</button> : null}{v.empty.hint ? <p class="muted" id="empty-hint">{v.empty.hint}</p> : null}</div>
-        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} CW={CW} />}
+        : board ? <Board rows={filtered} today={today} type={st.type} /> : <Table rows={filtered} today={today} type={st.type} Cell={hand ? null : Cell} Eye={Eye} More={More} CW={CW} />}
     </div>
   );
 }
@@ -336,6 +357,7 @@ export function WorkItems({ tools }) {
   const Cell = tools && tools.Cell && !fromFile.value ? tools.Cell : null;
   const CW = tools && tools.colWidths && !fromFile.value ? tools.colWidths : null;     // row 1104: the width handles; the page clark serves only
   const Eye = tools && tools.Eye && !fromFile.value ? tools.Eye : null;      // the Client-visible column: the page clark serves, never a published file
+  const More = Eye && tools.RowMore ? tools.RowMore : null;      // the row's "More actions" button (item 658), beside the eye
   const board = !!Board && work.value.view === "board";
   // Coming back to Work items: the project's line is the one kept in this session (the address holds the older form of it).
   useEffect(() => { if (L) L.restore(); }, []);   // eslint-disable-line react-hooks/exhaustive-deps
@@ -370,7 +392,7 @@ export function WorkItems({ tools }) {
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
                   <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
-                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
+                  {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} More={More} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}
     </section>

@@ -283,7 +283,8 @@
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
-     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
+     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
+     "To bring a Word file in, press your profile circle, choose **Settings**, and on the **Data** card press **Import from Word…**."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
     "page": [
@@ -464,7 +465,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, how many break a rule and how many are not in the workbook, with the first few; press **Import** (the button also says how many changes) to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, and how many are not in the workbook, with the first few. If a row breaks a rule, the box says **Nothing was imported**, lists each such row with why, and offers only **Close**: fix the workbook and choose it again. Otherwise, press **Import** (the button also says how many changes) to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -568,7 +569,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Add a milestone** links it to a milestone and **Unlink** takes the link away; a milestone one of its work items has shows there by itself, as through work items. Each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -621,7 +622,7 @@
     "go": "settings",
     "s": [
      "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
-     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your computer’s setting and changes when the computer does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
@@ -708,9 +709,9 @@
     "w": "Any longer text you click",
     "go": "dashboard+edit",
     "s": [
-     "Click the text. An editor opens where it is, with a bar of headings, bold, italic, strikethrough, lists, a checklist, indent and outdent, a quote, a divider, Link, Unlink, Clear, undo and redo, and **✦ AI**.",
-     "Highlight some words and a small bar floats above them, with the same formatting and the AI menu.",
-     "Type [[/]] at the start of a line or after a space for the command menu: Text, Heading 1 to 3, lists, a checklist, a quote, a divider and the AI options. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
+     "Click the text. An editor opens where it is, with a bar of text style (Text and Headings 1 to 3), bold, italic, strikethrough, lists, a checklist, a quote, a divider, Link, undo and redo.",
+     "Highlight some words and a small bar floats above them, with the same formatting.",
+     "Type [[/]] at the start of a line or after a space for the command menu: Heading 1 to 3, lists, a checklist, a quote and a divider. Type to narrow it; [[Up]] and [[Down]] move, [[Enter]] inserts, [[Esc]] closes.",
      "Click away, or press [[Mod+Enter]], to keep the text. [[Esc]] cancels the edit."
     ],
     "n": "Titles, headings and table cells are plain text: [[Enter]] keeps the change and [[Esc]] puts it back.",
@@ -746,7 +747,7 @@
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
+     "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
@@ -764,7 +765,8 @@
      "Press **Connect** under the one you use if it says **Not connected**. No password is asked for: the Claude or ChatGPT command already signed in on this computer is the one used. If it is not signed in, the card says what to do.",
      "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept.",
      "Choose the model in **Model for ask clark**. If you choose a smaller one, the card asks first: **Use it anyway** or **Keep the model I have**.",
-     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it."
+     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.",
+     "If the card, ask clark, Review the brand or a Choose folder, Save or Open window says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. That means clark is running in Docker, and Docker cannot sign in to Claude or ChatGPT or open Mac windows. Close clark, open Terminal in the unzipped clark folder, type bash clark.command and press Return. Then try again."
     ],
     "page": [
      "settings"
@@ -861,6 +863,7 @@
     "go": "",
     "s": [
      "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark’s web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark’s own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
+     "Keep clark on the Mac and use Docker only to show it. Connect, ask clark, the brand zip and the file and folder windows need clark to run on the Mac itself. In the clark folder, open two Terminal windows. In the first type `bash docker/front.command server` and leave it open. In the second type `bash docker/front.command`, then open localhost:8766 in Chrome. To stop, type `bash docker/front.command stop` in the second window and press Control-C in the first. If the page cannot be reached, type the first command again. If Docker is a problem, `bash clark.command` does the same without it.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
      "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
@@ -868,14 +871,15 @@
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Your data is checked first. Every time it starts, clark looks at your data folder before it opens. If the data has to be brought up to date for this clark, clark makes a copy of it first.",
-     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
+     "If a button says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. Connect to Claude or ChatGPT, ask clark, Review the brand, and the Choose folder, Save, Open and Show in Finder windows need clark to run on the Mac itself, which Docker does not do. Stop clark with the Stop line below, open Terminal in the clark folder, type bash clark.command and press Return.",
+     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window. It does start again by itself after Docker Desktop is closed and opened again, or after the Mac restarts, unless you stopped it with this line.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
      "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
      "If it says to start from the newer clark folder. A newer clark has already used your data, so this clark does not touch it. Nothing was changed. Start clark from the newer clark folder instead.",
      "If clark does not start and Docker shows it as unhealthy. It stays switched on but does nothing, so it does not keep trying again and again. Type `docker compose -f docker/compose.yaml logs --tail 50` to read why. When you have put it right, stop clark with the Stop line above and start it again.",
-     "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
+     "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after two minutes. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
      "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. If clark.command looks empty, you started Docker with another folder."
     ]
    }
@@ -1380,11 +1384,11 @@
      ],
      [
       "p",
-      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines (the To line is the owner’s email from the People list; if the owner has no email there, the To line is left empty and the menu says so), the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ],
      [
       "p",
@@ -1428,7 +1432,7 @@
      [
       "ul",
       [
-       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
+       "The suggestions sit in one row above the box (scroll it sideways for the rest). They change with the page that is open (Dashboard, work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about. On Settings they are the general six: **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
@@ -1547,7 +1551,7 @@
      ],
      [
       "p",
-      "In View and on the published page the pill says the words in the last column. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
+      "In View and on the published page the pill says the words in the last column. On a report’s rows (the Dashboard, the published page and the Word copy) an Open action that is not late, delayed or due soon reads **On track** (green), and a late one adds how many days late, for example 3 d late. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
      ],
      [
       "p",
@@ -1649,7 +1653,7 @@
        "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
-       "**The header line**: the state, the **Owner** and the progress. Achieved, with its date, appears only once the milestone is achieved; picking Achieved sets the progress to 100%.",
+       "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
        "**State**: Forecast, On track, At risk, Slipped, Overdue and Achieved as buttons under the header line. Overdue is shown but cannot be picked.",
        "**Dates**: Agreed (the baseline) is shown and not changed here; in Edit, Forecast is a date you pick; in View it is shown only. A milestone that is Done also has an Achieved on date, a row in Edit; in View the header line shows it.",
        "**Progress**: a slider and a number in the header line, set by hand.",
@@ -1693,19 +1697,23 @@
       [
        [
         "The bar",
-        "H1, H2, H3 · Bold, Italic, Strikethrough · Bulleted list, Numbered list, Checklist, Outdent, Indent, Quote, Divider · Link, Unlink, Clear · Undo, Redo · ✦ AI"
+        "Text style (Text, Heading 1, 2, 3) · Bold, Italic, Strikethrough · Bulleted list, Numbered list, Checklist · Quote, Divider · Link · Undo, Redo"
        ],
        [
         "The floating bar (select text)",
-        "Bold, Italic, Strikethrough · Heading, Small heading · Bulleted list, Numbered list, Quote · Link, Clear · the AI part"
+        "Bold, Italic, Strikethrough, Link"
        ],
        [
         "The / menu",
-        "Text, Heading 1, 2 and 3, Bulleted list, Numbered list, Checklist, Quote, Divider, Draft with AI, Rewrite clearly, Shorter, Make it executive, Polish, Ask AI…"
+        "Heading 1, 2 and 3, Bulleted list, Numbered list, Checklist, Quote, Divider"
        ],
        [
         "The line under it",
-        "“⌘↵ or click away saves · Esc cancels · / for commands and AI · highlight text to format it”"
+        "“Cmd+Enter saves. Esc cancels.”"
+       ],
+       [
+        "One-line fields",
+        "One-line fields (the Client wording on a row, picture captions, Movement words and the Own words of risks and issues) have no / menu and no formatting buttons. Enter or a click away saves."
        ]
       ]
      ]
@@ -1829,7 +1837,7 @@
       [
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
-       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
+       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
@@ -1889,7 +1897,7 @@
        ],
        [
         "Data",
-        "**Export workbook** and **Import workbook**. Both need an open project."
+        "**Export workbook**, **Import workbook**, **Excel file layout**, **Export to Word…** and **Import from Word…**. All but Excel file layout need an open project."
        ],
        [
         "Backups",
@@ -1909,7 +1917,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -1921,7 +1929,7 @@
        ],
        [
         "Quit",
-        "Quit clark asks you to confirm, then stops clark. Nothing is left running, so you do not need a Terminal window to end it. To start it again, double-click clark.command in the clark folder (with Docker, start it the way you did before)."
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it. It asks first: “Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.” Press **Quit clark** to confirm or **Cancel** to stay. After it stops, the page says how to start clark again."
        ]
       ]
      ]
@@ -2043,7 +2051,7 @@
      ],
      [
       "p",
-      "On import, columns can be in any order and only the title or name is needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
+      "On import, columns can be in any order; the ID column and the title or name are needed. An exported workbook has a few more columns: Project, Source, Updated, Closed, State set by you, Original, Shown state, Open work items, and Priority on Risks & Issues. They are filled in by clark, and an import never changes anything from them. Client-visible reads Yes or No. Dates can be DD-MM-YYYY. Only the sheets you tick in **What to import** are read; the others are not read or changed. The Gantt sheet, named after the Gantt tab or Gantt, is read the same way: a row whose ID exists updates that line, and a row without an ID adds a line with the next free ID. Its Days and Status columns are worked out and ignored, and an import never removes a Gantt line. If a row of the Gantt sheet breaks a rule (a bad date, Done over 100, a parent that is not a phase, or more than 500 lines), nothing in the file is imported, and the message gives the rule and the row number; untick the Gantt sheet in **What to import** to import the other sheets. A row whose ID belongs to another project, or is not written as a full Gantt line ID, is left out and named with its row number, and the rest of the sheet is imported. A row with no ID, or with a word in the ID column, adds a new line. When an ID appears twice, the second row is left out. On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change. The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back. The Use cases sheet has a Commitment column that reads Planned 2026, Committed or Planned 2027, spelt exactly like that, or is left empty. An empty Commitment cell on import leaves the flag as it is; it never clears it."
      ]
     ]
    },
@@ -2186,7 +2194,7 @@
    ],
    [
     "[[Mod+Z]]",
-    "In Edit, on the Dashboard, Work items and Milestones: undo your last change, like the **Undo** button. In an editor or a box: undo your typing, or an accepted AI suggestion"
+    "In Edit, on the Dashboard, Work items and Milestones: undo your last change, like the **Undo** button. In an editor or a box: undo your typing"
    ],
    [
     "Double-click",
@@ -2677,11 +2685,11 @@
    "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
    "steps": [
     {
-     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has the buttons **Export workbook** and **Import workbook** (among others). Press **Import workbook**.",
      "pic": "excel-in-button"
     },
     {
-     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A Gantt sheet is offered in the next box when the workbook has one. A row whose ID exists updates that item, and a row without an ID adds a new one. The columns can be in any order, and only the name or title is needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
+     "d": "The box **Import from Excel** says which sheets can be imported: sheets called Actions, Risks & Issues (or Risks and issues, or RAID), Decisions, Milestones and Use cases. A Gantt sheet is offered in the next box when the workbook has one. Every sheet needs an ID column. A row whose ID exists updates that item, and a row with that column blank adds a new one. The columns can be in any order; the ID column and the name or title are needed. If you have no workbook yet, press **Get the template**: your browser saves a workbook with the right sheets and columns, and a line says that your browser has saved the template and gives its name."
     },
     {
      "d": "Press **Choose a file** and pick an .xlsx workbook of up to 25 MB. A macro workbook (.xlsm) is turned away and nothing is saved; save a copy as an ordinary .xlsx workbook and choose that.",
@@ -2691,10 +2699,10 @@
      "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows), the Gantt sheet after the others. They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
     },
     {
-     "d": "The box **Check the import** opens. A line gives the counts: new, updated, refused and not in the workbook (the last two only when there are any). Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
+     "d": "The box **Check the import** opens. A line gives the counts: new, updated and not in the workbook (the last only when there are any). Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked. If any row breaks a rule, the box says **Nothing was imported**, lists each row with why, and offers only **Close**. Fix the workbook and choose it again."
     },
     {
-     "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that has a problem says why and stays on **Reject**."
+     "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs."
     },
     {
      "d": "Choose **Reject** for any change you do not want; **Accept all** and **Reject all** set every change at once. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."

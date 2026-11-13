@@ -15,7 +15,8 @@ from unittest import mock
 
 from _paths import ROOT   # noqa: F401
 
-from clark import docx_build, docx_read, word_brand
+import _publish_fixture as fx
+from clark import docx_build, docx_read, publish, word_brand
 from clark.docx_read import WordRefused
 from test_word_brand import BUILT, HEAD, REL, W, parts, template
 
@@ -40,6 +41,26 @@ class Ids(unittest.TestCase):
         for rid in used:
             self.assertTrue(rid.startswith(word_brand.PREFIX), rid)
         self.assertEqual(word_brand.PREFIX, "rIdBrand")
+
+
+class TemplateNumbering(unittest.TestCase):
+    OLD = (HEAD + f'<w:numbering xmlns:w="{W}"><w:abstractNum w:abstractNumId="0"><w:lvl w:ilvl="0"><w:numFmt w:val="decimal"/>'
+           '<w:lvlText w:val="%1."/></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num></w:numbering>')
+
+    def test_the_templates_own_lists_stay_and_the_reports_come_after_them(self):
+        extra = f'<Relationship Id="rId8" Type="{REL}/numbering" Target="numbering.xml"/>'
+        plant = publish.select(fx.inputs(None))
+        plant["data"]["use_cases"][0]["standing"] = "<ul><li>ZQ-A</li></ul><ol><li>ZQ-B</li></ol>"
+        out = parts(word_brand.wrap(template(rels_extra=extra, extra=[("word/numbering.xml", self.OLD)]), docx_build.build(plant)))
+        num = out["word/numbering.xml"].decode()
+        self.assertRegex(num, r'<w:abstractNum w:abstractNumId="0">.*?<w:numFmt w:val="decimal"/>')           # numId 1 is still decimal
+        self.assertRegex(num, r'<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>')
+        ids = [int(v) for v in re.findall(r'<w:num w:numId="(\d+)"', num)]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertGreater(len(ids), 1)
+        used = {int(v) for v in re.findall(r'<w:numId w:val="(\d+)"', out["word/document.xml"].decode())}
+        self.assertTrue(used and used <= set(ids) - {1}, used)                  # the report's bullets and numbers use only its own ids
+        self.assertTrue(re.search(r'<w:abstractNum w:abstractNumId="1".*?bullet', num, re.S))
 
 
 class WhatATemplateLacks(unittest.TestCase):

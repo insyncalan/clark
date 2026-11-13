@@ -16,12 +16,13 @@ import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
-import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
+import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
-import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
+import { ItemIcon, iconWords } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
+import { clientPill } from "../logic/sectionRows.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -49,8 +50,8 @@ function linkedTo(d, id, all) {
 
 // The milestones of a use case, in the order the project keeps them, each with how it is reached (row 1107): linked directly (the
 // store's use_case_milestones, d.uc_milestones), through its work items (their milestone), or both.
-function milestonesOf(d, id) {
-  const via = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
+export function milestonesOf(d, id) {
+  const via = new Set([...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
   const direct = new Set((d.uc_milestones || []).filter((l) => l.use_case === id).map((l) => l.milestone));
   return (d.milestones || []).filter((m) => !m.archived && (via.has(m.id) || direct.has(m.id)))
     .map((m) => ({ m, direct: direct.has(m.id), via: via.has(m.id) }));
@@ -256,13 +257,13 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {work.length ? (
               <ul class="ucd-items plain">
                 {work.map((r) => {
-                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
+                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = clientPill(r, todayIso()), say = iconWords(r, pill, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                      <button type="button" class="ucd-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
+                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><span class="sr">{say.name}</span>
+                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );
@@ -289,12 +290,12 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {ms.length ? <ul class="ucd-ms plain">{ms.map((k) => {
                 const m = k.m, st = milestoneRows([m], todayIso(), false)[0];                 // the same state word and mark as the Milestones page (row 860)
                 return <li key={m.id} data-ms={m.id} data-how={k.direct ? (k.via ? "both" : "direct") : "work"}><button type="button" class="link ucd-msname" data-ms-open={m.id} onClick={() => openPeek(m.id, "milestone")}>{m.name}</button>
-                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}{!ro && ed && k.via ? <ed.MilestoneRemove u={u} m={m} /> : null}</span>
+                  <span class="ucd-msx">{st ? <span class={`mst c-${st.colour}`} data-ms-state><MsMark name={st.mark} />{st.word}</span> : null}<span class="muted num">{showDate(m.status === "Done" && m.actual_date ? m.actual_date : m.baseline_date || m.forecast_date)}</span>{!ro && ed && k.direct ? <ed.MilestoneUnlink u={u} m={m} /> : null}</span>
                   <span class="muted ucd-mshow" data-ms-how>{HOW_LINKED(k)}</span></li>;
               })}</ul>
               : <p class="muted">No milestones: it is not linked to one directly, and none of its work items is linked to one.</p>}
             {ms.length ? <p class="muted ucd-msnote" data-ms-note>Linked directly means the use case itself is linked to the milestone. Through work items means one of its work items is.</p> : null}
-            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /><ed.MilestoneAdd u={u} /></div> : null}
+            {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.MilestoneLink u={u} /></div> : null}
           </section>
           <section class="ucd-card" aria-labelledby="ucd-h-hist">
             <h2 id="ucd-h-hist" class="ucd-ch">History</h2>

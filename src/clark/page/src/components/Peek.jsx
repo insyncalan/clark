@@ -30,7 +30,7 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
-const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],dialog,.wordsbox,.pk-activity";
+const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar],dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
@@ -78,6 +78,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
       <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
       {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
+      {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
+      {!editing && fromFile.value && row.kind === "action" && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>
@@ -97,11 +99,12 @@ export function SourceLine({ text }) {
 // owner and the progress; then the rows, label left and value right. The same line and rows on every peek: the editor's (MilestonePeek.jsx
 // puts its controls in the same places) and a client's (the Dashboard in View, a published file), read only.
 // The state: a published file carries the state it worked out and the client's word for it (publish.select); the live page works it out
-// here (logic/milestones.js, as the Milestones list does). Achieved, with its date, only once the milestone is achieved.
-export function MsState({ m }) {
+// here (logic/milestones.js, as the Milestones list does). Achieved only once the milestone is achieved, with its date in View but not in Edit (the Achieved on row has it).
+// The editor's peek passes dated={false}: its Achieved on row carries the date, so the date is shown once (the client's peek has no such row, so its chip keeps it).
+export function MsState({ m, dated = true }) {
   const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
   const look = LOOK[state] || LOOK.Forecast;
-  const word = m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
+  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
   return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
 }
 export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
@@ -160,7 +163,7 @@ export function Peek({ tools }) {
   const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const MsTitle = msEditing && tools.MilestoneTitle;         // row 1078: the milestone's name is its title, changed in place
-  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MsArchBtn = msEditing && tools.PeekArchive;
+  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MoreBtn = editing && forItem && tools.PeekMore, MsArchBtn = msEditing && tools.PeekArchive;
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
@@ -289,6 +292,7 @@ export function Peek({ tools }) {
         {DupBtn && row ? <DupBtn row={row} /> : null}
         {ArchBtn && row ? <ArchBtn row={row} /> : null}
         {DelBtn && row ? <DelBtn row={row} /> : null}
+        {MoreBtn && row ? <MoreBtn row={row} /> : null}
         {MsArchBtn && m ? <MsArchBtn row={m} milestone /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>

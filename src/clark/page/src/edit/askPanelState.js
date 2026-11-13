@@ -25,6 +25,7 @@ export const chatEpoch = signal(0);                    // row 1119: bumped when 
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
+export function widthRange() { return { min: MIN, max: room() }; }      // the same limits clampWidth keeps to; the grip tells them to a screen reader
 export function clampWidth(w) { return Math.min(room(), Math.max(MIN, Math.round(Number(w) || DEFAULT))); }
 function initialWidth() {
   try { const w = parseInt(localStorage.getItem(KEY), 10); if (w >= MIN) return clampWidth(w); } catch (e) { /* only a convenience */ }
@@ -121,7 +122,7 @@ const otherLayer = () => !!document.querySelector("dialog[open], [role=dialog], 
 
 export function installAskKeys() {
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && panelOpen.value) { e.preventDefault(); closePanel(); return; }
+    if (e.key === "Escape" && !e.isComposing && panelOpen.value) { e.preventDefault(); closePanel(); return; }
     // Ctrl or Cmd + J (row 855, the prototype's): opens the panel from anywhere, a field included (it types nothing), as Ctrl or Cmd + K does for the palette.
     if ((e.key || "").toLowerCase() === "j" && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && !e.isComposing && !e.defaultPrevented) {
       if (otherLayer() || helpOpen.value) return;
@@ -136,7 +137,7 @@ export function installAskKeys() {
   document.addEventListener("mousedown", (e) => {
     if (!panelOpen.value) return;
     const p = document.getElementById("ask-panel");
-    if (p && !p.contains(e.target)) closePanel();
+    if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest("#ask-btn"))) closePanel();     // the ask button closes it itself
   }, true);
   let seen = view.value + "|" + project.value;
   effect(() => {

@@ -81,9 +81,22 @@ class Title(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_title(cdp, sid, "   ")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: self.title(cdp, sid) == was))
             self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
             self.assertEqual(sent, [], "nothing was sent")
+
+    def test_a_refused_title_keeps_its_text_and_the_box_gets_focus_back(self):
+        for how in ("Enter", "away"):
+            with self.subTest(how=how), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                text = "x" * 400
+                self.type_title(cdp, sid, text)
+                if how == "Enter":
+                    key(cdp, sid, "Enter")
+                else:
+                    cdp.js("document.querySelector('#peek [data-pk-title-in]').blur()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek [data-pk-title-in]')", sid)), "the box has focus again")
+                self.assertEqual(self.title(cdp, sid), text, "the typed text is kept")
+                self.assertEqual(sent, [], "nothing was sent")
 
     def test_enter_and_escape_keep_focus_in_the_peek_not_on_the_page_body(self):
         for keyname in ("Enter", "Escape"):
@@ -295,6 +308,21 @@ class Archive(Fields):
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Enter on Undo brings it back")
                 row = json.dumps(ACTION)
                 self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not the page body")
+
+    def test_undo_puts_the_focus_on_the_restored_row_when_the_page_main_has_it(self):
+        """Focus on <main> counts as nothing focused (stores/changes.js); fails if that acceptance is removed."""
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.calm(cdp, sid)
+                click(cdp, sid, "#peek [data-pk-archive]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
+                cdp.js("document.getElementById('main').focus()", sid)
+                self.assertTrue(cdp.js("document.activeElement.id === 'main'", sid), "main has the focus")
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Undo brings it back")
+                row = json.dumps(ACTION)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not on main")
 
     def test_the_button_is_edit_only(self):
         self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))

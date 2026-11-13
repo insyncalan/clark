@@ -503,8 +503,8 @@ class InThePage(PageBase):
                     text = p.js("document.querySelector('#report').textContent")
                     for planted in ("ZQ-sensitive step", "ZQ-client-off step", "ZQ-archived step"):
                         self.assertNotIn(planted, text)
-                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]').length"), 0,
-                                     "View is read only: no control and no row to open")
+                    self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0,
+                                     "View is read only: no control and no row to open (the status icon takes Tab so its tooltip is reachable: row 1145)")
                     self.assertEqual(self.rows(p, ref, "lines"), [], "full width draws the table only")
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     head = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table th')].map(e => e.textContent)")
@@ -562,7 +562,7 @@ class InThePage(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]')", "the start line")
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]').textContent"),
-                             "No filter is saved for this section yet. Save one on Work items and it shows here.")
+                             "No filter is set for this section yet. Set one below and it shows here.")
             steps = self.demo.last_step()
             p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-field=kinds] input[value=risk]').click()")
             p.saved()
@@ -897,8 +897,8 @@ class PublishedFile(PageBase):
                 ids = p.js(f"[...document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr')].map(e => e.dataset.id)")
                 self.assertEqual(ids, [self.a_due, self.a_later, self.risk])
                 self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] .wil-cap').textContent"), "Fictional caption")
-                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]').length"), 0)
-                self.assertIn("Overdue", p.js(f"document.querySelector('[data-id=\"{ref}\"]').textContent"), "Due reads as at the publish date")
+                self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] input, [data-id=\"{ref}\"] select, [data-id=\"{ref}\"] [tabindex]:not(.ico)').length"), 0)
+                self.assertTrue(p.js(f"!!document.querySelector('[data-id=\"{ref}\"] [data-tip*=\"Overdue\"]')"), "Due reads as at the publish date")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
 

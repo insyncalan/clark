@@ -30,6 +30,7 @@ SRC = ROOT / "src" / "clark" / "page" / "src"
 LABEL = "Ask clark to update for you"
 OLD_LABEL = "Change an item with words"
 EDIT_ONLY_ROWS = ("Shown to client", "Client wording")            # the two rows that are controls, not fields: the editor's alone
+FILE_ONLY_ROWS = ("Client wording", "Latest update")                # row 1111: a published peek adds these two, as text, when the file carries them
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
@@ -269,7 +270,9 @@ class Browser(Peeks):
                     self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"the published cells are flat too, {theme} (ruling of 10-11): " + str(cells))
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on a published peek's sections, {theme}: " + str(shadows))
-                published = self.labels(cdp, sid)
+                shown = self.labels(cdp, sid)
+                self.assertTrue(set(FILE_ONLY_ROWS) <= set(shown), "row 1111: a published peek draws the client wording and latest update the file carries, read only")
+                published = [l for l in shown if l not in FILE_ONLY_ROWS]
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
                 self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS + HISTORY_ROWS))
                 self.assertIn("Raised", published, "the date raised is published, so its row stays")

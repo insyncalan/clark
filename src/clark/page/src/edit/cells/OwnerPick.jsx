@@ -1,7 +1,7 @@
-// #80: the Owner picker (a decision's decider): type a name, or choose one of the people already named in this project. Enter
+// item 80: the Owner picker (a decision's decider): type a name, or choose one of the people already named in this project. Enter
 // keeps what is typed; Down moves into the names, Up from the first name back to the box. A name that can't be used is said in
 // the panel and nothing is sent. `onPick(value)` returns "" when it made (or skipped) the change, or the words to say.
-// The same props as StatusPick, plus `names`, so the peek (#42) can use it as it is.
+// The same props as StatusPick, plus `names`, so the peek (item 42) can use it as it is.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Pop, roam } from "./Pop.jsx";
 import { fieldName } from "../itemEdit.js";
@@ -13,7 +13,7 @@ import { browse, loadRecents, noteAssigned, sameName, searchPeople } from "../..
 const Name = ({ n, start, choose }) => (
   <li>
     <button type="button" class="cp-name" data-name={n} aria-pressed={sameName(n, start) ? "true" : "false"} onClick={() => choose(n)}>
-      <span class="av" aria-hidden="true">{n.split(/\s+/).slice(0, 2).map((w) => w[0]).join("").toUpperCase()}</span>
+      <span class="av" aria-hidden="true">{n.split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0]).join("").toUpperCase()}</span>
       <span>{n}</span>
     </button>
   </li>
@@ -128,7 +128,7 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
         <button type="button" class="cp-name cp-clear" data-clear onClick={() => choose("TBC")}><span>TBC (no one yet)</span></button>
       </div>
       )}
-      <p class="cp-hint">Press Enter to keep what you typed.</p>
+      <p class="cp-hint">{form ? "Press Enter to add and assign this person." : "Press Enter to keep what you typed."}</p>
     </Pop>
   );
 }

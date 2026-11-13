@@ -362,6 +362,17 @@ class Page(unittest.TestCase):
         self.click("[data-gp-show]")
         self.assertEqual(self.count("[data-gp-filter]"), 3)
 
+    def test_hunt15_table_show_menu_takes_focus_and_escape_returns_it(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout]")
+        self.click("[data-gp-show]")
+        self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
+        self.key("ArrowDown", "document.activeElement")
+        self.assertEqual(self.js("document.activeElement.dataset.gpFilter"), self.js("document.querySelectorAll('[data-gp-filter]')[1].dataset.gpFilter"), "ArrowDown moves on")
+        self.key("Escape")
+        self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
+        self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
+
     def test_the_show_menu_hands_focus_back_to_its_button_on_a_pick_and_on_esc(self):
         self.mount(mode="edit")
         self.click("[data-gp-layout]")
@@ -420,6 +431,17 @@ class Page(unittest.TestCase):
         ops = self.val("P.page.diff(P.lines(), P.page.fromTable(P.page.toTable(P.lines()).map(function(r){ return r.id === 'GNT-002' ? Object.assign({}, r, {o: 'Ada Example'}) : r; })))")
         self.assertEqual(ops, [{"op": "update", "id": "GNT-002", "changes": {"owner": "Ada Example"}}])
         self.assertEqual(len(self.calls()), before)
+
+    def test_clearing_cells_in_the_table_says_plan_changed_not_an_empty_id(self):
+        self.mount(mode="edit")
+        self.click("[data-gp-layout=table]")
+        self.until("document.querySelector('td[data-c]')", "the table")
+        self.js("(function(){ var td = Array.from(document.querySelectorAll('td[data-k=dep]')).find(function(x){ return x.textContent.trim(); }); td.dispatchEvent(new MouseEvent('mousedown', {bubbles: true, button: 0})); document.dispatchEvent(new MouseEvent('mouseup', {bubbles: true})); })()")
+        self.settle()
+        before = len(self.calls())
+        self.key("Delete", "document.querySelector('.gt-scroll')")
+        self.until(f"P.host.calls.length > {before}", "the clear is sent")
+        self.assertEqual(self.calls()[-1][2], "Plan changed.")
 
     def test_a_column_eye_saves_only_hideable_columns_and_the_chart_keeps_its_dates(self):
         self.mount(mode="edit")

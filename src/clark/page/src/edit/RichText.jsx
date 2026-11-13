@@ -58,6 +58,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const finishRef = useRef(finish); finishRef.current = finish;
 
   const slashState = (h) => {
+    if (oneLine) return null;
     const { $from, empty } = h.editor.state.selection;
     const para = $from.parent;
     if (empty && para.type.name === "paragraph" && $from.parentOffset === para.content.size && /^\/[a-z0-9 ]{0,20}$/i.test(para.textContent)) {
@@ -93,7 +94,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       return false;
     };
     const made = clarkEditor(host.current, {
-      profile: "rich", html: value || "", keyHook,
+      profile: "rich", html: value || "", keyHook, oneLine,
       onSave: () => finishRef.current(true), onCancel: () => leave(true),
       onError: (e) => { if (e instanceof SanitiseError) setProblem(TOO_LONG); else throw e; },
       onChange: (handle) => {
@@ -158,14 +159,15 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />
-        {BAR.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
+          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
+        {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -178,7 +180,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false }) {
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
       {slash ? (
         <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (

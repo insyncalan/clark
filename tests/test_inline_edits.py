@@ -341,6 +341,8 @@ class Live(unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js(expr, sid), seconds), what)
 
     def cell_text(self, cdp, sid, ref, field):
+        if field == "status":      # row 1145: the Status cell is the tinted letter icon alone; its words are in its tooltip
+            return cdp.js(f"((document.querySelector('[data-cell=\"{ref}:status\"]') || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1]", sid)
         return cdp.js(f"(document.querySelector('[data-cell=\"{ref}:{field}\"]') || {{}}).textContent", sid)
 
     def toast(self, cdp, sid):
@@ -466,7 +468,9 @@ class Live(unittest.TestCase):
                 if not edit:
                     continue
                 key(cdp, sid, "ArrowRight")
-                self.assertEqual(self.focused(cdp, sid), f"{rows[0]}:owner", "Right moves into the row's cells")
+                self.assertEqual(self.focused(cdp, sid), f"{rows[0]}:status", "Right moves into the row's cells (the Status icon is the first)")
+                key(cdp, sid, "ArrowRight")
+                self.assertEqual(self.focused(cdp, sid), f"{rows[0]}:owner")
                 key(cdp, sid, "ArrowRight")
                 self.assertEqual(self.focused(cdp, sid), f"{rows[0]}:due")
                 key(cdp, sid, "ArrowDown")
@@ -474,7 +478,9 @@ class Live(unittest.TestCase):
                 self.assertTrue(self.no_panel(cdp, sid), "a plain Down opens no picker")
                 key(cdp, sid, "ArrowLeft")
                 key(cdp, sid, "ArrowLeft")
+                key(cdp, sid, "ArrowLeft")
                 self.assertEqual(cdp.js("document.activeElement.dataset.id", sid), rows[1], "Left from the first cell: back to the row")
+                key(cdp, sid, "ArrowRight")
                 key(cdp, sid, "ArrowRight")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop] input.cp-in')", "Enter on a cell opens its picker")
@@ -580,12 +586,12 @@ class Live(unittest.TestCase):
                 r = self.row("raid", "TUL-007")
                 self.assertEqual((r["status"], bool(r["closed"])), ("Closed", True), "closing sets its closing date, in the same step")
                 self.changed_once(before, "status")
-                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Closed'", "the row shows Closed")
+                self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Closed'", "the row shows Closed")
                 self.assertEqual(cdp.js("document.querySelector(\"tr[data-id='TUL-007']\").classList.contains('done')", sid), True)
                 self.undo(cdp, sid, "status", "Status of TUL-007 is back to Open.")
                 r = self.row("raid", "TUL-007")
                 self.assertEqual((r["status"], r["closed"]), ("Open", None))
-                self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Red'", "Undo draws it Red, its live look")
+                self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Red'", "Undo draws it Red, its live look")
                 # keyboard: Space opens, End jumps, Enter picks
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
@@ -604,10 +610,10 @@ class Live(unittest.TestCase):
                 click(cdp, sid, acell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the action's status menu opened")
                 click(cdp, sid, "[data-pop] [data-value=Delayed]")
-                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Delayed'", "the cell says Delayed")
+                self.until(cdp, sid, f"((document.querySelector(\"{acell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Delayed'", "the cell says Delayed")
                 self.assertEqual(self.toast(cdp, sid), "Status of TUL-A-001 changed to Delayed.")
                 self.undo(cdp, sid, "action status")
-                self.until(cdp, sid, f"document.querySelector(\"{acell}\").textContent === 'Due soon'", "Undo draws its live look, Due soon")
+                self.until(cdp, sid, f"((document.querySelector(\"{acell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Due soon'", "Undo draws its live look, Due soon")
 
     def test_rating_from_the_status_picker_sets_impact_and_likelihood_with_one_undo(self):
         for width in (1400, 900):
@@ -672,17 +678,17 @@ class Live(unittest.TestCase):
             sid = self.open_page(cdp, 1400)
             cell = "[data-cell='TUL-007:status']"
             self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Red")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill r")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico r")
             click(cdp, sid, cell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
             click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-            self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Green'", "the cell says Green at once")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill g")
+            self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Green'", "the cell says Green at once")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico g")
             click(cdp, sid, cell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
             click(cdp, sid, "[data-pop] [data-value=Closed]")
-            self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Closed'", "Closed reads Closed")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.pill').className", sid), "pill n")
+            self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Closed'", "Closed reads Closed")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico b")      # Closed is the blue tile (row 1021)
             self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Red", "an overdue issue is Red, as in View")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-D-016", "status"), "Pending")
 
@@ -749,11 +755,11 @@ class Live(unittest.TestCase):
                 cdp.js("document.documentElement.dataset.theme = 'dark'", sid)
                 self.until(cdp, sid, "getComputedStyle(document.body).backgroundColor === 'rgb(8, 35, 45)'", "the page is dark (--bg)")
                 # row 54: the live look in the Status cell, with the dark tokens
-                red = self.look(cdp, sid, "[data-cell='TUL-007:status'] .pill")
-                self.assertEqual(cdp.js("document.querySelector(\"[data-cell='TUL-007:status'] .pill\").className", sid), "pill r")
+                red = self.look(cdp, sid, "[data-cell='TUL-007:status'] .ico")
+                self.assertEqual(cdp.js("document.querySelector(\"[data-cell='TUL-007:status'] .ico\").className", sid), "ico r")
                 self.assertEqual((red["color"], red["back"]), ("rgb(240, 138, 124)", "rgb(61, 31, 27)"), "--status-red-text on --status-red-tint, dark")
-                closed = self.look(cdp, sid, "[data-cell='TUL-008:status'] .pill")
-                self.assertEqual((closed["color"], closed["back"]), ("rgb(169, 203, 212)", "rgb(18, 56, 70)"), "--grey-700 on --grey-100, dark")
+                closed = self.look(cdp, sid, "[data-cell='TUL-008:status'] .ico")
+                self.assertEqual((closed["color"], closed["back"]), ("rgb(157, 189, 245)", "rgb(22, 40, 74)"), "the blue tile of Closed (row 1021), dark")
                 for name, got in (("Red", red), ("Closed", closed)):
                     self.assertTrue(got["shown"], f"the {name} pill shows at {width}")
                     self.assertGreaterEqual(got["ratio"], 4.5, f"the {name} pill is readable in dark at {width}")
@@ -795,6 +801,27 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved at once, no question first")
             self.assertEqual((self.row("raid", "TUL-007")["status"], self.row("raid", "TUL-010")["status"]), ("Cancelled", "Open"), "only the open item changed")
             self.changed_once(before, "one item, from the peek")
+
+    def test_the_peeks_status_button_is_a_tab_stop_and_its_pick_is_logged_as_the_peek(self):
+        """The peek's Status button takes Tab (the table's cells stay out of it), and a pick from it is recorded in Activity as the peek."""
+        with chrome() as cdp:
+            sid = self.open_page(cdp, 1400)
+            cdp.js("clarkPage.openPeek('TUL-007', 'item')", sid)
+            pcell = "#peek [data-cell='peek:TUL-007:status']"
+            self.until(cdp, sid, f"!!document.querySelector(\"{pcell}\")", "the peek's picker is there")
+            self.assertEqual(cdp.js(f"document.querySelector(\"{pcell}\").tabIndex", sid), 0, "Tab reaches the peek's Status button")
+            self.assertEqual(cdp.js("document.querySelector(\"#work [data-cell='TUL-007:status']\").tabIndex", sid), -1, "a table cell stays out of the Tab order")
+            self.until(cdp, sid, "document.querySelector('#peek').getAnimations({subtree: true}).length === 0", "the peek's slide-in has ended")
+            click(cdp, sid, pcell)
+            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
+            click(cdp, sid, "[data-pop] [data-value=Cancelled]")
+            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved")
+            st = open_store(self.path, onedrive_roots=[])
+            try:
+                places = [r[0] for r in st.con.execute("SELECT place FROM item_events WHERE item_id = ?", ("TUL-007",))]
+            finally:
+                st.close()
+            self.assertIn("peek", places, places)
 
     def test_the_view_peek_of_a_closed_risk_says_closed_and_its_rating_word_with_no_picker(self):
         """#448 (done-when 5): in View the peek of a closed risk says Closed and its rating word; its status picker closed (row 824: the peek edits in View too). The

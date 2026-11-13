@@ -31,6 +31,12 @@ a { color: var(--status-blue-text); }
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+@media (max-width: 1000px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so a long tab name never pushes the bar past the window (the editor's edit.css says the same) */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; }
+  .top .asat { flex: none; white-space: nowrap; }
+}
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -196,6 +202,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* The Work items list (#36): a table that never scrolls sideways; the Item column takes what the others leave and wraps. */
 .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: var(--size-small); }
 .btn:hover { border-color: var(--grey-500); }
+.btn[aria-disabled="true"] { opacity: .55; cursor: default; }  /* Save and "Use <path>" while a save runs: dimmed, not `disabled`, so the keyboard keeps its place */
+.btn[aria-disabled="true"]:hover { border-color: var(--border); }
 .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .link { all: unset; color: var(--status-blue-text); cursor: pointer; font-size: var(--size-small); }
 .link:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -211,11 +219,12 @@ table.items th { text-align: left; font-weight: var(--weight-regular); font-size
 table.items td { padding: var(--d-row-y) 10px; border-top: 1px solid var(--grey-100); vertical-align: top; overflow-wrap: anywhere; }
 .sec:focus { outline: none; }
 table.items th:first-child, table.items td:first-child { padding-left: var(--space-1); }
-table.items .c-eye { width: 44px; }
+table.items .c-eye { width: 44px; white-space: nowrap; }
 table.items .c-owner { width: 170px; }
 table.items .c-due { width: 134px; }
 table.items .c-prio { width: 104px; }
-table.items .c-status { width: 152px; }
+table.items .c-status { width: 76px; }      /* row 1145: the icon alone */
+table.items.arch .c-status { width: 152px; }      /* the archived list still reads its status in words */
 table.items tr.done .t { color: var(--text-muted); }
 .t { display: block; }
 .meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); font-size: var(--size-small); color: var(--text-muted); }
@@ -256,7 +265,7 @@ button.pillbtn.hpill { font-weight: var(--weight-medium); }   /* the button's `f
 .type.k-risk { background: var(--status-amber-tint); color: var(--status-amber-text); }
 .type.k-issue { background: var(--status-red-tint); color: var(--status-red-text); }
 .type.k-decision { background: var(--status-green-tint); color: var(--status-green-text); }
-@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
+@media (max-width: 900px) { table.items .c-owner { width: 170px; } table.items .c-due { width: 131px; } table.items .c-prio { width: 93px; } table.items .c-status { width: 76px; } table.items.arch .c-status { width: 142px; } }      /* row 784: at 900 priority, due and status sit a little under main's widths (each is the narrowest that still holds its longest word) so the item text gains about 24 px over main */
 /* The letter badge before an item's title (prototype `.type` in a work item row): one letter, so no word can break in it ("Dependency" no
    longer sits in a column of its own). The words are its tooltip and its spoken name. Colours as the board card's word badge. */
 .kb { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; font-size: var(--size-caption); font-weight: var(--weight-regular); flex: none; background: var(--grey-100); color: var(--grey-700); }
@@ -347,8 +356,11 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .vbad { flex: 1 1 100%; margin: 0; font-size: var(--size-small); color: var(--status-red-text); }
 .vbad:empty { display: none; }
 .fline { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; box-sizing: border-box; min-height: calc(var(--space-5) + var(--space-4)); padding: var(--d-fline-y) 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
-.fline.on, .fline:focus-within { border-color: var(--brand-blue); box-shadow: 0 0 0 1px var(--brand-blue); }
-.fline:focus-within { outline: 2px solid var(--focus); outline-offset: 1px; }   /* the box has a 2 px ring while the input has the focus */
+/* Issue 1137 (ruling: "nothing at all"): the box looks the same with or without the cursor in it. No ring, no coloured border; the text cursor shows where typing goes. The icons stand beside the box, in the row, at the same place as before. */
+.fline-row { display: flex; align-items: center; gap: var(--space-2); }
+.fline-row > .fline { flex: 1 1 auto; min-width: 0; }
+.fline-tail { flex: none; display: inline-flex; align-items: center; margin-right: 11px; }   /* 11 px: the icons end where they ended inside the box (its 10 px padding and 1 px border) */
+.fline-tail .vicons, .fline-tail .fio { margin-left: 0; }
 .fedit { position: relative; flex: 1 1 140px; min-width: 0; display: flex; align-items: center; }   /* issue 662: the box holds the whole line; its tokens are drawn over the text */
 .fchips { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }   /* row 845: the complete filters as chips (the chip look is .fchip, below) */
 .fline input { all: unset; box-sizing: border-box; flex: 1 1 auto; width: 100%; min-width: 0; min-height: calc(var(--space-6) - var(--space-1)); font-size: var(--size-small); color: transparent; caret-color: var(--text); }
@@ -392,12 +404,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
-@media (max-width: 700px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so the bar never pushes the page sideways (the editor's edit.css says the same) */
-  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .top .tabs::-webkit-scrollbar { display: none; }
-  .top .tab { flex: none; }
-  .top .asat { flex: none; white-space: nowrap; }
-}
 @media (max-width: 640px) {
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }
@@ -419,8 +425,8 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
   table.items .c-item { grid-column: 1 / 4; grid-row: 1; }
   table.items .c-owner { grid-column: 1 / -1; grid-row: 2; }
   /* The eye has a grid cell of its own beside the item (a fourth column), so it never lies over the item's box. */
-  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 28px; }
-  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 28px; padding: 0; }
+  table.items tr.has-eye { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1fr) 56px; }
+  table.items tr.has-eye td.c-eye { grid-column: 4; grid-row: 1; justify-self: end; align-self: start; width: 56px; padding: 0; white-space: nowrap; }
   table.items tr.colh { display: none; }
   table.items .c-status { grid-column: 1; grid-row: 3; }
   table.items .c-due { grid-column: 2; grid-row: 3; }
@@ -498,7 +504,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-body pre { max-width: 100%; overflow-x: auto; white-space: pre-wrap; }
 .sec-body ul, .sec-body ol { margin: 0 0 10px; padding-left: 22px; }
 .sec-body a { color: var(--link); }
-.sec-body blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.sec-body blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 /* 'Needs from you': a table of what is needed, from whom and by when. It never scrolls sideways: the first column takes what the
    others leave and wraps. The date's word Overdue is text, so it does not rest on colour alone. */
 .sec-needs { margin: var(--space-2) 0 var(--space-2); min-width: 0; }
@@ -654,7 +660,7 @@ input.sec-title { width: 100%; }
 .sec-add { all: unset; box-sizing: border-box; display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 28px; margin: var(--space-1) 0 6px; border: 1px dashed var(--grey-300); border-radius: var(--radius-sm); font-size: var(--size-caption); color: var(--text-muted); cursor: pointer; }
 .sec-add:hover { border-color: var(--grey-500); color: var(--text); }
 .toasts { position: fixed; left: 0; right: 0; bottom: 16px; z-index: 40; width: fit-content; max-width: min(640px, calc(100vw - 32px)); margin-inline: auto; }   /* a pill centred at the foot (row 781) */
-.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: var(--radius-pill); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
+.toast { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-1) var(--space-3); padding: var(--space-2) var(--space-4); border-radius: min(var(--radius-pill), 26px); border: 1px solid transparent; background: var(--brand-navy); color: var(--white); box-shadow: var(--shadow); font-size: var(--size-body); }
 .toast.problem { border-color: var(--status-red); }
 .toast { position: relative; overflow: hidden; }   /* row 1075: the bar under a message is drawn in the Motion block (only where motion is allowed) */
 .toast-bar { display: none; }
@@ -816,6 +822,11 @@ table.items.grouped tr.grp th { padding: var(--d-grp-y) var(--space-4); border-t
 table.items thead tr.grp, table.items thead tr.colh { cursor: default; }
 table.items td.c-eye, table.items th.c-eye { padding-left: 0; padding-right: var(--space-2); text-align: center; vertical-align: middle; }
 table.items .weye { width: 28px; height: 28px; }
+table.items .rmore { width: 24px; height: 24px; margin-left: 0; opacity: 0; vertical-align: middle; }
+table.items tr:hover .rmore, table.items tr:focus-within .rmore, table.items .rmore:focus-visible, table.items .rmore[aria-expanded="true"] { opacity: 1; }
+@media (hover: none) { table.items .rmore { opacity: 1; } }
+@media (max-width: 1000px) { table.items .rmore { display: block; margin: 0 auto; } }          /* the narrow table keeps the eye column as it was: the button sits under the eye */
+@media (min-width: 1001px) { table.items .c-eye { width: 68px; } }
 table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--status-blue-text); }
 .grp-b { all: unset; box-sizing: border-box; min-height: 24px; display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; font-weight: var(--weight-medium); }
 .grp-b:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; border-radius: var(--radius-sm); }
@@ -828,7 +839,7 @@ table.items .weye[aria-pressed="true"], table.items .weye.on { color: var(--stat
 .lanebar { display: flex; align-items: center; gap: var(--space-3); margin: 14px 0 10px; }
 .lanebar .fs { margin-left: auto; }
 .lb-hint { font-size: var(--size-small); }
-.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior: contain; }
+.boardbox { margin-top: 0; overflow: auto; max-height: calc(100vh - var(--topbar) - 16px); padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); overscroll-behavior-y: contain; }
 .lane { width: max-content; min-width: 100%; }
 .lane + .lane { margin-top: var(--d-group-gap); }
 .lane-h { position: sticky; top: 0; z-index: 4; height: 40px; display: flex; align-items: center; background: var(--surface); border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--heading); }
@@ -926,7 +937,7 @@ body.board-view:not(.board-full) .frame.work { padding-bottom: 0; }
    filters and the swimlane row are its first lines, so they scroll away. Lane and column headings stay (sticky, above). */
 body.board-full { overflow: hidden; --topbar: 0px; }
 body.board-full .top, body.board-full .crumbs, body.board-full .head, body.board-full .note { display: none; }
-body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
+body.board-full main { position: fixed; inset: 0; z-index: 10; max-width: none; margin: 0; padding: 0 var(--space-5); overflow: auto; overscroll-behavior-y: contain; scroll-padding-bottom: calc(48px + env(safe-area-inset-bottom, 0px)); }
 body.board-full .frame { background: transparent; border: 0; box-shadow: none; padding: 0; }
 body.board-full #work-list, body.board-full .wbar { padding-top: 0; }
 body.board-full .boardbox { overflow: visible; max-height: none; }
@@ -950,7 +961,7 @@ body.board-full .toasts { z-index: 40; }
 .de-opts input[type="text"], .de-opts input[type="date"] { min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .de-count, .de-note { margin: var(--space-1) 0 0; font-size: var(--size-caption); }
 .de-problem { margin: var(--space-2) 0; color: var(--status-red-text); }
-.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border-left: 3px solid var(--status-amber-text); background: var(--grey-100); }
+.de-internal { margin: var(--space-2) 0 0; padding: var(--space-2) 10px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--grey-100); }
 .de-preview { padding: var(--space-3) 14px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--white); color: var(--black); overflow: auto; max-height: 320px; }
 .de-preview:focus-visible, .de-opts input:focus-visible, .de-kinds input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
@@ -1052,7 +1063,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-col .hp-sh h2 { font-size: var(--size-h3); }
 .hp-grp { font-size: var(--size-small); letter-spacing: .08em; text-transform: uppercase; color: var(--status-blue-text); font-weight: 500; margin: 28px 0 10px; }
 .hp-task, .hp-ref { background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); padding: 18px 22px; margin-bottom: var(--space-3); scroll-margin-top: calc(var(--topbar) + 16px); }
-.hp-task, .hp-ref { max-width: 78ch; }   /* a readable measure: about 70 characters of text a line, not 130 */
+.hp-task, .hp-ref { max-width: 56ch; }   /* a readable measure: under 80 characters of text on a rendered line, not 130 */
 .hp-task h3, .hp-ref h3 { margin: 0 0 var(--space-1); font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .hp-where { margin: 0 0 10px; font-size: var(--size-small); color: var(--text-muted); }
 .hp-task ol { margin: 0; padding-left: 22px; }
@@ -1060,7 +1071,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .hp-task li, .hp-ref li { margin: 0 0 7px; line-height: 1.55; }
 .hp-ref ul { margin: 0 0 10px; padding-left: 20px; }
 .hp-ref p { margin: 0 0 10px; line-height: 1.55; }
-.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border-left: 3px solid var(--brand-blue); background: var(--brand-blue-tint); border-radius: 0 var(--radius) var(--radius) 0; font-size: var(--size-small); }
+.hp-note { margin: 10px 0 0; padding: var(--space-2) var(--space-3); border: 1px solid var(--grey-200); background: var(--brand-blue-tint); border-radius: var(--radius); font-size: var(--size-small); }
 .hp-say { margin: 10px 0 0; font-size: var(--size-small); color: var(--text-muted); }
 .hp-say code { margin-right: var(--space-1); }
 .hp .hp-go { display: inline-block; margin-top: var(--space-3); font-size: var(--size-small); font-weight: var(--weight-regular); }
@@ -1153,6 +1164,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-wrap { position: relative; max-width: 100%; border-top: 1px solid var(--grey-200); border-bottom: 1px solid var(--grey-200); overflow-x: auto; overflow-y: hidden; min-height: 110px; max-height: 900px; resize: vertical; background: var(--grey-50); }
 .mv-strip { position: relative; height: 100%; }
 .mv-month { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--grey-200); font-size: var(--size-caption); color: var(--text-muted); padding: 2px 0 0 6px; line-height: 16px; white-space: nowrap; }
+.mv-month-end > span { position: absolute; top: 2px; right: 12px; }   /* printed: the last month names sit left of their line, inside the box */
 .mv-line { position: absolute; left: 0; right: 0; height: 2px; background: var(--grey-300); }
 .mv-today { position: absolute; top: 0; bottom: 0; width: 2px; background: var(--brand-navy); z-index: 2; }
 .mv-today b { position: absolute; left: 4px; top: 20px; line-height: 16px; font-size: var(--size-caption); font-weight: var(--weight-regular); color: var(--status-blue-text); background: var(--surface); padding: 0 var(--space-1); white-space: nowrap; }
@@ -1455,15 +1467,11 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucf-items { margin: 0; padding: 0; }
 .ucf-items li { padding: 0; border-top: 1px solid var(--grey-100); }
 .ucf-items li:first-child { border-top: 0; }
-.ucf-item { display: grid; grid-template-columns: 112px minmax(0, 1fr) auto minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.ucf-item { position: relative; display: grid; grid-template-columns: 24px 96px minmax(0, 1fr) minmax(110px, 260px); align-items: center; gap: 4px 12px; width: 100%; min-height: 40px; padding: 6px 4px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
 .ucf-item:hover { background: var(--grey-50); }
+.ucf-item[data-tip]:hover::after, .ucf-item[data-tip]:focus-visible::after { left: 4px; right: auto; }      /* row 1145: the status tip of the icon opens at the row's left */
 .ucf-id { color: var(--text-muted); font-size: var(--size-caption); white-space: nowrap; }
 /* Row 1081: the chip of a work item is tinted like the row 1021 status colours (final: Open green, Made and Closed blue). */
-.ucf-item .pill.r { background: var(--tone-red-tint); color: var(--tone-red-text); } .ucf-item .pill.r::before { background: var(--tone-red-text); }
-.ucf-item .pill.a { background: var(--tone-amber-tint); color: var(--tone-amber-text); } .ucf-item .pill.a::before { background: var(--tone-amber-text); }
-.ucf-item .pill.g { background: var(--tone-green-tint); color: var(--tone-green-text); } .ucf-item .pill.g::before { background: var(--tone-green-text); }
-.ucf-item .pill.b { background: var(--tone-blue-tint); color: var(--tone-blue-text); } .ucf-item .pill.b::before { background: var(--tone-blue-text); }
-.ucf-item .pill.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); } .ucf-item .pill.n::before { background: var(--tone-grey-text); }
 .ucf-t { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucf-x { font-size: var(--size-caption); color: var(--text-muted); text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .ucf-foot { margin: 0; }
@@ -1477,7 +1485,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
   .ucf-grid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
-  .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  .ucf-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
 .ucdetail { padding: var(--space-1) var(--space-1) var(--d-uc-detail-b) 72px; }
@@ -1606,7 +1614,7 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .rt-host .ProseMirror li[data-type="taskItem"] > label { flex: none; padding-top: 2px; }
 .rt-host .ProseMirror li[data-type="taskItem"] > div { flex: 1; min-width: 0; }
 .rt-host .ProseMirror a { color: var(--link); }
-.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding-left: var(--space-3); border-left: 3px solid var(--grey-200); }
+.rt-host .ProseMirror blockquote { margin: 0 0 10px; padding: var(--space-1) var(--space-3); border-radius: var(--radius-sm); background: var(--grey-50); }
 .rt-host .ProseMirror hr { border: 0; border-top: 1px solid var(--grey-300); margin: var(--space-3) 0; }
 .rt-host .ProseMirror-selectednode { outline: 2px solid var(--brand-blue); }
 .rt-link { display: flex; gap: 6px; align-items: center; padding: 6px; border-bottom: 1px solid var(--border); }
@@ -1857,7 +1865,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .tpl-callout-h { margin: 0 0 var(--space-1); font-weight: var(--weight-medium); color: var(--heading); }
 .tpl-callout-p { margin: 0 0 var(--space-2); }
 .tpl-callout-p:last-child { margin-bottom: 0; }
-.tpl-quote { margin: var(--space-2) 0; padding: 0 0 0 var(--space-4); border-left: 3px solid var(--brand-blue); min-width: 0; overflow-wrap: anywhere; }
+.tpl-quote { margin: var(--space-2) 0; padding: var(--space-2) var(--space-4); border-radius: var(--radius); background: var(--grey-50); min-width: 0; overflow-wrap: anywhere; }
 .tpl-quote-q { margin: 0; font-size: var(--size-h3); line-height: 1.4; color: var(--heading); }
 .tpl-quote-q p { margin: 0; }
 .tpl-quote-by { margin-top: var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
@@ -1924,7 +1932,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .raid-top .raid-kind { flex: none; white-space: nowrap; }
 .raid-top .raid-id { white-space: nowrap; }   /* the ID shows whole: no clip, no ellipsis */
 .raid-kind { font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; }
-.raid-title { font-weight: var(--weight-medium); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
+.raid-title { font-weight: var(--weight-light); color: var(--heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* plan 1022: only the title is cut, with an ellipsis */
 .raid-meta { font-size: var(--size-caption); color: var(--text-muted); }
 .raid-meta .raid-bit { display: inline-block; vertical-align: bottom; white-space: nowrap; }   /* plan 1022: the status, the owner and the date each show whole on one line; when they do not all fit, the next one goes to a second line (never an ellipsis) */
 .raid-text { margin-top: var(--space-2); color: var(--text); }
@@ -1939,7 +1947,7 @@ table.items tr.changed td:first-child { box-shadow: inset 4px 0 0 var(--status-a
 .wil-table .wil-c-id { width: 108px; }
 .wil-table .wil-c-owner { width: 150px; }
 .wil-table .wil-c-due { width: 128px; }
-.wil-table .wil-c-status { width: 120px; }
+.wil-table .wil-c-status { width: 56px; }      /* row 1145: the icon alone */
 .wil-table .wil-c-workstream { width: 140px; }
 .wil-table .type { white-space: nowrap; }
 .wil-lines { margin: var(--space-1) 0 0; padding: 0; list-style: none; }
@@ -1995,7 +2003,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .docs-ic .i { width: 18px; height: 18px; }
 .docs-open { flex: none; color: var(--text-muted); }
 .tpl-od-text, .tpl-lc-text { margin: var(--space-2) 0 0; color: var(--text); overflow-wrap: anywhere; }
-.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-left: 4px solid var(--brand-blue); border-radius: var(--radius); background: var(--surface); min-width: 0; }
+.tpl-lc { margin: var(--space-2) 0; padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); min-width: 0; }
 .tpl-lc-site { margin: 0; color: var(--text-muted); font-size: var(--size-caption); overflow-wrap: anywhere; }
 .tpl-lc-title { margin: var(--space-1) 0 0; font-size: var(--size-h3); font-weight: var(--weight-medium); overflow-wrap: anywhere; }
 .tab .tl-short { display: none; }
@@ -2008,15 +2016,32 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ucp summary .cchip { align-self: center; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
+.ucp-views { margin-top: 16px; }
+.ucp-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
+.ucp-sorts { margin: 10px 0 0; font-size: var(--size-small); }
+.ucp-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; margin-left: var(--space-2); cursor: pointer; }
+.ucp-sort:hover, .ucp-sort[aria-pressed="true"] { color: var(--text); }
+.ucp-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.ucp-sort .i { width: 12px; height: 12px; flex: none; }
+.ucp-group { margin-top: 10px; }
+.ucp-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
+.ucp-group .ucp { padding-left: var(--space-4); padding-right: var(--space-4); }
+.ucp-empty { margin: 20px 0 4px; overflow-wrap: anywhere; }
+.ucp-empty .btn { margin-top: 4px; }
+.ucp-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }
 .ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
-.cm-wrap { position: relative; display: inline-flex; flex: none; margin-left: auto; }
+.cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
 .asat + .cm-wrap { margin-left: 0; }
 .cm-badge { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border: 1px solid var(--profile-ring); border-radius: 50%; background: var(--profile-bg); color: var(--profile-fg); cursor: pointer; font-size: var(--size-caption); font-weight: var(--weight-medium); line-height: 1; }
 .cm-badge:hover, .cm-badge[aria-expanded="true"] { border-color: var(--profile-fg); }
 .cm-badge:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
 .cm-badge .i { width: 18px; height: 18px; }
+.cm-theme { all: unset; box-sizing: border-box; position: relative; display: inline-flex; align-items: center; justify-content: center; width: var(--profile-size); height: var(--profile-size); border-radius: 50%; color: var(--text-muted); cursor: pointer; }
+.cm-theme:hover { color: var(--heading); }
+.cm-theme:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.cm-theme .i { width: 18px; height: 18px; }
 .ddmenu.cm-menu { min-width: 240px; max-width: calc(100vw - 16px); }
 .ddmenu .cm-row { overflow-wrap: anywhere; }
 .ddmenu a.cm-link { color: var(--link); text-decoration: underline; text-underline-offset: 2px; }
@@ -2040,7 +2065,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
 @media print {
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all .ucall { display: none; }   /* row 1108: on paper every use case shows, so the Show all button has nothing to do */
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
   html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
@@ -2052,6 +2077,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .wl-title, html.print-all .irows .wl-title, html.print-all .raid-title { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }   /* a Dashboard row's title is written whole on paper: the peek that shows the rest does not exist there */
+  html.print-all .msl-cells.msl-cells[role=button] { padding: 5px var(--space-2) 5px 18px; }   /* the button reset above strips the row's left room, and the timeline dot lands on the text; given back */
   html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
@@ -2083,7 +2110,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   /* row 1111: a use case's own page on paper: nothing is cut with an ellipsis (a long line wraps), nothing runs past the page, and the crumb back to the list is left off */
   html.print-all .ucf-crumb { display: none; }
   html.print-all .ucf-grid { grid-template-columns: minmax(0, 1fr); }
-  html.print-all .ucf-item { grid-template-columns: 112px minmax(0, 1fr) auto; }
+  html.print-all .ucf-item { grid-template-columns: 24px 96px minmax(0, 1fr); }
   html.print-all .ucf-t, html.print-all .ucf-x { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }
   html.print-all .ucf-x { grid-column: 2 / -1; text-align: left; }
 }
@@ -2183,7 +2210,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .irows .wl-head { min-height: 0; padding: 4px 0 6px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-small); color: var(--text-muted); }
 .irows .wl-row > *, .irows .wl-head > * { min-width: 0; }
 .irows .wl-head span, .irows .c-date, .irows .c-prio, .irows .c-id { white-space: nowrap; }
-.irows .wl-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; font-weight: var(--weight-medium); }
+.irows .wl-title { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; overflow-wrap: normal; font-weight: var(--weight-light); }   /* plan 1140: a work item's title is normal weight, not bold */
 .irows .wl-head .c-title { font-weight: var(--weight-regular); }
 .irows .c-ico { display: flex; align-items: center; gap: 8px; }
 .irows .c-owner { display: flex; align-items: center; gap: 6px; color: var(--text); font-size: var(--size-small); }
@@ -2204,7 +2231,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .ico.n { background: var(--tone-grey-tint); color: var(--tone-grey-text); }
 .ico.u { background: var(--tone-urgent); color: var(--tone-on-urgent); }      /* Urgent, also when overdue: a solid maroon tile with a white letter */
 .ico[data-tip]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
-.irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after { left: 0; right: auto; }
+.irows [data-tip]:hover::after, .irows [data-tip]:focus-visible::after, table.items .c-status [data-tip]:hover::after, table.items .c-status [data-tip]:focus-visible::after { left: 0; right: auto; }      /* row 1145: the Work items Status column is first, so its tip opens rightwards */
 .ico-w { font-size: var(--size-caption); color: var(--text); white-space: nowrap; }
 .ico-w.r { color: var(--tone-red-text); } .ico-w.a { color: var(--tone-amber-text); } .ico-w.g { color: var(--tone-green-text); }
 .ico-w.b { color: var(--tone-blue-text); } .ico-w.n { color: var(--tone-grey-text); }
@@ -2314,9 +2341,9 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .gt-grp .gt-ib { border-radius: 0; border: 0; border-right: 1px solid var(--border); width: 36px; }
 .gt-grp .gt-ib:last-child { border-right: 0; }
 .gt-ib { all: unset; box-sizing: border-box; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; border: 1px solid transparent; }
-.gt-ib:hover:not(:disabled) { background: var(--grey-100); color: var(--text); }
+.gt-ib:hover:not(:disabled):not([aria-disabled="true"]) { background: var(--grey-100); color: var(--text); }
 .gt-ib[aria-pressed="true"] { background: var(--pill-bg); color: var(--pill-fg); }
-.gt-ib:disabled { opacity: .45; cursor: default; }
+.gt-ib:disabled, .gt-ib[aria-disabled="true"] { opacity: .45; cursor: default; }
 .gt-ib:focus-visible, .gt-wd:focus-visible, .gt-zf:focus-visible, .gt-eye:focus-visible, .gt-addb:focus-visible, .gt-btn:focus-visible, .gt-tflag:focus-visible, .gt-b:focus-visible, .gt-ms:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .gt-zf { all: unset; box-sizing: border-box; min-width: 48px; height: 32px; display: inline-grid; place-items: center; color: var(--text-muted); font-size: var(--size-caption); cursor: pointer; border-radius: var(--radius); }
 .gt-zf:hover { background: var(--grey-100); color: var(--text); }

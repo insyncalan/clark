@@ -132,6 +132,13 @@ class Source(unittest.TestCase):
         self.assertIn("printing.value", jsx, "the timeline knows the page is printing")
         self.assertIn("PRINT_W / Math.max(1, dayNumber(end) - dayNumber(start))", jsx, "the whole span is fitted to the printed width")
 
+    def test_h10_print_titles_whole_list_rows_padded_and_last_month_not_cut(self):
+        block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
+        self.assertRegex(block, r"html\.print-all \.wl-title[^{]*\.raid-title \{[^}]*white-space: normal[^}]*overflow: visible", "a Dashboard row title is whole on paper")
+        self.assertRegex(block, r"html\.print-all \.msl-cells\.msl-cells\[role=button\] \{[^}]*padding: 5px var\(--space-2\) 5px 18px", "the list row keeps its left room")
+        jsx = (PAGE_SRC / "components" / "MsTimeline.jsx").read_text(encoding="utf-8")
+        self.assertIn("x(m) <= W - PRINT_TAIL", jsx, "a month name too near the line's end is left off on paper")
+
     def test_the_hover_only_legend_button_is_not_printed(self):
         block = css_block(self.css, "@media print", "html.print-all, html.print-all body")
         hide = re.search(r"((?:html\.print-all [^{,]+,\s*)+html\.print-all [^{,]+)\{\s*display: none;", block).group(1)
@@ -168,6 +175,11 @@ class Source(unittest.TestCase):
 
     def test_the_use_cases_open_for_the_print(self):
         self.assertIn("open={printing.value}", (PAGE_SRC / "components" / "UseCasesTab.jsx").read_text(encoding="utf-8"))
+
+    def test_a_shut_work_items_group_is_drawn_open_for_the_print(self):
+        jsx = (PAGE_SRC / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
+        self.assertIn("shut: !printing.value && isCollapsed(st, g, c.key)", jsx)
+        self.assertIn('import { printing } from "../stores/print.js"', jsx)
 
     def test_the_foot_is_set_from_the_publication_and_the_date_when_the_browser_prints_and_taken_off_after(self):
         text = (PAGE_SRC / "stores" / "print.js").read_text(encoding="utf-8")
@@ -276,6 +288,23 @@ class Browser(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('.ucp:not([open])').length", sid), 0, "no use case is left closed")
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)), "back to one tab after the print")
+
+    def test_a_shut_work_items_group_is_drawn_open_in_the_print_and_shut_again_after(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, "light")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                cdp.js("[...document.querySelectorAll('.tab')].find(t => /Work items/.test(t.textContent)).click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.grp-b')", sid)), "the Work items tab drew its groups")
+                cdp.js("document.querySelector('.grp-b').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.grp-b').getAttribute('aria-expanded') === 'false'", sid)), "the group is shut")
+                self.assertFalse(cdp.js("document.body.innerText.includes('Shown on the printed page')", sid), "a shut group hides its rows on screen")
+                self.printed(cdp, sid)
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.print-tab .grp-b')?.getAttribute('aria-expanded') === 'true'", sid)), "drawn open for the print")
+                self.assertTrue(wait(lambda: cdp.js("[...document.querySelectorAll('.print-tab')].some(t => t.textContent.includes('Shown on the printed page'))", sid)), "its rows are in the print")
+                cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
+                self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)), "back to one tab after the print")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelector('.grp-b')?.getAttribute('aria-expanded') === 'false'", sid)), "the group is shut again")
 
     def test_the_print_stack_holds_only_text_the_page_already_draws(self):
         with chrome() as cdp:
@@ -449,6 +478,32 @@ class Browser(unittest.TestCase):
                 self.assertEqual(got["kept"], 1, "a heading with a list under it is still printed (the rule hides only the empty lines)")
                 cdp.js("window.dispatchEvent(new Event('afterprint'))", sid)
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('.print-tab')", sid)))
+
+    def test_hunt2_the_pdf_clark_makes_has_one_foot_and_no_controls(self):
+        # hunt 2: the PDF carried the page's own foot (its number) beside the template foot (the number passed in), and the
+        # 'Hide milestone details' button, the use case sort and filter lines and the 'Open the page' link printed as text.
+        from clark import pdf_text, publish_pdf
+        data = publish_pdf.make(self.path.read_bytes(), TODAY, "portrait", number=3)
+        text = pdf_text.text_of(data)
+        self.assertIn("Publication 3 · 28-10-2026", text)
+        self.assertNotIn("Publication 1 ", text, "only the foot the PDF was asked for, not the page's own")
+        for control in ("Hide milestone details", "Open the page", "Sort by", "Group by"):
+            self.assertNotIn(control, text, control)
+
+    def test_hunt2_the_printed_timeline_cuts_off_no_month_name(self):
+        probe = """(() => { const bad = []; for (const wrap of document.querySelectorAll('.print-tab .mv-wrap')) { const w = wrap.getBoundingClientRect();
+          for (const el of wrap.querySelectorAll('.mv-month, .mv-month > span')) { const r = el.getBoundingClientRect();
+            if (el.textContent.trim() && (r.right > w.right + 1 || r.left < w.left - 1)) bad.push(el.textContent); } } return JSON.stringify(bad); })()"""
+        for width, scheme in VARIANTS:
+            with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                sid = open_page(cdp, self.path.as_uri(), width, scheme)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.tab')", sid)))
+                self.printed(cdp, sid)
+                time.sleep(0.6)
+                for page_width in (width, 703):
+                    cdp.call("Emulation.setDeviceMetricsOverride", {"width": page_width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                    time.sleep(0.4)
+                    self.assertEqual(json.loads(cdp.js(probe, sid)), [], f"no month name runs past the printed box at {page_width}")
 
     def test_1065_a_file_with_a_stale_snapshot_tab_draws_only_the_tabs_the_page_has_and_a_tab_it_lacks_opens_the_first(self):
         text = self.path.read_text(encoding="utf-8")

@@ -267,6 +267,63 @@ class Print(_PageRig):
                     finally:
                         self.done()
 
+    def test_a_zoomed_chart_prints_at_the_page_width_not_at_its_screen_zoom(self):
+        # item 1038 follow-up: the screen zoom (up to 800%) was kept while printing, and the fit measured the chart before the paper re-render, so a
+        # zoomed chart printed several times the page width at the 0.5 floor. The printed chart must equal one that was never zoomed.
+        lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",
+                      end=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-20", pct=0, health="", depends=[], owner="", workstream="", priority="",
+                      baseline_start="", baseline_end="", effort="", budget="", deliverable="", show=1, note="", sort_order=i) for i in range(1, 12)]
+        probe = """(function () {
+          var gx = document.querySelector('.gt-gx'), cv = document.querySelector('.gt-canvas').getBoundingClientRect();
+          return { cvR: Math.round(cv.right), gxL: Math.round(gx.getBoundingClientRect().left), gxR: Math.round(gx.getBoundingClientRect().right), fit: getComputedStyle(gx).getPropertyValue('--gt-fit').trim() }; })()"""
+
+        def printed(w, scheme, zooms):
+            self.look(w, scheme)
+            self.mount(width=w - 60, lines=lines)
+            for _ in range(zooms):
+                self.click("[data-g-zin]")
+            self.settle()
+            zoom = self.text("[data-g-fit]")
+            self.printing(w, scheme)
+            self.js("window.dispatchEvent(new Event('beforeprint'))")
+            self.settle()
+            return zoom, self.val(probe)
+
+        for w in (900, 1400):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=w, scheme=scheme):
+                    try:
+                        _, ref = printed(w, scheme, 0)
+                        self.done()
+                        zoom, got = printed(w, scheme, 8)
+                        self.assertNotEqual(zoom, "100%", "the screen is zoomed in")
+                        self.assertTrue(0.5 < float(ref["fit"] or 1) <= 1, f"the zoom-1 chart is scaled above the floor {ref}")
+                        self.assertAlmostEqual(float(got["fit"] or 1), float(ref["fit"] or 1), delta=0.002, msg=f"the fit is the zoom-1 ratio {got} {ref}")
+                        self.assertLessEqual(abs((got["cvR"] - got["gxR"]) - (ref["cvR"] - ref["gxR"])), 4, f"the chart fills the page as the zoom-1 one does {got} {ref}")
+                        self.assertLessEqual(got["cvR"] - got["gxL"], 703 + TAIL, f"the canvas is inside the page width {got}")
+                        self.assertGreater(got["cvR"] - got["gxL"], 703 * 0.9, f"the chart fills the page, not a squeezed strip {got}")
+                        self.js("window.dispatchEvent(new Event('afterprint'))")
+                        self.settle()
+                        self.assertEqual(self.text("[data-g-fit]"), zoom, "afterprint leaves the screen zoom as it was")
+                    finally:
+                        self.done()
+
+    def test_a_chart_drawn_while_the_print_is_on_is_still_fitted(self):
+        # Ctrl+P from another tab draws the Gantt inside beforeprint, after the chart's own listener could hear it; it must be fitted on mount.
+        lines = [dict(id=f"GNT-{i:03d}", name=f"Long task {i}", type="task", parent="", start=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-01",
+                      end=f"{2026 + (8 + i // 3) // 12}-{(8 + i // 3) % 12 + 1:02d}-20", pct=0, health="", depends=[], owner="", workstream="", priority="",
+                      baseline_start="", baseline_end="", effort="", budget="", deliverable="", show=0, note="", sort_order=i) for i in range(1, 39)]
+        lines.append(dict(lines[0], id="GNT-099", name="Phase 4 close", type="phase", start="2027-10-01", end="2027-12-20", sort_order=99, show=1))
+        self.look(794, "light")
+        self.printing(794, "light")
+        try:
+            self.mount(width=734, lines=lines)
+            self.settle()
+            fit = self.js("getComputedStyle(document.querySelector('.gt-gx')).getPropertyValue('--gt-fit').trim()")
+            self.assertTrue(fit and float(fit) < 1, f"a chart drawn during the print is scaled {fit!r}")
+        finally:
+            self.done()
+
     def test_the_screen_is_the_same_with_the_class_on(self):
         # Screen media with html.print-all on: the print rules sit in @media print, so nothing about the screen moves.
         for width in (1400, 900):

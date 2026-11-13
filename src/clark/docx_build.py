@@ -256,8 +256,9 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, floor=2):
         self.ctx, self.out, self.runs = ctx, [], []
+        self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
         self.stack, self.lists = [], []
@@ -275,6 +276,8 @@ class _Rich:
         if not re.sub(r"<[^>]*>", "", runs).strip() and "<w:br/>" not in runs:
             return
         heading = next((HEADING_STYLE[t] for t in reversed(self.stack) if t in HEADING_STYLE), None)
+        if heading and int(heading[-1]) < self.floor:
+            heading = f"Heading{self.floor}"
         if heading:
             self.out.append(para(runs, heading, keep_next=True))
         elif "li" in self.stack and self.lists:
@@ -321,13 +324,13 @@ class _Rich:
             self.lists.pop()
 
 
-def rich(html, ctx):
+def rich(html, ctx, floor=2):
     """Rich text as Word paragraphs, after cleaning it again with the sanitiser. Raises WordError for a text that is too long."""
     try:
         clean = sanitise.clean_html(html)
     except sanitise.SanitiseError as e:
         raise WordError(str(e)) from None
-    r = _Rich(ctx)
+    r = _Rich(ctx, floor)
     for t in sanitise.tokens(clean):
         if t[0] == "text":
             r.add_text(sanitise.decode(t[1]))
@@ -419,7 +422,7 @@ def section_usecases(published, ctx, title, sec, kept):
     out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
-        body = rich(standing.get(u["id"]), ctx)
+        body = rich(standing.get(u["id"]), ctx, floor=4)           # its parent is a Heading3, so a heading inside is Heading4
         linked = [str(r["id"]) for r in glance.use_case_items(kept, u["id"]) if r.get("id")]
         if body or linked:
             out.append(_heading(f"{u['ref'] + ' ' if u['ref'] else ''}{u['title']}".strip(), 3) + body)
@@ -450,7 +453,7 @@ def section_milestones(published, ctx, title, sec):
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
                      word_cell(m.get("state_word") or m.get("state"), ctx, colour=colour),
-                     word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
+                     word_cell(f"+{slip} day{'' if slip == 1 else 's'}" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's
