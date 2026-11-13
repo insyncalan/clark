@@ -46,3 +46,21 @@ def local_text(stamp):
         return parse(stamp).astimezone().strftime("%d-%m-%Y %H:%M")
     except (ValueError, OverflowError, OSError):        # a year-9999 time east of UTC overflows; an odd one never stops a screen
         return stamp
+
+
+_DAY = re.compile(r"(\d{4})-(\d\d)-(\d\d)")
+
+
+def day_text(value, prefix=False):
+    """A stored calendar day (YYYY-MM-DD) as DD-MM-YYYY. Only a real day is rewritten (29 Feb in a leap year, never 30 Feb or month
+    13); anything else, empty included, comes back as it is, as text. With `prefix`, a day followed by a space or T and a time
+    ("2026-10-25 14:00:00") is read as its day. A day is never moved by a zone."""
+    text = "" if value is None else str(value)
+    m = _DAY.match(text)
+    if not m or (len(text) > 10 and not (prefix and text[10] in " T")) :
+        return text
+    try:
+        datetime(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return text
+    return f"{m.group(3)}-{m.group(2)}-{m.group(1)}"
