@@ -2047,6 +2047,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
   html.print-all .print-tab-title { margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--grey-200); font-size: var(--size-body); font-weight: 400; color: var(--text-muted); }
   html.print-all .sec, html.print-all article, html.print-all .tile, html.print-all .fig, html.print-all figure, html.print-all blockquote, html.print-all tr, html.print-all li, html.print-all h1, html.print-all h2, html.print-all h3, html.print-all details { break-inside: avoid; }
   html.print-all h1, html.print-all h2, html.print-all h3 { break-after: avoid; }
+  html.print-all .wl-title, html.print-all .irows .wl-title, html.print-all .raid-title { white-space: normal; overflow: visible; text-overflow: clip; overflow-wrap: anywhere; }   /* a Dashboard row's title is written whole on paper: the peek that shows the rest does not exist there */
+  html.print-all .msl-cells.msl-cells[role=button] { padding: 5px var(--space-2) 5px 18px; }   /* the button reset above strips the row's left room, and the timeline dot lands on the text; given back */
   html.print-all .ucp-none, html.print-all .ucp-body h2:has(+ .ucp-none) { display: none; }   /* row 767: the print opens every use case, so an empty list's line and its heading are left off the paper (no new words) */
   html.print-all .mv-wrap { overflow: hidden; resize: none; min-height: 0; }   /* row 767: the printed timeline is drawn to the page width (MsTimeline.jsx), so it needs no sideways scroll; nothing is cut off */
   html.print-all thead { display: table-header-group; }
