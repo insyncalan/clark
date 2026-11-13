@@ -560,10 +560,10 @@ class Client(unittest.TestCase):
 
     def test_every_row_with_a_workbook_and_past_reports(self):
         past = [{"week_ending": "2026-10-14", "file": "PUB-report-2026-10-14.html"}, {"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}]
-        self.run_rows({"client_workbook": {"name": "Report-2026-10-28.xlsx", "base64": CM.SHEET}, "past_reports": past}, "client", 8)
+        self.run_rows({"client_workbook": {"name": "Report-2026-10-28.xlsx", "base64": CM.SHEET}, "past_reports": past}, "client", 5)
 
     def test_the_disabled_excel_row_has_its_icon_too(self):
-        self.run_rows({"client_workbook_too_large": True}, "client-disabled-excel", 6)
+        self.run_rows({"client_workbook_too_large": True}, "client-disabled-excel", 3)
 
 
 class Rich(unittest.TestCase):
