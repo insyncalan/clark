@@ -65,7 +65,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "client", "client-disabled-excel", "text-style",
+    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more",
 }
 
 
@@ -84,7 +84,7 @@ class Source(unittest.TestCase):
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group",), "components/UseCasesTab.jsx": ("uc-group",),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
-        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style",),
+        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -99,8 +99,8 @@ class Source(unittest.TestCase):
         "components/UseCaseFilePage.jsx": "only a selector that tells when a menu is open (for Esc); it draws none",
     }
     # By design NOT icon menus, kept here with the reason: lists that follow what is typed, whose lines are text matches.
+    # (The RichText slash list is NOT here: it is driven, see Rich.test_slash_list_gives_every_block_its_icon.)
     BY_DESIGN = {
-        "RichText slash list (edit/RichText.jsx, the / menu)": "it filters blocks as the person types after the slash; the words are the match",
         "FilterLine suggestions (components/FilterLine.jsx, the list under the filter box)":
             "they complete what is typed (a field name, an owner, a date word); the View menu beside it is an icon menu and is driven",
         "Command palette (edit/Palette.jsx)": "a search over pages, items and commands by what is typed",
@@ -120,7 +120,7 @@ class Source(unittest.TestCase):
         for rel in self.MENUS:
             text = (SRC / rel).read_text(encoding="utf-8")
             self.assertTrue("actionIcon" in text or "groupIcon" in text or "<Icon" in text, rel)
-        self.assertEqual(len(self.BY_DESIGN), 3)
+        self.assertEqual(len(self.BY_DESIGN), 2)
         for what, why in self.BY_DESIGN.items():
             self.assertTrue(why, what)
 
@@ -149,7 +149,7 @@ class Source(unittest.TestCase):
 
 # ── driving every menu ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-ITEM = "[role=menuitem],[role=menuitemradio],.menu-item,.cm-row,.cp-name,.cp-q button"
+ITEM = "[role=menuitem],[role=menuitemradio],[role=option],.menu-item,.cm-row,.cp-name,.cp-q button"
 # The lines of the open menu `root`: anything a person can pick, a disabled line too. Each must draw an svg.i of 15px or more. A line for a
 # named person draws that person's initials circle (.av) as its icon, so it needs no second one.
 LINES = ("(root => { const ok = e => { const r = e.getBoundingClientRect(); return r.width > 0 && r.height > 0; };"
@@ -385,6 +385,28 @@ class Work(BulkBase):
                 d.gone(actions, "the row menu")
             d.expect(["rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add"])
 
+    def test_peek_more_menu_icons_and_duplicate_matches_the_row_menu(self):
+        with chrome() as cdp:
+            sid = self.load(cdp, kind=None)
+            d = Drive(self, cdp, sid)
+            first = "#work-list tr[data-id]"
+            actions = "[role=menu][aria-label^='Actions for']"
+            icon = "(k => { const b = [...document.querySelectorAll('[role=menu]')].pop().querySelector(k); return b && b.querySelector('svg.i') ? b.querySelector('svg.i').dataset.icn : null; })"
+            for w, th in LOOKS:
+                d.look(w, th)
+                d.js(f"({CONTEXT})({q(first)})")
+                d.lines(actions, "rowmenu", 8)
+                row_dup = d.js(f"({icon})('[data-rm=dup]')")
+                d.click("[data-rm=peek]", "the Peek line of the row menu")
+                d.button("#pk-more", "the peek's More actions button")
+                d.js("document.getElementById('pk-more').click()")
+                d.lines("[role=menu][aria-label='More actions']", "peek-more", 3)
+                self.assertEqual(d.js(f"({icon})('[data-kind=duplicate]')"), row_dup, f"Duplicate has the row menu's icon at {w} {th}")
+                d.key("Escape", "Escape", 27)
+                d.gone("[role=menu][aria-label='More actions']", "the More actions menu")
+                d.js("document.querySelector('#peek [data-pk-close]').click()")
+            d.expect(["peek-more"])
+
     def test_bulk_menu_and_pickers(self):
         with chrome() as cdp:
             sid = self.load(cdp, kind="action")
@@ -527,7 +549,22 @@ class Client(unittest.TestCase):
 
 
 class Rich(unittest.TestCase):
-    """The text style menu of the rich text bar (the / menu is a typed list, see Source.BY_DESIGN)."""
+    """The text style menu of the rich text bar, and the / list (typed, but every block line still draws its icon)."""
+
+    def test_slash_list_gives_every_block_its_icon(self):
+        with rp.Harness(chrome) as h:
+            d = Drive(self, h.cdp, h.sid)
+            for w, th in LOOKS:
+                d.look(w, th)
+                h.mount("")
+                h.type("/")
+                d.lines(".rt-slash", "slash-list", 6)
+                h.type("head")                                          # narrowed by what is typed: the three headings still draw icons
+                d.lines(".rt-slash", "slash-list", 3)
+                d.key("Escape", "Escape", 27)
+                d.gone(".rt-slash", "the / list")
+                h.ev("window.unmount(); true")
+            d.expect(["slash-list"])
 
     def test_text_style_menu(self):
         with rp.Harness(chrome) as h:
