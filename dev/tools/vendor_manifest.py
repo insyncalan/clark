@@ -26,6 +26,13 @@ LIBRARIES = {
                    "creaite v2.6.9 (db5adb2) system/scripts/vendor/et_xmlfile/"),
     "ed25519_verify": ("1", "CC0-1.0", "licenses/ed25519_verify-1-LICENSE.txt",
                        "written for clark from RFC 8032 section 5.1.7 (verify only; the signer is in dev/tools)"),
+    # #891: the two below are copied unchanged from their PyPI wheels (the wheel's SHA-256 is pinned here and in pypdf/VENDORED.md).
+    "pypdf": ("6.21.4", "BSD-3-Clause", "pypdf/LICENSE",
+              "PyPI https://pypi.org/project/pypdf/6.21.4/ wheel pypdf-6.21.4-py3-none-any.whl sha256 "
+              "33e4fb41ca352810eb4e9838aa0d82d6888a5f8bf682f43e99cce5faa666255c"),
+    "typing_extensions": ("4.16.0", "PSF-2.0", "licenses/typing_extensions-4.16.0-LICENSE.txt",
+                          "PyPI https://pypi.org/project/typing-extensions/4.16.0/ wheel typing_extensions-4.16.0-py3-none-any.whl "
+                          "sha256 481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8 (pypdf's one dependency on Python 3.9 and 3.10)"),
 }
 
 
@@ -67,7 +74,7 @@ def problems(folder=VENDOR):
     for name, lib in sorted(want.get("libraries", {}).items()):
         if lib.get("licence_file") not in files:
             out.append(f"library {name} has no licence file")
-        if f"{name}/__init__.py" not in files:
+        if f"{name}/__init__.py" not in files and f"{name}.py" not in files:      # a package, or a single module (typing_extensions)
             out.append(f"library {name} has no files")
     return out
 

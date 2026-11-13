@@ -17,7 +17,7 @@ from html.parser import HTMLParser
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 from clark import sanitise
 from clark.sanitise import MAX_CHARS, MAX_DEPTH, SanitiseError, clean_html, plain_text
-from _growth import GROWTH_STEP, assert_growth
+from _growth import ABSOLUTE_CAP, GROWTH_LIMIT, GROWTH_STEP, growth_ratio
 
 TAGS = {"p", "br", "strong", "em", "s", "h1", "h2", "h3", "ul", "ol", "li", "blockquote", "hr", "a", "input"}
 VOID = {"br", "hr", "input"}
@@ -778,7 +778,19 @@ class Limits(Base):
                     outputs[size] = clean_html(source)
                 except SanitiseError:
                     outputs[size] = None                                         # refused: fine, and fast
-            assert_growth(self, work, MAX_CHARS // GROWTH_STEP, label, tries=5)
+            # Best of 5 per side, and up to 3 rounds: a round only counts as failed when the ratio is over the limit, and the lowest
+            # ratio seen is judged. Load inflates one round (7.03 seen) but a quadratic cleaner reads about 16 in every round.
+            best = None
+            for _ in range(3):
+                small, big, ratio = growth_ratio(work, MAX_CHARS // GROWTH_STEP, tries=5)
+                best = (small, big, ratio) if best is None or ratio < best[2] else best
+                if ratio <= GROWTH_LIMIT:
+                    break
+            small, big, ratio = best
+            msg = "%s: t(n)=%.3f t(4n)=%.3f ratio=%.2f" % (label, small, big, ratio)
+            print(msg)
+            self.assertLessEqual(ratio, GROWTH_LIMIT, msg)
+            self.assertLessEqual(big, ABSOLUTE_CAP, msg + " (over the absolute cap)")
             for size in sizes:
                 if outputs[size] is not None:
                     self.assertEqual(audit(outputs[size]), [], "%s at %d" % (label, size))

@@ -9,15 +9,19 @@
 // nothing. `@me` is the signed-in name; where there is none it matches no item (and the term does not widen the result).
 import { LINE_FIELDS, stored } from "./filterLine.js";
 import { NONE } from "../filters.js";
-import { parseQuery, schemaOf } from "./filterQueryParse.js";
+import { parseQuery, schemaOf, ownSchema } from "./filterQueryParse.js";
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
 const has = Object.prototype.hasOwnProperty;
 
+// A page's own schema (row 1085) answers for its fields alone; otherwise the Work items fields, then the custom ones.
 function fieldDef(key, extra) {
+  const own = ownSchema(extra);
+  if (own) return own.fields.find((f) => f && f.key === key) || null;
   if (has.call(LINE_FIELDS, key)) return LINE_FIELDS[key];
   return (extra || []).find((f) => f && f.key === key) || null;
 }
+const textOf = (extra) => { const own = ownSchema(extra); return own && typeof own.text === "function" ? own.text : (row) => `${row.title || ""} ${row.id || ""}`; };
 const valuesOf = (def, row, ctx) => { const v = def.of(row, ctx); return Array.isArray(v) ? v : []; };
 // Nothing in the field: its "none" word is among the values, or (a field that cannot hold "none") it has no value at all.
 const emptyIn = (def, row, ctx) => {
@@ -38,8 +42,8 @@ function wanted(key, vals, ctx) {
 
 function compileTerm(t, ctx, extra) {
   if (t.kind === "text") {
-    const w = low(t.text);
-    return (row) => low(`${row.title || ""} ${row.id || ""}`).includes(w);
+    const w = low(t.text), text = textOf(extra);
+    return (row) => low(text(row)).includes(w);
   }
   if (t.kind === "state") {
     const states = t.states, is = LINE_FIELDS.is;

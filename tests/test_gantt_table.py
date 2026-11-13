@@ -411,6 +411,24 @@ class Table(unittest.TestCase):
         self.assertEqual(len(self.names()), 5)
         self.assertEqual(self.val("T.lines.every((l) => l.dep.every((d) => T.lines.some((x) => x.id === d)))"), True, "nothing waits for a deleted line")
 
+    def test_the_fading_copy_of_the_menu_keeps_the_delete_colour_and_the_rule(self):
+        """The copy of a closed menu is drawn on the body, outside [data-gt]: it looks as the live menu did (red Delete, the hr's border and the button box)."""
+        self.load()
+        edit_css = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
+        self.js("(() => { const sh = new CSSStyleSheet(); sh.replaceSync(%s); document.adoptedStyleSheets = [sh]; })()" % lit(edit_css))
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+        look = ("(() => { const m = document.querySelector('.gt-menu%s'); if (!m) return null; const d = m.querySelector('button.gt-danger'), h = m.querySelector('hr'), b = m.querySelector('button');"
+                " const c = (e, ks) => ks.map((k) => getComputedStyle(e)[k]); return JSON.stringify({danger: c(d, ['color']), hr: c(h, ['borderTopWidth', 'borderTopStyle', 'borderTopColor', 'marginTop']),"
+                " btn: c(b, ['display', 'paddingTop', 'paddingLeft', 'color', 'textAlign']), box: c(m, ['borderTopWidth', 'paddingTop', 'minWidth'])}); })()")
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        live = json.loads(self.js(look % ":not(.leaving)"))
+        self.assertNotEqual(live["danger"], live["btn"][3:4], "the live Delete is not drawn in the plain text colour")
+        self.js("(() => { window.__seen = null; new MutationObserver(() => { if (!window.__seen && document.querySelector('.gt-menu.leaving')) window.__seen = %s; })"
+                ".observe(document.body, {subtree: true, childList: true}); })()" % look.replace("%s", ".leaving"))
+        self.press("Escape")
+        self.assertTrue(wait(lambda: self.js("!!window.__seen")), "a copy of the closed menu was drawn")
+        self.assertEqual(json.loads(self.js("window.__seen")), live)
+
     def test_view_menu_offers_only_copy(self):
         self.load(edit=False)
         self.go("T.mouse(T.cell(0, 1), 'contextmenu', {button: 2})")

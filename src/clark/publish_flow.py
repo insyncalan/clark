@@ -186,7 +186,7 @@ def markers_for(store, code, published, template=""):
                 add(value, row["id"])
     kept_runs = [r for s in published.get("sections", ()) if isinstance(s, dict) and s.get("body") for r in _body_runs(s["body"])]
     hidden_section_markers(store, code, kept_text, bare, add, kept_runs)
-    gantt_markers(store, code, published, add, kept_whole)
+    gantt_markers(store, code, published, add, kept_whole, template)
     out = Markers(dict.fromkeys(found))
     out.where = where
     return out
@@ -248,7 +248,7 @@ def hidden_section_markers(store, code, kept_text, bare, add, kept_runs=()):
             add(value, row.get("id"))
 
 
-def gantt_markers(store, code, published, add, kept_whole):
+def gantt_markers(store, code, published, add, kept_whole, template=""):
     """Row 998: the Gantt markers are read from the RAW lines in the store, never from what publish.gantt_for_client produced, so a
     bug in its decision cannot blind the scan too. The policy is the same rules, read again here: the tab is in the file only when the
     project's show_gantt_client is exactly 1; a line is in it only when its `show` is exactly 1, and only with the tab or (row 1068) a
@@ -256,8 +256,11 @@ def gantt_markers(store, code, published, add, kept_whole):
     (eye off, or neither the Gantt tab nor a shown table section) is a marker by id, name and every column; a line that can be is a marker for each column the project's
     hidden list (publish._gantt_hidden) takes out. A value that is exactly the whole of a value in the published data other than the Gantt copy (a kept row with the same words and
     nothing around them), or of a value a shown line may carry, is not a marker (#619: the same words inside longer kept text are), and neither is one shorter than
-    MIN_MARKER; what the Gantt copy itself carries exempts nothing."""
+    MIN_MARKER; what the Gantt copy itself carries exempts nothing. Row 1027: as in markers_for, a value that is in the words of a kept
+    report section (its body) is not a marker (the file holds that text whatever the Gantt says), nor is one in `template` (the bare page)."""
     data = published["data"]
+    bodies = [_same_words(s.get("body") or "") for s in published.get("sections", ()) if isinstance(s, dict) and isinstance(s.get("body"), str)]
+    bare = to_client._key(template)
     kept = set(kept_whole)                                               # the kept rows' values, whole (markers_for built them); the rest of the published data is added below
 
     def leaves(node):
@@ -286,7 +289,8 @@ def gantt_markers(store, code, published, add, kept_whole):
             add(row["id"], row["id"])
         for field in (tuple(f for f in columns if f in hidden) if eyed else ("name",) + columns):
             value = text(row.get(field))
-            if len(value) >= MIN_MARKER and _same_words(value) not in kept:
+            if len(value) >= MIN_MARKER and _same_words(value) not in kept and not any(_same_words(value) in b for b in bodies) \
+                    and to_client._key(value) not in bare:
                 add(value, row["id"])
 
 

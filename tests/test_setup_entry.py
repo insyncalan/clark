@@ -58,7 +58,7 @@ class Entry(unittest.TestCase):
     def test_the_launcher_starts_it_for_real_and_it_answers_with_the_data_folders_mark(self):
         self.assertTrue(self.start(), (self.logs / "setup.log").read_text(encoding="utf-8") if (self.logs / "setup.log").exists() else "no log")
         self.assertEqual(launch.ask_health(self.port, appfiles.data_mark(self.folder)), launch.OURS)
-        self.assertEqual(self.f.windows, [(f"http://127.0.0.1:{self.port}/", "/stub/browser")])
+        self.assertEqual(self.f.windows, [(f"http://clark.localhost:{self.port}/", "/stub/browser")])
         self.assertIsNone(self.spawned[0].poll())
 
     def test_it_serves_the_setup_page_and_its_checks_and_nothing_is_made(self):

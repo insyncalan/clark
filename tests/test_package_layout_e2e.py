@@ -122,7 +122,7 @@ class DownloadLayout(unittest.TestCase):
                               cwd=str(self.tmp), env=self.env(CLARK_BROWSER=str(stub)), stdin=subprocess.DEVNULL,
                               capture_output=True, text=True, timeout=120)
         self.assertEqual(0, done.returncode, done.stdout + done.stderr)
-        self.assertIn("Opened clark in its own window.", done.stdout)
+        self.assertIn("Opened clark in Chrome.", done.stdout)
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=10) as reply:
             self.assertTrue(json.loads(reply.read())["ok"])
         with urllib.request.urlopen(f"http://127.0.0.1:{port}/?project=BRN", timeout=10) as reply:

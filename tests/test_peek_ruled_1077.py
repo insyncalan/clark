@@ -280,6 +280,27 @@ class Browser(Peeks):
                 self.no_controls(cdp, sid, "published file, milestone")
                 self.no_draft(cdp, sid, "published file, milestone")
 
+    def test_a_published_peek_with_no_source_name_draws_no_source_line(self):
+        """A source that is free text publishes nothing (row 1077, ruling A): the peek then has no Source line at all, not an empty
+        "Source:". Mutant: SourceLine drawn whether or not it has text."""
+        def free_text(plant):
+            for r in plant["data"]["actions"] + plant["data"]["milestones"]:
+                r["source"] = "Added by hand in clark"
+        _plant, _pub, text = tp.made(free_text)
+        folder = Path(tempfile.mkdtemp(prefix="clark-1077-"))
+        self.addCleanup(lambda: __import__("shutil").rmtree(str(folder), ignore_errors=True))
+        path = folder / "report.html"
+        path.write_text(text, encoding="utf-8")
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-A-001", width)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)), "the published peek drew")
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-source]').length", sid), 0, "an item with no source name has no Source line")
+                cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)
+                self.assertTrue(wait(lambda: cdp.js("(p => !!p && p.dataset.peek === 'PUB-M-001')(document.querySelector('#peek'))", sid)), "the milestone peek drew")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-fields dt')", sid)))
+                self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-pk-source]').length", sid), 0, "a milestone with no source name has none either")
+
 
 class Flat(Peeks):
     """Ruling 5 (10-11-2026), in Edit on the Work items page: no tile, no boxed tab focus, no box round the Latest update, a pinned foot band."""
@@ -362,14 +383,18 @@ class Flat(Peeks):
                 cdp.js("document.querySelector('#peek').scrollTop = 0", sid)
                 g = cdp.js(geo, sid)
                 self.assertGreater(g["scroll"], 40, "the body is taller than the peek, so there is something to scroll: " + str(g))
-                self.assertTrue(28 < g["peekB"] - g["boxB"] <= 36, "pinned 32px (the peek padding plus var(--space-2); over 28, at most 36) above the peek's bottom edge at the top of the scroll: " + str(g))
+                self.assertAlmostEqual(g["peekB"] - g["boxB"], 32, delta=1.5, msg="pinned 32px (the peek padding plus var(--space-2)) above the peek's bottom edge at the top of the scroll: " + str(g))
                 self.assertAlmostEqual(g["boxL"], g["peekL"] + 1, delta=1.5, msg="the band spans the peek (its left edge is the peek's border): " + str(g))
                 self.assertAlmostEqual(g["boxR"], g["peekR"], delta=1.5, msg="and reaches its right edge (the scrollbar's inner side): " + str(g))
                 self.assertEqual((g["line"], g["radius"], g["shadow"]), ("1px", "0px", "none"), "a hairline above, no rounding, no floating shadow: " + str(g))
+                inset = cdp.js("(() => { const p = document.querySelector('#peek'), w = p.querySelector('.wordsbox'), t = p.querySelector('.pk-title, .pk-title-in, h2, h3'), c = getComputedStyle(w), ta = w.querySelector('textarea, input, [contenteditable]'); return { box: w.getBoundingClientRect().left + parseFloat(c.paddingLeft), boxR: w.getBoundingClientRect().right - parseFloat(c.paddingRight), title: t ? t.getBoundingClientRect().left : null, ta: ta ? ta.getBoundingClientRect().left : null, pl: c.paddingLeft, pr: c.paddingRight }; })()", sid)
+                self.assertIsNotNone(inset["title"], "the peek has a title to line up with: " + str(inset))
+                self.assertAlmostEqual(inset["box"], inset["title"], delta=4, msg="the band's own padding keeps its words in line with the peek's title, not 20px further in: " + str(inset))
+                self.assertEqual(inset["pl"], inset["pr"], "the same padding on both sides: " + str(inset))
                 cdp.js("document.querySelector('#peek').scrollTop = 10000", sid)
                 h = cdp.js(geo, sid)
                 self.assertGreater(h["top"], 0, "the body scrolled")
-                self.assertTrue(28 < h["peekB"] - h["boxB"] <= 36, "still a small way above the bottom edge after the scroll: " + str(h))
+                self.assertAlmostEqual(h["peekB"] - h["boxB"], 32, delta=1.5, msg="still 32px above the bottom edge after the scroll: " + str(h))
 
 
 if __name__ == "__main__":

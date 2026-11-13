@@ -55,8 +55,8 @@ MESSAGES = {
 MESSAGES.update({
     # folder checks (the fixtures' folder cases)
     "not_saved": "No client folder yet. Set it in Settings.",
-    "inside_data": "That folder is inside clark's own data folder, which holds the database. Files put there can't reach the client. Choose the folder OneDrive syncs for the client.",
-    "holds_data": "That folder contains clark's own data folder, which holds the database. Choose a folder made for the client's files.",
+    "inside_data": "That folder is inside clark's own data folder, which holds your data. Files put there can't reach the client. Choose the folder OneDrive syncs for the client.",
+    "holds_data": "That folder contains clark's own data folder, which holds your data. Choose a folder made for the client's files.",
     "is_backups": "That folder is where clark keeps its backups. Choose the folder OneDrive syncs for the client.",
     "is_local": "That is the Local folder. Choose the client's folder, a different one.",
     "missing": "The folder “{folder_name}” isn't there. Check that OneDrive is running and the folder is still synced, or choose another folder.",

@@ -28,6 +28,7 @@ import { RichText } from %(rich)s;
 import { clarkEditor } from %(editor)s;
 import { toHtml, forEditor } from %(html)s;
 import { cleanHtml, href } from %(clean)s;
+import %(fade)s;
 window.CE = { clarkEditor, cleanHtml, toHtml, forEditor, href };
 window.saves = []; window.ended = 0; window.saveResult = true;
 const root = document.getElementById("root");
@@ -55,7 +56,7 @@ def bundle(tmp):
     q = lambda *p: json.dumps(str(PAGE_SRC.joinpath(*p)))  # noqa: E731
     entry = Path(tmp) / "entry.jsx"
     entry.write_text(ENTRY % {"rich": q("edit", "RichText.jsx"), "editor": q("core", "editor.js"), "html": q("core", "richHtml.js"),
-                              "clean": q("logic", "cleanHtml.js")}, encoding="utf-8")
+                              "clean": q("logic", "cleanHtml.js"), "fade": q("edit", "fadeCopy.js")}, encoding="utf-8")
     out = Path(tmp) / "rich.js"
     args = ["--bundle", "--format=iife", "--target=es2020", "--tsconfig-raw={}", "--loader:.jsx=jsx", *build_page.preact_flags(),
             str(entry), f"--outfile={out}"]

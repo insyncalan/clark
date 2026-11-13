@@ -1,11 +1,12 @@
 # Bundled libraries
 
-Everything clark needs at run time is here, so nothing is installed from the internet and clark runs on Python 3.9 or later with the standard library alone. Each library is copied unchanged from creaite v2.6.9 (`db5adb2`); the copies are recorded in the reuse record.
+Everything clark needs at run time is here, so nothing is installed from the internet and clark runs on Python 3.9 or later with the standard library alone. Each library is copied unchanged from creaite v2.6.9 (`db5adb2`), except pypdf and typing_extensions, which are copied unchanged from their PyPI wheels; the copies are recorded in the reuse record and the manifest.
 
 | Library | Licence | Folder | Used by |
 |---------|---------|--------|---------|
 | openpyxl 3.1.5, plus its dependency et_xmlfile 2.0.0 | MIT (et_xmlfile has parts under PSF-2.0) | `openpyxl/`, `et_xmlfile/`, licences in `licenses/` | Excel export and import (#37, #38) |
 | ed25519_verify 1 (verify only: RFC 8032 Ed25519, strict, pure Python) | public domain (CC0), written for clark | `ed25519_verify/`, licence in `licenses/` | checking the signature on an update (#282) |
+| pypdf 6.21.4 (pure Python; reads the text of a PDF), plus its one dependency on Python 3.9 and 3.10, typing_extensions 4.16.0 | BSD-3-Clause; PSF-2.0 | `pypdf/` (its licence and `VENDORED.md` inside), `typing_extensions.py`, licence in `licenses/` | ask clark reading PDFs (#891); copied unchanged from the PyPI wheels, whose SHA-256 are in `pypdf/VENDORED.md` |
 | Preact 10.29.8 with hooks and the JSX runtime, @preact/signals 2.11.2, signals-core 1.14.4 | MIT | `preact/` | the page (#35) |
 | Inter (Regular to ExtraBold) and Montserrat (ExtraBold), Google Fonts, Latin, one static woff2 per weight, each with its OFL licence | SIL Open Font License 1.1 | `fonts/inter/`, `fonts/montserrat/` | the page's fonts, inlined by the build (#35); not from creaite |
 | Tiptap 3.31.3 as one ES module, with every bundled package's licence | MIT | `tiptap/` | the one editor (#41) |

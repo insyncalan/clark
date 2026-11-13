@@ -110,6 +110,6 @@ class Logs:
         try:
             self.log.folder.mkdir(parents=True, exist_ok=True)
             self.opener(self.log.folder)
-        except (OSError, platform.PlatformError):
-            return 503, {"ok": False, "code": "not_opened", "message": NOT_OPENED}
+        except (OSError, platform.PlatformError) as e:
+            return 503, {"ok": False, "code": "not_opened", "message": platform.refusal_words(e, NOT_OPENED)}
         return 200, {"ok": True}
