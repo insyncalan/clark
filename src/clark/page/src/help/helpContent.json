@@ -569,7 +569,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; **Add a milestone** adds a next step called Reach and the milestone name that points at it, so the use case gets the milestone through its work items; **Remove** (on a milestone it has through its work items) stops those work items naming it, and the milestone itself stays on Milestones. Each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Add a milestone** links it to a milestone and **Unlink** takes the link away; a milestone one of its work items has shows there by itself, as through work items. Each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -619,7 +619,7 @@
     "go": "settings",
     "s": [
      "In **Settings**, the **Personal** card has **Spacing**: **Compact** (the standard) or **Comfortable**. Your spacing choice is used on the published report too; Appearance, below, is yours alone.",
-     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your Mac’s setting and changes when the Mac does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
+     "**Appearance**, in the same card, is **Light**, **Dark** or **System**. System is the standard: it follows your computer’s setting and changes when the computer does. **Appearance** in the profile circle menu has the same three: System, Light and Dark.",
      "Personal › Keys has Single-key shortcuts, on as standard. Turn it off and the letter keys (V, E and the others), and / and ?, do nothing when pressed alone on the page. Arrows, Enter, Esc, Space and Ctrl or Cmd keys still work."
     ],
     "page": [
@@ -744,7 +744,7 @@
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
      "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
-     "Under the projects, set this project’s **Publishing** folders. The folders ask clark may read are in the **Asking** card, under **Folders asking may read**.",
+     "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
     ],
     "page": [
@@ -762,7 +762,8 @@
      "Press **Connect** under the one you use if it says **Not connected**. No password is asked for: the Claude or ChatGPT command already signed in on this computer is the one used. If it is not signed in, the card says what to do.",
      "Connect Claude or ChatGPT for ask clark: the passages it sends leave this computer, go to the one you choose and count against that plan. No password or key is kept.",
      "Choose the model in **Model for ask clark**. If you choose a smaller one, the card asks first: **Use it anyway** or **Keep the model I have**.",
-     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it."
+     "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.",
+     "If the card, ask clark, Review the brand or a Choose folder, Save or Open window says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. That means clark is running in Docker, and Docker cannot sign in to Claude or ChatGPT or open Mac windows. Close clark, open Terminal in the unzipped clark folder, type bash clark.command and press Return. Then try again."
     ],
     "page": [
      "settings"
@@ -859,6 +860,7 @@
     "go": "",
     "s": [
      "What Docker does here. These steps are for a Mac, and you only need Docker and Chrome. If your Mac will not open clark.command (a work Mac often will not), or you already use Docker, use Docker instead. It replaces the Terminal window that runs clark’s web server. You open localhost:8766 in Chrome and see clark, as before. Only the web server runs in Docker. Your project data and clark’s own files stay in folders on your computer, shared into Docker. The first start downloads a stock Python image once and keeps it; nothing of clark is in it. Nothing else is installed. It can only be reached from this computer: another device is told \"This connection was refused\" and that clark is running in Docker and only answers this computer.",
+     "Keep clark on the Mac and use Docker only to show it. Connect, ask clark, the brand zip and the file and folder windows need clark to run on the Mac itself. In the clark folder, open two Terminal windows. In the first type `bash docker/front.command server` and leave it open. In the second type `bash docker/front.command`, then open localhost:8766 in Chrome. To stop, type `bash docker/front.command stop` in the second window and press Control-C in the first. If the page cannot be reached, type the first command again. If Docker is a problem, `bash clark.command` does the same without it.",
      "Before the first start. Install Docker Desktop and open it first. Wait until it says it is running. If you start clark before that, Terminal says it cannot connect to the Docker API: open Docker Desktop, wait, and type the command again.",
      "Use the clark download. Start clark from the download (the zip file), not from a copy of the source code. A copy of the source has no built pages, and clark is shared into Docker read-only, so it cannot build them: it will say that the page could not be built. The message is: \"This copy of clark has no built page. Use the clark download, not a copy of the source code.\" Docker then stops.",
      "Start. Every command below must be typed inside the clark folder: first cd into it. Open Terminal, type cd and a space, drag the unzipped clark folder into the Terminal window and press Return. Then type `docker compose -f docker/compose.yaml up -d` and press Return. The first time takes a few minutes. Then open localhost:8766 in Chrome. This start keeps its data in ~/Library/Application Support/clark, the same place clark.command uses, so you see the projects you already have, or an empty set on a first start. The Dashboard then says \"No project open\" and \"There are no projects yet.\" Your data is not in the clark folder, so you can swap that folder for a newer download. If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.",
@@ -866,7 +868,8 @@
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
      "Your data is checked first. Every time it starts, clark looks at your data folder before it opens. If the data has to be brought up to date for this clark, clark makes a copy of it first.",
-     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
+     "If a button says: This needs clark to run on the Mac itself; start it from Terminal: bash clark.command. Connect to Claude or ChatGPT, ask clark, Review the brand, and the Choose folder, Save, Open and Show in Finder windows need clark to run on the Mac itself, which Docker does not do. Stop clark with the Stop line below, open Terminal in the clark folder, type bash clark.command and press Return.",
+     "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window. It does start again by itself after Docker Desktop is closed and opened again, or after the Mac restarts, unless you stopped it with this line.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
@@ -1378,11 +1381,11 @@
      ],
      [
       "p",
-      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines, the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
+      "Draft email: in Edit, right-click a row, or press [[Shift+F10]] on it, and choose “Draft email to” and the owner’s name. It is greyed when the item has no owner. A window opens with the kind of email, **Update request**, **Chase** or **Decision**, the To and Subject lines (the To line is the owner’s email from the People list; if the owner has no email there, the To line is left empty and the menu says so), the items to tick, **Reply by**, and the choice to include the latest update on each item. For a chase you also pick **First chase**, **Second chase** or **Firmer chase**. You can edit the wording in the window before you copy it. **Copy as text** copies it as plain text, and “Open in your mail app” opens your mail program with the email ready when it is short enough for a mail link. Mail is never sent by clark. **I sent it** records that you sent it: the history keeps the day, the items and the kind of email, not the wording. It says, for example, Recorded: 2 items marked as sent on, then the date (DD-MM-YYYY), and It is in the history. In View, I sent it is off and the window says “Switch to Edit to change this.”"
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ],
      [
       "p",
@@ -1545,7 +1548,7 @@
      ],
      [
       "p",
-      "In View and on the published page the pill says the words in the last column. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
+      "In View and on the published page the pill says the words in the last column. On a report’s rows (the Dashboard, the published page and the Word copy) an Open action that is not late, delayed or due soon reads **On track** (green), and a late one adds how many days late, for example 3 d late. In Edit the Status cell shows the status itself: Open, Delayed, Closed or Cancelled; or Pending, Made or Withdrawn."
      ],
      [
       "p",
@@ -1911,7 +1914,7 @@
        ],
        [
         "Asking",
-        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders ask clark may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
+        "The switch for asking (**Turn off asking**; it is on from the first start) and the folders asking may read for this project (**Folders asking may read**). It only reads them. If the folder window cannot open (for example when clark runs in Docker), type the folder’s location in the box that appears and press **Add folder**. It reads Word, text, Markdown and CSV files; PDF files are not read yet, and the answer says how many were skipped."
        ],
        [
         "AI (under Asking)",
@@ -1923,7 +1926,7 @@
        ],
        [
         "Quit",
-        "Quit clark asks you to confirm, then stops clark. Nothing is left running, so you do not need a Terminal window to end it. To start it again, double-click clark.command in the clark folder (with Docker, start it the way you did before)."
+        "Quit clark stops clark. Nothing is left running, so you do not need a Terminal window to end it. It asks first: “Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.” Press **Quit clark** to confirm or **Cancel** to stay. After it stops, the page says how to start clark again."
        ]
       ]
      ]
