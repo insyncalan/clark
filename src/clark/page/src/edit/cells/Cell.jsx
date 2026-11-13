@@ -70,7 +70,7 @@ export function Cell({ row, field, said, keep, tip, children, place }) {
     if (c && c.error) return c.error;
     close(true);
     const around = near(k);
-    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k, around));
+    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made", place: place || "cell" }).then(() => refocus(k, around));
     return "";
   };
   // Row 986: a name that is not on the list, added and assigned in one step. Resolves to {ok: true} (the picker has closed) or the words to
@@ -91,7 +91,7 @@ export function Cell({ row, field, said, keep, tip, children, place }) {
   };
   return (
     <>
-      <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
+      <button type="button" class="cell-pick" ref={button} tabIndex={place ? 0 : -1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
       {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}
