@@ -3,21 +3,20 @@
 // stays inside, Esc closes it, a click on the backdrop closes it, the page behind is `inert` while it is open, and focus goes back to what
 // opened it. The words are the caller's and are drawn as text.
 import { useEffect, useRef } from "preact/hooks";
+import { inertBehind } from "./modalLayers.js";
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
-const BEHIND = ["#main", ".top"];                                    // made inert while the box is open (the message area stays live)
 
 export function Dialog({ title, id, onClose, first, wide, children, foot, onSubmit, opener }) {
   const root = useRef(null);
   const back = useRef(opener || (typeof document !== "undefined" ? document.activeElement : null));
   useEffect(() => {
-    const held = BEHIND.map((q) => document.querySelector(q)).filter(Boolean);
-    held.forEach((el) => el.setAttribute("inert", ""));
     const r = root.current;
+    const release = inertBehind(r);                                 // everything outside the box, a toast button too (modalLayers.js)
     const start = (first && r && r.querySelector(first)) || (r && r.querySelector(FOCUSABLE));
     if (start) start.focus();
     return () => {
-      held.forEach((el) => el.removeAttribute("inert"));
+      release();
       const el = back.current;
       if (el && el.isConnected && el.focus) setTimeout(() => { if (!document.querySelector(".ad-scrim")) el.focus(); }, 0);   // not when another box took its place (the import's next step)
     };
