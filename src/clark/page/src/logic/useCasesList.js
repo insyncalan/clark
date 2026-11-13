@@ -58,7 +58,7 @@ export function listOf(d, all) {
     const mine = [...(ms[u.id] || [])].map((id) => msById[id]).sort((a, b) => (when(a) < when(b) ? -1 : when(a) > when(b) ? 1 : a.name < b.name ? -1 : 1));
     const row = { u, id: u.id, ref: refOf(u), name: nameOf(u), headline: u.headline || "", status: u.status, commitment: commitWord(u), on: isOn(u), total: linked.length, open: open.length,
       ms: mine.map((m) => ({ id: m.id, name: m.name })) };
-    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
+    row.text = [u.ref, row.ref, row.name, row.headline, plainText(u.standing), row.commitment, row.status, ...row.ms.map((m) => m.name)].join(" ").toLowerCase();
     return row;
   });
 }
