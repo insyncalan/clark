@@ -30,7 +30,7 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
-const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],dialog,.wordsbox,.pk-activity";
+const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar],dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
@@ -99,11 +99,12 @@ export function SourceLine({ text }) {
 // owner and the progress; then the rows, label left and value right. The same line and rows on every peek: the editor's (MilestonePeek.jsx
 // puts its controls in the same places) and a client's (the Dashboard in View, a published file), read only.
 // The state: a published file carries the state it worked out and the client's word for it (publish.select); the live page works it out
-// here (logic/milestones.js, as the Milestones list does). Achieved, with its date, only once the milestone is achieved.
-export function MsState({ m }) {
+// here (logic/milestones.js, as the Milestones list does). Achieved only once the milestone is achieved, with its date in View but not in Edit (the Achieved on row has it).
+// The editor's peek passes dated={false}: its Achieved on row carries the date, so the date is shown once (the client's peek has no such row, so its chip keeps it).
+export function MsState({ m, dated = true }) {
   const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
   const look = LOOK[state] || LOOK.Forecast;
-  const word = m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
+  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
   return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
 }
 export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
