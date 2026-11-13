@@ -8,6 +8,7 @@ import { Settings } from "@src/components/Views.jsx";
 import { GanttView } from "@src/gantt/components/GanttView.jsx";
 import { GanttSetting } from "@src/edit/GanttSetting.jsx";
 import { GanttTabName } from "@src/edit/GanttTabName.jsx";
+import { ReviewDays } from "@src/edit/ReviewDays.jsx";
 import { Toast } from "@src/edit/Toast.jsx";
 
 const G = { sent: [], project: null };
@@ -30,7 +31,7 @@ window.fetch = async (url, init) => {
 
 function Shell() {
   const Page = view.value === "gantt" ? GanttView : view.value === "settings" ? Settings : () => <section class="frame"><h1>Dashboard</h1></section>;
-  const tools = mode.value === "edit" ? { GanttTabName, GanttSetting } : {};
+  const tools = mode.value === "edit" ? { GanttTabName, GanttSetting, ReviewDays } : {};
   return <><TopBar tools={tools} /><main id="main"><Page tools={tools} /></main><Toast /></>;
 }
 
