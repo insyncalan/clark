@@ -212,7 +212,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
   const onKeyDown = (e) => {
     if (editing || e.target !== e.currentTarget) return;
     const k = e.key;
-    if (k === "Tab" && leave.current) return;                    // after Esc, Tab leaves the table (the keyboard is never trapped)
+    if (k === "Tab" && (leave.current || !edit)) return;         // after Esc, Tab leaves the table (the keyboard is never trapped); a read-only table has no cell walk to keep
     leave.current = k === "Escape"; const mod = e.metaKey || e.ctrlKey; const K = k.toLowerCase();
     const nav = (dr, dc) => { e.preventDefault(); select(moveSel(s, dr, dc, { extend: e.shiftKey, edge: mod, rows: rows.length, cols: cols.length })); };
     if (k === "Escape") { if (menu) setMenu(null); return; }
