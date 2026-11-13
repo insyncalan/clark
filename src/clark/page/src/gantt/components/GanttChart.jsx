@@ -186,12 +186,21 @@ export function GanttChart({
     if (full) return;
     if (edit) { if (onDefaultRows) onDefaultRows(n >= total ? null : n); } else setOwn(n);
   };
+  // Esc or a cancelled pointer ends a drag with nothing saved: `undo` puts the drag's own state back, `done` runs once the pointer lets go
+  const cancellable = (el, undo, done) => {
+    const stop = () => { el.onpointermove = null; el.onpointerup = null; el.onpointercancel = null; document.removeEventListener("keydown", esc, true); };
+    const esc = (k) => { if (k.key !== "Escape") return; k.stopPropagation(); stop(); undo(); el.onpointerup = () => { el.onpointerup = null; done(); }; };
+    el.onpointercancel = () => { stop(); undo(); done(); };
+    document.addEventListener("keydown", esc, true);
+    return stop;
+  };
   const startResize = (key) => (e) => {
     e.preventDefault(); e.stopPropagation();
     const el = e.currentTarget, x0 = e.clientX, w0 = cw[key];
     el.setPointerCapture(e.pointerId);
     el.onpointermove = (m) => setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) }));
-    el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; };
+    const stop = cancellable(el, () => setCw((c) => ({ ...c, [key]: w0 })), () => {});
+    el.onpointerup = () => { stop(); };
   };
   const gripDown = (e) => {
     e.preventDefault();
@@ -199,7 +208,8 @@ export function GanttChart({
     el.setPointerCapture(e.pointerId);
     let last = r0;
     el.onpointermove = (m) => { last = rowsFromDrag(r0, m.clientY - y0, RH, total); setGrip(last); };
-    el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; setGrip(null); if (last !== r0) rowsAt(last); };
+    const stop = cancellable(el, () => { last = r0; setGrip(null); }, () => {});
+    el.onpointerup = () => { stop(); setGrip(null); if (last !== r0) rowsAt(last); };
   };
   const gripKey = (e) => {
     const step = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : e.key === "Home" ? -total : e.key === "End" ? total : 0;
@@ -223,8 +233,9 @@ export function GanttChart({
       dragNow.current = { id: l.id, ...next };
       setDrag(dragNow.current);
     };
+    const stop = cancellable(el, () => { dragNow.current = null; setDrag(null); }, () => setTimeout(() => { dragged.current = false; }, 50));
     el.onpointerup = () => {
-      el.onpointermove = null; el.onpointerup = null;
+      stop();
       const d = dragNow.current;
       dragNow.current = null;
       setDrag(null);

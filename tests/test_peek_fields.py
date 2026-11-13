@@ -85,6 +85,15 @@ class Title(Fields):
             self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
             self.assertEqual(sent, [], "nothing was sent")
 
+    def test_enter_and_escape_keep_focus_in_the_peek_not_on_the_page_body(self):
+        for keyname in ("Enter", "Escape"):
+            with self.subTest(key=keyname), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                self.type_title(cdp, sid, "Typed then " + keyname)
+                key(cdp, sid, keyname)
+                self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement.closest('#peek') !== null", sid)),
+                                "focus stays inside the peek")
+
     def test_a_click_away_saves_the_title(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, ACTION)
