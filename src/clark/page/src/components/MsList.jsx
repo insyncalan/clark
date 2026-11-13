@@ -35,7 +35,7 @@ function Sub({ r }) {
 // The milestone peek's header line draws the same (Peek.jsx, row 1078).
 export function MsProgress({ value }) {
   const n = value === null || value === undefined || value === "" ? NaN : Number(value);
-  if (!Number.isFinite(n)) return <span class="muted">Not set</span>;
+  if (!Number.isFinite(n)) return <span class="muted">Progress not set</span>;
   const pct = Math.max(0, Math.min(100, Math.round(n)));
   return <><span class="pbar" aria-hidden="true"><i style={{ width: `${pct}%` }} /></span><span class="num"><span class="sr">Progress </span>{pct}%</span></>;
 }
