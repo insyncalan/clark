@@ -125,7 +125,7 @@ These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.md is this
 page. Double-click clark.command to start clark. docker is for starting clark
-with Docker. system/branding holds your own logo and colours, if you add them.
+with Docker. branding holds your own logo and colours, if you add them.
 The program files are in a hidden folder called .app: you do not need to open
 it.
 
@@ -170,8 +170,9 @@ If you already have clark:
   2. Rename your old clark folder (for example to clark-old) or move it away,
      so the two folders do not clash.
   3. Unzip this download.
-  4. If you added your own logo or colours, copy the system/branding folder
-     from the old clark folder into the new one. An update never changes that
+  4. If you added your own logo or colours, copy the branding folder
+     (an older clark keeps it in system/branding) from the old clark folder into
+     the new one. An update never changes that
      folder, but replacing the whole clark folder by hand removes it.
   5. If you use Docker and your data is in a data folder inside the old clark
      folder, move that data folder out of it before you delete the old folder,
@@ -247,7 +248,8 @@ def version(root=ROOT):
     return found.group(1)
 
 
-GIT_TIMEOUT = 60     # seconds; git is never waited on for ever (a hang reads as 'git cannot say')
+GIT_TIMEOUT = 60     # seconds; every git call in this file is given this limit. A hang reads as 'git cannot say': the
+                     # audience, snapshot and tag checks refuse or fall back, files() and uncommitted() refuse, released_on() uses today
 
 
 def tracked(root, paths):
@@ -266,7 +268,11 @@ def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
-        found = tracked(root, [item]) if item.endswith("/") else [item]
+        try:
+            found = tracked(root, [item]) if item.endswith("/") else [item]
+        except subprocess.TimeoutExpired:
+            raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files under {item} can't be listed. "
+                          "Nothing was written. Try again.") from None
         if not found or not all((Path(root) / zip_source(p, root)).is_file() for p in found):
             raise Refused(MISSING_FILE.format(what=item))
         kept.update(p for p in found if protected(p))
@@ -294,9 +300,9 @@ def with_extra_folders(text, names):
     import textwrap
     head, found, rest = text.partition("What is in this folder:")
     para, blank, tail = rest.partition("\n\n")
-    if not found or "system/branding holds" not in para:
+    if not found or "branding holds" not in para:
         raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
-    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    flat = " ".join(para.split()).replace("branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " branding holds", 1)
     glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
     return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
 
@@ -354,8 +360,11 @@ def snapshot_problem(root):
         return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
-    log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
-                         capture_output=True, text=True)
+    try:
+        log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
+                             capture_output=True, text=True, timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say who made its last commit, so it isn't a public snapshot"
     neutral = [pub.AUTHOR_NAME, pub.AUTHOR_EMAIL] * 2
     if log.returncode != 0 or log.stdout.splitlines() != neutral:
         return "its last commit was not made by the publish tool, so it isn't a public snapshot"
@@ -398,7 +407,11 @@ def schema_version(root=ROOT):
 
 def released_on(root=ROOT):
     """The date of the last commit, YYYY-MM-DD, so two builds of the same commit are byte for byte the same."""
-    out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True)
+    try:
+        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return datetime.date.today().isoformat()
     day = out.stdout.strip()
     return day if out.returncode == 0 and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day) else datetime.date.today().isoformat()
 
@@ -435,7 +448,7 @@ COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
 
 def compose_for_zip(data):
     """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
-    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so branding is still seen);
     anything else about it is refused, so a changed compose file never ships half-changed."""
     text = data.decode("utf-8")
     lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
@@ -455,7 +468,7 @@ def placed_bytes(name, data):
 # Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
 # EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
 EXTRA_MAX_BYTES = 5 * 1024 * 1024
-RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "branding", "clark")
 
 
 def extra_name(path):
@@ -540,15 +553,23 @@ def entries(system, root=ROOT, extra_folders=()):
 
 
 def uncommitted(root, paths):
-    out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
-                         capture_output=True, check=True, text=True).stdout
+    try:
+        out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
+                             capture_output=True, check=True, text=True, timeout=GIT_TIMEOUT).stdout
+    except subprocess.TimeoutExpired:
+        raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files can't be checked for changes that aren't "
+                      "committed. Nothing was written. Try again.") from None
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
 def tag_problem(root, ver):
     """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
     The v0.2.1 download was built from a tree that was not its tag (#400)."""
-    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    try:
+        run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say which tag this folder is at"
     if run.returncode != 0:
         return "git could not say which tag this folder is at"
     if f"v{ver}" not in run.stdout.split():

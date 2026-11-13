@@ -235,6 +235,13 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.g(f'chartRange({lit(short)}, "2027-09-15")'), {"start": "2026-11-01", "end": "2027-09-30"})
         self.assertIsNone(self.g(f"chartRange([], null)"))
 
+    def test_a_far_off_year_cannot_stretch_the_range(self):
+        far = [ln("A", "Near", "task", "2026-11-02", "2026-11-10"), ln("B", "Far", "milestone", "5000-01-01", "5000-01-01")]
+        self.assertEqual(self.g(f"chartRange({lit(far)}, {lit(TODAY)})"), {"start": "2026-11-01", "end": "2027-04-30"})
+        self.assertEqual(self.g(f"tidyAll({lit(far)}).length"), 1)
+        self.assertEqual(self.g(f"leftOut({lit(far)}).length"), 1)
+        self.assertIsNone(self.g('dayNum("1999-12-31")'))
+
     def test_fit_gives_every_day_the_same_width_and_never_less_than_the_floor(self):
         rng = {"start": "2026-09-01", "end": "2027-05-31"}
         self.assertAlmostEqual(self.g(f"fitPpd(1006, {lit(rng)})"), 1000 / 273, places=6)

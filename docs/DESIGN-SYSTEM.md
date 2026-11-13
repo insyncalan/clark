@@ -1,12 +1,12 @@
 # The design system
 
-The rules for how clark looks: the tokens a look sets, how a person's own look layers over the committed one, and the checks every screen passes. It describes what is committed in this repo, which carries no client's name, logo or picture. A person's own look lives only in `system/branding/`, which git ignores (`RULES.md`).
+The rules for how clark looks: the tokens a look sets, how a person's own look layers over the committed one, and the checks every screen passes. It describes what is committed in this repo, which carries no client's name, logo or picture. A person's own look lives only in `branding/`, which git ignores (`RULES.md`).
 
 Owner: the Product Manager (the wording). The Designer proposes; the Product Manager decides; the owner decides anything visible.
 
 ## 1. The two layers
 1. **The committed look.** `src/clark/brand/tokens.css` (the values) and the "look" section at the end of `src/clark/page/shell.css` (the pill buttons, the header, the type). Both are built into `page.html` and `page-view.html` by `dev/tools/build_page.py`. Nothing loads from the internet: the two typefaces are vendored and inlined as data.
-2. **A person's own look (optional).** A `tokens.css` in `system/branding/` with the same token names. Its text is added after the committed look as a second style block, so the same names take its values. A name it leaves out keeps the committed value. The top bar's clark icon is hidden under an own look (`--logo-icon: none`); the own look sets it back to `inline-block` if it wants it.
+2. **A person's own look (optional).** A `tokens.css` in `branding/` with the same token names. Its text is added after the committed look as a second style block, so the same names take its values. A name it leaves out keeps the committed value. The top bar's clark icon is hidden under an own look (`--logo-icon: none`); the own look sets it back to `inline-block` if it wants it.
 
 An own look may also add rules (a logo picture, a still picture for the home banner). Those pictures are `data:` images inside its own `tokens.css`. They never enter the committed files: `tests/test_no_client_image.py` allows only clark's own icon set.
 
@@ -67,5 +67,5 @@ A visible change waits for the owner's before-and-after sign-off.
 
 ## 8. How a look is changed
 - **The committed look:** change `src/clark/brand/tokens.css` and the look section of `shell.css`, run `python3 dev/tools/build_page.py`, and run `python3 dev/run_tests.py test_page test_font test_dark_contrast test_app_files test_no_client_image test_no_real_names`. Show before and after.
-- **An own look:** edit the `tokens.css` in `system/branding/`. No code changes. The committed repo is never touched.
+- **An own look:** edit the `tokens.css` in `branding/`. No code changes. The committed repo is never touched.
 - **A new token:** add it to the committed tokens (light and both dark copies), to `CONTRACT`, and to this table.

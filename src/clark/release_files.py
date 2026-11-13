@@ -59,7 +59,7 @@ def source(rel):
 
 
 # Top-level names that belong to the person. They are never in a zip, never listed, backed up, replaced or removed.
-PROTECTED = ("system", "data")
+PROTECTED = ("system", "data", "branding")
 # Extra top-level folders a release may carry beside the program files (issue 716): files the Head puts in at build time
 # (dev/tools/package.py --extra-folder), never tracked by git. The allow-list is closed: a reader accepts a folder only if
 # its exact name is here, so a stray folder in a download is still refused as outside the list.

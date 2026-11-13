@@ -18,7 +18,7 @@ from unittest import mock
 
 from _paths import ROOT
 
-from clark import page, publish, server as sv
+from clark import brands, page, publish, server as sv
 from test_publish import made
 from test_server import Running, chrome, raw_reply, wait, _Collect
 
@@ -242,7 +242,9 @@ class Route(unittest.TestCase):
             self.assertNotRegex(text, r"url\(\s*[\"']?(?!data:)[^)]*\.(png|jpe?g|webp)", f.name)
             self.assertNotIn(PNG[8:20].decode("latin-1"), text)
         self.assertEqual(sorted(page.PICTURES), ["cover.jpeg", "cover.jpg", "cover.png", "cover.webp"])
-        self.assertIn("system/branding/", (ROOT / ".gitignore").read_text(encoding="utf-8"))
+        ignored = (ROOT / ".gitignore").read_text(encoding="utf-8").split()
+        self.assertIn("/branding/", ignored)
+        self.assertIn("system/branding/", ignored)
 
 
 class Layering(unittest.TestCase):
@@ -357,6 +359,22 @@ class RealBrowser(unittest.TestCase):
                 miss = cdp.call("Runtime.evaluate", {"expression": load % json.dumps("assets/other.png"), "awaitPromise": True,
                                                      "returnByValue": True}, sid)["result"]["value"]
                 self.assertEqual(miss, "error")
+
+
+class PictureSeamRoot(unittest.TestCase):
+    """page.brand_picture_of looks for an installed brand in the clark folder that holds branding/, not one folder above it."""
+
+    def test_the_picture_seam_asks_for_the_clark_folder_that_holds_branding(self):
+        root = Path(tempfile.mkdtemp())
+        self.addCleanup(__import__("shutil").rmtree, root, True)
+        asked = []
+
+        def folder(where, brand_id):
+            asked.append((Path(where), brand_id))
+            return brands.GENERIC
+        with mock.patch.object(page, "BRANDING", root / "branding"), mock.patch.object(brands, "folder", folder):
+            self.assertIsNone(page.brand_picture_of("cover.png", "zebra"))
+        self.assertEqual([(root, "zebra")], asked)
 
 
 if __name__ == "__main__":
