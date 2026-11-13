@@ -1,4 +1,4 @@
-"""Plan 1139: the words of a status icon (components/ItemRows.jsx iconWords, statusWord): an Urgent item says Urgent, never Red as well.
+"""Plan 1139: the tooltip and accessible name of a status icon (components/ItemRows.jsx iconWords): an Urgent item says Urgent, never Red as well. The visible word beside the tile is not changed.
 
 Run: python3 dev/run_tests.py test_icon_words_node
 Quick tier: no browser. Bundled by the pinned esbuild and run in node (skipped when node is not on the machine).
@@ -40,12 +40,12 @@ def bundle():
 
 
 def words(row, pill=None):
-    """The tooltip, the accessible name and the visible word for a row, with the pill the page works out unless one is given."""
+    """The tooltip and the accessible name for a row, with the pill the page works out unless one is given."""
     node = shutil.which("node")
     if not node:
         raise unittest.SkipTest("no node")
     probe = ("(() => { const row = %s, pill = %s || IW.clientPill(row, %s); const w = IW.iconWords(row, pill, %s);"
-             " return {tip: w.tip, name: w.name, word: IW.statusWord(row, pill)}; })()") % (json.dumps(row), json.dumps(pill), json.dumps(TODAY), json.dumps(TODAY))
+             " return {tip: w.tip, name: w.name}; })()") % (json.dumps(row), json.dumps(pill), json.dumps(TODAY), json.dumps(TODAY))
     with tempfile.TemporaryDirectory() as tmp:
         script = Path(tmp) / "probe.js"
         script.write_text(SHIM + bundle() + ";\nconsole.log(JSON.stringify(" + probe + "));", encoding="utf-8")
@@ -63,15 +63,15 @@ def item(kind, **kw):
 class UrgentSaysUrgentOnce(unittest.TestCase):
     def test_an_urgent_risk_that_is_not_overdue_says_urgent_and_not_red(self):
         w = words(item("risk", priority="Urgent"))
-        self.assertEqual((w["tip"], w["name"], w["word"]), ("Risk · Urgent", "Risk, Urgent", "Urgent"))
+        self.assertEqual((w["tip"], w["name"]), ("Risk · Urgent", "Risk, Urgent"))
 
     def test_an_urgent_overdue_risk_says_urgent_then_overdue(self):
         w = words(item("risk", priority="Urgent", due_date=PAST))
-        self.assertEqual((w["tip"], w["word"]), ("Risk · Urgent · Overdue", "Urgent"))
+        self.assertEqual(w["tip"], "Risk · Urgent · Overdue")
 
     def test_an_urgent_blocked_action_keeps_blocked(self):
         w = words(item("action", priority="Urgent", status="Blocked"))
-        self.assertEqual((w["tip"], w["word"]), ("Action · Blocked · Urgent", "Blocked"))
+        self.assertEqual(w["tip"], "Action · Blocked · Urgent")
         self.assertEqual(words(item("action", priority="Urgent", status="Blocked", due_date=PAST))["tip"], "Action · Blocked · Urgent · Overdue")
 
     def test_an_urgent_in_progress_action_keeps_in_progress(self):
@@ -79,26 +79,26 @@ class UrgentSaysUrgentOnce(unittest.TestCase):
 
     def test_an_urgent_delayed_action_keeps_delayed(self):
         w = words(item("action", priority="Urgent", status="Delayed"))
-        self.assertEqual((w["tip"], w["word"]), ("Action · Delayed · Urgent", "Delayed"))
+        self.assertEqual(w["tip"], "Action · Delayed · Urgent")
 
     def test_an_urgent_overdue_action_keeps_its_order_overdue_then_urgent(self):
         w = words(item("action", priority="Urgent", due_date=PAST))
-        self.assertEqual((w["tip"], w["word"]), ("Action · Overdue · Urgent", "Overdue"))
+        self.assertEqual(w["tip"], "Action · Overdue · Urgent")
 
     def test_an_urgent_decision_keeps_pending(self):
         w = words(item("decision", priority="Urgent", status="Pending", needed_by=FUTURE))
-        self.assertEqual((w["tip"], w["name"], w["word"]), ("Decision · Pending · Urgent", "Decision, Pending, Urgent", "Pending"))
+        self.assertEqual((w["tip"], w["name"]), ("Decision · Pending · Urgent", "Decision, Pending, Urgent"))
 
     def test_an_urgent_item_given_an_amber_or_green_colour_word_loses_the_colour_word_too(self):
         for colour in ("Amber", "Green"):
             w = words(item("issue", priority="Urgent"), {"text": colour, "class": colour[0].lower()})
-            self.assertEqual((w["tip"], w["word"]), ("Issue · Urgent", "Urgent"), colour)
+            self.assertEqual(w["tip"], "Issue · Urgent", colour)
             self.assertNotIn(colour, w["name"])
 
     def test_a_risk_that_is_not_urgent_still_says_its_colour(self):
         for priority, colour in (("High", "Red"), ("Medium", "Amber"), ("Low", "Green")):
             w = words(item("risk", priority=priority, due_date=PAST))
-            self.assertEqual((w["tip"], w["word"]), ("Risk · " + colour, colour), priority)
+            self.assertEqual(w["tip"], "Risk · " + colour, priority)
             self.assertNotIn("Urgent", w["name"])
 
     def test_a_completed_urgent_item_is_not_urgent(self):

@@ -189,7 +189,7 @@ class PublishedFileCarriesTheWord(Base):
                         self.assertTrue(shown, f"{r['id']}: the status word is visible text at {w}, not a tooltip")
                         self.assertLess(r["h"], 60, f"{r['id']} stays compact at {w}")
                     self.assertEqual(cdp.js(HEADS % t, sid)[0][0], "Status", "the file's header names the icon column")
-                self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Overdue", "Pending", "Urgent"], words)
+                self.assertEqual(sorted(set(words.values())), ["Due soon", "Green", "On track", "Overdue", "Pending", "Red"], words)
                 self.assertTrue(cdp.js(LISTS_FIT, sid), f"the lists fit their cards at {w}")    
             rows = {r["id"]: r for t in ("actions", "raid") for r in cdp.js(ROWS % t, sid)}
             by_text = {r["title"]: r for r in rows.values()}
@@ -199,7 +199,7 @@ class PublishedFileCarriesTheWord(Base):
             self.assertIn("a", by_text[SOON]["cls"].split())
             self.assertEqual(by_text["Training room booked for November"]["word"], "On track")
             self.assertIn("g", by_text["Training room booked for November"]["cls"].split())
-            self.assertEqual(by_text["Supplier delivery may slip"]["word"], "Urgent")
+            self.assertEqual(by_text["Supplier delivery may slip"]["word"], "Red")
             self.assertEqual(by_text["Cut-over plan to be agreed"]["aria"], "Action, Overdue", "and the accessible name is kept")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-type=actions] .pill, [data-type=raid] .pill').length", sid), 0)
             self.assertEqual(cdp.js("document.querySelectorAll('.wl-id').length", sid), 0, "a file draws no item number")
@@ -209,7 +209,7 @@ class PublishedFileCarriesTheWord(Base):
 PUB_ROWS = r"""[...document.querySelectorAll('[data-type=actions] .wl-row, [data-type=raid] .wl-row')].map(r => ({id: r.dataset.id, text: r.innerText.replace(/\s+/g, ' ').trim(),
   title: r.querySelector('.wl-title').textContent.trim(), word: ((r.querySelector('.ico-w') || {}).textContent || '').trim()}))"""
 EXPECT = {"Cut-over plan to be agreed": "Overdue", SOON: "Due soon", "Training room booked for November": "On track",
-          "Supplier delivery may slip": "Urgent", "Mid-rated supplier risk": "Amber", "Some test data is missing": "Green", "Urgent site risk": "Urgent"}
+          "Supplier delivery may slip": "Red", "Mid-rated supplier risk": "Amber", "Some test data is missing": "Green", "Urgent site risk": "Red"}
 
 
 class StatusWordInTheFileThePdfAndWord(Base):

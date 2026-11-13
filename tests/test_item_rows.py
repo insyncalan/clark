@@ -84,7 +84,7 @@ class ItemRows(unittest.TestCase):
         self.assertIn(w("Training room booked for November"), actions[1], "the client's own wording is shown when there is one")
         raid = js(ROWS % "raid")
         self.assertEqual(len(raid), 2, where)
-        self.assertTrue(raid[0].split("|")[1] == "Urgent" and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
+        self.assertTrue(raid[0].split("|")[1] == ("Red" if where == "the file" else "Urgent") and raid[0].endswith("|risk") and w("Supplier delivery may slip") in raid[0], raid[0])
         self.assertIn("Urgent", raid[0].split("|")[3], "the pill is the status colour; the priority word is in the line (prototype views.js:378)")
         self.assertIn("01-11-2026", raid[0])
         self.assertTrue(raid[1].split("|")[1] == "Green" and raid[1].endswith("|issue") and "Low" in raid[1].split("|")[3], raid[1])

@@ -63,9 +63,7 @@ export const toneOf = (row, pill) => {
   if (row.status === "Closed" || row.status === "Completed") return "b";
   return pill.class === "b" ? "g" : pill.class;
 };
-// Red, Amber and Green are the tile's colour words; on an Urgent item the maroon tile is the one level, so the word is Urgent, not Red as well.
-const COLOUR_WORDS = ["Red", "Amber", "Green"];
-export const statusWord = (row, pill) => (isUrgent(row) && COLOUR_WORDS.includes(pill.text) ? "Urgent" : pill.text);
+const COLOUR_WORDS = ["Red", "Amber", "Green"];      // the tile's colour words; the tooltip of an Urgent item drops them (the visible word stays as it is)
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
   const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue
@@ -103,7 +101,7 @@ function Row({ row, today, words, inFile, type }) {
   const open = inFile ? undefined : (e) => { if (ownClick(e)) openPeek(row.id, "item"); };
   return (
     <li class={`wl-row${inFile ? "" : " wl-open"}`} data-id={row.id} data-kind={row.kind} onClick={open}>
-      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{statusWord(row, pill)}</span> : null}</span>
+      <span class="c-ico"><ItemIcon row={row} pill={pill} today={today} />{inFile ? <span class={`ico-w ${toneOf(row, pill)}`}>{pill.text}</span> : null}</span>
       <span class="wl-title c-title" title={title}>{title}</span>
       <span class="c-owner" title={who.initials ? who.text : undefined}>
         {who.initials ? <><span class="av" aria-hidden="true">{who.initials}</span><span class="nm">{who.text}</span></> : <span class="nm muted">No owner</span>}
