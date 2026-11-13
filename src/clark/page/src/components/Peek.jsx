@@ -78,6 +78,8 @@ export function ItemFields({ row, editing, Cell, Wording, Pick }) {
       <Row name="Use case">{Pick ? <Pick row={row} field="use_case" /> : text(row.uc)}</Row>
       {editing ? <Row name="Shown to client">{row.client ? "Yes" : "No"}</Row> : null}
       {Wording ? <Row name="Client wording"><Wording row={row} /></Row> : null}
+      {!editing && fromFile.value && row.client_message ? <Row name="Client wording" ms="client_message">{row.client_message}</Row> : null}      {/* item 1111: a published file's peek draws the client wording the file carries, read only and only when there is some */}
+      {!editing && fromFile.value && row.kind === "action" && row.latest_update ? <Row name="Latest update" ms="latest_update"><Rich html={String(row.latest_update)} /></Row> : null}      {/* the file's latest update is already clean (publish.clean_html); no history, no editing */}
       {typeof row.not_reviewed === "boolean" ? <>
         <Row name="Raised">{showDate(row.raised)}</Row>
         <Row name="Last reviewed">{row.last_reviewed ? showDate(row.last_reviewed) : "Not yet"}</Row>

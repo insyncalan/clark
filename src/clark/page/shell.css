@@ -31,6 +31,12 @@ a { color: var(--status-blue-text); }
 @media (max-width: 1000px) { .top { gap: 10px; } .top .tab { padding: 0 8px; } .top .tab::after { left: 8px; right: 8px; } }   /* item 664: the search and ask buttons need the room at 901 px; the tabs keep whole words */
 .top .modes { flex: none; }   /* View and Edit keep their width: the bar's other items give way, not these */
 .top .tabs { flex: none; }   /* item 681: the tabs keep their words on one line; the project name (its ellipsis) gives way first */
+@media (max-width: 1000px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so a long tab name never pushes the bar past the window (the editor's edit.css says the same) */
+  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+  .top .tabs::-webkit-scrollbar { display: none; }
+  .top .tab { flex: none; }
+  .top .asat { flex: none; white-space: nowrap; }
+}
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -394,12 +400,6 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 
 /* Work items on a phone (item 130, point 5): compact controls, and each row is a small card that shows Status, Due and Priority under the
    item, so nothing scrolls sideways. 640 px and below only; the 900 and 1400 px table is unchanged. */
-@media (max-width: 700px) {      /* the published file has no editor rules: its tabs scroll inside their own bar, so the bar never pushes the page sideways (the editor's edit.css says the same) */
-  .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
-  .top .tabs::-webkit-scrollbar { display: none; }
-  .top .tab { flex: none; }
-  .top .asat { flex: none; white-space: nowrap; }
-}
 @media (max-width: 640px) {
   .top { gap: 6px; padding: 0 6px; }
   .top .logo-icon { margin-right: var(--space-1); }

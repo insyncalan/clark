@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _paths import SRC
 from test_publish_dialog import Base
+from _new_page import reload_to_new_page
 from test_server import chrome, wait
 
 from clark import excel, excel_route
@@ -129,9 +130,10 @@ class Card(Base):
                 self.assertIn("1 changed", p.js("document.querySelector('#import-result').textContent"))
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
                 self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
-                p.js("document.querySelector('#import-undo').click()")
+                p.js("document.querySelector('#import-undo').focus(); document.querySelector('#import-undo').click()")
                 p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
+                self.assertEqual(p.js("document.activeElement && document.activeElement.id"), "import-close", "Undo took its button away: the focus is on Close, so Esc and Tab still work")
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
 
@@ -228,6 +230,25 @@ class Card(Base):
             p.js("document.querySelector('#import-go').click()")
             p.until("!!document.querySelector('#import-result')", "the result")
             self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
+
+    def test_the_sheets_ticked_are_saved_in_the_browser_and_ticked_again_next_time(self):
+        """Row 1106: Continue keeps the ticked sheets in localStorage and the next What to import opens with only those ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            p.js("document.querySelector('#import-clear').click()")
+            p.js("document.querySelector('[data-sheet=actions]').click()")              # only Actions ticked
+            p.js("document.querySelector('#import-continue').click()")
+            p.until("!!document.querySelector('#import-summary')", "the check")
+            self.assertEqual(p.js("localStorage.getItem('clark.import.sheets')"), '["actions"]')
+            reload_to_new_page(p.js, ready="!!document.querySelector('#profile-btn')", what="the page came back")
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+            self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list input')].filter(i => i.checked).map(i => i.dataset.sheet)"), ["actions"])
 
     def test_a_sheet_the_file_does_not_have_is_not_shown(self):
         from openpyxl import load_workbook
