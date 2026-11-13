@@ -150,7 +150,9 @@ export function countsRow(r) {
 export function sheetLine(r) {
   const of = (tables, kind) => ((r && r.items) || []).filter((i) => tables.includes(i.table) && i.kind === kind).length;
   const part = (name, tables) => `${name}: ${of(tables, "new")} new, ${of(tables, "changed")} updated`;
-  return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
+  const parts = [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])];
+  if (of(["gantt_lines"], "new") + of(["gantt_lines"], "changed")) parts.push(part("Gantt", ["gantt_lines"]));
+  return parts.join(" · ");
 }
 
 // The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.
