@@ -50,7 +50,7 @@ function linkedTo(d, id, all) {
 // The milestones of a use case, in the order the project keeps them, each with how it is reached (row 1107): linked directly (the
 // store's use_case_milestones, d.uc_milestones), through its work items (their milestone), or both.
 function milestonesOf(d, id) {
-  const via = new Set([...(d.actions || []), ...(d.raid || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
+  const via = new Set([...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])].filter((r) => r.use_case === id && r.milestone).map((r) => r.milestone));
   const direct = new Set((d.uc_milestones || []).filter((l) => l.use_case === id).map((l) => l.milestone));
   return (d.milestones || []).filter((m) => !m.archived && (via.has(m.id) || direct.has(m.id)))
     .map((m) => ({ m, direct: direct.has(m.id), via: via.has(m.id) }));
