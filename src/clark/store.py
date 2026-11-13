@@ -1726,10 +1726,39 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     return row
 
 
+def _carry_filter_names(step, field, old, new, project=None):
+    """Row 1113: a saved Work items filter names an owner or a workstream by its words. A rename changes those words in every such
+    filter (a person: every project's; a workstream: its project's), in the same step, so the section follows the live name."""
+    same = lambda x: isinstance(x, str) and " ".join(x.split()).casefold() == " ".join(old.split()).casefold()
+    sql, args = "SELECT id, body FROM report_sections WHERE type = 'workitems'", ()
+    if project:
+        sql, args = sql + " AND project = ?", (project,)
+    for sid, body in step.con.execute(sql, args).fetchall():
+        try:
+            v = json.loads(body or "")
+        except ValueError:
+            continue
+        if not isinstance(v, dict):
+            continue
+        changed = False
+        for part in (v, v.get("not")):
+            got = part.get(field) if isinstance(part, dict) else None
+            if isinstance(got, list) and any(same(x) for x in got):
+                out = []
+                for x in got:
+                    x = new if same(x) else x
+                    if x not in out:
+                        out.append(x)
+                part[field], changed = out, True
+        if changed:
+            step.update("report_sections", sid, {"body": json.dumps(v)})
+
+
 def _carry_workstream_rename(con, current, diff, step):
     """A rename carries the project's items with it (clark: milestones too, as they name a workstream)."""
     if "name" not in diff:
         return
+    _carry_filter_names(step, "workstream", current["name"], diff["name"], current["project"])
     for t in ("actions", "raid", "milestones"):
         for r in con.execute(f"SELECT id, workstream, updated_at FROM {_table(t)} WHERE project = ? AND "
                              "workstream = ? COLLATE NOCASE", (current["project"], current["name"])).fetchall():
@@ -3271,6 +3300,11 @@ class Store:
         where = "" if archived is None else (" WHERE archived = 1" if archived else " WHERE archived = 0")
         return [dict(r) for r in self.con.execute("SELECT * FROM people" + where + " ORDER BY id")]
 
+    def gone_owners(self):
+        """Row 1113: the names (lower case, spaces tidied) of archived people that no live person also has: an owner that is no longer on
+        the list, so a Work items filter naming it matches nothing."""
+        return gone_owner_names(self.con)
+
     def resolve_owner(self, text):
         """What an owner name typed on a work item points at (#115), read only. The one resolver: the same answer for the page's
         edit, an Excel import and a teammate's file. Returns people.resolve's dict (status blank, one, many, archived or none, and
@@ -3356,6 +3390,7 @@ class Store:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
             attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
+            out["gone_owners"] = gone_owner_names(con)             # row 1113: an owner archived from the people list, for a Work items filter
             out["commitments"] = list(COMMITMENTS)                 # #709: the flag's words, so the page never writes them itself
             return out
         finally:
@@ -3419,6 +3454,7 @@ class Store:
                         "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                         "ORDER BY sort_order, id", (code,))],
                     "sections_deleted": all_sections_deleted(con, code),
+                    "gone_owners": gone_owner_names(con),
                     "glance_tiles": [dict(r) for r in con.execute(           # #45: the same query as data_for's, in this transaction
                         "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                         "ORDER BY sort_order, tile", (code,))],
@@ -3935,6 +3971,14 @@ class Store:
 OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
 
 
+def gone_owner_names(con):
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
+        return []
+    tidy = lambda n: " ".join(str(n or "").split()).casefold()
+    live = {tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 0")}
+    return sorted({tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 1")} - live - {""})
+
+
 def _live_person(con, ref):
     row = fetch(con, "people", ref)
     if row is None:
@@ -4038,9 +4082,10 @@ class Step:
     def rename_person(self, ref, new_name):
         """#115: a new name for a person and, in this one step, on every live work item that points at them. Returns the number of
         items changed. Archived items keep the name they had."""
-        _live_person(self.con, ref)
+        was = _live_person(self.con, ref)["name"]
         self.update("people", ref, {"name": new_name})
         name = fetch(self.con, "people", ref)["name"]
+        _carry_filter_names(self, "owner", was, name)
         return _repoint_owner_text(self, ref, ref, name)
 
     def merge_people(self, source, target):
@@ -4057,6 +4102,7 @@ class Step:
             self.update("people", source, {"email": None})
         self.update("people", target, {"aliases": aliases or None})
         n = _repoint_owner_text(self, source, target, tgt["name"])
+        _carry_filter_names(self, "owner", src["name"], tgt["name"])
         write_item(self.con, {"table": "people", "op": "archive", "id": source}, self)
         return n
 
