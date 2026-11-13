@@ -247,6 +247,7 @@ export function closePeek() {
 /** Switch project: one new entry (and any peek and the filters close), so Back returns to the earlier one. */
 export function setProject(code) {
   if (!route.isProject(code)) return;
+  rememberProject(code);
   loadProject({ view: view.value, project: code, item: "", ms: "", f: "" });
 }
 
@@ -482,14 +483,26 @@ function nameProject(s) {
     route.replaceAddress("/?project=" + s.project + route.format(s));
   } catch (e) {}
 }
+// A bare address (no project named) on the page's first read: the only project opens by itself; with two or more, the last one used here
+// does if it is still there. Otherwise the chooser stays. Later visits to the chooser (the project button, a removed project) never jump.
+const LAST = "clark.lastProject";
+function lastUsed() { try { return localStorage.getItem(LAST) || ""; } catch (e) { return ""; } }
+export function rememberProject(code) { try { if (code) localStorage.setItem(LAST, code); } catch (e) { /* a private window: not remembered */ } }
+function autoOpen() {
+  const list = projects.value;
+  if (projectsState.value !== "ready" || !list.length) return;
+  const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
+  if (pick) setProject(pick);
+}
 let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
   const first = firstLoad; firstLoad = false;
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
+  if (code && !published()) rememberProject(code);
   const mine = ++reading;
-  if (!code) { status.value = "none"; return loadProjects(); }
+  if (!code) { status.value = "none"; await loadProjects(); if (first && mine === reading) autoOpen(); return; }
   status.value = "loading";
   try {
     const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() } });
