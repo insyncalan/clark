@@ -6,6 +6,7 @@ import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
+import { chatId, histOpen } from "./askHistory.js";
 import { QUIPS, DISCONNECTED_LINE } from "./askWords.js";
 
 const MIN = 320, DEFAULT = 420;
@@ -32,10 +33,29 @@ export function setWidth(w, keep) {
   if (keep) { try { localStorage.setItem(KEY, String(panelWidth.value)); } catch (e) { /* only a convenience */ } }
 }
 
-/** The next quip: random, never the one just shown. `rand` is Math.random's shape. */
-export function nextQuip(prev, rand = Math.random) {
-  const rest = QUIPS.filter((q) => q !== prev);
-  return rest[Math.min(rest.length - 1, Math.floor(rand() * rest.length))];
+/** A deck of every quip index in a random order (Fisher-Yates). `rand` is Math.random's shape. */
+export function quipDeal(rand = Math.random) {
+  const d = QUIPS.map((_, i) => i);
+  for (let i = d.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [d[i], d[j]] = [d[j], d[i]]; }
+  return d;
+}
+/** The next quip from a deck (an array of indexes, dealt from the end): a fresh shuffled deck when it runs out, never the one just
+ * shown first. Returns the quip text; the deck is changed in place. */
+export function nextQuip(deck, prev, rand = Math.random) {
+  if (!deck.length) {
+    deck.push(...quipDeal(rand));
+    const top = deck.length - 1;
+    if (deck.length > 1 && QUIPS[deck[top]] === prev) [deck[0], deck[top]] = [deck[top], deck[0]];
+  }
+  return QUIPS[deck.pop()];
+}
+// One deck for the whole session of the panel (not one per question), so no quip comes round again until all have been shown,
+// and the one that ended a question never opens the next.
+let deck = [], lastQuip = "";
+/** The next quip to show, drawn from the one deck. */
+export function drawQuip(rand = Math.random) {
+  lastQuip = nextQuip(deck, lastQuip, rand);
+  return lastQuip;
 }
 /** 5 to 10 seconds, in milliseconds. */
 export const quipDelay = (rand = Math.random) => 5000 + Math.floor(rand() * 5001);
@@ -76,6 +96,7 @@ export function openPanel() {
 export function newChat() {
   if (pending.value) return;
   turns.value = [];
+  chatId.value = null; histOpen.value = false;
 }
 
 export function closePanel() {
@@ -118,6 +139,6 @@ export function installAskKeys() {
   let seen = view.value + "|" + project.value;
   effect(() => {
     const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; turns.value = []; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    if (now !== seen) { seen = now; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
   });
 }
