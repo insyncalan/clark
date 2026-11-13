@@ -4,6 +4,7 @@
 import { signal, effect } from "@preact/signals";
 import { view, project, peek } from "../stores/report.js";
 import { helpOpen } from "../help/helpStore.js";
+import { singleKeys } from "../stores/keyPrefs.js";
 import { askOn, askProvider } from "./askState.js";
 import { keptCheck, runCheck } from "./askCheck.js";
 import { chatId, histOpen } from "./askHistory.js";
@@ -20,6 +21,7 @@ export const panelWidth = signal(initialWidth());
 export const panelFocus = signal(0);                  // bumped to ask the panel to focus its question box
 export const turns = signal([]);                       // the chat: [{role: "user" | "assistant", text, kind?}]; kept while the panel is closed
 export const pending = signal(false);                  // a question is out
+export const chatEpoch = signal(0);                    // row 1119: bumped when leaving the page drops the chat, so an answer still out is not added to the next one
 
 function room() { return Math.max(MIN, Math.floor(document.documentElement.clientWidth * 0.9)); }     // clientWidth: never the scrollbar's width
 
@@ -129,7 +131,7 @@ export function installAskKeys() {
     }
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     // An open peek, or a use case open in Edit (it has the words box), keeps "/" for its own two slashes (the words box); the ask button still opens the panel there.
-    if (e.key === "/" && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
+    if (e.key === "/" && singleKeys.value && !e.defaultPrevented && !typing(e.target) && !otherLayer() && !helpOpen.value && !peek.value && !document.querySelector("[data-ucd] .ucd-acts")) { e.preventDefault(); openPanel(); }
   }, true);
   document.addEventListener("mousedown", (e) => {
     if (!panelOpen.value) return;
@@ -139,6 +141,6 @@ export function installAskKeys() {
   let seen = view.value + "|" + project.value;
   effect(() => {
     const now = view.value + "|" + project.value;
-    if (now !== seen) { seen = now; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
+    if (now !== seen) { seen = now; chatEpoch.value++; turns.value = []; chatId.value = null; histOpen.value = false; if (panelOpen.value) { panelOpen.value = false; opener = null; } }
   });
 }

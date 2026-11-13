@@ -5,7 +5,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, drawQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, closePanel, newChat, setWidth, clampWidth, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
 import { Icon } from "../components/Icon.jsx";
 import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
@@ -107,8 +107,10 @@ export function AskPanel() {
     if (!preset) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
+    const epoch = chatEpoch.value;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
+    if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
@@ -128,8 +130,10 @@ export function AskPanel() {
   // #47e: the dry run of the changes the answer suggested; the server holds them, so only the reply's ID is sent.
   async function showChanges(reply) {
     pending.value = true;
+    const epoch = chatEpoch.value;
     const r = await post("/api/ask/change/dry", { project: project.value, reply });
     pending.value = false;
+    if (epoch !== chatEpoch.value) return;
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.plans)) {
       turns.value = [...turns.value, { role: "assistant", kind: "changes", text: "", plans: b.plans, fromSource: b.from_source === true, passages: b.passages }];

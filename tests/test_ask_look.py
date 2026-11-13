@@ -188,6 +188,17 @@ class Look(Base):
                     p.until(f"({pills}).indexOf('risks') > -1", f"{width} {theme}: risk suggestions after a question about risks")
                     self.check_measures(p, f"{width} {theme} page suggestions")
 
+    def test_row_1093_the_dashboard_has_its_own_suggestions(self):
+        pills = "[...document.querySelectorAll('#ask-pills button')].map(b => b.textContent)"
+        want = ["Is the project on track?", "What is overdue?", "Which risks are red?", "What is the next milestone?", "What needs a decision soon?", "What changed this week?"]
+        with chrome() as cdp:
+            for width in (1400, 900):
+                for theme in ("light", "dark"):
+                    p = self.open_panel(cdp, width, theme)
+                    self.assertEqual(p.js("location.hash.split('&')[0]"), "#dashboard")
+                    self.assertEqual(p.js(pills), want, f"{width} {theme}: the Dashboard's own six")
+                    self.check_measures(p, f"{width} {theme} dashboard suggestions")
+
     def pills_on(self, p, page):
         """Open the panel afresh on a page (a move closes it and clears the chat) and return the suggestions drawn."""
         p.js(f"location.hash = location.hash.replace(/^#[a-z]+/, '#{page}')")
@@ -200,9 +211,9 @@ class Look(Base):
         block = WORDS[WORDS.index("export const PILLS_BY_SUBJECT = {"):]
         block = block[:block.index("\n};")]
         lists = {m.group(1): re.findall(r'"([^"]+)"', m.group(2)) for m in re.finditer(r"^  (\w+): \[(.*)\],$", block, re.M)}
-        self.assertEqual(sorted(lists), ["gantt", "milestones", "risks", "usecases", "work"])
+        self.assertEqual(sorted(lists), ["dashboard", "gantt", "milestones", "risks", "usecases", "work"])
         self.assertTrue(all(len(v) == 6 for v in lists.values()), lists)
-        self.assertEqual(len({tuple(v) for v in lists.values()}), 5, "no two subjects share a list")
+        self.assertEqual(len({tuple(v) for v in lists.values()}), 6, "no two subjects share a list")
         with chrome() as cdp:
             for width in (1400, 900):
                 p = self.open_panel(cdp, width)

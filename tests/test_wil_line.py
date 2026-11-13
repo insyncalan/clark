@@ -23,7 +23,8 @@ ENTRY = ROOT / "tests" / "fixtures" / "wil_line_node.js"
 PAGE_SRC = SRC / "clark" / "page" / "src"
 _BUNDLE = {}
 EMPTY = {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [], "use_case": [], "priority": [], "sort": "due",
-         "max": 50, "columns": ["type", "id", "owner", "due", "status"], "caption": ""}
+         "max": 50, "columns": ["type", "id", "owner", "due", "status"], "caption": "",
+         "milestone": [], "not": {k: [] for k in ("kinds", "status", "due", "owner", "workstream", "use_case", "priority", "milestone")}, "has": [], "no": [], "text": []}      # row 1113: the whole filter a section keeps
 KNOWN = [{"id": "U-1", "names": ["Invoice matching", "UC1", "UC1 Invoice matching"]}, {"id": "U-2", "names": ["Month end"]}]
 
 
@@ -108,28 +109,22 @@ class Read(unittest.TestCase):
 
     def test_what_the_list_cannot_use_is_named_back_and_nothing_is_returned_to_save(self):
         for line, words in (("colour:red", '"colour:red" is not a word the filter line knows'),
-                            ("-type:risk", '"-type:risk" is not a choice this list has'),
-                            ("-is:open", "A minus sign is not used"),
+                            ("-is:open -is:closed", "is not a choice this list has"),
                             ("is:blocked", '"is:blocked" is not a word the filter line knows'),
-                            ("is:overdue", '"is:overdue" is not a choice this list has'),
-                            ("is:archived", '"is:archived" is not a choice this list has'),
+                            ("is:archived", '"is:archived" is not a word the filter line knows'),
                             ("status:Bogus", '"Bogus" is not a value status can take here'),
                             ("type:risk,nothing", '"nothing" is not a value type can take here'),
                             ("priority:Huge", '"Huge" is not a value priority can take here'),
                             ("due:yesterday", '"yesterday" is not a value due can take here'),
                             ("usecase:Unknown", '"Unknown" is not a value usecase can take here'),
-                            ("has:owner", "is not a choice this list has"),
-                            ("no:owner", "is not a choice this list has"),
-                            ("free text", "is not a choice this list has")):
+                            ("-is:open -is:closed", "is not a choice this list has")):
             got = read(line)
             self.assertNotIn("filter", got, line)
             self.assertIn(words, got.get("problem", ""), line)
 
     def test_a_refused_line_names_the_choices_the_line_does_know(self):
         self.assertIn("Try type:, status:, owner:, workstream:, usecase:, priority:, due: or is:.", read("colour:red")["problem"])
-        self.assertIn("Use is:open or is:closed.", read("is:overdue")["problem"])
-        self.assertIn("Use type:, status:, owner:, workstream:, usecase:, priority:, due: or is:open.", read("has:owner")["problem"])
-        self.assertIn("for example is:open", read("-is:open")["problem"])
+        self.assertIn("Use type:, status:, owner:, workstream:, usecase:, priority:, due: or is:open.", read("-is:open -is:closed")["problem"])
 
 
 class Show(unittest.TestCase):

@@ -234,5 +234,19 @@ class LightOnly(unittest.TestCase):
             self.assertEqual(len(w), 1)         # one note that no light block was found, none per dark value
 
 
+class PlainWarningWording(unittest.TestCase):
+    """Warnings reach the page's Excel export unchanged, so they use no file or code words."""
+
+    def test_warnings_use_plain_words(self):
+        w = []
+        ep.palette(css="body{}", warnings=w)
+        w2 = []
+        ep.palette(css=":root { --brand-navy: nonsense; }", warnings=w2)
+        self.assertTrue(w and w2)
+        for text in w + w2:
+            for word in ("tokens", "committed", "not used ("):
+                self.assertNotIn(word, text)
+
+
 if __name__ == "__main__":
     unittest.main()

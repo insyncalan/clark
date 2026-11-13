@@ -24,9 +24,10 @@ class Context:
     actions, raid, decisions, use_cases), fields as the file carries them (milestones with their state); `ids[kind]` the set of
     their ids; `as_at` the report's day (YYYY-MM-DD). Copies: a template can't change what publish writes elsewhere."""
 
-    __slots__ = ("rows", "ids", "as_at")
+    __slots__ = ("rows", "ids", "as_at", "live")
 
-    def __init__(self, rows=None, as_at=None):
+    def __init__(self, rows=None, as_at=None, live=None):
+        self.live = live            # row 1113: {"workstream": names, "use_case": ids, "gone_owner": names} that still exist; None: no check
         self.rows = {k: [dict(r) for r in v] for k, v in (rows or {}).items()}
         self.ids = {k: frozenset(r.get("id") for r in v) for k, v in self.rows.items()}
         self.as_at = as_at

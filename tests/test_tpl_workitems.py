@@ -49,7 +49,8 @@ class Checker(unittest.TestCase):
         got = check({})
         self.assertEqual(got, {"v": 1, "kinds": [], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [],
                                "use_case": [], "priority": [], "sort": "due", "max": 10,
-                               "columns": ["type", "id", "owner", "due", "status"], "caption": ""})
+                               "columns": ["type", "id", "owner", "due", "status"], "caption": "",
+                               "milestone": [], "not": {k: [] for k in wi.LEFT_OUT}, "has": [], "no": [], "text": []})
         self.assertEqual(set(got), set(wi.KEYS))
 
     def test_choices_are_kept_in_their_own_order_without_repeats(self):
@@ -119,12 +120,23 @@ ROWS = {
         {"id": "ABC-D-002", "status": "Made", "made_by": "Lee Demo", "use_case": "ABC-U-001", "needed_by": "2030-01-01", "date": "2030-01-05"},
     ],
 }
+ROWS["milestones"] = [{"id": "ABC-M-001", "name": "Go live"}, {"id": "ABC-M-002", "name": "Pilot"}]
+for _id, _title, _ms in (("ABC-A-001", "Chase the supplier file", "ABC-M-001"), ("ABC-A-002", "Plan the second wave", None),
+                         ("ABC-A-005", "Order the laptops", "ABC-M-002"), ("ABC-A-004", "Fix the badge printer", None),
+                         ("ABC-001", "Key person leaves", "ABC-M-001"), ("ABC-002", "Supplier portal is down", None)):
+    for _r in ROWS["actions"] + ROWS["raid"]:
+        if _r["id"] == _id:
+            _r["description"], _r["milestone"] = _title, _ms
+ROWS["decisions"][0]["decision"] = "Pick the vendor"
+LEFT = [{"not": {"owner": ["Pat Demo"]}}, {"milestone": ["go LIVE"]}, {"milestone": ["(none)"]}, {"has": [["owner"]]}, {"no": [["due"]]},
+        {"text": ["supplier"]}, {"text": ["abc-00"]}, {"not": {"due": ["overdue"]}}, {"has": [["owner", "due"]], "mode": "all"},
+        {"no": [["owner", "milestone"]]}, {"not": {"kinds": ["risk", "issue"], "milestone": ["Pilot"]}}, {"text": ["second wave", "plan"]}]
 FILTERS = [{}, {"mode": "all"}, {"mode": "closed"}, {"kinds": ["risk", "issue"]}, {"kinds": ["decision"], "mode": "all"},
            {"due": ["overdue"]}, {"due": ["soon", "none"]}, {"due": ["later"], "mode": "all"}, {"owner": ["Pat Demo"]},
            {"owner": ["(none)"], "mode": "all"}, {"workstream": ["Build", "(none)"]}, {"use_case": ["ABC-U-001"], "mode": "all"},
            {"priority": ["Urgent", "High"]}, {"priority": ["(none)"], "mode": "all"}, {"status": ["Delayed", "Pending"]},
            {"sort": "priority", "mode": "all"}, {"sort": "id", "mode": "all"}, {"max": 3}, {"max": 1, "sort": "priority"},
-           {"kinds": ["action"], "owner": ["Sam Demo", "Pat Demo"], "mode": "all", "sort": "priority"}]
+           {"kinds": ["action"], "owner": ["Sam Demo", "Pat Demo"], "mode": "all", "sort": "priority"}] + LEFT
 
 
 class Rules(unittest.TestCase):
@@ -137,6 +149,32 @@ class Rules(unittest.TestCase):
         self.assertEqual(ids({"sort": "priority"}), ["ABC-002", "ABC-A-004", "ABC-A-001", "ABC-001", "ABC-A-005", "ABC-D-001", "ABC-A-002"])
         self.assertEqual(ids({"owner": ["(none)"], "mode": "all"}), ["ABC-A-004", "ABC-003"], "a blank owner has none")
         self.assertEqual(ids({"mode": "closed", "due": ["none"]}), ["ABC-A-006"], "a closed row with a made-up day has no date")
+
+    def test_not_has_no_milestone_and_free_words_choose_as_the_page_reads_them(self):
+        ids = lambda v: wi.matching(check(v), wi.rows_of(ROWS), TODAY)
+        self.assertEqual(ids({"not": {"owner": ["Pat Demo"]}}), ["ABC-002", "ABC-A-002", "ABC-A-005", "ABC-A-004"])
+        self.assertEqual(ids({"milestone": ["go LIVE"]}), ["ABC-A-001", "ABC-001"], "a milestone is read without regard to case")
+        self.assertEqual(ids({"milestone": ["(none)"]}), ["ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-004"])
+        self.assertEqual(ids({"has": [["owner"]]}), ["ABC-A-001", "ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-005", "ABC-001"])
+        self.assertEqual(ids({"no": [["due"]]}), ["ABC-001", "ABC-A-004"])
+        self.assertEqual(ids({"text": ["supplier"]}), ["ABC-A-001", "ABC-002"], "the title is searched, not the case")
+        self.assertEqual(ids({"text": ["abc-00"]}), ["ABC-002", "ABC-001"], "the id is searched too")
+        self.assertEqual(ids({"not": {"due": ["overdue"]}}), ["ABC-D-001", "ABC-A-002", "ABC-A-005", "ABC-001", "ABC-A-004"])
+        self.assertEqual(ids({"no": [["owner", "milestone"]]}), ["ABC-002", "ABC-D-001", "ABC-A-002", "ABC-A-004"], "no: with two fields is either one empty")
+
+    def test_the_new_parts_are_checked_and_an_old_saved_filter_reads_as_before(self):
+        got = check({"has": [["due", "owner"]], "no": [["milestone"]], "text": ["  two   words ", "two words"], "not": {"owner": ["Pat Demo"]}})
+        self.assertEqual((got["has"], got["no"], got["text"], got["not"]["owner"]), ([["owner", "due"]], [["milestone"]], ["two words"], ["Pat Demo"]))
+        self.assertEqual(set(got["not"]), set(wi.LEFT_OUT))
+        for value in ({"has": [["client"]]}, {"has": [[]]}, {"has": "owner"}, {"no": [["owner"]] * 11}, {"text": [""]}, {"text": ["x" * 121]},
+                      {"not": {"client": ["x"]}}, {"not": {"kinds": ["ZQ-kind"]}}, {"not": []}, {"milestone": [5]}):
+            with self.subTest(value=value):
+                with self.assertRaises(base.Bad):
+                    check(value)
+        old = {"v": 1, "kinds": ["risk"], "mode": "open", "status": [], "due": [], "owner": [], "workstream": [], "use_case": [],
+               "priority": [], "sort": "due", "max": 10, "columns": ["id"], "caption": ""}
+        self.assertEqual(check(old)["kinds"], ["risk"])
+        self.assertEqual(wi.matching(check(old), wi.rows_of(ROWS), TODAY), ["ABC-001"])
 
     def test_published_carries_ordered_kept_ids_columns_and_caption_and_never_the_filter(self):
         ctx = base.Context(ROWS, TODAY)
@@ -156,7 +194,9 @@ def bare_page():
         import esbuild
         with tempfile.TemporaryDirectory() as tmp:
             entry = Path(tmp) / "entry.js"
-            entry.write_text('import * as W from "@src/templates/workItemsList.js";\nwindow.W = W;\n', encoding="utf-8")
+            entry.write_text('import * as W from "@src/templates/workItemsList.js";\nimport * as L from "@src/templates/workItemsLine.js";\n'
+                             'import { evaluateQuery } from "@src/logic/filterQueryEval.js";\nimport { rowsOf } from "@src/workItems.js";\n'
+                             'window.W = W;\nwindow.L = L;\nwindow.Q = { evaluateQuery, rowsOf };\n', encoding="utf-8")
             out = Path(tmp) / "t.js"
             done = esbuild.run(["--bundle", "--format=iife", "--target=es2020", "--charset=utf8", "--tsconfig-raw={}",
                                 *build_page.preact_flags(), f"--alias:@src={PAGE_SRC}", str(entry), f"--outfile={out}"],
@@ -196,6 +236,58 @@ class PageRules(unittest.TestCase):
                 body = stored(f)
                 page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(body)}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)})")
                 self.assertEqual(page, want)
+
+    def test_a_name_that_is_gone_matches_nothing_and_the_page_and_publish_agree(self):
+        every = lambda f: wi.matching(check(f), wi.rows_of(ROWS), TODAY)
+        for f, lv, plive, want in (
+                ({"owner": ["Pat Demo"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, []),
+                ({"owner": ["Pat Demo", "Lee Demo"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, every({"owner": ["Lee Demo"], "mode": "all"})),
+                ({"workstream": ["Build"], "mode": "all"}, {"workstream": ["run"]}, {"workstream": frozenset({"run"})}, []),
+                ({"workstream": ["Build", "Run"], "mode": "all"}, {"workstream": ["run"]}, {"workstream": frozenset({"run"})}, every({"workstream": ["Run"], "mode": "all"})),
+                ({"use_case": ["ABC-U-001"], "mode": "all"}, {"use_case": []}, {"use_case": frozenset()}, []),
+                ({"use_case": ["ABC-U-001"], "mode": "all"}, {"use_case": ["ABC-U-001"]}, {"use_case": frozenset({"ABC-U-001"})}, every({"use_case": ["ABC-U-001"], "mode": "all"})),
+                ({"owner": ["(none)"], "mode": "all"}, {"goneOwner": ["pat demo"]}, {"gone_owner": frozenset({"pat demo"})}, every({"owner": ["(none)"], "mode": "all"}))):
+            with self.subTest(filter=f, live=lv):
+                self.assertEqual(wi.matching(check(f), wi.rows_of(ROWS), TODAY, plive), want)
+                page = self.val(f"W.matching(W.filterOf({{body: {json.dumps(stored(f))}}}), W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}, {json.dumps(lv)})")
+                self.assertEqual(page, want)
+        self.assertTrue(every({"owner": ["Pat Demo"], "mode": "all"}), "the rows are there; only the missing name makes it empty")
+
+    def test_a_filter_naming_what_is_gone_lists_none_and_its_line_is_still_shown(self):
+        data = {"project": {"code": "ABC"}, "labels": {}, "report_sections": [], "use_cases": [], "milestones": [], "gone_owners": ["pat demo"],
+                "actions": [dict(r, project="ABC", archived=0, client_visible=1, description=r["id"]) for r in ROWS["actions"]], "raid": [], "decisions": []}
+        section = {"id": "ABC-S-001", "body": stored({"owner": ["Pat Demo"], "mode": "all"})}
+        got = self.val(f"(function(){{ var d = {json.dumps(data)}, s = {json.dumps(section)}; var l = W.listOf(s, d, {json.dumps(TODAY)});"
+                       f" return {{ n: l.items.length, saved: l.saved, line: L.lineOf(W.filterOf(s)) }}; }})()")
+        self.assertEqual(got, {"n": 0, "saved": True, "line": 'owner:"Pat Demo" is:open,closed'})
+        data["gone_owners"] = []
+        again = self.val(f"W.listOf({json.dumps(section)}, {json.dumps(data)}, {json.dumps(TODAY)}).items.length")
+        self.assertGreater(again, 0, "the same filter lists rows while the owner is still on the list")
+
+    def test_a_typed_line_lists_what_the_work_items_pages_own_line_lists(self):
+        lines = ['-owner:"Pat Demo"', 'milestone:"go live"', "milestone:none", "has:owner", "no:due", "supplier", '"second wave"', "-due:overdue",
+                 "-is:overdue", "is:overdue", "-status:Delayed type:action", "has:owner,due", "no:owner,milestone", '-milestone:"Go live"',
+                 "-type:risk,issue", "-priority:none", "due:next-7-days -type:decision", "Supplier -has:milestone", "-is:closed no:workstream"]
+        for line in lines:
+            with self.subTest(line=line):
+                got = self.val(f"(function(){{ var r = L.readLine({json.dumps(line)}, W.defaults(), []); if (r.problem) return {{problem: r.problem}};"
+                               f" r.filter.max = 50; return W.matching(r.filter, W.ruleRows({json.dumps(ROWS)}), {json.dumps(TODAY)}).sort(); }})()")
+                data = dict(ROWS, use_cases=[])
+                data = {k: ([dict(r, project="ABC") for r in v] if k != "use_cases" else v) for k, v in data.items()}
+                want = self.val(f"Q.evaluateQuery(Q.rowsOf({json.dumps(data)}), {json.dumps(line + ' is:open')}, {{today: {json.dumps(TODAY)}, me: ''}})"
+                                ".map(function (r) { return r.id; }).sort()")
+                self.assertEqual(got, want)
+
+    def test_the_line_is_read_back_the_way_it_was_typed_and_what_cannot_be_used_is_refused(self):
+        for line in ['type:risk -owner:"Pat Demo" milestone:"Go live" has:owner,due no:workstream supplier "second wave"', "-due:overdue is:closed"]:
+            with self.subTest(line=line):
+                again = self.val(f"(function(){{ var a = L.readLine({json.dumps(line)}, W.defaults(), []).filter;"
+                                 f" var b = L.readLine(L.lineOf(a), W.defaults(), []).filter; return [a, b]; }})()")
+                self.assertEqual(again[0], again[1])
+                self.assertEqual(check(again[0]), again[0], "what the line saves is what the checker keeps")
+        for line in ["client:yes", "is:quiet", "colour:red", "owner:@me", "-is:open -is:closed", "has:client", "due:zzz"]:
+            with self.subTest(line=line):
+                self.assertIn("problem", self.val(f"L.readLine({json.dumps(line)}, W.defaults(), [])"))
 
     def test_the_page_and_publish_name_the_same_choices(self):
         for name in ("KINDS", "MODES", "STATUSES", "DUE", "PRIORITIES", "SORTS", "COLUMNS", "DEFAULT_COLUMNS"):
@@ -277,6 +369,58 @@ class Saved(Api):
         status, got = self.undone(first["apply_id"])
         self.assertEqual(status, 200, got)
         self.assertEqual(self.body(), "")
+
+    def listed(self):
+        sec = next((x for x in publish.build(self.s, "ABC", now=TODAY)["published"]["sections"] if x["id"] == self.ref), None)
+        return sec["items"] if sec else []
+
+    def person_with_item(self, name):
+        with self.s.step("dashboard", USER) as st:
+            pid = st.add_person(name=name, source="demo")
+        item = self.demo.action(description="Row for the live name", owner=name, due_date="2030-01-09")
+        with self.s.step("dashboard", USER) as st:
+            st.update("actions", item, {"owner": name, "owner_id": pid})
+        return pid, item
+
+    def test_a_renamed_owner_or_workstream_is_followed_by_the_section(self):
+        pid, item = self.person_with_item("Zed Demo")
+        self.save({"owner": ["Zed Demo"], "not": {"owner": ["zed  demo"]}})
+        with self.s.step("dashboard", USER) as st:
+            st.rename_person(pid, "Zed Renamed")
+        got = json.loads(self.body())
+        self.assertEqual((got["owner"], got["not"]["owner"]), (["Zed Renamed"], ["Zed Renamed"]), "the saved words follow the live name")
+        self.save({"owner": ["Zed Demo"]})
+        self.assertEqual(self.listed(), [], "the old name matches nothing")
+        self.save({"owner": ["Zed Renamed"]})
+        self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            ws = st.create("workstreams", {"project": "ABC", "name": "Lane One", "source": "demo"})
+            st.update("actions", item, {"workstream": "Lane One"})
+        self.save({"workstream": ["Lane One"]})
+        self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            st.update("workstreams", ws, {"name": "Lane Two"})
+        self.assertEqual(json.loads(self.body())["workstream"], ["Lane Two"])
+        self.assertEqual(self.listed(), [item])
+
+    def test_an_owner_or_workstream_or_use_case_that_is_gone_matches_nothing_and_the_filter_stays(self):
+        pid, item = self.person_with_item("Zed Demo")
+        with self.s.step("dashboard", USER) as st:
+            ws = st.create("workstreams", {"project": "ABC", "name": "Lane One", "source": "demo"})
+            st.update("actions", item, {"workstream": "Lane One"})
+        for f in ({"owner": ["Zed Demo"]}, {"workstream": ["Lane One"]}):
+            self.save(f)
+            self.assertEqual(self.listed(), [item])
+        with self.s.step("dashboard", USER) as st:
+            st.archive_person(pid)
+        self.s.con.execute("UPDATE workstreams SET archived = 1 WHERE id = ?", (ws,))      # no step archives a workstream yet; the rules read the flag
+        self.s.con.commit()
+        for f in ({"owner": ["Zed Demo"]}, {"workstream": ["Lane One"]}):
+            self.save(f)
+            self.assertEqual(self.listed(), [], f"{f} is gone")
+            self.assertEqual(json.loads(self.body())[next(iter(f))], list(f.values())[0], "the filter still names it")
+        self.save({"owner": ["Zed Demo", "Pat Demo"]})
+        self.assertEqual(self.listed(), [self.a_due, self.risk], "a name that is left still matches")
 
     def test_a_refused_filter_writes_nothing_and_says_why_without_quoting_it(self):
         got = self.refused(self.req(changes.UPDATE, id=self.ref, changes={"body": json.dumps({"kinds": ["ZQ-kind"]})}, place="report"), wi.BAD_CHOICE)
@@ -418,7 +562,7 @@ class InThePage(PageBase):
             p.edit()
             p.until(f"!!document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]')", "the start line")
             self.assertEqual(p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-wil-say=not-yet]').textContent"),
-                             "This list shows nothing until its filter is saved. Change any choice below to start it.")
+                             "No filter is saved for this section yet. Save one on Work items and it shows here.")
             steps = self.demo.last_step()
             p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-field=kinds] input[value=risk]').click()")
             p.saved()
@@ -610,6 +754,58 @@ class InThePage(PageBase):
                 p.until(f"document.querySelector({json.dumps(line)}).value === 'type:risk status:Open'", "Escape gave the saved line back")
                 self.assertEqual(self.demo.last_step(), steps, "Escape saves nothing")
                 self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["kinds"], ["risk"])
+
+    def _line_session(self, cdp, width, title):
+        ref = self.add({}, title=title)
+        p = self.show(cdp, width)
+        p.edit()
+        line = f"[data-id=\"{ref}\"] [data-wil-line] input[name=line]"
+        p.until(f"!!document.querySelector({json.dumps(line)})", "the line drew")
+
+        def enter(text):
+            p.js(f"(el => {{ el.focus(); el.value = {json.dumps(text)}; }})(document.querySelector({json.dumps(line)}))")
+            p.key("Enter", code="Enter", vk=13)
+
+        def body():
+            return json.loads(self.store.read("report_sections", ref=ref)["body"])
+        return p, enter, body, ref
+
+    def test_the_filter_line_reads_the_due_words_and_their_aliases(self):
+        """Mutation hunt: the due: aliases (next7days, in7days, nodate) and none/later were not read by any test."""
+        with chrome() as cdp:
+            p, enter, body, ref = self._line_session(cdp, 1400, "Due words")
+            for typed, want in (("due:overdue", ["overdue"]), ("due:soon", ["soon"]), ("due:next7days", ["soon"]), ("due:in7days", ["soon"]),
+                                ("due:none", ["none"]), ("due:nodate", ["none"]), ("due:later", ["later"]), ("due:overdue,next7days,nodate", ["overdue", "soon", "none"])):
+                with self.subTest(typed=typed):
+                    enter(typed)
+                    self.assertTrue(wait(lambda: body()["due"] == want), f"{typed}: saved as {body()['due']}, wanted {want}")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length >= 1", "the chip drew")
+                    p.clear_toast()
+                    enter("")
+                    self.assertTrue(wait(lambda: body()["due"] == []), "cleared between words")
+                    p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-chip').length === 0", "the chips went")
+                    p.clear_toast()
+
+    def test_the_filter_line_modes_open_and_closed_together_no_repeats_no_minus(self):
+        """Mutation hunt: is:open,closed (all), a repeated value saved once, and the minus-sign refusal were not pinned."""
+        with chrome() as cdp:
+            p, enter, body, ref = self._line_session(cdp, 1400, "Modes")
+            enter("type:risk is:open,closed")
+            p.saved()
+            self.assertEqual((body()["kinds"], body()["mode"]), (["risk"], "all"), "open and closed together is the all mode")
+            p.clear_toast()
+            enter("is:open is:closed")
+            p.saved()
+            self.assertEqual(body()["mode"], "all", "two is: words read the same as one with a comma")
+            p.clear_toast()
+            enter("status:Open,Open type:risk,risk")
+            p.saved()
+            self.assertEqual((body()["status"], body()["kinds"]), (["Open"], ["risk"]), "a repeated value is saved once")
+            p.clear_toast()
+            steps = self.demo.last_step()
+            enter("-is:open")
+            p.until("!!document.querySelector('.toast-text') && document.querySelector('.toast-text').textContent.includes('A minus sign')", "a minus sign is refused in words")
+            self.assertEqual(self.demo.last_step(), steps, "nothing saved")
 
     def test_sort_rows_columns_and_caption_stay_in_the_one_form_block(self):
         ref = self.add({}, title="Form")

@@ -22,7 +22,8 @@ SECONDS = 20.0                       # wall clock for one PDF
 MAX_BYTES = 20 * 1024 * 1024         # a larger file is not read
 MAX_PAGES = 200
 MAX_PAGE_CHARS = 50_000
-MAX_OUT = 2 * 1024 * 1024
+MAX_OUT = 2 * 1024 * 1024            # the parent's hard stop on the child's output
+OUT_BUDGET = MAX_OUT * 3 // 4        # the child stops adding pages at this much JSON, so a big PDF returns its leading pages
 VENDOR = Path(__file__).resolve().parents[2] / "vendor"
 CHILD = Path(__file__).with_name("pdf_reader_child.py")
 REASONS = ("too_big", "too_many_pages", "timeout", "crash", "corrupt", "unavailable", "scanned", "encrypted")
@@ -56,7 +57,7 @@ def read(raw, vendor=None, truncated=False):
     try:
         if truncated or not isinstance(raw, (bytes, bytearray)) or len(raw) > MAX_BYTES:
             return _no("too_big")
-        args = [sys.executable, "-I", "-S", str(CHILD), str(vendor or VENDOR), str(MAX_PAGES), str(MAX_PAGE_CHARS)]
+        args = [sys.executable, "-I", "-S", str(CHILD), str(vendor or VENDOR), str(MAX_PAGES), str(MAX_PAGE_CHARS), str(OUT_BUDGET)]
         status, out, _code = platform.run_stoppable(args, bytes(raw), _env(), SECONDS, MAX_OUT, prefix="clark-pdf-")
         if status == "slow":
             return _no("timeout")

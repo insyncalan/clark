@@ -606,7 +606,10 @@ def select(inputs):
                                 for r in out["actions"]]                      # row 1005: a template (pure) is handed the words of the latest update, as the file's HTML would be markup to it
     for_templates["milestones"] = [{**r, "client_message": sanitise.rich_plain_text(r.get("client_message"))} if r.get("client_message") else r
                                    for r in out["milestones"]]                # row 1078: the same for a milestone's client wording
-    ctx = section_bodies.Context(for_templates, as_at)          # #96: only what is already kept, as the file carries it
+    live = {"workstream": frozenset(" ".join(str(w.get("name") or "").split()).lower() for w in d["workstreams"] if not w.get("archived")) if "workstreams" in d else None,
+            "use_case": frozenset(u.get("id") for u in d["use_cases"] if not u.get("archived")) if "use_cases" in d else None,
+            "gone_owner": frozenset(inputs.get("gone_owners") or ())}      # row 1113: a Work items filter naming what is gone lists nothing
+    ctx = section_bodies.Context(for_templates, as_at, live)          # #96: only what is already kept, as the file carries it
     extra = {s["id"]: _content(s, ctx) for s in sections if s.get("type") in section_bodies.CHECKERS and not s.get("hidden")}   # a needs, tracker or template section's published fields; None: left out
     dropped = 0
     listed = flagged_needs(rows)         # row 811b: the flagged open items, as rows of the 'Needs from you' list; row 1066: only of a section the editor has (none is made for the file)

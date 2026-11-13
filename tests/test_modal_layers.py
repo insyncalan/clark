@@ -46,6 +46,12 @@ class Source(unittest.TestCase):
         self.assertNotIn("BEHIND", src, "the box no longer lists #main and .top by hand")
         self.assertNotIn('setAttribute("inert"', src)
 
+    def test_the_settings_box_uses_the_shared_helper_so_toast_buttons_are_held(self):
+        src = (PAGE_SRC / "edit" / "Dialog.jsx").read_text(encoding="utf-8")
+        self.assertIn("inertBehind(", src)
+        self.assertNotIn("BEHIND", src, "the box no longer lists #main and .top by hand")
+        self.assertNotIn('setAttribute("inert"', src)
+
 
 class InBrowser(unittest.TestCase):
     @classmethod
