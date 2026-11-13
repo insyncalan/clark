@@ -17,8 +17,9 @@
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
+import { getArchived } from "../api.js";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, mode, rows } from "../stores/report.js";
+import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
 import { change, changeBulk, say, toast, undo } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
@@ -94,9 +95,13 @@ function AddBox({ onClose, opener }) {
   const submit = async (e) => {
     e.preventDefault();
     const f = e.currentTarget, ref = f.ucI.value.trim(), title = f.ucT.value.trim();
-    if ((data.value.use_cases || []).some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase())) {   // archived ones too: their ID is still taken
-      f.ucI.setCustomValidity("That ID is already used"); f.ucI.reportValidity(); f.ucI.setCustomValidity(""); return;
-    }
+    const taken = (list) => list.some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase());
+    const refuse = () => { f.ucI.setCustomValidity("That ID is already used"); f.ucI.reportValidity(); f.ucI.setCustomValidity(""); };
+    if (!ref) { f.ucI.value = ""; f.ucI.reportValidity(); return; }   // a blank ID: the field's own "fill in" bubble
+    if (taken(data.value.use_cases || [])) { refuse(); return; }
+    // The page's own data leaves the archived use cases out, but their ID is still taken: read them with the archived rows.
+    const arch = await getArchived(project.value);
+    if (arch.ok && taken((arch.data.use_cases || []).filter((u) => u.archived))) { refuse(); return; }
     setBusy(true);
     const reply = await change({ kind: "use_cases", op: "new", values: { ref, title, status: f.ucS.value, headline: f.ucH.value.trim() }, place: "report" }, "");
     setBusy(false);

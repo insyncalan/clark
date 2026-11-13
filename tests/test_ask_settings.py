@@ -27,7 +27,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs."
+ON = "Asking is on."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."

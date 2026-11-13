@@ -77,7 +77,14 @@ export function AskPanel() {
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
   }, [open, state, panelFocus.value]);
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
+  // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const last = el.lastElementChild;
+    if (last && last.getAttribute("data-role") === "assistant" && last.offsetHeight > el.clientHeight) el.scrollTop = last.offsetTop - el.offsetTop;
+    else el.scrollTop = el.scrollHeight;
+  }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
     let t = null;
@@ -112,6 +119,7 @@ export function AskPanel() {
     const epoch = chatEpoch.value;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
+    setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
     if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
     const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";

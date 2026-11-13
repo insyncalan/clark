@@ -108,7 +108,7 @@ export function AskSettings() {
       <h2 id="ask-settings-h" tabIndex={-1}>Asking</h2>
       <p class="muted">{named("Claude is started on this computer for you.", askProvider.value)}</p>
       <p class="muted" id="ask-notice">{named(ASK_NOTICE_LINE, askProvider.value)}</p>
-      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? named("Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs.", askProvider.value) : ASK_OFF_LINE}</p>
+      <p id="ask-state">{status === "loading" ? ASK_CHECKING_LINE : status === "unavailable" ? ASK_UNAVAILABLE_LINE : on ? "Asking is on." : ASK_OFF_LINE}</p>
       {status === "ready" && !saved ? <p class="muted" id="ask-unsaved">This computer's saved data can't keep this choice yet, so asking stays off. Restart clark to bring the saved data up to date.</p> : null}
       <div class="row">
         <button type="button" class="btn" ref={switchRef} data-ask-switch aria-pressed={on ? "true" : "false"} disabled={busy || status !== "ready"} onClick={flip}>{on ? "Turn off asking" : "Turn on asking"}</button>

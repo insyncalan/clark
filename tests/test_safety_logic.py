@@ -216,6 +216,17 @@ class Card(InBrowser):
         self.assertEqual(self.val("document.activeElement.id"), "backup-panel")
         self.assertTrue(self.in_view("#backup-panel"))
 
+    def test_closing_or_cancelling_the_panel_returns_focus_to_the_row_button_that_opened_it(self):
+        self.mount()
+        self.click("[data-backup] [data-preview]")
+        self.click("[data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.assertEqual(self.val("document.activeElement.hasAttribute('data-preview')"), True)
+        self.click("[data-backup] [data-restore]")
+        self.click("[data-cancel]")
+        self.assertFalse(self.present("#backup-panel"))
+        self.assertEqual(self.val("document.activeElement.hasAttribute('data-restore')"), True)
+
     def test_closing_the_panel_while_a_preview_loads_does_not_reopen_it(self):
         self.mount()
         self.click("[data-backup] [data-preview]")
