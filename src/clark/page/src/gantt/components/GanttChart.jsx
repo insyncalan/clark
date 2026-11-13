@@ -78,6 +78,8 @@ export function GanttChart({
   const [menu, setMenu] = useState(null);               // the add menu: { id, left, top }
   const [showOpen, setShowOpen] = useState(false);
   const showBtn = useRef(null);
+  const fitBtn = useRef(null);
+  const zoomOutTo = () => { const z = zoomOut(zoom); setZoom(z); if (z <= 1 && fitBtn.current) fitBtn.current.focus(); };      // the button turns itself off at fit: focus moves to the fit button, not to the page top
   const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
@@ -341,8 +343,8 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomOut(zoom))} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
-        <button type="button" class="gt-zf" onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
+        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
         <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
