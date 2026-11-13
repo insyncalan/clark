@@ -233,8 +233,8 @@ def _bucket(row, today):
     a, t = day_number(row.get("due")), day_number(today)
     if a is None or t is None:
         return "none"
-    if not _open(row):
-        return ""
+    if not _open(row) or (a < t and row.get("status") == "Completed"):
+        return ""           # closed, or finished work: never Overdue
     return "overdue" if a < t else "soon" if a - t <= 7 else "later"
 
 

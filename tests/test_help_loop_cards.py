@@ -36,5 +36,33 @@ class LoopCards(Base):
                         self.assertEqual(c["past"], 0, "text inside its card: " + where)
 
 
+    def test_the_cards_stack_in_one_column_at_900_with_dividers_between_and_sit_in_a_row_at_1400(self):
+        """The stacked layout from 1180 px down (PR 1352): one card per row, a dashed line under each but the last, no side line, no
+        connector after a card. Mutants: the single column, the side line, the last card's line, the connector."""
+        import json
+        probe = """JSON.stringify([...document.querySelectorAll('#help .hp-steps li')].map(l => { const c = getComputedStyle(l), a = getComputedStyle(l, '::after'), r = l.getBoundingClientRect();
+          return { top: Math.round(r.top), left: Math.round(r.left), right: parseFloat(c.borderRightWidth), bottom: parseFloat(c.borderBottomWidth), bstyle: c.borderBottomStyle, after: a.display }; }))"""
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+                p.until("innerWidth==%d" % w, "resize")
+                p.js("window.clarkPage.help.open('start')")
+                p.until("!!document.querySelector('#help .hp-steps li')", "the loop")
+                cards = json.loads(p.js(probe))
+                self.assertEqual(len(cards), 5)
+                if w == 900:
+                    self.assertEqual(len({c["left"] for c in cards}), 1, "one column: %s" % cards)
+                    self.assertEqual(sorted(c["top"] for c in cards), [c["top"] for c in cards], "in order, down the page")
+                    self.assertEqual(len({c["top"] for c in cards}), 5, "one card to a row")
+                    for c in cards:
+                        self.assertEqual(c["right"], 0, "no side line when stacked: %s" % c)
+                    for c in cards[:-1]:
+                        self.assertEqual((c["bstyle"], c["bottom"] > 0), ("dashed", True), "a dashed line under a card: %s" % c)
+                        self.assertEqual(c["after"], "none", "no connector when stacked: %s" % c)
+                    self.assertEqual(cards[-1]["bottom"], 0, "no line under the last card")
+                else:
+                    self.assertEqual(len({c["top"] for c in cards}), 1, "five in a row at 1400: %s" % cards)
+
 if __name__ == "__main__":
     unittest.main()

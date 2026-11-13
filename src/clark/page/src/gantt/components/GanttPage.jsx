@@ -12,6 +12,7 @@
 import { useEffect, useLayoutEffect, useState } from "preact/hooks";
 import { mode, fromFile, asAt } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
+import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
 import { coverLine } from "../../logic/cover.js";
 import { todayIso } from "../../workItems.js";
@@ -121,13 +122,13 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
             <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${W.show}: ${filterWord(filter)}`} title={`${W.show}: ${filterWord(filter)}`}
               data-gp-show onClick={() => setShowOpen(!showOpen)}><Icon name="filter" /></button>
             {showOpen ? (
-              <div class="gt-pop" role="menu" aria-label={W.show} data-gp-showmenu>
+              <Fade class="gt-pop" role="menu" aria-label={W.show} data-gp-showmenu>
                 {filters.map((f) => (
                   <button type="button" key={f} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); }}>
                     <span class="gt-ck" aria-hidden="true">{filter === f ? "✓" : ""}</span>{filterWord(f)}
                   </button>
                 ))}
-              </div>
+              </Fade>
             ) : null}
           </span>
         ) : null}

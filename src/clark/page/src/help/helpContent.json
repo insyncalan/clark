@@ -204,7 +204,7 @@
     "s": [
      "Open the **Dashboard** and press **Edit** at the top. Each change saves on its own.",
      "Set **Week ending** to the Friday the report covers: type it as DD-MM-YYYY, press [[Enter]] in the box to use the Friday shown (only while no week is kept yet), or press the calendar button beside the box and pick the day. In the calendar, **Friday** takes the next Friday (today, if it is one). Any other day is not accepted.",
-     "Click the text under **Current state** and write where the project stands. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back. Write the Summary, This week and Next week sections the same way.",
+     "Click the text under **Summary**, **This week** or **Next week** and write it. It turns into an editor where it is: there is no Save button. Click away or press [[Mod+Enter]] to keep it; [[Esc]] puts the old text back.",
      "Set the health on the **Project health** tile: see [Set the project health](#howto-set-the-health).",
      "Check the lists of risks and issues, open actions and decisions. Click any part of a row (the state, the title, the owner, the date) to change it there; the ID opens the whole item in the peek.",
      "Press **View** to read the report as the client will."
@@ -405,7 +405,7 @@
     "s": [
      "Click a row or a card, or press [[Enter]] on it. The item opens in the **peek** at the right, and the page stays where it was.",
      "In Edit, click the title to change it. [[Enter]] keeps it; [[Esc]] puts it back.",
-     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click one to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. The due date offers Today, Tomorrow, Friday, Next week and No date.",
+     "In Edit, under the title are **Status**, **Priority**, **Owner** and **Due**. Click **Status** to choose another value. A risk’s or issue’s status menu also sets its colour (Red, Amber or Green), which sets its priority. To change the priority, owner or due date, click it in the list row (the due date offers Today, Tomorrow, Friday, Next week and No date) or use [Change an item with words (Sneak peek)](#howto-change-an-item-in-words).",
      "A warning shows when an action is overdue or due on a weekend, with one-click fixes such as **Move to Friday**.",
      "**Needed from the client**: switch it on in Edit and, when the report has a “Needs from you” section, the item is listed there.",
      "**Latest update**: click to write it. On an item shown to the client, the box says **Shown to the client**, because the client sees this text.",
@@ -1129,7 +1129,7 @@
        ],
        [
         "Plan summary",
-        "Where the plan stands, in clark’s one editor: headings, lists, links and the AI menu. Starts with two headings to fill in.",
+        "Where the plan stands, in clark’s one editor: headings, lists and links. Starts with two headings to fill in.",
         "Full or half"
        ],
        [
@@ -1284,6 +1284,10 @@
       "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
+      "p",
+      "To change how wide a column is in the list, drag the right edge of its heading. Or put the focus on a heading, or on any row, and press [[Alt+Left]] or [[Alt+Right]]. Double-click the edge to put the column back to its first width. The Use cases list works the same way: drag the right edge of a column heading, or press [[Alt+Left]] or [[Alt+Right]] on a row, and double-click the edge to put the column back. A Needs from you section in Edit has the same on its table of rows. The list of archived work items (type is:archived on the filter line) has it too, on its Type, Item, Owner, Due and Status columns. The Milestones list works the same way too, in Edit. The widths are kept on this computer, not in the project, and the published page keeps its own."
+     ],
+     [
       "tbl",
       [
        "Table column",
@@ -1393,6 +1397,10 @@
      [
       "p",
       "**Movement** is the switch next to **Plan** at the top: the open milestones against their agreed and forecast dates, with how far after the agreed date each is, what changed and a choice to make. It is never published. See [Deal with a slipped milestone](#howto-handle-a-slipped-milestone)."
+     ],
+     [
+      "p",
+      "In Edit, the list of milestones has a heading row over its columns: **Date**, **Milestone**, **State** and **Progress**. Drag the right edge of a heading, or press [[Alt+Left]] or [[Alt+Right]] on it, to change that column’s width; double-click the edge to put it back. View and the published page have no heading row."
      ]
     ]
    },
@@ -1417,6 +1425,7 @@
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
+       "**History** (the clock button at the top) opens **Earlier chats**: the chats you have had on this project, kept on this computer and for this project only. A chat is kept once it has an answer. Press a chat to open it again. Press **Remove** beside a chat to take it off the list.",
        "Drag its left edge to make it wider."
       ]
      ],

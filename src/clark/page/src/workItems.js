@@ -17,6 +17,9 @@ const DASH = "—";
 let pinned = "";
 export function pinToday(iso) { pinned = /^\d{4}-\d\d-\d\d$/.test(iso || "") ? iso : ""; }
 
+// The moment now in milliseconds, for a stamp that needs the time of day (the earlier chats list). This file is the one place that reads the clock.
+export const nowMs = () => Date.now();
+
 export function todayIso() {
   if (pinned) return pinned;
   const t = new Date();
@@ -45,6 +48,12 @@ export function plural(n, one, many) { return `${n} ${n === 1 ? one : (many || o
 
 export function isOpen(row) { return !CLOSED.includes(row.status); }
 
+// The one rule for late: a Completed item is finished work, so it is never overdue, whatever its date (it still counts as open).
+export function isLate(row, today) {
+  const a = dayNumber(dueField(row)), b = dayNumber(today);
+  return a !== null && b !== null && a < b && isOpen(row) && row.status !== "Completed";
+}
+
 // The date in the Due column: a decision's is the date it is needed by while pending, otherwise the date it was made.
 export function dueField(row) {
   if (row.kind === "decision") return row.status === "Pending" ? row.needed_by : row.date;
@@ -55,7 +64,7 @@ export function dueCell(row, today) {
   const iso = dueField(row);
   const out = { date: showDate(iso), words: "", tone: "" };
   const a = dayNumber(iso), b = dayNumber(today);
-  if (a === null || b === null || !isOpen(row)) return out;
+  if (a === null || b === null || !isOpen(row) || (row.status === "Completed" && a < b)) return out;
   const n = a - b;
   out.words = n === 0 ? "Today" : n === 1 ? "Tomorrow" : n === -1 ? "Yesterday" : n < 0 ? `${plural(-n, "day")} late` : `In ${plural(n, "day")}`;
   if (n < 0) out.tone = "late";
@@ -77,7 +86,7 @@ export function pillOf(row, today) {
   if (row.kind === "risk" || row.kind === "issue") { const c = colourOf(row.priority); return { text: c.word, class: c.class }; }
   if (row.kind === "action") {
     const n = dayNumber(row.due_date), t = dayNumber(today);
-    if (n !== null && t !== null && n < t) return { text: "Overdue", class: "r" };
+    if (n !== null && t !== null && n < t) return s === "Completed" ? { text: "Open", class: "b" } : { text: "Overdue", class: "r" };
     if (s === "Delayed") return { text: "Delayed", class: "a" };
     if (n !== null && t !== null && n - t <= 7) return { text: "Due soon", class: "a" };
   }

@@ -84,7 +84,7 @@ const tidy = (v) => (typeof v === "string" ? v.split(/\s+/).filter(Boolean).join
 function bucket(r, today) {
   const a = dayNumber(r.due), t = dayNumber(today);
   if (a === null || t === null) return "none";
-  if (!isOpen(r)) return "";
+  if (!isOpen(r) || (a < t && r.status === "Completed")) return "";     // closed, or finished work: never Overdue
   return a < t ? "overdue" : a - t <= 7 ? "soon" : "later";
 }
 

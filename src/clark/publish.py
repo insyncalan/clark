@@ -167,6 +167,19 @@ def safe_href(value):
     return v.startswith(("https://", "mailto:", "#"))
 
 
+def reachable_href(value):
+    """A link in the editor's text that a client may be given: a place on the page (#), or an address the one link rule
+    (doclinks.check_link) accepts. That rule refuses a user name or password, localhost, a number or name that only works inside a
+    network (192.168.x, intranet, .corp, .local) and a mailto with a second recipient or a header, which safe_href alone lets by."""
+    if re.sub(r"[\x00-\x20]+", "", value or "").startswith("#"):
+        return True
+    try:
+        doclinks.check_link(value)
+    except doclinks.LinkError:
+        return False
+    return True
+
+
 class _Cleaner(HTMLParser):
     def __init__(self):
         super().__init__(convert_charrefs=True)
@@ -186,7 +199,7 @@ class _Cleaner(HTMLParser):
             value = given.get(name)
             if value is None:
                 continue
-            if name == "href" and not safe_href(value):
+            if name == "href" and not (safe_href(value) and reachable_href(value)):
                 continue
             if name == "src" and not DATA_IMAGE.fullmatch(value.strip()):
                 return                                            # an image that isn't embedded is dropped whole
