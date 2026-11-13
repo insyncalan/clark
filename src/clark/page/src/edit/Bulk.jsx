@@ -137,7 +137,7 @@ function ItemsMenu({ open }) {
             onClick={() => { if (c.on) { const at = open.at; bulkOpen.value = null; openControl(c.id, sum.ids, at, open.place, open.from); } }}>
             <Icon name={actionIcon(c.id)} cls="mi" /><span class="mi-t">{c.menu ? `${c.label}…` : c.label}</span>{c.on ? null : <small class="mi-note">{c.why}</small>}
           </button>
-        )) : <div class="bm-why" role="menuitem" aria-disabled="true" id="bm-why">{B.WHY.kinds}</div>}
+        )) : <div class="bm-why" role="menuitem" aria-disabled="true" id="bm-why"><Icon name={actionIcon("none")} cls="mi" /><span class="mi-t">{B.WHY.kinds}</span></div>}
         <div class="sep" role="separator" />
         <button type="button" role="menuitem" class="menu-item" data-bulk-menu="copy" aria-describedby={sum.table ? undefined : "bm-why"} onClick={copy}><Icon name={actionIcon("copyIds")} cls="mi" /><span class="mi-t">Copy IDs</span></button>
       </div>

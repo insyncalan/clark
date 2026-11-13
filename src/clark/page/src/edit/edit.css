@@ -179,7 +179,8 @@
 .sb-why { font-size: var(--size-caption); }
 .cpop.bmenu { min-width: 220px; }
 .bmenu .bm-h { padding: 6px 12px 4px; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
-.bmenu .bm-why { padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .bmenu .sep { height: 1px; margin: 4px 0; background: var(--border); }
 .bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; }
 .bask-back { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); }
