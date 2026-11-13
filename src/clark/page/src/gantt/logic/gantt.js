@@ -277,15 +277,17 @@ export function arrowPath(ax, ay, bx, by, rowH) {
 // ── changes a person makes ───────────────────────────────────────────────────
 
 // A bar moved by whole days keeps its length; a milestone moves its one date.
+// A move that would leave the years the chart accepts (YEARS) changes nothing.
 export function moved(line, delta) {
   const start = addDays(line.start, delta);
-  return { start, end: line.type === "milestone" ? start : addDays(line.end, delta) };
+  const end = line.type === "milestone" ? start : addDays(line.end, delta);
+  return dayNum(start) === null || dayNum(end) === null ? { start: line.start, end: endOf(line) } : { start, end };
 }
 // A bar's right edge dragged by whole days: never before its start. A milestone does not stretch.
 export function resized(line, delta) {
   if (line.type === "milestone") return { start: line.start, end: line.start };
   const end = Math.max(dayNum(line.start), dayNum(line.end) + delta);
-  return { start: line.start, end: isoOf(end) };
+  return dayNum(isoOf(end)) === null ? { start: line.start, end: line.end } : { start: line.start, end: isoOf(end) };
 }
 
 // What typed text means for one field of one line. Returns { ok: true, field, value } (field "dates" carries { start, end }; every other
@@ -299,7 +301,7 @@ export function checkEdit(line, field, text) {
   if (field === "pct") {
     const raw = String(text == null ? "" : text).trim().replace(/%$/, "");
     const n = Number(raw);
-    return raw !== "" && Number.isInteger(n) && n >= 0 && n <= 100 ? { ok: true, field, value: n } : bad(WORDS.badPct);
+    return /^\d{1,3}$/.test(raw) && Number.isInteger(n) && n >= 0 && n <= 100 ? { ok: true, field, value: n } : bad(WORDS.badPct);
   }
   if (field === "start" || field === "end") {
     const iso = parseDate(text);
@@ -343,7 +345,7 @@ export function detailOf(line, lines, today) {
   return {
     title: `${no[line.id]} ${line.name}`,
     kind: typeWord(line.type),
-    when: line.type === "milestone" ? formatDate(line.start) : `${formatDate(line.start)} to ${formatDate(line.end)} (${spanDays(line)} days)`,
+    when: line.type === "milestone" ? formatDate(line.start) : `${formatDate(line.start)} to ${formatDate(line.end)} (${spanDays(line)} day${spanDays(line) === 1 ? "" : "s"})`,
     pct: line.pct,
     status: statusWord(statusOf(line, today)),
     depends: line.depends.filter((d) => by[d]).map((d) => no[d] || d),
