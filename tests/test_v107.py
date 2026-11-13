@@ -160,7 +160,7 @@ COVERED = [
     ('1096', 'The ask clark question box is one line, the suggestions hide while you type, and Ask is a round up arrow.',
      'test_ask_look::Look::test_the_box_is_one_line_the_suggestions_go_while_typing_and_the_send_is_a_round_arrow'),
     ('1128', 'A cancelled milestone says "No longer going ahead", and the head does not say "No milestones yet." over cancelled rows.',
-     'test_ms_cancelled_words::Words::test_a_cancelled_row_says_no_longer_going_ahead'),
+     'test_ms_cancelled_page::Drawn::test_one_cancelled_milestone'),
     ('1026', 'Close the Gantt Show menu, the Gantt table right-click menu and the / list: each fades out.',
      'test_motion_menu_exit_four::Pins::test_row_1026_each_menu_is_wired_to_the_fade_and_the_css_names_it'),
     ('1027', 'Publish a Gantt whose owner or baseline date is also named in a section: it publishes.',
