@@ -40,7 +40,7 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
-            p.until("!!document.querySelector('#ask-btn')", "the ask button shows")
+            p.until("!!document.querySelector('#ask-btn')", "the ask button shows", 30)     # the page reads the ask switch once from the server and shows nothing until it answers: a loaded machine needs longer than 10 s
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
@@ -173,7 +173,7 @@ class TopBarTabs(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, 900, 700)
-            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show")
+            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('#profile-btn')", "the ask button and the profile circle show", 30)
             p.js("[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === 'Use cases')[0].click()")      # row 976: the last tab (Settings was it before)
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             p.js("(function(){ var s = document.createElement('span'); s.id = 'test-spacer'; s.style.cssText = 'flex:none;width:90px;height:1px'; "
