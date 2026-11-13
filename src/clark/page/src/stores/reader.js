@@ -1,12 +1,14 @@
 // What the reader of a published file keeps for themselves (issue 713), in their own browser only: the name in their profile and the
-// Light / Dark / System choice. Both live in localStorage and nowhere else: never in the file, the data block, an address or a
+// Light / Dark choice. Both live in localStorage and nowhere else: never in the file, the data block, an address or a
 // workbook. Every read and write is inside try/catch, because storage can be blocked (a private window, a policy) or full; then
 // the page works and simply forgets. A published file only: the editor keeps its own look and profile.
+// The look is Light or Dark (the header switcher). With nothing kept it is Light. A choice kept as "system" by an earlier version is read
+// once as the computer's own setting and is replaced by the first press of the switcher.
 import { signal } from "@preact/signals";
 
 export const NAME_KEY = "clark.reader.name";
 export const LOOK_KEY = "clark.reader.look";
-export const LOOKS = ["light", "dark", "system"];
+export const LOOKS = ["light", "dark"];
 const NAME_MAX = 80;
 
 const read = (k) => { try { return window.localStorage.getItem(k); } catch (e) { return null; } };
@@ -32,7 +34,12 @@ export function setReaderName(name) {
 }
 export const removeReader = () => setReaderName("");
 
-const stored = () => { const v = read(LOOK_KEY); return LOOKS.includes(v) ? v : "system"; };
+const stored = () => {
+  const v = read(LOOK_KEY);
+  if (LOOKS.includes(v)) return v;
+  if (v === "system") { try { return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"; } catch (e) { return "light"; } }
+  return "light";
+};
 export const look = signal(stored());
 
 let forPrint = false;                      // while the browser prints the page is always light
@@ -43,18 +50,20 @@ function paint() {
     const root = document.documentElement;
     const v = forPrint ? "light" : look.value;
     if (v === "dark") root.dataset.theme = "dark";
-    else if (v === "system") root.dataset.theme = "auto";     // brand/tokens.css answers "auto" with the computer's own colour scheme
     else delete root.dataset.theme;
   } catch (e) { /* no document */ }
 }
 
-/** Light, Dark or System: applied at once and remembered in this browser. Anything else is ignored. */
+/** Light or Dark: applied at once and remembered in this browser. Anything else is ignored. */
 export function setLook(v) {
   if (!LOOKS.includes(v)) return;
   look.value = v;
   write(LOOK_KEY, v);
   paint();
 }
+
+/** The header switcher: the other look. */
+export const toggleLook = () => setLook(look.value === "dark" ? "light" : "dark");
 
 /** The remembered choice is applied when the file starts. */
 export function startLook() { started = true; paint(); }
