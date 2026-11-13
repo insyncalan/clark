@@ -112,7 +112,7 @@ SHEETS = [
         ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
-        ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
+        ("ID", "id"), ("Reference", "ref"), ("Use case", "title"), ("Project", "project"), ("Status", "status"),
         ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
         ("Client-visible", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),

@@ -69,7 +69,7 @@ COLUMNS = {
                    ("Original", "original_date", 12), ("Agreed", "baseline_date", 12), ("Forecast", "forecast_date", 12),
                    ("Shown state", "state_word", 14), ("% complete", "percent_complete", 11), ("Owner", "owner", 16),
                    ("State reason", "state_reason", 40), ("Achieved on", "actual_date", 12)],
-    "use_cases": [("ID", "id", 12), ("Use case", "title", 30), ("Shown as", "ref", 12), ("Status", "status", 12),
+    "use_cases": [("ID", "id", 12), ("Reference", "ref", 12), ("Use case", "title", 30), ("Status", "status", 12),
                   ("Headline", "headline", 40), ("Where it stands", "standing", 60)],
 }
 COMMITMENT = ("Commitment", "commitment", 14)      # a use case's flag: a column only while the file carries it (publish.PUBLISH_FIELDS)
