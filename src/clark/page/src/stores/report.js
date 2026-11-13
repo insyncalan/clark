@@ -336,9 +336,9 @@ const READ_FAILED = "This project could not be read. Reload the page. If it happ
 const STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
-const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
+const NOT_ACCEPTED = "That was not accepted. Reload the page.";
 const ALLOWED = {
-  400: { fallback: "That request could not be read. Reload the page.",
+  400: { fallback: "That could not be read. Reload the page.",
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
