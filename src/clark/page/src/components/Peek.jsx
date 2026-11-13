@@ -119,7 +119,7 @@ function MilestoneFields({ m, tools }) {
     <>
       <MsHead>
         <MsState m={m} /><MsSep />
-        <span class="pk-ms-owner" data-ms-head="owner">{who.initials ? <span class="av" aria-hidden="true">{who.initials}</span> : null}{who.text}</span><MsSep />
+        {who.text === DASH ? null : <><span class="pk-ms-owner" data-ms-head="owner">{who.initials ? <span class="av" aria-hidden="true">{who.initials}</span> : null}{who.text}</span><MsSep /></>}
         <span class="msl-prog" data-ms-head="progress"><MsProgress value={m.status === "Done" && m.percent_complete == null ? 100 : m.percent_complete} /></span>
       </MsHead>
       <dl class="pk-fields" data-ms-fields>
