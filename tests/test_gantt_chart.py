@@ -357,6 +357,20 @@ class Chart(unittest.TestCase):
         self.until("document.querySelector('[data-g-grip]').getAttribute('aria-valuenow') === '5'", "two rows more (70 px is 2.2 rows)")
         self.assertEqual(self.calls(), [])
 
+    def test_hunt18_widening_a_column_at_900_works_and_the_grip_says_it_is_off_in_full(self):
+        self.look(900, "light")
+        self.mount(edit=False)
+        w0 = self.val("document.querySelector('.gt-h-name').getBoundingClientRect().width")
+        h = self.centre("[data-g-rz='name']")
+        self.drag(h["x"], h["y"], 40)
+        self.until(f"document.querySelector('.gt-h-name').getBoundingClientRect().width > {w0} + 20", "the name column widens at 900")
+        self.js("document.querySelector('[data-g-expand]').click()")
+        self.until("document.querySelector('[data-gantt]').dataset.full === '1'", "full screen")
+        self.assertEqual(self.val("document.querySelector('[data-g-grip]').getAttribute('aria-disabled')"), "true", "the grip says it is off in full")
+        self.js("document.querySelector('[data-g-expand]').click()")
+        self.until("document.querySelector('[data-gantt]').dataset.full === '0'", "back")
+        self.assertIsNone(self.val("document.querySelector('[data-g-grip]').getAttribute('aria-disabled')"))
+
     def test_expand_to_full_screen_and_back(self):
         self.look(1400, "light")
         self.mount(edit=False)
