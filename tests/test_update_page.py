@@ -195,6 +195,13 @@ class Card(InBrowser):
         self.assertEqual(self.text("#update-blocked"), updates.MESSAGES["git"])
         self.assertFalse(self.present("[data-review]") or self.present("[data-choose]"))
 
+    def test_in_docker_the_update_row_says_so_and_neither_the_file_row_nor_undo_is_drawn(self):
+        self.replies(status=OK({**STATUS, "available": None, "blocked": up.CONTAINER, "last": None}))
+        self.mount()
+        self.assertEqual(self.text("#update-blocked"), up.CONTAINER)
+        self.assertFalse(self.present("[data-review]") or self.present("[data-choose]") or self.present("[data-undo]"))
+        self.assertFalse(self.present("#update-file"))
+
     def test_review_then_install_is_a_second_click_and_the_page_reloads_when_the_new_run_answers(self):
         self.mount()
         self.click("[data-review]")

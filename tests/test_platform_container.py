@@ -255,7 +255,8 @@ class ContainerOneDrive(unittest.TestCase):
     def test_the_compose_file_hands_the_same_setting_to_clark_as_it_shares_in(self):
         text = (Path(__file__).resolve().parents[1] / "docker" / "compose.yaml").read_text(encoding="utf-8")
         self.assertIn("source: ..", text)                                     # the folder compose is started in, with the data in its data folder
-        self.assertIn('--data", "/data"', text)
+        self.assertIn("python3 -m clark --data /data --port 8766", text)       # the server start, after the data check, still names the shared-in folder
+        self.assertIn("python3 -m clark check-data --data /data", text)
         self.assertIn("source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}", text)   # a named data folder is the one shared in, and the one named to clark
         self.assertIn('CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"', text)   # the same default, so the OneDrive check sees the folder that is mounted
 
