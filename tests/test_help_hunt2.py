@@ -105,3 +105,12 @@ class HelpHunt2(unittest.TestCase):
         text = guide("the-brand-kit-guide")
         self.assertIn("one folder, named with the brand", text)
         self.assertIn("must match the folder name", text)
+
+    def test_backups_text_says_what_the_number_counts(self):
+        from clark import backup, settings
+        self.assertEqual(backup.FLOOR, {"restore": 2, "migrate": 3})
+        self.assertEqual(backup.FAMILY["changes"], backup.FAMILY["import"])
+        for text in (settings.BACKUPS_KEPT_HELP, guide("back-up-and-restore-your-data")):
+            self.assertIn("share the count", text)
+            self.assertIn("at least 2", text)
+            self.assertIn("at least 3", text)
