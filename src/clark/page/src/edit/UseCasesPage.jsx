@@ -153,7 +153,7 @@ function Hd({ sort, cw }) {
       {HEADS.map(([id, word, cls]) => {
         const k = SORT_OF[id], label = k ? (SORTS.find(([x]) => x === k) || [k, word])[1] : "", on = sort === k;
         return (
-          <span key={id} class={cls} {...(id ? cw.head(id, word, true) : {})}>
+          <span key={id} class={cls} {...(id ? cw.head(id, word) : {})}>
             {k ? <button type="button" class="ucl-sort" data-sort={k} aria-pressed={on ? "true" : "false"} aria-label={`Sort by ${label}`} title={`Sort by ${label}`} onClick={() => set({ sort: k })}>{word}{on ? <Icon name="chevdown" /> : null}</button> : word}
             {id ? cw.grip(id, word) : null}
           </span>

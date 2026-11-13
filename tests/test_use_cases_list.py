@@ -283,7 +283,7 @@ class List(Setup):
                     self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     self.assertEqual(p.js("[...document.querySelectorAll('#usecases, #usecases *')].filter(e => e.scrollWidth > e.clientWidth + 1 && /auto|scroll/.test(getComputedStyle(e).overflowX)).length"), 0)
                     small = p.js("""[...document.querySelectorAll('#usecases button, #usecases input:not([type=checkbox]), #usecases a, #usecases [tabindex]')].map(e => {
-                        const r = e.getBoundingClientRect(); return [e.className || e.id || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => x[1] < 24 || x[2] < 24)""")
+                        const r = e.getBoundingClientRect(); return [e.className || e.id || e.tagName, Math.round(r.width), Math.round(r.height)]; }).filter(x => (x[1] || x[2]) && (x[1] < 24 || x[2] < 24))""")   # a heading the narrow layout does not draw (0 x 0) is no target
                     self.assertEqual(small, [], "every control is at least 24 px each way")
                     p.js("document.querySelector('#ucl-group').click()")
                     p.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu opened")
@@ -912,7 +912,8 @@ class Keys(Setup):
             # row 1085: the column names carry the sort, so the header row is not hidden from a screen reader any more; each sort button says what it does
             self.assertIsNone(p.js("document.querySelector('#usecases .ucl-hd').getAttribute('aria-hidden')"))
             self.assertEqual(p.js("[...document.querySelectorAll('#usecases .ucl-hd button')].map(b => b.getAttribute('aria-label'))"), ["Sort by Reference", "Sort by Status", "Sort by Open work items"])
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [tabindex=\"-1\"]').length"), 0, "a keyboard reaches each one")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd [tabindex=\"-1\"]').length"), 6, "each column heading can hold the focus (K2: not a tab stop) and says how its width changes")
+            self.assertEqual(p.js("document.querySelectorAll('#usecases .ucl-hd button').length"), 3, "the sort buttons stay the keyboard's way in")
             self.assertEqual(p.js("document.querySelector('[data-eye]').getAttribute('aria-label')"),
                              f"UC 1.1 Invoice matching: {ON}. Take it off the dashboard")
             self.assertEqual(p.js("document.querySelector('#ucl-count').getAttribute('role')"), "status")

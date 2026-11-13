@@ -1203,6 +1203,7 @@ th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }
 .cgrip { position: absolute; top: 50%; right: 0; z-index: 2; width: 24px; height: 24px; margin-top: -12px; cursor: col-resize; touch-action: none; }
 .cgrip::after { content: ""; position: absolute; top: 3px; bottom: 3px; right: 4px; width: 2px; border-radius: 1px; background: var(--grey-300); opacity: 0; }
 .cgrip:hover::after { opacity: 1; background: var(--brand-blue); }
+.ucl-hd > [data-cw-head] { min-height: 24px; box-sizing: border-box; }   /* a heading that can hold the focus is a 24 px target */
 th[data-cw-head]:focus-visible, .ucl-hd > [data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; border-radius: 3px; }
 
 /* Row 1104: the Milestones list's heading row and its chosen widths (edit/colWidths.jsx). It lines up with the cells of a row: the rail's 2px, the cells' 22px. Wide layouts only; the narrow stacked layout has no columns. */

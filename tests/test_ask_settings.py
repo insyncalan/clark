@@ -357,6 +357,24 @@ class Settings(unittest.TestCase):
                 self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
                 self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
 
+    def test_add_folder_pressed_with_the_keyboard_keeps_the_focus_in_the_folders_part(self):
+        """Add folder is disabled while it runs, which drops the focus: a real Enter on the button puts it back in the location box. 1400 and 900."""
+        for width in WIDTHS:
+            with chrome() as cdp:
+                js = self.show_page(cdp, fake=True)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+                js("window.__ask.choices = ['/nowin']")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+                js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = '/Example/typed'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').focus()")
+                for typ in ("keyDown", "keyUp"):
+                    cdp.call("Input.dispatchKeyEvent", {"type": typ, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13, **({"text": "\r"} if typ == "keyDown" else {})}, self.sid)
+                self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+                self.until(lambda: js("document.activeElement.id"), "ask-folder-path", f"{width}: focus is in the location box after Add folder")
+
     def test_add_folder_keeps_the_focus_in_the_location_box(self):
         """Add folder is disabled while the request runs and again once the box is emptied: the focus goes to the box, refused or not."""
         with chrome() as cdp:
