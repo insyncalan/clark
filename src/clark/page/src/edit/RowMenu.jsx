@@ -52,7 +52,7 @@ function refocus(id) {
 }
 
 let opened = 0;                                // counts the opens, so only the last one draws
-function openFor(el, x, y, pointer) {
+function openFor(el, x, y, pointer, back) {
   if (!el.dataset.id) return;
   const at = ++opened;
   // a dismiss while the list is still being read (Escape, or a press anywhere) cancels this open: the menu never appears after it
@@ -65,7 +65,7 @@ function openFor(el, x, y, pointer) {
   readPeople().then((r) => {
     stop();
     if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
-    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: back || homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
   });
 }
 
@@ -89,7 +89,7 @@ function useOpeners() {
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      openFor(el, r.left + 24, r.bottom);
+      openFor(el, r.left + 24, r.bottom, undefined, at.matches("[data-rowmore]") ? at : undefined);      // from the row's More actions button, Esc or a pick gives the focus back to that button
     };
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("keydown", onKey, true);
@@ -389,6 +389,24 @@ function DraftHost({ d }) {
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
       <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry, { person: d.person, tone: d.draft ? d.draft.tone : null, reply_by: d.state ? d.state.replyBy : "" }) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
     </div>
+  );
+}
+
+// The "More actions" button at the end of a table row (item 658): the same menu as the right click, opened beside the button. It is a button of its own,
+// so the row's click (the peek, the selection) and the cell edit never see its press. Shown on row hover or focus; always reachable by Tab.
+export function RowMore({ row }) {
+  const s = state.value;
+  const open = (e) => {
+    e.stopPropagation();
+    const b = e.currentTarget, tr = b.closest("tr[data-id]");
+    if (!tr) return;
+    const r = b.getBoundingClientRect();
+    openFor(tr, r.right + 4, r.top, e.detail > 0, b);
+  };
+  return (
+    <button type="button" tabIndex={-1} class="ib rmore" aria-haspopup="menu" aria-expanded={s && s.id === row.id ? "true" : "false"} aria-label="More actions" title="More actions" data-rowmore={row.id} onClick={open} onDblClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <Icon name="dots" />
+    </button>
   );
 }
 

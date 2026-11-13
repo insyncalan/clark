@@ -331,7 +331,11 @@ class EditRows(unittest.TestCase):
             if not p.js(f"document.querySelector({selector!r}).value"):
                 wait(lambda: any(r[field] == value for r in self.store.read(table, "ABC")), 15)
                 break
-        return self.stored(table, field, value)
+        row = self.stored(table, field, value)
+        # The page clears the line only when the reply has come, which is after the store has the row: a next line typed before that
+        # is wiped and its Enter lost, so the line is waited on to be empty (the page has settled) before this returns.
+        p.until(f"document.querySelector({selector!r}).value === ''", "the add line took the text and is empty again")
+        return row
 
     def stored(self, table, field, value):
         """Wait until the store has a row of `table` whose `field` is `value` (a toast from an earlier change must not be taken for this one)."""
@@ -382,6 +386,20 @@ class EditRows(unittest.TestCase):
             p.until("document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 2", "the new decision is drawn")
             self.click(p, "document.querySelector('.toast [data-undo]') && document.querySelector('.toast [data-undo]').click()",
                        "document.querySelectorAll('[data-item-rows=decisions] .wl-row').length === 1", "Undo took the decision back off the page")
+
+    def test_the_edit_owner_cell_carries_the_full_owner_as_its_title_as_view_does(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            row = "[data-type=raid] .wl-row[data-id=%r]" % id_of(self.store, "Supplier delivery may slip")
+            self.assertEqual(p.js(f"document.querySelector({row!r} + ' .c-owner').title"), p.js(f"document.querySelector({row!r} + ' .nm').textContent.trim()"),
+                             "the owner is cut with an ellipsis, so its title gives it in full")
+
+    def test_a_colon_that_is_not_after_a_name_stays_in_the_words(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for text in ("Fix the 10:30 call with the supplier", "Read https://example.com/plan today", "Note: check the dates"):
+                row = self.add_line(p, "[data-add-line=actions]", text, "actions", "description", text)
+                self.assertEqual((row["owner"], row["client_message"]), ("TBC", text), "no owner is known, so the words are whole")
 
     def test_escape_in_the_add_from_picker_gives_the_focus_back_to_its_button(self):
         gone = id_of(self.store, "Supplier delivery may slip")
