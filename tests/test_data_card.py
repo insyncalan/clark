@@ -63,9 +63,12 @@ class DataCard(Base):
                 p.js("document.querySelector('#excel-layout').click()")
                 p.until("!!document.querySelector('#excel-layout-box')", "the box opened")
                 self.assertEqual(p.js("document.querySelector('#excel-layout-client').textContent"), "This file is for you and your team. It holds internal notes, so do not send it to a client.")
-                self.assertEqual(p.js("[...document.querySelectorAll('#excel-layout-box dt')].map(e => e.textContent)"), ["Cover", "History"])
+                self.assertEqual(p.js("[...document.querySelectorAll('#excel-layout-box dt')].map(e => e.textContent)"), ["Cover", "Gantt", "History"])
                 self.assertIn("The changes made to the items. The import leaves this sheet alone.", p.js("document.querySelector('#excel-layout-box').textContent"))
                 self.assertIn("where to send the file back", p.js("document.querySelector('#excel-layout-box').textContent"))
+                self.assertIn("the report as the page shows it (Current state, At a glance and the sections)", p.js("document.querySelector('#excel-layout-box').textContent"))
+                self.assertIn("Changes made on it are ignored.", p.js("document.querySelector('#excel-layout-box').textContent"))
+                self.assertIn("The lines of the Gantt, one row each. Days and Status are worked out and never read back.", p.js("document.querySelector('#excel-layout-box').textContent"))
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
                 self.assertEqual(p.js("window.__asked.filter(u => /export|excel|import/.test(u))"), [])      # the page rereads its own data as it likes; the box asks for no file
                 p.js("document.querySelector('#excel-layout-close').click()")
