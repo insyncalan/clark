@@ -128,7 +128,7 @@ export function OwnerPick({ row, anchor, names, onPick, onAdd, onClose, addName 
         <button type="button" class="cp-name cp-clear" data-clear onClick={() => choose("TBC")}><span>TBC (no one yet)</span></button>
       </div>
       )}
-      <p class="cp-hint">Press Enter to keep what you typed.</p>
+      <p class="cp-hint">{form ? "Press Enter to add and assign this person." : "Press Enter to keep what you typed."}</p>
     </Pop>
   );
 }

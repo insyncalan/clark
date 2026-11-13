@@ -283,7 +283,8 @@
     "s": [
      "Press your profile circle and choose **Export to Word**. The report is saved as a Word file in the folder last used for this project; if there is none yet, a window asks you to choose one. Tick **To client** to copy it to the client folder as well (you can tick it once a client folder is saved in Settings › Publishing).",
      "If a file with that name is already there, you are asked: **Add a number** (keeps the old file and saves the new one beside it), **Replace it** (it asks you to confirm) or **Cancel**. Nothing is saved until you choose.",
-     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it."
+     "In **Publish**, tick **Also a Word document** to save a Word copy of the report with it.",
+     "To bring a Word file in, press your profile circle, choose **Settings**, and on the **Data** card press **Import from Word…**."
     ],
     "n": "The use case table in the Word report has a Commitment column.",
     "page": [
@@ -568,7 +569,7 @@
     "w": "Dashboard › Use case summary",
     "go": "dashboard",
     "s": [
-     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; each is one step you can undo, and History says who did it.",
+     "The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps. The first five show; **Show all N use cases** shows the rest and **Show the first 5** folds them away again. The count and the meter always cover every use case. On a use case’s own page, **Link a milestone** links it to a milestone and **Unlink** takes the link away; **Add a milestone** adds a next step called Reach and the milestone name that points at it, so the use case gets the milestone through its work items; **Remove** (on a milestone it has through its work items) stops those work items naming it, and the milestone itself stays on Milestones. Each is one step you can undo, and History says who did it.",
      "Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. The **See all** button, which reads “See all N work items” and the use case’s reference, counts every linked item, open or closed, and opens Work items filtered to that use case.",
      "In Edit, click the headline or the name to change it; click the status word to choose **On track**, **Flag**, **High risk** or **Done**.",
      "A use case can carry a commitment: Planned 2026, Committed or Planned 2027. It shows as a small chip beside the status on the Dashboard, on the Use cases page and on the published page, and nothing shows when there is none.",
@@ -1428,7 +1429,7 @@
      [
       "ul",
       [
-       "The suggestions sit in one row above the box (scroll it sideways for the rest): **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
+       "The suggestions sit in one row above the box (scroll it sideways for the rest). They change with the page that is open (Dashboard, work items, milestones, use cases, risks or the Gantt), and after you ask something they follow what the question was about. On Settings they are the general six: **Check this report**, **What is overdue?**, **Which risks are red?**, **What is the next milestone?**, **Summarise this week**, **Which use cases need attention?**",
        "Type a question in the one-line box and press [[Enter]] or the round up-arrow button beside it ([[Shift+Enter]] for a new line; a long question scrolls). The suggestions go as soon as you type and come back when the box is empty. While it works, a short waiting line shows in place of them, and they come back with the answer.",
        "An answer is plain text. A suggested change comes as a card: nothing is saved until you press **Apply**, and **Undo** takes it back. A change that came from one of your files asks you to tick a box first.",
        "**New chat** starts again; **Close**, [[Esc]] or a click outside closes it.",
@@ -1889,7 +1890,7 @@
        ],
        [
         "Data",
-        "**Export workbook** and **Import workbook**. Both need an open project."
+        "**Export workbook**, **Import workbook**, **Excel file layout**, **Export to Word…** and **Import from Word…**. All but Excel file layout need an open project."
        ],
        [
         "Backups",
@@ -2677,7 +2678,7 @@
    "job": "Read a workbook into the project, see every change before anything is saved, and choose which to keep.",
    "steps": [
     {
-     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has two buttons, **Export workbook** and **Import workbook**. Press **Import workbook**.",
+     "d": "Press your profile circle and choose **Settings**. Find the **Data** card: it has the buttons **Export workbook** and **Import workbook** (among others). Press **Import workbook**.",
      "pic": "excel-in-button"
     },
     {

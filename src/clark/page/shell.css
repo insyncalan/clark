@@ -196,6 +196,8 @@ ul.plain li { padding: 6px 0; border-top: 1px solid var(--grey-100); }
 /* The Work items list (#36): a table that never scrolls sideways; the Item column takes what the others leave and wraps. */
 .btn { padding: 6px 14px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); cursor: pointer; font-size: var(--size-small); }
 .btn:hover { border-color: var(--grey-500); }
+.btn[aria-disabled="true"] { opacity: .55; cursor: default; }  /* Save and "Use <path>" while a save runs: dimmed, not `disabled`, so the keyboard keeps its place */
+.btn[aria-disabled="true"]:hover { border-color: var(--border); }
 .btn:focus-visible, .link:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 2px; }
 .link { all: unset; color: var(--status-blue-text); cursor: pointer; font-size: var(--size-small); }
 .link:hover { text-decoration: underline; text-underline-offset: 2px; }
