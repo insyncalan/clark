@@ -487,7 +487,7 @@ html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --size-sec:
 .sec { --sec-px: var(--sec-inset); position: relative; min-width: 0; padding: var(--sec-pad-t) var(--sec-px) var(--sec-pad-b); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
 /* Row 1152: the editor dashboard tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; above 900 px
    Edit's control has no room beside the tile any more, so it sits inside the tile's padding, as it does at 900 px and below. */
-@media (min-width: 901px) { html[data-density="comfortable"] #report-bar + #report .secs { margin-left: -28px; margin-right: -28px; } }
+@media (min-width: 901px) { html[data-density="comfortable"] .rbar + #report .secs { margin-left: -28px; margin-right: -28px; } }
 @media (min-width: 901px) { html[data-density="comfortable"] #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } html[data-density="comfortable"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-density="comfortable"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
@@ -501,7 +501,7 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 .sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
 .sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
 /* Row 1152: only the editor dashboard (the report bar sits before its #report) takes the prototype tile heading; a published file keeps --size-h2. --size-sec is defined once, per density, above. */
-#report-bar + #report .sec-h { font-size: var(--size-sec); }
+.rbar + #report .sec-h { font-size: var(--size-sec); }
 .quiet { margin: 6px 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
 .sec-body { margin: var(--space-2) 0 var(--space-2); min-width: 0; overflow-wrap: anywhere; color: var(--text); }
