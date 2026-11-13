@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _paths import SRC
 from test_publish_dialog import Base
+from _new_page import reload_to_new_page
 from test_server import chrome, wait
 
 from clark import excel, excel_route
@@ -242,8 +243,7 @@ class Card(Base):
             p.js("document.querySelector('#import-continue').click()")
             p.until("!!document.querySelector('#import-summary')", "the check")
             self.assertEqual(p.js("localStorage.getItem('clark.import.sheets')"), '["actions"]')
-            p.js("location.reload()")
-            self.settle(p, "!!document.querySelector('#profile-btn')", "the page came back")
+            reload_to_new_page(p.js, ready="!!document.querySelector('#profile-btn')", what="the page came back")
             self.open_box(p)
             self.pick_file(p, b64)
             p.until("!!document.querySelector('#import-continue')", "the sheet list again")
