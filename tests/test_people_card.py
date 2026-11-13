@@ -114,15 +114,16 @@ class PeopleCard(unittest.TestCase):
             self.assertTrue(wait(lambda: js("document.querySelector('#ppCount span').innerText") == "2 of 3 people need details", 20))
             self.assertEqual(js("document.querySelector('[data-person=\"Zed Newman\"]').innerText.indexOf('zed@example.com')"), -1)
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
-            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppPasteBtn", 10), "Undo took its button away: the focus goes to Paste from Excel")
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppDone", 10), "Undo took its button away: the focus goes to the line that says so")
 
     def test_a_refused_undo_still_shows_its_message(self):
         """A trailing comment once swallowed the `else` after the focus line, so a refused Undo said nothing."""
         src = (Path(__file__).resolve().parent.parent / "src/clark/page/src/edit/People.jsx").read_text(encoding="utf-8")
         lines = src.splitlines()
-        at = next(i for i, l in enumerate(lines) if "else {" in l and i and "pasteBtn.current.focus()" in lines[i - 1])
-        self.assertIn("setDone({ text: back.message", lines[at + 1], "a refused Undo shows the server's message")
-        self.assertIn("doneLn.current.focus()", lines[at + 2], "a refused Undo gives the focus to the line that says what happened")
+        at = next(i for i, l in enumerate(lines) if "back.ok" in l and "Undone." in l)
+        self.assertNotIn("else", lines[at].split("//", 1)[-1] if "//" in lines[at] else "", "the comment must not hold the else")
+        self.assertIn("else setDone({ text: back.message", lines[at + 1], "a refused Undo shows the server's message")
+        self.assertIn("doneLn.current.focus()", lines[at + 2], "either way the focus goes to the line that says what happened")
 
     def test_hunt14_filter_resets_when_none_need_details_and_focus_stays_after_undo(self):
         """Hunt 14: fixing the last missing email left a stale 'Show only these' button; Undo dropped the focus to the body."""
