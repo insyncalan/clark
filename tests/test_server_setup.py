@@ -16,7 +16,7 @@ from unittest import mock
 from _paths import ROOT, SRC
 from _real_server import Running, Stoppable   # the server harness, by way of the real-server helper (this file drives no browser)
 
-from clark import appfiles, doctor, platform as pl, server as sv, setup_mode
+from clark import __version__, appfiles, doctor, platform as pl, server as sv, setup_mode
 
 SETUP_GET = ["/api/setup/checks"]
 SETUP_POST = ["/api/setup/done", "/api/setup/finish", "/api/setup/folder"]
@@ -372,9 +372,11 @@ class ChosenFolderPort(Case):
             prompt="Pick", kept=setup_mode.server_mark, checks=[c for c in doctor.CHECKS if doctor.check_id(c) == "port"])
         self.s = self.start(self.service)
         self.service.environ = {"CLARK_PORT": str(self.s.port)}                  # the check asks THIS server
-        patch = mock.patch.object(sv, "DATA_MARK", appfiles.data_mark(self.default))   # as main sets it before serving
-        patch.start()
-        self.addCleanup(patch.stop)
+        for name, value in (("DATA_MARK", appfiles.data_mark(self.default)),     # as main sets them before serving; the port check also asks
+                            ("VERSION", __version__), ("CODE_MARK", appfiles.code_mark())):   # who this clark is (row 1030)
+            patch = mock.patch.object(sv, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
 
     def port_row(self):
         status, body = self.get("/api/setup/checks")

@@ -265,12 +265,13 @@ def host_name(host):
     return host.split(":")[0]
 
 
-HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|\[::1\])(?::([0-9]{1,5}))?")
+HOST_HEADER = re.compile(r"(127\.0\.0\.1|localhost|clark\.localhost|\[::1\])(?::([0-9]{1,5}))?")
 
 
 def host_allowed(host):
-    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost or [::1], with an
-    optional port of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
+    """Whether a Host header (or an Origin's host) is exactly this machine: 127.0.0.1, localhost, clark.localhost (row
+    1076: the address the launcher opens; Chrome resolves *.localhost to this computer) or [::1], with an optional port
+    of 1 to 65535 and nothing else. (clark: stricter than creaite's host_name check)"""
     m = HOST_HEADER.fullmatch(host or "")
     return bool(m) and (m.group(2) is None or 1 <= int(m.group(2)) <= 65535)
 
@@ -334,7 +335,7 @@ CSP_END = {"script": re.compile(r"</script[\s/>]", re.I), "style": re.compile(r"
 CSP_TYPE = re.compile(r"""\btype\s*=\s*["']?([^"'\s>]*)""", re.I)
 CSP_JS_TYPES = ("", "module", "text/javascript", "application/javascript", "application/ecmascript", "text/ecmascript")
 CSP_KINDS = ("inline", "eval", "wasm-eval", "trusted-types-policy", "trusted-types-sink")
-CSP_LOOPBACK = ("127.0.0.1", "localhost", "::1")
+CSP_LOOPBACK = ("127.0.0.1", "localhost", "clark.localhost", "::1")
 
 
 def csp_sha(text):
@@ -993,7 +994,7 @@ def page_load_is_ours(headers, port):
     if site is not None and site.strip().lower() not in ("none", "same-origin"):      # an empty value is not a browser's
         return False
     origin = headers.get("Origin")
-    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}")
+    return origin is None or origin in (f"http://127.0.0.1:{port}", f"http://localhost:{port}", f"http://clark.localhost:{port}")
 
 
 def here_route(handler, req):
@@ -1334,24 +1335,28 @@ class BrandLibrary:
             return (409 if e.key in ("expired", "busy") else 400), {"ok": False, "code": e.key or "refused", "message": e.message}
         except OSError:             # the Downloads folder or the Open dialog failing: the same plain refusal as the library's own
             return 400, {"ok": False, "code": "failed", "message": lib.MESSAGES["failed"]}
+        except Exception as e:      # item 1100: in Docker, the needs-the-Mac sentence, not a fault; found by the class name, so no top-level import of clark is needed
+            if type(e).__name__ != "NotBuiltYet":
+                raise
+            plat = importlib.import_module("clark.platform")
+            return 409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())}
 
     def listing(self):
-        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data)})
+        return self._run(lambda lib: {"brands": lib.installed(self.root), "undo": lib.can_undo(self.root, self.data),
+                                      "review_ready": self._review_ready(lib)})
+
+    def _review_ready(self, lib):
+        plat = importlib.import_module("clark.platform")
+        try:
+            return lib.newest_brand_zip(self._downloads(plat)) is not None
+        except plat.NotBuiltYet:    # no Downloads folder to read here (Docker, Windows, Linux): an empty review, the rest of the listing stands
+            return False
 
     def _file(self, source):
         plat = importlib.import_module("clark.platform")
         if source == "file":
             return (self.choose or plat.choose_zip_file)("Choose a brand file", start=self._downloads(plat))
-        folder = self._downloads(plat)
-        lib = self.library()
-        found = []
-        for p in (sorted(folder.glob("*.zip")) if folder else []):
-            try:        # only a file named as a brand zip (a browser's " (1)" allowed) counts; a newer unrelated zip hides nothing
-                if lib.ZIP_NAME_RE.fullmatch(lib.BROWSER_COPY.sub("", p.name)) and p.is_file() and not p.is_symlink():
-                    found.append((p.stat().st_mtime, p))
-            except OSError:
-                continue
-        return max(found, key=lambda t: t[0])[1] if found else None
+        return self.library().newest_brand_zip(self._downloads(plat))
 
     def _downloads(self, plat):
         return self.downloads if self.downloads is not None else plat.downloads_dir()
@@ -1538,7 +1543,11 @@ class Handler(BaseHTTPRequestHandler):
             return route(self, *args)
         except CLIENT_LEFT:
             return None
-        except Exception:  # noqa: BLE001  the server answers whatever a route does
+        except Exception as e:  # noqa: BLE001  the server answers whatever a route does
+            if type(e).__name__ == "NotBuiltYet":    # item 1100: a Mac-only step no route caught: the same words, never a fault (found by the class name, so no top-level import of clark is needed)
+                LOG.warning("%s %s needs the Mac", self.command, self.path.split("?")[0])
+                plat = importlib.import_module("clark.platform")
+                return self.send(409, {"ok": False, "code": "needs_mac", "message": plat.refusal_words(e, plat.not_built_words())})
             LOG.exception("%s %s failed", self.command, self.path.split("?")[0])
             return self.send(500, error_body("server_error"))
         finally:

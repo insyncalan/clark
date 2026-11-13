@@ -589,8 +589,8 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the open work items, the milestones and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
-     "Type in **Search use cases** to narrow the list, or use **Status** and the **On the dashboard** and **Not on the dashboard** buttons. **Clear the filters** puts them all back.",
-     "Change the order with **Sort**: **Reference**, **Status** or **Open work items**.",
+     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
+     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with the column names **Ref**, **Status** and **Work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
     "page": [
@@ -867,11 +867,14 @@
      "Never use two routes on the same data at once. Stop clark in Docker before you use clark.command, and stop clark.command’s window before you start Docker. Neither route can always tell that the other is already using the folder.",
      "Use another data folder. To keep your data somewhere else, put its full path in quotes in front of the command: `CLARK_DATA_DIR=\"/full/path\" docker compose -f docker/compose.yaml up -d`. Use the same line every time you start. A folder inside OneDrive cannot be used by clark. If you used Docker before and your data is in a data folder inside the old clark folder, stop clark, move that folder out of it, and name it this way.",
      "Change the port. Put a port number in front of the start command, for example `CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d`, then open localhost:8800. It is still reachable only from this computer.",
+     "Your data is checked first. Every time it starts, clark looks at your data folder before it opens. If the data has to be brought up to date for this clark, clark makes a copy of it first.",
      "Stop. In the same folder, type `docker compose -f docker/compose.yaml down` and press Return. Docker does not stop clark by itself: it keeps running until you stop it this way, even when you close every clark window.",
      "See what clark is doing. To see what Docker has said, type this in the same folder: `docker compose -f docker/compose.yaml logs --tail 50`",
      "If the page will not open. Check that Docker Desktop says it is running. Check that the address is exactly localhost:8766 (or your own port).",
      "If it says port 8766 is already used. Another clark is open: close it, or stop it with the Stop line above, then try again.",
      "If it says it cannot connect to Docker. Docker Desktop is not running yet. Open it and wait until it says it is running.",
+     "If it says to start from the newer clark folder. A newer clark has already used your data, so this clark does not touch it. Nothing was changed. Start clark from the newer clark folder instead.",
+     "If clark does not start and Docker shows it as unhealthy. It stays switched on but does nothing, so it does not keep trying again and again. Type `docker compose -f docker/compose.yaml logs --tail 50` to read why. When you have put it right, stop clark with the Stop line above and start it again.",
      "If an installed clark window says clark is not running. The window is titled \"Start clark to use this window\" and says: \"Nothing is running at this address. Start it the way you started it: double-click clark.command in your clark folder, or, if you use Docker, open Terminal in that folder and type:\" then the start command, then \"Closing the last clark window stops clark after a minute. Docker keeps running until you stop it with:\" and the stop command, and a button Check again. With Docker, type the start command and choose Check again.",
      "To go back to clark.command. Stop clark with the Stop line above, then double-click clark.command in the same folder. Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. If clark.command looks empty, you started Docker with another folder."
     ]

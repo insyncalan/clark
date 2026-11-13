@@ -294,7 +294,7 @@ class DecisionsTile(unittest.TestCase):
         t = by_name(g.tiles(data(), ON, hidden=()))["decisions"]
         self.assertEqual((t["value"], t["detail"], t["oldest"], t["colour"]), (0, "None waiting", None, "green"))
         t = by_name(g.tiles(data(decisions=[decision(1)]), ON, hidden=()))["decisions"]
-        self.assertEqual((t["value"], t["detail"], t["oldest_shown"]), (1, "No date needed by", ""))
+        self.assertEqual((t["value"], t["detail"], t["oldest_shown"]), (1, "No date set", ""))
 
 
 class HealthTile(unittest.TestCase):

@@ -124,7 +124,7 @@
 .pk-last { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
 /* Issue 1016: the four cells of the peek card are a step shorter above and below and a step closer together (Edit only: the published page keeps shell.css's own). */
 .peek .pk-body:has(.wordsbox) { overflow: visible; }   /* row 1077: with the words box open the peek itself scrolls, so the foot band (.wordsbox, sticky) pins to the peek's bottom edge */
-.peek .wordsbox { bottom: var(--space-2); margin: 20px calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
+.peek .wordsbox { bottom: var(--space-2); margin: calc(var(--space-4) + var(--space-1)) calc(-1 * var(--space-5)) calc(-1 * var(--space-5)); padding: var(--space-3) var(--space-5); border: 0; border-top: 1px solid var(--grey-200); border-radius: 0; background: var(--grey-50); box-shadow: none; }   /* row 1077 (the owner's ruling, flat): in the peek it is a foot band the full width of the panel, pinned to its bottom edge while the body scrolls (the peek scrolls; edit.css lets the body show through), a hairline above and a light tint */
 /* The peek's title, edited in place (Edit only): plain text that looks like the title until hovered or focused. */
 .pk-title-in { display: block; box-sizing: border-box; min-height: 1.3em; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; cursor: text; overflow-wrap: anywhere; }
 .pk-title-in:hover { background: var(--grey-50); }   /* row 1077 (flat): a tint, not a border */
@@ -161,6 +161,7 @@
 .rowmenu [role="menuitem"][aria-disabled="true"] b { font-weight: inherit; }
 .rowmenu .ddmenu { max-height: calc(100vh - 2 * var(--space-2)); overflow-y: auto; }
 .rowmenu .rm-fly { position: fixed; min-width: 160px; }              /* the list beside its entry (row 848): on the window, so the menu itself never changes */
+.rowmenu .rm-fly .rm-search { display: block; box-sizing: border-box; width: calc(100% - 16px); margin: 4px 8px 6px; }   /* item 1070: the search box at the top of the Change owner list */
 .rowmenu .ddmenu[data-pointer] [role="menuitem"]:focus-visible:not(:hover) { outline: none; background: none; color: var(--text); }      /* row 979: opened by the mouse, no ring or tint on the first entry (the hovered one keeps its own) */
 /* row 979: the row menu and its list do not move as they open, they fade (opacity only; the page's own fade and tokens); the 4 px drop stays for every other menu. Still under reduced motion. */
 @media (prefers-reduced-motion: no-preference) {
@@ -370,21 +371,25 @@ table.items td.c-pick { vertical-align: middle; }
 .pa-row[data-step] .pa-what { user-select: text; }
 /* Use cases page: list */
 .ucl-sub { margin: 4px 0 0; font-size: var(--size-body); }
-.ucl-bar { gap: 8px 12px; margin-top: 16px; }
-.ucl-search { position: relative; display: inline-flex; align-items: center; }
-.ucl-search .i { position: absolute; left: 11px; width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
-.ucl-search input { box-sizing: border-box; width: 200px; max-width: 100%; min-height: 34px; padding: 4px 12px 4px 34px; border: 1px solid var(--border); border-radius: var(--radius-pill); background: var(--surface); color: var(--text); font: inherit; font-size: var(--size-small); }
-.ucl-search input::placeholder { color: var(--text-muted); opacity: 1; }
-.ucl-search input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.ucl-pill, #ucl-sort { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; }
-.ucl-pill.on { border-color: var(--brand-blue); color: var(--status-blue-text); font-weight: var(--weight-medium); }
-.ucl-pop label { display: flex; align-items: center; gap: 10px; min-height: 28px; }
-.ucl-pop .ucl-pop-f { border-bottom: 0; border-top: 1px solid var(--grey-100); margin: 4px 0 0; padding: 8px 12px 0; }
-.ucl-pop .ucl-pop-f .btn { min-height: 28px; }
-.ucl-count { margin-left: auto; font-size: var(--size-caption); color: var(--text-muted); }
+/* Row 1085: the tabs row as Work items draws its saved views, Import, Export and Add use case at its right end, and the filter line (the Work items box) under it */
+.ucl-views { margin-top: 16px; }
+.ucl-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
+.ucl .fline-wrap { margin-top: 0; }
+/* Row 1085: Group by draws each group as a bordered card (.wgroup, as Work items) with a heading bar: the name, the count, open and shut */
+.ucl-group { margin-top: 10px; }
+.ucl-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
+.ucl-group .ucl-hd { border-top: 1px solid var(--grey-200); }
+.ucl-group .ucl-row { padding-left: var(--space-4); padding-right: var(--space-4); }
+.ucl-group .ucl-list .ucl-row:last-child { border-bottom: 0; }
+.ucl-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }   /* row 1085: under the list */
+/* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
+.ucl-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; cursor: pointer; font: inherit; letter-spacing: inherit; text-transform: inherit; color: inherit; }
+.ucl-sort:hover, .ucl-sort[aria-pressed="true"] { color: var(--text); }
+.ucl-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+.ucl-sort .i { width: 12px; height: 12px; flex: none; }
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: var(--ucl-cols, 84px minmax(0, 1.1fr) minmax(0, 1.6fr) 112px 92px minmax(0, .9fr) 36px); gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
+.ucl-row { display: grid; grid-template-columns: var(--ucl-cols, 84px minmax(0, 1.1fr) minmax(0, 1.6fr) minmax(112px, max-content) 92px minmax(0, .9fr) 36px); gap: 14px; align-items: center; padding: 10px 6px; border-bottom: 1px solid var(--grey-100); cursor: pointer; }
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-hd { cursor: default; padding-top: 8px; padding-bottom: 8px; border-top: 1px solid var(--grey-200); border-bottom-color: var(--grey-200); font-size: var(--size-caption); font-weight: var(--weight-medium); letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--text-muted); }
 .ucl-ref { font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
@@ -396,7 +401,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-head, .ucl-ms { min-width: 0; font-size: var(--size-small); color: var(--text-muted); overflow-wrap: anywhere; }
 .ucl-head { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: block; font-size: var(--size-caption); }
-.ucl-st { justify-self: start; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.ucl-st { justify-self: start; display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }   /* row 1085: the status chip with the commitment chip beside it */
 .ucl-wi { font-size: var(--size-small); }
 .ucl-wi b { font-weight: var(--weight-medium); }
 .ucl-wi small { display: block; font-size: var(--size-caption); color: var(--text-muted); }
@@ -413,7 +418,6 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
   .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
   .ucl-name small { display: block; }
-  .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
@@ -1011,8 +1015,6 @@ textarea.grow.grow { resize: vertical; overflow: hidden; min-height: 6rem; min-h
   .ad-add .ad-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 /* row 830: the Use cases page head buttons, the archived box under the list, and the next step row on the detail. Spacing is on the --space tokens; no exact token for 6px (gap, padding: --space-2), 10px (--space-3) or 280px (4 x --space-8 = 256px) */
-.ucl-acts { flex-wrap: wrap; justify-content: flex-end; }
-.ucl-acts .btn { display: inline-flex; align-items: center; gap: var(--space-2); min-height: var(--space-6); color: var(--text); }
 .ucl-arch { margin-top: var(--space-4); }
 .ucl-arch .arch-l { margin: 0; padding: 0; list-style: none; }
 .ucl-arch .arch { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-3); padding: var(--space-2) 0; border-top: 1px solid var(--grey-100); color: var(--text-muted); }
@@ -1188,12 +1190,14 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
 .pp-earlier .pubs td .muted.small { white-space: normal; }
 /* Row 1082: Show history under the peek's Latest update. Five rows in view, the rest scroll. Tokens only. */
 .pk-lh { margin-top: 0; }
-.pk-lh-btn { display: block; margin-left: auto; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
+.pk-lh-btn { display: block; margin-left: auto; min-height: 24px; padding: 0; border: 0; background: none; color: var(--brand-blue); font: inherit; font-size: var(--size-small); cursor: pointer; text-decoration: underline; }
 .pk-lh-btn:focus-visible, .pk-lh-list:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-lh-panel { margin-top: var(--space-1); }
 .pk-lh-h { margin: 0 0 var(--space-1); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
 .pk-lh-list { list-style: none; margin: 0; padding: 0; max-height: calc(5 * 4.5em); overflow-y: auto; }
 .pk-lh-row { box-sizing: border-box; min-height: 4.5em; padding: var(--space-1) 0; border-top: 1px solid var(--grey-100); overflow-wrap: anywhere; }
+
+[data-ms-range] { height: 24px; }      /* the progress slider is a target of 24 px */
 
 /* Row 1104: the right edge of a heading is a handle for the column's width. The hit area is 24 px tall; the line shows on hover and focus. */
 th:has(> .cgrip), .ucl-hd > :has(> .cgrip) { position: relative; }

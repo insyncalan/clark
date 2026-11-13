@@ -24,8 +24,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 TODAY = "2026-10-28"
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")        # so a brand on this laptop never changes a test
-PAD = 14                                                     # Comfortable (item 1025); Compact is the default and keeps 2 px
-PADS = {"comfortable": 14, "compact": 2}
+PAD = 14                                                     # 14 px in both densities (item 1083), so the default Compact has it too
+PADS = {"comfortable": 14, "compact": 14}
 CODE = "MOSS"                                                        # the demo project with more than five milestones
 WIDTHS = (1400, 900)
 
@@ -157,7 +157,7 @@ class Stylesheet(unittest.TestCase):
         self.assertIsNotNone(cells, f"{where}: the .msl-cells rule")
         self.assertIn("padding: var(--d-msl-y) var(--space-2) var(--d-msl-y) 22px", cells, f"{where}: the spacing token above and below the text")
         self.assertRegex(css, r'html\[data-density="comfortable"\] \{[^}]*--d-msl-y: %dpx' % PAD, f"{where}: Comfortable has {PAD} px above and below")
-        self.assertRegex(css, r":root \{[^}]*--d-msl-y: 2px", f"{where}: Compact has 2 px above and below")
+        self.assertRegex(css, r":root \{[^}]*--d-msl-y: %dpx" % PAD, f"{where}: Compact has {PAD} px above and below")
         self.assertIsNotNone(line, f"{where}: a line under every row but the last")
         for part in ("content: \"\"", "position: absolute", "left: 22px", "right: 0", "bottom: 0", "height: 1px", "background: var(--grey-200)"):
             self.assertIn(part, line, f"{where}: the line rule has {part}")

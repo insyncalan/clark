@@ -7,6 +7,7 @@ structured `page` and `file` of a source exist and a page is None until then.
 """
 import os
 import shutil
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
@@ -105,6 +106,35 @@ class ThePlatformOpener(Tmp):
         pl.open_pdf_at(p, pdf_link.pdf_url(p, 3, [self.box]), run=run, on=pl.MAC)
         self.assertEqual(run.calls[1], ["open", str(p)])
 
+    def test_every_start_has_a_wait_limit_and_a_stuck_one_is_said_plainly(self):
+        """The opener must not wait for ever: both starts carry a timeout; a stuck Chrome falls back to the plain open; a stuck
+        plain open is a PlatformError (the route says 409)."""
+        p = self.pdf("a.pdf")
+        url = pdf_link.pdf_url(p, 3, [self.box])
+        seen = []
+
+        def run(args, **kw):
+            seen.append(kw.get("timeout"))
+            return mock.Mock(returncode=0, stderr="")
+        pl.open_pdf_at(p, url, run=run, on=pl.MAC)
+        self.assertEqual(len(seen), 1)
+        self.assertTrue(isinstance(seen[0], (int, float)) and 0 < seen[0] <= 60, seen)
+
+        def stuck_first(args, **kw):
+            seen.append(kw.get("timeout"))
+            if len(seen) == 1:
+                raise subprocess.TimeoutExpired(args, kw.get("timeout"))
+            return mock.Mock(returncode=0, stderr="")
+        del seen[:]
+        pl.open_pdf_at(p, url, run=stuck_first, on=pl.MAC)
+        self.assertEqual(len(seen), 2)
+        self.assertTrue(all(isinstance(s, (int, float)) for s in seen), seen)
+
+        def stuck(args, **kw):
+            raise subprocess.TimeoutExpired(args, kw.get("timeout"))
+        with self.assertRaises(pl.PlatformError):
+            pl.open_pdf_at(p, url, run=stuck, on=pl.MAC)
+
     def test_windows_is_not_built_yet_and_a_bad_address_is_refused(self):
         p = self.pdf("a.pdf")
         with self.assertRaises(pl.NotBuiltYet):
@@ -149,6 +179,14 @@ class OnTheRoute(Tmp):
         with store.step("dashboard", "tester", place="menu") as s:
             s.create("source_folders", {"project": CODE, "path": str(self.box), "sort_order": 1})
         store.close()
+
+    def set_switch(self, on):
+        store = st.open_store(self.db, onedrive_roots=[])
+        try:
+            with store.step("dashboard", "tester", place="menu") as s:
+                s.update("app_settings", "1", {"ask_enabled": on})
+        finally:
+            store.close()
 
     def post(self, **body):
         import json
@@ -206,7 +244,53 @@ class OnTheRoute(Tmp):
             raise pl.PlatformError("ok.pdf could not be opened")
         self.service.open_pdf = fail
         status, got = self.post(project=CODE, file="Saved Docs/ok.pdf", page=1)
-        self.assertEqual((status, got["ok"], got["message"]), (409, False, "ok.pdf could not be opened"))
+        self.assertEqual((status, got["ok"], got["message"], got["code"]), (409, False, ask_service.MESSAGES["file_unavailable"], "file_unavailable"))
+        self.assertEqual(got["message"], "That file can't be opened from here.")
+
+    def test_an_opener_that_cannot_start_is_a_409_not_a_500(self):
+        self.pdf("ok.pdf")
+        def fail(path, url):
+            raise FileNotFoundError(2, "No such file or directory: 'open'")
+        self.service.open_pdf = fail
+        status, got = self.post(project=CODE, file="Saved Docs/ok.pdf", page=1)
+        self.assertEqual((status, got["code"], got["message"]), (409, "file_unavailable", "That file can't be opened from here."))
+
+    def test_asking_off_refuses_before_anything_is_looked_at(self):
+        self.pdf("ok.pdf")
+        self.set_switch(False)
+        for body in ({"project": CODE, "file": "Saved Docs/ok.pdf", "page": 1}, {"project": "ZZZ", "file": "Saved Docs/ok.pdf", "page": 1}):
+            status, got = self.post(**body)
+            self.assertEqual((status, got["code"]), (409, "asking_off"), body)
+            self.assertEqual(got["message"], "Asking is off, so this file can't be opened from here. Turn it on in Settings.", body)
+            self.assertNotEqual(got["message"], ask_service.MESSAGES["asking_off"])
+        self.assertEqual(ask_service.MESSAGES["asking_off"], "Asking is off, so nothing was sent. Turn it on in Settings to ask questions.")   # the other routes keep theirs
+        self.assertEqual(self.opened, [])
+        self.set_switch(True)
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/ok.pdf", page=1)[0], 200)
+
+    def test_a_pdf_by_name_that_is_not_a_pdf_inside_is_refused(self):
+        (self.box / "fake.pdf").write_bytes(b"MZ not a pdf at all")
+        (self.box / "short.pdf").write_bytes(b"%PDF")
+        (self.box / "empty.pdf").write_bytes(b"")
+        for name in ("fake", "short", "empty"):
+            status, got = self.post(project=CODE, file=f"Saved Docs/{name}.pdf", page=1)
+            self.assertEqual((status, got["code"]), (409, "file_unavailable"), name)
+        self.assertEqual(self.opened, [])
+        (self.box / "real.pdf").write_bytes(b"%PDF-1.7\nrest")
+        self.assertEqual(self.post(project=CODE, file="Saved Docs/real.pdf", page=1)[0], 200)
+
+    def test_the_start_is_read_through_the_reach_check(self):
+        """The five bytes come from reach.read_bytes (not a bare open), so a place clark keeps closed is not even read."""
+        p = self.pdf("ok.pdf")
+        calls = []
+        real = reach.read_bytes
+
+        def spy(path, folders, data, limit, home_dir=None):
+            calls.append((str(path), limit))
+            return real(path, folders, data, limit, home_dir)
+        with mock.patch.object(reach, "read_bytes", spy):
+            self.assertEqual(self.post(project=CODE, file="Saved Docs/ok.pdf", page=1)[0], 200)
+        self.assertEqual(calls, [(str(p), 5)])
 
 
 if __name__ == "__main__":

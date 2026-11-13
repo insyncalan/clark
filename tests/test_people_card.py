@@ -115,6 +115,21 @@ class PeopleCard(unittest.TestCase):
             self.assertEqual(js("document.querySelector('[data-person=\"Zed Newman\"]').innerText.indexOf('zed@example.com')"), -1)
             self.assertTrue(wait(lambda: (js("document.querySelector('#ppDone').innerText") or "").startswith("Undone."), 10))
 
+    def test_keys_escape_in_the_paste_box_folds_it_away_and_the_focus_goes_back_to_the_button(self):
+        """Item keys-settings, 1400 px: Esc in the box did nothing, so the only way out was a mouse or a Tab to the button."""
+        with chrome() as cdp:
+            js = self.show(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+            cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)
+            js("document.querySelector('#ppPasteBtn').focus(); document.querySelector('#ppPasteBtn').click()")
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppText", 10), "opening puts the focus in the box")
+            self.fill(js, PASTE)
+            for kind in ("keyDown", "keyUp"):
+                cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Escape", "code": "Escape", "windowsVirtualKeyCode": 27}, self.sid)
+            self.assertTrue(wait(lambda: js("document.querySelector('#ppPaste').hidden") is True, 10), "Esc folds the box away")
+            self.assertTrue(wait(lambda: js("document.activeElement.id") == "ppPasteBtn", 10), "the focus is back on Paste from Excel")
+            self.assertEqual(js("document.querySelector('#ppPasteBtn').getAttribute('aria-expanded')"), "false")
+
     def test_a_bad_row_is_named_in_plain_words_and_nothing_is_added(self):
         with chrome() as cdp:
             js = self.show(cdp)
