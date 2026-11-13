@@ -51,13 +51,16 @@ class Plain(unittest.TestCase):
         for words, shown in (("Plan.docx", "Plan.docx"), ("notes.PDF", "notes.PDF"), ("a b.xlsx", "a b.xlsx"), ("Import, a b.xlsx", "a b.xlsx")):
             self.assertEqual(source_name(words, published=True), shown, words)
 
-    def test_the_closed_list_covers_data_web_office_and_media_families_and_nothing_else(self):
-        for name in ("data.json", "feed.xml", "page.html", "page.htm", "run.log", "invite.ics", "macro.docm", "book.xlsb", "doc.pages", "sheet.numbers",
-                     "deck.key", "clip.mp4", "song.mp3", "voice.m4a", "tone.wav"):
+    def test_the_closed_list_is_only_what_clark_reads_or_writes(self):
+        for name in ("plan.xlsx", "plan.xlsm", "plan.xls", "data.csv", "a.docx", "a.doc", "a.pdf"):
             self.assertEqual(source_name(name, published=True), name, name)
             self.assertEqual(source_name("Import, 2026-11-11, " + name, published=True), name, name)
-        for name in ("script.sh", "tool.py", "site.example", "file.unknownext", "name.io", "x.mov", "clip.MOV"):          # unlisted stays refused: the list is closed, sh and py are country domains
+        for name in ("data.json", "page.html", "script.sh", "tool.py", "site.example", "name.io", "Programme.mpp", "plan.xer", "clip.mp4"):   # unlisted stays refused (mpp and xer: clark cannot read them)
             self.assertEqual(source_name(name, published=True), "", name)
+
+    def test_a_path_with_a_person_or_domain_name_is_never_a_file(self):
+        for path in ("/a/b/john.smith", "C:\\x\\acme.com"):
+            self.assertEqual(source_name(path, published=True), "", path)
 
     def test_a_huge_value_is_cut_before_it_is_read_the_name_at_the_end_is_kept_when_published(self):
         huge = "x " * 50000
