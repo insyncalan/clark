@@ -331,7 +331,11 @@ class EditRows(unittest.TestCase):
             if not p.js(f"document.querySelector({selector!r}).value"):
                 wait(lambda: any(r[field] == value for r in self.store.read(table, "ABC")), 15)
                 break
-        return self.stored(table, field, value)
+        row = self.stored(table, field, value)
+        # The page clears the line only when the reply has come, which is after the store has the row: a next line typed before that
+        # is wiped and its Enter lost, so the line is waited on to be empty (the page has settled) before this returns.
+        p.until(f"document.querySelector({selector!r}).value === ''", "the add line took the text and is empty again")
+        return row
 
     def stored(self, table, field, value):
         """Wait until the store has a row of `table` whose `field` is `value` (a toast from an earlier change must not be taken for this one)."""
