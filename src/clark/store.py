@@ -1200,8 +1200,8 @@ def write_item(con, item, step):
     reverting = bool(item.get("revert"))
     if not reverting:
         refuse_archived_field(item)
-    if op not in ("new", "update", "cancel", "archive", "restore"):
-        raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
+    if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
+        raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -1217,6 +1217,8 @@ def write_item(con, item, step):
         _refuse_label_on_archived(con, table, current)
     if op == "cancel" and table in DELETED_ON_CANCEL:
         return delete_row(con, table, key, current, step)
+    if op == "delete":
+        return delete_item(con, table, key, current, step)
     changes = _cancel_changes(table) if op == "cancel" else dict(item.get("changes") or {})
     return _update_row(con, table, item, key, current, changes, cols, step)
 
@@ -1525,10 +1527,10 @@ def all_sections_deleted(con, code):
     return not con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone() and sections_were_made(con, code)
 
 
-def delete_row(con, table, key, current, step):
-    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row. The row is kept in
-    change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL:
+def delete_row(con, table, key, current, step, item=False):
+    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
+    is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
+    if table not in DELETED_ON_CANCEL and not (item and table in DELETABLE_ITEMS):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1542,6 +1544,42 @@ def delete_row(con, table, key, current, step):
     con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
     log(con, step, table, key, REMOVED, json.dumps(current, ensure_ascii=False), None, "update")
     return key
+
+
+DELETABLE_ITEMS = ("actions", "raid", "decisions")     # item 658: the work items a person may delete (not by cancel: cancel closes them); milestones and use cases are never deleted
+
+
+def item_pointer(con, key):
+    """(table, the referring row's key) where another record names this item and the delete cannot take that pointer with it
+    (a decision's 'replaces'), or None. A link, a label on it and its hiding from the report go with the item, so they are not pointers."""
+    for table, col in REVERT_REFS:
+        if table in ("links", "item_labels") or col not in columns(con, table):
+            continue
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+        if r:
+            return table, key_of(table, r)
+    return None
+
+
+def delete_item(con, table, key, current, step):
+    """Item 658: delete one action, RAID item or decision, with its links, its labels and its hiding from the report, in the
+    caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
+    Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
+    (next_id reads change_log)."""
+    if table not in DELETABLE_ITEMS:
+        raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
+    _refuse_if_archived(table, key, current)
+    if con.execute("SELECT 1 FROM projects WHERE code = ? AND archived = 1", (current["project"],)).fetchone():
+        raise Invalid(f"{current['project']} is archived. Restore it first.")
+    pointer = item_pointer(con, key)
+    if pointer:
+        raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
+    for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
+                     ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall())):
+        for r in rows_:
+            delete_row(con, t, key_of(t, r), dict(r), step)
+    return delete_row(con, table, key, current, step, item=True)
 
 
 # ---------- updates and cancels ----------
@@ -1916,6 +1954,41 @@ def revert_plan(con, rows, step, undoing_a_revert):
     return done, skipped
 
 
+def _link_end_gone(con, old):
+    """Item 658: whether either work item a removed link joined is not in the project now."""
+    for end in (old.get("from_item"), old.get("to_item")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS + ("milestones", "use_cases")):
+            return True
+    return False
+
+
+def _return_links(con, step, key, undoing):
+    """Item 658: an item came back by Undo: put back each link to it that its own delete (or the delete of the item at the other end)
+    took away while the other end was still gone, now that both ends are there. A link taken away by hand, or put back already, is left."""
+    out = []
+    for r in con.execute("SELECT rowid, * FROM change_log WHERE tbl = 'links' AND field = ? ORDER BY rowid", (REMOVED,)).fetchall():
+        old = json.loads(r["old_value"])
+        if key not in (old.get("from_item"), old.get("to_item")) or _link_end_gone(con, old):
+            continue
+        if r["apply_id"] == undoing:
+            continue                                               # the step being undone puts its own links back itself
+        lk = r["item_id"]
+        if fetch(con, "links", lk) is not None:
+            continue
+        if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
+            continue                                               # the link was put back, or taken away again, since
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions')",
+                           (r["apply_id"], REMOVED)).fetchone():
+            continue                                               # not removed by a delete of an item
+        back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}
+        check_row(con, "links", dict(back), set(back))
+        _insert_sql(con, "links", back)
+        for f, v in back.items():
+            log(con, step, "links", lk, f, None, v, OP_MADE, undoes=r["rowid"])
+        out.append({"rowid": r["rowid"], "ref": lk, "field": REMOVED, "change": "put back"})
+    return out
+
+
 def revert_group(con, apply_id, table, key, rows_, step):
     """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
     def entry(r, **k):
@@ -1953,6 +2026,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if fetch(con, table, key) is not None:
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
+        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
         before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
         for x in rows_:
@@ -1963,7 +2038,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
         _insert_sql(con, table, back)
         for f, v in back.items():
             log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        return [entry(x, change="put back") for x in rows_], []
+        out = [entry(x, change="put back") for x in rows_]
+        if table in DELETABLE_ITEMS:
+            out += _return_links(con, step, key, apply_id)
+        return out, []
     done, skipped, changes, undoes = [], [], {}, {}
     row = fetch(con, table, key)
     if row is None:
@@ -4113,6 +4191,10 @@ class Step:
     def restore(self, kind, ref):
         """Bring an archived record back, as it was (#126)."""
         return write_item(self.con, {"table": kind, "op": "restore", "id": ref}, self)
+
+    def delete(self, kind, ref):
+        """Item 658: delete an action, RAID item or decision with its links and labels: one step, one Undo."""
+        return write_item(self.con, {"table": kind, "op": "delete", "id": ref}, self)
 
     def cancel(self, kind, ref):
         """Close a row as cancelled (work items, projects, workstreams), or remove a link, label or item label."""

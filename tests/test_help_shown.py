@@ -27,7 +27,9 @@ SECTION_DELETE = "Delete section"
 # Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
 # Row 810 (the owner: "Deleted, not archived"): the Save a view guide's step on the Delete entry of a saved view's menu, exactly.
 VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
-SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE}
+# Row menu Delete, signed WO-M0270, #1101 comment 6835416954 (exact string only).
+ROW_DELETE = "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
+SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
