@@ -103,6 +103,16 @@ class Words(unittest.TestCase):
             self.shown(cdp, sid, [WENT_WRONG, NOT_ANSWERING, "Try again"])
             self.recovers(cdp, sid)
 
+    def test_in_docker_the_no_answer_words_do_not_say_it_stops_by_itself_or_name_clark_command(self):
+        # row 1080: the container's page (data-container="1") has its own sentence; the outside words stay for everyone else
+        self.fake.mode = "drop"
+        with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
+            sid = self.visit(cdp)
+            self.shown(cdp, sid, [WENT_WRONG, "Nothing is running behind this page. Start clark again the same way you did before.", "Try again"])
+            body = cdp.js("document.body.innerText", sid)
+            self.assertNotIn("stops by itself", body)
+            self.assertNotIn("clark.command", body)
+
     def test_a_server_that_is_stopped_says_clark_is_not_answering_and_try_again_works_when_it_is_back(self):
         port = self.s.port
 

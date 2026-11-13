@@ -14,6 +14,7 @@ Update.chip = L.TITLE;                                              // the Setti
 export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
   const [panel, setPanel] = useState(null);           // null, or {id, view, reinstall}
+  const opener = useRef("[data-review]");
   const [again, setAgain] = useState(null);           // the source to review again with Install again: "downloads" or "file"
   const [armed, setArmed] = useState(null);           // null, or {id, choice, line}
   const [busy, setBusy] = useState(false);
@@ -33,7 +34,10 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   useEffect(() => { load(); return () => clearTimeout(disarm.current); }, []);
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
+  const closePanel = () => { setPanel(null); requestAnimationFrame(() => { const b = document.querySelector("#update " + opener.current); if (b) b.focus(); }); };      // Cancel or Esc: the focus goes back to the button that opened the panel
+
   async function review(from, reinstall) {
+    opener.current = from === "file" ? "[data-choose]" : "[data-review]";
     setBusy(true);
     setMsg(null);
     setAgain(null);
@@ -147,7 +151,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
         </div>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading">
+        <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePanel(); } }}>
           <p id="update-heading" tabIndex={-1} ref={heading}><b>{panel.view.heading}</b></p>
           <pre class="update-notes" id="update-notes">{panel.view.notes}</pre>
           {panel.view.hasNotes ? <div class="row"><button type="button" class="btn sm" data-copy onClick={copyNotes}>{L.LABELS.copy}</button></div> : null}
@@ -165,7 +169,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
           <p>{panel.view.kept}</p>
           <div class="row">
             <button type="button" class="btn pri" data-install disabled={busy} onClick={install}>{panel.reinstall ? L.LABELS.installAgain : L.LABELS.install}</button>
-            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={closePanel}>{L.LABELS.cancel}</button>
           </div>
         </div>
       ) : null}

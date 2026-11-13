@@ -1129,17 +1129,18 @@ class Live(unittest.TestCase):
             click(cdp, sid, cell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", "the date panel opened")
             self.until(cdp, sid, "document.activeElement && !!document.activeElement.dataset.day", "focus is on a day")
-            want = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
-                          ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop]') && !c.contains(e));"
-                          " const n = all.find(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING); if (!n) return null; n.setAttribute('data-want-next', '1'); return n.tagName; })()", sid)
-            self.assertTrue(want, "something is tabbable after the date (the fixture has it)")
+            # The control that must get focus is found by position, again each time it is asked (a redraw replaces nodes, so a mark on one is lost).
+            cdp.js("window.__nextAfter = () => { const c = document.querySelector(%s); if (!c) return null; const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
+                   ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop],[inert]') && !c.contains(e));"
+                   " return all.find(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING) || null; }" % json.dumps(cell), sid)
+            self.assertTrue(cdp.js("!!window.__nextAfter()", sid), "something is tabbable after the date (the fixture has it)")
             cdp.js("window.__inert = false; new MutationObserver(rs => { for (const r of rs) if (r.target.matches && r.target.matches('[data-pop]') && r.target.hasAttribute('inert')) window.__inert = true; })"
                    ".observe(document.body, {attributes: true, subtree: true, attributeFilter: ['inert']});"
                    " document.addEventListener('keydown', e => { if (e.key === 'Tab') { let n = 0; const t = setInterval(() => { if (document.activeElement) document.activeElement.blur(); if (++n >= 9) clearInterval(t); }, 5); } });", sid)
             key(cdp, sid, "Tab")
             self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "Tab closed the panel")
             self.assertTrue(cdp.js("window.__inert", sid), "the closing panel was made inert")
-            self.until(cdp, sid, "!!document.activeElement && document.activeElement.hasAttribute('data-want-next')", "focus was lost, then carried on to the control after the date", 5)
+            self.until(cdp, sid, "!!document.activeElement && document.activeElement === window.__nextAfter()", "focus was lost, then carried on to the control after the date", 5)
 
 
     def test_a_made_decisions_date_can_change_but_not_be_cleared(self):
