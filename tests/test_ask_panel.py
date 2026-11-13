@@ -297,8 +297,16 @@ class Panel(Base):
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the question stayed and the stopped line followed")
             self.assertEqual(self.stub.count("stop"), 1)
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
-            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "Stopping. Your question and the earlier answers stay here.")
+            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
+        self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            top = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()")
+            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top})")
 
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False

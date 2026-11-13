@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, sanitise, section_bodies
+from clark import timefmt
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -289,7 +290,7 @@ def today():
 
 def shown(iso):
     """YYYY-MM-DD → DD-MM-YYYY for anything a person reads."""
-    return f"{iso[8:10]}-{iso[5:7]}-{iso[0:4]}" if iso and len(iso) >= 10 else iso
+    return iso if iso is None else timefmt.day_text(iso, prefix=True)
 
 
 def _table(table):

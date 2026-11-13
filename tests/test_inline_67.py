@@ -230,7 +230,7 @@ class Published(unittest.TestCase):
             sid = cdp.call("Target.attachToTarget", {"targetId": tid, "flatten": True})["sessionId"]
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.sec')", sid)), "the file drew its sections")
-            self.assertEqual(cdp.js("[...document.querySelectorAll('.toc li button')].map(b => b.textContent)", sid), ["At a glance", "Use case summary", "Shown plan", "Next week"],
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.toc li button')].map(b => b.textContent)", sid), ["At a glance", "Use case summary", "Milestones", "Shown plan", "Next week"],
                              "the minimap lists what the file shows, and not the hidden section")
             self.assertEqual(cdp.js("[...document.querySelectorAll('.toc li button')].every(b => (function(e){ return !!e && e.classList.contains('sec') && e.dataset.id === b.dataset.id; })(document.getElementById('sec-' + b.dataset.id)))", sid), True,
                              "each entry's anchor is a section of the file")

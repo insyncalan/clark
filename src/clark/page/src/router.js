@@ -18,6 +18,9 @@
 // key written in the address would. `f` is written with navigate({...state, f}, {replace: true}): a filter change never pushes an
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
+// A last key, `mv`, is the Milestones block's Calendar choice in a published file: "#milestones&p=PDF&mv=cal". Only "cal" is carried (the
+// Timeline is the start), so a reload of a file keeps the choice where the browser's storage on file:// cannot be trusted. Like `f`, a
+// change of only `mv` replaces the entry and never pushes one.
 export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
@@ -42,7 +45,8 @@ function clean(state) {
   const item = peekable && ID.test(text(s.item)) ? s.item : "";
   const ms = peekable && !item && ID.test(text(s.ms)) ? s.ms : "";
   const uc = view === "usecases" && UC_KEY.test(text(s.uc)) ? s.uc : "";     // "#usecases&p=PDF&uc=1.2": one use case's own page; no other page has it
-  return { view, project, item, ms, f: opaque(s.f), uc };
+  const out = { view, project, item, ms, f: opaque(s.f), uc };
+  return s.mv === "cal" ? { ...out, mv: "cal" } : out;      // `mv` is present only when it is "cal", so every other address reads as it always did
 }
 
 /** True for a well-formed project code. */
@@ -61,18 +65,18 @@ export function parse(hash) {
   for (const part of parts.slice(1)) {
     const at = part.indexOf("=");
     const key = at < 0 ? part : part.slice(0, at);
-    if (key in found || !["p", "item", "ms", "f", "uc"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
+    if (key in found || !["p", "item", "ms", "f", "uc", "mv"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
     const raw = at < 0 ? "" : part.slice(at + 1);
     found[key] = key === "f" ? raw : unescape(raw);                        // `f` is passed through as it stands, never decoded
   }
-  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc });
+  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc, mv: found.mv });
 }
 
 /** {view, project, item, ms, f, uc} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
 export function format(state) {
   const s = clean(state);
   return "#" + s.view + (s.project ? "&p=" + s.project : "") + (s.uc ? "&uc=" + encodeURIComponent(s.uc) : "") + (s.item ? "&item=" + encodeURIComponent(s.item) : "") +
-    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "");
+    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "") + (s.mv ? "&mv=" + s.mv : "");
 }
 
 try { history.scrollRestoration = "manual"; } catch (e) { /* the page works with the browser's default */ }
@@ -158,7 +162,7 @@ export function navigate(state, { replace = false } = {}) {
   const hash = format(next);
   const now = parse(here());
   if (hash === format(now)) return false;
-  if (format({ ...next, f: "" }) === format({ ...now, f: "" })) replace = true;      // only `f` differs
+  if (format({ ...next, f: "", mv: "" }) === format({ ...now, f: "", mv: "" })) replace = true;      // only `f` or `mv` differs
   const opened = !!(next.item || next.ms) && !(current().item || current().ms);
   const mark = (opened && !replace) || (replace && (next.item || next.ms) && peekWasPushed()) ? { clarkPeek: MARK } : null;
   try { history.scrollRestoration = "manual"; } catch (e) { /* as above */ }
