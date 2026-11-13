@@ -169,6 +169,11 @@ class Source(unittest.TestCase):
     def test_the_use_cases_open_for_the_print(self):
         self.assertIn("open={printing.value}", (PAGE_SRC / "components" / "UseCasesTab.jsx").read_text(encoding="utf-8"))
 
+    def test_a_shut_work_items_group_is_drawn_open_for_the_print(self):
+        jsx = (PAGE_SRC / "components" / "WorkItems.jsx").read_text(encoding="utf-8")
+        self.assertIn("shut: !printing.value && isCollapsed(st, g, c.key)", jsx)
+        self.assertIn('import { printing } from "../stores/print.js"', jsx)
+
     def test_the_foot_is_set_from_the_publication_and_the_date_when_the_browser_prints_and_taken_off_after(self):
         text = (PAGE_SRC / "stores" / "print.js").read_text(encoding="utf-8")
         self.assertIn("footRule(footLine(numberAsked(location.search) || publication.value, asAt.value))", text, "the number on the address wins")
