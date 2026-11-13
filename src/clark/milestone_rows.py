@@ -24,6 +24,7 @@ from datetime import date, timedelta
 
 from clark import milestones as ms, sanitise
 from clark.timefmt import local_text
+from clark import timefmt
 
 CANCELLED = "Cancelled"
 
@@ -48,7 +49,7 @@ LEAD_DAYS, TAIL_DAYS = 20, 45        # room before the first and after the last 
 
 def shown(iso):
     """YYYY-MM-DD as DD-MM-YYYY, for anything a person reads."""
-    return "%s-%s-%s" % (iso[8:10], iso[5:7], iso[0:4]) if iso and len(iso) >= 10 else (iso or "")
+    return timefmt.day_text(iso, prefix=True)
 
 
 def parse_date(text):

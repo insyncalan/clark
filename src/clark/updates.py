@@ -68,7 +68,7 @@ NAME_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux)\.zip\Z")
 CHOSEN_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}-(mac|windows|linux){COPY_SUFFIX}\.zip\Z")
 SOURCE_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}{COPY_SUFFIX}\.zip\Z")     # GitHub's "Source code (zip)"
 VERSION_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\Z")
-DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev{NUM}?\Z")
+DEV_RE = re.compile(rf"{NUM}\.{NUM}\.{NUM}\.dev({NUM})?\Z")
 TOP_RE = re.compile(rf"clark-{NUM}\.{NUM}\.{NUM}\Z")      # the top folder of a download made before issue 694: still recognised, never installed
 VERSION_FILE = release_files.place("src/clark/__init__.py")      # where a download holds its version; a flat install keeps it at src/clark/__init__.py
 HIDDEN_CATEGORIES = ("Cc", "Cf", "Cs", "Co", "Cn")   # controls (C0, DEL, C1), bidi and zero-width marks, unassigned
@@ -159,9 +159,10 @@ def version_key(text):
     if not _short_parts(text):
         raise ValueError("version text too long or not text")
     if VERSION_RE.match(text):
-        return tuple(int(n) for n in text.split(".")) + (1,)
-    if DEV_RE.match(text):
-        return tuple(int(n) for n in text.split(".")[:3]) + (0,)
+        return tuple(int(n) for n in text.split(".")) + (1, 0)
+    found = DEV_RE.match(text)
+    if found:
+        return tuple(int(n) for n in text.split(".")[:3]) + (0, int(found.group(5) or 0))
     raise ValueError(text)
 
 
