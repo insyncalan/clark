@@ -4,6 +4,8 @@ import { useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 
 const STOPPING = "Stopping clark. You can close this window.";
+const SAVING = "Finishing your save first. Then clark stops.";
+const PUBLISHING = "Finishing your publish first. Then clark stops.";
 const ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
 const AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before.";
 const FAILED = "Quitting did not work. Try again.";
@@ -31,7 +33,7 @@ export function Quit() {
     setPhase("busy");
     setMsg("");
     const r = await quit();
-    if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg(STOPPING + " " + AGAIN); return; }
+    if (r.status === 200 && r.body && r.body.ok === true) { setPhase("done"); setMsg((r.body.finishing === "save" ? SAVING : r.body.finishing === "publish" ? PUBLISHING : STOPPING) + " " + AGAIN); return; }
     setMsg(said(r.body));
     setPhase("idle");
   }

@@ -16,6 +16,8 @@ from test_work_items import FIXED_DATE, load_demo, page_target
 
 STOPPING = "Stopping clark. You can close this window."
 FAILED = "Quitting did not work. Try again."
+SAVING = "Finishing your save first. Then clark stops."
+PUBLISHING = "Finishing your publish first. Then clark stops."
 ASK = "Quit clark now? To start it again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
 AGAIN = "To start clark again, double-click clark.command in the clark folder. With Docker, start it the same way you did before."
 
@@ -42,11 +44,11 @@ class Card(unittest.TestCase):
     def until(self, cdp, sid, expr, what, secs=30):
         self.assertTrue(wait(lambda: bool(cdp.js(f"!!({expr})", sid)), secs), f"timed out waiting for {what}")
 
-    def visit(self, cdp, port, scheme="light"):
+    def visit(self, cdp, port, scheme="light", width=1400):
         sid = page_target(cdp)
         cdp.call("Page.enable", {}, sid)
         cdp.call("Page.addScriptToEvaluateOnNewDocument", {"source": FIXED_DATE}, sid)
-        cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+        cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme},
                                                               {"name": "prefers-reduced-motion", "value": "reduce"}]}, sid)
         cdp.call("Page.navigate", {"url": "about:blank"}, sid)
@@ -83,6 +85,22 @@ class Card(unittest.TestCase):
     def confirm(self, cdp, sid):
         self.until(cdp, sid, "document.querySelector('#quit-yes')", "the confirm button")
         cdp.js("document.querySelector('#quit-yes').click()", sid)
+
+    def test_a_running_save_or_publish_is_said_instead_of_the_idle_line(self):
+        """Row 1041: the server says which job it finishes first; the card shows that line (and the idle line only when none runs), at 1400 and 900."""
+        s = self.serve()
+        for width in (1400, 900):
+            for finishing, line in (("save", SAVING), ("publish", PUBLISHING), (None, STOPPING)):
+                with chrome() as cdp:
+                    sid = self.visit(cdp, s.port, width=width)
+                    cdp.js("window.fetch = () => Promise.resolve(new Response(JSON.stringify({ok: true, quit: true, finishing: %s}), {status: 200}))" % ("null" if finishing is None else repr(finishing)), sid)
+                    cdp.js("document.querySelector('#quit button').click()", sid)
+                    self.confirm(cdp, sid)
+                    self.until(cdp, sid, f"document.querySelector('#quit').innerText.includes({line!r})", f"{line} at {width}")
+                    text = cdp.js("document.querySelector('#quit').innerText", sid)
+                    for other in (SAVING, PUBLISHING, STOPPING):
+                        self.assertEqual(other in text, other == line, (width, finishing, other))
+                    self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True)
 
     def test_cancel_leaves_clark_running(self):
         s = self.serve()
