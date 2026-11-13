@@ -60,7 +60,7 @@ class PublishedMilestonesOpen(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('#milestones .cal-ms').length >= 3", sid)), "the Calendar drew the chips")
                 chips = cdp.js("[...document.querySelectorAll('#milestones .cal-ms')].map(e => e.dataset.ms)", sid)
                 for one in chips:
-                    cdp.js("location.hash = '#milestones&p=PUB'", sid)
+                    cdp.js("location.hash = '#milestones&p=PUB&mv=cal'", sid)      # the Calendar choice is in the address now, so closing the peek this way stays on the Calendar
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === ''", sid)), "the peek closed")
                     cdp.js(f"document.querySelector('#milestones .cal-ms[data-ms=\"{one}\"]').click()", sid)
                     self.assertTrue(wait(lambda: cdp.js(f"({PEEK_ID}) === {one!r}", sid)), f"the chip {one} opened {cdp.js(PEEK_ID, sid)}")
