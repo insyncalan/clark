@@ -151,8 +151,10 @@ class Fields(Base):
             self.saved(p, "status", "Done")
             row = self.row(self.cur)
             self.assertEqual((row["state"], row["percent_complete"]), ("Achieved", 100), "Achieved sets the progress to 100 (the canvas's note)")
-            p.until("/^Achieved on \\d\\d-\\d\\d-\\d{4}$/.test(document.querySelector('#peek [data-ms-head=state]').textContent.trim())", "the chip says Achieved with its date: "
+            p.until("document.querySelector('#peek [data-ms-head=state]').textContent.trim() === 'Achieved'", "the chip says Achieved, without the date (the Achieved on row has it): "
                     + str(p.js("document.querySelector('#peek [data-ms-head=state]').textContent")))
+            self.assertEqual(p.js("(document.querySelector('#peek [data-ms-head]').textContent.match(/\\d\\d-\\d\\d-\\d{4}/g) || []).length"), 0, "the Achieved date is not in the header")
+            self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-field=actual_date]').length"), 1, "the Achieved date is in its row, once")
             p.until("document.querySelector('#peek [data-ms-head=progress] [data-ms-num]').value === '100'", "the header shows 100")
             self.assertEqual(p.js(LABELS), ["Description", "Agreed date", "Forecast date", "Achieved on", "Workstream", "Use cases", "Visible to client", "Client wording"], "the Achieved on row comes with the state")
             self.assertEqual(self.sent[-1][1]["changes"]["percent_complete"], 100)
