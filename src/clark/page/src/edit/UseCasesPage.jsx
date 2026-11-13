@@ -21,9 +21,14 @@ import { plural } from "../workItems.js";
 import { Menu, Fade } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { CommitChip } from "../components/CommitChip.jsx";
+import { useColWidths, gridTracks } from "./colWidths.jsx";
 
 const RAG = { "On track": "g", Flag: "a", "High risk": "r", Done: "n" };
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
+// The list's heading row and its columns: [width id, heading, class]. The tracks are the stylesheet's own (edit.css), above 1100 px and at or below it (where two columns drop away).
+const HEADS = [["ref", "Ref", ""], ["name", "Use case", ""], ["head", "Where it stands", "ucl-head"], ["st", "Status", ""], ["wi", "Work items", ""], ["ms", "Milestones", "ucl-ms"], ["", "", ""]];
+const IDS = HEADS.map((h) => h[0]), NARROW_IDS = ["ref", "name", "st", "wi", ""];
+const WIDE = ["84px", "minmax(0, 1.1fr)", "minmax(0, 1.6fr)", "112px", "92px", "minmax(0, .9fr)", "36px"], NARROW = ["70px", "minmax(0, 1fr)", "112px", "92px", "36px"];
 const tick = signal(0);
 const state = computed(() => { void tick.value; const code = project.value; return kept[code] || recalled(code); });
 const all = computed(() => (data.value ? listOf(data.value, allRows.value) : []));
@@ -156,6 +161,7 @@ function ArchivedUseCases() {
 }
 
 function UseCasesList() {
+  const cw = useColWidths("usecases");
   const f = state.value, rows = all.value, shown = shownOf(rows, f), n = onCounts(rows, f);
   const stop = shown.some((r) => r.id === current.value) ? current.value : shown.length ? shown[0].id : "";
   const list = useRef(null);
@@ -199,8 +205,8 @@ function UseCasesList() {
             {narrowed(f) ? <button type="button" class="btn" data-clear-all onClick={clear}>Clear the filters</button> : null}
           </div>
         ) : (
-          <div class="ucl-box" ref={list} onKeyDown={keys}>
-            <div class="ucl-row ucl-hd" aria-hidden="true"><span>Ref</span><span>Use case</span><span class="ucl-head">Where it stands</span><span>Status</span><span>Work items</span><span class="ucl-ms">Milestones</span><span></span></div>
+          <div class="ucl-box" ref={list} onKeyDown={keys} style={{ "--ucl-cols": gridTracks(WIDE, IDS, cw), "--ucl-cols-s": gridTracks(NARROW, NARROW_IDS, cw) }}>
+            <div class="ucl-row ucl-hd" aria-hidden="true">{HEADS.map(([id, w, cls]) => <span key={id} class={cls} {...(id ? cw.head(id, w, true) : {})}>{w}{id ? cw.grip(id, w) : null}</span>)}</div>
             <ul class="ucl-list" aria-label="Use cases">
               {shown.map((r) => <Row key={r.id} r={r} stop={r.id === stop} shown={shown} />)}
             </ul>

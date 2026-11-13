@@ -450,7 +450,7 @@ html.vdragging, html.vdragging * { cursor: grabbing !important; user-select: non
 .ddmenu:focus { outline: none; }
 .ddmenu [role="menuitem"] { all: unset; display: block; box-sizing: border-box; width: 100%; padding: var(--space-2) 14px; cursor: pointer; font-size: var(--size-small); color: var(--text); }
 .ddmenu .sep { height: 1px; margin: 6px 0; background: var(--border); }
-.ddmenu .who { padding: var(--space-2) 14px 6px; max-width: 280px; }
+.ddmenu .who { display: block; padding: var(--space-2) 14px 6px; max-width: 280px; }
 .ddmenu .who b { display: block; font-size: var(--size-small); font-weight: var(--weight-medium); color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who small { display: block; font-size: var(--size-small); color: var(--text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ddmenu .who-link { text-decoration: underline; color: var(--link) !important; max-width: 280px; }
@@ -2480,3 +2480,6 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .vicons .lsw button { min-width: 32px; padding: 2px var(--space-2); }
 .btn.sm.vgb { display: inline-grid; place-items: center; box-sizing: border-box; width: 34px; height: 32px; min-width: 0; min-height: 0; padding: 2px var(--space-2); }   /* the same box as the List and Board icons beside it */
 .vgb .i { width: 18px; height: 18px; }
+
+/* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
+.crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }

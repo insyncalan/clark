@@ -22,8 +22,20 @@ import re
 from clark import ask, ask_claude, platform
 
 PROVIDER = "chatgpt"
-SUBDIR = "node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex"
-PLACES = (f"~/.local/lib/{SUBDIR}", f"/opt/homebrew/lib/{SUBDIR}", "/opt/homebrew/bin/codex")
+# The program's own folder inside the package, by machine: Apple silicon and Intel builds are different packages.
+SUBDIRS = {"arm64": "node_modules/@openai/codex/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+           "x86_64": "node_modules/@openai/codex/node_modules/@openai/codex-darwin-x64/vendor/x86_64-apple-darwin/bin/codex"}
+LIBS = ("~/.local/lib", "/opt/homebrew/lib", "/usr/local/lib", "~/.npm-global/lib", "~/.nvm/versions/node/*/lib")
+BINS = ("/opt/homebrew/bin/codex", "/usr/local/bin/codex", "~/.npm-global/bin/codex", "~/.nvm/versions/node/*/bin/codex")
+
+
+def places_for(machine):
+    """The fixed places for this machine's build. A machine that is neither Apple silicon nor Intel has only the links in BINS,
+    which are followed to the file they name and must still be a Mac program."""
+    sub = SUBDIRS.get(machine)
+    return (tuple(f"{lib}/{sub}" for lib in LIBS) if sub else ()) + BINS
+
+
 # The models a ChatGPT sign-in offers (`codex debug models`, 04-11-2026), with each one's context in tokens, pinned so a change is reviewed.
 MODELS = ("gpt-6.1-sol", "gpt-6.1-terra", "gpt-6-sol", "gpt-6-astra", "gpt-6-luna")
 CONTEXT_TOKENS = {"gpt-6.1-sol": 500000, "gpt-6.1-terra": 500000, "gpt-6-sol": 272000, "gpt-6-astra": 272000, "gpt-6-luna": 272000}
@@ -50,6 +62,9 @@ MODEL_TEXT = re.compile(r"model is not supported|model .{0,60}not supported|unkn
 
 READY = "ChatGPT is signed in on this computer."
 NOT_INSTALLED = "ChatGPT needs the Codex command, and it isn't on this computer. Install Codex, sign in with ChatGPT, then try again."
+NOT_ELSEWHERE = ("Codex works in Terminal, but clark can't use it from where it is installed. Install it again with ChatGPT's "
+                 "own installer, then ask again.")
+NOT_FOUND_WORDS = {"missing": NOT_INSTALLED, "elsewhere": NOT_ELSEWHERE}
 NOT_NATIVE = "The Codex command on this computer can't be used safely. Install it again, then try again."
 UNTESTED = "This version of Codex has not been tested with clark: update clark."
 ODD_HOME = "Your computer's home folder is not where macOS usually keeps it, so clark can't keep ChatGPT away from your files. Nothing was sent."
@@ -156,9 +171,11 @@ class CodexCommand(ask_claude.ClaudeCommand):
     """The Codex command as an ask.Provider. The run lock, Stop and the fixed-rules check are the Claude command's, unchanged."""
     provider = PROVIDER
     models = MODELS
+    command_name = "codex"
+    not_found_words = NOT_FOUND_WORDS
 
-    def __init__(self, places=PLACES, env=None, limit=ask_claude.TIME_LIMIT, max_out=ask_claude.MAX_OUT, check_limit=ask_claude.CHECK_LIMIT, roots=None, walled=True):
-        super().__init__(places, env, limit, max_out, check_limit, roots)
+    def __init__(self, places=None, env=None, limit=ask_claude.TIME_LIMIT, max_out=ask_claude.MAX_OUT, check_limit=ask_claude.CHECK_LIMIT, roots=None, walled=True):
+        super().__init__(places_for(platform.machine()) if places is None else places, env, limit, max_out, check_limit, roots)
         self.walled = walled                   # False only in tests with a fake script, which the wall would refuse to run
         self.untested = False                  # the checked command is a version the wall hasn't been tested with
 

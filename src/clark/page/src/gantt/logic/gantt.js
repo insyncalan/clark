@@ -50,10 +50,11 @@ export const linesShown = (n, m) => `${n} of ${m} lines shown`;
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const SHOWN = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
 
-// Days since 1970-01-01 for a stored date, or null if it is not a real date.
+// Days since 1970-01-01 for a stored date, or null if it is not a real date or its year is outside YEARS (the same years the table accepts when
+// typed), so one far-off year cannot stretch the chart over thousands of months.
 export function dayNum(iso) {
   const m = ISO.exec(String(iso || ""));
-  if (!m) return null;
+  if (!m || +m[1] < YEARS[0] || +m[1] > YEARS[1]) return null;
   const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
   const a = new Date(t);
   if (a.getUTCFullYear() !== +m[1] || a.getUTCMonth() !== +m[2] - 1 || a.getUTCDate() !== +m[3]) return null;
