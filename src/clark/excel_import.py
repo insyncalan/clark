@@ -215,8 +215,16 @@ def plain(table, msg):
     if m:
         return f"There is no label {m.group(1)} {m.group(2)}"
     m = re.match(r"([a-z_]+) (must be|is not) ", msg)
-    if m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
+    if m and m.group(1) == "review_after_days":
+        msg = "Not reviewed after (days)" + msg[len(m.group(1)):]
+    elif m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
         msg = _label(table, m.group(1)) + msg[len(m.group(1)):]
+    m = re.fullmatch(r"(.*) \(got (.*)\)", msg, re.S)
+    if m:
+        cell = m.group(2)
+        if len(cell) >= 2 and cell[0] == cell[-1] and cell[0] in "'\"":
+            cell = cell[1:-1]
+        msg = f"{m.group(1)} (the cell says {cell})"
     return re.sub(r"\b(\d{4})-(\d{2})-(\d{2}) 00:00:00\b", lambda x: f"{x.group(3)}-{x.group(2)}-{x.group(1)}", msg)
 
 
