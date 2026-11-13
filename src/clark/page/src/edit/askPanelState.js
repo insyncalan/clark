@@ -136,7 +136,7 @@ export function installAskKeys() {
   document.addEventListener("mousedown", (e) => {
     if (!panelOpen.value) return;
     const p = document.getElementById("ask-panel");
-    if (p && !p.contains(e.target)) closePanel();
+    if (p && !p.contains(e.target) && !(e.target.closest && e.target.closest("#ask-btn"))) closePanel();     // the ask button closes it itself
   }, true);
   let seen = view.value + "|" + project.value;
   effect(() => {

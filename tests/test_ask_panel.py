@@ -300,6 +300,25 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
 
+    def test_stop_pressed_puts_focus_back_in_the_question_box(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("(() => { const b = document.querySelector('#ask-stop'); b.focus(); b.click(); })()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped")
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body")
+
+    def test_the_ask_button_closes_the_panel_when_it_is_open(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            # the panel covers the button where it sits, so this is the press the keyboard makes (and a click where it is not covered)
+            p.js("(() => { const b = document.querySelector('#ask-btn'); b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.click(); })()")
+            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel")
+            time.sleep(0.6)
+            self.assertIsNone(p.js("document.querySelector('#ask-panel')"), "and it did not open again")
+
     def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
         self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
         with chrome() as cdp:
