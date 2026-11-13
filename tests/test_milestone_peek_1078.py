@@ -1,6 +1,6 @@
 """Row 1078 (the owner's rulings, 09-11 and 10-11-2026): the milestone peek in the work item peek's format. One flat surface, no tiles: a
-header line under the title says the state, the owner and the progress (the chip reads Achieved, with its date, only when the milestone
-is achieved; picking Achieved sets the progress to 100); the rows are Description, Agreed date, Forecast date, Workstream, Visible to
+header line under the title says the state, the owner and the progress (the chip reads Achieved only when the milestone is achieved, with its
+date in View and in a published file but not in Edit, where the Achieved on row has it; picking Achieved sets the progress to 100); the rows are Description, Agreed date, Forecast date, Workstream, Visible to
 client (the editor's alone) and Client wording, label left and value right with a hairline between; the name is the title, edited in place;
 Description and Client wording are on the one rich editor (#1005). A client (the Dashboard in View, a published file) sees the same peek
 read only, less the Visible to client row, and a published file never carries the editor's words.
