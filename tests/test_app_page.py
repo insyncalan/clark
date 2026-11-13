@@ -71,6 +71,20 @@ class Live(unittest.TestCase):
             time.sleep(0.3)
         self.assertEqual(self.blocked, [], "the policy blocked nothing")
 
+    def test_the_beat_carries_the_zone_of_the_computer(self):
+        """#631: X-Clark-Tz is the browser's own IANA zone, and follows it when the computer moves (the next beat)."""
+        seen = []
+        real = sv.here_route
+        with mock.patch.object(sv, "here_route", lambda h, req: (seen.append(h.headers.get("X-Clark-Tz")), real(h, req))[1]), chrome() as cdp:
+            sid = navigate(cdp, self.s.port, "#dashboard&p=ABC")
+            for width in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                for name in ("Asia/Dubai", "America/New_York"):
+                    cdp.call("Emulation.setTimezoneOverride", {"timezoneId": name}, sid)
+                    before = len(seen)
+                    cdp.js("document.dispatchEvent(new Event('visibilitychange'))", sid)
+                    self.assertTrue(wait(lambda: len(seen) > before and seen[-1] == name), f"the beat says {name} at {width}: {seen}")
+
 
 if __name__ == "__main__":
     unittest.main()
