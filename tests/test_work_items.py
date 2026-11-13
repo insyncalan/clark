@@ -178,9 +178,9 @@ class RealBrowser(unittest.TestCase):
 
     def rows(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => ({id: r.dataset.id, kind: r.dataset.kind,"
-                      " badge: (r.querySelector('.kb') || {}).textContent, badgeWord: (r.querySelector('.kb') || {}).title,"
+                      " badge: (r.querySelector('.ico') || {}).textContent, badgeWord: ((r.querySelector('.ico') && r.querySelector('.ico').closest('[data-tip]') || {dataset: {tip: ''}}).dataset.tip || '').split(' · ')[0],"
                       " text: r.innerText, late: !!r.querySelector('.due-l.late'), words: (r.querySelector('.due-l') || {}).textContent,"
-                      " pill: r.querySelector('.pill').textContent, pillClass: r.querySelector('.pill').className}))", sid)
+                      " pill: ((r.querySelector('.ico') && r.querySelector('.ico').closest('[data-tip]') || {dataset: {tip: ''}}).dataset.tip || '').split(' · ')[1], pillClass: r.querySelector('.ico').className}))", sid)
 
     def test_every_demo_row_is_listed_at_1400_and_900_px(self):
         s = self.serve()
