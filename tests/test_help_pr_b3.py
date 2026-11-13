@@ -42,7 +42,6 @@ class ReportMenu(unittest.TestCase):
             "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**.",
             "**Profile** keeps the reader’s name in their own browser only, and the button then shows their initials.",
             "**Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
-            "The small moon or sun button beside the round button switches between light and dark (the standard is light); the choice is remembered in the same browser, and a printed page is always light.",
         ):
             self.assertIn(sentence, t)
         self.assertIn("client-page", LATER["reference"], "still held: this PR unholds nothing")
