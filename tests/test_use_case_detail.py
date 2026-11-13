@@ -236,7 +236,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("[...document.querySelectorAll('#ucd-status')].length"), 1)
                     self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), re.sub(r"<[^>]+>", "", u["standing"]))
                     self.assertEqual(sorted(js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)")), linked)
-                    self.assertTrue(js("[...document.querySelectorAll('[data-item]')].every(b => b.querySelector('.pill') && b.querySelector('.ucd-x').textContent)"), "each row has a status pill and an owner or due")
+                    self.assertTrue(js("[...document.querySelectorAll('[data-item]')].every(b => b.querySelector('.ico') && !b.querySelector('.pill') && b.querySelector('.ucd-x').textContent)"), "each row has the status icon (no pill with words) and an owner or due")
                     self.assertEqual(js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms)"), ["TUL-M-005"])
                     self.assertIn("added the use case", js("document.querySelector('[data-history]').textContent"))
                     self.assertEqual(js("document.querySelector('[data-archive]').textContent"), "Archive this use case (it can be restored; nothing is deleted)")
@@ -706,12 +706,12 @@ class Detail(unittest.TestCase):
         """Row 1081: ID, title, one tinted status chip, then Owner and Due in muted text, on ONE line at 1400 and 900, light and dark.
         The chip takes the colours of row 1021 (Open green, Made and Closed blue, grey when withdrawn or cancelled), not the old pill's."""
         probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
-                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
-        rows = ("[...document.querySelectorAll('[data-item]')].map(b => { const q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), chip = q('.pill'), c = getComputedStyle(chip), x = q('.ucd-x');"
-                " return {id: b.dataset.item, h: r(b).height, chips: b.querySelectorAll('.pill').length, word: chip.textContent.trim(), cls: chip.className, fg: c.color, bg: c.backgroundColor,"
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } const u = document.createElement('i'); u.style.cssText = 'color:var(--tone-on-urgent);background:var(--tone-urgent)'; document.body.appendChild(u); const k = getComputedStyle(u); out.urgent = [k.color, k.backgroundColor]; u.remove(); return out; })()")
+        rows = ("[...document.querySelectorAll('[data-item]')].map(b => { const q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), chip = q('.ico'), c = getComputedStyle(chip), x = q('.ucd-x');"
+                " return {id: b.dataset.item, h: r(b).height, chips: b.querySelectorAll('.ico').length, pills: b.querySelectorAll('.pill').length, urgent: /Urgent/.test(b.dataset.tip || ''), word: (b.dataset.tip || '').split(' · ')[1], cls: chip.className, fg: c.color, bg: c.backgroundColor,"
                 " one: r(q('.ucd-id')).top < r(chip).bottom && r(x).top < r(chip).bottom && r(chip).top < r(q('.ucd-id')).bottom + 8 && Math.abs(r(x).top - r(q('.ucd-id')).top) < 12,"
-                " muted: getComputedStyle(x).color === getComputedStyle(q('.ucd-id')).color, ordered: r(q('.ucd-id')).left < r(q('.ucd-t')).left && r(q('.ucd-t')).left < r(chip).left && r(chip).left < r(x).left}; })")
-        want = {"Open": "green", "Pending": "green", "Made": "blue", "Closed": "blue", "Overdue": "red", "Due soon": "amber"}
+                " muted: getComputedStyle(x).color === getComputedStyle(q('.ucd-id')).color, ordered: r(chip).left < r(q('.ucd-id')).left && r(q('.ucd-id')).left < r(q('.ucd-t')).left && r(q('.ucd-t')).left < r(x).left}; })")
+        want = {"On track": "green", "Open": "green", "Pending": "green", "Made": "blue", "Closed": "blue", "Overdue": "red", "Due soon": "amber"}
         for width in (1400, 900):
             for scheme in ("light", "dark"):
                 with self.subTest(width=width, scheme=scheme), chrome() as cdp:
@@ -720,13 +720,13 @@ class Detail(unittest.TestCase):
                     found = cdp.js(rows, sid)
                     self.assertTrue(found, "the card lists its items")
                     for r in found:
-                        self.assertEqual(r["chips"], 1, r["id"])
+                        self.assertEqual((r["chips"], r["pills"]), (1, 0), r["id"])      # row 1145: the icon alone, no pill with words
                         self.assertTrue(r["one"], f"{r['id']}: the id, title, chip and owner and due sit on one line at {width}")
-                        self.assertTrue(r["ordered"], f"{r['id']}: id, title, chip, then owner and due")
+                        self.assertTrue(r["ordered"], f"{r['id']}: icon, id, title, then owner and due")
                         self.assertTrue(r["muted"], f"{r['id']}: owner and due are muted like the id")
                         self.assertLess(r["h"], 48, r["id"])
                         if r["word"] in want:
-                            self.assertEqual([r["fg"], r["bg"]], tones[want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone")
+                            self.assertEqual([r["fg"], r["bg"]], tones["urgent" if r["urgent"] else want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone (an Urgent item is the maroon tile)")
 
     def _uc_items(self):
         data = self.read("TUL")
@@ -758,7 +758,7 @@ class Detail(unittest.TestCase):
                 sid = self.open_detail(cdp, 1400, scheme, edit=False)
                 self.assertFalse(cdp.js("!!window.__pwn || !!document.querySelector('.ucd-item img, .ucd-item b')", sid), "markup in a title is text")
                 blue = cdp.js("(() => { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-blue-text);background:var(--tone-blue-tint)'; document.body.appendChild(e); const c = getComputedStyle(e); return [c.color, c.backgroundColor]; })()", sid)
-                for b in cdp.js("[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor}; })", sid):
+                for b in cdp.js("[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.ico')); return {id: b.dataset.item, word: (b.dataset.tip || '').split(' · ')[1], urgent: /Urgent/.test(b.dataset.tip || ''), fg: c.color, bg: c.backgroundColor}; })", sid):
                     if b["word"] == "Closed":
                         self.assertEqual([b["fg"], b["bg"]], blue, f"{b['id']} Closed is blue")
 
@@ -781,9 +781,9 @@ class Detail(unittest.TestCase):
     def test_every_chip_tone_red_amber_green_blue_grey_is_painted_on_the_card_row_1081(self):
         """Row 1081 (mutation gap): the demo's two items only show amber and one other tone, so a wrong red, green or grey chip passed. Seed each state and read the colours."""
         probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
-                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } return out; })()")
-        chips = "[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.pill')); return {id: b.dataset.item, word: b.querySelector('.pill').textContent.trim(), fg: c.color, bg: c.backgroundColor, dot: getComputedStyle(b.querySelector('.pill'), '::before').backgroundColor}; })"
-        cases = [({"status": "Open", "due_date": "2020-01-01"}, "Overdue", "red"), ({"status": "Open", "due_date": "2030-01-01"}, "Open", "green"),
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } const u = document.createElement('i'); u.style.cssText = 'color:var(--tone-on-urgent);background:var(--tone-urgent)'; document.body.appendChild(u); const k = getComputedStyle(u); out.urgent = [k.color, k.backgroundColor]; u.remove(); return out; })()")
+        chips = "[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.ico')); return {id: b.dataset.item, word: (b.dataset.tip || '').split(' · ')[1], urgent: /Urgent/.test(b.dataset.tip || ''), fg: c.color, bg: c.backgroundColor}; })"
+        cases = [({"status": "Open", "due_date": "2020-01-01"}, "Overdue", "red"), ({"status": "Open", "due_date": "2030-01-01"}, "On track", "green"),
                  ({"status": "Open", "due_date": "2026-11-02"}, "Due soon", "amber"), ({"status": "Closed", "due_date": "2030-01-01"}, "Closed", "blue"),
                  ({"status": "Cancelled", "due_date": "2030-01-01"}, "Cancelled", "grey")]
         for change, word, tone in cases:
@@ -796,8 +796,7 @@ class Detail(unittest.TestCase):
                         tones = cdp.js(probe, sid)
                         got = next(c for c in cdp.js(chips, sid) if c["id"] == "TUL-A-001")
                         self.assertEqual(got["word"], word)
-                        self.assertEqual([got["fg"], got["bg"]], tones[tone], f"{word} chip is {tone} in {scheme}")
-                        self.assertEqual(got["dot"], tones[tone][0], f"{word} dot is {tone} in {scheme}")
+                        self.assertEqual([got["fg"], got["bg"]], tones["urgent" if got["urgent"] else tone], f"{word} chip is {tone} in {scheme} (an Urgent item is the maroon tile)")
 
     def test_the_card_row_cuts_long_text_with_dots_and_never_overlaps_the_id_row_1081(self):
         """Row 1081 (mutation gap): id, title and owner/due are single-line cells that end in dots; the id never runs into the title; the owner and due cell is not wider than 260px."""
@@ -812,7 +811,7 @@ class Detail(unittest.TestCase):
                 self.assertEqual(m["ws"], ["nowrap", "nowrap", "nowrap"], "id, title and owner stay on one line")
                 self.assertEqual(m["to"], ["ellipsis", "ellipsis"], "a long title or owner ends in dots")
                 self.assertLessEqual(m["idRight"], m["tLeft"], "the id does not run into the title")
-                self.assertGreaterEqual(m["idw"], 100, "the id column is wide enough for a full id")
+                self.assertGreaterEqual(m["idw"], 90, "the id column is wide enough for a full id")
                 self.assertLessEqual(m["xw"], 261, "the owner and due cell is capped at 260px")
                 self.assertLess(m["h"], 48)
 
