@@ -6,7 +6,7 @@
 #
 # The applet is osacompile's (built into every Mac). It finds the folder it sits in, runs  /usr/bin/python3 -m clark.launch  there,
 # hidden, and on any failure shows the launcher's own lines in a native dialog. Nothing is stopped by the applet: the server stops
-# itself a minute after the last window closes (idle.py). It sits BESIDE clark.command and needs the same folder (a download's .app
+# itself two minutes after the last window closes (idle.py). It sits BESIDE clark.command and needs the same folder (a download's .app
 # folder, or a checkout's src): see TRANSLOCATION-PLAN.md for what that means for a quarantined download.
 #
 # Test build only (never for a shipped app): --test-data FOLDER --test-port N  bake a scratch data folder and port into the applet,

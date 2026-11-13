@@ -1,7 +1,7 @@
-"""#71: a launcher-started server stops by itself a minute after the last clark page closes (src/clark/idle.py).
+"""#71: a launcher-started server stops by itself two minutes after the last clark page closes (src/clark/idle.py).
 
 Run: python3 dev/run_tests.py test_idle
-The time is a fake clock the test moves, so nothing waits a minute; one test runs the watcher for real, with the times
+The time is a fake clock the test moves, so nothing waits two minutes; one test runs the watcher for real, with the times
 shortened the way CLARK_STOP_AFTER and CLARK_STOP_CHECK shorten them.
 """
 import threading
@@ -30,22 +30,33 @@ class Due(unittest.TestCase):
         self.clock = Clock()
         self.idle = idle.Idle(clock=self.clock, sleep=self.clock.sleep)
 
-    def test_the_defaults_are_a_minute_looked_at_every_five_seconds(self):
-        self.assertEqual((idle.STOP_AFTER, idle.STOP_CHECK, idle.HEARTBEAT), (60.0, 5.0, 10))
-        self.assertEqual((self.idle.stop_after, self.idle.check), (60.0, 5.0))
+    def test_the_defaults_are_two_minutes_looked_at_every_five_seconds(self):
+        self.assertEqual((idle.STOP_AFTER, idle.STOP_CHECK, idle.HEARTBEAT), (120.0, 5.0, 10))
+        self.assertEqual((self.idle.stop_after, self.idle.check), (120.0, 5.0))
 
-    def test_not_due_until_more_than_a_minute_has_passed(self):
-        self.clock.now += 60.0
+    def test_not_due_until_more_than_two_minutes_have_passed(self):
+        self.clock.now += 120.0
         self.assertFalse(self.idle.due())
         self.clock.now += 0.1
         self.assertTrue(self.idle.due())
 
     def test_a_page_saying_it_is_here_starts_the_minute_again(self):
-        self.clock.now += 59
+        self.clock.now += 119
         self.idle.here()
-        self.clock.now += 59
+        self.clock.now += 119
         self.assertFalse(self.idle.due())
-        self.assertAlmostEqual(self.idle.quiet_for(), 59)
+        self.assertAlmostEqual(self.idle.quiet_for(), 119)
+
+    def test_a_background_tab_that_beats_once_a_minute_keeps_the_server_alive(self):
+        # Finding 33: Chrome slows a hidden tab's timers to about one a minute after five minutes. At the old 60 s limit a beat that lands a
+        # second late left the server due; at 120 s a once-a-minute beat, even a few seconds late, never does.
+        for _ in range(30):
+            self.clock.now += 65
+            self.assertFalse(self.idle.due(), "a beat 65 s after the last one must not stop the server")
+            self.idle.here()
+        self.clock.now += 61
+        self.assertFalse(self.idle.due())
+        self.assertGreater(idle.STOP_AFTER, 65 + 10, "the limit is more than one throttled beat plus its lateness")
 
     def test_the_start_counts_as_here_because_the_window_is_about_to_open(self):
         self.assertEqual(self.idle.quiet_for(), 0)
@@ -76,8 +87,8 @@ class Watch(unittest.TestCase):
     def test_it_stops_once_after_a_minute_and_says_so_in_plain_words(self):
         self.run_watch()
         self.assertEqual(len(self.stopped), 1)
-        self.assertEqual(self.stopped[0] - 1000.0, 65.0, "the first look after the minute: 5 seconds apart")
-        self.assertEqual(self.said, ["No clark window has been open for 60 seconds, so clark is stopping."])
+        self.assertEqual(self.stopped[0] - 1000.0, 125.0, "the first look after the minute: 5 seconds apart")
+        self.assertEqual(self.said, ["No clark window has been open for 120 seconds, so clark is stopping."])
 
     def test_a_page_that_keeps_saying_it_is_here_keeps_it_running(self):
         def keep_going():
@@ -133,8 +144,8 @@ class InDocker(unittest.TestCase):
         watcher = self.make(False)
         self.watch(watcher)
         self.assertEqual(len(self.stopped), 1)
-        self.assertEqual(self.stopped[0] - 1000.0, 65.0)
-        self.assertEqual(self.said, ["No clark window has been open for 60 seconds, so clark is stopping."])
+        self.assertEqual(self.stopped[0] - 1000.0, 125.0)
+        self.assertEqual(self.said, ["No clark window has been open for 120 seconds, so clark is stopping."])
 
     def test_launched_is_false_in_docker_even_with_the_launcher_mark(self):
         self.assertFalse(idle.launched({"CLARK_LAUNCHED": "1"}, container=lambda: True))
