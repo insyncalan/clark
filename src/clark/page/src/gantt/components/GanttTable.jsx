@@ -22,6 +22,9 @@ import {
 const ROW_HEAD = 44;
 const PAGE_ROWS = 10;
 
+// The icon of a row-menu line comes from its words and its danger flag, here at the drawing, so the lines that build the menus stay as they were.
+const rowAction = (it) => (it[2] ? "delete" : /^Add /.test(it[0]) ? "add" : it[0] === "Clear cells" ? "clear" : "copy");
+
 export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange, onUndo, addBelowWord = "" }) {
   const cols = visibleColumns(hidden, edit);
   const rows = visibleRows(lines, { edit, filter });
@@ -203,10 +206,10 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
   const rowMenu = (x, y, r) => {
     const g = r >= range.r0 && r <= range.r1 ? range : { r0: r, r1: r };
     const n = g.r1 - g.r0 + 1;
-    if (!edit) { showMenu(x, y, [["Copy", copyNow, false, "copy"]]); return; }
-    showMenu(x, y, [["Add a task below", () => addBelow(g.r1, "t"), false, "add"], ["Add a phase below", () => addBelow(g.r1, "p"), false, "add"], ["Add a milestone below", () => addBelow(g.r1, "m"), false, "add"], "-",
-      ["Copy", copyNow, false, "copy"], ["Clear cells", () => { setMenu(null); focusBox(); clearSelected(); }, false, "clear"], "-",
-      [n === 1 ? "Delete this line" : `Delete ${n} lines`, () => { setMenu(null); removeRows(g.r0, g.r1); }, true, "delete"]]);
+    if (!edit) { showMenu(x, y, [["Copy", copyNow]]); return; }
+    showMenu(x, y, [["Add a task below", () => addBelow(g.r1, "t")], ["Add a phase below", () => addBelow(g.r1, "p")], ["Add a milestone below", () => addBelow(g.r1, "m")], "-",
+      ["Copy", copyNow], ["Clear cells", () => { setMenu(null); focusBox(); clearSelected(); }], "-",
+      [n === 1 ? "Delete this line" : `Delete ${n} lines`, () => { setMenu(null); removeRows(g.r0, g.r1); }, true]]);
   };
 
   // ── the keyboard ──
@@ -399,7 +402,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
                     <th class={`gt-rh${r >= range.r0 && r <= range.r1 ? " hs" : ""}`} data-row={r} data-r={r} scope="row">
                       <span class="gt-rn">{i + 1}</span>
                       <button type="button" class="gt-rb" data-add={r} aria-label={addBelowWord} title={addBelowWord}
-                        onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t"), false, "add"], ["Add a phase below", () => addBelow(r, "p"), false, "add"], ["Add a milestone below", () => addBelow(r, "m"), false, "add"]]); }}><Icon name="plus" /></button>
+                        onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t")], ["Add a phase below", () => addBelow(r, "p")], ["Add a milestone below", () => addBelow(r, "m")]]); }}><Icon name="plus" /></button>
                       <button type="button" class="gt-rb gt-del" data-del={r} aria-label="Delete this line" title="Delete this line"
                         onClick={(e) => { e.stopPropagation(); if (r >= range.r0 && r <= range.r1 && range.r1 > range.r0) removeRows(range.r0, range.r1); else removeRows(r, r); focusBox(); }}><Icon name="x" /></button>
                     </th>
@@ -415,7 +418,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
         <Fade class="gt-menu" role="menu" boxRef={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
           onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenu(null); focusBox(); } }}>
           {menu.items.map((it, n) => (it === "-" ? <hr key={n} /> : (
-            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[3] ? <Icon name={actionIcon(it[3])} cls="mi" /> : null}<span>{it[0]}</span></button>
+            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}><Icon name={actionIcon(rowAction(it))} cls="mi" /><span>{it[0]}</span></button>
           )))}
         </Fade>
       ) : null}
