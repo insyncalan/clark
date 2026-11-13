@@ -129,6 +129,11 @@ function byRef(a, b) {
   }
   return String(a.u.ref || "").localeCompare(String(b.u.ref || ""));
 }
+/** The rows a tab keeps (and `test`, the filter line's test, when given), in the chosen order; ties keep the data's order. Shared by the editor's list and the published tab. */
+export function pickRows(rows, f, test) {
+  const keeps = tabKeeps(f.tab);
+  return rows.map((r, i) => [r, i]).filter(([r]) => (!test || test(r)) && keeps(r)).sort((a, b) => (ORDER[f.sort] || ORDER.ref)(a[0], b[0]) || a[1] - b[1]).map(([r]) => r);
+}
 export const ORDER = {
   ref: byRef,
   status: (a, b) => WORST_FIRST.indexOf(a.status) - WORST_FIRST.indexOf(b.status) || byRef(a, b),

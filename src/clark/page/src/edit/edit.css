@@ -418,6 +418,7 @@ table.items td.c-pick { vertical-align: middle; }
   .ucl-row { grid-template-columns: var(--ucl-cols-s, 70px minmax(0, 1fr) 112px 92px 36px); gap: 10px; }
   .ucl-head, .ucl-ms, .ucl-hd .ucl-head, .ucl-hd .ucl-ms { display: none; }
   .ucl-name small { display: -webkit-box; }
+  .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
   .top .tabs { flex: 1 1 0; min-width: 0; overflow-x: auto; scrollbar-width: none; }
