@@ -1649,7 +1649,7 @@
      [
       "ul",
       [
-       "**The top bar**: Previous item and Next item, the milestone’s number, Archive (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
+       "**The top bar**: Previous item and Next item, the milestone’s number, More actions (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
        "**Archive**: in the **More actions** menu archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
