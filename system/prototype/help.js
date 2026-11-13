@@ -233,7 +233,7 @@
       'Click a count, or press [[Enter]] on it, to open Work items filtered to exactly what it counts.',
       'In Edit, drag a tile to reorder it, or press [[Alt+Left]] or [[Alt+Right]]. The eye hides a tile: it is left out of the published page.',
       'Right-click a tile in Edit for **Tile colour**: **Automatic, from the data**, Green, Amber, Red or **No colour**.' ],
-      n: 'The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is red, amber when something waits, and green otherwise. A coloured tile also says its status in words beside its number: On track, At risk or Off track (Overdue on Overdue actions, Waiting on Decisions needed, Watch or High on High risks and issues). When the Project health tile’s colour is set by hand to something other than its pill, the words say so: for example “Tile colour: Off track”. No colour means no word.' },
+      n: 'The colour is a thin outline that fades from the bottom-left corner. Automatic is red when an action is overdue or a risk is Urgent or High, amber when something waits, and green otherwise. A coloured tile also says its status in words beside its number: On track, At risk or Off track (Overdue on Overdue actions, Waiting on Decisions needed, Watch or High on High risks and issues). When the Project health tile’s colour is set by hand to something other than its pill, the words say so: for example “Tile colour: Off track”. No colour means no word.' },
     { id: 'keep-the-use-cases', g: 'The report', t: 'Keep the use case summary', w: 'Dashboard › Use case summary', go: 'dashboard', s: [
       'The section opens with a strip: how many use cases, a count for each status and a small meter. Then one slim row each: the ID, the name, the headline, the status and the open next steps.',
       'Click a row (or press [[Enter]] or [[Space]]) to open its detail in place: **Where it stands** and **Next steps**. **See all work items** opens Work items filtered to that use case.',
@@ -452,8 +452,8 @@
       ['tbl', ['Tile', 'Counts', 'Automatic colour'], [
         ['Project health', 'On track, At risk or Off track, with the reason', 'The health'],
         ['Overdue actions', 'Open actions past their due date, “of n open actions”', 'Red when any; green when none'],
-        ['High risks and issues', 'Open risks and issues of Urgent or High priority', 'Red when any is red; amber when some are open; green when none'],
-        ['Decisions needed', 'Pending decisions, with the oldest date', 'Amber when any; green when none'] ]],
+        ['High risks and issues', 'Open risks and issues of Urgent or High priority', 'Red when any is Urgent or High; amber when some are open; green when none'],
+        ['Decisions needed', 'Pending decisions, with the oldest date they are needed by', 'Amber when any; green when none'] ]],
       ['p', 'In Edit, the health tile adds **Suggested: …**, a health worked out by plain rules, with its reasons: an action overdue by more than 7 days, a slipped milestone, two or more red risks or issues. One rule gives At risk; all three give Off track; none gives On track. It never changes your choice. If your health is better than the suggestion, the reason is needed.'],
       ['p', 'A count opens Work items filtered to it. In Edit: drag or [[Alt+Left]] / [[Alt+Right]] to reorder, the eye to hide, right-click for **Tile colour**.'] ] },
     { id: 'layouts', g: 'Screens', t: 'Section styles', b: [

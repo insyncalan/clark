@@ -27,7 +27,7 @@ export const LAYOUT = {
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). Every sheet needs an ID column. A row whose ID exists updates it; a row with that column blank adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
   sheetsTitle: "What to import",
   sheetsBody: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
   selectAll: "Select all",
@@ -68,7 +68,7 @@ export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more 
 
 // The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).
-export const COLUMNS_INTRO = "Columns, in any order (only the name or title is needed):";
+export const COLUMNS_INTRO = "Columns, in any order (the ID column and the name or title are needed):";
 export const IMPORT_COLUMNS = [
   ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
@@ -150,7 +150,9 @@ export function countsRow(r) {
 export function sheetLine(r) {
   const of = (tables, kind) => ((r && r.items) || []).filter((i) => tables.includes(i.table) && i.kind === kind).length;
   const part = (name, tables) => `${name}: ${of(tables, "new")} new, ${of(tables, "changed")} updated`;
-  return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
+  const parts = [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])];
+  if (of(["gantt_lines"], "new") + of(["gantt_lines"], "changed")) parts.push(part("Gantt", ["gantt_lines"]));
+  return parts.join(" · ");
 }
 
 // The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.
