@@ -7,6 +7,7 @@ import json
 import unittest
 
 from test_glance_page import Setup, USER, tearDownModule  # noqa: F401
+from _new_page import reload_to_new_page
 from test_server import chrome
 
 ROWS = "document.querySelectorAll('.ucrows > .ucrow').length"
@@ -51,14 +52,12 @@ class FirstFive(Setup):
             p.until(f"{ROWS} === 6", "all shown")
             self.assertEqual(p.js("document.querySelector('[data-ucall]').getAttribute('aria-expanded')"), "true")
             self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "true", "the choice is remembered")
-            p.js("location.reload()")
-            p.until(f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
+            reload_to_new_page(p.js, f"{ROWS} === 6 && !!document.querySelector('[data-ucall]')", "still all shown after a reload")
             self.assertEqual(p.js(BUTTON), "Show the first 5")
             p.js("document.querySelector('[data-ucall]').click()")
             p.until(f"{ROWS} === 5", "reduced")
             self.assertEqual(p.js("window.localStorage.getItem('clark.ucAll')"), "false")
-            p.js("location.reload()")
-            p.until(f"{ROWS} === 5 && !!document.querySelector('[data-ucall]')", "still the first five after a reload")
+            reload_to_new_page(p.js, f"{ROWS} === 5 && !!document.querySelector('[data-ucall]')", "still the first five after a reload")
 
 
 class AddedBeyondFive(Setup):
