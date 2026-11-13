@@ -292,7 +292,8 @@ class Look(Base):
                         p.key("/", code="Slash", vk=191)
                         p.until(SETTLE, "the panel is ready again")
                     self.assertEqual(p.js("location.hash.split('&')[0]"), "#" + page)
-                    p.until(f"({pills}) === {json.dumps(json.dumps(want, separators=(",", ":")))}", f"{width} {page}: its suggestion list")
+                    want_json = json.dumps(json.dumps(want, separators=(",", ":")))
+                    p.until(f"({pills}) === {want_json}", f"{width} {page}: its suggestion list")
                     self.assertEqual(json.loads(p.js(pills)), want, f"{width} {page}")
 
     def test_the_suggestions_are_one_row_that_scrolls_sideways(self):
