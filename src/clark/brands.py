@@ -1,4 +1,4 @@
-"""The brand library (#944 T2): brands live in system/branding/<id>/, come in from a checked zip, and go out again.
+"""The brand library (#944 T2): brands live in branding/<id>/, come in from a checked zip, and go out again.
 
 review(path, root) checks a brand zip and writes nothing; install(review_id, root, data) puts the reviewed brand in place
 (stage, check again, two renames); remove(id, root, data) and undo(root, data) take it out or put the last change back, each
@@ -7,10 +7,12 @@ with a backup under <data>/brand-backups/. installed(root) lists the brands; fol
 A zip is read once into memory and judged by its end record and headers before any member is read; every structure failure is
 the update zip's own "damaged" refusal. Nothing here joins text from a request onto a path: an id must match ID_RE first.
 """
+import contextlib
 import functools
 import hashlib
 import importlib.util
 import json
+import logging
 import os
 import re
 import secrets
@@ -27,6 +29,9 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from clark import excel_picture, publish, updates
+
+LOG = logging.getLogger("clark")
+LINKED_OLD = "The old brand folder (system/branding) is a link, so clark did not copy it. Copy its files into branding by hand if you want them."
 
 ZIP_CAP = 16 * 1024 * 1024          # the zip file
 TOTAL_CAP = 24 * 1024 * 1024        # all members unpacked (declared sum, and counted while reading)
@@ -49,8 +54,7 @@ GENERIC = object()                  # what folder() answers for the committed lo
 RESERVED = ("assets", "design-system", "generic", LOCAL)
 ID_RE = re.compile(r"[a-z0-9-]{1,40}")
 VERSION_RE = re.compile(r"[0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6}")
-ZIP_NAME_RE = re.compile(r"clark-brand-(.+)-([0-9]{1,6}\.[0-9]{1,6}\.[0-9]{1,6})\.zip")
-BROWSER_COPY = re.compile(r" \([0-9]+\)(?=\.zip$)")      # a browser's " (1)" after a second download
+LOOK_AT = 5                         # the newest this many zips in Downloads are looked at for a brand manifest
 MANIFEST = "clark-brand.json"
 TOKENS = "tokens.css"
 HIDDEN_NEW = ".clark-brand-new-"
@@ -84,7 +88,6 @@ LISTED_WORD_CHECK = None            # a test sets a function (line -> bool); Non
 MESSAGES = {
     "damaged": updates.MESSAGES["damaged"],
     "failed": "That didn't work, and nothing was changed. Try again, or restart clark.",
-    "name": "That isn't a clark brand file. Its name should look like clark-brand-yourbrand-1.2.3.zip.",
     "too_big": "This brand file holds a file that is too big. The most for one file is 5 MB. Nothing was installed.",
     "too_many": "This brand file holds too many files. The most is 50. Nothing was installed.",
     "unsafe_name": "This brand file has a file name clark can't use safely. Nothing was installed.",
@@ -164,7 +167,7 @@ def _write(brand_id):
 # --- the library --------------------------------------------------------------------------------------------------------
 
 def _branding(root):
-    return Path(root) / "system" / "branding"
+    return Path(root) / "branding"
 
 
 def _read_small(path, cap):
@@ -220,8 +223,67 @@ def _has_top_tokens(base):
         return False
 
 
+def _top_pack(base):
+    """{"id", "name", "version", "own_folder": False, "alias": local-brand} for a pack unzipped straight into system/branding
+    (tokens.css and a valid clark-brand.json at the top), else None. Its id is the manifest's when that is a plain unreserved id,
+    else local-brand; its name is the manifest's. local-brand keeps resolving to the top folder too (the alias)."""
+    if not _has_top_tokens(base):
+        return None
+    data = _read_small(base / MANIFEST, MANIFEST_CAP)
+    doc = _parse_manifest(data) if data is not None else None
+    if not doc or not _clean_text(doc.get("name"), MAX_NAME) or not isinstance(doc.get("version"), str) \
+            or not VERSION_RE.fullmatch(doc["version"]):
+        return None
+    given = doc.get("id")
+    plain = isinstance(given, str) and ID_RE.fullmatch(given) and given not in RESERVED
+    return {"id": given if plain else LOCAL, "name": doc["name"], "version": doc["version"], "own_folder": False,
+            "alias": LOCAL}
+
+
+def has_manifest(path):
+    """True when `path` is a zip of at most ZIP_CAP bytes and FILE_CAP entries with a clark-brand.json one folder down that is
+    at most MANIFEST_CAP bytes, parses as a JSON object and names a plain id. Reads only that one member."""
+    try:
+        if os.path.getsize(path) > ZIP_CAP:
+            return False
+        with zipfile.ZipFile(path) as zf:
+            infos = zf.infolist()
+            if len(infos) > FILE_CAP:
+                return False
+            for info in infos:
+                if info.filename.count("/") == 1 and info.filename.endswith("/" + MANIFEST):
+                    if info.file_size > MANIFEST_CAP:
+                        return False
+                    body = zf.read(info)
+                    doc = _parse_manifest(body) if len(body) <= MANIFEST_CAP else None
+                    given = doc.get("id") if doc else None
+                    return isinstance(given, str) and bool(ID_RE.fullmatch(given)) and given not in RESERVED
+            return False
+    except (OSError, zipfile.BadZipFile, ValueError, NotImplementedError, RuntimeError, EOFError, zlib.error):
+        return False
+
+
+def newest_brand_zip(folder):
+    """The newest of the newest LOOK_AT zips in `folder` that holds a brand manifest, or None. Links are not followed."""
+    found = []
+    try:
+        with os.scandir(folder) if folder else contextlib.nullcontext([]) as it:
+            for e in it:
+                try:
+                    if e.name.lower().endswith(".zip") and not e.is_symlink() and e.is_file(follow_symlinks=False):
+                        found.append((e.stat(follow_symlinks=False).st_mtime, Path(e.path)))
+                except OSError:
+                    continue
+    except OSError:
+        return None
+    for _mtime, p in sorted(found, key=lambda t: t[0], reverse=True)[:LOOK_AT]:
+        if has_manifest(p):
+            return p
+    return None
+
+
 def installed(root):
-    """[{"id", "name", "version"}]: the folders of system/branding with a valid manifest naming themselves, plus local-brand
+    """[{"id", "name", "version"}]: the folders of branding/ with a valid manifest naming themselves, plus local-brand
     when a tokens.css sits at the top. Hidden folders and the legacy sub-folders are ignored. Read per Settings call."""
     base = _branding(root)
     out = []
@@ -241,14 +303,26 @@ def installed(root):
         found = _listed(base / name, name)
         if found:
             out.append(found)
-    if _has_top_tokens(base):
-        out.append({"id": LOCAL, "name": LOCAL, "version": ""})
+    top = _top_pack(base)
+    if top and not any(b["id"] == top["id"] for b in out):
+        out.append(top)
+    elif _has_top_tokens(base) and not top:
+        out.append({"id": LOCAL, "name": LOCAL, "version": "", "own_folder": False, "alias": LOCAL})
     return sorted(out, key=lambda b: b["id"])
+
+
+def _own_folder(root, brand_id):
+    """True when system/branding/<brand_id> is a real (not linked) folder whose manifest names that id. Never the top pack."""
+    path = _branding(root) / brand_id
+    try:
+        return stat.S_ISDIR(os.lstat(path).st_mode) and _listed(path, brand_id) is not None
+    except OSError:
+        return False
 
 
 def folder(root, brand_id):
     """Where a brand lives: GENERIC for generic, an unknown or removed brand and any id that isn't plain; the top folder for
-    local-brand; else system/branding/<id>. An id is matched against ID_RE and looked up as an installed brand, never joined
+    local-brand; else branding/<id>. An id is matched against ID_RE and looked up as an installed brand, never joined
     from request text."""
     if not isinstance(brand_id, str) or not ID_RE.fullmatch(brand_id) or brand_id in ("generic", "assets", "design-system"):
         return GENERIC
@@ -261,7 +335,8 @@ def folder(root, brand_id):
             return path
     except OSError:
         pass
-    return GENERIC
+    top = _top_pack(base)
+    return base if top and top["id"] == brand_id else GENERIC
 
 
 # --- crash recovery -----------------------------------------------------------------------------------------------------
@@ -301,6 +376,94 @@ def recover(root):
         for name in names:
             if name.startswith(HIDDEN_NEW):
                 _rmtree(base / name)
+
+
+# --- the one-time copy from the old place (1.0.6) -------------------------------------------------------------------------
+
+OLD_PLACE = ("system", "branding")      # where 1.0.5 and earlier kept the brand folder; it is left exactly as it is (a return to 1.0.5 still finds it)
+COPY_STAGE = ".clark-branding-copying"  # the copy while it is being made: hidden, beside branding/, renamed into place only when whole
+COPY_JOURNAL = ".clark-branding-copy.json"   # written before the first byte is copied; its presence means a copy was cut short
+
+
+def _entry(folder, name):
+    """The real name of `name` in `folder` (letter case does not matter, as on a Mac disk), or None."""
+    try:
+        for n in os.listdir(folder):
+            if n.casefold() == name.casefold():
+                return n
+    except OSError:
+        pass
+    return None
+
+
+def _copy_into(src, dst):
+    """Copy a folder to a new place, links kept as links, never following one. A link is copied as it is (its target text unchanged), so a
+    relative link that climbs out of the folder (../../x) points from branding/ to a different place than it did from system/branding/."""
+    os.mkdir(dst)
+    for name in sorted(os.listdir(src)):
+        s, d = os.path.join(src, name), os.path.join(dst, name)
+        mode = os.lstat(s).st_mode
+        if stat.S_ISLNK(mode):
+            os.symlink(os.readlink(s), d)
+        elif stat.S_ISDIR(mode):
+            _copy_into(s, d)
+        else:
+            shutil.copy2(s, d, follow_symlinks=False)
+
+
+def recover_copy(root):
+    """Put right a copy a crash cut short: only the hidden stage (a copy) and the journal are removed, never the old folder and never
+    branding/. The copy is then made again by copy_old_folder()."""
+    root = Path(root)
+    _rmtree(root / COPY_STAGE)
+    _rmtree(root / COPY_JOURNAL)
+
+
+def copy_old_folder(root):
+    """The one-time copy (1.0.6): when <root>/system/branding is a folder and <root>/branding is absent or an empty folder, the old folder
+    is copied to <root>/branding. Never overwrites (branding/ with anything in it, or a link or file of that name in any letter
+    case, wins and nothing is done), never deletes or changes the old folder, safe to run twice. The copy is made in a hidden stage
+    after a journal is written, and renamed into place only when whole, so branding/ is never half-made. Returns True when
+    branding/ was made now; False when nothing was to do or it could not be made (the next start tries again)."""
+    root = Path(root)
+    try:
+        with _mutex:
+            if os.path.lexists(root / COPY_JOURNAL) or os.path.lexists(root / COPY_STAGE):
+                recover_copy(root)
+            old_name = _entry(root / OLD_PLACE[0], OLD_PLACE[1]) if _entry(root, OLD_PLACE[0]) else None
+            if old_name is None:
+                return False
+            old = root / _entry(root, OLD_PLACE[0]) / old_name
+            if not stat.S_ISDIR(os.lstat(old).st_mode):          # a link or a file in the old place is not a folder to copy
+                if stat.S_ISLNK(os.lstat(old).st_mode):
+                    LOG.warning("%s", LINKED_OLD)                # said once per start, in the log only; links are never followed
+                return False
+            have = _entry(root, "branding")
+            if have is not None:
+                target = root / have
+                if not stat.S_ISDIR(os.lstat(target).st_mode) or os.listdir(target):
+                    return False                       # branding/ wins: a link, a file, or a folder with anything in it
+            else:
+                target = root / "branding"
+            stage = root / COPY_STAGE
+            journal, tmp = root / COPY_JOURNAL, root / (COPY_JOURNAL + ".tmp")
+            tmp.write_text(json.dumps({"from": "/".join(OLD_PLACE), "stage": COPY_STAGE}), encoding="utf-8")
+            os.replace(tmp, journal)
+            try:
+                _copy_into(old, stage)
+                if have is None and os.path.lexists(target):
+                    raise OSError("branding appeared while the copy was made")
+                if have is not None and os.listdir(target):
+                    raise OSError("branding was filled while the copy was made")
+                os.rename(stage, target)
+            except BaseException:
+                _rmtree(stage)
+                _rmtree(journal)
+                raise
+            _rmtree(journal)
+            return True
+    except OSError:
+        return False
 
 
 # --- reading a zip ------------------------------------------------------------------------------------------------------
@@ -617,9 +780,6 @@ def review(path, root):
     """Check a brand zip and hold it for 15 minutes. Returns {"review_id", "id", "name", "version", "zip_sha256", "added",
     "replaced", "removed"}. Writes nothing (it only puts right what a crash left, first)."""
     recover(root)
-    given = ZIP_NAME_RE.fullmatch(BROWSER_COPY.sub("", Path(path).name))
-    if not given:
-        raise BrandError("name", "the file name")
     members, modes, zip_sha = _open_zip(path)
     names = list(members)
     tops = {n.split("/")[0] for n in names if "/" in n}
@@ -642,8 +802,6 @@ def review(path, root):
     check_id(brand_id)
     if brand_id != top:
         raise BrandError("folder", "the manifest's id is not the folder's")
-    if given.group(1) != brand_id:
-        raise BrandError("name", "the file name's id is not the brand's")
     if set(rows) != set(files):
         raise BrandError("manifest", "the rows and the files differ")
     for rel, body in files.items():
@@ -842,7 +1000,7 @@ def remove(brand_id, root, data):
             raise BrandError("failed", "not a removable brand")
         with _write(brand_id):
             recover(root)
-            if folder(root, brand_id) is GENERIC:
+            if not _own_folder(root, brand_id):
                 raise BrandError("failed", "not installed")
             backup = _backup(data, root, brand_id)
             base = _branding(root)
@@ -894,6 +1052,8 @@ def undo(root, data):
             raise BrandError("failed", "nothing to undo")
         brand_id, base = doc["id"], _branding(root)
         with _write(brand_id):
+            if os.path.lexists(base / brand_id) and not _own_folder(root, brand_id):
+                raise BrandError("failed", "not an installed brand")
             if doc["kind"] == "install":
                 aside = base / (HIDDEN_OLD + brand_id)
                 _rmtree(aside)

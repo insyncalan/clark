@@ -1,0 +1,41 @@
+# clark served from Docker, with clark itself running on the Mac (item 1100). In the unzipped clark folder, in two Terminal windows:
+#   1. bash docker/front.command server        clark's own server, on this Mac (all Mac features work). Leave the window open.
+#   2. bash docker/front.command               checks the server answers, then starts the web server in Docker; open http://localhost:8766
+#   bash docker/front.command stop             stops the web server in Docker (Ctrl+C in window 1 stops clark)
+# If Docker is a problem, the Terminal route is the supported way: bash clark.command. Docker only passes requests on; if Docker fails, nothing is lost.
+# This file holds no clark code and no data: only a stock proxy image and one read-only settings file. The Mac server listens on
+# 127.0.0.1 only and is never opened to the network for this. The port is published to 127.0.0.1 ONLY: without the "127.0.0.1:" in
+# front, anyone on your network could reach clark. CLARK_PORT changes the port you open; CLARK_SERVER_PORT the one clark's server uses (default 8767).
+name: clark-front
+services:
+  front:
+    image: nginxinc/nginx-unprivileged:1.27.5-alpine
+    ports:
+      - "127.0.0.1:${CLARK_PORT:-8766}:8080"
+    environment:
+      CLARK_PORT: "${CLARK_PORT:-8766}"
+      CLARK_SERVER_PORT: "${CLARK_SERVER_PORT:-8767}"
+    volumes:
+      - type: bind
+        source: ./nginx.front.conf.template
+        target: /etc/nginx/templates/default.conf.template
+        read_only: true
+    # So the name host.docker.internal also works on Linux and Colima, not only Docker Desktop.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 20s
+      retries: 3
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /etc/nginx/conf.d:uid=101,gid=101
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    # Not "unless-stopped": the server is not started by Docker, so a front that came back alone would only show the "not running" page.
+    restart: "no"

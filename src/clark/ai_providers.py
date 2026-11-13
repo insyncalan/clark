@@ -55,6 +55,10 @@ class Subscription(Provider):
     def status(self):
         return self.command.status()
 
+    def failed_check(self):
+        """The short code of the check that last failed (ask_claude.ClaudeCommand.failed), or None."""
+        return getattr(self.command, "failed", None)
+
     def most_chars(self, model):
         """The longest request text `model` may be sent. No model chosen: the smallest, because the command's own choice isn't known here."""
         tokens = self.contexts[model] if model is not None else min(self.contexts.values())

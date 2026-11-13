@@ -111,6 +111,23 @@ class Undo(unittest.TestCase):
         self.assertTrue(out["skipped"])
         self.assertTrue(all("something refers to it now (an action ABC-A-" in x["why"] for x in out["skipped"]))
 
+    def test_a_milestone_a_use_case_is_linked_to_is_skipped_and_named_until_the_link_is_taken_off(self):
+        from clark import store as sm
+        with self.s.step("dashboard", USER) as st:
+            m = st.create("milestones", {"project": "ABC", "name": "Second", "source": "demo"})
+        made = self.demo.last_step()
+        with self.s.step("dashboard", USER) as st:
+            sm.link_use_case_milestone(st, self.demo.use_case, m)
+        out = self.s.undo(made, USER)
+        self.assertIsNotNone(self.s.read("milestones", ref=m))
+        self.assertTrue(any("something refers to it now (a use case and milestone link" in x["why"] for x in out["skipped"]), out)
+        with self.s.step("dashboard", USER) as st:
+            sm.unlink_use_case_milestone(st, self.demo.use_case, m)
+        self.assertIsNone(sm.referred_to(self.s.con, m))          # a link taken off is not a reference
+        out = self.s.undo(made, USER)
+        self.assertEqual(out["skipped"], [], out)
+        self.assertIsNone(self.s.read("milestones", ref=m))
+
     def test_a_new_label_still_on_an_item_is_skipped(self):
         with self.s.step("dashboard", USER) as st:
             st.create("labels", {"name": "Watch"})
@@ -380,6 +397,21 @@ class Undo(unittest.TestCase):
         self.assertIsNotNone(out["step_id"])
         self.assertIsNotNone(self.s.con.execute("SELECT 1 FROM applies WHERE apply_id = ?", (out["step_id"],)).fetchone())
         self.assertEqual({self.s.read("actions", ref=x)["owner"] for x in (a, b)}, {"Sam Example", "TBC"})
+
+    def test_one_item_two_fields_in_one_step_go_back_to_their_first_values_when_the_second_depends_on_the_first(self):
+        with self.s.step("dashboard", USER) as st:
+            r = st.create("raid", {"project": "ABC", "type": "Risk", "description": "d", "raised": "2026-10-01", "source": "demo",
+                                   "impact": "Low", "likelihood": "Low"})
+        before = dict(self.s.read("raid", ref=r))
+        with self.s.step("dashboard", USER) as st:
+            st.update("raid", r, {"impact": "High"})                    # A
+            st.update("raid", r, {"likelihood": "High"})                # B: the priority is worked out from A and B together
+        self.assertEqual(self.s.read("raid", ref=r)["priority"], "Urgent")
+        step = self.demo.last_step()
+        out = self.s.undo(step, USER)
+        row = self.s.read("raid", ref=r)
+        self.assertEqual(out["skipped"], [])
+        self.assertEqual((row["impact"], row["likelihood"], row["priority"]), (before["impact"], before["likelihood"], before["priority"]))
 
 
 class Opening(unittest.TestCase):

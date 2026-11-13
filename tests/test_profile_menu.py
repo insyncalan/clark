@@ -25,8 +25,10 @@ ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
 
 class ProfileMenu(Base):
     def open_menu(self, p):
-        p.js("document.querySelector('#profile-btn').focus(); document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+        p.js("document.querySelector('#profile-btn').focus()")
+        p.until("(() => { if (document.querySelector('#profile-menu')) return true; "
+                "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
+                "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def labels(self, p):
         return p.js("[].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent})")
@@ -201,6 +203,56 @@ class ProfileMenu(Base):
             self.open_menu(p)
             p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_with_a_name_typed_the_menu_still_has_settings_in_order_and_it_opens_settings(self):
+        """Row 1092: the named pass. The top line is the name (no link), Settings is still one entry after Published reports and before the
+        Appearance group, and a click on it opens Settings."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_menu(p)
+            p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('#about-name')", "About you drew")
+            p.js("(() => { const el = document.querySelector('#about-name'); el.value = 'Sam Lee'; el.dispatchEvent(new Event('input', {bubbles: true})); "
+                 "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()")
+            p.js("location.hash = '#dashboard&p=PUB'")
+            p.until("!!document.querySelector('#profile-btn')", "back on a report")
+            for _ in range(2):
+                p.js("document.querySelector('#profile-menu') || document.querySelector('#profile-btn').click()")
+                if p.js("!!document.querySelector('#profile-menu b') && document.querySelector('#profile-menu b').textContent === 'Sam Lee'"):
+                    break
+                p.js("document.querySelector('#profile-menu') && document.querySelector('#profile-btn').click()")
+            p.until("!!document.querySelector('#profile-menu') && !!document.querySelector('#profile-menu .who b')", "the menu opened with the name")
+            self.assertEqual(p.js("document.querySelector('#profile-menu .who b').textContent"), "Sam Lee")
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu .who-link').length"), 0, "no link once a name is typed")
+            labels = self.labels(p)
+            self.assertEqual(labels.count("Settings"), 1)
+            self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
+            nxt = "document.querySelector('#profile-menu [data-kind=settings]').nextElementSibling"
+            self.assertEqual(p.js(nxt + ".getAttribute('role')"), "separator", "Settings, then the separator")
+            self.assertEqual(p.js(nxt + ".nextElementSibling.getAttribute('role')"), "group", "then the Appearance group")
+            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_the_top_line_stacks_the_name_over_the_email(self):
+        """The name in bold with the email under it (not side by side), at 1400 and 900, in light and in dark."""
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Sam Lee", "profile_email": "sam@example.test"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                for theme in ("light", "dark"):
+                    with self.subTest(width=w, theme=theme):
+                        p.js("document.documentElement.setAttribute('data-theme', %s)" % json.dumps(theme))
+                        self.open_menu(p)
+                        p.until("!!document.querySelector('#profile-menu .who b')", "the name line drew")
+                        r = p.js("(function(){var w=document.querySelector('#profile-menu .who'),b=w.querySelector('b').getBoundingClientRect(),s=w.querySelector('small').getBoundingClientRect();"
+                                 "return {top:b.bottom,sTop:s.top,bl:b.left,sl:s.left,disp:getComputedStyle(w).display,name:w.querySelector('b').textContent,email:w.querySelector('small').textContent}})()")
+                        self.assertEqual((r["name"], r["email"]), ("Sam Lee", "sam@example.test"))
+                        self.assertNotIn("flex", r["disp"], "the line is a block, not the owner cell's inline-flex row")
+                        self.assertGreaterEqual(r["sTop"], r["top"] - 1, "the email is under the name")
+                        self.assertAlmostEqual(r["bl"], r["sl"], delta=1, msg="both start at the same left edge")
+                        p.key("Escape", code="Escape", vk=27)
+                        p.until("!document.querySelector('#profile-menu')", "closed")
 
     def test_C_the_settings_link_opens_settings(self):
         with chrome() as cdp:

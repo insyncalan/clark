@@ -5,7 +5,7 @@
 // listed are the ones marked for the client (the eye). An empty section keeps its heading and says so in a line in View (prototype views.js: "Nothing to show."); a
 // published file leaves an empty section out, heading and all (Dashboard.jsx fileDraws), so a client never reads that line.
 import { data, rows as allRows, fromFile, asAt, openPeek } from "../stores/report.js";
-import { ownerOf, showDate, todayIso, dueField, isOpen, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
+import { ownerOf, showDate, todayIso, dueField, isOpen, isLate, dayNumber, KIND_WORDS, kindLetter } from "../workItems.js";
 import { sectionRows, listed, dateWord, clientPill, lateWord, keptIds } from "../logic/sectionRows.js";
 
 export const NOTHING = "Nothing to show.";
@@ -63,7 +63,6 @@ export const toneOf = (row, pill) => {
   if (row.status === "Closed" || row.status === "Completed") return "b";
   return pill.class === "b" ? "g" : pill.class;
 };
-const isLate = (row, today) => { const a = dayNumber(dueField(row)), b = dayNumber(today); return isOpen(row) && row.status !== "Completed" && a !== null && b !== null && a < b; };
 export const iconWords = (row, pill, today) => {
   const kind = KIND_WORDS[row.kind] || "Item", late = isLate(row, today) && pill.text !== "Overdue" ? "Overdue" : "";
   const own = row.kind !== "decision" && pill.text === row.status && pill.text !== "Delayed";      // a record's own status word (Blocked, In progress) wins; the tooltip still says Overdue

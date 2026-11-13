@@ -53,6 +53,7 @@ class Card(base.Detail):
                 sid = self.open_detail(cdp, width, "light", edit=True)
                 self.assertEqual(self.how(cdp, sid), {VIA: ["work", "Through work items"]})
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms] [data-ms-remove]').length", sid), 1)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms] [data-ms-unlink]').length", sid), 0, "nothing is linked directly, so nothing to unlink")
 
     def test_a_direct_only_milestone_has_unlink_not_remove_and_unlink_and_link_are_one_step_with_one_undo(self):
         self.link(DIRECT)
@@ -72,6 +73,19 @@ class Card(base.Detail):
                 self.until(cdp, sid, f"!document.querySelector('[data-ucd] [data-ms={DIRECT}]')", "gone again")
                 click(cdp, sid, "[data-undo]")
                 self.until(cdp, sid, f"!!document.querySelector('[data-ucd] [data-ms={DIRECT}]')", "and back")
+
+    def test_a_milestone_that_is_both_has_unlink_and_remove_and_the_peek_names_the_use_cases_linked_to_it(self):
+        self.link(DIRECT, VIA)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_detail(cdp, width, "light", edit=True)
+                for ms, unlink, remove in ((DIRECT, 1, 0), (VIA, 1, 1)):
+                    self.assertEqual(cdp.js(f"document.querySelectorAll('[data-ucd] [data-ms={ms}] [data-ms-unlink]').length", sid), unlink, ms)
+                    self.assertEqual(cdp.js(f"document.querySelectorAll('[data-ucd] [data-ms={ms}] [data-ms-remove]').length", sid), remove, ms)
+                click(cdp, sid, f"[data-ucd] [data-ms-open={DIRECT}]")
+                self.until(cdp, sid, "!!document.querySelector('#peek [data-ms-ucs]')", "the milestone peek names its use cases")
+                said = cdp.js("document.querySelector('#peek [data-ms-ucs]').textContent", sid)
+                self.assertEqual(said, "1.1 Paper files scanned and indexed", "the use case linked straight to it, by reference and title")
 
     def test_link_a_milestone_menu_links_it_directly(self):
         with chrome() as cdp:

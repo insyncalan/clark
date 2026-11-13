@@ -66,14 +66,22 @@ class Stoppable(sv.LocalServer):
 
     def __init__(self, *a, **kw):
         self.accepted = []
+        self.serving = {}
         super().__init__(*a, **kw)
 
     def process_request(self, request, client_address):
         self.accepted.append(request)
         super().process_request(request, client_address)
 
-    def drop_connections(self):
+    def process_request_thread(self, request, client_address):
+        self.serving[threading.get_ident()] = request
+        super().process_request_thread(request, client_address)
+
+    def drop_connections(self, keep=None):
+        """keep: the id of the handler thread whose connection is left to finish its reply (it is HTTP/1.0: it closes after the reply)."""
         for conn in self.accepted:
+            if keep and conn is self.serving.get(keep):
+                continue
             try:
                 conn.shutdown(socket.SHUT_RDWR)
             except OSError:
@@ -211,14 +219,33 @@ class HostHeader(ServerTest):
     def test_another_host_gets_403_everywhere(self):
         for host in ("evil.example", "127.0.0.1.evil.example", "localhost.evil.example", "LOCALHOST", "", None,
                      "127.0.0.2", "[::2]:80", "0.0.0.0", "127.0.0.1:abc", "localhost:80@evil",
-                     "[::1]x", "127.0.0.1:99999", "127.0.0.1:0", "localhost:", "127.0.0.1:80:80"):
+                     "[::1]x", "127.0.0.1:99999", "127.0.0.1:0", "localhost:", "127.0.0.1:80:80",
+                     "clark.localhost.evil.example", "evil.clark.localhost", "other.localhost", "clark.localhost:", "clark.localhost:99999", "CLARK.LOCALHOST"):
             for path in ("/", "/health", "/api/data?project=DEMO"):
                 status, _, _ = self.s.ask("GET", path, {sv.TOKEN_HEADER: sv.TOKEN}, host=host)
                 self.assertEqual(status, 403, f"{host!r} {path}")
 
     def test_this_machine_passes(self):
-        for host in (f"localhost:{self.s.port}", f"127.0.0.1:{self.s.port}", f"[::1]:{self.s.port}", "localhost"):
+        for host in (f"localhost:{self.s.port}", f"127.0.0.1:{self.s.port}", f"[::1]:{self.s.port}", "localhost", f"clark.localhost:{self.s.port}", "clark.localhost"):
             self.assertEqual(self.s.ask("GET", "/health", host=host)[0], 200, host)
+
+
+class ClarkLocalhostOrigin(unittest.TestCase):
+    """Row 1076: a page opened at clark.localhost counts as a window of ours; a foreign site does not."""
+
+    def test_the_origin_of_the_address_clark_opens_is_ours(self):
+        for origin in ("http://clark.localhost:8766", "http://127.0.0.1:8766", "http://localhost:8766", None):
+            self.assertTrue(sv.page_load_is_ours({"Origin": origin} if origin else {}, 8766), origin)
+        for origin in ("http://clark.localhost:8767", "http://evil.clark.localhost:8766", "http://clark.localhost.evil.example:8766"):
+            self.assertFalse(sv.page_load_is_ours({"Origin": origin}, 8766), origin)
+
+    def test_the_csp_treats_clark_localhost_as_this_machine(self):
+        self.assertIn("clark.localhost", sv.CSP_LOOPBACK)
+
+    def test_a_report_naming_clark_localhost_is_classed_self_and_a_lookalike_external(self):
+        self.assertEqual(sv.csp_kind("http://clark.localhost:8766/x.js"), "self")
+        self.assertEqual(sv.csp_kind("http://evil.clark.localhost.example/x.js"), "external")
+        self.assertEqual(sv.csp_kind("http://127.0.0.1:8766/x.js"), "self")
 
 
 class Token(ServerTest):
@@ -1589,6 +1616,38 @@ class PipeFocus(unittest.TestCase):
         p = self.pipe()
         p.call("Page.enable", {}, "S1")
         self.assertEqual(p.sent, [("Page.enable", "S1")])
+
+    # mutation hunt (item 1211): the tests above pinned the method and the session, never the switch's value, the answer, or the odd answers
+    def test_the_emulation_is_switched_on_not_off_and_the_attach_answer_comes_back(self):
+        p = self.pipe()
+        seen = []
+        once = p._call_once
+
+        def spy(method, params=None, session=None):
+            seen.append((method, params))
+            return once(method, params, session)
+        p._call_once = spy
+        got = p.call("Target.attachToTarget", {"targetId": "T", "flatten": True})
+        self.assertEqual(got, {"sessionId": "S1"})
+        self.assertEqual(seen[-1], ("Emulation.setFocusEmulationEnabled", {"enabled": True}))
+
+    def test_an_attach_answer_with_no_session_gets_no_emulation_call(self):
+        for answer in ({}, None, "S1", {"sessionId": ""}):
+            with self.subTest(answer=answer):
+                p = self.pipe()
+                p._call_once = lambda method, params=None, session=None, a=answer: p.sent.append((method, session)) or a
+                self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), answer)
+                self.assertEqual(p.sent, [("Target.attachToTarget", None)])
+
+    def test_a_target_without_the_emulation_domain_still_attaches(self):
+        p = self.pipe()
+
+        def once(method, params=None, session=None):
+            if method == "Emulation.setFocusEmulationEnabled":
+                raise RuntimeError({"code": -32601, "message": "not found"})
+            return {"sessionId": "S1"}
+        p._call_once = once
+        self.assertEqual(p.call("Target.attachToTarget", {"targetId": "T"}), {"sessionId": "S1"})
 
 
 if __name__ == "__main__":

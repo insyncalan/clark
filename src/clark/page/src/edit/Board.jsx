@@ -274,7 +274,13 @@ export function Board({ rows, today, type }) {
     let on = false, before = null;
     const target = (ev) => {
       const el = document.elementFromPoint(ev.clientX, ev.clientY), col = el && el.closest ? el.closest(".col[data-col]") : null;
-      if (!col || (col.dataset.lane || "") !== lane) return before;
+      if (!col) {                                    // in the gap between two columns of this lane: the nearest column to the right
+        const ls = el && el.closest ? el.closest(".lane") : null;
+        if (!ls || (ls.dataset.lane || "") !== lane) return before;
+        const next = [...ls.querySelectorAll(".col[data-col]")].find((k) => ev.clientX < k.getBoundingClientRect().left);
+        return next ? next.dataset.col : null;
+      }
+      if ((col.dataset.lane || "") !== lane) return before;
       const r = col.getBoundingClientRect(), keys = orderedColumns(work.value, g, ln.columns).map((x) => x.key), i = keys.indexOf(col.dataset.col);
       return ev.clientX < r.left + r.width / 2 ? col.dataset.col : (keys[i + 1] === undefined ? null : keys[i + 1]);
     };

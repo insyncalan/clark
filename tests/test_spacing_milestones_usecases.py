@@ -2,7 +2,7 @@
 
 In the stylesheet: the milestone list, its row and detail toggle, and the use-case strip, row bar and detail take their gaps from --d-*
 tokens, each defined once for Compact (the standard and the fallback) and once for Comfortable. In a real browser at 1400 and 900 px:
-Compact computes exactly the values the page had (a list 14 px down, a row 2 px above and below (Milestones tighter, item 1020), a use-case strip 10 px), Comfortable is
+Compact computes exactly the values the page had (a list 14 px down, a row 14 px above and below (row 1083: the same in both densities), a use-case strip 10 px), Comfortable is
 looser for each, an unknown or missing word is Compact, and the type size does not move. The timeline is placed by dates, so its
 geometry is not density-driven. Chrome is required: the browser tests fail, never skip, without it.
 """
@@ -61,10 +61,10 @@ class Browser(Base):
         for w in (1400, 900):
             with self.subTest(width=w):
                 c = self.measure(w, "compact")
-                self.assertEqual((c["list"], c["cell"], c["strip"]), (14, [2, 2], 10))
+                self.assertEqual((c["list"], c["cell"], c["strip"]), (14, [14, 14], 10), "row 1083: a milestone row is 14 px above and below in Compact too (the owner's ruling)")
                 f = self.measure(w, "comfortable")
                 self.assertGreater(f["list"], c["list"])
-                self.assertGreater(f["cell"][0], c["cell"][0])
+                self.assertGreaterEqual(f["cell"][0], c["cell"][0], "a milestone row is 14 px in both densities (row 1083)")
                 self.assertGreater(f["strip"], c["strip"])
                 self.assertGreater(f["detail"], c["detail"])
                 self.assertEqual(f["size"], c["size"], "type size does not change with the density")

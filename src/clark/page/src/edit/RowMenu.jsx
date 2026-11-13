@@ -9,18 +9,20 @@ import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
-import { changeCell, changeRecord, say } from "../stores/changes.js";
+import { changeCell, changeNewPerson, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { people, tableOf, canClearDue } from "./itemEdit.js";
-import { readPeople } from "./peopleApi.js";
+import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { OwnerPick } from "./cells/OwnerPick.jsx";
+import { readPeople } from "./peopleApi.js";
+import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, ownerChoices, canAddPerson, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
 
@@ -34,7 +36,7 @@ const withOwnerLink = (row, d) => {
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
-const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, from: the element to give focus back to }
+const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
 const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
@@ -132,14 +134,31 @@ function entries(row, level, edit, d, today, reg) {
     { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
     { id: "sep3", sep: true },
     { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
 // A short list (status, due date, owner) open beside its entry: its own box on the window, placed once beside the entry (on the left
 // when the right has no room), so the menu itself never moves or changes size (row 848). Up and Down move in it, Left or Esc
 // go back to the entry.
-function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
-  const box = useRef(null);
+function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onPick, onLeave, onClose }) {
+  const box = useRef(null), search = useRef(null);
+  const [typed, setTyped] = useState("");
+  const [register, setRegister] = useState([]);
+  const [loaded, setLoaded] = useState(!owner);          // item 1070: no Add is offered until the people have been read
+  useEffect(() => {                                 // item 1070: the Change owner list searches the people clark holds as well as the project's names
+    if (!owner) return undefined;
+    let on = true;
+    readPeople().then((r) => { if (on) { setRegister(r.ok ? r.people : []); setLoaded(true); } });
+    return () => { on = false; };
+  }, []);
+  if (hold) hold.current = () => !!search.current && (document.activeElement === search.current || search.current.value.trim() !== "");   // item 1070: a search box in use keeps its list open
+  let list = shown;
+  if (owner && typed.trim()) {
+    const found = ownerChoices(register, owner.names, owner.row, typed);
+    list = [...found.map((n) => ({ id: "o:" + n, name: n })),
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person` }] : [])];
+  }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
     if (!el || !at) return;
@@ -147,19 +166,31 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     const right = m.right + w + 8 <= window.innerWidth;
     el.style.left = `${Math.round(right ? m.right - 2 : Math.max(8, m.left - w + 2))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
-    if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
+    if (focus) (search.current || menuItemsIn(el)[0] || el).focus({ preventScroll: true });
   }, []);
   useFadeOut(box, true, "rowmenu");
   const keys = (e) => {
-    if (menuMove(e, menuItemsIn(box.current))) return;
+    const items = menuItemsIn(box.current);
+    if (search.current && e.target === search.current) {          // the box is for typing: Down goes into the names, Esc goes back, Enter takes the first
+      if (e.key === "ArrowDown" && items.length) { e.preventDefault(); e.stopPropagation(); items[0].focus({ preventScroll: true }); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
+      else if (e.key === "Enter" && typed.trim() && list.length) { e.preventDefault(); e.stopPropagation(); onPick(list[0].id === "addp" ? "addp:" + typed.trim() : list[0].id); }
+      else if (e.key === "Tab") onClose("tab");
+      else e.stopPropagation();
+      return;
+    }
+    if (search.current && e.key === "ArrowUp" && items[0] === document.activeElement) { e.preventDefault(); e.stopPropagation(); search.current.focus({ preventScroll: true }); return; }
+    if (menuMove(e, items)) return;
     if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
     else if (e.key === "Tab") onClose("tab");
   };
   return (
-    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
+    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} data-rm-loading={loaded ? undefined : ""} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
       onKeyDown={keys} onPointerEnter={keep} onPointerLeave={() => hover("")}>
+      {owner ? <input ref={search} type="text" class="cp-in rm-search" data-rm-search value={typed} autocomplete="off" spellcheck={false} maxLength={200}
+        placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
-        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id)}>
+        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
           <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
@@ -186,15 +217,16 @@ function Panel({ s }) {
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
   }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
-  const timer = useRef(0);
+  const timer = useRef(0), hold = useRef(null);
+  const held = () => !!(hold.current && hold.current());
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
     clearTimeout(timer.current);
     if (id) {      // row 979: a list opens (or swaps for another) only after the pointer has rested on its entry, so a pointer passing over entries does not mount a list at each
-      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); }, REST);
+      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id && !held()) set({ fly: id, focusFly: false }); }, REST);
       return;
     }
-    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
+    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly && !held()) set({ fly: "" }); }, 250);
   };
   useLayoutEffect(() => {      // row 979: opened by the mouse, the first entry takes the focus without a ring until a key is used (MenuPanel cannot know: its anchor is null on the first draw)
     const box = s.pointer && wrap.current && wrap.current.querySelector(":scope > .ddmenu");
@@ -215,6 +247,7 @@ function Panel({ s }) {
     if (id === "pick") return set({ pick: true });
     if (id.startsWith("s:")) return change("status", id.slice(2));
     if (id.startsWith("o:")) return change("owner", id.slice(2));
+    if (id.startsWith("addp:")) return set({ adding: id.slice(5), fly: "", focusFly: false });
     if (id.startsWith("d:")) return change("due", id.slice(2));
     if (id === "eye") {
       const c = eyeChange(row);
@@ -241,6 +274,7 @@ function Panel({ s }) {
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
+    if (id === "delete") { close("pick"); deleteItem(row, "menu", row.id); return undefined; }
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
@@ -256,9 +290,9 @@ function Panel({ s }) {
   const list = entries(row, "", edit, d, today, reg);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
+      {s.pick || s.adding ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
-          <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
+          <button key={it.id} type="button" class={it.danger ? "danger" : undefined} role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
             onPointerEnter={(e) => { if (e.pointerType !== "touch") hover(it.sub ? it.id : ""); }} aria-disabled={it.disabled ? "true" : undefined}
             aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
@@ -268,8 +302,21 @@ function Panel({ s }) {
           </button>
         ))}
       </MenuPanel>}
-      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today, reg)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+      {s.fly && !s.pick && !s.adding ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today, reg)} owner={s.fly === "owner" ? { row, names: people(d) } : null} focus={s.focusFly} wrap={wrap} hover={hover} hold={hold} keep={() => clearTimeout(timer.current)}
         onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
+      {s.adding ? (
+        <OwnerPick row={row} anchor={{ current: s.from }} names={people(d)} addName={s.adding}
+          onPick={(v) => { const c = pickChange(row, "owner", v, today); if (c && c.error) return c.error; change("owner", v); return ""; }}
+          onAdd={async (person) => {
+            const c = newPersonChange(row, person, today);
+            if (c && c.error) return { ok: false, message: c.error, code: "", person: null };
+            if (!c) { close("pick"); return { ok: true }; }
+            const r = await changeNewPerson(tableOf(row), row.id, c, "menu");
+            if (r.ok) { close("pick"); refocus(row.id); }
+            return r;
+          }}
+          onClose={(back) => { state.value = null; if (back && s.from.isConnected) s.from.focus({ preventScroll: true }); }} />
+      ) : null}
       {s.pick ? (
         <DuePick row={row} anchor={{ current: s.from }} today={today}
           onPick={(v) => { const c = pickChange(row, "due", v, today); if (c && c.error) return c.error; change("due", v); return ""; }}
