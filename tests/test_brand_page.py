@@ -125,6 +125,30 @@ class Page(InBrowser):
         self.assertEqual(self.text(".pub-msg"), "")
         self.assertFalse(self.present(".pub-msg [data-dismiss]"))
 
+    def enter_on(self, selector):
+        """A real Enter on the button: it is focused first, and the key carries its character, as a keyboard does."""
+        self.js(f"document.querySelector({lit(selector)}).focus()")
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Enter", "code": "Enter", "windowsVirtualKeyCode": 13,
+                                                      **({"text": "\r"} if kind == "keyDown" else {})}, self.sid)
+        self.settle()
+
+    def test_dismiss_and_install_keep_the_keyboard_focus_in_the_brands_part(self):
+        for width in up.WIDTHS:
+            with self.subTest(width=width):
+                self.load(width=width)
+                self.replies(list=OK(LIST), review=OK(REFUSAL, 409))
+                self.mount()
+                self.enter_on("[data-review]")
+                self.assertTrue(self.present(".pub-msg [data-dismiss]"))
+                self.enter_on(".pub-msg [data-dismiss]")
+                self.assertFalse(self.present(".pub-msg [data-dismiss]"))
+                self.assertTrue(self.val("document.activeElement.hasAttribute('data-review')"), "Dismiss gives the focus back to Review")
+                self.replies(list=OK(LIST), review=OK({"ok": True, "review": REVIEW}), install=OK({"ok": True}))
+                self.enter_on("[data-review]")
+                self.enter_on("[data-install]")
+                self.assertTrue(self.val("!!document.activeElement.closest('#brands')"), "after Install the focus is still in the brands part")
+
     def test_a_calm_line_has_no_dismiss_button(self):
         self.replies(review=OK({"ok": True, "review": None}))
         self.mount()

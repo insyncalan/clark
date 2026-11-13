@@ -57,7 +57,7 @@ export function Brands({ api = REAL }) {
     await load();
     setBusy(false);
   }
-  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)); };
+  const install = () => { const id = panel.id; setPanel(null); return act(() => api.install(id)).then(() => back(opener.current)); };      // the panel and its button are gone: the focus goes back to what opened it
   const remove = () => { const id = armed; setArmed(null); return act(() => api.remove(id)); };
 
   const v = state.view;
@@ -108,7 +108,7 @@ export function Brands({ api = REAL }) {
           </div>
         </div>
       ) : null}
-      <div class="pub-msg" role="status" aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}{msg.kind === "error" ? <> <button type="button" class="btn sm" data-dismiss onClick={() => setMsg(null)}>{L.LABELS.dismiss}</button></> : null}</p> : null}</div>
+      <div class="pub-msg" role="status" aria-live="polite">{msg ? <p class={msg.kind}>{msg.text}{msg.kind === "error" ? <> <button type="button" class="btn sm" data-dismiss onClick={() => { setMsg(null); back(opener.current); }}>{L.LABELS.dismiss}</button></> : null}</p> : null}</div>
     </section>
   );
 }
