@@ -99,6 +99,19 @@ class Recorded(Zoned):
         got = demo.store.con.execute("SELECT utc_offset FROM applies WHERE apply_id = ?", (demo.last_step(),)).fetchone()[0]
         self.assertEqual(got, "+04:00")
 
+    def test_history_and_the_excel_cover_show_the_dubai_offset(self):
+        from clark import excel, history
+        demo = DemoStore()
+        self.addCleanup(demo.close)
+        a = demo.action()
+        zone.apply_zone("Asia/Dubai")
+        demo.update("actions", a, {"owner": "Someone"})
+        rows = [r for r in history.rows_for_project(demo.store.con, "ABC") if r["step"] == demo.last_step()]
+        self.assertTrue(rows)
+        self.assertEqual({r["when_text"] for r in rows}, {"14-11-2026 02:00"})          # 22:00 UTC on the 13th, made at +04:00
+        with mock.patch.object(excel, "clock", return_value=HERE.replace(tzinfo=None)):
+            self.assertEqual(excel.exported_text(), "14-11-2026 02:00 (UTC+04:00)")
+
 
 class Served(Zoned):
     """Through the real server, as the container runs it."""
