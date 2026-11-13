@@ -27,7 +27,7 @@ BACKUPS_KEPT_RANGE = (1, 365)
 # What Settings › Safety says about the number, in plain words (the page shows these, not the key).
 BACKUPS_KEPT_LABEL = "How many backups to keep"
 BACKUPS_KEPT_HELP = ("This many backups are kept of each of daily, before an undo and before an import or change (those two share the "
-                     "count); before a restore keeps at least 2 and before an update at least 3, whatever the number is; the oldest "
+                     "count). Before a restore keeps at least 2 and before an update at least 3, whatever the number is. The oldest "
                      "are removed after that. 14 is usual. The newest backup is always kept.")
 
 
