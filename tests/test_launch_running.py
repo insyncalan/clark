@@ -92,8 +92,8 @@ class Running(unittest.TestCase):
     def test_same_folder_same_version_opens_its_window(self):
         s = self.stub(version=THIS[0], folder=THIS[1])
         self.assertEqual(self.go(), 0)
-        self.assertEqual(self.said, ["It is already running. Opening its window.", "Opened clark in its own window."])
-        self.assertEqual(self.windows, [(f"http://127.0.0.1:{self.port}/", "/stub/chrome")])
+        self.assertEqual(self.said, ["It is already running. Opening its window.", "Opened clark in Chrome."])
+        self.assertEqual(self.windows, [(f"http://clark.localhost:{self.port}/", "/stub/chrome")])
         self.assertEqual(self.started, [])
         self.assertIn("/", s.hits)
 
