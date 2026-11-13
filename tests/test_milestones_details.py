@@ -5,7 +5,7 @@ The committed page runs from the real server on the demo database (fixed CLARK_N
 skips, without Chrome) at 1400 and 900 px, in light and dark. Laptop widths only. It checks that the toggle is a real button with
 aria-expanded and a visible label, at least 24 px, reachable by keyboard, readable at 4.5:1; that it starts open (as the prototype
 does); that hiding takes the rows and Show all out of sight but never the marks, the switch or the Legend; that the choice is
-remembered for each place; and that a published file has no toggle and shows its list as it is. Every new string is plain words.
+remembered for each place; and that a published file has the toggle, starts open and remembers nothing. Every new string is plain words.
 """
 import json
 import shutil
@@ -139,7 +139,7 @@ class Details(unittest.TestCase):
             keys = cdp.js("Object.keys(localStorage).filter(k => /msDet/.test(k))", sid)
             self.assertEqual(keys, ["clark.msDet.page"], "one key for this place, none for another")
 
-    def test_a_published_file_has_no_toggle_and_shows_its_list_as_it_is(self):
+    def test_a_published_file_has_the_toggle_open_and_remembers_nothing(self):
         demo, folder, path, _ids = publish_with_plants()
         self.addCleanup(demo.close)
         self.addCleanup(shutil.rmtree, folder, True)
@@ -151,15 +151,18 @@ class Details(unittest.TestCase):
             cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
             state = cdp.js(STATE, sid)
-            self.assertEqual(cdp.js("document.querySelectorAll('.msl-det').length", sid), 0, "no toggle")
+            self.assertEqual(cdp.js("document.querySelectorAll('.msl-det').length", sid), 1, "the toggle is there")
+            self.assertEqual((state["label"].strip(), state["expanded"]), (HIDE, "true"), "starts open")
             self.assertGreater(state["rows"], 0, "the list shows")
-            self.assertTrue(state["legend"] and state["sw"])
-            self.assertEqual(cdp.js("[...document.querySelectorAll('button')].filter(b => /milestone details/.test(b.textContent)).length", sid), 0)
-            cdp.js("localStorage.setItem('clark.msDet.page', 'false')", sid)       # a stored choice from elsewhere changes nothing in a file
-            cdp.js("[...document.querySelectorAll('.tab')][0].click()", sid)
-            cdp.js("[...document.querySelectorAll('.tab')].find(t => /Milestones/.test(t.textContent)).click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.mv-wrap')", sid)))
-            self.assertGreater(cdp.js(STATE, sid)["rows"], 0, "still shown")
+            cdp.js("document.querySelector('.msl-det').click()", sid)
+            state = cdp.js(STATE, sid)
+            self.assertEqual((state["label"].strip(), state["expanded"], state["rows"]), (SHOW, "false", 0), "hidden")
+            self.assertTrue(state["legend"] and state["sw"] and state["marks"] > 0, "marks, switch and Legend stay")
+            self.assertIsNone(cdp.js("localStorage.getItem('clark.msDet.page')", sid), "nothing is remembered")
+            cdp.js("document.querySelector('.msl-det').click()", sid)
+            state = cdp.js(STATE, sid)
+            self.assertEqual((state["label"].strip(), state["expanded"]), (HIDE, "true"))
+            self.assertGreater(state["rows"], 0, "shown again")
 
     def test_every_new_string_is_plain_words(self):
         built = (SRC / "clark" / "page" / "page.html").read_text(encoding="utf-8")
