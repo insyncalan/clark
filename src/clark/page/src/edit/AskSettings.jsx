@@ -84,6 +84,7 @@ export function AskSettings() {
     setBusy(false);
     const b = r.body;
     if (action !== "add") refocusFolders(at);
+    else setTimeout(() => { const i = document.getElementById("ask-folder-path"); if (i) i.focus(); }, 0);   // Add folder is disabled while the request runs: the focus goes to the box
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.folders)) {
       setFolders(b.folders);
       if (b.message) setMsg({ kind: "note", text: b.message });
