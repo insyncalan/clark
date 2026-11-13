@@ -180,6 +180,15 @@ class Page(InBrowser):
                     self.assertFalse(self.present("#brands-panel"), "the panel closed")
                     self.assertEqual(self.focused(), f"button[{opener}]", "the focus is back on the button that opened the panel")
 
+    def test_a_refused_or_empty_review_hands_the_focus_back_to_the_button_pressed(self):
+        for what, reply in (("refused", OK(REFUSAL, 409)), ("empty", OK({"ok": True, "review": None}))):
+            with self.subTest(what=what):
+                self.mount()
+                self.replies(review=reply)
+                self.js("document.querySelector('[data-review]').focus()")
+                self.click("[data-review]")
+                self.assertEqual(self.focused(), "button[data-review]", "the focus is back on Review")
+
     def test_undo_is_one_click(self):
         self.replies(list=OK({**LIST, "undo": True}))
         self.mount()
