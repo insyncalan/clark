@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; PDF is a counted "not supported yet"; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; a PDF that cannot be read is counted with its reason; the 40,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
@@ -298,12 +298,27 @@ class OnTheRoute(tr.Base):
         self.assertIn("nothing was sent", got["message"])
         self.assertEqual(self.provider.sent, [])
 
-    def test_pdf_is_said_to_be_not_supported_yet(self):
+    def test_pdf_that_cannot_be_read_is_said_so_without_saying_unsupported(self):
         (self.mine / "scan.pdf").write_bytes(b"%PDF-1.4 ZQ-PDF")
         status, got = self.question("What is the cutover plan?")
         self.assertEqual(status, 200, got)
         self.assertNotIn("ZQ-PDF", self.provider.sent[0])
-        self.assertTrue(any("PDF" in n and "not supported yet" in n for n in got["notes"]), got["notes"])
+        self.assertTrue(any("PDF" in n and "could not be read safely" in n for n in got["notes"]), got["notes"])
+        self.assertFalse(any("not supported" in n for n in got["notes"]), got["notes"])
+
+    def test_the_notes_give_the_reason_for_each_kind_of_pdf(self):
+        from clark import ask_service
+        found = ask_passages.FolderData((), 0, 0, 4, 0, False, (), (("a.pdf", "scanned"), ("b.pdf", "encrypted"), ("c.pdf", "too_big")))
+        notes = ask_service.folder_notes(found)
+        self.assertEqual(len(notes), 3, notes)
+        self.assertTrue(any("1 PDF was not read: it holds pictures of pages and no text." == n for n in notes), notes)
+        self.assertTrue(any("1 PDF was not read: it is protected with a password." == n for n in notes), notes)
+        self.assertTrue(any("2 PDF were not read: it could not be read safely." == n for n in notes), notes)
+
+    def test_help_no_longer_says_pdf_files_are_not_read(self):
+        text = (SRC / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertNotIn("not read yet", text)
+        self.assertIn("PDF files that hold text", text)
 
 
 if __name__ == "__main__":
