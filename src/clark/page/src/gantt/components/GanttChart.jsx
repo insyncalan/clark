@@ -15,6 +15,7 @@
 // Every colour is a token. Bars carry their name as text (beside the bar when the bar is too short), so nothing depends on hover.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Fade } from "../../components/Menu.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
@@ -528,7 +529,7 @@ export function GanttChart({
         <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
             <button type="button" role="menuitem" key={t} data-g-addtype={t} 
-              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
+              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}><Icon name={actionIcon("add")} cls="mi" /><span>{w}</span></button>
           ))}
         </Fade>
       ) : null}

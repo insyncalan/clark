@@ -20,6 +20,7 @@ import { profile, loadProfile, wantName } from "../stores/profile.js";
 import { openExport } from "./wordState.js";
 import { toast } from "../stores/changes.js";
 import { ToastCard, ToastBar, startHeld } from "./ToastCard.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { Welcome } from "./Welcome.jsx";
 
 export const MENU_NAME = "Your menu";
@@ -80,11 +81,11 @@ export function ProfileMenu() {
   // Row 786: with no project open the circle is still there, with the entries that need no project (Settings, Appearance, Help); Publish and the rest wait for the report, or Publish would open without the project's client folder
   const open = !!data.value;
   if (!open && status.value !== "none") return null;      // while the report loads (or failed) there is still no circle, as before
-  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish" }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview" },
-    { id: "export", name: "Export to Excel", tip: "Export" }, { id: "word-export", name: "Export to Word" }] : [];
-  if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports" });
-  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings" });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
-  items.push({ id: "help", name: "Help" });
+  const items = open ? [{ id: "publish", name: "Publish…", tip: "Publish", icon: actionIcon("publish") }, { id: "preview", name: "Preview the page in a new tab", tip: "Preview", icon: actionIcon("preview") },
+    { id: "export", name: "Export to Excel", tip: "Export", icon: actionIcon("exportExcel") }, { id: "word-export", name: "Export to Word", icon: actionIcon("exportWord") }] : [];
+  if (open && tabs.value.includes("published")) items.push({ id: "published", name: "Published reports", icon: actionIcon("published") });
+  if (tabs.value.includes("settings")) items.push({ id: "settings", name: "Settings", icon: actionIcon("settings") });      // row 1092: after Published reports, before the Appearance group, always (no short word, so the tooltip is as it was)
+  items.push({ id: "help", name: "Help", icon: actionIcon("help") });
   // Who you are (#180), the top line: the name in bold with the email under it, or only the name; with neither, a link that opens
   // Settings › Profile and puts the cursor in the name box. Only what was typed in Settings: clark never makes up an email.
   const me = profile.value;
@@ -97,7 +98,7 @@ export function ProfileMenu() {
   const look = [{ id: "look-lab", lab: "Appearance" }, ...MODES.map((m) => ({ id: `look-${m}`, name: LOOK_WORDS[m], checked: appearance.value === m }))];
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
-    : { id: "who", name: "Add your name in Settings", link: true };
+    : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
   const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
     if (id === "publish") openPublish();

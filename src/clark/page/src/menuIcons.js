@@ -22,3 +22,15 @@ export function fieldIcon(field, clears) { return { icon: clears ? "circleminus"
 
 /** A date choice in the date picker. */
 export function dueIcon() { return { icon: "cal", tone: "n" }; }
+
+// Row 1138: the one place that says which icon an action takes, so the same action has the same icon in every menu (the section
+// menu, the profile menu, the right-click menus, the row menu). The words beside an icon are unchanged; an action not listed here has no icon.
+export const ACTION_ICON = {
+  add: "plus", duplicate: "plus", up: "chevup", down: "chevdown", beside: "board", full: "arrows-out", hide: "eyeoff", show: "eye",
+  delete: "trash", settings: "gear", publish: "ul", preview: "eye", exportExcel: "dl", exportWord: "dl", published: "archive",
+  help: "info", profile: "user", copy: "copy", copyLink: "ext", copyId: "doc", clear: "circleminus", archive: "archive",
+  peek: "expand", draft: "pencil", pdf: "doc", excel: "table",
+};
+
+/** The icon name for an action, or undefined when the action has none. */
+export function actionIcon(action) { return ACTION_ICON[action]; }

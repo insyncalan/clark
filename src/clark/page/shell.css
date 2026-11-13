@@ -2513,3 +2513,8 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
 .crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
+/* row 1138: an icon beside the words of the section menu and of the right-click menus (the same shape for the same action: menuIcons.js) */
+.menu .menu-item { display: flex; align-items: center; gap: 10px; }
+.menu .menu-item .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.gt-menu button .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.gt-menu button.gt-danger .mi { color: inherit; }

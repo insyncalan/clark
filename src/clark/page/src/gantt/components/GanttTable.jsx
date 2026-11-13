@@ -11,6 +11,7 @@
 // Row numbers are the lines' own places in the plan, so they stay the same when the filter hides lines. Every value is a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Fade } from "../../components/Menu.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
 import {
   COLUMNS, DEFAULT_HIDDEN, WORDS, hideable, addLine, cellCount, clampSel, clampZoom, clashes, clearCells, deleteLines, emptyHistory, endSel, enterNext, fillDown,
@@ -202,10 +203,10 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
   const rowMenu = (x, y, r) => {
     const g = r >= range.r0 && r <= range.r1 ? range : { r0: r, r1: r };
     const n = g.r1 - g.r0 + 1;
-    if (!edit) { showMenu(x, y, [["Copy", copyNow]]); return; }
-    showMenu(x, y, [["Add a task below", () => addBelow(g.r1, "t")], ["Add a phase below", () => addBelow(g.r1, "p")], ["Add a milestone below", () => addBelow(g.r1, "m")], "-",
-      ["Copy", copyNow], ["Clear cells", () => { setMenu(null); focusBox(); clearSelected(); }], "-",
-      [n === 1 ? "Delete this line" : `Delete ${n} lines`, () => { setMenu(null); removeRows(g.r0, g.r1); }, true]]);
+    if (!edit) { showMenu(x, y, [["Copy", copyNow, false, "copy"]]); return; }
+    showMenu(x, y, [["Add a task below", () => addBelow(g.r1, "t"), false, "add"], ["Add a phase below", () => addBelow(g.r1, "p"), false, "add"], ["Add a milestone below", () => addBelow(g.r1, "m"), false, "add"], "-",
+      ["Copy", copyNow, false, "copy"], ["Clear cells", () => { setMenu(null); focusBox(); clearSelected(); }, false, "clear"], "-",
+      [n === 1 ? "Delete this line" : `Delete ${n} lines`, () => { setMenu(null); removeRows(g.r0, g.r1); }, true, "delete"]]);
   };
 
   // ── the keyboard ──
@@ -398,7 +399,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
                     <th class={`gt-rh${r >= range.r0 && r <= range.r1 ? " hs" : ""}`} data-row={r} data-r={r} scope="row">
                       <span class="gt-rn">{i + 1}</span>
                       <button type="button" class="gt-rb" data-add={r} aria-label={addBelowWord} title={addBelowWord}
-                        onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t")], ["Add a phase below", () => addBelow(r, "p")], ["Add a milestone below", () => addBelow(r, "m")]]); }}><Icon name="plus" /></button>
+                        onClick={(e) => { e.stopPropagation(); const b = e.currentTarget.getBoundingClientRect(); setSel(makeSel(r, 0, r, cols.length - 1)); showMenu(b.left, b.bottom + 4, [["Add a task below", () => addBelow(r, "t"), false, "add"], ["Add a phase below", () => addBelow(r, "p"), false, "add"], ["Add a milestone below", () => addBelow(r, "m"), false, "add"]]); }}><Icon name="plus" /></button>
                       <button type="button" class="gt-rb gt-del" data-del={r} aria-label="Delete this line" title="Delete this line"
                         onClick={(e) => { e.stopPropagation(); if (r >= range.r0 && r <= range.r1 && range.r1 > range.r0) removeRows(range.r0, range.r1); else removeRows(r, r); focusBox(); }}><Icon name="x" /></button>
                     </th>
@@ -414,7 +415,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
         <Fade class="gt-menu" role="menu" boxRef={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
           onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenu(null); focusBox(); } }}>
           {menu.items.map((it, n) => (it === "-" ? <hr key={n} /> : (
-            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[0]}</button>
+            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[3] ? <Icon name={actionIcon(it[3])} cls="mi" /> : null}<span>{it[0]}</span></button>
           )))}
         </Fade>
       ) : null}

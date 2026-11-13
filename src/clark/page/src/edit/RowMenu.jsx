@@ -16,6 +16,7 @@ import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
@@ -124,17 +125,17 @@ function entries(row, level, edit, d, today, reg) {
   }
   const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek", icon: "expand" },
+    { id: "draft", name: dr.name, icon: actionIcon("draft"), line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: actionIcon("peek") },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
     edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
     edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
+    { id: "link", name: "Copy link to this item", icon: actionIcon("copyLink") }, { id: "copyid", name: "Copy ID", icon: actionIcon("copyId") },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
-    ...(edit ? [{ id: "delete", name: "Delete", icon: "trash", danger: true }] : []),         // item 658: not offered when the page is read only
+    { id: "dup", name: "Duplicate", icon: actionIcon("duplicate"), disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: actionIcon("archive"), disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
