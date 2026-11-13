@@ -24,3 +24,24 @@ export function MsEye({ id, name, left, internal }) {
     </button>
   );
 }
+
+// Pressing the eye on the Dashboard takes the row off the page, so the button that had focus goes with it. Focus is planned before the press
+// (the next row's eye, else the previous row's, else the section's handle, else its title) and given once the row is gone.
+export function keepFocus(e, dash) {
+  const eye = dash && e.target.closest && e.target.closest("button[data-ms-eye]");
+  if (!eye || eye.disabled) return;
+  const box = eye.closest(".msv"), art = box && box.closest("article");
+  const eyes = box ? [...box.querySelectorAll(".msl-row button[data-ms-eye]:not([disabled])")] : [], at = eyes.indexOf(eye);
+  const near = eyes[at + 1] || eyes[at - 1], next = near ? near.dataset.msEye : null, gone = eye.dataset.msEye;
+  let tries = 0;
+  const give = () => {
+    const row = document.querySelector(`.msl-row[data-ms="${CSS.escape(gone)}"]`);
+    if (row && row.contains(eye) && ++tries < 60) { requestAnimationFrame(give); return; }
+    if (row && row.contains(eye)) return;      // the press was refused or is slow: the row is still here, and the eye keeps focus
+    const a = document.activeElement;
+    if (a && a !== document.body && a !== eye && eye.isConnected) return;      // the person moved on meanwhile
+    const to = (next && document.querySelector(`.msl-row[data-ms="${CSS.escape(next)}"] button[data-ms-eye]`)) || (art && (art.querySelector(".handle") || art.querySelector(".sec-title")));
+    if (to) to.focus();
+  };
+  requestAnimationFrame(give);
+}

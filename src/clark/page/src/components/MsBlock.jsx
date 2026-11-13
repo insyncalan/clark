@@ -32,7 +32,7 @@ export function MsBlock({ place, tools }) {
   const open = (id) => openPeek(id, "milestone");   // row 1114: a published file's marks, labels, chips and rows open the file's read only peek, as the editor's open theirs
   if (!rows.length) return <><p class="muted" data-no-milestones>No milestones are shown yet.</p>{AddBack ? <AddBack /> : null}</>;
   return (
-    <div class="msv" data-view={view} data-place={place}>
+    <div class="msv" data-view={view} data-place={place} onClickCapture={Eye && tools.msKeepFocus ? (e) => tools.msKeepFocus(e, dash) : undefined}>
       <div class="msv-sw" role="group" aria-label="Milestone view">
         {[["line", "Timeline"], ["cal", "Calendar"]].map(([v, t]) => (
           <button type="button" key={v} class="msv-b" data-msvb={v} aria-label={t} aria-current={String(view === v)} onClick={() => choose(v)}><Icon name={v === "line" ? "tline" : "cal"} /><span>{t}</span></button>
