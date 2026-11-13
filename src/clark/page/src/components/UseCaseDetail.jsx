@@ -16,12 +16,13 @@ import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
-import { isOpen, pillOf, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
+import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { refOf } from "../logic/useCasesList.js";
 import { milestoneRows } from "../logic/milestones.js";
 import { MsMark } from "./MsMark.jsx";
-import { toneOf } from "./ItemRows.jsx";                     // row 1081: the chip takes the colours of row 1021
+import { ItemIcon, iconWords } from "./ItemRows.jsx";      // row 1145: the coloured pill with words is the tinted letter icon alone (row 1021's)
+import { clientPill } from "../logic/sectionRows.js";
 import { CommitChip } from "./CommitChip.jsx";
 import { CommitMenu } from "../edit/CommitMenu.jsx";
 import { SneakPeek } from "../edit/SneakPeek.jsx";
@@ -256,13 +257,13 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             {work.length ? (
               <ul class="ucd-items plain">
                 {work.map((r) => {
-                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = pillOf(r, todayIso());
+                  const due = r.kind === "decision" || r.kind === "action" ? dueCell(r, todayIso()).date : "", who = ownerOf(r.owner).text, pill = clientPill(r, todayIso()), say = iconWords(r, pill, todayIso());
                   const extra = [who !== "—" ? who : "", due && due !== "—" ? `Due ${due}` : r.kind === "action" ? "No due date" : ""].filter(Boolean).join(" · ") || "No owner";
                   return (
                     <li key={r.id}>
-                      <button type="button" class="ucd-item" data-item={r.id} onClick={() => openPeek(r.id, "item")}>
-                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span>
-                        <span class={`pill ${toneOf(r, pill)}`}>{pill.text}</span><span class="ucd-x">{extra}</span>
+                      <button type="button" class="ucd-item" data-item={r.id} data-tip={say.tip} onClick={() => openPeek(r.id, "item")}>
+                        <ItemIcon row={r} pill={pill} today={todayIso()} plain /><span class="sr">{say.name}</span>
+                        <span class="ucd-id num">{r.id}</span><span class="ucd-t">{r.title}</span><span class="ucd-x">{extra}</span>
                       </button>
                     </li>
                   );

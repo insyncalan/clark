@@ -360,6 +360,24 @@ class Export(Screens):
             self.assertEqual(p.js("document.querySelector('#word-export-dialog').getAttribute('aria-busy')"), "false")
             self.assertEqual(self.asked, ["Choose the folder for the Word report"], "the folder window was asked for once")
 
+    def test_a_second_esc_while_saving_does_not_lose_the_box(self):
+        with chrome() as cdp:
+            self.start()
+            self.gate = threading.Event()
+            self.addCleanup(self.gate.set)
+            p = self.page(cdp)
+            self.open_export(p)
+            p.js("document.querySelector('[data-go]').click()")
+            p.until("/Saving the Word report/.test(document.querySelector('.word-msg').innerText)", "it says it is saving")
+            p.key("Escape", code="Escape", vk=27)
+            p.key("Escape", code="Escape", vk=27)
+            p.js("(function () { var d = document.querySelector('#word-export-dialog'); if (d.open) d.close(); })()")    # what Chrome does to a modal on a second Esc with no click between, whatever onCancel says
+            p.until("document.querySelector('#word-export-dialog') !== null", "the box is still wanted")
+            p.until("document.querySelector('#word-export-dialog') && document.querySelector('#word-export-dialog').open", "the box is shown again")
+            self.gate.set()
+            p.until("document.querySelector('[data-go]').innerText === 'Close'", "it finished")
+            self.assertTrue(p.js("document.querySelector('#word-export-dialog').open"), "the result is shown")
+
     def test_the_keyboard(self):
         with chrome() as cdp:
             self.start()

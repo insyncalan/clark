@@ -465,7 +465,7 @@
     "s": [
      "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
      "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
-     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, how many break a rule and how many are not in the workbook, with the first few; press **Import** (the button also says how many changes) to save them.",
+     "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, and how many are not in the workbook, with the first few. If a row breaks a rule, the box says **Nothing was imported**, lists each such row with why, and offers only **Close**: fix the workbook and choose it again. Otherwise, press **Import** (the button also says how many changes) to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
@@ -1837,7 +1837,7 @@
       [
        "**The cover**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
-       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports. **Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
+       "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
        "**Work items**: actions, risks and issues, and decisions shown to the client, with the type and Open, Closed or All switches, Filter by, a search box and Group by. Your choices are kept in your own browser only.",
        "**Milestones**: the Timeline and Calendar switch, the legend and every client-visible milestone, in client words.",
@@ -2699,10 +2699,10 @@
      "d": "The box **What to import** lists the sheets the workbook has, each with its number of rows, for example Actions (12 rows), the Gantt sheet after the others. They all start ticked. Tick the sheets you want and untick the rest: anything you leave unticked is not read and not changed. **Select all** ticks every sheet and **Clear** unticks them. With no sheet ticked, **Continue** is off. A sheet with more than 2,000 rows shows **more than 2,000 rows**. It is refused whole when you press **Continue**, and the message says so."
     },
     {
-     "d": "The box **Check the import** opens. A line gives the counts: new, updated, refused and not in the workbook (the last two only when there are any). Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked."
+     "d": "The box **Check the import** opens. A line gives the counts: new, updated and not in the workbook (the last only when there are any). Unchanged rows are left alone. Nothing has been saved yet. It counts only the sheets you ticked. If any row breaks a rule, the box says **Nothing was imported**, lists each row with why, and offers only **Close**. Fix the workbook and choose it again."
     },
     {
-     "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs. A change that has a problem says why and stays on **Reject**."
+     "d": "Read the list under the counts. Each change has a tag and the choice **Accept** or **Reject**: **New** rows will be added, **Changed** rows will update the item already in clark, and a row tagged Not in the workbook would archive its item. A line under a change says what differs."
     },
     {
      "d": "Choose **Reject** for any change you do not want; **Accept all** and **Reject all** set every change at once. New and changed rows start on **Accept**, except a change that clashes: a line under it says it changed in clark after the workbook was made, and it starts on **Reject**. Rows tagged Not in the workbook also start on **Reject**. If clark has no record of exporting the workbook, it warns you, and the button reads **Import anyway**."
