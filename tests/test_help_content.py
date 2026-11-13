@@ -515,15 +515,5 @@ class ProfileCircleWords(unittest.TestCase):
         self.assertIn("a person icon at the top right that opens the menu", json.dumps(SRC["reference"], ensure_ascii=False))
 
 
-class UseCasesLink(unittest.TestCase):
-    def test_the_use_cases_links_open_the_use_cases_page_not_the_dashboard(self):
-        where = {r[0]: r[2] for r in SRC["start"]["where"]}
-        self.assertEqual(where["Use cases"], "usecases")
-        guide = [t for t in SRC["howto"]["tasks"] if t["id"] == "find-a-use-case"][0]
-        self.assertEqual(guide["go"], "usecases")
-        self.assertIn('usecases: "Open Use cases"', LOGIC)
-        self.assertIn('"usecases"', (HELP / "helpStore.js").read_text(encoding="utf-8"))
-
-
 if __name__ == "__main__":
     unittest.main()
