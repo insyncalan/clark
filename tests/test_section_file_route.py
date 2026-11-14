@@ -276,6 +276,24 @@ class Route(unittest.TestCase):
                 self.chosen = [chosen]
                 self.refused(ref, "never_place")
 
+    def test_a_file_of_a_type_that_is_not_allowed_is_refused_before_any_copy(self):
+        ref = self.section()
+        for name in ("page.html", "pic.svg", "bundle.zip", "run.exe", "report.pdf.exe", "noending"):
+            with self.subTest(name=name):
+                bad = self.src / name
+                bad.write_bytes(b"fictional")
+                self.asked.clear()
+                self.chosen = [bad]
+                message = self.refused(ref, "bad_type")
+                self.assertEqual(message, doclinks.BAD_TYPE)
+        self.assertIsNone(self.files(), "no Report files folder was made")
+        self.assertIsNone(self.items(ref))
+        upper = self.src / "Plan.PDF"
+        upper.write_bytes(PDF)
+        self.chosen = [upper]
+        self.assertEqual(self.attach(ref)[0], 200)
+        self.assertEqual(self.files(), ["Plan.PDF"])
+
     def test_a_folder_a_missing_file_and_a_file_too_big(self):
         ref = self.section()
         self.chosen = [self.src]

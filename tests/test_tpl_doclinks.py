@@ -56,7 +56,7 @@ class Checker(unittest.TestCase):
             {"kind": "link", "href": "https://example.org/plan", "label": "The plan"},
             {"kind": "file", "name": "Plan v2.pdf", "rel": "Report files/Plan v2.pdf", "bytes": 340 * 1024, "label": ""}]})
         self.assertEqual(check("doclinks", got), got, "saving it again changes nothing")
-        self.assertEqual(json.loads(check("doclinks", body([a_link(href="mailto:team@example.org", label="")])))["items"][0]["href"],
+        self.assertEqual(json.loads(check("doclinks", body([a_link(href="mailto:team@example.org", label="Team")])))["items"][0]["href"],
                          "mailto:team@example.org")
         self.assertEqual(check("doclinks", ""), "", "no content is no content")
         self.assertTrue(doclinks.READY)
@@ -82,6 +82,31 @@ class Checker(unittest.TestCase):
             with self.subTest(item=item):
                 self.refused("doclinks", body([item]))
         self.assertEqual(json.loads(check("doclinks", body([a_file(name="a#b (2).docx")])))["items"][0]["name"], "a#b (2).docx")
+
+    def test_only_the_allowed_endings_are_taken_and_the_last_ending_decides(self):
+        for name in ("a.pdf", "Plan.PDF", "a.Doc", "a.docx", "a.xls", "a.xlsx", "a.csv", "a.ppt", "a.pptx", "a.jpg", "a.JPEG", "a.png",
+                     "a.txt", "report.exe.pdf", "a.b.TXT"):
+            with self.subTest(name=name):
+                self.assertEqual(json.loads(check("doclinks", body([a_file(name=name)])))["items"][0]["name"], name)
+        for name in ("a.html", "a.htm", "a.svg", "a.zip", "a.exe", "a.js", "a.sh", "a.bat", "report.pdf.exe", "noending", "a.pdf ",
+                     "a.pdfx", "pdf", "a.gif", "a.docm"):
+            with self.subTest(name=name):
+                self.refused("doclinks", body([a_file(name=name)]), doclinks.BAD_FILE if name.endswith(" ") else doclinks.BAD_TYPE)
+
+    def test_the_refusal_names_the_allowed_types_and_add_file_meets_the_same_rule(self):
+        for word in ("PDF", "Word", "Excel", "PowerPoint", "JPG", "PNG", "TXT"):
+            self.assertIn(word, doclinks.BAD_TYPE)
+        with self.assertRaises(section_bodies.Bad) as e:
+            doclinks.add_file(None, {"name": "a.zip", "rel": "Report files/a.zip", "bytes": 1})
+        self.assertEqual(str(e.exception), doclinks.BAD_TYPE)
+
+    def test_a_link_needs_a_description_a_file_does_not(self):
+        for label in ("", "   ", "\u200b"):
+            with self.subTest(label=label):
+                self.refused("doclinks", body([a_link(label=label)]), doclinks.NO_DESCRIPTION)
+        self.refused("doclinks", body([{"kind": "link", "href": "https://example.org/plan"}]), doclinks.NO_DESCRIPTION)
+        self.assertEqual(doclinks.NO_DESCRIPTION, "Enter a link description.")
+        self.assertEqual(json.loads(check("doclinks", body([a_file(label="")])))["items"][0]["label"], "")
 
     def test_the_shape_is_fixed_and_nothing_unknown_is_stored(self):
         self.refused("doclinks", json.dumps({"v": 2, "items": []}), doclinks.BAD_VERSION)
@@ -188,14 +213,14 @@ class InThePage(PageBase):
                     "li.querySelector('.tpl-name').tagName, li.querySelector('.tpl-name').getAttribute('href')])")
 
     def test_view_draws_the_list_and_an_empty_one_is_left_out(self):
-        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label=""), a_file()])
+        ref = self.add([a_link(), a_link(href="mailto:team@example.org", label="Team"), a_file()])
         empty = self.add([], "Fictional empty papers")
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list drew")
             self.assertEqual(self.entries(p, ref), [
-                ["Link", "The plan", "A", "https://example.org/plan"],
-                ["Link", "team@example.org", "A", "mailto:team@example.org"],
+                ["URL", "The plan", "A", "https://example.org/plan"],
+                ["MAIL", "Team", "A", "mailto:team@example.org"],
                 ["PDF", "Plan v2.pdf", "SPAN", None]], "the page clark serves names a file without linking it")
             self.assertFalse(p.js(f"!!document.querySelector('[data-id={json.dumps(empty)}]')"), "an empty list is left out of View")
             self.assertEqual(p.js(f"document.querySelectorAll('[data-id={json.dumps(ref)}] input, [data-id={json.dumps(ref)}] button').length"), 0,
@@ -274,7 +299,7 @@ class Published(PageBase):
                     p.js("document.documentElement.dataset.theme = 'dark'")
                 p.until(f"!!document.querySelector('[data-id={json.dumps(ref)}] .tpl-dl')", "the list is in the file")
                 self.assertEqual(InThePage.entries(self, p, ref), [
-                    ["Link", "The plan", "A", "https://example.org/plan"],
+                    ["URL", "The plan", "A", "https://example.org/plan"],
                     ["PDF", "The plan, signed", "A", "Report%20files/Plan%20v2%231.pdf"]])
                 self.assertEqual(p.js(f"document.querySelector('[data-id={json.dumps(ref)}] .tpl-facts').textContent"), "example.org")
                 self.assertEqual(p.js(f"[...document.querySelectorAll('[data-id={json.dumps(ref)}] .tpl-facts')][1].textContent"),
