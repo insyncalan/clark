@@ -16,6 +16,7 @@ import sys
 import unittest
 
 import test_update_page as up
+from test_server import wait
 from _paths import ROOT
 from test_update_page import InBrowser, OK, lit
 
@@ -315,6 +316,7 @@ class Page(InBrowser):
         self.held()
         self.choose("example-brand")
         self.choose("generic")
+        self.assertTrue(wait(lambda: self.val("T.releases.length") >= 1), "the first save to be on its way")      # item 1850: a slow Mac had not started it yet, and release() then freed nothing
         self.js("T.release()")                  # the first save ends; the waiting choice's save is held too (T.hold stays on)
         self.settle()
         self.assertEqual(self.val("T.saved()"), "example-brand", "the second save has not ended")
