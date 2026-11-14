@@ -5,11 +5,12 @@ import { Menu } from "../components/Menu.jsx";
 import { change } from "../stores/changes.js";
 import { deleteItem } from "./deleteItem.js";
 import { archiveFromPeek } from "./PeekArchive.jsx";
+import { actionIcon } from "../menuIcons.js";
 
 const ITEMS = [
-  { id: "archive", name: "Archive", icon: "archive" },
+  { id: "archive", name: "Archive", icon: actionIcon("archive") },
   { id: "sep", sep: true },
-  { id: "delete", name: "Delete", icon: "trash", danger: true },
+  { id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true },
 ];
 
 /** `kind`: "use_cases" or "milestones". `place`: "cell" (a row, a page) or "peek". `onArchived`/`onDeleted`: what the page does after the step. */
