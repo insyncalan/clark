@@ -2753,7 +2753,7 @@ def migrate_latest_update(con):
     does not touch the version (the runner does). It is step 25 in MIGRATIONS."""
     for table in ("raid", "milestones"):
         if "latest_update" not in columns(con, table):
-            con.execute(f"ALTER TABLE {table} ADD COLUMN latest_update TEXT")
+            con.execute(f"ALTER TABLE {_table(table)} ADD COLUMN latest_update TEXT")
 
 
 GANTT_LINES_INDEX = "CREATE INDEX IF NOT EXISTS gantt_lines_project ON gantt_lines(project, sort_order, id)"

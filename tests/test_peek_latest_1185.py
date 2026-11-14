@@ -47,13 +47,13 @@ class MilestoneBox(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit_peek(cdp, width=width)
-                was = self.row(GO_LIVE)["latest_update"]
+                was, before = self.row(GO_LIVE)["latest_update"], len(self.sent)
                 self.click(p, "#peek [data-rich=latest_update]")
                 p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened")
                 p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('Venue booked'); true")
                 p.key("Enter", modifiers=4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
                 self.saved(p, "latest_update", "<p>Venue booked</p>")
-                self.assertEqual(len(self.sent), 1, "one request")
+                self.assertEqual(len(self.sent) - before, 1, "one request")
                 self.assertIn("Latest update of", self.toast_text(p))
                 self.click(p, "#peek [data-ms-row=latest_update] [data-pk-lh-btn]")
                 p.until("(e => !!e && e.innerText.includes('Venue booked'))(document.querySelector('#peek [data-pk-lh-panel]'))", "the history lists the change")
