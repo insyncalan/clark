@@ -40,7 +40,7 @@ CHIPS = """(() => { const p = document.querySelector('#peek'); if (!p) return nu
       icons: [...c.querySelectorAll('svg[data-icn]')].map(s => s.dataset.icn), sub: sub ? sub.textContent.trim() : null,
       subColour: sub ? getComputedStyle(sub).color : null, haspopup: (c.querySelector('button') || c).getAttribute('aria-haspopup') }; }
   const probe = (name) => { const e = document.createElement('i'); e.style.color = 'var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; };
-  return { order: Object.keys(out), chips: out, red: probe('--red-600'), peekR: p.getBoundingClientRect().right, side: p.scrollWidth - p.clientWidth,
+  return { order: Object.keys(out), chips: out, red: probe('--status-red-text'), peekR: p.getBoundingClientRect().right, side: p.scrollWidth - p.clientWidth,
     oldHead: p.querySelectorAll('[data-ms-head], [data-ms-states], .pk-ms-head, .pk-ms-states').length }; })()"""
 LABELS = "[...document.querySelectorAll('#peek .pk-fields dt')].map(d => d.textContent.trim())"
 POP_ITEMS = """[...document.querySelectorAll('[data-pop] [role=menuitemradio], [data-pop] [role=option], [data-pop] [role=menuitem]')].map(b => ({
@@ -128,6 +128,7 @@ class Peek(Base):
                 self.assertTrue(got["chips"]["state"]["text"].startswith("On track"))
 
     def test_the_forecast_chip_is_the_date_with_no_forecast_tag(self):
+        self.demo.update("milestones", PILOT, {"forecast_date": "2030-03-15"})     # the demo milestone has only an agreed date
         with chrome() as cdp:
             p = self.visit(cdp)
             text = p.js(CHIPS)["chips"]["forecast"]["text"]
@@ -210,6 +211,7 @@ class Peek(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             self.open_chip(p, "owner")
+            p.until("[...document.querySelectorAll('[data-pop] button')].some(x => /Priya Example/.test(x.textContent))", "the people list is read after the box opens")
             p.js("""(() => { const b = [...document.querySelectorAll('[data-pop] [role=menuitemradio], [data-pop] [role=option], [data-pop] button')]
                      .find(x => /Priya Example/.test(x.textContent)); b.click(); })()""")
             self.saved(p, "owner", "Priya Example")
@@ -235,7 +237,7 @@ class Peek(Base):
                 for old in OLD:
                     self.assertNotIn(old, p.js(LABELS))
                 self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-client-row] button[aria-pressed]').length"), 1, "the Client visible line follows the rows")
-                self.assertEqual(p.js("(() => { const a = document.querySelector('#peek .pk-fields').getBoundingClientRect().bottom; const b = document.querySelector('#peek [data-pk-client-row]').getBoundingClientRect().top; return b >= a - 1; })()"), True)
+                self.assertEqual(p.js("(() => { const rows = [...document.querySelectorAll('#peek .pk-fields > .pk-row')]; const last = rows[rows.length - 1]; const a = rows[rows.length - 2].getBoundingClientRect().bottom; return last.hasAttribute('data-pk-client-row') && last.getBoundingClientRect().top >= a - 1; })()"), True)      # the line sits inside the list, as its last row
 
     def test_achieved_on_row_comes_with_the_achieved_state_after_agreed_date(self):
         with chrome() as cdp:
@@ -318,7 +320,7 @@ class Peek(Base):
     def test_the_title_rides_the_shared_frame_with_the_id_line_and_the_toolbar(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-toolbar], #peek .pk-toolbar').length >= 1"), True)
+            self.assertEqual(p.js("document.querySelectorAll('#peek [role=toolbar].pk-bar').length"), 1)
             self.assertEqual(p.js("document.querySelectorAll('#peek h2.pk-title').length"), 1)
             self.assertRegex(p.js("document.querySelector('#peek').innerText"), r"ABC-M-001")
 
