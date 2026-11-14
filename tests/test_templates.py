@@ -477,7 +477,7 @@ class Box(Base):
             self.assertTrue(p.js("document.querySelector('button[data-place]').disabled"), "nothing chosen: Place it is off")
             p.js("document.querySelector('[data-kind=work]').click()")
             p.js("var s = document.querySelector('input[type=search]'); s.value = ''; s.dispatchEvent(new Event('input', {bubbles: true}))")
-            p.until("document.querySelectorAll('[data-template]').length === 3", "Work items shows three")
+            p.until("document.querySelectorAll('[data-template]').length === 4", "Work items shows four")
             self.assertEqual(p.js("document.querySelector('.ad-kind[aria-pressed=true]').dataset.kind"), "work")
             p.js("var s = document.querySelector('input[type=search]'); s.value = 'zzz'; s.dispatchEvent(new Event('input', {bubbles: true}))")
             p.until("document.querySelectorAll('[data-template]').length === 0", "nothing in Work items matches")
