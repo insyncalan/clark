@@ -362,11 +362,10 @@ class Page(unittest.TestCase):
         self.until("document.activeElement && document.activeElement.hasAttribute('data-gp-filter')", "focus moves into the menu")
         self.key("ArrowDown", "document.activeElement")
         self.assertEqual(self.js("document.activeElement.dataset.gpFilter"), self.js("document.querySelectorAll('[data-gp-filter]')[1].dataset.gpFilter"), "ArrowDown moves on")
-        def escape():      # a slow runner can send the key before the menu has hung its Escape listener (it does that after the first paint): send it again until the menu is gone
-            if self.js("!!document.querySelector('[data-gp-showmenu]')"):
-                self.key("Escape")
-            return not self.js("!!document.querySelector('[data-gp-showmenu]')")
-        self.assertTrue(wait(escape, 8), "Escape closes the menu")
+        # A person's Escape goes to the focused item, so it is sent there: the menu's own key handler is set at once. The page-wide Escape listener is
+        # added by an effect after the menu is drawn, and on a slow Mac it was not yet there when an Escape sent to the document arrived.
+        self.key("Escape", "document.activeElement")
+        self.until("!document.querySelector('[data-gp-showmenu]')", "Escape closes the menu")
         self.assertTrue(self.js("document.activeElement === document.querySelector('[data-gp-show]')"), "focus is back on Show")
 
     def test_the_show_menu_hands_focus_back_to_its_button_on_a_pick_and_on_esc(self):

@@ -176,6 +176,10 @@ class Raid(PageBase):
 class Movement(tmp.Base):
     def form(self, cdp, width, theme):
         p = self.visit(cdp, width=width, theme=theme)
+        # A hosted Mac runner does not always give the page the keyboard focus: a Tab then reached the editor but the focus never left it, and a blur()
+        # of a page that never had the focus does not fire. Ask for the page to be focused, as test_appearance does.
+        p.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, p.sid)
+        p.cdp.call("Page.bringToFront", {}, p.sid)
         self.open_movement(p)
         p.js("document.querySelector('#mv-move').click()")
         p.until("!!document.querySelector('.mvm-form')", "form %s %s" % (width, theme))
@@ -227,10 +231,20 @@ class Movement(tmp.Base):
             with chrome() as cdp:
                 p = self.form(cdp, width, theme)
                 self.put(p, "who", "<p>Pat Example</p>", close=False)
-                p.js("document.querySelector(%s).focus()" % json.dumps(self.box("who")))
-                p.until("document.activeElement === document.querySelector(%s)" % json.dumps(self.box("who")), "focus in the editor")
+                sel = json.dumps(self.box("who"))
+                p.js("document.querySelector(%s).focus()" % sel)
+                p.js("window.__k = []; addEventListener('keydown', (e) => window.__k.push([Math.round(performance.now()), e.key, e.target.className || e.target.id || e.target.tagName]), true); window.__t0 = Math.round(performance.now())")
                 p.key("Tab", code="Tab", vk=9)
-                p.until("!document.querySelector(%s)" % json.dumps(self.box("who")), "closed on Tab", 20)
+                # The editor closes when its Tab handler has run; on a slow Mac that was after the old fixed half second. Wait for it, and say what the page was doing if it never does.
+                gone = None
+                end = time.monotonic() + 10
+                while time.monotonic() < end:
+                    gone = not p.js("!!document.querySelector(%s)" % sel)
+                    if gone:
+                        break
+                    time.sleep(0.05)
+                seen = "" if gone else " | " + json.dumps(p.js("({focus: document.hasFocus(), open: !!document.querySelector(%s), active: document.activeElement ? (document.activeElement.id || document.activeElement.className || document.activeElement.tagName) : null, keys: window.__k, since: Math.round(performance.now()) - window.__t0})" % sel))
+                self.assertTrue(gone, "closed on Tab" + seen)
                 self.assertIn("Pat Example", p.js("document.getElementById('mv-who').textContent"), "kept")
                 self.assertTrue(p.js("!!document.querySelector('.mvm-form')"), "form stays")
 

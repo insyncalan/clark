@@ -39,7 +39,7 @@ class Essentials(Head):
     test_C_keyboard_tab_to_a_chip_and_enter = test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900 = test_C_text_size_and_contrast_in_light_and_dark = None
 
     def settings(self, cdp, w, mode):
-        p = self.page(cdp)
+        p = self.page(cdp, motion="no-preference")      # the Motion switch starts On: a Mac that reduces motion would start it Off
         p.js(STUB)      # the page is on the Dashboard: Settings draws afresh, and its cards read the stand-in
         self.open_settings(p, w, mode)
         self.drawn(p)
