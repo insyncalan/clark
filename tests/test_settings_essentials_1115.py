@@ -7,6 +7,7 @@ import unittest
 
 from test_settings_head import Head
 from test_server import chrome
+from _new_page import reload_to_new_page
 
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
@@ -114,8 +115,8 @@ class Essentials(Head):
             with self.subTest(system=system, kept=kept), chrome() as cdp:
                 p = self.page(cdp)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": system}]}, p.sid)
-                p.js("localStorage.removeItem('clark.motion'); " + ("localStorage.setItem('clark.motion', %r); " % kept if kept else "") + "window.__before = 1; location.reload()")
-                p.until("!window.__before && document.readyState === 'complete'", "the page reloaded under the emulated setting")
+                p.js("localStorage.removeItem('clark.motion'); " + ("localStorage.setItem('clark.motion', %r); " % kept if kept else ""))
+                reload_to_new_page(p.js, "document.readyState === 'complete'", "the page reloaded under the emulated setting")
                 p.js(STUB)
                 self.open_settings(p, 1400, "light")
                 self.drawn(p)
