@@ -87,8 +87,8 @@ class Base(unittest.TestCase):
         # the test copy of the served page (window.clarkPage): the finished dialog stays open until a test sets a time (#437)
         self.rig = Rig(self, saved=self.saved, page_html=testpage.html)
 
-    def page(self, cdp, hash_="#dashboard&p=PUB"):
-        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None)      # the standard style is what these tests see (row 667)
+    def page(self, cdp, hash_="#dashboard&p=PUB", motion=None):
+        sid = navigate(cdp, self.rig.httpd.server_port, for_project(hash_), section_style=None, motion=motion)      # the standard style is what these tests see (row 667)
         p = Pg(self, cdp, sid)
         p.until("!!document.querySelector('#profile-btn')", "the profile circle is in the top bar")
         return p
@@ -262,7 +262,7 @@ class Dialog(Base):
     def test_C_publish_shows_a_spinner_while_it_works_then_a_tick_with_the_same_words(self):
         """#130 point 4: a spinner on the Publish button beside "Publishing…" (still when the person asked for less motion), then a tick beside the success line."""
         with chrome() as cdp:
-            p = self.page(cdp)
+            p = self.page(cdp, motion="no-preference")      # before the load: a Mac that reduces motion paints data-motion=reduce at load
             p.open_publish()
             p.js("window.__real = window.fetch; window.fetch = (u, o) => /publish/.test(String(u)) && o && o.method === 'POST' ? new Promise((ok) => { window.__release = () => ok(window.__real(u, o)); }) : window.__real(u, o);")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, p.sid)
