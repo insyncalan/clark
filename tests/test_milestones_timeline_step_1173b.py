@@ -39,10 +39,21 @@ class Step(BrowserBase, unittest.TestCase):
         self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.mv-bar [data-scale-b={scale}]').getAttribute('aria-current')", sid) == "true"))
 
     def test_later_and_earlier_step_thirty_days_at_each_scale(self):
+        self.steps_at(None)
+
+    def test_the_step_follows_the_zoom_when_it_is_not_100(self):
+        """Item 1173b: the step is 30 days times the pixels a day times the zoom (MsTimeline.jsx step()), so a remembered zoom of 150% steps half as far again."""
+        self.steps_at(1.5)
+
+    def steps_at(self, remembered):
         port = self.serve()
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width, HASH, port)
+                if remembered is not None:
+                    cdp.js(f"localStorage.setItem('clark.tlZoom.page', JSON.stringify({remembered}))", sid)
+                    sid = self.visit(cdp, width, HASH, port)
+                    self.assertEqual(cdp.js("+document.querySelector('.mv-wrap').dataset.zoomPct", sid), round(remembered * 100), f"{width}: the remembered zoom is in use")
                 zoom = cdp.js("+document.querySelector('.mv-wrap').dataset.zoomPct", sid) / 100
                 for scale, base in STEPS:
                     where = f"{width} {scale}"

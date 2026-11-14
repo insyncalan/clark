@@ -5,6 +5,7 @@ Chrome launches at 1400 and 900 px.
 """
 import unittest
 
+from _demo import USER
 from test_milestones_page import BrowserBase
 from test_server import chrome, wait
 
@@ -15,6 +16,13 @@ SPACING = """(() => { const m = [...document.querySelectorAll('.mv-mk[data-mark-
 
 
 class Zoom(BrowserBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with cls.store.step("dashboard", USER) as st:      # the demo's marks sit within three months, so the line barely scrolls and the centre test passed with the centre code removed; two far marks (as in 1173c) give it room
+            st.create("milestones", {"project": "TUL", "name": "Far back", "baseline_date": "2026-03-01", "source": "demo"})
+            st.create("milestones", {"project": "TUL", "name": "Far on", "baseline_date": "2028-12-01", "source": "demo"})
+
     def pick(self, cdp, sid, scale):
         cdp.js(f"document.querySelector('.mv-bar [data-scale-b={scale}]').click()", sid)
         self.assertTrue(wait(lambda: cdp.js(f"document.querySelector('.mv-bar [data-scale-b={scale}]').getAttribute('aria-current')", sid) == "true"))
