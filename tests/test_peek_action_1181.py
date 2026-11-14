@@ -18,7 +18,7 @@ from test_peek_latest import OVERDUE  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
 from test_work_filters import click  # noqa: E402
 
-PEEK = ROOT / "src/clark/page/src/components/Peek.jsx"
+PEEK = ROOT / "src/clark/page/src/components/PeekActionBody.jsx"
 CHIPS = "#peek .pk-chips"
 ROWS_JS = "[...document.querySelectorAll('#peek [data-pk-details-rows] dt')].map(d => d.textContent.replace(/\\s+/g, ' ').trim())"
 
@@ -81,13 +81,13 @@ class Action(test_peek_latest.Browser):
                 text = self.pop_text(cdp, sid, "owner")
                 for word in ("Recent", "People", "TBC"):
                     self.assertIn(word, text, f"the owner list has {word}")
-                self.assertTrue(cdp.js("!!document.querySelector('[data-pop] input')", sid), "a search box")
+                self.assertTrue(cdp.js("!!document.querySelector('.cowner input.cp-in')", sid), "a search box")
 
     def test_a_name_that_is_not_a_person_offers_add_as_a_new_person_or_keep_the_name_only(self):
         with chrome() as cdp:
             sent, sid = self.load(cdp, 1400, OVERDUE)
             self.pop_text(cdp, sid, "owner")
-            cdp.js("(() => { const i = document.querySelector('[data-pop] input'); i.focus(); })()", sid)
+            cdp.js("(() => { const i = document.querySelector('.cowner input.cp-in'); i.focus(); })()", sid)
             cdp.call("Input.insertText", {"text": "Zed Nobody"}, sid)
             self.assertTrue(wait(lambda: re.search(r"Add Zed Nobody as a new person", cdp.js("document.querySelector('[data-pop]').innerText", sid) or "")), "Add <name> as a new person")
             self.assertIn("Keep the name only", cdp.js("document.querySelector('[data-pop]').innerText", sid))
@@ -99,7 +99,7 @@ class Action(test_peek_latest.Browser):
                 text = self.pop_text(cdp, sid, "due")
                 for word in ("Today", "Tomorrow", "Friday", "Next week", "No date"):
                     self.assertIn(word, text)
-                self.assertTrue(cdp.js("document.querySelectorAll('[data-pop] button[data-date], [data-pop] [role=gridcell] button, [data-pop] td button').length >= 28", sid), "a month of days")
+                self.assertTrue(cdp.js("document.querySelectorAll('.cdate button[data-day]').length >= 28", sid), "a month of days")
                 self.assertIn("October", text + " " + cdp.js("document.querySelector('[data-pop]').textContent", sid), "the month shown is the due date's")
 
     def test_a_late_open_action_says_overdue_6_days_in_red(self):

@@ -34,6 +34,7 @@ FILE_ONLY_ROWS = ("Client wording", "Latest update")                # row 1111: 
 HISTORY_ROWS = ("Last reviewed",)                                  # worked out from the item's history on the live page; a published file carries no history
 CONTROLS = "button, input, textarea, select, [contenteditable], [role=textbox], [role=combobox]"
 ACTION, MILESTONE = "TUL-A-001", "TUL-M-002"
+RISK = "TUL-007"     # item 1181: an action keeps only Workstream, Milestone and Raised in Details (ticket, Details rows), so the field-rows test reads a risk
 CELLS = "(() => { const out = {}; for (const k of ['status', 'priority', 'owner', 'due']) { const e = document.querySelector('#peek .pk-fields > [data-row=' + k + ']'); if (!e) continue; const c = getComputedStyle(e); out[k] = [c.borderTopWidth, c.borderLeftWidth, c.borderTopLeftRadius, c.backgroundColor, c.boxShadow]; } return out; })()"
 FLAT = ["0px", "0px", "0px", "rgba(0, 0, 0, 0)", "none"]          # border, border, radius, fill, shadow
 SECTIONS = "(() => { const out = {}; for (const s of ['.pk-bar', '.pk-title', '.pk-fields', '.pk-latest', '.pk-tabs', '.pk-source', '.pk-last']) { const e = document.querySelector('#peek ' + s); if (e) out[s] = getComputedStyle(e).boxShadow; } return out; })()"   # the peek's sections draw no shadow (only the panel itself does)
@@ -189,7 +190,7 @@ class Browser(Peeks):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.dashboard_in_view(cdp, width, self.store, self.code)
-                self.open_peek(cdp, sid, ACTION, "item")
+                self.open_peek(cdp, sid, RISK, "item")
                 self.assertTrue(wait(lambda: cdp.js("(s => !!s && s.textContent.startsWith('Source: ') && s.textContent.length > 8)(document.querySelector('#peek [data-pk-source]'))", sid)),
                                 "a client sees where the item came from on the live Dashboard in View: " + str(cdp.js("(s => s && s.textContent)(document.querySelector('#peek [data-pk-source]'))", sid)))
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-pk-source] .pk-source-l').textContent", sid), "Source")
@@ -198,7 +199,7 @@ class Browser(Peeks):
                 for sel in (".pk-tabs", "[data-sneak]", "[data-pk-latest]", "[data-pk-title-in]", "[data-pk-needed]"):
                     self.assertFalse(cdp.js(f"!!document.querySelector('#peek {sel}')", sid), f"{sel} is the editor's alone")
                 client = self.labels(cdp, sid)
-                self.assertTrue(len(client) >= 6, client)
+                self.assertTrue(len(client) >= 5, client)      # item 1181: Status, Owner, Due and Priority are chips, not rows; a risk keeps Workstream, Milestone, Use case, Raised, Last reviewed
                 self.to_edit(cdp, sid)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek .pk-tabs')", sid)), "Edit: the tabs are drawn")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "Edit keeps Source")
@@ -207,7 +208,8 @@ class Browser(Peeks):
                 self.assertEqual(client, [l for l in editor if l not in EDIT_ONLY_ROWS], "the client's rows are the editor's, in the editor's order")
                 self.assertEqual(sorted(set(editor) - set(client)), sorted(EDIT_ONLY_ROWS), "the editor adds its two control rows and nothing else")
                 self.no_draft(cdp, sid, "Edit")
-                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid), "the Latest update stays, without its Draft")
+                self.open_peek(cdp, sid, ACTION, "item")      # the Latest update is an action's alone
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-latest] [data-rich=latest_update]')", sid)), "the Latest update stays, without its Draft")
 
     def test_the_client_milestone_peek_is_read_only_and_no_peek_has_a_draft(self):
         for width in (1400, 900):
@@ -265,16 +267,14 @@ class Browser(Peeks):
                 self.no_draft(cdp, sid, "published file")
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-                    cells = cdp.js(CELLS, sid)
-                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"the published cells are flat too, {theme} (ruling of 10-11): " + str(cells))
+                    # item 1181: an action has a chip row (item 1180 frame), not the four property cells: the flat-cell check is dropped
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on a published peek's sections, {theme}: " + str(shadows))
                 shown = self.labels(cdp, sid)
                 self.assertTrue(set(FILE_ONLY_ROWS) <= set(shown), "row 1111: a published peek draws the client wording and latest update the file carries, read only")
                 published = [l for l in shown if l not in FILE_ONLY_ROWS]
                 self.assertEqual(published, [l for l in editor if l not in EDIT_ONLY_ROWS + HISTORY_ROWS], "the published rows are the editor's, read only")
-                self.assertEqual(sorted(set(editor) - set(published)), sorted(EDIT_ONLY_ROWS + HISTORY_ROWS))
+                self.assertEqual(sorted(set(editor) - set(published)), [], "item 1181: an action's Details has no Client wording, Last reviewed or Shown to client row, so the editor adds none")
                 self.assertIn("Raised", published, "the date raised is published, so its row stays")
                 # the milestone peek in the same file: fields only, nothing to press
                 cdp.js("location.hash = '#dashboard&p=PUB&ms=PUB-M-001'", sid)
@@ -321,9 +321,7 @@ class Flat(Peeks):
                 sid = self.work(cdp, width)
                 for theme in ("light", "dark"):
                     cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
-                    cells = cdp.js(CELLS, sid)
-                    self.assertEqual(sorted(cells), ["due", "owner", "priority", "status"])
-                    self.assertEqual(set(map(tuple, cells.values())), {tuple(FLAT)}, f"{theme}: " + str(cells))
+                    # item 1181: an action has a chip row (item 1180 frame), not the four property cells, so the flat-cell check is dropped here
                     shadows = cdp.js(SECTIONS, sid)
                     self.assertTrue(shadows and set(shadows.values()) == {"none"}, f"no shadow on the editor's peek sections, {theme}: " + str(shadows))
                 cdp.js("document.documentElement.dataset.theme = 'light'", sid)
