@@ -8,6 +8,7 @@ Chrome launches at 1400 and 900 px.
 """
 import unittest
 
+from _demo import USER
 from test_milestones_page import BrowserBase
 from test_server import chrome, wait
 
@@ -17,6 +18,12 @@ STEPS = (("week", 600), ("month", 150), ("quarter", 48))
 
 
 class Step(BrowserBase, unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        with cls.store.step("dashboard", USER) as st:      # the demo's marks sit within three months, which fits the screen at Month; two far apart give the Timeline room to scroll and a Quarter axis with every name
+            st.create("milestones", {"project": "TUL", "name": "Far back", "baseline_date": "2026-03-01", "source": "demo"})
+            st.create("milestones", {"project": "TUL", "name": "Far on", "baseline_date": "2028-12-01", "source": "demo"})
     def settle(self, cdp, sid):
         """Wait until scrollLeft has stopped moving (a smooth scroll is done) and return it."""
         seen = []
@@ -41,6 +48,7 @@ class Step(BrowserBase, unittest.TestCase):
                     where = f"{width} {scale}"
                     want = base * zoom
                     self.pick(cdp, sid, scale)
+                    cdp.js("(w => { w.scrollLeft = (w.scrollWidth - w.clientWidth) / 2; })(document.querySelector('.mv-wrap'))", sid)      # picking a scale keeps the centre it had, which can be at an end; start from the middle
                     start = self.settle(cdp, sid)
                     room = cdp.js("document.querySelector('.mv-wrap').scrollWidth - document.querySelector('.mv-wrap').clientWidth", sid)
                     self.assertGreater(room - start, want * 2, f"{where}: room to step later")
