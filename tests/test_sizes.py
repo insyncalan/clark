@@ -31,6 +31,7 @@ DATA = {"ABC": {**BASE["ABC"],
                                     {"id": "risks", "type": "raid", "title": "Risks and issues"},
                                     {"id": "ms", "type": "milestones", "title": "Milestones"}]}}
 
+TWO = [{"code": "ABC", "name": "Example Programme"}, {"code": "DEF", "name": "Second Programme"}]       # item 1135: a bare address opens the only project by itself, so the chooser stays only with two or more (and nothing remembered)
 ONE = [{"code": "ABC", "name": "Example Programme"}]       # one project, so the top bar's project switcher is plain words: opening it would change the project under the audit
 
 OPENERS = ".fbtn, .toc-lines, .newb, .top button:not(.tab), [aria-haspopup], [aria-expanded=false]"
@@ -133,7 +134,7 @@ class Sizes(unittest.TestCase):
         self.run_page(published_page, "&p=ABC", edit=False, views=PUBLISHED_VIEWS)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
-        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: TWO, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:
