@@ -1653,6 +1653,33 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .top { background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }   /* the bar still takes --brand-navy, with a soft lift to the right */
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
 
+/* Issue 1146: a published file has ONE slim bar, 68 px high and sticky: the logo, the project name with the report line under it, the tabs, the
+   date, the place for the switcher icon (.top-slot, issue 1144) and the profile circle. The brand picture is a soft wash over its right 45 percent,
+   faded in from the left (the ruling: about 42 percent strength); with no picture the bar is the navy gradient. The editor keeps its own bar. */
+html:has(.top-file) { --topbar: 68px; }
+.top-file { height: var(--topbar); }
+.top-file::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
+.top-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.top-name { margin: 0; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-line { margin: 0; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); line-height: 1.2; }
+.top-file .tabs { height: auto; align-self: center; }
+.top-file .tab { padding-block: 8px 9px; line-height: 1.3; }      /* only as tall as its text, 8 px above and 9 px below, so the underline sits right under the label */
+.top-file .tab:focus-visible { outline-offset: 2px; }
+.top-file .asat { color: var(--white); }
+.top-file .asat ~ .cm-wrap { margin-left: 0; }
+.top-slot:empty { display: none; }
+html:has(.top-file) main { padding-top: 10px; }      /* the first card starts 10 px under the bar */
+html:has(.top-file) .frame.report { padding-top: 0; }
+html:has(.top-file) .frame.report .secs { margin-top: 0; }
+html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: calc(var(--topbar) + 16px); }      /* a jump to a section stops below the bar: the bar's height and some air (84 px) */
+@media (max-width: 900px) {      /* the ruling (A, provisional): two rows about 100 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
+  html:has(.top-file) { --topbar: 100px; }
+  .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
+  .top-file .asat { display: none; }
+  .top-file .tabs { order: 9; flex: 1 1 100%; margin-left: 0; overflow-x: auto; }
+}
+@media print { .top-file { position: relative; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated; relative (not static) so the picture wash stays inside the bar */
+
 /* reduced motion: no transition and no lift on the main button */
 /* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */
 .btn.pri.ok { background-color: var(--status-green-text); background-image: none; color: var(--text-on-brand); }
@@ -2069,7 +2096,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
 @media print {
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all .top:not(.top-file), html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all .ucall { display: none; }   /* row 1108: on paper every use case shows, so the Show all button has nothing to do */
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
   html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
