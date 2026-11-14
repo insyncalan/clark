@@ -1,4 +1,4 @@
-"""#634: the copy folder (#622) when clark runs in Docker, and a copy cut off by a kill.
+"""Item 634: the copy folder (item 622) when clark runs in Docker, and a copy cut off by a kill.
 
 Run: python3 dev/run_tests.py test_backup_copy_out
 No Docker is started. The compose file is read as text.
