@@ -24,7 +24,7 @@ WHERE = {
     "add-a-section-from-a-template": {2: "templates-add-box", 3: "templates-dialog", 5: "templates-place"},
     "arrange-the-report": {1: "arrange-grip", 3: "arrange-menu", 6: "arrange-leave-out"},
     "bring-in-an-excel-workbook": {1: "excel-in-button", 3: "excel-in-box"},
-    "send-the-workbook-out": {1: "excel-out-icon", 2: "excel-out-menu", 3: "excel-out-card"},
+    "send-the-workbook-out": {2: "excel-out-menu", 3: "excel-out-card"},
     "publish-to-the-client": {2: "publish-menu", 3: "publish-dialog"},
 }
 

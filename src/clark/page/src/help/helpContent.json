@@ -24,7 +24,7 @@
     "n": "In",
     "t": "Bring it in",
     "ic": "ul",
-    "d": "Import from Excel: actions, risks and issues, decisions, milestones and use cases. Or add them by hand with the **+** buttons."
+    "d": "Import from Excel (Settings › Data): actions, risks and issues, decisions, milestones and use cases. Or add them by hand with the **+** buttons."
    },
    {
     "n": "Update",
@@ -63,7 +63,7 @@
    },
    {
     "t": "Bring in the work",
-    "d": "On [Work items](go:work), press the import icon. **Get the template** gives you a workbook with the right columns."
+    "d": "In [Settings](go:settings), open **Data** and press **Import workbook**. **Get the template** gives you a workbook with the right columns."
    },
    {
     "t": "Say where reports go",
@@ -459,17 +459,17 @@
     "id": "import-and-export",
     "g": "Work items",
     "t": "Import or export Excel",
-    "w": "Work items filter line · Settings › Data · profile circle",
-    "go": "work",
+    "w": "Settings › Data · profile circle",
+    "go": "settings#data",
     "s": [
-     "**Export**: press the down-arrow icon. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
-     "**Import**: press the up-arrow icon. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
+     "**Export**: in **Settings**, open **Data** and press **Export workbook**. You get one workbook with a sheet each for Actions, Risks & Issues, Decisions, Milestones and Use cases, and a Gantt sheet when the project has Gantt lines, named after today and the project.",
+     "**Import**: in **Settings**, open **Data** and press **Import workbook**. The box lists the sheets and columns it reads. **Get the template** downloads a workbook with the right columns.",
      "Press **Choose a file** (an Excel .xlsx workbook). The box **What to import** lists the sheets the workbook has, the Gantt sheet after the others, each with its rows. The sheets you ticked last time are ticked again (every sheet, the first time): untick any you do not want, then press **Continue**. **Check the import** then shows how many rows are new or updated, and how many are not in the workbook, with the first few. If a row breaks a rule, the box says **Nothing was imported**, lists each such row with why, and offers only **Close**: fix the workbook and choose it again. Otherwise, press **Import** (the button also says how many changes) to save them.",
      "A row with an ID that exists updates that item; a row without one adds a new item. Only the title or name is needed. A new workstream is added to the project."
     ],
     "n": "The whole import is one step: one **Undo** takes it all back.",
     "page": [
-     "work"
+     "settings#data"
     ]
    },
    {
@@ -572,7 +572,7 @@
     "go": "dashboard+edit",
     "s": [
      "Open the **Use cases** tab. Each row shows the reference, the name, where it stands, the status, the number of next steps and whether it is on the dashboard. A use case with a commitment shows it as a small chip beside the status.",
-     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, **Sort by**, the up-arrow icon (**Import from Excel**), the down-arrow icon (**Export to Excel**) and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
+     "The tabs **All use cases**, **On the dashboard**, **Committed** and **At risk** narrow the list, each with its count. At the right end of the tabs row are **Group by**, **Sort by** and the **+** (**Add use case**). Type in the filter line (**Filter by keyword or by field**) a word or a field such as status:Flag, commitment:Committed, milestone: or on:no; the **×** at its right empties it. **Clear the filters** puts them all back.",
      "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**. Change the order with **Sort by**: **Reference**, **Status** or **Open work items**.",
      "Click a name to open the use case on its own page. The **Use cases** link at the top, [[Esc]] or the Back button of your browser brings you back to the list. The small menu beside the status there reads **Set commitment**: choose a word, or **No flag**. Each choice is one change, with one Undo and one line in History. If every open work item is already linked, or there are none, the link box says so."
     ],
@@ -727,7 +727,6 @@
     "go": "settings",
     "s": [
      "In **Settings**, open the **Projects** card and press **+** (**Add project**). Give it a name, a short code (3 to 7 letters or digits, suggested from the name; it can’t change later), the client and its workstreams, separated by commas.",
-     "A new project opens on Work items, ready for an import.",
      "Each project has **Open**, **Edit** and **Archive**. Archive hides the project and everything in it from the usual lists, the counts and the published page; **Show archived** finds it, and **Restore** and **Undo** bring it back.",
      "Under the projects, set this project’s **Publishing** folders. The folders asking may read are in the **Asking** card, under **Folders asking may read**.",
      "The project button (the arrow beside the logo) in the top bar switches projects and shows each one’s open items. Adding a project and a project’s settings are in **Settings**, in the **Projects** card."
@@ -1242,7 +1241,7 @@
     "b": [
      [
       "p",
-      "From the top: the saved views, then the filter line. At the right end of the filter line are the Import and Export icons, the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
+      "From the top: the saved views, then the filter line. At the right end of the filter line are the **List** and **Board** icons and the **Group by** button (the grouping and, on the board, Swimlanes)."
      ],
      [
       "p",
@@ -2234,13 +2233,13 @@
     "dl",
     "Export to Excel",
     "One workbook of the project, or of the use cases",
-    "Work items, the Use case summary, Settings, the profile circle"
+    "Settings, the profile circle"
    ],
    [
     "ul",
     "Import from Excel",
     "Read a workbook and check it before it is saved. Also Publish…, in the profile circle",
-    "Work items, Settings, the profile circle"
+    "Settings, the profile circle"
    ],
    [
     "rows",
@@ -2686,8 +2685,7 @@
    "job": "Save the project as an Excel workbook, know what is in it, and take changes back in.",
    "steps": [
     {
-     "d": "On **Work items**, press the **Export to Excel** icon at the right end of the filter line. With no work items yet there is no filter line, and the icon is in the page header, beside the add button.",
-     "pic": "excel-out-icon"
+     "d": "With a project open, from any page, including **Work items**, the export is in the profile circle menu or in **Settings**, in the **Data** card."
     },
     {
      "d": "Or press your profile circle and choose **Export to Excel**. It gives the same workbook from any screen.",
@@ -2969,10 +2967,6 @@
   {
    "id": "excel-in-box",
    "alt": "The Import from Excel box, with the Choose a file button ringed."
-  },
-  {
-   "id": "excel-out-icon",
-   "alt": "The Export to Excel icon on the filter line, ringed."
   },
   {
    "id": "excel-out-menu",

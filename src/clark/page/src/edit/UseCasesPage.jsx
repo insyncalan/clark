@@ -5,7 +5,7 @@
 // changed through the one change path with its Undo toast, in View as in Edit (row 819).
 // The list is ONE tab stop (the current row's name): Up and Down move between rows, Home and End to the first and last, Right to the
 // row's eye and Left back to its name. Row 1085: the page follows the Work items page: four fixed tabs with counts (All use cases, On the
-// dashboard, Committed, At risk) over one rule, Group by, Import, Export and the + at the row's end, the filter line under it (the Work items box over this
+// dashboard, Committed, At risk) over one rule, Group by and the + at the row's end, the filter line under it (the Work items box over this
 // page's own fields, edit/UseCasesFilter.jsx), the sort in a menu beside Group by (item 1149: the rows are the dashboard summary's, no column names). The tab, the line, the group and the sort are remembered for
 // each project in this browser (logic/useCasesList.js), never in the address, so they add no Back entry.
 import { signal, computed } from "@preact/signals";
@@ -24,8 +24,6 @@ import { UseCasesFilter } from "./UseCasesFilter.jsx";
 import { shownOf, tabCounts, lineParts } from "./useCasesLine.js";
 import { plural } from "../workItems.js";
 import { Menu } from "../components/Menu.jsx";
-import { ImportBtn } from "./ImportBtn.jsx";
-import { ExportBtn } from "./ExportBtn.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { groupIcon, sortIcon } from "../menuIcons.js";
@@ -158,14 +156,12 @@ function UseCasesList() {
     setTimeout(() => { const q = document.getElementById("ucl-q"); if (q) q.focus({ preventScroll: true }); }, 60);
   };
   const parts = lineParts(f.line, rows), filtered = parts.chips.length > 0 || f.tab !== "all";     // the empty state: the plain words said back, and whether filters narrowed it too
-  // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Group by, Import, Export and Add use case
-  // (the growing +) at its right end (the ruling: Import is the up arrow, Export the down arrow, as on Work items); the filter line under it. The tabs' counts follow the line.
+  // Row 1085: the tabs row as Work items draws its saved views (the tabs with their counts over one rule), with Group by and Add use case
+  // (the growing +) at its right end (Import and Export are in Settings, on the Data card); the filter line under it. The tabs' counts follow the line.
   const tools = (
     <span class="ucl-tools">
       {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
       {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
-      <ImportBtn />
-      <ExportBtn />
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
     </span>
   );

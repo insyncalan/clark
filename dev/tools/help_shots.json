@@ -36,10 +36,6 @@
      "crop": "#import-box", "margin": 8,
      "marks": [{"ring": "#import-choose", "number": 1}]},
 
-    {"id": "excel-out-icon", "guide": "excel-out", "screen": "#work&p=TUL",
-     "steps": [{"mode": "view"}, {"wait": "#expBtn"}],
-     "crop": "#expBtn", "margin": 60,
-     "marks": [{"ring": "#expBtn", "number": 1}]},
     {"id": "excel-out-menu", "guide": "excel-out", "screen": "#dashboard&p=TUL",
      "steps": [{"click": "#profile-btn"}, {"wait": "#profile-menu [data-kind=export]"}, {"away": true}],
      "crop": "#profile-menu", "margin": 8,
