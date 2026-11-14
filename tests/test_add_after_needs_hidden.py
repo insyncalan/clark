@@ -42,20 +42,25 @@ class AddAfterWithStoredNeeds(Base):
             p.edit()
             self.assertEqual(p.ids(), IDS, "the page draws the eleven sections and not the Needs one")
 
-    def test_add_after_the_first_section_lands_directly_after_it_as_the_person_sees_it(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                p = self.visit(cdp)
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-                p.edit()
-                self.open_box(p, FIRST)
-                p.js("document.querySelector('button[data-place]').click()")
-                p.until("document.querySelectorAll('.secs > .sec').length === 12", "added")
-                new = [i for i in p.ids() if i not in IDS][0]
-                self.assertEqual(p.ids()[:3], [FIRST, new, "ABC-S-002"], "directly after the first section, before the second")
-                self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
-                self.assertEqual(self.sent[-1][1]["after"], FIRST)
-                self.assertNotIn(NEEDS, p.ids())
+    def add_after_the_first(self, width):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+            p.edit()
+            self.open_box(p, FIRST)
+            p.js("document.querySelector('button[data-place]').click()")
+            p.until("document.querySelectorAll('.secs > .sec').length === 12", "added")
+            new = [i for i in p.ids() if i not in IDS][0]
+            self.assertEqual(p.ids()[:3], [FIRST, new, "ABC-S-002"], "directly after the first section, before the second")
+            self.assertEqual([r[0] for r in self.sent], ["change"], "one request")
+            self.assertEqual(self.sent[-1][1]["after"], FIRST)
+            self.assertNotIn(NEEDS, p.ids())
+
+    def test_add_after_the_first_section_lands_directly_after_it_as_the_person_sees_it_at_1400(self):
+        self.add_after_the_first(1400)
+
+    def test_add_after_the_first_section_lands_directly_after_it_as_the_person_sees_it_at_900(self):
+        self.add_after_the_first(900)       # its own test: the first adds a section to the store and the requests are counted per test
 
     def test_the_box_does_not_offer_the_needs_section_as_a_place(self):
         with chrome() as cdp:
