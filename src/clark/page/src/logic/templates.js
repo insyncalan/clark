@@ -9,7 +9,6 @@
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
-import { USE_CASES_NAME, USE_CASES_DESCRIPTION, USE_CASES_HOLDS, USE_CASES_START_TITLE } from "./useCasesStrings1191.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
 // and every type in the template registry (#96)). A template whose type is not here is listed but not offered.
@@ -50,8 +49,6 @@ export const TEMPLATES = [
     description: "Four shorter cards: good for “this week’s actions” or “decisions needed”.", holds: ["Heading", "RAID card ×4"] },
   { id: "work-items", name: "Work items list", kind: "work", fit: ["full", "half"], type: "workitems", title: "Work items", body: "", ready: true,
     description: "Live rows from Work items, chosen by a filter: open actions due soon, red risks, decisions needed.", holds: ["Heading", "Filter (set in Edit)", "Work item list · live", "Caption (optional)"] },
-  { id: "use-cases", name: USE_CASES_NAME, kind: "work", fit: ["full"], type: "usecases", title: USE_CASES_START_TITLE, body: "", ready: true,
-    description: USE_CASES_DESCRIPTION, holds: USE_CASES_HOLDS },      // item 1191: words in useCasesStrings1191.js (UNRULED)
   { id: "docs-links", name: "Documents and links", kind: "files", fit: ["full", "half"], type: "doclinks", title: "Documents and links", body: "", ready: true,
     description: "The papers that go with this week’s report.", holds: ["Heading", "File (one or more)", "Link list"] },
   { id: "callout", name: "Callout", kind: "notes", fit: ["half", "full"], type: "callout", title: "Callout", body: "", ready: true,
@@ -129,7 +126,6 @@ export const SKETCHES = {
   "raid-3": ["grid-template-columns:repeat(3,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--brand-blue)"]],
   "raid-4": ["grid-template-columns:repeat(4,1fr)", ["border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", "border-top:3px solid var(--status-amber)", ""]],
   "work-items": ["grid-template-rows:repeat(4,1fr)", ["width:90%", "width:75%", "width:85%", "width:70%"]],
-  "use-cases": ["grid-template-rows:repeat(4,1fr)", ["width:100%", "width:90%", "width:90%", "width:90%"]],
   "docs-links": ["grid-template-rows:repeat(3,1fr)", ["", "", ""]],
   "callout": ["", ["background:var(--status-amber-tint);border-left:3px solid var(--status-amber)"]],
   "image-caption": ["grid-template-rows:2fr 1fr", [IMG, "width:50%"]],

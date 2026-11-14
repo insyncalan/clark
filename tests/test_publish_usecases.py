@@ -191,10 +191,6 @@ class Present(unittest.TestCase):
             if f.suffix != ".json":
                 text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
                 text = re.sub(r"(^|\s)//[^\n]*", r"\1", text)
-            if f.name == "useCasesStrings1191.js":      # item 1191: the ticket spells the card "Use Cases"; UNRULED, the one place it may stand until it is ruled
-                continue
-            if f.name == "helpContent.json":
-                text = text.replace('"Use Cases"', "", 1)      # item 1191: Help's one row for that card, in the same UNRULED spelling
             if re.search(r"\bUse Cases\b", text):
                 found.append(str(f.relative_to(ROOT)))
         self.assertEqual(found, [], "a user-facing 'Use Cases' (write 'Use cases')")
