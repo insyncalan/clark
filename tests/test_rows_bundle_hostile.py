@@ -207,7 +207,7 @@ class OpenInChrome(unittest.TestCase):
         for exc in (FileNotFoundError(2, "x"), PermissionError(13, "x"), OSError(8, "Exec format error"), NotADirectoryError()):
             def popen(a, **kw):
                 raise exc
-            with self.assertRaisesRegex(pl.PlatformError, r"^Chrome could not be started, so clark's window did not open\.$"):
+            with self.assertRaisesRegex(pl.PlatformError, r"^The browser could not be started, so clark's window did not open\.$"):
                 pl.open_in_chrome("http://x/", "/c", popen=popen, on=pl.MAC)
 
         def boom(a, **kw):
@@ -217,8 +217,8 @@ class OpenInChrome(unittest.TestCase):
 
     def test_not_on_a_mac_nothing_is_started(self):
         calls = []
-        with self.assertRaises(pl.NotBuiltYet):
-            pl.open_in_chrome("http://x/", "/c", popen=lambda *a, **k: calls.append(a), on=pl.WINDOWS)
+        with self.assertRaises(pl.NotBuiltYet):         # item 636: Windows can now open a window; another system cannot
+            pl.open_in_chrome("http://x/", "/c", popen=lambda *a, **k: calls.append(a), on="linux")
         self.assertEqual(calls, [])
 
     def test_popen_is_called_once(self):
@@ -256,14 +256,14 @@ class OpenClark(unittest.TestCase):
 
     def test_chrome_found_opens_clark_localhost_not_the_browser(self):
         code, said, win, brw = self.run_it("/stub")
-        self.assertEqual((code, said, win, brw), (0, ["Opened clark in Chrome."], [("http://clark.localhost:8800/", "/stub")], []))
+        self.assertEqual((code, said, win, brw), (0, ["Opened clark in the browser set in CLARK_BROWSER."], [("http://clark.localhost:8800/", "/stub")], []))
 
     def test_chrome_not_found_uses_the_plain_address_and_says_so(self):
         # mutant: open_browser(address(port)) (Safari cannot resolve *.localhost); old "Install Chrome" sentence back
         for none in (None, "", 0, False):
             code, said, win, brw = self.run_it(none)
             self.assertEqual((code, win, brw), (0, [], ["http://127.0.0.1:8800/"]), repr(none))
-            self.assertEqual(said, ["Chrome wasn't found, so clark opened in your default browser."])
+            self.assertEqual(said, ["Chrome or Edge wasn't found, so clark opened in your default browser."])
 
     def test_failure_names_the_plain_address_in_both_branches(self):
         for chrome in ("/stub", None):
@@ -313,7 +313,7 @@ class LaunchPassesThePortThrough(unittest.TestCase):
                                      open_browser=self.browser.append, finish=lambda f, say: True)
                 self.assertEqual(code, 0)
                 self.assertEqual(self.browser, [f"http://127.0.0.1:{self.port}/"])
-                self.assertEqual(self.said[-1], "Chrome wasn't found, so clark opened in your default browser.")
+                self.assertEqual(self.said[-1], "Chrome or Edge wasn't found, so clark opened in your default browser.")
         r = unittest.TextTestRunner(stream=__import__("io").StringIO()).run(T())
         self.assertTrue(r.wasSuccessful(), r.failures + r.errors)
 

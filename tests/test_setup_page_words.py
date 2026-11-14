@@ -37,7 +37,7 @@ class Case(unittest.TestCase):
 
     def seen(self, **kw):
         base = dict(data=str(self.default), home=self.home, on=pl.MAC, environ={}, onedrive_roots=lambda: [self.onedrive],
-                    find_chrome=lambda: "/chrome", find_claude=lambda: "/claude", app=self.home / "clark",
+                    find_chrome=lambda: "/Google Chrome", find_claude=lambda: "/claude", app=self.home / "clark",
                     health=lambda port, mark: launch.NOTHING, free=lambda port: True)
         base.update(kw)
         return doctor.Seen(**base)
@@ -73,8 +73,9 @@ class PageVersions(Case):
     def test_row_20_browser(self):
         _, found = self.page(self.by_name("browser"), self.seen())
         _, missing = self.page(self.by_name("browser"), self.seen(find_chrome=lambda: None))
-        self.assertEqual(found, "Chrome is there, so clark opens in Chrome.")
-        self.assertEqual(missing, "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to open clark there.")
+        self.assertEqual(found, "Google Chrome is there, so clark opens in it.")
+        self.assertEqual(missing, "Chrome or Edge wasn't found, so clark will open in your usual browser. Install Google Chrome or "
+                                  "Microsoft Edge to open clark there.")
 
     def test_row_22_port(self):
         _, other = self.page(self.by_name("port"), self.seen(health=lambda port, mark: launch.NOT_CLARK))
