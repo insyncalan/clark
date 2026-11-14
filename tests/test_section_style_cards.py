@@ -186,7 +186,7 @@ class Cards(Base):
             p.js("1")                           # reads any waiting events
             errors = [e["method"] + " " + json.dumps(e["params"])[:300] for e in cdp.events
                       if e["method"] == "Runtime.exceptionThrown"
-                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error")
+                      or (e["method"] == "Log.entryAdded" and e["params"]["entry"].get("level") == "error" and e["params"]["entry"].get("source") != "network")      # item 1850: a late "503" for /api/backups from the test server is not about storage
                       or (e["method"] == "Runtime.consoleAPICalled" and e["params"].get("type") == "error")]
             self.assertEqual(errors, [], "no uncaught exception and no console error")
             self.assertGreaterEqual(p.js("window.__tried"), 1, "the page did try to keep the choice, so the block was really met")
