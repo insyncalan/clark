@@ -12,7 +12,7 @@ import unittest
 
 from _paths import SRC
 from clark import changes, docx_build, publish, store
-from test_section_registry import PageSide
+import test_section_registry as _reg
 from test_use_cases_list import Setup
 from test_server import chrome
 
@@ -72,7 +72,8 @@ class Static(unittest.TestCase):
         self.assertEqual(excel_client.SECTION_OF["use_cases"], "usecases")
 
 
-class Parts(PageSide):
+class Parts(_reg.PageSide):
+    """Only the tests below are this item's; the base class's own run in test_section_registry."""
     def test_the_type_has_view_and_edit_parts_and_is_ready(self):
         self.assertEqual(self.val('[typeof T.templateFor("usecases").view, typeof T.templateFor("usecases").isEmpty, T.templateFor("usecases").ready]'),
                          ["function", "function", True])
