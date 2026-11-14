@@ -93,9 +93,9 @@ class HeaderNoProjectName(Base):
 
 
 class PublishedFileHasNoProjectName(unittest.TestCase):
-    """The published file's bar has no switcher: its name span is kept for a screen reader and is not drawn (row 1064)."""
+    """Row 1064 kept the name out of the file's bar; issue 1146 puts it back as the bar's own title (24 px, the report line under it)."""
 
-    def test_the_file_bar_does_not_draw_the_project_name(self):
+    def test_the_file_bar_draws_the_project_name_once(self):
         with tempfile.TemporaryDirectory() as tmp, tempfile.TemporaryDirectory() as brand:
             store = open_store(fx.build_db(Path(tmp) / "clark.db"), onedrive_roots=[])
             self.addCleanup(store.close)
@@ -109,8 +109,8 @@ class PublishedFileHasNoProjectName(unittest.TestCase):
                     cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('header.top #project-name')", sid), 15), "the file's bar drew")
                     got = cdp.js(FILE_MEASURE, sid)
-                    self.assertTrue(got["name"], f"at {width} px: the name stays for a screen reader")
-                    self.assertEqual(got["shown"], 0, f"at {width} px: the file's bar draws the project name {got['name']!r}")
+                    self.assertTrue(got["name"], f"at {width} px: the bar holds the name")
+                    self.assertEqual(got["shown"], 1, f"at {width} px: the file's bar draws the project name {got['name']!r} once")
 
 
 if __name__ == "__main__":
