@@ -1470,6 +1470,8 @@ def _seed_sections(con, code, step):
             values = {"project": code, "type": section["type"], "title": section["title"], "sort_order": GAP * n}
             if section.get("beside"):
                 values["beside"] = 1
+            if section.get("body"):
+                values["body"] = section["body"]                  # item 1193: the guiding line of a text section
             write_item(con, {"table": "report_sections", "op": "new", "values": values}, step)
     finally:
         step.via = was

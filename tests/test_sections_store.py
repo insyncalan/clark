@@ -13,6 +13,11 @@ from clark import default_sections, order, store as store_module
 from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
+PREFILL = {
+    "Summary": "<p>Give the reader the headline: how the project is going, in two or three sentences.</p>",
+    "This week": "<p>List what was done this week, and what moved forward.</p>",
+    "Next week": "<p>List what is planned for next week, and who is doing it.</p>",
+}
 ELEVEN = (
     ("current", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "Summary", 0), ("text", "This week", 1), ("text", "Next week", 0),
@@ -50,7 +55,8 @@ class Seed(Base):
         self.assertEqual([(r["type"], r["title"], r["beside"]) for r in rows], list(ELEVEN))
         self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 12)])
         self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 12)])
-        self.assertEqual({(r["hidden"], r["body"]) for r in rows}, {(0, "")})
+        self.assertEqual({r["hidden"] for r in rows}, {0})
+        self.assertEqual({r["title"]: r["body"] for r in rows if r["body"]}, PREFILL)      # item 1193: three text sections start with a guiding line, the rest empty
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
     def test_the_seed_is_in_the_projects_own_step_and_one_undo_means_one_thing(self):
