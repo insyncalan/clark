@@ -125,19 +125,21 @@ export function PeekHistory({ id }) {
 }
 
 // The Source row: one sentence (the source's name, then "Open source"), the full path as the hover text. An address that starts with http opens
-// in a new tab; any other source goes to the server, which judges the file again (the same route as the Ask panel's PDF sources).
+// in a new tab; a PDF path goes to the server, which judges the file again (the same route as the Ask panel's PDF sources). Any other source is
+// plain text with no button (prototype for the hide option, row 1180: the button shows only where it can work).
 function HistorySource({ view }) {
   const path = view.source_path || "";
   const web = /^https?:\/\//i.test(path);
+  const pdf = !web && /\.pdf$/i.test(path);
   const open = () => {
     fetch("/api/ask/open-source", { method: "POST", headers: { "Content-Type": "application/json", "X-Clark-Token": token() }, body: JSON.stringify({ project: project.value, file: path, page: null }) }).catch(() => {});
   };
   return (
     <p class="pk-hsrc" data-pk-hrow="source" title={path}>
       <Icon name="link" cls="s pk-hicon" />
-      <span class="pk-hsrc-t">{view.source}</span>{" · "}
-      {web ? <a href={path} target="_blank" rel="noopener noreferrer" data-pk-open-source>Open source</a>
-        : <button type="button" class="linklike" data-pk-open-source onClick={open}>Open source</button>}
+      <span class="pk-hsrc-t">{view.source}</span>
+      {web ? <>{" · "}<a href={path} target="_blank" rel="noopener noreferrer" data-pk-open-source>Open source</a></>
+        : pdf ? <>{" · "}<button type="button" class="linklike" data-pk-open-source onClick={open}>Open source</button></> : null}
     </p>
   );
 }
