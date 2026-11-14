@@ -375,6 +375,50 @@ class MockupLook(InThePage):
                 p.js(f"document.querySelector('{sel} [data-open-link]').click()")
                 p.until(f"!document.querySelector('{sel} [data-add-link]')", "the box closed")
 
+    # Measured against docs-mockup.html in the same Chrome (item 1194, WO stark): the sizes and colours that need no wording and no ruling.
+    PROBE = ("(() => { const sec = document.querySelector(%s), q = s => sec.querySelector(s), cs = (e, k) => getComputedStyle(e)[k], R = e => e.getBoundingClientRect();"
+             " const li = q('.tpl-dl-i'), nm = q('.tpl-rename, .tpl-name'), fx = q('.tpl-facts'), up = q('[data-up]'), dn = q('[data-down]'), rm = q('.tpl-remove'), ic = [...sec.querySelectorAll('.tpl-icons > button')],"
+             " al = q('.tpl-allowed'), hint = q('.tpl-hint'), head = sec.querySelector('.sec-head'), list = q('.tpl-dl'), svg = q('.tpl-badge svg text');"
+             " const inset = nm.matches('input') ? 1 + parseFloat(cs(nm, 'paddingLeft')) : 0;"
+             " return {row: [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(R(li).height)], name: [cs(nm, 'fontSize'), cs(nm, 'fontWeight')],"
+             " align: Math.round((R(nm).left + inset - R(fx).left) * 10) / 10, mark: [up, dn, rm].map(b => [cs(b, 'borderTopWidth'), cs(b, 'borderTopLeftRadius'), Math.round(R(b).width), Math.round(R(b).height), cs(b.querySelector('svg'), 'strokeWidth')]),"
+             " off: cs(up, 'opacity'), head: ic.map(b => [cs(b, 'borderTopWidth'), cs(b.querySelector('svg'), 'strokeWidth'), cs(b, 'color'), cs(b, 'borderTopColor'), Math.round(R(b).top + R(b).height / 2 - (R(head).top + R(head).height / 2))]),"
+             " gap: Math.round(R(list).top - R(ic[0]).top), allowed: [cs(al, 'fontSize'), cs(al, 'padding'), cs(al, 'borderTopLeftRadius')], hint: cs(hint, 'fontSize'), font: svg.getAttribute('font-family'), step: [Math.round(R(dn).left - R(up).left), Math.round(R(rm).left - R(dn).left)], facts: Math.round(R(fx).height * 10) / 10}; })()")
+
+    def test_edit_matches_the_mockup_sizes_spacing_and_icon_colours(self):
+        ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-open-link]')", "the Edit part drew")
+            for w in self.widths(p, cdp):
+                got = p.js(self.PROBE % json.dumps(sel))
+                self.assertEqual(got["row"], ["12px", "8px 10px 8px 14px", 62], f"row radius, padding and height at {w}")
+                self.assertEqual(got["name"], ["16px", "500"], w)
+                self.assertLessEqual(abs(got["align"]), 1, f"the name box's text lines up with the facts line at {w}")
+                self.assertEqual(got["mark"], [["0px", "10px", 44, 44, "1.8px"]] * 3, f"move and remove: borderless 44 px icons, 1.8 stroke, at {w}")
+                self.assertEqual(got["off"], "0.3", w)
+                self.assertEqual(got["step"], [46, 46], f"the three icon buttons are 2 px apart at {w}")
+                self.assertEqual(got["facts"], 16.9, f"the facts line is 13 px on a 1.3 line at {w}")
+                self.assertEqual([h[:4] for h in got["head"]], [["1px", "1.8px", "rgb(14, 36, 48)", "rgb(217, 224, 239)"]] * 2, f"file and link icon buttons at {w}")
+                self.assertLessEqual(max(abs(h[4]) for h in got["head"]), 2, f"the icon buttons sit on the title's line at {w}")
+                self.assertIn(got["gap"], range(56, 61), f"the list starts 58 px under the icon buttons' top at {w}")
+                self.assertEqual(got["allowed"], ["12.5px", "10px 14px", "12px"], w)
+                self.assertEqual(got["hint"], "12px", w)
+                self.assertTrue(got["font"].startswith("Inter"), "the label band uses the page font")
+
+    def test_view_rows_match_the_mockup_sizes_and_spacing(self):
+        ref = self.add([a_link("https://www.example.org/x", "some notes"), a_link("mailto:pmo@example.com", "Ask the PMO")])
+        sel = f"[data-id={json.dumps(ref)}]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.until(f"!!document.querySelector('{sel} .tpl-dl')", "the list drew")
+            for w in self.widths(p, cdp):
+                got = p.js(f"(() => {{ const li = document.querySelector('{sel} .tpl-dl-i'), n = li.querySelector('.tpl-name'), cs = (e, k) => getComputedStyle(e)[k];"
+                           " return [cs(li, 'borderTopLeftRadius'), cs(li, 'padding'), Math.round(li.getBoundingClientRect().height), cs(n, 'fontSize'), cs(n, 'fontWeight')]; })()")
+                self.assertEqual(got, ["12px", "8px 10px 8px 14px", 62, "16px", "500"], w)
+
     def test_toasts_say_what_the_ticket_quotes(self):
         ref = self.add([a_file("Scope statement.docx", 88 * 1024)])
         sel = f"[data-id={json.dumps(ref)}]"
