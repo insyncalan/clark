@@ -358,6 +358,7 @@ class Flat(Peeks):
                     last = cdp.js(box, sid)
                     return first == last and last[1] >= 0 and last[1] + last[3] <= last[4]
                 self.assertTrue(wait(settled, 20), "the Latest update is on screen and still: " + str(cdp.js(box, sid)))
+                cdp.js("window.scrolls = (e) => { const out = []; for (let n = e.parentElement; n; n = n.parentElement) { if (n.scrollTop) out.push(n.tagName + '.' + n.className + '#' + n.id + '=' + n.scrollTop); } out.push('window=' + scrollY); return out; }; window.above = (e) => { const out = []; for (let n = e; n && n.id !== 'peek'; n = n.parentElement) { for (let b = n.previousElementSibling; b; b = b.previousElementSibling) { const h = b.getBoundingClientRect().height; if (h) out.push(b.tagName + '.' + b.className + '#' + b.id + ':' + Math.round(h * 10) / 10); } } return out.slice(0, 24); }; true", sid)      # what the Mac shows when the box moves: the scrolled ancestors and the heights of everything above it
                 over, tries = False, []
                 for _ in range(3):      # the point is taken from the box as it is now, and again if the page moved under the pointer
                     x, y = cdp.js(f"(() => {{ const r = {el}.getBoundingClientRect(); return [r.left + 20, r.top + r.height / 2]; }})()", sid)
@@ -365,7 +366,7 @@ class Flat(Peeks):
                     over = wait(lambda: cdp.js(f"{el}.matches(':hover')", sid), 4)
                     if over:
                         break
-                    tries.append(cdp.js(f"(() => {{ const e = document.elementFromPoint({x}, {y}), r = {el}.getBoundingClientRect(); return {{point: [{x}, {y}], inner: [innerWidth, innerHeight], rect: [r.left, r.top, r.width, r.height], at: e ? e.tagName + '.' + e.className + '#' + e.id : null}}; }})()", sid))
+                    tries.append(cdp.js(f"(() => {{ const e = document.elementFromPoint({x}, {y}), r = {el}.getBoundingClientRect(); return {{point: [{x}, {y}], inner: [innerWidth, innerHeight], rect: [r.left, r.top, r.width, r.height], hover: {el}.matches(':hover'), at: e ? e.tagName + '.' + e.className + '#' + e.id : null, scrolls: scrolls({el}), above: above({el})}}; }})()", sid))
                 self.assertTrue(over, "the pointer is over it | " + json.dumps(tries))
                 hover = cdp.js(look, sid)
                 self.assertEqual((hover[0], hover[2]), ("none", "0px"), "under the pointer, no box: " + str(hover))
