@@ -1174,8 +1174,13 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .mv-lab { all: unset; position: absolute; z-index: 3; transform: translateX(-50%); text-align: center; font-size: var(--size-caption); cursor: pointer; white-space: nowrap; padding: 0 var(--space-1); height: 24px; line-height: 24px; box-sizing: border-box; border-radius: var(--radius-sm); background: var(--grey-50); }   /* a 24 px hit box, one lane (LANE in MsTimeline.jsx) tall, so the boxes of two lanes never overlap, the layout as before; above the Today line (z-index 2), on the strip's own colour, so no line strikes through a name or a date */
 .mv-mk.plain, .mv-lab.plain, .cal-ms.plain, .msl-row.plain, .msl-row.plain .msl-cells { cursor: default; }   /* a published file: text, not a button */
 .mv-mk.plain:hover { transform: none; } .mv-lab.plain:hover { background: var(--grey-50); } .cal-ms.plain:hover { background: var(--grey-100); } .cal-ms.ghost.plain:hover { background: transparent; } .msl-row.plain:hover { background: none; }
+.mv-meas b { display: inline; margin-right: var(--space-1); font-weight: var(--weight-medium); }
+.mv-meas .slip { margin-left: var(--space-1); color: var(--status-red-text); }
 .mv-lab b { display: inline; margin-right: var(--space-1); font-weight: var(--weight-medium); color: var(--text); }   /* row 1020: one line a label, 'name date' */ .mv-lab:hover { background: var(--grey-100); }
 .mv-lab:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.mv-meas { position: absolute; top: 0; left: 0; visibility: hidden; pointer-events: none; white-space: nowrap; font-size: var(--size-caption); padding: 0 var(--space-1); box-sizing: border-box; }   /* row 1159: a hidden name, the same type as a shown one,, kept so its width can still be measured */
+.mv-bar .cal-sc { margin-left: 0; }
+.mv-mk[data-hid]:hover::after, .mv-mk[data-hid]:focus-visible::after { content: attr(data-hid); position: absolute; left: 50%; top: 100%; transform: translateX(-50%); z-index: 6; white-space: nowrap; background: var(--grey-50); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 0 var(--space-1); font-size: var(--size-caption); line-height: 24px; }   /* the name of a mark whose label is hidden, on hover and focus */
 .mv-lab.ok { color: var(--status-green-text); } .mv-lab .slip { color: var(--status-red-text); margin-left: var(--space-1); }
 .mv-conn { position: absolute; height: 0; border-top: 2px dashed var(--status-red); z-index: 1; }
 .mv-ghost { position: absolute; width: 14px; height: 14px; margin: -7px 0 0 -7px; border: 2px dashed var(--status-red); border-radius: 50%; background: var(--surface); z-index: 2; }

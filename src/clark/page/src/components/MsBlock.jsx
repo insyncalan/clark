@@ -39,7 +39,7 @@ export function MsBlock({ place, tools }) {
         ))}
       </div>
       <div class="msv-swap" key={view} data-swap={view}>      {/* a new key on a switch: the new view rises a little and fades in */}
-        {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} />}
+        {view === "cal" ? <MsCalendar rows={rows} today={today} open={open} place={place} client={client} /> : <MsTimeline rows={rows} today={today} place={place} open={open} client={client} />}
       </div>
       <MsList CW={CW} rows={rows} place={place} open={open} internalTag={!client} Eye={Eye} left={left} legend={<MsLegend client={client} id={place} />} />
       {AddBack ? <AddBack /> : null}
