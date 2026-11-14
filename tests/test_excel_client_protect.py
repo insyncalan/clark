@@ -68,6 +68,21 @@ class Protect(unittest.TestCase):
                     self.assertTrue(ws.cell(row=r, column=i).protection.locked, f"{ws.title} {label} row {r}")
         self.assertGreater(seen, 10)
 
+    def test_locked_cells_are_grey_and_editable_ones_are_not(self):
+        """Item 1157: the shade follows the lock, on every data sheet."""
+        grey = excel.colours.TOKENS["grey-100"]
+        seen = 0
+        for ws in self.wb.worksheets:
+            for row in ws.iter_rows(min_row=5):
+                for c in row:
+                    shade = c.fill.fgColor.rgb[-6:] if c.fill.fill_type == "solid" else None
+                    if c.protection.locked and ws.title != "Gantt":
+                        self.assertEqual(shade, grey, f"{ws.title} {c.coordinate}")
+                    elif not c.protection.locked:
+                        self.assertNotEqual(shade, grey, f"{ws.title} {c.coordinate}")
+                    seen += 1
+        self.assertGreater(seen, 10)
+
     def test_the_id_and_the_worked_out_columns_are_locked_and_text_is_not(self):
         for ws in self.wb.worksheets:
             heads = {c.value: c.column for c in ws[4]}
