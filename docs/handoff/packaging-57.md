@@ -3,7 +3,7 @@
 Written by a teammate (a teammate), 29-10-2026, for the Head. A note only: no code is in this branch. Read from `origin/main` `fc7f0fb`: `src/clark/platform.py`, `src/clark/__main__.py`, `src/clark/launch.py`, `clark.command`, the `clark/` stand-in, `.gitattributes`, `tests/test_layout.py`, `docs/handoff/design-71-launcher.md` and `docs/handoff/portability-and-sharing.md`.
 
 ## The answer
-- **Build the Mac zip now, and the Windows zip later from the same command.** `python3 dev/tools/package.py mac` makes `clark-<version>-mac.zip`; `package.py windows` is written later and adds a pinned Python. One list of files says what goes in both.
+- **Build the Mac zip now, and the Windows zip later from the same command.** `python3 dev/tools/package.py mac` makes `clark-<version>-mac.zip`; `package.py windows` is not built yet (`dev/tools/package.py` says so). The v1.1 Windows zip (item 624) is the Docker one: the container files, a prebuilt image and typed commands, with no .exe, .cmd or python.exe; a pinned Python belongs to the later native build only. One list of files says what goes in both.
 - **The Mac zip is the clark folder as it is today, cut down:** `clark.command`, the `clark/` stand-in, `src/clark/`, the runtime parts of `vendor/`, `README.md` and the licences. It uses the Mac's own Python, as now.
 - **The later native Windows zip is the same folder, plus Python's official embeddable package** (one pinned version, its SHA-256 checked at build) and `clark.cmd`.
 - **A doctor** (`python3 -m clark.doctor`, opened from the launcher with `--doctor`) checks Python, the data folder, the browser and the Claude command, and says what to do in plain words.
