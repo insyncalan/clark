@@ -9,7 +9,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef } from "preact/hooks";
 import { signal } from "@preact/signals";
 import { data, rows, peek, openPeek, closePeek, mode, fromFile, view } from "../stores/report.js";
 import { isEditing } from "../logic/editing.js";
-import { width, wide, setWidth, resetWidth, MIN, peekTab } from "../stores/peekState.js";
+import { width, wide, setWidth, resetWidth, MIN } from "../stores/peekState.js";
 import { staleWords, notReviewed } from "../filters.js";
 import { KIND_WORDS, dueCell, pillOf, ownerOf, showDate, todayIso, isOpen, colourOf } from "../workItems.js";
 import { slideOut } from "../peek/exit.js";
@@ -25,7 +25,7 @@ import { CleanProse } from "./CleanProse.jsx";
 import { PeekToolbar } from "./PeekToolbar.jsx";
 import { PeekIdLine } from "./PeekIdLine.jsx";
 import { PeekChips, PeekChip } from "./PeekChips.jsx";
-import { PeekDetails, PeekFooter } from "./PeekDetails.jsx";
+import { PeekDetails } from "./PeekDetails.jsx";
 
 // Up and Down while the peek is open (#246): the peek steps to the item before or after in the list it was opened from, the same list
 // Previous and Next use. What it says after a step (a polite line only a screen reader hears) is kept here; `n` makes a repeat say it again.
@@ -35,7 +35,7 @@ const say = (text) => { said.value = { text, n: said.value.n + 1 }; };
 
 // Where the peek takes an arrow (#289): only Up and Down, only plain, only on one of its own buttons. A box, the width edge, a tab,
 // a menu, a dialog, the words box, the activity list and the palette keep their arrows; so does the page's own scrolling, which is why a key aimed at nothing is left too.
-const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar],dialog,.wordsbox,.pk-activity";
+const OWN = "[role=textbox],[role=combobox],[role=listbox],[role=menu],[role=dialog],[role=alertdialog],[role=tab],[role=separator],[role=toolbar]:not(.pk-tb),dialog,.wordsbox,.pk-activity";
 function peekOwnsArrow(e) {
   if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
   if (e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return false;
@@ -197,7 +197,7 @@ export function Peek({ tools }) {
   // The words box changes a work item or a milestone; a use case has no peek (its own page, UseCaseDetail, has the box). The warning bar and Latest update are an item's only.
   const forItem = !!p && p.kind !== "milestone";
   const Words = editing && !!p && tools.Words;
-  const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
+  const History = editing && tools.PeekHistory;      // row 1180: the history tabs (All, Activity, Updates, Source) under the body
   const MsTitle = msEditing && tools.PeekMilestoneTitle;     // row 1078: the milestone's name is its title, changed in place (row 1180: a textarea, as the work item's)
   const TitleBox = editing && forItem && tools.PeekItemTitle, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // row 1180: More holds Duplicate, Archive and Delete (item 1148: a milestone's holds Archive and Delete)
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest;      // the warning bar and Latest update (peek, Edit only)
@@ -205,7 +205,6 @@ export function Peek({ tools }) {
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
   const Source = !!tools && !fromFile.value && tools.PeekSource;
   const FileSource = fromFile.value;
-  const showActivity = !!(Tabs && Activity && peekTab.value === "activity");
   if (p) shown.current = p.id;                            // kept after the peek closes, for the focus it returns
   // Focus goes in when the peek opens and back to where it was when it closes: to the row (or card) of the item the peek shows then,
   // which after Up, Down, Previous or Next is not the one it opened on (#246).
@@ -285,13 +284,14 @@ export function Peek({ tools }) {
       if (e.key === "Escape") {
         if (document.querySelector("[role=menu]")) return;
         e.preventDefault();
-        if (wordsOpen.value) wordsOpen.value = false; else closePeek();
+        if (wordsOpen.value) wordsOpen.value = false; else askClose();
         return;
       }
       if (peekOwnsArrow(e)) { e.preventDefault(); stepBy(e.key === "ArrowUp" ? -1 : 1); return; }
       const t = e.target, inField = t && t.nodeType === 1 && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName));
       if (e.key === "/" && !e.metaKey && !e.ctrlKey && !e.altKey && !inField && Words) {
-        if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; } else last = performance.now() || 1;
+        if (last && performance.now() - last < 1000) { e.preventDefault(); last = 0; wordsOpen.value = true; }
+        else { last = performance.now() || 1; const ask = document.querySelector("#peek [data-pk-ask]"); if (ask) { e.preventDefault(); ask.focus(); } }      // the first "/" puts the cursor in the footer input
       } else if (e.key !== "Shift") last = 0;
     };
     document.addEventListener("keydown", onKey);
@@ -330,20 +330,19 @@ export function Peek({ tools }) {
       {Warn && row ? <Warn key={`w-${row.id}`} row={row} /> : null}
       <PeekIdLine id={p.id} />
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
-      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /><span class="sr-only" aria-hidden="true">{title}</span></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /><span class="sr-only" aria-hidden="true">{title}</span></> : title}</h2>
+      <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /></> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
       {row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
-      {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
-      {showActivity ? <Activity key={p.id} id={p.id} />
-        : <div role={Tabs ? "tabpanel" : undefined} id={Tabs ? "pk-panel-details" : undefined} aria-labelledby={Tabs ? "pk-tab-details" : undefined}>
+      <div>
           {row ? <ItemFields row={row} editing={editing} slim ClientLine={editing && tools.PeekClientLine ? tools.PeekClientLine : null} Cell={null} Wording={editing && tools.PeekWording ? tools.PeekWording : null} Pick={editing && tools.PeekPick ? tools.PeekPick : null} /> : msEditing ? <tools.MilestoneEdit m={m} /> : <MilestoneFields m={m} tools={tools} />}
-          {Source ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}
+          {Source && !History ? <Source key={`s-${p.id}`} row={row || m} /> : FileSource ? <SourceLine text={(row || m).source} /> : null}      {/* with the history tabs the source is its own tab */}
           {Latest && row ? <Latest key={row.id} row={row} /> : null}
-        </div>}
+        </div>
+      {History && (row || m) ? <History key={p.id} id={p.id} /> : null}
       {Words && wordsOpen.value && (row || m) ? <Words key={p.id} row={row || m} kind={milestone ? "milestone" : "item"} /> : null}
       </div>
-      {Words && (row || m) ? <PeekFooter onAsk={() => { wordsOpen.value = true; }} /> : null}
+      {Words && (row || m) && tools.PeekFooter && !wordsOpen.value ? <tools.PeekFooter onAsk={() => { wordsOpen.value = true; }} /> : null}
     </aside>
   );
 }

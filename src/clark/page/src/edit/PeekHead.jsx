@@ -1,7 +1,7 @@
 // Row 1180: the peek's head under the toolbar. The item's ID in a small outlined tag with the project's name beside it (said once), and the
 // title edited in place in a textarea (all four kinds). Click, or Tab to it: Enter saves, Esc puts the old title back, leaving the box saves;
 // a blank or unchanged title changes nothing. One change, one Undo in the toast ("Title changed"), one line in Activity (the server's).
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { project, reread } from "../stores/report.js";
 import { changeCell, changeMilestone, say, refresh } from "../stores/changes.js";
 import { titleProblem } from "./actions.js";
@@ -11,27 +11,39 @@ import { textChange } from "./msPeek.js";
 
 // The shared box. `save(text)` resolves to true when the title was saved (or stays false when refused, and the box keeps what was typed).
 function TitleArea({ value, label, attrs, check, save }) {
+  const [open, setOpen] = useState(false);
   const ref = useRef(null), now = useRef(value), cancelled = useRef(false), refused = useRef(false);
   now.current = value;
   const grow = () => { const el = ref.current; if (!el) return; el.style.height = "auto"; el.style.height = `${el.scrollHeight}px`; };
-  useLayoutEffect(() => { const el = ref.current; if (el && document.activeElement !== el) { el.value = value; } grow(); }, [value]);
-  useLayoutEffect(() => { ref.current.value = value; grow(); }, []);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.value = value; el.focus();
+    try { el.setSelectionRange(el.value.length, el.value.length); } catch (e) { /* not selectable */ }
+    grow();
+  }, [open]);
   const settle = () => { if (refused.current) return; const b = ref.current && ref.current.closest("#peek")?.querySelector("[data-pk-close]"); if (b && document.activeElement !== b) b.focus(); };
   const commit = async () => {
     const el = ref.current;
-    if (cancelled.current) { cancelled.current = false; return; }
+    if (!el) return;
+    if (cancelled.current) { cancelled.current = false; setOpen(false); return; }
     const t = el.value.replace(/\s+/g, " ").trim();
-    if (!t || t === now.current) { el.value = now.current; grow(); return; }
+    if (!t || t === now.current) { setOpen(false); return; }
     const problem = check ? check(t) : "";
     if (problem) { refused.current = true; say("problem", problem); setTimeout(() => { refused.current = false; el.focus(); }, 0); return; }
-    const ok = await save(t);
-    if (!ok) { el.value = now.current; grow(); }
+    setOpen(false);
+    await save(t);
   };
   const onKeyDown = (e) => {
     if (e.isComposing) return;
     if (e.key === "Enter") { e.preventDefault(); ref.current.blur(); settle(); }
-    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelled.current = true; ref.current.value = now.current; grow(); ref.current.blur(); settle(); }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); cancelled.current = true; ref.current.value = now.current; ref.current.blur(); settle(); }
   };
+  const onOpenKey = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); setOpen(true); } };
+  if (!open) {
+    return <span class="pkh-title-in pk-title-in pkh-title-txt" role="button" tabIndex={0} aria-label={`${label}. Edit`} title="Click to edit the title"
+      onClick={() => setOpen(true)} onKeyDown={onOpenKey}>{value}</span>;
+  }
   return <textarea class="pkh-title-in pk-title-in" ref={ref} rows={1} spellcheck={true} aria-label={label} title="Click to edit the title"
     {...attrs} onInput={grow} onBlur={commit} onKeyDown={onKeyDown} />;
 }

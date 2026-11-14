@@ -13,23 +13,13 @@ export function PeekDetails({ summary = [], children, id = "pk-details" }) {
   const [open, setOpen] = useState(read);
   const line = summary.filter(Boolean).join(" · ");
   return (
-    <section class="pk-details" data-pk-details data-open={open ? "1" : "0"}>
-      <button type="button" class="pk-details-h" aria-expanded={open} aria-controls={id} onClick={() => { write(!open); setOpen(!open); }}>
+    <section class="pk-details" data-open={open ? "1" : "0"}>
+      <button type="button" class="pk-details-h" data-pk-details aria-expanded={open ? "true" : "false"} aria-controls={id} onClick={() => { write(!open); setOpen(!open); }}>
         <span class="pk-details-t">Details</span>
         {open ? null : <span class="pk-details-sum" data-pk-details-sum>{line}</span>}
         <Icon name="chevdown" cls="s pk-details-car" />
       </button>
-      <div id={id} class="pk-details-body" data-pk-details-rows hidden={!open}>{children}</div>
+      {open ? <div id={id} class="pk-details-body" data-pk-details-rows>{children}</div> : null}
     </section>
-  );
-}
-
-/** The footer: the key tag and the input that focuses on "/". Props: onAsk() is called when the input is used (the caller opens the words box). */
-export function PeekFooter({ onAsk }) {
-  return (
-    <footer class="pk-foot" data-pk-foot>
-      <kbd class="pk-foot-key" aria-hidden="true">/</kbd>
-      <button type="button" class="pk-foot-in" data-pk-foot-in data-pk-ask onClick={() => { if (onAsk) onAsk(); }}>Ask clark to update for you</button>
-    </footer>
   );
 }

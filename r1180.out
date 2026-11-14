@@ -1,0 +1,57 @@
+..FFFF...FF...........
+======================================================================
+FAIL: test_the_client_work_item_peek_is_the_editors_read_only_with_source (test_peek_ruled_1077.Browser.test_the_client_work_item_peek_is_the_editors_read_only_with_source) (width=1400)
+Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its one control row.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 204, in test_the_client_work_item_peek_is_the_editors_read_only_with_source
+    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "Edit keeps Source")
+AssertionError: False is not true : Edit keeps Source
+
+======================================================================
+FAIL: test_the_client_work_item_peek_is_the_editors_read_only_with_source (test_peek_ruled_1077.Browser.test_the_client_work_item_peek_is_the_editors_read_only_with_source) (width=900)
+Rulings 1, 2 and 4 on the live Dashboard: View shows the fields read only, with Source; Edit shows the same rows plus its one control row.
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 204, in test_the_client_work_item_peek_is_the_editors_read_only_with_source
+    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "Edit keeps Source")
+AssertionError: False is not true : Edit keeps Source
+
+======================================================================
+FAIL: test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows (test_peek_ruled_1077.Browser.test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows) (width=1400, where='editor')
+Rulings 2 and 4 in a published file: the same rows as the editor shows for the same item (the plant in a real store), read only, and the
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 256, in test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows
+    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "the editor has Source")
+AssertionError: False is not true : the editor has Source
+
+======================================================================
+FAIL: test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows (test_peek_ruled_1077.Browser.test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows) (width=900, where='editor')
+Rulings 2 and 4 in a published file: the same rows as the editor shows for the same item (the plant in a real store), read only, and the
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 256, in test_the_published_peek_shows_the_source_name_no_control_and_the_editors_rows
+    self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-source]')", sid)), "the editor has Source")
+AssertionError: False is not true : the editor has Source
+
+======================================================================
+FAIL: test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline (test_peek_ruled_1077.Flat.test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline) (width=1400)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 334, in test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline
+    self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkTab", sid) == "activity"))
+AssertionError: False is not true
+
+======================================================================
+FAIL: test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline (test_peek_ruled_1077.Flat.test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline) (width=900)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/tmp/claude-1000/-home-creaite-dev-env-clark/99e7d6ec-a27b-4a56-869d-50e6b18944dd/scratchpad/w1180/tests/test_peek_ruled_1077.py", line 334, in test_the_property_cells_are_flat_and_a_tabs_focus_is_an_underline
+    self.assertTrue(wait(lambda: cdp.js("document.activeElement.dataset.pkTab", sid) == "activity"))
+AssertionError: False is not true
+
+----------------------------------------------------------------------
+Ran 19 tests in 181.316s
+
+FAILED (failures=6)

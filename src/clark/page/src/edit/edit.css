@@ -78,6 +78,11 @@
 /* The peek's Details and Activity tabs (#42): Edit only. */
 .pk-tabs { display: flex; gap: var(--space-1); margin: var(--space-1) 0 var(--space-2); border-bottom: 1px solid var(--grey-200); }
 .pk-tab { min-height: 32px; padding: var(--space-1) var(--space-3); border: 0; border-bottom: 2px solid transparent; background: none; color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.pk-hcount { margin-left: 2px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.pk-history { margin: var(--space-3) 0 0; }
+.pk-hicon { flex: none; margin-top: 2px; color: var(--text-muted); }
+.pk-hsrc { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1); margin: var(--space-2) 0; }
+.pk-hsrc a, .pk-hsrc .linklike { color: var(--brand-blue); font: inherit; background: none; border: 0; padding: 0; min-height: 24px; text-decoration: underline; cursor: pointer; }
 .pk-tab.on { color: var(--text); border-bottom-color: var(--brand-blue); font-weight: var(--weight-medium); }
 .pk-activity:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .pk-tab:focus-visible { outline: 0; border-bottom-color: var(--focus); }   /* row 1077 (flat): a tab's focus is its underline in the focus colour, not a box */
@@ -1226,9 +1231,10 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 
 /* row 1180 head: the ID tag and project line, and the title as a textarea (PeekHead.jsx) */
 .pkh-line { display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-4) 0 var(--space-1); color: var(--text-muted); font-size: var(--size-small); }
-.pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
+.pkh-id { display: inline-flex; padding: 1px 7px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: transparent; color: var(--heading); font-size: var(--size-caption); font-weight: var(--weight-medium); }
 .pkh-proj { min-width: 0; overflow-wrap: anywhere; }
 .pkh-title-in { display: block; width: calc(100% + 2 * var(--space-2)); box-sizing: border-box; margin: 0 calc(-1 * var(--space-2)); padding: 0 var(--space-2); border: 1px solid transparent; border-radius: var(--radius); background: transparent; color: inherit; font: inherit; line-height: inherit; resize: none; overflow: hidden; cursor: text; overflow-wrap: anywhere; }
+.pkh-title-txt { cursor: text; white-space: pre-wrap; }
 .pkh-title-in:hover { background: var(--grey-50); }
 .pkh-title-in:focus { outline: 2px solid var(--focus); outline-offset: 2px; border-color: var(--brand-blue); background: var(--surface); }
 .pkh-line + .pk-title { margin-top: 0; }
