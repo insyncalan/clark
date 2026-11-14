@@ -8,7 +8,7 @@ import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
 
-// item 631: every request says which time zone this computer is in, so the server's 'today' is the person's day (X-Clark-Tz, an IANA name).
+// item 631: each request made through this file says which time zone this computer is in (X-Clark-Tz, an IANA name); a few fetches made elsewhere in the page do not carry it, and the heartbeat sends it from app.js.
 const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } };
 const fetch = (url, init = {}) => {
   const tz = zone();

@@ -188,7 +188,7 @@ class Served(Zoned):
 
 
 class Source(unittest.TestCase):
-    def test_every_api_request_and_the_heartbeat_carry_the_header(self):
+    def test_api_js_requests_and_the_heartbeat_carry_the_header(self):
         api, app = (PAGE / "api.js").read_text(encoding="utf-8"), (PAGE / "app.js").read_text(encoding="utf-8")
         self.assertIn('"X-Clark-Tz"', api)
         self.assertIn("window.fetch(", api)
