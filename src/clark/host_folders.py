@@ -3,7 +3,7 @@
 Pure: it reads text, never a disk, and never writes. The compose file for Windows shares up to three folders in and names each one's
 Windows path in an environment variable; the container sees each at a fixed place under /shares. A person types a Windows path in
 Settings; this module says whether it is inside a shared folder, gives the container path it maps to, and writes a container path
-back in Windows form. Only to_container is called from a route so far (the pasted client folder in publish_flow.py); see docs/v1.1-container-host-side.md.
+back in Windows form. Only to_container is called from a route so far (the pasted client folder in publish_flow.py); see docs/handoff/design-625-host-side.md.
 Standard library only.
 """
 import re
