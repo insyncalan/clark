@@ -521,12 +521,16 @@ def _undo_events(con):
                                       "WHERE c.via LIKE ?", (REVERT_VIA + "%",))}
 
 
+RATING_KEYS = ("impact", "likelihood", "priority")
+RATING_FIELD = "Rating"
+
+
 def _display(con, rows, keep):
     """Display rows from change_log rows: the rows of one step and item that made it (a Created item, or a label or link an Undo
     put back) are folded into one line."""
     titles = _Titles(con)
     undos = _undo_events(con)
-    out, folded = [], {}
+    out, folded, rated = [], {}, {}
     texted = {(r["apply_id"], r["tbl"], r["item_id"]) for r in rows if r["field"] in ("owner", "made_by")}
     for r in rows:
         ends = _ends(r["tbl"], r["item_id"])
@@ -565,6 +569,10 @@ def _display(con, rows, keep):
         if fold in folded:
             folded[fold]["_values"][field_key] = after
             continue
+        rate = (r["apply_id"], r["tbl"], r["item_id"]) if r["tbl"] == "raid" and field_key in RATING_KEYS and kind in ("Changed", undo_kind) else None
+        if rate in rated:                                  # items 1182, 1183: one pick sets impact and likelihood and the priority follows: one line
+            rated[rate]["_rated"][field_key] = (before, after)
+            continue
         when, note = when_text(r["logged"], r["utc_offset"])
         from_file = ""
         if kind == "Changed" and r["route"] in ("excel", "word") and file_name(r["route"], r["src_ref"]):
@@ -580,7 +588,17 @@ def _display(con, rows, keep):
             row["_values"] = {field_key: after}
             row["_back"] = undo
             folded[fold] = row
+        if rate:
+            row["_rated"] = {field_key: (before, after)}
+            rated[rate] = row
         out.append(row)
+    for row in rated.values():
+        got = row.pop("_rated")
+        if len(got) > 1 or "priority" not in got:          # a lone priority change (a file's) keeps its own line
+            row["field"] = RATING_FIELD
+            for side, name in ((0, "from"), (1, "to")):
+                said = [f"{got[k][side]} {k}" for k in ("impact", "likelihood") if k in got and got[k][side]]
+                row[name] = ", ".join(said) + (f": {got['priority'][side]}" if got.get("priority") and got["priority"][side] else "")
     for row in folded.values():
         vals = row.pop("_values")
         back = row.pop("_back")
