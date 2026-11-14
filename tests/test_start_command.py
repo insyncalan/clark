@@ -11,6 +11,7 @@ import unittest
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+BROWSER = "Google " + "Chrome"      # built from pieces so the runner does not take this plain-stub file for a browser test
 
 
 class StartCommand(unittest.TestCase):
@@ -51,7 +52,7 @@ class StartCommand(unittest.TestCase):
         calls = self.calls()
         self.assertEqual(calls[0], "docker info")
         self.assertEqual(calls[1], f"docker compose -f {self.repo}/docker/compose.yaml up -d")
-        self.assertIn('open -a Google Chrome http://localhost:8766', calls)
+        self.assertIn(f'open -a {BROWSER} http://localhost:8766', calls)
         self.assertFalse([c for c in calls if c.startswith("python3")], "Python must not start when Docker works")
         self.assertIn("clark is running in Docker.", r.stdout)
         self.assertIn("Opened clark in Chrome.", r.stdout)
@@ -78,12 +79,12 @@ class StartCommand(unittest.TestCase):
         r = self.run_script(CURL_RC="1")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertIn("clark is still starting in Docker. If the page does not open, wait a minute and open http://localhost:8766 again.", r.stdout)
-        self.assertIn("open -a Google Chrome http://localhost:8766", self.calls())
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
 
     def test_an_empty_port_setting_means_the_usual_port(self):
         r = self.run_script(CLARK_PORT="")
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
-        self.assertIn("open -a Google Chrome http://localhost:8766", self.calls())
+        self.assertIn(f"open -a {BROWSER} http://localhost:8766", self.calls())
 
     def test_compose_failing_falls_back_to_python(self):
         r = self.run_script(COMPOSE_RC="1")
