@@ -1,7 +1,7 @@
 // Test-only (tests/test_tpl_glance.py): the At a glance template's parts on a bare page, never part of clark's bundle.
 // window.mountSection(data, {file, edit, width}) draws the section as Section.jsx would: the view part from templateFor, the Edit part from templateEdit.
 import { render } from "preact";
-import { data, fromFile } from "@src/stores/report.js";
+import { data, fromFile, tabs } from "@src/stores/report.js";
 import { templateFor, templateEmpty } from "@src/templates/index.js";
 import { templateEdit } from "@src/edit/templates/index.js";
 
@@ -9,6 +9,7 @@ window.K = { templateEmpty, templateFor, templateEdit };
 window.mountSection = (d, opts = {}) => {
   data.value = d;
   fromFile.value = !!opts.file;
+  tabs.value = opts.tabs || [];      // the tabs the file carries; none by default, so a tile is not clickable
   const sec = { id: "S-1", type: "glance", title: "At a glance", body: "" };
   const root = document.getElementById("root");
   render(null, root);

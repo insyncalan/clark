@@ -71,6 +71,7 @@ def schema_types():
     return tuple(re.findall(r"'([a-z0-9]+)'", statement.split("CHECK (type IN (")[1].split("))")[0]))
 
 
+BUILT_IN_PART = ("glance",)      # row 1190: a built-in store type that is also a template (page parts and a catalogue card, no registry module)
 PAGE_FIRST = ("gantt", "gantttable")      # rows 926, 1068: template types with a page part but no registry module (no content of their own); the store takes them since layouts 19 and 21
 
 
@@ -336,7 +337,7 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(v == "function" for v in self.val("T.edits").values()))
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
-        cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST]
+        cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST + BUILT_IN_PART]
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
         self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
@@ -364,7 +365,7 @@ class PageSide(unittest.TestCase):
             if x["type"] == "text":       # not templates of the registry: always placeable
                 self.assertIs(x["ready"], True)
                 continue
-            if x["type"] in PAGE_FIRST:      # row 926: no registry module, the store takes the type: placeable
+            if x["type"] in PAGE_FIRST + BUILT_IN_PART:      # row 1190: glance too; row 926: no registry module, the store takes the type: placeable
                 self.assertIs(x["ready"], True, tid)
                 self.assertEqual(self.val(f"T.templates.available(T.templates.CATALOGUE.find(t => t.id === {json.dumps(tid)}))"), True, tid)
                 continue
@@ -396,7 +397,10 @@ class PageSide(unittest.TestCase):
         for t in section_kinds.TYPES:
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: '{{\"v\":1}}'}}, {{}})"), True, t)
         for t in BUILT_IN:
-            self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
+            if t in BUILT_IN_PART:      # row 1190: drawn through templateFor, never empty in the served View
+                self.assertEqual(self.val(f"T.templateFor({json.dumps(t)})"), {"ready": True}, t)
+            else:
+                self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}}}, {{}})"), False, t)
         self.assertIsNone(self.val("T.templateFor('__proto__')"))
         self.assertIsNone(self.val("T.templateFor('constructor')"))

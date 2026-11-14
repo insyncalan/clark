@@ -54,6 +54,8 @@ FIRST_SLICE_DESCRIPTIONS = [
 FIRST_SLICE = ["text", "text-image", "figures-4", "figures-3", "gallery", "table", "raid-3", "raid-4", "work-items", "docs-links", "callout", "image-caption", "quote", "contacts", "checklist", "key-dates", "link-preview", "current-state", "plan-summary", "one-doc"]      # the box's templates: the first slice, Needs from you (#121) and the two files and links ones moved in (#96 G7); every one built
 BOX = FIRST_SLICE[:-1] + ["gantt", "gantt-table"] + FIRST_SLICE[-1:] + ["at-a-glance"]      # the box's cards: the Gantt (row 926) and the Gantt table (row 1068) sit before One document, placeable since the store takes their types (layouts 19 and 21)
 
+BOX_SERVED = [b for b in BOX if b != "at-a-glance"]      # row 1190: the served test report has an At a glance section, so the box does not offer that card
+
 
 class Logic(unittest.TestCase):
     @classmethod
@@ -107,7 +109,7 @@ class Logic(unittest.TestCase):
         by = {x["id"]: x for x in self.t("TEMPLATES")}
         g = by["at-a-glance"]
         self.assertEqual((g["type"], g["kind"], g["ready"], g["name"]), ("glance", "figures", True, "At a glance"))
-        self.assertTrue(self.t('available(find("at-a-glance"))'))
+        self.assertTrue(self.t('available(T.templates.find("at-a-glance"))'))
         none = [sec("a", "Summary")]
         has = [sec("a", "Summary"), sec("g", "At a glance", type="glance")]
         self.assertEqual([x["id"] for x in self.t(f"list({{sections: {lit(none)}}})") if "glance" in x["id"]], ["at-a-glance"], "one card, not the template and a built-in")
@@ -118,7 +120,7 @@ class Logic(unittest.TestCase):
         refused = self.t(f'plan({lit(has)}, "at-a-glance", null)')
         self.assertFalse(refused["ok"])
         self.assertTrue(refused["message"])
-        self.assertIsNone(self.t('find("built-in-glance")'))
+        self.assertIsNone(self.val("T.templates.find(\"built-in-glance\")"))
 
     def test_the_box_and_help_describe_every_template_in_the_same_words(self):
         """The Add a section box and Help's table of section templates say the same thing for each template the box offers."""
@@ -195,7 +197,7 @@ class Logic(unittest.TestCase):
 
     def test_search_and_kinds_and_counts(self):
         self.assertEqual(len(self.t("list()")), 23)      # row 1068: + the Plan table card; row 1190: + the At a glance card
-        self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3"])
+        self.assertEqual([x["id"] for x in self.t('list({query: "figures"})')], ["figures-4", "figures-3", "at-a-glance"], "the At a glance card is in the Figures kind (row 1190)")
         self.assertEqual([x["id"] for x in self.t('list({query: "KEY dates"})')], ["key-dates"], "case does not matter and every word must match")
         self.assertEqual(self.t('list({query: "zzz"})'), [])
         self.assertEqual([x["id"] for x in self.t('list({kind: "work"})')], ["raid-3", "raid-4", "work-items"])
@@ -325,9 +327,9 @@ class Box(Base):
             self.assertEqual(p.js(f"document.getElementById({d}.getAttribute('aria-labelledby')).textContent"), "Add a section")
             self.assertEqual(p.js("document.querySelector('#main').hasAttribute('inert') && document.querySelector('.top').hasAttribute('inert')"), True,
                              "the page behind cannot be reached")
-            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 23)      # row 1068: + the Plan table card; row 1190: + the At a glance card
+            self.assertEqual(p.js("document.querySelectorAll('[data-template]').length"), 22)      # row 1068: + the Plan table card; the served report already has an At a glance section, so its card is not offered (row 1190)
             self.assertEqual(p.js("[...document.querySelectorAll('.ad-kind')].map(b => b.textContent)"),
-                             ["All templates23", "Text and pictures7", "Figures3", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
+                             ["All templates22", "Text and pictures7", "Figures2", "Work items3", "Files and links3", "People and dates5", "Notes2"])      # row 1068: + the Gantt table card, in People and dates
             self.assertEqual(self.sent, [], "opening sends nothing")
 
     def test_everything_outside_the_box_is_inert_while_it_is_open_and_restored_when_it_closes(self):
@@ -418,7 +420,7 @@ class Box(Base):
                   heard: document.querySelector('[data-template=text]').textContent.includes('Full width or Half width'),
                   big: !!document.querySelector('.ad-prev .ad-sk.big'),
                   holds: [...document.querySelectorAll('.ad-prev .ad-els li')].map(l => l.textContent)};})()""")
-            self.assertEqual(got, {"cards": 23, "sketched": 23, "radios": 23, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
+            self.assertEqual(got, {"cards": 22, "sketched": 22, "radios": 22, "firstRow": 3, "text": ["Full width", "Half width"], "gallery": ["Full width"],
                                    "chipsHidden": "true", "heard": True, "big": True, "holds": ["Heading", "Text"]})
             x = "document.querySelector('.ad-head [data-close]')"
             self.assertEqual(p.js(f"{x}.getAttribute('aria-label')"), "Close")
@@ -506,7 +508,7 @@ class Box(Base):
             p = self.visit(cdp)
             p.edit()
             self.open_box(p, "ABC-S-003")
-            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 23, "every template can be focused")
+            self.assertEqual(p.js("document.querySelectorAll('input[name=template]:not([disabled])').length"), 22, "every template can be focused")
             self.assertEqual(p.js("document.querySelector('button[data-place]').disabled"), False, "Text is chosen and can be placed")
             cat = {x["id"]: x["description"] for x in FIRST_SLICE_DESCRIPTIONS}
             for tid, desc in cat.items():
@@ -516,12 +518,12 @@ class Box(Base):
             # the arrow keys walk through all thirteen, and the preview follows; each one can be placed
             p.js("document.querySelector('input[name=template]:checked').focus()")
             seen = [p.js("document.activeElement.value")]
-            for _ in range(len(BOX) - 1):
+            for _ in range(len(BOX_SERVED) - 1):
                 p.key("ArrowDown", code="ArrowDown", vk=40)
                 seen.append(p.js("document.activeElement.value"))
                 self.assertFalse(p.js("document.querySelector('button[data-place]').disabled"), seen[-1])
                 self.assertIsNone(p.js("document.activeElement.getAttribute('aria-disabled')"), seen[-1])
-            self.assertEqual(seen, BOX, "the arrow keys reach every template, in order")
+            self.assertEqual(seen, BOX_SERVED, "the arrow keys reach every template, in order")
             self.assertEqual(p.js("document.querySelector('.ad-prev h3').textContent"), "One document")
             self.assertIn("A single file to read.", p.js("document.querySelector('.ad-prev').textContent"))
             self.assertFalse(p.js("!!document.getElementById('ad-later-prev')"), "no reason to give: it can be placed")
