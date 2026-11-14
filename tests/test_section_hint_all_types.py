@@ -5,6 +5,7 @@ Run: python3 dev/run_tests.py test_section_hint_all_types
 In a real browser, Edit mode, the Dashboard: for each of the section types, that type alone is the top section, and the hint beside its
 handle is inside the window, at or below the top of its section, and not cut off by any box around it. No new words: the test reads no text.
 """
+import json
 import unittest
 
 from _paths import ROOT
@@ -71,13 +72,17 @@ class HintEverySection(unittest.TestCase):
     def settle(self, cdp, sid, where):
         """Wait (up to 10 s) for the page to be still: no scroll anchoring, scrolled to the top, the hint at the same place on two reads."""
         last = []
+        seen = []
 
         def still():
             now = cdp.js("(document.documentElement.style.overflowAnchor === '' && scrollY === 0) ? JSON.stringify((() => { const h = document.querySelector('.sec-hint'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()) : null", sid)
             same = now is not None and now != "null" and last[:1] == [now]
             last[:] = [now]
+            seen.append(now)
             return same
-        self.assertTrue(wait(still, 10), f"the page settled, {where}")
+        ok = wait(still, 10)
+        why = "" if ok else " | " + json.dumps({"reads": len(seen), "last": seen[-4:], "state": cdp.js("({anchor: document.documentElement.style.overflowAnchor, y: scrollY, hint: !!document.querySelector('.sec-hint'), anims: document.getAnimations().map(a => a.animationName || a.transitionProperty).slice(0, 6), motion: document.documentElement.dataset.motion || '', reduce: matchMedia('(prefers-reduced-motion: reduce)').matches})", sid)})
+        self.assertTrue(ok, f"the page settled, {where}" + why)
 
     def restore(self, saved):
         for i, t, b, be, hi in saved:
