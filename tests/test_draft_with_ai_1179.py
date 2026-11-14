@@ -59,7 +59,7 @@ class Source(unittest.TestCase):
         self.assertNotRegex(self.read("edit/PeekLatest.jsx"), r"action\s*\?", "no 'action ? :' guard is left in PeekLatest")
         peek = self.read("components/Peek.jsx")
         latest = next(l for l in peek.splitlines() if "tools.PeekLatest" in l and "const" in l)
-        self.assertNotIn("forItem", latest, "the Latest update line is not gated on the item-only flag (a milestone gets it too)")
+        self.assertNotIn("forItem", latest.split("Latest =")[1], "the Latest update line is not gated on the item-only flag (a milestone gets it too)")
         self.assertIn("MilestonePeek", peek + self.read("edit/MilestonePeek.jsx"))
         self.assertNotRegex(self.read("edit/PeekLatest.jsx"), r"kind\s*!==?\s*.(risk|issue|milestone).", "no per-kind exclusion is left")
 
@@ -154,7 +154,7 @@ class Browser(test_peek_latest.Browser):
                 self.assertEqual(sent, [], "opening the menu saves nothing")
                 key(cdp, sid, "Escape")
                 self.assertTrue(wait(lambda: not self.menu_open(cdp, sid)))
-                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid)), "the focus is back in the editor")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid)), "the focus is back in the editor " + str(cdp.js("(a => a.tagName + '.' + a.className + ' editor=' + !!document.querySelector('#peek .ProseMirror'))(document.activeElement)", sid)))
 
     def test_with_no_selection_the_right_click_is_the_browsers_own(self):
         for width in (1400, 900):

@@ -46,6 +46,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   const [sel, setSel] = useState(null);                     // { x, y } over a non-empty selection
   const slashRef = useRef(null); slashRef.current = slash;
   const busy = useRef(false), closed = useRef(false), keep = useRef(false);
+  const menuSel = useRef(null);
   const props = useRef({}); props.current = { onSave, onClose, ai };
 
   const leave = (back) => { if (!closed.current) { closed.current = true; props.current.onClose(back === true); } };
@@ -115,7 +116,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     ed.current = made;
     const withSelection = () => { const { from, to, empty } = made.editor.state.selection; return empty ? null : { from, to }; };
     const onMenu = (e) => {
-      if (!props.current.ai || !withSelection()) return;           // nothing selected: the browser's own menu
+      const r = withSelection();
+      if (!props.current.ai || !r) return;           // nothing selected: the browser's own menu
+      menuSel.current = r;                           // the words the menu was opened on, kept in case the click moves the caret
       e.preventDefault();
       props.current.ai.open({ x: e.clientX, y: e.clientY });
     };
@@ -123,6 +126,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
       if (!props.current.ai || !((e.key === "F10" && e.shiftKey) || e.key === "ContextMenu")) return;
       const r = withSelection();
       if (!r) return;
+      menuSel.current = r;
       e.preventDefault();
       const c = made.editor.view.coordsAtPos(r.to);
       props.current.ai.open({ x: c.left, y: c.bottom + 4 });
@@ -149,13 +153,13 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
   // Leaving the whole field (focus goes outside it, and outside its floating boxes) saves.
   const away = (e) => {
     const to = e.relatedTarget;
-    if (to && to.closest && to.closest("[data-ai-card], [data-pk-ai]")) return;          // item 1179: the suggestion card and the Draft with AI button
+    if (to && to.closest && to.closest("[data-ai-card], [data-pk-ai], [data-ai-menu]")) return;          // item 1179: the suggestion card and the Draft with AI button
     if (to && (root.current.contains(to) || (bubble.current && bubble.current.contains(to)) || (slashBox.current && slashBox.current.contains(to)))) return;
     if (!to && document.hasFocus() === false) return;
     if (keep.current) return;                  // a menu or the link box just closed: its focus is being put back
     setTimeout(() => {
       const at = document.activeElement;
-      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)) || (at.closest && at.closest("[data-ai-card], [data-pk-ai]")))) return;
+      if (at && at !== document.body && (root.current.contains(at) || (bubble.current && bubble.current.contains(at)) || (at.closest && at.closest("[data-ai-card], [data-pk-ai], [data-ai-menu]")))) return;
       finishRef.current(false);
     }, 0);
   };
@@ -167,7 +171,9 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     setTimeout(() => { keep.current = false; }, 400);
   };
   const aiPick = ({ option, instruction }) => {
-    const e = ed.current.editor, { from, to, empty } = e.state.selection;
+    const e = ed.current.editor, now = e.state.selection, kept = menuSel.current;
+    menuSel.current = null;
+    const { from, to, empty } = now.empty && kept && kept.to <= e.state.doc.content.size ? { from: kept.from, to: kept.to, empty: false } : now;
     const text = empty ? e.getText() : e.state.doc.textBetween(from, to, " ");
     const docAtPick = e.state.doc;
     // Accept writes through the live editor. It answers false when the editor has closed since the pick (nothing is written).
@@ -183,7 +189,7 @@ export function RichText({ value, label, onSave, onClose, oneLine = false, ai = 
     keep.current = true; setTimeout(() => { keep.current = false; }, 400);       // the menu goes and the card takes the focus: the editor stays open
     ai.pick({ option, instruction, text, apply });
   };
-  const aiClose = (how) => { ai.close(); if (how === "esc") { refocus(); if (ed.current) ed.current.editor.view.focus(); } };
+  const aiClose = (how) => { menuSel.current = null; ai.close(); if (how === "esc") { refocus(); const back = () => { if (ed.current) ed.current.editor.view.focus(); }; back(); setTimeout(back, 0); setTimeout(back, 80); } };      // again after the menu has left the page, which drops its focus
   const hold = (e) => e.preventDefault();                    // a button never takes the focus from the text
   const press = (name) => {
     if (name === "link") { setLinkOpen(true); return; }

@@ -89,7 +89,7 @@ export function PeekLatest({ row }) {
         {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
       <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`}
         forceOpen={wantOpen} onClose={() => { setWantOpen(false); setMenuAt(null); }}
-        ai={{ menu: menuAt, open: (pt) => { setCard(null); setMenuAt(pt); }, close: () => setMenuAt(null), pick: (req) => { setMenuAt(null); setCard({ ...req, n: Date.now() }); } }} />
+        ai={{ menu: menuAt, open: (pt) => { setCard(null); setMenuAt(pt); }, close: () => setMenuAt(null), pick: (req) => { setMenuAt(null); aiClient.refresh().then(() => setCard({ ...req, n: Date.now() })); } }} />
       {card ? <div data-ai-card><AiCard key={card.n} client={aiClient} place="current" option={card.option} text={card.text} instruction={card.instruction}
         returnTo={() => { const e = editorOf(); if (e) e.focus(); }} onAccept={(h) => { if (card.apply(h) === false) { say("problem", "The editor was closed, so nothing was changed. Open it and try again."); return; } latestDirty.value = true; }} onClose={() => setCard(null)} /></div> : null}
       </> : null}
