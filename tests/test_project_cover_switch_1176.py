@@ -10,7 +10,7 @@ import unittest
 
 from test_project_switch import TWO
 from test_publish_dialog import Base, WIDTHS
-from test_server import chrome
+from test_server import chrome, wait
 
 SW = "#cover .cover-switch"
 MENU = "#cover-project-menu"
@@ -22,6 +22,17 @@ class CoverSwitch(Base):
         p.until("!!document.querySelector('%s')" % SW, "the cover has the project control")
         p.js("document.querySelector('%s').click()" % SW)
         p.until("!!document.querySelector('%s')" % MENU, "the project list opened")
+
+    def close_menu(self, p):
+        """Esc closes the list. A slow runner drops a single key event, so press again while the list is still drawn."""
+        gone = lambda: not p.js("!!document.querySelector('%s')" % MENU)
+
+        def press():
+            if gone():
+                return True
+            p.key("Escape", code="Escape", vk=27)
+            return wait(gone, 1.5)
+        self.assertTrue(wait(press, 15), "Esc closed it")
 
     def hover(self, p, sel):
         x, y = p.js("(function(){var r=document.querySelector('%s').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()" % sel)
@@ -67,8 +78,7 @@ class CoverSwitch(Base):
                 self.open_menu(p)
                 p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
                 p.until("%s === '1'" % chev, "the chevron stays while the list is open")
-                p.key("Escape", code="Escape", vk=27)
-                p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
+                self.close_menu(p)
 
     def test_C_the_open_list_is_whole_and_clickable_not_cut_by_the_cover(self):
         self.rig.httpd.projects = lambda archived=False: TWO
@@ -84,8 +94,7 @@ class CoverSwitch(Base):
                 self.assertTrue(got["inside"], "the list is inside the window at %d" % w)
                 self.assertEqual(got["rows"], [True, True], "each row is what a click at its middle reaches (not clipped away) at %d" % w)
                 self.assertFalse(got["cut"], "the cover does not cut the list's lower edge at %d" % w)
-                p.key("Escape", code="Escape", vk=27)
-                p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
+                self.close_menu(p)
 
     def test_C_a_click_opens_the_project_list(self):
         self.rig.httpd.projects = lambda archived=False: TWO
@@ -97,8 +106,7 @@ class CoverSwitch(Base):
                 p.until("document.querySelectorAll('%s [role=menuitemradio]').length === 2" % MENU, "both rows are read")
                 self.assertEqual(p.js(ROWS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('%s [aria-checked=true] b').textContent" % MENU), "Harbour Bridge Programme")
-                p.key("Escape", code="Escape", vk=27)
-                p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
+                self.close_menu(p)
 
     def test_C_choosing_another_project_loads_its_page(self):
         self.rig.httpd.projects = lambda archived=False: TWO

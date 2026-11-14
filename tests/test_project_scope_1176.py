@@ -9,11 +9,18 @@ import threading
 import unittest
 import urllib.request
 
+from clark import milestone_feed
 from clark import server as sv
 
-from _demo import USER, DemoStore
+from unittest import mock
 
-KINDS = ("milestones", "actions", "raid", "decisions", "use_cases")
+from clark import __main__ as launcher
+from clark import brands, page
+
+from _demo import USER, DemoStore
+from test_brand_route import NAVY, make_brands
+
+KINDS = ("milestones", "actions", "raid", "decisions", "use_cases", "workstreams")
 
 
 class Scope(unittest.TestCase):
@@ -67,10 +74,43 @@ class Scope(unittest.TestCase):
         self.assertEqual(self.store.data_for("BBB")["project"]["brand"], "generic", "no own assignment, no client brand: generic")
         self.assertEqual(self.store.data_for("ABC")["project"]["brand"], "example-brand", "back to A, A's brand again")
 
+    def test_the_page_carries_the_brand_of_the_project_it_is_asked_for(self):
+        """The page the server sends (launcher.page_of) reads the project's brand column and layers that brand's colours: A's
+        page holds A's colour and not B's, B's the other way about, and a project on generic holds neither."""
+        folders = make_brands(self)
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"brand": "one-brand"})
+            st.update("projects", "BBB", {"brand": "two-brand"})
+            st.create("projects", {"code": "CCC", "name": "Third Programme", "brand": "generic"})
+        pick = lambda root, bid: folders.get(bid, brands.GENERIC)
+        with mock.patch.object(brands, "folder", pick), mock.patch.object(page, "BRANDING", folders[None]):
+            of = launcher.page_of(self.demo.dir / "clark.db", onedrive_roots=[])
+            a, b, c, none = of("ABC"), of("BBB"), of("CCC"), of(None)
+            a_again = of("ABC")
+        one, two = NAVY["ONE"], NAVY["TWO"]
+        self.assertIn(one, a)
+        self.assertNotIn(two, a, "A's page holds A's colour only")
+        self.assertIn(two, b)
+        self.assertNotIn(one, b, "B's page holds B's colour only")
+        for html, who in ((c, "a generic project"), (none, "no project")):
+            self.assertNotIn(one, html, who)
+            self.assertNotIn(two, html, who)
+            self.assertNotIn('id="brand-local"', html, who)
+        self.assertEqual(a_again, a, "back to A, A's page again")
+        self.assertNotEqual(a, b)
+
     def test_a_project_with_no_assignment_is_generic(self):
         with self.store.step("dashboard", USER) as st:
             st.create("projects", {"code": "CCC", "name": "Third Programme"})
         self.assertEqual(self.store.data_for("CCC")["project"]["brand"], "generic")
+
+    def test_the_milestones_feed_is_per_project(self):
+        feed = milestone_feed.make_feed(self.store.data_for)
+        names = lambda code: [m["name"] for m in feed(code)["milestones"]]
+        self.assertIn("Pilot live", names("ABC"))
+        self.assertNotIn("Second only milestone", names("ABC"))
+        self.assertEqual(names("BBB"), ["Second only milestone"])
+        self.assertIsNone(feed("NOPE"))
 
     def test_no_such_project_is_none(self):
         self.assertIsNone(self.store.data_for("NOPE"))
