@@ -764,7 +764,7 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 /* Items 1182, 1183: the Rating chip of a risk or an issue in the peek and its 3 x 3 matrix (the mockup's 268 px panel). Each cell is its level word on its colour; Urgent is solid. */
 .pk-rate .pk-lvl { padding: 0 var(--space-2); border-radius: 999px; font-size: 12px; font-weight: 700; line-height: 20px; }
 .pk-rate .pk-lvl.r { background: var(--status-red-tint); color: var(--status-red-text); } .pk-rate .pk-lvl.a { background: var(--status-amber-tint); color: var(--status-amber-text); } .pk-rate .pk-lvl.g { background: var(--status-green-tint); color: var(--status-green-text); }
-.cpop.crate { box-sizing: border-box; width: 268px; padding: var(--space-2); }
+.cpop.crate { box-sizing: border-box; width: 268px; padding: var(--space-2); border-radius: 12px; }
 .crate .mx { display: grid; grid-template-columns: auto repeat(3, 1fr); gap: 3px; margin: var(--space-1) 0 0; align-items: stretch; }
 .crate .mh { font-size: 12px; font-weight: 500; letter-spacing: .02em; color: var(--text-muted); text-align: center; padding: 2px 0; }
 .crate .mh-i { text-align: right; padding-right: 6px; } .crate .mh-l { grid-column: 2 / 5; }

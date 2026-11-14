@@ -448,7 +448,7 @@ class Live(unittest.TestCase):
                         ("TUL-A-001", "owner", "[data-pop] input.cp-in", "document.querySelector('[data-pop] input.cp-in').value === 'Ada Quillfeather'"),
                         ("TUL-A-001", "due", "[data-pop] .cp-g", "document.querySelector('[data-pop] .cp-t').textContent === 'November 2026' && document.activeElement.dataset.day === '2026-11-02'"),
                         ("TUL-A-001", "priority", "[data-pop][role=menu]", "[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent).join() === 'Urgent,High,Medium,Low'"),
-                        ("TUL-007", "status", "[data-pop][role=menu]", "[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent).join() === 'Open,Closed,Cancelled,Red,Amber,Green'")):
+                        ("TUL-007", "status", "[data-pop][role=menu]", "[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent).join() === 'Open,Closed,Cancelled'")):
                     what, cell = f"{where} {field}", f"[data-cell='{ref}:{field}']"
                     self.readable(cdp, sid, cell, what + " cell")
                     click(cdp, sid, cell)
@@ -594,14 +594,10 @@ class Live(unittest.TestCase):
                 before = self.steps()
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled", "Red", "Amber", "Green"])
+                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.textContent)", sid), ["Open", "Closed", "Cancelled"])
                 self.assertEqual(cdp.js("document.querySelector(\"[data-cell='TUL-007:status']\").getAttribute('aria-label')", sid), "Status of TUL-007: Red. Change", "the label says the word on screen")
-                groups = cdp.js("[...document.querySelectorAll('[data-pop][role=menu] [role=group]')].map(g => [document.getElementById(g.getAttribute('aria-labelledby')).textContent,"
-                                " [...g.querySelectorAll('[role=menuitemradio]')].map(b => b.dataset.value), g.querySelectorAll('[aria-checked=true]').length])", sid)
-                self.assertEqual(groups, [["Status", ["Open", "Closed", "Cancelled"], 1], ["Rating", ["rating:Red", "rating:Amber", "rating:Green"], 1]],
-                                 "two labelled groups, one tick in each")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('[data-pop] [role=group] > [id]')].map(h => [h.textContent, h.offsetWidth > 1])", sid),
-                                 [["Status", False], ["Rating", True]], "a Rating heading under the statuses; Status is named for a screen reader only")
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-pop][role=menu] [role=group]').length", sid), 0, "no Rating group or heading in the table's picker (items 1182, 1183)")
+                self.assertEqual(self.menu_state(cdp, sid)[1], ["Open"], "one tick, on the status")
                 click(cdp, sid, "[data-pop] [data-value=Closed]")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
                 r = self.row("raid", "TUL-007")
@@ -617,9 +613,9 @@ class Live(unittest.TestCase):
                 cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                 key(cdp, sid, " ")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "Space opens it")
-                key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown")
-                self.assertEqual(self.focused(cdp, sid), "rating:Red", "Down moves on into the Rating group")
-                key(cdp, sid, "ArrowUp")
+                key(cdp, sid, "ArrowDown"); key(cdp, sid, "ArrowDown")      # item 1182: three choices now, Open, Closed, Cancelled
+                self.assertEqual(self.focused(cdp, sid), "Cancelled", "Down moves on to Cancelled")
+                key(cdp, sid, "ArrowUp"); key(cdp, sid, "ArrowDown")
                 self.assertEqual(self.focused(cdp, sid), "Cancelled")
                 key(cdp, sid, "Enter")
                 self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved by keyboard")
@@ -636,32 +632,13 @@ class Live(unittest.TestCase):
                 self.undo(cdp, sid, "action status")
                 self.until(cdp, sid, f"((document.querySelector(\"{acell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Due soon'", "Undo draws its live look, Due soon")
 
-    def test_rating_from_the_status_picker_sets_impact_and_likelihood_with_one_undo(self):
-        for width in (1400, 900):
-            with self.subTest(width=width), chrome() as cdp:
-                sid = self.open_page(cdp, width)
-                cell = "[data-cell='TUL-007:status']"
-                before = self.steps()
-                click(cdp, sid, cell)
-                self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-                click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-                r = self.row("raid", "TUL-007")
-                self.assertEqual((r["impact"], r["likelihood"], r["priority"], r["status"]), ("Low", "Low", "Low", "Open"))
-                self.changed_once(before, "rating")
-                self.assertEqual(self.toast(cdp, sid), "TUL-007 rated Green.")
-                self.undo(cdp, sid, "rating")
-                r = self.row("raid", "TUL-007")
-                self.assertNotEqual((r["impact"], r["likelihood"]), ("Low", "Low"), "Undo puts impact and likelihood back")
-                self.assertEqual(r["priority"], store_priority(r["impact"], r["likelihood"]))
-
     def menu_state(self, cdp, sid):
         """What the open status menu offers, and which of its entries are ticked."""
         return cdp.js("[[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.dataset.value),"
                       " [...document.querySelectorAll('[data-pop] [role=menuitemradio][aria-checked=true]')].map(b => b.dataset.value)]", sid)
 
-    def test_a_closed_risk_is_offered_a_rating_and_keeps_its_closed_look(self):
-        """#448 (row 53, system/prototype/peek.js:260): the Rating section is offered whatever the status; a pick leaves the risk closed."""
+    def test_a_closed_risk_is_offered_only_the_statuses_and_keeps_its_closed_look(self):
+        """#448 (row 53): items 1182, 1183: no Rating section in the table's picker, whatever the status; the closed look stays."""
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width)
@@ -670,23 +647,14 @@ class Live(unittest.TestCase):
                 self.assertEqual(self.cell_text(cdp, sid, "TUL-008", "status"), "Closed", "a closed risk reads Closed in the cell")
                 click(cdp, sid, cell)
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], ["Closed", "rating:Amber"]],
-                                 "the Rating is offered on a closed risk, with its own rating ticked")
-                before = self.steps()
-                click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-                self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-                r = self.row("raid", "TUL-008")
-                self.assertEqual((r["status"], r["closed"], r["impact"], r["likelihood"], r["priority"]), ("Closed", "2026-10-14", "Low", "Low", "Low"),
-                                 "rated, still closed, closing date untouched")
-                self.changed_once(before, "rating of a closed risk")
-                self.assertEqual(self.toast(cdp, sid), "TUL-008 rated Green.")
+                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled"], ["Closed"]], "no Rating on a closed risk (items 1182, 1183)")
+                key(cdp, sid, "Escape")
+                self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu shut")
                 self.assertEqual(self.cell_text(cdp, sid, "TUL-008", "status"), "Closed", "the cell keeps the closed look")
-                self.undo(cdp, sid, "rating of a closed risk", "TUL-008 is back to Amber.")
-                self.assertEqual(self.row("raid", "TUL-008")["priority"], "Medium")
-                # a cancelled issue too, and an assumption is still not offered one
+                # a cancelled issue too, and an assumption
                 click(cdp, sid, "[data-cell='TUL-012:status']")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the cancelled issue's menu opened")
-                self.assertEqual(self.menu_state(cdp, sid)[1], ["Cancelled", "rating:Red"])
+                self.assertEqual(self.menu_state(cdp, sid), [["Open", "Closed", "Cancelled"], ["Cancelled"]])
                 key(cdp, sid, "Escape")
                 self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu shut")
                 click(cdp, sid, "[data-cell='TUL-009:status']")
@@ -702,12 +670,7 @@ class Live(unittest.TestCase):
             self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico r")
             click(cdp, sid, cell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened")
-            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-            self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Green'", "the cell says Green at once")
-            self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico g")
-            click(cdp, sid, cell)
-            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened again")
-            click(cdp, sid, "[data-pop] [data-value=Closed]")
+            click(cdp, sid, "[data-pop] [data-value=Closed]")      # item 1182: the table's picker has no Rating pick, so the first pick here is Closed
             self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Closed'", "Closed reads Closed")
             self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico b")      # Closed is the blue tile (row 1021)
             self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Urgent", "an overdue Urgent issue says Urgent, not Red and Urgent (row 1139)")
@@ -856,65 +819,6 @@ class Live(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0, "no picker is open until the status is chosen")
                 labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
                 self.assertIn("Shown to client", labels, "Work items have no mode: the peek edits in View too (row 824)")
-
-    def rating_drawn(self, cdp, sid, ref):
-        """The row's Priority cell and the Rating ticked in its status picker (opened and shut again)."""
-        prio = cdp.js(f"document.querySelector(\"tr[data-id='{ref}'] .c-prio\").textContent", sid)
-        click(cdp, sid, f"[data-cell='{ref}:status']")
-        self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-        ticked = cdp.js("[...document.querySelectorAll(\"[data-pop] [role=menuitemradio][aria-checked=true]\")].map(b => b.dataset.value).filter(v => v.startsWith('rating:'))", sid)
-        key(cdp, sid, "Escape")
-        self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", "the menu shut")
-        return [prio, ticked]
-
-    def test_a_rating_pick_redraws_the_colour_from_the_reply_and_undo_puts_it_back(self):
-        with chrome() as cdp:
-            sid = self.open_page(cdp, 1400)
-            cdp.js("window.__replies = []; const f = window.fetch; window.fetch = async (...a) => { const r = await f(...a);"
-                   " if (String(a[0]).endsWith('/api/change')) r.clone().json().then(j => window.__replies.push(j)); return r; }", sid)
-            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]], "a Red risk to start with")
-            click(cdp, sid, "[data-cell='TUL-007:status']")
-            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-            click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
-            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-            self.until(cdp, sid, "window.__replies.length === 1", "the change replied")
-            item = cdp.js("window.__replies[0].item", sid)
-            self.assertEqual((item["impact"], item["likelihood"], item.get("priority")), ("Medium", "Medium", "Medium"), "the reply carries the worked-out priority")
-            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["Medium", ["rating:Amber"]], "the cell shows Amber at once, no reload")
-            self.undo(cdp, sid, "rating", "TUL-007 is back to Red.")
-            self.until(cdp, sid, "document.querySelector(\"tr[data-id='TUL-007'] .c-prio\").textContent === 'High'", "Undo draws it Red again")
-            self.assertEqual(self.rating_drawn(cdp, sid, "TUL-007"), ["High", ["rating:Red"]])
-
-    def test_a_rating_pick_that_drops_the_row_from_a_priority_filter_keeps_focus_in_the_table(self):
-        with chrome() as cdp:
-            sid = self.open_page(cdp, 1400, hash_="#work&p=TUL&f=mode:all;priority:High")
-            self.until(cdp, sid, "!!document.querySelector(\"tr[data-id='TUL-007']\")", "the Red risk is listed under Priority High")
-            click(cdp, sid, "[data-cell='TUL-007:status']")
-            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-            self.until(cdp, sid, "!document.querySelector(\"tr[data-id='TUL-007']\")", "the row left the filtered list")
-            self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement !== document.body && !!document.activeElement.closest('#work')", sid)),
-                            "focus stays in the Work items table, not on the page body")
-
-    def test_a_rating_pick_with_two_rows_selected_changes_only_that_row(self):
-        mod = 4 if sys.platform == "darwin" else 2                       # Cmd on a Mac, Ctrl elsewhere
-        with chrome() as cdp:
-            sid = self.open_page(cdp, 1400)
-            for ref, mods, n in (("TUL-007", 0, 1), ("TUL-010", mod, 2)):      # as test_multi_select does: scroll to it, click its title, and wait for it to be picked before the next (the selection bar pushes the rows down)
-                click(cdp, sid, f"tr[data-id='{ref}'] .c-item .t", mods)
-                self.until(cdp, sid, f"document.querySelectorAll(\"tr[data-id].picked\").length === {n} && document.querySelector(\"tr[data-id='{ref}']\").classList.contains('picked')", f"{ref} picked, {n} in all")
-            before, other = self.steps(), self.row("raid", "TUL-010")
-            click(cdp, sid, "[data-cell='TUL-007:status']")
-            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the status menu opened")
-            click(cdp, sid, "[data-pop] [data-value='rating:Green']")
-            self.until(cdp, sid, "!!document.querySelector('[data-undo]')", "saved, with Undo")
-            self.assertEqual(self.toast(cdp, sid), "TUL-007 rated Green.", "the one row, not a question about all of them")
-            self.assertNotIn("Change the status of all", cdp.js("document.body.textContent", sid))
-            self.changed_once(before, "rating")
-            self.assertEqual(self.row("raid", "TUL-007")["priority"], "Low")
-            r = self.row("raid", "TUL-010")
-            self.assertEqual((r["impact"], r["likelihood"], r["status"]), (other["impact"], other["likelihood"], other["status"]), "the other selected row is untouched")
 
     def test_a_pending_decision_made_gets_todays_date_and_no_undo(self):
         with chrome() as cdp:

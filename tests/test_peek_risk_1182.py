@@ -256,7 +256,7 @@ class Peek:
             click(cdp, sid, f"[data-cell='{self.REF}:status']")
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the table's status picker opened")
             got = cdp.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map(b => b.dataset.value)", sid)
-            self.assertEqual(got, ["Open", "Closed", "Cancelled", "rating:Red", "rating:Amber", "rating:Green"], "item 1182 is the peek's; the list's cell is not changed here")
+            self.assertEqual(got, ["Open", "Closed", "Cancelled"], "item 1182, ruled: the list's cell offers Open, Closed and Cancelled too, no Rating group")
 
 
 class RiskPeek(Peek, unittest.TestCase):
