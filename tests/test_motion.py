@@ -120,6 +120,8 @@ class Looks(tre.Base):
         _, media, own = mode
         p = tre.Pg.at(self, cdp, self.s.port, hash_)
         cdp.call("Emulation.setEmulatedMedia", {"features": te.REDUCE if media else ALLOW}, p.sid)
+        if not media and not own:
+            p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion makes the page paint data-motion=reduce at load
         p.ready() if hash_.startswith('#dashboard') else p.until("!!document.querySelector('#work-count')", 'the list drew')
         if own:
             p.js(OWN)
