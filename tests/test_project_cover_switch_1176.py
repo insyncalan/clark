@@ -22,6 +22,10 @@ class CoverSwitch(Base):
         p.js("document.querySelector('%s').click()" % SW)
         p.until("!!document.querySelector('%s')" % MENU, "the project list opened")
 
+    def hover(self, p, sel):
+        x, y = p.js("(function(){var r=document.querySelector('%s').getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})()" % sel)
+        p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, p.sid)
+
     def test_C_the_cover_keeps_the_name_and_has_one_control(self):
         with chrome() as cdp:
             p = self.page(cdp)
@@ -36,10 +40,50 @@ class CoverSwitch(Base):
             p.until("!!document.querySelector('%s')" % SW, "the control")
             for w in WIDTHS:
                 p.width(w)
-                self.assertEqual(p.js("getComputedStyle(document.querySelector('%s')).borderTopWidth" % SW), "0px", "no box drawn at rest")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('%s')).backgroundColor" % SW), "rgba(0, 0, 0, 0)", "no box drawn at rest")
+                self.assertEqual(p.js("getComputedStyle(document.querySelector('%s')).fontSize === getComputedStyle(document.querySelector('#cover h1')).fontSize" % SW), True, "it reads as the heading")
                 self.assertEqual(p.js("document.querySelector('%s').closest('#cover').querySelector('h1').getBoundingClientRect().height > 0" % SW), True)
                 self.assertIn("Click to change project", p.js("(document.querySelector('%s').title || '') + ' ' + (document.querySelector('%s').getAttribute('aria-label') || '') + ' ' + document.querySelector('%s').textContent" % (SW, SW, SW)))
                 self.assertEqual(p.js("document.documentElement.scrollWidth <= window.innerWidth"), True, "no sideways overflow")
+
+    def test_C_the_chevron_and_outline_show_only_on_hover_or_open(self):
+        self.rig.httpd.projects = lambda archived=False: TWO
+        chev = "getComputedStyle(document.querySelector('%s .nch')).opacity" % SW
+        edge = "getComputedStyle(document.querySelector('%s')).outlineStyle" % SW
+        with chrome() as cdp:
+            p = self.page(cdp)
+            p.until("!!document.querySelector('%s')" % SW, "the control")
+            for w in WIDTHS:
+                p.width(w)
+                p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
+                p.until("%s === '0'" % chev, "the chevron is not drawn at rest")
+                self.assertEqual(p.js(edge), "none", "no outline at rest")
+                self.hover(p, SW)
+                p.until("%s === '1'" % chev, "the chevron shows on hover")
+                self.assertEqual(p.js(edge), "dashed", "a dashed outline on hover")
+                p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
+                self.open_menu(p)
+                p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
+                p.until("%s === '1'" % chev, "the chevron stays while the list is open")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
+
+    def test_C_the_open_list_is_whole_and_clickable_not_cut_by_the_cover(self):
+        self.rig.httpd.projects = lambda archived=False: TWO
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                self.open_menu(p)
+                p.until("document.querySelectorAll('%s [role=menuitemradio]').length === 2" % MENU, "both rows are drawn")
+                got = p.js("""(function(){var m=document.querySelector('%s'),r=m.getBoundingClientRect(),out={inside:r.top>=0&&r.left>=0&&r.bottom<=innerHeight&&r.right<=innerWidth,rows:[]};
+                  m.querySelectorAll('[role=menuitemradio]').forEach(function(e){var b=e.getBoundingClientRect(),h=document.elementFromPoint(b.left+b.width/2,b.top+b.height/2);out.rows.push(!!h&&e.contains(h))});
+                  var cv=document.querySelector('#cover').getBoundingClientRect();out.cut=r.bottom>cv.bottom&&getComputedStyle(document.querySelector('#cover')).overflow!=='visible'&&!!document.elementFromPoint(r.left+r.width/2,r.bottom-4)&&!m.contains(document.elementFromPoint(r.left+r.width/2,r.bottom-4));return out})()""" % MENU)
+                self.assertTrue(got["inside"], "the list is inside the window at %d" % w)
+                self.assertEqual(got["rows"], [True, True], "each row is what a click at its middle reaches (not clipped away) at %d" % w)
+                self.assertFalse(got["cut"], "the cover does not cut the list's lower edge at %d" % w)
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
 
     def test_C_a_click_opens_the_project_list(self):
         self.rig.httpd.projects = lambda archived=False: TWO
@@ -60,7 +104,7 @@ class CoverSwitch(Base):
             p.until("!!document.querySelector('%s')" % SW, "the control")
             self.assertEqual(p.js("document.querySelector('%s').tagName" % SW), "BUTTON", "a real button, so Tab reaches it")
             p.js("document.querySelector('%s').focus()" % SW)
-            self.assertEqual(p.js("getComputedStyle(document.querySelector('%s')).visibility" % SW), "visible", "focus shows it")
+            self.assertEqual(p.js("document.activeElement === document.querySelector('%s')" % SW), True, "it takes focus")
             p.key("Enter", vk=13)
             p.until("!!document.querySelector('%s')" % MENU, "Enter opened the list")
 

@@ -4,7 +4,12 @@ B's items never appear under A, and the project's own brand (else generic, the i
 
 Run: python3 dev/run_tests.py test_project_scope_1176
 """
+import json
+import threading
 import unittest
+import urllib.request
+
+from clark import server as sv
 
 from _demo import USER, DemoStore
 
@@ -20,7 +25,7 @@ class Scope(unittest.TestCase):
             st.create("projects", {"code": "BBB", "name": "Second Programme", "health": "On track", "brand": "generic"})
             st.create("milestones", {"project": "BBB", "name": "Second only milestone", "baseline_date": "2030-05-01", "source": "demo"})
             st.create("use_cases", {"project": "BBB", "title": "Second only use case", "status": "On track", "source": "demo"})
-            st.create("actions", {"project": "BBB", "title": "Second only action", "source": "demo"})
+            st.create("actions", {"project": "BBB", "description": "Second only action", "raised": "2030-05-01", "source": "demo"})
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"brand": "example-brand"})
 
@@ -28,7 +33,7 @@ class Scope(unittest.TestCase):
         out = []
         for k in KINDS:
             for r in data.get(k, []):
-                out.append(r.get("name") or r.get("title") or "")
+                out.append(r.get("name") or r.get("title") or r.get("description") or "")
         return out
 
     def test_A_then_B_each_read_holds_only_its_own_project(self):
@@ -69,6 +74,24 @@ class Scope(unittest.TestCase):
 
     def test_no_such_project_is_none(self):
         self.assertIsNone(self.store.data_for("NOPE"))
+
+    def test_the_data_route_answers_each_project_only_its_own(self):
+        """The same read through GET /api/data?project=CODE, the route the page calls when a project is chosen."""
+        httpd = sv.LocalServer((sv.HOST, 0), data_for=lambda code, archived="hide": self.store.data_for(code, archived=archived),
+                               page_html=lambda: "<html></html>", projects=lambda archived=False: [])
+        threading.Thread(target=httpd.serve_forever, daemon=True).start()
+        self.addCleanup(lambda: (httpd.shutdown(), httpd.server_close()))
+
+        def get(code):
+            req = urllib.request.Request("http://127.0.0.1:%d/api/data?project=%s" % (httpd.server_address[1], code), headers={sv.TOKEN_HEADER: sv.TOKEN})
+            with urllib.request.urlopen(req, timeout=10) as r:
+                return json.loads(r.read())["data"]
+        a, b = get("ABC"), get("BBB")
+        self.assertEqual((a["project"]["code"], b["project"]["code"]), ("ABC", "BBB"))
+        self.assertNotIn("Second only milestone", self.names(a))
+        self.assertNotIn("Pilot live", self.names(b))
+        self.assertIn("Second only action", self.names(b))
+        self.assertEqual((a["project"]["brand"], b["project"]["brand"]), ("example-brand", "generic"))
 
 
 if __name__ == "__main__":
