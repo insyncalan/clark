@@ -113,11 +113,12 @@ function SavedViews({ board }) {
     const fromNew = !!document.activeElement && document.activeElement.id === "viewNew";      // the + New view button keeps the focus; a menu arrow's focus goes with its list
     if (/^(layout|group|lane):/.test(id)) pickLayout(id);
     else if (id === "discard" && active) { pick(active); const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }
-    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); } }
+    else if (id === "save" && active) { const r = FL.saveView(all, active.id, line.trim()); if (r.ok) { saveViews(code, r.views); say("done", `View saved: ${active.name}`); setTimeout(() => { const el = document.querySelector('.vtab[aria-pressed="true"]'); if (el) el.focus(); }, 0); } }
     else if (id === "saveas") {          // row 1073: made at once, named View 1, View 2 ...; Rename… changes the name
       const r = FL.addView(all, FL.nextViewName(all), line.trim());
       if (!r.ok) { say("problem", r.message); return; }
       saveViews(code, r.views);
+      announce.value = `Saved as ${r.views.find((v) => v.id === r.id).name}. Use Rename view to change the name.`;
       chosen.value = { ...chosen.value, [code]: r.id };
       setTimeout(() => { if (!fromNew) focusTab(r.id); }, 0);      // the arrow that had the focus goes with the old open tab: the new tab takes it; + New view keeps its own focus
     }

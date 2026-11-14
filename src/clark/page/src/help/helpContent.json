@@ -1341,7 +1341,7 @@
      ],
      [
       "p",
-      "The right-click menu has a small picture before each entry: Draft email to the owner, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
+      "The right-click menu has a small picture before each entry: Draft email to the owner, “Open the peek”, “Change status”, “Move due date”, “Change owner”, Hide from the client or Show to the client, “Copy link to this item”, “Copy ID”, **Duplicate** and **Archive**. The picture only helps you find the entry; each one still has its words. The eye entry shows the change it makes: a crossed-out eye for Hide from the client, an eye for Show to the client. “Change owner” opens a short list beside it with a box, **Type a name**, to find someone among the project’s names and the People list. If the name is new, the last entry reads “Add” and the name you typed, “as a new person”, and opens a small form for their details. The menus for status, priority, due date, owner, workstream and milestone show a small picture before each choice."
      ],
      [
       "p",
@@ -1415,7 +1415,7 @@
      [
       "ul",
       [
-       "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate** and **Archive**, then **Make this panel fill the screen** and **Close this panel**.",
+       "At the top: **Previous item** and **Next item**, the item’s ID, then (in Edit) **Duplicate**, **Archive** and **Delete**, then **Make this panel fill the screen** and **Close this panel**.",
        "A warning bar sits above the title (in Edit) when an action is overdue or due on a weekend, with fixes such as **Move to Friday** and the date.",
        "**The title**, then **Status**, **Priority**, **Owner** and **Due**, each with its icon in colour: the state’s colour, the priority’s, and the date’s (red when late, amber when due within a week).",
        "**Latest update**, and the words **Shown to the client** when the item is shown to the client; then when it was last updated.",
@@ -2195,7 +2195,7 @@
    ],
    [
     "[[O]] [[S]] [[P]] [[T]] [[C]]",
-    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box"
+    "Work items in Edit, on a row, a card, the selection or the item you have open: change the owner (O), status (S), priority (P) or due date (T), or close it (C). Several selected change together, in one step with one Undo. Not while you are typing in a box. Single letter keys: they do nothing when Single-key shortcuts is off in Settings › Personal"
    ],
    [
     "[[Shift+F10]]",
