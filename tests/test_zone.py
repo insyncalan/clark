@@ -5,6 +5,7 @@ A container runs in UTC; the page sends its zone and the server applies it, so '
 Nothing here starts a container; the container is stood in for by the setting and marker file, as test_server_container does.
 """
 import json
+import logging
 import os
 import time
 import unittest
@@ -16,6 +17,8 @@ from _paths import ROOT, SRC  # noqa: F401
 from _demo import USER, DemoStore
 from clark import milestones, movement_read, server as sv, sneak, store as store_module, zone
 from test_server import Running
+
+SENTINEL = "ZQ-SENTINEL-631"
 from test_server_container import in_container
 
 HERE = datetime(2026, 11, 13, 22, 0, tzinfo=timezone.utc)       # 22:00 UTC: already 02:00 on the 14th in Dubai, still the 13th in New York
@@ -82,9 +85,11 @@ class Header(Zoned):
             self.assertFalse(zone.follow_header("Asia/Dubai", True))
 
     def test_a_bad_header_is_ignored_and_not_logged(self):
-        with self.assertNoLogs():
+        with self.assertLogs(level="DEBUG") as seen:       # assertLogs needs one line (Python 3.9 has no assertNoLogs), so the test logs a sentinel
+            logging.getLogger().debug(SENTINEL)
             self.assertFalse(zone.follow_header("Mars/Olympus", True))
             self.assertFalse(zone.follow_header(None, True))
+        self.assertEqual([r.getMessage() for r in seen.records], [SENTINEL])
         self.assertEqual(os.environ.get("TZ"), self.had)
 
 
