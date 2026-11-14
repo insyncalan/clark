@@ -1210,4 +1210,5 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .cover-switch:hover, .cover-switch[aria-expanded="true"] { outline: 1px dashed var(--white); outline-offset: 4px; }
 .cover-switch:hover .nch, .cover-switch:focus-visible .nch, .cover-switch[aria-expanded="true"] .nch { opacity: 1; }
 .cover-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
+.cover:has(.cover-switch[aria-expanded="true"]) { z-index: 30; }      /* the cover is its own stacking layer (isolate), so while its project list is open the whole band sits above the sections below, or their headings would take the clicks meant for the list rows */
 .cover h1 .ddmenu { font-size: var(--size-body); font-weight: normal; line-height: normal; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
