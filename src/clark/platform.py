@@ -92,9 +92,6 @@ def container_on_host_network(net_dir="/sys/class/net"):
                for n in names)
 
 
-DOCKER_VOLUME_PREFIX = "docker-volume:"   # CLARK_DATA_SOURCE on the Windows route (docker/compose.windows.yaml): a named volume, not a path
-
-
 def container_host_in_onedrive(environ=None):
     """item 427: inside the shipped container, the Mac folder that is shared in as the data folder, named by the compose file in
     CLARK_DATA_SOURCE, as a Path when it is in OneDrive (a part of the path is OneDrive's own folder, `OneDrive`, `OneDrive - <name>`

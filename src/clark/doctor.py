@@ -221,9 +221,6 @@ def check_docker(seen):
     host = seen.environ.get("CLARK_DATA_SOURCE")
     if not host:                                # nothing says which Mac folder is shared in, so nothing was checked: never Ready
         return Line(NOT_CHECKED, f"The Docker check couldn't finish. Run {typed.doctor()} again.")
-    if host.startswith(platform.DOCKER_VOLUME_PREFIX):     # the Windows route (docker/compose.windows.yaml): a named volume, not a folder
-        return Line(READY, f"clark is running in Docker, and your data is kept in the Docker volume {host[len(platform.DOCKER_VOLUME_PREFIX):]}, "
-                           "not in a Windows folder, so OneDrive can't reach it.")
     name = next((part for part in re.split(r"[\\/]+", host) if part.casefold().startswith("onedrive")), None)
     if name is not None:
         return Line(FIX, f"Your data can't be kept in {platform.host_shown(host)} because it is inside OneDrive. OneDrive copies files while "
