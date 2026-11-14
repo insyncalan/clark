@@ -1203,3 +1203,11 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (max-width: 899px) { .cover::after { display: none; } }
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
+
+/* item 1176: the project name in the editor Dashboard cover is a button that looks like the heading until hover or focus, then shows it can be clicked; the chevron fades in with opacity only (it stays visible to focus) */
+.cover-switch { all: unset; box-sizing: border-box; display: inline; cursor: pointer; color: inherit; font: inherit; border: 0; border-radius: var(--radius); }
+.cover-switch .nch { opacity: 0; margin-left: var(--space-2); vertical-align: middle; }
+.cover-switch:hover, .cover-switch[aria-expanded="true"] { outline: 1px dashed var(--white); outline-offset: 4px; }
+.cover-switch:hover .nch, .cover-switch:focus-visible .nch, .cover-switch[aria-expanded="true"] .nch { opacity: 1; }
+.cover-switch:focus-visible { outline: 2px solid var(--white); outline-offset: 4px; }
+.cover h1 .ddmenu { font-size: var(--size-body); font-weight: normal; line-height: normal; color: var(--text); text-align: left; letter-spacing: normal; text-transform: none; }
