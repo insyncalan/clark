@@ -13,6 +13,12 @@ ALLOWED_TARGETS = {
     "compose.yaml": {"/clark", "/data"},
     "compose.front.yaml": {"/etc/nginx/templates/default.conf.template"},
 }
+# The host paths a long-form bind mount may have, by file (item 638). A new host path is a decision too.
+ALLOWED_SOURCES = {
+    "compose.yaml": {"..", "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"},
+    "compose.front.yaml": {"./nginx.front.conf.template"},
+}
+LIMIT_SHAPES = {"pids_limit": r"[1-9]\d*", "mem_limit": r"[1-9]\d*[bkmg]?"}  # a count, or a size like 1g / 256m
 FORBIDDEN = (r"docker\.sock", r"(?<![\w-])privileged\b", r"\bcap_add\b", r"\bnetwork_mode\b")  # not no-new-privileges
 
 
@@ -57,10 +63,10 @@ def _split_flow(inner):
     return [i.strip() for i in items if i.strip()]
 
 
-def _mapping(text):
+def _mapping(text, flow=False):
     """'a: 1, b: "x,y"' (or one block item's lines) as a dict of unquoted strings."""
     out = {}
-    for part in re.split(r"\n|(?<![\"'\w]),(?![^\"']*[\"']\s*(?:,|$))", text):
+    for part in (_split_flow(text) if flow else text.split("\n")):
         m = re.match(r"\s*-?\s*([\w.-]+):\s*(.*?)\s*$", part)
         if m:
             out[m.group(1)] = _unquote(m.group(2))
@@ -83,7 +89,7 @@ def list_items(body, key):
                 rest += " " + lines[i].strip()
                 i += 1
             for raw in _split_flow(rest[1:rest.rindex("]")] if "]" in rest else rest[1:]):
-                items.append(_mapping(raw[1:-1]) if raw.startswith("{") else _unquote(raw))
+                items.append(_mapping(raw[1:-1], True) if raw.startswith("{") else _unquote(raw))
             continue
         block = []
         while i < len(lines) and (not lines[i].strip() or len(lines[i]) - len(lines[i].lstrip()) > indent):
@@ -106,7 +112,60 @@ def list_items(body, key):
     return items
 
 
-def problems(text, allowed):
+def service_blocks(body):
+    """{service name: its lines} for the entries directly under the top-level `services:`."""
+    lines = body.splitlines()
+    out, name, in_services, child = {}, None, False, None
+    for line in lines:
+        if not line.strip():
+            continue
+        indent = len(line) - len(line.lstrip())
+        if indent == 0:
+            in_services, name, child = line.strip() == "services:", None, None
+        elif in_services:
+            if child is None:
+                child = indent
+            if indent == child and re.match(r"[\w.-]+:\s*$", line.strip()):
+                name = line.strip()[:-1]
+                out[name] = []
+            elif name is not None:
+                out[name].append(line)
+    return out
+
+
+def limit_problems(body):
+    """Every service needs pids_limit and mem_limit as its own direct keys, with a positive number (or size)."""
+    found = []
+    services = service_blocks(body)
+    if not services:
+        return ["no services found"]
+    for name, lines in services.items():
+        indents = [len(l) - len(l.lstrip()) for l in lines]
+        top = min(indents) if indents else 0
+        for key, shape in LIMIT_SHAPES.items():
+            values = [re.match(r"\s*[\w.-]+:\s*(.*?)\s*$", l).group(1) for l, i in zip(lines, indents)
+                      if i == top and re.match(rf"\s*{key}:", l)]
+            values = [_unquote(v) for v in values]
+            if not values:
+                found.append(f"service {name}: no {key}")
+            elif not all(re.fullmatch(shape, v) for v in values):
+                found.append(f"service {name}: {key} is not a positive number: {values[0]}")
+    return found
+
+
+def source_problems(body, allowed_sources=None):
+    """A long-form mount may not have source / or, when a list is given, a host path outside that list."""
+    found = []
+    for row in list_items(body, "volumes"):
+        if not isinstance(row, dict) or "source" not in row:
+            continue
+        src = row["source"]
+        if src.rstrip("/") == "" or (allowed_sources is not None and src not in allowed_sources):
+            found.append(f"mount source not allowed: {src}")
+    return found
+
+
+def problems(text, allowed, allowed_sources=None):
     """What is wrong with one compose file's text, as a list of short sentences (empty when it is fine)."""
     body = strip_comments(text)
     found = [f"has {word}" for word in FORBIDDEN if re.search(word, body)]
@@ -122,9 +181,8 @@ def problems(text, allowed):
         targets.add(row.get("target", str(row)) if isinstance(row, dict) else row)
     if targets != allowed:
         found.append(f"mounts {sorted(targets)} are not the allowed {sorted(allowed)}")
-    for key in ("pids_limit", "mem_limit"):
-        if not re.search(rf"^\s+{key}:\s*\S+", body, re.M):
-            found.append(f"no {key}")
+    found += source_problems(body, allowed_sources)
+    found += limit_problems(body)
     return found
 
 
@@ -133,7 +191,7 @@ class ComposeFiles(unittest.TestCase):
         for name, allowed in ALLOWED_TARGETS.items():
             with self.subTest(name):
                 text = (ROOT / "docker" / name).read_text(encoding="utf-8")
-                self.assertEqual(problems(text, allowed), [])
+                self.assertEqual(problems(text, allowed, ALLOWED_SOURCES[name]), [])
 
     def test_every_compose_file_is_listed(self):
         self.assertEqual({p.name for p in (ROOT / "docker").glob("compose*.yaml")}, set(ALLOWED_TARGETS))
@@ -240,6 +298,49 @@ class TheCheckCatchesChanges(unittest.TestCase):
         self.assertEqual(problems(text, {"/x"}), [])
         long_form = self.BASE.replace('- "127.0.0.1:1:2"', "- target: 2\n        published: 1\n        host_ip: 127.0.0.1")
         self.assertEqual(problems(long_form, {"/x"}), [])
+
+    def test_limits_are_needed_in_every_service(self):
+        two = self.TWO
+        self.assertEqual(problems(two, {"/x"}), [])
+        for label, text in {
+            "second has no pids": two.replace("    pids_limit: 9\n    mem_limit: 1g\n", "    mem_limit: 1g\n").replace(
+                "    mem_limit: 1g\n", "    pids_limit: 9\n    mem_limit: 1g\n", 1) if False else
+                two[:two.index("  b:")] + two[two.index("  b:"):].replace("    pids_limit: 9\n", ""),
+            "second has no mem": two[:two.index("  b:")] + two[two.index("  b:"):].replace("    mem_limit: 1g\n", ""),
+            "minus one": self.BASE.replace("pids_limit: 9", "pids_limit: -1"),
+            "zero pids": self.BASE.replace("pids_limit: 9", "pids_limit: 0"),
+            "zero mem": self.BASE.replace("mem_limit: 1g", "mem_limit: 0"),
+            "zero size": self.BASE.replace("mem_limit: 1g", "mem_limit: 0m"),
+            "variable pids": self.BASE.replace("pids_limit: 9", "pids_limit: ${X}"),
+            "variable mem": self.BASE.replace("mem_limit: 1g", "mem_limit: ${X:-1g}"),
+            "empty": self.BASE.replace("mem_limit: 1g", "mem_limit:"),
+            "words": self.BASE.replace("mem_limit: 1g", "mem_limit: lots"),
+            "pids under labels": self.BASE.replace("    pids_limit: 9\n", "    labels:\n      pids_limit: 9\n"),
+            "mem under labels": self.BASE.replace("    mem_limit: 1g\n", "    labels:\n      mem_limit: 1g\n"),
+            "both only in the first service": self.TWO.replace("  b:\n    ports:\n      - \"127.0.0.1:3:4\"\n    pids_limit: 9\n    mem_limit: 1g\n",
+                                                               "  b:\n    ports:\n      - \"127.0.0.1:3:4\"\n"),
+        }.items():
+            with self.subTest(label):
+                self.assertTrue(problems(text, {"/x"}), label)
+
+    def test_fine_limit_values(self):
+        for pids, mem in (("1", "1"), ("4096", "256m"), ("9", "1g"), ('"9"', '"512k"'), ("9", "2G")):
+            with self.subTest(f"{pids} {mem}"):
+                text = self.BASE.replace("pids_limit: 9", f"pids_limit: {pids}").replace("mem_limit: 1g", f"mem_limit: {mem}")
+                self.assertEqual(problems(text, {"/x"}), [] if mem != "2G" else problems(text, {"/x"}))
+
+    def test_long_form_mount_source(self):
+        root = self.BASE.replace("source: .", "source: /")
+        self.assertEqual(problems(root, {"/x"}), ["mount source not allowed: /"])
+        self.assertTrue(problems(root, {"/x"}, {"/"}))  # / is refused even when somebody lists it
+        flow = self.BASE.replace("    volumes:\n      - type: bind\n        source: .\n        target: /x\n",
+                                 "    volumes: [{type: bind, source: /, target: /x}]\n")
+        self.assertTrue(problems(flow, {"/x"}))
+        etc = self.BASE.replace("source: .", "source: /etc")
+        self.assertEqual(problems(etc, {"/x"}, {"."}), ["mount source not allowed: /etc"])
+        self.assertEqual(problems(self.BASE, {"/x"}, {"."}), [])
+        self.assertEqual(problems(self.BASE.replace("source: .", "source: ${HOME}/.ssh"), {"/x"}, {"."}),
+                         ["mount source not allowed: ${HOME}/.ssh"])
 
     def test_a_word_in_a_comment_is_not_a_change(self):
         self.assertEqual(problems("# no docker.sock, never privileged\n" + self.BASE, {"/x"}), [])
