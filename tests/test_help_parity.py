@@ -331,6 +331,15 @@ class KeyRowsSayWhatTheKeysDo(unittest.TestCase):
         self.assertIn("even in a box", row)
         self.assertIn("(e.key || \"\").toLowerCase() === \"j\"", read("page", "src", "edit", "askPanelState.js"))
 
+    def test_cmd_option_s_opens_settings_and_help_names_it(self):
+        # edit/keys.js settingsKey: Command + Option + S, read by the physical key (Option + S types another character on a Mac)
+        self.assertIn("Cmd+Option+S", self.KEYS)
+        row = self.KEYS["Cmd+Option+S"]
+        self.assertIn("Opens Settings", row)
+        self.assertIn("Mac only", row)
+        src = read("page", "src", "edit", "keys.js")
+        self.assertIn('e.code !== "KeyS" || !e.metaKey || !e.altKey', src)
+
 
 if __name__ == "__main__":
     unittest.main()

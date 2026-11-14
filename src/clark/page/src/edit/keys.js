@@ -3,8 +3,9 @@
 // A plain key only: with a modifier, a held key or an input method composing, and anywhere focus is in a field, the editor, a
 // menu, a dialog or the open peek, the key belongs to that and is left alone. A screen reader's own V and E in browse mode never
 // reach the page, so they are not taken either.
-import { view, data, mode, fromFile, peek } from "../stores/report.js";
+import { view, data, mode, fromFile, peek, shownTabs, show } from "../stores/report.js";
 import { singleKeys } from "../stores/keyPrefs.js";
+import { helpOpen } from "../help/helpStore.js";
 
 const FIELD = /^(INPUT|TEXTAREA|SELECT)$/;
 // The pages that have View and Edit with the plain keys: the Dashboard and the Gantt page (#928).
@@ -36,4 +37,23 @@ export function modeKey(e) {
  *  decides whether the page is on the Dashboard with a report open. */
 export function installModeKeys() {
   document.addEventListener("keydown", modeKey);
+}
+
+/** Command + Option + S (Mac) opens Settings from any page (v1.0.9). The physical key is read (e.code), not the letter: Option + S types a
+ *  different character on a Mac (e.key is not "s"). Command and Option together, nothing else; a held key or an input method composing, a
+ *  published file (it has no Settings), Help or any dialog or menu open, focus in a field or the editor (an unsaved edit is not left behind),
+ *  and Settings already showing, all leave it alone. Not governed by the single-key switch: it has modifiers. Returns whether it acted. */
+export function settingsKey(e) {
+  if (e.code !== "KeyS" || !e.metaKey || !e.altKey || e.ctrlKey || e.shiftKey || e.repeat || e.isComposing || e.defaultPrevented) return false;
+  if (!shownTabs.value.includes("settings") || view.value === "settings" || helpOpen.value) return false;
+  if (busy(document.activeElement) || busy(e.target)) return false;
+  if (document.querySelector("dialog[open],[role=dialog],[role=alertdialog],[role=menu]")) return false;
+  e.preventDefault();
+  show("settings");
+  return true;
+}
+
+/** Listen for Command + Option + S from the moment the page starts (boot.jsx), in the capture phase so a focused grid cannot swallow it. */
+export function installSettingsKey() {
+  document.addEventListener("keydown", settingsKey, true);
 }
