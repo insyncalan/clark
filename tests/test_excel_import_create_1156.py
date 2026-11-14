@@ -79,6 +79,35 @@ class Create(RoundTrip):
         self.assertEqual(done["skipped"], [])
         self.assertEqual(self.snapshot(), before)
 
+    def test_a_created_milestone_and_use_case_hold_the_cleaned_label_source_project_and_status(self):
+        work_item(self.path, ms="  Pilot   wave 2 ", uc=" Reporting\tset-up  ")
+        plan = self.ask()
+        res = self.apply(plan, {u["id"]: {"do": "new"} for u in plan.unknowns})
+        self.assertTrue(res.applied, res.message)
+        (m,) = [r for r in self.s.read("milestones", project="ABC") if r["name"] == MS]
+        (u,) = [r for r in self.s.read("use_cases", project="ABC") if r["title"] == UC]
+        self.assertEqual((m["name"], m["project"], m["status"]), (MS, "ABC", "Planned"))
+        self.assertEqual((u["title"], u["project"], u["status"]), (UC, "ABC", "On track"))
+        for made in (m, u):
+            self.assertTrue(made["source"].startswith("Excel import, "), made["source"])
+            self.assertTrue(made["source"].endswith(plan.file), made["source"])
+
+    def test_importing_the_same_workbook_again_after_new_asks_nothing_and_makes_nothing(self):
+        work_item(self.path)
+        plan = self.ask()
+        res = self.apply(plan, {u["id"]: {"do": "new"} for u in plan.unknowns})
+        self.assertTrue(res.applied, res.message)
+        before, n = self.snapshot(), self.steps()
+        again = self.read()
+        self.assertEqual(again.unknowns, [])
+        self.assertEqual([c for c in again.changes if c.kind == "new"], [])
+        again.accept_all()
+        xi.apply_import(self.s, again, USER, state_path=self.state)
+        self.assertEqual((self.snapshot(), self.steps()), (before, n))
+        self.assertEqual(len([r for r in self.s.read("milestones", project="ABC") if r["name"] == MS]), 1)
+        self.assertEqual(len([r for r in self.s.read("use_cases", project="ABC") if r["title"] == UC]), 1)
+        self.assertEqual(len([r for r in self.s.read("actions", project="ABC") if r["description"] == "Set up the test rig"]), 1)
+
     def test_use_links_an_existing_item_and_creates_nothing(self):
         work_item(self.path)
         plan = self.ask()
