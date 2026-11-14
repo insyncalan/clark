@@ -21,7 +21,7 @@ MS, UC, TEXT = "Pilot wave 2", "Reporting set-up", "Set up the test rig"
 SHOTS = os.environ.get("CLARK_SHOTS")                      # a folder to save a screenshot of each state into; nothing is saved without it
 
 
-def with_unknowns(rig, folder):
+def with_unknowns(rig, folder, ms=MS):
     """The exported workbook plus one new Actions row that names MS and UC; base64."""
     b64, _, _ = sdp.workbook(rig, folder, "Agree the cut-over plan, version two")
     path = Path(folder) / "PUB work items.xlsx"
@@ -29,7 +29,7 @@ def with_unknowns(rig, folder):
     ws = wb["Actions"]
     head = {c.value: c.column for c in ws[1]}
     row = ws.max_row + 1
-    for label, value in {"Description": TEXT, "Milestone": MS, "Use case": UC}.items():
+    for label, value in {"Description": TEXT, "Milestone": ms, "Use case": UC}.items():
         ws.cell(row, head[label]).value = value
     wb.save(str(path))
     return base64.b64encode(path.read_bytes()).decode()
@@ -45,12 +45,13 @@ class Questions(sdp.Card):
     def new_item(self):
         return [a for a in self.rows("actions") if a["description"] == TEXT]
 
-    def to_questions(self, cdp, w, name):
+    def to_questions(self, cdp, w, name, ms=MS, theme="light"):
         folder = Path(self.tmp.name) / name
         folder.mkdir()
-        b64 = with_unknowns(self.rig, folder)
+        b64 = with_unknowns(self.rig, folder, ms)
         p = self.page(cdp)
         p.width(w)
+        p.js("document.documentElement.dataset.theme = %r" % theme)
         self.open_settings(p)
         p.js("document.querySelector('#import-workbook').click()")
         p.until("!!document.querySelector('#import-box')", "the box opened")
@@ -113,6 +114,33 @@ class Questions(sdp.Card):
                 p.js("document.querySelector('#import-undo').click()")
                 p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
                 self.assertEqual(snap(), before, "one Undo takes the item and both created items away")
+
+    def test_a_near_match_is_offered_as_the_answer_and_both_light_and_dark_show_the_block(self, w):
+        for theme in ("light", "dark"):
+            with chrome() as cdp:
+                (first,) = [m["name"] for m in self.rows("milestones")[:1]]
+                near = first.replace(" ", "-") + "."                 # the same words with other spaces and a full stop: not found by its text, but the nearest
+                p = self.to_questions(cdp, w, "e%d%s" % (w, theme), ms=near, theme=theme)
+                where = "%d %s" % (w, theme)
+                got = p.js("(() => { const li = [...document.querySelectorAll('[data-unknown]')].find(l => l.innerText.includes(%r)); return [li.querySelector('input[value=use]').checked, li.querySelector('select').selectedOptions[0].textContent]; })()" % near)
+                self.assertTrue(got[0], where + ": the near match is chosen as the answer")
+                self.assertIn(first, got[1], where + ": and it is the item named")
+                self.assertTrue(p.js("document.querySelector('#import-go').disabled"), where + ": the use case still waits for an answer")
+                self.assertEqual(p.js("[...document.querySelectorAll('#import-unknowns [data-unknown] label')].every(l => l.getBoundingClientRect().width > 0 && getComputedStyle(l).visibility !== 'hidden')"), True, where)
+                self.assertNotEqual(p.js("getComputedStyle(document.querySelector('#import-unanswered')).color"), p.js("getComputedStyle(document.querySelector('#import-box')).backgroundColor"), where)
+                self.pick(p, UC, "create")
+                p.until("!document.querySelector('#import-go').disabled", "Import is on")
+                before = sorted(a["id"] for a in self.rows("actions")), sorted(m["id"] for m in self.rows("milestones"))
+                n = self.steps()
+                p.js("document.querySelector('#import-go').click()")
+                p.until("!!document.querySelector('#import-result')", "the result")
+                self.assertEqual(self.steps(), n + 1, where + ": one step")
+                (a,) = self.new_item()
+                self.assertEqual(a["milestone"], [m["id"] for m in self.rows("milestones") if m["name"] == first][0], where + ": linked to the existing milestone")
+                self.assertEqual(len(self.rows("milestones")), len(before[1]), where + ": no milestone was created")
+                p.js("document.querySelector('#import-undo').click()")
+                p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
+                self.assertEqual((sorted(x["id"] for x in self.rows("actions")), sorted(m["id"] for m in self.rows("milestones"))), before, where + ": Undo puts it back")
 
     def test_the_keys_esc_tab_and_enter(self, w):
         if True:

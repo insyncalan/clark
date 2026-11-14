@@ -179,10 +179,10 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
                       <div class="imp-main"><span class="tag">{L.KIND_NAME[u.kind]}</span> <span>{u.label}</span></div>
                       <div class="muted imp-detail">{u.rows.map((r) => `${r.sheet}, row ${r.row}`).join("; ")}</div>
                       <div class="st-act" role="radiogroup" aria-label={u.label}>
-                        <label><input type="radio" name={`u${u.id}`} value="create" checked={a.do === "create"} onChange={() => setAnswers({ ...answers, [u.id]: { do: "create" } })} />{T.createIt}</label>
-                        <label><input type="radio" name={`u${u.id}`} value="use" checked={a.do === "use"} onChange={() => setAnswers({ ...answers, [u.id]: { do: "use", id: (a.do === "use" && a.id) || "" } })} />{T.useExisting}</label>
+                        <label><input type="radio" name={`u${u.id}`} value="create" checked={a.do === "create"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "create" } }))} />{T.createIt}</label>
+                        <label><input type="radio" name={`u${u.id}`} value="use" checked={a.do === "use"} onChange={() => setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: (o[u.id] && o[u.id].do === "use" && o[u.id].id) || "" } }))} />{T.useExisting}</label>
                         {a.do === "use" ? (
-                          <select aria-label={u.label} value={a.id || ""} onChange={(e) => setAnswers({ ...answers, [u.id]: { do: "use", id: e.currentTarget.value } })}>
+                          <select aria-label={u.label} value={a.id || ""} onChange={(e) => { const v = e.currentTarget.value; setAnswers((o) => ({ ...o, [u.id]: { do: "use", id: v } })); }}>
                             <option value="">{T.chooseOne}</option>
                             {u.options.map((o) => <option key={o.id} value={o.id}>{o.text}</option>)}
                           </select>
