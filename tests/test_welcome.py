@@ -14,7 +14,7 @@ import unittest
 
 from _new_page import reload_to_new_page
 from test_publish_dialog import Base, Pg
-from test_server import chrome
+from test_server import chrome, wait
 
 WIDTHS = (1400, 900)
 HEAD = "Welcome to clark"
@@ -68,7 +68,9 @@ class Welcome(Base):
                     self.assertEqual(p.js(f"[...{CARD}.querySelectorAll('button')].map(b => b.textContent)"), ["Save", "Not now"])
                     self.assertEqual(p.js(f"[{CARD}.getAttribute('role'), {CARD}.getAttribute('aria-modal')]"), ["dialog", "false"])
                     # row 857 reverses the earlier 'never takes the focus': the Name box has it, so the keyboard works at once
-                    self.assertTrue(p.js("document.activeElement === document.querySelector('#welcome-name')"), "the Name box has the focus")
+                    # the focus is set after the card draws (an effect): a slow Mac may not have run it yet, so wait, and say where the focus was if it never comes
+                    named = "document.activeElement === document.querySelector('#welcome-name')"
+                    self.assertTrue(wait(lambda: p.js(named), 10), "the Name box has the focus; the focus was on: " + str(p.js("(document.activeElement && (document.activeElement.tagName + '#' + document.activeElement.id + '.' + document.activeElement.className)) || 'nothing'")))
                     box = p.js(f"(() => {{ const r = {CARD}.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; }})()")
                     self.assertGreaterEqual(box[0], 0)
                     self.assertGreaterEqual(box[1], 0)
