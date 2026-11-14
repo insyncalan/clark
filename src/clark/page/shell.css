@@ -1552,6 +1552,9 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .set-row-ctl input[type="text"] { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
 .set-row-ctl input[type="text"]:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
 .set-row-ctl input[aria-invalid="true"] { border-color: var(--status-red-text); }
+.set-row-ctl .copy-fld, .set-row-ctl .ess-folder { width: 100%; min-width: 0; }      /* row 1115, Essentials: a box or a folder choice fills the control cell */
+.set-row-ctl .ess-folder .folder-now, .set-row-ctl .ess-folder .row { margin: 0; justify-content: flex-end; text-align: right; overflow-wrap: anywhere; }
+.set-row-ctl .ess-folder .row, .set-row-ctl .copy-fld .btn { margin-top: var(--space-1); }
 .set-row-ctl input[type="checkbox"] { width: 24px; height: 24px; margin: 0; accent-color: var(--brand-blue); }
 .fld-bad { margin: 0; min-height: 0; overflow-wrap: anywhere; color: var(--status-red-text); font-size: var(--size-caption); }
 .fld-bad:empty { display: none; }
