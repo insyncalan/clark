@@ -935,7 +935,7 @@
       [
        "**View** and **Edit**: View shows the report as the client will read it. Edit changes it in place; each change saves on its own.",
        "**Week ending**: the date on the cover, and in the published file’s name.",
-       "The line beside it: while you edit, that each change saves on its own; otherwise “Published” on its date, to the client (or locally), or “Draft · not published yet”.",
+       "The note at the bottom of your profile menu: “Published” on its date, to the client (or locally). It shows once the report has been published.",
        "The cover: the project, then “WEEKLY REPORT · Week ending …” and who it is for."
       ]
      ],
