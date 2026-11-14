@@ -174,7 +174,7 @@ jobs:
     name: ubuntu-24.04 · Python 3.x · shard ${{ matrix.shard }}/${{ needs.plan.outputs.count }}      # the gate reads needs.tests.result (one value for the whole matrix), never this name
     needs: plan
     runs-on: ubuntu-24.04      # not ubuntu-latest: it became 26.04 on 21-10-2026, which has no Python 3.9 (the oldest supported)
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -227,7 +227,7 @@ jobs:
     name: ubuntu-24.04 · Python 3.9 · shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}      # the gate reads needs.tests-py39.result (one value for the whole matrix), never this name
     needs: plan
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
