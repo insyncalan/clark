@@ -74,10 +74,11 @@ class DragSkipsNeeds(unittest.TestCase):
         self.assertEqual(got["drop"], {"line": "before", "ids": ["B"]}, "The line should sit above B, the next section drawn after A")
         self.assertEqual(got["order"], ["A", "C", "B"], "C should land directly after A as the person sees it")
 
-    def test_a_section_flagged_beside_the_needs_section_still_shows_as_alone_with_two_halves(self):
-        # A's stored flag pairs it with the Needs section, which is not drawn, so A is alone on its row and its middle is a half.
+    def test_a_section_flagged_beside_the_needs_section_pairs_with_the_next_one_drawn(self):
+        # A's stored flag says "beside the next section". With the Needs section left out, as the Dashboard does (item 1158), the next one drawn is B,
+        # so A and B are one row of two and a drop on A's middle is a line above that row, not a half to drop beside.
         got = self.drag("C", 1, 100, 50)
-        self.assertEqual(got["drop"], {"outline": "A", "side": "left"}, "A is drawn alone, so its middle is a half to drop beside")
+        self.assertEqual(got["drop"], {"line": "before", "ids": ["A", "B"]}, "A and B are one row, as the person sees it")
 
 
 if __name__ == "__main__":
