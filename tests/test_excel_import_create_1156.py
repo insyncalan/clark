@@ -10,7 +10,7 @@ from _demo import USER
 
 from clark import excel_import as xi
 from openpyxl import load_workbook
-from test_excel_roundtrip import RoundTrip
+from test_excel_roundtrip import RoundTrip, edit
 
 
 def add_row(path, sheet, **cells):
@@ -140,14 +140,23 @@ class Create(RoundTrip):
         self.assertIn("matches more than one milestone (row", c.problem)
 
     def test_a_rejected_row_needs_no_answer_and_makes_nothing(self):
-        work_item(self.path)
+        edit(self.path, "Decisions", self.d1, Status="Withdrawn")       # one unrelated change, accepted
+        work_item(self.path)                                            # the new-action row names an unknown milestone and use case, rejected
         plan = self.read()
-        plan.reject_all()
-        plan.accept(*[c.n for c in plan.changes if c.table != "actions"]) if any(c.table != "actions" for c in plan.changes) else None
-        before = self.snapshot()
+        self.assertEqual(len(plan.unknowns), 2)                         # so the unknowns check has something to skip
+        (new,) = [c for c in plan.changes if c.table == "actions" and c.kind == "new"]
+        (other,) = [c for c in plan.changes if c is not new]
+        self.assertEqual(other.table, "decisions")
+        plan.reject(new.n)
+        plan.accept(other.n)
+        ms, uc, ac = (len(self.s.read(t, project="ABC")) for t in ("milestones", "use_cases", "actions"))
+        n = self.steps()
         res = self.apply(plan, {})
-        self.assertFalse(res.applied)
-        self.assertEqual(self.snapshot(), before)
+        self.assertTrue(res.applied, res.message)
+        self.assertEqual(self.steps(), n + 1)
+        self.assertEqual(tuple(len(self.s.read(t, project="ABC")) for t in ("milestones", "use_cases", "actions")), (ms, uc, ac))
+        self.assertEqual([r for r in self.s.read("milestones", project="ABC") if r["name"] == MS], [])
+        self.assertEqual([r for r in self.s.read("use_cases", project="ABC") if r["title"] == UC], [])
 
     def test_an_unknown_id_is_still_refused_as_before(self):
         work_item(self.path, ms="ABC-M-999", uc=None)
