@@ -20,6 +20,7 @@ own sync does the upload.
 
 Standard library only, Python 3.9.
 """
+import datetime
 import getpass
 import hashlib
 import json
@@ -325,7 +326,7 @@ class Publisher:
     never be in)."""
 
     def __init__(self, db_path, onedrive_roots=None, *, fs=None, choose_save_file=None, choose_folder=None, today=None,
-                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None):
+                 by_user=None, data_dir=None, branding=None, backups_dir=None, choose_open_file=None, brand_root=None, now=None):
         self.db_path = Path(db_path)
         self.onedrive_roots = list(platform.onedrive_roots() if onedrive_roots is None else onedrive_roots)
         self.fs = fs or to_client.RealFs()
@@ -333,6 +334,7 @@ class Publisher:
         self.choose_folder = choose_folder or platform.choose_folder
         self.choose_open_file = choose_open_file or platform.choose_open_file      # #96: a file for a section template
         self.today = today or milestones.today
+        self.now = now or datetime.datetime.now      # row 1143: the local date and time of an Excel export's file name
         self.by_user = by_user or getpass.getuser
         self.data_dir = Path(data_dir) if data_dir else platform.data_dir()
         self.branding, self.backups_dir = branding, backups_dir
@@ -813,7 +815,7 @@ class Publisher:
 
     def export(self, code):
         """GET /api/export?project=: the project's workbook (excel.export_project), made in a temporary folder that is removed
-        afterwards. On success (200, {"name": "<CODE>-<date>.xlsx", "data": bytes}); a refusal is a plain sentence."""
+        afterwards. On success (200, {"name": "<name>(<CODE>) YYYY.MM.DD HH.MM.SS.xlsx", "data": bytes}); a refusal is a plain sentence."""
         if not isinstance(code, str) or not PROJECT_CODE.fullmatch(code):
             return 400, self.fail("bad_project_code")
         from clark import excel         # here, not at the top: the launcher imports this module before the vendored openpyxl is reachable
@@ -824,7 +826,9 @@ class Publisher:
                 return 404, self.fail("project_not_found")
             today = str(self.today())
             folder = Path(tempfile.mkdtemp(prefix="clark-export-"))
-            name, warnings = f"{code}-{today}.xlsx", []
+            warnings = []
+            name = excel.download_name((store.read("projects", ref=code) or {}).get("name"), code, self.now())      # row 1143; the workbook is made under a plain name, the person is given this one
+            work = f"{code}-{today}.xlsx"
             here = Path(self.db_path).parent                                      # beside clark.db, where the record is kept
             try:
                 # The record of the export (what the import later compares with) is kept beside clark.db under the export id
@@ -832,7 +836,7 @@ class Publisher:
                 # import finds the record by that id, from any folder and after an edit or a re-save); the workbook itself stays
                 # in the temporary folder, which is removed. Each export has its own id, so neither replaces the other, and
                 # save_state and prune_hash_records hold excel.STATE_LOCK, so two exports at once both keep their record.
-                made = excel.export_project(store, code, folder / name, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
+                made = excel.export_project(store, code, folder / work, folder / "state.json", on=today, warnings=warnings, branding=self.project_brand(store, code),
                                        exported_by=self.by_user(), reuse=excel.latest_export(here / excel.STATE_FILE, code))      # the name publish records; the owner has no source yet (projects has none), so the Cover says "the person who sent it to you"
                 data = Path(made).read_bytes()
                 record = excel.load_state(folder / "state.json", made)
