@@ -1278,6 +1278,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 if field != "id":       # the ID is not refused by a rule: the import guards it (#129)
                     lock_column(ws, col, n_rows, label, "Priority follows Impact and Likelihood. Change those instead."
                                 if (table, field) == ("raid", "priority") else None)
+            if field in locked_fields(locked):      # item 1157: every locked column is grey, the Project and the worked-out ones too
                 for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                     c[0].fill = st.locked
             blank = field not in YES_NO and (table, field) not in NOT_BLANK
