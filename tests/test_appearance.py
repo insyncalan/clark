@@ -196,7 +196,7 @@ class Appearance(Base):
                 self.assertEqual(roles[:lead + 1 + 6 + 2], ["menuitem"] * lead + ["presentation"] + ["menuitem"] * 6 + ["separator", "group"])     # Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443), Settings (row 1092); Help follows the group
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
-                self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
+                self.assertEqual(p.js("document.querySelectorAll('#profile-menu [role=group] .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
                 self.assertEqual(p.js("[...document.querySelectorAll('#profile-menu [role=menuitemradio]')].map(i => i.textContent.replace('✓', ''))"), ORDER)
                 self.assertEqual(self.in_menu(p), ["System"], "the one in use is marked")
 
