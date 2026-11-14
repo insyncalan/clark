@@ -1,3 +1,4 @@
+// Item 1176: the name is invisible until the pointer is on the button (or a key is on it), where it shows beside the chevron; the hover title says "Click to change project". Only a screen reader had it before.
 // The project switcher in the top bar (A-D25, and item 439 row 37, prototype core.js:292-295): a button with a chevron and a menu. Row 1064: the name is not drawn in the bar
 // (the Dashboard cover has it); it stays in the button for a screen reader, and in the label. The menu lists the projects (the open one marked, each with "N open items"). Row 1092: nothing else; adding a project and project settings are in Settings.
 // Choosing a project is setProject(): one new address entry and a page load for that project (#944), so Back returns to the project before;
@@ -30,5 +31,5 @@ export function ProjectSwitch({ name }) {
     if (id === "__settings") { navigate({ view: "settings", project: project.value }); return; }
     setProject(id);
   };
-  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
+  return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="pname" tip="Click to change project" items={items} onPick={pick} onOpen={read} focusChecked />;
 }

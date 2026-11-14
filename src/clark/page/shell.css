@@ -39,6 +39,9 @@ a { color: var(--status-blue-text); }
 }
 .top .tab { white-space: nowrap; }
 .top .dd:has(> .projbtn) { min-width: 0; }   /* the project name gives way (its ellipsis) before the bar runs past a 901 px window, now the wordmark is 24 px */
+.top .projbtn { position: relative; }
+.top .projbtn .pname { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }   /* item 1176: invisible (kept for a screen reader) until the pointer or the keys are on the button */
+.top .projbtn:hover .pname, .top .projbtn:focus-visible .pname { position: static; width: auto; height: auto; max-width: 160px; clip-path: none; overflow: hidden; text-overflow: ellipsis; }
 .projbtn > span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tabs { display: flex; height: 100%; }
 .pubfoot { max-width: 1200px; margin: 24px auto 16px; padding: 0 16px; font-size: var(--size-small); color: var(--text-muted); }   /* item 120 */
