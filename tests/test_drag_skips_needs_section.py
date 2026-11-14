@@ -68,11 +68,13 @@ class DragSkipsNeeds(unittest.TestCase):
         self.assertEqual(done.returncode, 0, done.stderr[-800:])
         return json.loads(done.stdout)
 
-    def test_dropping_before_b_lands_directly_after_a_as_the_person_sees_it(self):
-        # C dragged to the bottom edge of A: the next thing drawn after A is B, not the Needs section stored between them.
-        got = self.drag("C", 0, 200, 95)
-        self.assertEqual(got["drop"], {"line": "before", "ids": ["B"]}, "The line should sit above B, the next section drawn after A")
-        self.assertEqual(got["order"], ["A", "C", "B"], "C should land directly after A as the person sees it")
+    def test_the_line_above_a_pair_holds_the_two_sections_drawn_and_not_the_needs_section(self):
+        # A is flagged beside the next section stored, which is the Needs section. Left out, as the Dashboard does (item 1158), A and B are the row
+        # drawn. C dragged to A's top edge should show the line above that row. With drag.js's list unfiltered the row is A and the Needs
+        # section, so the line would be drawn above a pair the person never sees.
+        got = self.drag("C", 1, 200, 5)
+        self.assertEqual(got["drop"], {"line": "before", "ids": ["A", "B"]}, "The line should sit above the row A and B, as drawn")
+        self.assertEqual(got["order"], ["C", "A", "B"], "C should land above A and B as the person sees it")
 
     def test_a_section_flagged_beside_the_needs_section_pairs_with_the_next_one_drawn(self):
         # A's stored flag says "beside the next section". With the Needs section left out, as the Dashboard does (item 1158), the next one drawn is B,
