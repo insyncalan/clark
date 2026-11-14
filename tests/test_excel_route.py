@@ -208,6 +208,30 @@ class Check(Base):
 
 
 class Apply(Base):
+    def test_a_milestone_clark_does_not_have_is_asked_about_and_nothing_is_written_until_it_is_answered(self):
+        """Row 1156."""
+        wb = __import__("openpyxl").load_workbook(str(self.path))
+        ws = wb["Actions"]
+        head = {c.value: c.column for c in ws[1]}
+        row = ws.max_row + 1
+        ws.cell(row, head["Description"]).value = "Set up the test rig"
+        ws.cell(row, head["Milestone"]).value = "Pilot wave 2"
+        wb.save(str(self.path))
+        status, got = self.check()
+        self.assertEqual((status, got["refused"]), (200, []), got)
+        (u,) = got["unknowns"]
+        self.assertEqual((u["kind"], u["label"]), ("milestone", "Pilot wave 2"))
+        key, before = got["plan"], self.steps()
+        status, refused = self.apply(key)
+        self.assertEqual((status, self.steps()), (409, before), refused)
+        self.assertEqual(refused["message"], "Each milestone and use case that is not in clark needs an answer.")
+        self.assertEqual(self.apply(key, answers={u["id"]: {"do": "use"}})[0], 400)
+        status, done = self.apply(key, answers={u["id"]: {"do": "create"}})
+        self.assertEqual((status, done["ok"]), (200, True), done)
+        self.assertEqual(self.steps(), before + 1)
+        self.assertEqual(self.post(op="undo", project="ABC", apply_id=done["apply_id"])[0], 200)
+        self.assertEqual([r for r in self.store.read("milestones", project="ABC") if r["name"] == "Pilot wave 2"], [])
+
     def test_an_apply_is_one_step_with_one_undo_and_the_workbook_copy_is_gone(self):
         self.edit("Actions", self.a1, Description="Draft the cut-over plan, version two")
         self.edit("Actions", self.a2, Description="Book the big training room")
