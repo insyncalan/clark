@@ -369,8 +369,9 @@ class Work(BulkBase):
                 # the owner box with a name nobody has: the Add line and the Keep the name only line
                 d.js(f"document.querySelector({q(osel)}).click()")
                 d.until("document.activeElement && document.activeElement.classList.contains('cp-in')", "the owner box has the focus")
+                d.until("document.querySelector('.cpop [data-section]')", "the owner list is read (the Add line waits for it)", 40)   # slow Mac: the list is read after the box opens
                 cdp.call("Input.insertText", {"text": "Zelda Quince"}, sid)
-                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name")
+                d.until("document.querySelector('.cpop [data-add]')", "the Add line for a new name", 40)
                 d.lines(".cpop", "owner-pick-typed", 3)
                 d.key("Escape", "Escape", 27)
                 d.gone(".cpop", "the owner box")

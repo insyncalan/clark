@@ -69,7 +69,7 @@ class HintEverySection(unittest.TestCase):
                         self.assertEqual(m["clipped"], [], f"the hint is cut off by {m['clipped']}, {where}")
 
     def settle(self, cdp, sid, where):
-        """Wait (up to 10 s) for the page to be still: no scroll anchoring, scrolled to the top, the hint at the same place on two reads."""
+        """Wait (up to 30 s, a loaded Mac is slow) for the page to be still: no scroll anchoring, scrolled to the top, the hint at the same place on two reads."""
         last = []
 
         def still():
@@ -77,7 +77,7 @@ class HintEverySection(unittest.TestCase):
             same = now is not None and now != "null" and last[:1] == [now]
             last[:] = [now]
             return same
-        self.assertTrue(wait(still, 10), f"the page settled, {where}")
+        self.assertTrue(wait(still, 30), f"the page settled, {where}")
 
     def restore(self, saved):
         for i, t, b, be, hi in saved:
