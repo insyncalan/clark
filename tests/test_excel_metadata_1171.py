@@ -166,6 +166,21 @@ class ThroughThePublisher(unittest.TestCase):
         self.assertEqual(rows[1][:2], ["exported_at_utc", "2026-10-28"])
         self.assertEqual(rows[2][:2], ["clark_version", __version__])
 
+    def test_the_profile_is_read_beside_the_database_not_from_data_dir(self):
+        """Profile saves in the database's folder; a Publisher whose data_dir is somewhere else still finds the name there."""
+        tmp = Path(tempfile.mkdtemp(prefix="clark-meta-pub2-"))
+        self.addCleanup(shutil.rmtree, tmp, True)
+        (tmp / "db").mkdir()
+        (tmp / "other").mkdir()
+        db = tmp / "db" / "clark.db"
+        fx.build_db(db, fx.load())
+        settings.set_profile(tmp / "db", "Pat Example", "")
+        pub = publish_flow.Publisher(db, [], today=lambda: "2026-10-28", by_user=lambda: "the-login-name", data_dir=tmp / "other")
+        status, body = pub.export("PUB")
+        self.assertEqual(status, 200, body)
+        (tmp / "out.xlsx").write_bytes(body["data"])
+        self.assertEqual(load_workbook(tmp / "out.xlsx")[excel.META_NAME]["B1"].value, "Pat Example")
+
     def test_no_saved_name_leaves_the_exporter_blank_not_the_login_name(self):
         rows = self.export(None)
         self.assertEqual(rows[0][:2], ["exporter", None])
