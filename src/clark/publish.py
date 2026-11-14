@@ -594,11 +594,12 @@ def select(inputs):
                              or (x.get("type") == "docs" and not out["documents"])       # #74: no document to show, no section
                              or (x.get("type") == "gantt" and not gantt)                 # row 926: no Gantt tab in the file, no Gantt section; the lines are data.gantt's, gated in gantt_for_client
                              or (x.get("type") == "gantttable" and not table))           # row 1068: no eye-on line, nothing to draw, no table section (a template section: the tab's switch is not asked)
+    rowed = [x for x in sections if x.get("type") != section_bodies.NEEDS]      # item 1158: the editor drops a stored Needs section before it reads rows, so the sections either side of one pair as they do there
     i = 0
-    while i < len(sections):
-        if sections[i].get("beside") and i + 1 < len(sections):
-            if all(not out_of_file(x) for x in sections[i:i + 2]):
-                pairs.add(sections[i]["id"])
+    while i < len(rowed):
+        if rowed[i].get("beside") and i + 1 < len(rowed):
+            if all(not out_of_file(x) for x in rowed[i:i + 2]):
+                pairs.add(rowed[i]["id"])
             i += 1
         i += 1
     for s in sections:
