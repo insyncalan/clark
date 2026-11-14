@@ -181,7 +181,7 @@ COVERED = [
     ("A-D1", "The band names the project, the week and the client.",
      "test_cover_band::Served::test_the_band_names_the_project_the_week_and_the_client"),
     ("A-D1", "The published file draws the band too.",
-     "test_cover_band::InTheFile::test_the_published_file_draws_the_band_from_its_own_data"),
+     "test_cover_band::InTheFile::test_the_published_file_draws_the_words_in_its_bar_from_its_own_data"),
     ("A-D3", "Every section is a card with one square.",
      "test_section_card_look_page::Cards::test_every_section_is_a_card_with_one_square_in_each_style"),
     ("A-D3", "The published file draws the same cards.",

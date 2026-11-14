@@ -178,7 +178,8 @@
 .sb-why { font-size: var(--size-caption); }
 .cpop.bmenu { min-width: 220px; }
 .bmenu .bm-h { padding: 6px 12px 4px; font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--heading); }
-.bmenu .bm-why { padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why { display: flex; align-items: center; gap: 10px; padding: 6px 12px; font-size: var(--size-caption); color: var(--text-muted); }
+.bmenu .bm-why .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .bmenu .sep { height: 1px; margin: 4px 0; background: var(--border); }
 .bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; }
 .bask-back { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,.4); }
@@ -370,7 +371,7 @@ table.items td.c-pick { vertical-align: middle; }
 /* Row 1085: the sort sits on the column names (Ref, Status, Work items): the pressed one is marked with a small chevron */
 .ucl-box { margin-top: 14px; }
 .ucl-list { margin: 0; padding: 0; list-style: none; }
-.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
+.ucl-row { display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px 36px 36px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); border-bottom: 1px solid var(--grey-100); cursor: pointer; font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns, then the eye */
 .ucl-list .ucl-row:hover, .ucl-list .ucl-row:focus-within { background: var(--grey-100); }  /* row 936: a hovered row is a tint, no blue one-side stripe (a stripe is for selected) */
 .ucl-go { all: unset; box-sizing: border-box; display: block; min-height: 24px; padding: 2px 0; cursor: pointer; font-size: var(--size-body); font-weight: var(--weight-medium); line-height: 1.35; color: var(--heading); overflow-wrap: anywhere; border-radius: 3px; }
 .ucl-go:hover { text-decoration: underline; text-underline-offset: 2px; }
@@ -380,6 +381,12 @@ table.items td.c-pick { vertical-align: middle; }
 .ucl-eye { all: unset; box-sizing: border-box; justify-self: start; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); font-size: var(--size-caption); font-weight: var(--weight-medium); color: var(--status-blue-text); cursor: pointer; }
 .ucl-eye .i, .ucl-eye svg { width: 16px; height: 16px; flex: none; }   /* issue 753: the eye alone, its words are the tooltip */
 .ucl-eye:hover { background: var(--grey-100); }
+.ucl-row > .dd { justify-self: start; }   /* item 1148: the row's More actions, after the eye */
+.ucl-more { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border-radius: var(--radius); color: var(--text-muted); cursor: pointer; }
+.ucl-more .i, .ucl-more svg { width: 16px; height: 16px; flex: none; }
+.ucl-more:hover, .ucl-more[aria-expanded="true"] { background: var(--grey-100); color: var(--text); }
+.ucl-more:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.ucd-acts .ucd-more { width: 32px; padding: 0; justify-content: center; }
 .ucl-eye:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .ucl-row.off .ucl-eye { color: var(--text-muted); font-weight: var(--weight-regular); }
 .ucl-none { margin: 20px 0 4px; overflow-wrap: anywhere; }   /* item 1131: a long unbroken search never widens the page */
@@ -387,7 +394,7 @@ table.items td.c-pick { vertical-align: middle; }
 .ucmore { margin: 8px 0 0; font-size: var(--size-small); }
 .ucmore a { display: inline-flex; align-items: center; min-height: 24px; color: var(--link); text-underline-offset: 2px; }
 @media (max-width: 900px) {
-  .ucl-row { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px; gap: var(--space-2); }
+  .ucl-row { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px 36px 36px; gap: var(--space-2); }
   .ucl-count { margin-left: 0; flex-basis: 100%; }
 }
 @media (max-width: 640px) {      /* the editor's fifth tab: the tabs scroll inside their own bar, so the mode switch and the profile stay in the window */
@@ -702,6 +709,7 @@ table.items.arch tr.arch-row:focus-visible { outline: 2px solid var(--brand-blue
 /* The eye on a milestone row (edit/MsEye.jsx): the row's cells and the eye sit side by side; the eye is a real button, 28 px square. */
 .msl-row.has-eye { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 4px; padding-right: 6px; }
 .ms-eye.is-left { color: var(--status-blue-text); }
+.msl-row.has-more { grid-template-columns: minmax(0, 1fr) auto auto; }   /* item 1148: the Milestones page's row has More actions after the eye */
 
 /* 'Progress tracker' in Edit (item 189): each group has its own small row of buttons; a line being edited is a form under it; the overall's own fields sit
    under the bar. Only tokens. */
@@ -1089,9 +1097,10 @@ body > .gt-menu.leaving hr { border: 0; border-top: 1px solid var(--border); mar
   .item-rows-edit .wl-meta .cell-val { flex-wrap: wrap; min-width: 0; }
   .item-rows-edit .wl-meta .late { min-width: 0; overflow-wrap: anywhere; }
   .ucl-go { min-height: 44px; display: flex; align-items: center; }
-  .ucl-eye { width: 44px; height: 44px; }
-  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
+  .ucl-eye, .ucl-more { width: 44px; height: 44px; }
+  .ucl-row { grid-template-columns: auto minmax(0, 1fr) 44px 44px; gap: 4px 10px; }   /* item 1149: the reference and the title share the first line, the eye at the end of it; the rest each take a line under */
   .ucl-row > .ucl-eye { grid-column: 3; grid-row: 1; justify-self: end; }
+  .ucl-row > .dd { grid-column: 4; grid-row: 1; justify-self: end; }
   .ucl-row > .ucl-go { grid-column: 2; }
   .ucl-row > .ucl-head, .ucl-row > .ucl-st, .ucl-row > .ucl-steps { grid-column: 1 / -1; min-width: 0; }
 }
@@ -1180,6 +1189,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
   .msl-hc > span { position: relative; min-width: 0; }
   .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
   .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
+  .msl-box:has(.msl-row.has-more) .msl-hc { padding-right: calc(var(--space-2) + 70px); }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols); }
 }
 @media (min-width: 1201px) {

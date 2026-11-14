@@ -80,10 +80,10 @@ CHANGE_KINDS = {
     # box Movement keeps for the owner (owner only: never in a reply, a Movement entry or a published file).
     "milestones": {UPDATE: ("baseline_date", "forecast_date", "actual_date", "status", "state", "state_set", "state_reason",
                             "client_message", "movement", "internal_note",
-                            "name", "owner", "workstream", "percent_complete", "description")},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
+                            "name", "owner", "workstream", "percent_complete", "description"), DELETE: ()},     # row 828: + the peek's own fields (the name, owner, workstream, progress and description)
     # #164: an EXISTING use case's name, headline, status, standing text and eye (client_visible). Only `update` here: the
     # archive and restore ops below are #126's, and there is no new, move or delete for use cases.
-    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: ()},   # #455: and a NEW one (below); #485: link work items to it (no fields: the items' own use_case is set)
+    "use_cases": {UPDATE: ("title", "headline", "status", "standing", "client_visible", "commitment", "owner"), NEW: ("ref", "title", "status", "headline", "commitment"), LINK: (), MS_ADD: (), MS_REMOVE: (), DELETE: ()},   # item 1148: DELETE removes a use case with nothing pointing at it; item 455: and a NEW one (below); item 485: link work items to it (no fields: the items' own use_case is set)
     # #67: the eye on a report row. `new` hides the row from the report and `delete` shows it again; both take only the item's id
     # (no values: the row is the pair project + item, and the project is the request's).
     # `pick` is the picker's Add (see _do_pick): it puts several hidden rows back on the page in one step.
@@ -94,7 +94,7 @@ KIND_OP_KEYS = {"projects": {UPDATE: ("changes",)}, **{k: {NEW: ("values", "copy
                 "report_hidden": {NEW: ("id",), DELETE: ("id",), PICK: ("ids",)},
                 "report_sections": {NEW: ("values", "after", "beside")},
                 "gantt_lines": {NEW: ("values", "after"), UPDATE: ("id", "changes"), MOVE: ("id", "before"), DELETE: ("id",)}}      # #149: a new section may go beside the one it is added after, in the same step
-KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids")}    # #455: a new use case is only `values` (its reference, name, status and headline); no id is sent. #485: `link` names the use case and the work items to link to it
+KIND_OP_KEYS["use_cases"] = {NEW: ("values",), LINK: ("id", "ids"), MS_ADD: ("id", "ids"), MS_REMOVE: ("id", "ids"), DELETE: ("id",)}    # item 455: a new use case is only `values` (its reference, name, status and headline); no id is sent. item 485: `link` names the use case and the work items to link to it
 KIND_OP_KEYS["milestones"][UPDATE] = ("id", "changes", "rebaseline", "new_person")     # #136: a milestone's agreed date moves with a `rebaseline`; row 986: and an owner may be a new person
 for _k in ("actions", "raid", "decisions"):
     KIND_OP_KEYS[_k][UPDATE] = ("id", "changes", "new_person")     # row 986: the owner update alone takes `new_person` (no other op, no other kind)
@@ -758,6 +758,8 @@ def _do_change(store, by_user, req):
         return _do_gantt_change(store, by_user, req, project, table, columns, op, place)
     if kind == "documents":                                         # #74: a document link's add or edit
         return _do_document_change(store, by_user, req, project, table, columns, op, place)
+    if kind in ITEM_KINDS + ("milestones", "use_cases") and op == DELETE:      # item 1148: a milestone and a use case are deleted as a work item is
+        return _do_delete_item(store, by_user, req, project, table, place)
     if kind == "use_cases":                                         # #164: first, and before any work item line, so that a use case
         return _do_use_case_change(store, by_user, req, project, table, columns, place, op)       # is never taken by the work item path
     if op == NEW and kind in NEWABLE:
@@ -766,8 +768,6 @@ def _do_change(store, by_user, req):
         return _do_bulk(store, by_user, req, project, table, columns, place)
     if op == HAND_OVER:
         return _do_hand_over(store, by_user, req, project, place)
-    if kind in ITEM_KINDS and op == DELETE:
-        return _do_delete_item(store, by_user, req, project, table, place)
     if kind in ITEM_KINDS:
         return _do_item_change(store, by_user, req, project, table, columns, place)
     if kind == "milestones":
@@ -2329,7 +2329,8 @@ def _row_is_ours(row, project, project_step, flagged):
 
 def _ours(store, step, rows, project):
     """_eligible, and #47e: an assistant-route step is ours only when ask clark made it. The one test for a single undo and a batch."""
-    if rows and any(r["table"] == "use_case_milestones" for r in rows):      # row 1107: a step of direct milestone links is one family, all of this project's use cases
+    deleting = any(r.get("field") == clark_store.REMOVED and r["table"] in ("milestones", "use_cases") for r in rows)      # item 1148: a delete's own taken-off links ride in its step (_eligible reads them)
+    if rows and not deleting and any(r["table"] == "use_case_milestones" for r in rows):      # row 1107: a step of direct milestone links is one family, all of this project's use cases
         mine = clark_store.use_case_link_ids(store.con, project)
         return all(r["table"] == "use_case_milestones" and r["via"] == VIA and str(r["key"]).split("|")[-1] in mine for r in rows)
     return (_eligible(rows, project, _is_hand_over(store, step, rows)) and
@@ -2413,14 +2414,16 @@ def _eligible(rows, project, hand_over=False):
         key = str(r["key"])
         if r.get("field") != gone or r["via"] != VIA:
             return False
-        if r["table"] in ITEM_KINDS:
+        if r["table"] in ITEM_KINDS + ("milestones", "use_cases"):      # item 1148: and a milestone or a use case
             return bool(items[r["table"]].fullmatch(key))
+        if r["table"] == "use_case_milestones":                     # item 1148: a taken-off link of the deleted milestone or use case (the key holds both ends and the link number)
+            return key.startswith(project + "-U-") and (project + "-M-") in key
         if r["table"] == "links":
             return all(re.fullmatch(re.escape(project) + r"-(?:[AD]-)?\d{3}", end) for end in key.split("|")[:2])
         if r["table"] == "item_labels":
             return bool(re.match(re.escape(project) + r"-(?:[AD]-)?\d{3}\|", key))
         return r["table"] == "report_hidden" and key.startswith(project + "|" + project + "-")
-    if any(r.get("field") == gone and r["table"] in ITEM_KINDS for r in rows):
+    if any(r.get("field") == gone and r["table"] in ITEM_KINDS + ("milestones", "use_cases") for r in rows):
         return all(deleted_row(r) for r in rows)                    # a delete is one family: nothing else in its step
 
     def movement_row(r):                                            # #136: a Movement step's own rows: the milestone's fields, and the decision a rebaseline made

@@ -103,7 +103,7 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
+                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set()) | ({"delete"} if kind in ("milestones", "use_cases") else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
                              | ({"link", "msadd", "msremove"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
