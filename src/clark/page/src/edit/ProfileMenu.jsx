@@ -99,7 +99,9 @@ export function ProfileMenu() {
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
-  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
+  // item 1177: the report bar's state chip is gone; its words (Editing while in Edit, Draft while nothing is published) are here, beside the published note
+  const state = mode.value === "edit" ? "Editing · each change saves on its own" : last ? "" : open ? "Draft · not published yet" : "";
+  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...(state ? [{ id: "state", lab: state }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
     if (id === "publish") openPublish();
     else if (id === "preview") preview();

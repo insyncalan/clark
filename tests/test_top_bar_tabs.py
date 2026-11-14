@@ -1,5 +1,5 @@
 """#681, row 757: the top bar at 1400 and 900 px (the only widths tested), light and dark, on the Dashboard, Use cases and Settings, in View and Edit, with a long
-project name: every tab label is whole on one line, the bar stays one 56 px row, the project name shortens first, then the tab row scrolls inside
+project name: every tab label is whole on one line, the header stays 85 px high (129 px at 900), the project name shortens first, then the tab row scrolls inside
 its own box with the open tab fully inside it, nothing is clipped or overlapped, and the page does not scroll sideways. Chrome is required: these
 tests fail, never skip, without it.
 
@@ -18,7 +18,7 @@ WIDTHS = (1400, 900)      # the only widths tested
 # Each tab's box and line count; the bar's top-level items (the tab row among them); the tab row's scroll; the project name's box; the page's sideways scroll.
 MEASURE = """(function(){
   var bar = document.querySelector('header.top').getBoundingClientRect(), out = {tabs: [], items: [], bar: [bar.left, bar.right, bar.top, bar.bottom]};
-  var row = document.querySelector('.top .tabs'), rb = row.getBoundingClientRect(), dd = document.querySelector('.top .dd:has(> .projbtn)');
+  var row = document.querySelector('.top .tabs'), rb = row.getBoundingClientRect(), dd = document.querySelector('.top .dd:has(> .hdr-project)');
   out.row = [rb.left, rb.right, row.scrollWidth, row.clientWidth];
   out.name = dd ? dd.getBoundingClientRect().width : 0;
   document.querySelectorAll('.top .tab').forEach(function(t){
@@ -46,9 +46,9 @@ class TopBarTabs(Base):
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
             if long_name:       # the longest name a person is likely to give a project: it must shorten, never push a tab out
-                self.assertTrue(p.js("(function(){ var s = document.querySelector('.top .projbtn > span') || document.querySelector('.top .proj'); "
+                self.assertTrue(p.js("(function(){ var s = document.querySelector('.top .hdr-project > span') || document.querySelector('.top .proj'); "
                                      "if (!s) return false; s.textContent = 'Customer onboarding programme, phase two, northern region'; return true; })()"),
-                                f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .projbtn > span' or '.top .proj'), "
+                                f"at {width} px, {theme}: the long-name check found no project name in the top bar ('.top .hdr-project > span' or '.top .proj'), "
                                 "so it did not test a long name at all; the bar's markup has changed")
             if active == "Settings":      # row 976: Settings is no tab; it opens from the profile circle's menu
                 p.js("document.querySelector('#profile-btn').click()")
@@ -80,7 +80,7 @@ class TopBarTabs(Base):
                 p.until("!!document.querySelector('.modes')", f"at {width} px, {theme}: the View/Edit switch (.modes; the Dashboard report bar's pill) never appeared")
                 if edit:
                     p.js("document.querySelector('.modes [data-mode=edit]').click()")
-                p.js("document.querySelector('.top .projbtn > span').textContent = 'Customer onboarding programme, phase two, northern region'")
+                p.js("document.querySelector('.top .hdr-project > span').textContent = 'Customer onboarding programme, phase two, northern region'")
                 out.append(self.box(p, ".modes"))
         return out
 
@@ -103,9 +103,8 @@ class TopBarTabs(Base):
                 self.assertLessEqual(t["right"], got["row"][1] + 1, f"{where}: {t['name']!r} is cut off by the tab row's right edge")
         self.assertNotIn("Settings", [t["name"] for t in got["tabs"]], f"{where}: Settings is not a top-bar tab (row 976)")
         self.assertEqual(sum(1 for t in got["tabs"] if t["open"]), 0 if active == "Settings" else 1, where)      # on Settings no tab is pressed: it is not a tab
-        if scrolls:       # the name gives way before the tab row scrolls (row 757)
-            self.assertLessEqual(got["name"], 73, f"{where}: the tab row scrolls while the project name is still {got['name']} px wide")
-        self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 56, delta=0.5, msg=f"{where}: the bar is not one 56 px row")
+        # item 1177: the name is drawn in full in the header (a button with an ellipsis), so the old "name no wider than 73 px while the tabs scroll" rule is gone
+        self.assertAlmostEqual(got["bar"][3] - got["bar"][2], 129 if width <= 900 else 85, delta=0.5, msg=f"{where}: item 1177: the header is not 85 px (129 px at 900)")
         self.assertGreaterEqual(got["row"][0], got["bar"][0], f"{where}: the tab row starts left of the bar")
         self.assertLessEqual(got["row"][1], got["bar"][1] + 0.5, f"{where}: the tab row runs past the bar")
         items = got["items"]

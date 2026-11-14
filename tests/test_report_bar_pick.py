@@ -1,4 +1,4 @@
-"""Issue 672: the calendar button beside Week ending opens clark's own date picker (never the browser's), in a real browser.
+"""Issue 672, moved by item 1177: the header's date button (.hdr-date, id week-ending-pick) opens clark's own date picker (never the browser's), in a real browser.
 
 Run: python3 dev/run_tests.py test_report_bar_pick
 """
@@ -28,10 +28,9 @@ class Pick(Bar):
         self.set_week("2031-05-02")
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('#week-ending-pick').getAttribute('aria-label')"), "Pick week ending date")
-            self.assertEqual(p.js("document.querySelector('#week-ending-pick').title"), "Pick a Friday from the calendar")
-            self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 1)
-            self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text")
+            self.assertEqual(p.js("document.querySelector('#week-ending-pick').getAttribute('aria-label')"), "Week ending 02-05-2031. Click to change date")
+            self.assertEqual(p.js("document.querySelector('#week-ending-pick').title"), "Click to change date")
+            self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 0)
             self.assertEqual(p.js("document.querySelectorAll('#report-bar input[type=date], #report-bar input[type=hidden]').length"), 0)
             self.opened(p)
             self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 0)
@@ -71,7 +70,7 @@ class Pick(Bar):
             p.js("document.querySelector('.cpop [data-day=\"2031-05-07\"]').click()")
             p.until("/Week ending is a Friday\\. Pick Friday 09-05-2031\\./.test((document.querySelector('.toast-text') || {}).textContent || '')", "the message")
             self.assertEqual(self.week(), "2031-05-02")
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
+            self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending 02-05-2031")
 
     def test_esc_closes_only_the_panel_and_keys_work(self):
         self.set_week("2031-05-02")

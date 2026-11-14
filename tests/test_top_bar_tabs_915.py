@@ -16,7 +16,7 @@ TABS = (None, "Work items", "Milestones", "Use cases", "Settings")      # None i
 LONG = "Example Client onboarding programme, phase two, northern region"
 
 MEASURE = """(function(){
-  var pb = document.querySelector('.top .projbtn'), sp = pb.querySelector(':scope > span'), b = pb.getBoundingClientRect(), s = sp.getBoundingClientRect();
+  var pb = document.querySelector('.top .hdr-project'), sp = pb.querySelector(':scope > span'), b = pb.getBoundingClientRect(), s = sp.getBoundingClientRect();
   var row = document.querySelector('.top .tabs'), f = row.getBoundingClientRect();      // the tab row's own edge: its first tab may be scrolled out of view
  
   return {btn: b.width, text: s.width, trunc: sp.scrollWidth > sp.clientWidth, gap: f.left - b.right, rowScrolls: row.scrollWidth > row.clientWidth + 1,
@@ -31,7 +31,7 @@ class ProjectButtonFit(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             size(cdp, p, width, 700)
-            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('.top .projbtn > span')", "the bar shows")
+            p.until("!!document.querySelector('#ask-btn') && !!document.querySelector('.top .hdr-project > span')", "the bar shows")
             p.js(f"document.documentElement.setAttribute('data-theme', '{theme}')")
             if edit:
                 p.js("document.querySelector('.top [data-mode=edit]').click()")
@@ -44,7 +44,7 @@ class ProjectButtonFit(Base):
             elif active:
                 p.js(f"[...document.querySelectorAll('.top .tab')].filter(t => t.textContent.trim() === '{active}')[0].click()")
                 p.until(f"[...document.querySelectorAll('.top .tab')].some(t => t.textContent.trim() === '{active}' && t.getAttribute('aria-selected') === 'true')", active)
-            p.js(f"document.querySelector('.top .projbtn > span').textContent = {LONG!r}")
+            p.js(f"document.querySelector('.top .hdr-project > span').textContent = {LONG!r}")
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             return p.js(MEASURE)
 

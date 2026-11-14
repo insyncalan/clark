@@ -11,7 +11,7 @@ import { actionIcon } from "../menuIcons.js";
 
 export const openWords = (n) => (typeof n === "number" ? `${n} open ${n === 1 ? "item" : "items"}` : undefined);
 
-export function ProjectSwitch({ name }) {
+export function ProjectSwitch({ name, header }) {
   const [list, setList] = useState([]);
   const live = useRef(true), asked = useRef(0);
   const read = () => {
@@ -30,5 +30,6 @@ export function ProjectSwitch({ name }) {
     if (id === "__settings") { navigate({ view: "settings", project: project.value }); return; }
     setProject(id);
   };
+  if (header) return <Menu id="project-name" btnCls="hdr-project" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left chevron={false} items={items} onPick={pick} onOpen={read} focusChecked />;      // item 1177: in the editor's one header the name is the button itself (drawn, not hidden), with the tooltip
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
 }
