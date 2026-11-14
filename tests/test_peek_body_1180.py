@@ -102,6 +102,31 @@ class Body(test_peek_latest.Browser):
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
                 self.assertEqual(sent, [])
 
+    def test_the_mouse_on_the_bar_keeps_the_editor_so_discard_stores_nothing_and_keep_editing_stays(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Not yet saved")
+
+                def press(selector):
+                    x, y = cdp.js(f"(r => [r.x + r.width / 2, r.y + r.height / 2])(document.querySelector({json.dumps(selector)}).getBoundingClientRect())", sid)
+                    for kind in ("mousePressed", "mouseReleased"):
+                        cdp.call("Input.dispatchMouseEvent", {"type": kind, "x": x, "y": y, "button": "left", "clickCount": 1}, sid)
+                press("#peek [data-pk-close]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the mouse on Close shows the bar")
+                self.assertEqual(sent, [], "Close with the mouse saved nothing")
+                press("[data-pk-keep]")
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)))
+                self.assertIn("Not yet saved", cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent", sid), "the editor is open with the text")
+                self.assertTrue(cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), "the focus is in the editor")
+                self.assertEqual(sent, [], "Keep editing saved nothing")
+                press("#peek [data-pk-close]")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-discard]')", sid)))
+                press("[data-pk-discard]")
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)))
+                self.assertEqual(sent, [], "Discard with the mouse stores nothing")
+
     def test_esc_with_an_unsaved_update_shows_the_bar_and_does_not_close(self):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
@@ -130,6 +155,20 @@ class Body(test_peek_latest.Browser):
                 self.assertIn("Saved on the way out", sent[0]["changes"]["latest_update"])
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "then the peek closes")
                 self.assertTrue(wait(lambda: "saved" in self.toast(cdp, sid).lower()), "the toast says it is saved")
+
+    def test_save_and_close_with_a_refused_save_keeps_the_peek_and_the_text(self):
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sent, sid = self.load(cdp, width, OVERDUE, refuse=True)
+                self.open_box(cdp, sid)
+                self.type_in(cdp, sid, "Refused on the way out")
+                cdp.js("document.querySelector('#peek [data-pk-close]').click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pk-save-close]')", sid)))
+                cdp.js("document.querySelector('[data-pk-save-close]').click()", sid)
+                self.assertTrue(wait(lambda: len(sent) >= 1), "the save was tried")
+                self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('[data-pk-unsaved]')", sid)), "the bar steps aside")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "the peek stays open")
+                self.assertIn("Refused on the way out", cdp.js(f"(document.querySelector({json.dumps(self.BOX)}) || {{textContent: ''}}).textContent", sid), "the editor keeps the text")
 
     def test_a_peek_with_nothing_unsaved_closes_without_asking(self):
         with chrome() as cdp:
@@ -234,6 +273,7 @@ class Body(test_peek_latest.Browser):
                 self.assertEqual(cdp.js("(k => k ? k.textContent.trim() : null)(document.querySelector('[data-pk-foot] kbd'))", sid), "//")
                 self.assertEqual(cdp.js("document.querySelector('[data-pk-foot] [data-pk-ask]').getAttribute('placeholder')", sid), "ask clark to update")
                 self.assertTrue(self.inside(cdp, sid, "[data-pk-foot]"))
+                cdp.js("[document.querySelector('#peek'), document.querySelector('#peek [data-pk-body]')].forEach(s => { if (s) s.scrollTop = s.scrollHeight; })", sid)
                 self.assertGreater(self.top(cdp, sid, "[data-pk-foot]"), self.top(cdp, sid, "[data-pk-htabs]"), "the footer is below the history")
                 self.assertFalse(cdp.js("document.activeElement.hasAttribute('data-pk-ask')", sid))
                 cdp.js("document.querySelector('#peek [data-pk-close]').focus()", sid)
@@ -250,9 +290,9 @@ class Body(test_peek_latest.Browser):
 
     def test_the_footer_keeps_the_words_the_live_peek_has_and_the_old_split_is_gone(self):
         src = PEEK.read_text(encoding="utf-8")
-        self.assertIn("data-pk-htabs", src)
-        self.assertIn("data-pk-details", src)
-        self.assertIn("data-pk-foot", src)
+        self.assertIn("data-pk-htabs", (PEEK.parent.parent / "edit/PeekActivity.jsx").read_text(encoding="utf-8"))
+        self.assertIn("data-pk-details", (PEEK.parent / "PeekDetails.jsx").read_text(encoding="utf-8"))
+        self.assertIn("data-pk-foot", (PEEK.parent.parent / "edit/PeekFooter.jsx").read_text(encoding="utf-8"))
         self.assertNotRegex(src, r'data-pk-tab=["\']?details', "the old Details and Activity tab pair is replaced")
 
 
