@@ -14,7 +14,7 @@ from test_server import chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, page_target  # noqa: E402
 
 MEASURE = r"""(() => {
-  const modes = document.querySelector('.rbar .modes.seg');
+  const modes = document.querySelector('#mode-pill');
   const on = modes.querySelector('.mode[aria-pressed="true"]');
   const off = modes.querySelector('.mode[aria-pressed="false"]');
   const read = (b) => { b.focus({ preventScroll: true }); const cs = getComputedStyle(b); return { visible: b.matches(':focus-visible'), shadow: cs.boxShadow, offset: parseFloat(cs.outlineOffset), bg: cs.backgroundImage, fill: cs.backgroundColor }; };
@@ -22,7 +22,7 @@ MEASURE = r"""(() => {
   const th = getComputedStyle(modes, '::before');
   a.thumb = th.content !== 'none' ? { bg: th.backgroundImage, fill: th.backgroundColor } : null;
   const b = off ? read(off) : null;
-  return JSON.stringify({ on: a, off: b, text: on.textContent.trim() });
+  return JSON.stringify({ on: a, off: b, text: on.dataset.mode });
 })()"""
 
 
@@ -50,7 +50,7 @@ class PillFocusRing(unittest.TestCase):
         cdp.js(f"document.documentElement.dataset.theme = {json.dumps(theme)}", sid)
         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-mode=edit]')", sid)), "the Edit half is on the page")
         cdp.js("document.querySelector('[data-mode=edit]').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('.rbar .modes.seg .mode[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)), "the Edit half is the chosen one")
+        self.assertTrue(wait(lambda: cdp.js("document.querySelector('#mode-pill .mode[data-mode=edit]').getAttribute('aria-pressed') === 'true'", sid)), "the Edit half is the chosen one")
         self.assertTrue(wait(lambda: cdp.js("document.getAnimations().length === 0", sid)), "the page's motion has finished before anything is measured")
         for kind in ("keyDown", "keyUp"):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": "Shift", "code": "ShiftLeft", "windowsVirtualKeyCode": 16}, sid)
@@ -62,7 +62,7 @@ class PillFocusRing(unittest.TestCase):
                 for theme in ("light", "dark"):
                     got = self.measure_pill(cdp, width, theme)
                     where = f"{width} px, {theme}, {got['text']}"
-                    self.assertEqual(got["text"], "Edit", where + ": the half measured is the Edit half")
+                    self.assertEqual(got["text"], "edit", where + ": the half measured is the Edit half")
                     on = got["on"]
                     self.assertTrue(on["visible"], where + ": shows its keyboard focus")
                     self.assertEqual(on["offset"], 1, where + ": the pill keeps its outset ring")
@@ -81,7 +81,7 @@ class PillFocusRing(unittest.TestCase):
 
 class PillRuleIsEditOnly(unittest.TestCase):
     """The pill is Edit's: its inner ring is in edit.css, so the published page (shell.css only) is byte-for-byte without it."""
-    RULE = '.rbar .seg .mode[aria-pressed="true"]:focus-visible'
+    RULE = '#mode-pill .mode[aria-pressed="true"]:focus-visible'      # item 1177: the floating pill's rule (the Gantt page's own bar keeps .rbar .seg .mode in edit.css)
 
     def test_the_rule_is_in_edit_css_and_the_published_css_and_shell_css_do_not_have_it(self):
         import sys
@@ -92,7 +92,9 @@ class PillRuleIsEditOnly(unittest.TestCase):
         page = root / "src" / "clark" / "page"
         self.assertIn(self.RULE, (page / "src" / "edit" / "edit.css").read_text(encoding="utf-8"))
         self.assertNotIn(".rbar .seg .mode", (page / "shell.css").read_text(encoding="utf-8").replace(".rbar .modes.seg.glide .mode", ""))
+        self.assertNotIn("#mode-pill", (page / "shell.css").read_text(encoding="utf-8"), "item 1177: the pill's rules are Edit's")
         self.assertNotIn(self.RULE, build_page.page_css(build_page.ENTRY_VIEW), "the published page's css")
+        self.assertNotIn("#mode-pill", build_page.page_css(build_page.ENTRY_VIEW), "the published page's css has no pill rule")
         self.assertNotIn("inset 0 0 0 2px var(--pill-fg)", build_page.page_css(build_page.ENTRY_VIEW))
         self.assertIn(self.RULE, build_page.page_css(build_page.ENTRY), "the served page's css")
 

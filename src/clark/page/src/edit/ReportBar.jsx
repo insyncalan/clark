@@ -1,5 +1,5 @@
 // The bar above the page (A-D2), only on a page clark serves. Item 1177: the week, the published weeks list and the state chip left it (the week is the
-// header's date button, HeaderDate.jsx; the Draft / Editing / Published words are at the top of the profile menu). It keeps View | Edit and, in Edit,
+// header's date button, HeaderDate.jsx; the Draft / Editing / Published words are at the top of the profile menu). View | Edit is the floating pill (ModePill.jsx). The bar keeps, in Edit,
 // the drag hint, shown the first time this browser enters Edit and until Edit is left. item 570: Friday is the week end (isFriday, notFriday).
 import { useEffect } from "preact/hooks";
 import { signal } from "@preact/signals";
@@ -7,7 +7,7 @@ import { recall, remember } from "../logic/remember.js";
 import { data, mode } from "../stores/report.js";
 import { shownDay } from "../logic/week.js";
 import { weekEndOf } from "../logic/board.js";
-import { Toggle } from "./Toggle.jsx";
+import { ModePill } from "./ModePill.jsx";
 
 // The drag hint shows the first time this browser enters Edit and stays until Edit is left; after that it is not shown again.
 const hintOpen = signal(!recall("dragHintSeen", false));
@@ -24,9 +24,11 @@ export function ReportBar() {
   }, [editing]);
   if (!data.value || !data.value.project) return null;
   return (
-    <div class="rbar" id="report-bar">
-      <Toggle pill />{/* #665: View | Edit, at the left of the bar on the Dashboard (prototype views.js:509) */}
-      {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
-    </div>
+    <>
+      <ModePill />{/* item 1177: View | Edit, a floating pill under the header; it is fixed, so it takes no room in the bar */}
+      <div class="rbar" id="report-bar">
+        {editing && hintOpen.value ? <span class="rbar-hint" id="report-hint">Drag to move, + to add a template</span> : null}
+      </div>
+    </>
   );
 }

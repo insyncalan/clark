@@ -92,17 +92,17 @@ class WeekEnding(unittest.TestCase):
 
 class Pencil(unittest.TestCase):
     def test_icons_row(self):
-        row = ["pencil", "Edit", "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch at the left of the report bar.", "Dashboard"]
+        row = ["pencil", "Edit", "Switch the Dashboard to Edit. It is on the **Edit** half of the **View** and **Edit** switch, the floating pill just under the header at the right.", "Dashboard"]
         self.assertIn(json.dumps(row, ensure_ascii=False), json.dumps(RAW, ensure_ascii=False))
         self.assertEqual(json.dumps(RAW).count("Switch the Dashboard to Edit"), 1)
         self.assertIn("icons", LATER["reference"], "still held: this PR unholds nothing")
 
     def test_code(self):
-        tg = code("edit", "Toggle.jsx")
-        self.assertIn('{pill ? <svg class="tb-ico"', tg)
+        tg = code("edit", "ModePill.jsx")      # item 1177: the pill is icon-only and floats under the header
+        self.assertIn('<svg class="tb-ico"', tg)
         self.assertIn('M13.5 3.5l3 3L7 16H4v-3z', tg)
-        self.assertIn('aria-label="View or Edit"', tg)
-        self.assertIn("<Toggle pill />", code("edit", "ReportBar.jsx"))
+        self.assertIn('data-mode="edit"', tg)
+        self.assertIn("<ModePill />", code("edit", "ReportBar.jsx"))
 
 
 class Style(unittest.TestCase):

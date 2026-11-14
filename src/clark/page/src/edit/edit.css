@@ -1203,3 +1203,17 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 @media (max-width: 899px) { .cover::after { display: none; } }
 /* item 1154: with a logo (the server sets --cover-logo-room; 0px when it is not set) the title and the cover line keep the logo box's room free at 900 px and wider, so they wrap before it; under 900 the logo is hidden and no room is kept */
 @media (min-width: 900px) { .frame header.cover h1, .frame header.cover .cover-line { margin-right: var(--cover-logo-room, 0px); } }
+
+/* Item 1177, stage B: the floating View | Edit pill (#mode-pill). Fixed just under the sticky header, at the right edge, above the page's own layers and below the
+   header (z-index 28: the minimap is 25, the header 30). Half see-through at rest, solid on hover and when a button has the focus. Icon buttons only (eye, pencil).
+   It is Edit parts' only (the published file has none), the Dashboard's alone (ReportBar draws it), and it is hidden in the full-screen board, under any dialog and while the profile menu is open. */
+#mode-pill { position: fixed; top: calc(var(--topbar) + 8px); right: 20px; z-index: 28; margin: 0; display: inline-flex; gap: 2px; padding: 3px; overflow: visible; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-pill); box-shadow: var(--shadow); opacity: .72; transition: opacity var(--dur-instant) var(--ease-out); }
+#mode-pill:hover, #mode-pill:focus-within { opacity: 1; }
+#mode-pill .mode { min-width: 0; width: 32px; min-height: 28px; height: 28px; padding: 0; border-radius: var(--radius-pill); color: var(--text-muted); }
+#mode-pill .mode:hover { color: var(--text); }
+#mode-pill .mode[aria-pressed="true"] { background-color: var(--pill-color); background-image: var(--pill-bg); color: var(--pill-fg); }
+#mode-pill .mode .tb-ico { width: 16px; height: 16px; }
+#mode-pill .mode:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+#mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
+body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
+#report-bar:empty { display: none; }
