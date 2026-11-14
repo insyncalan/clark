@@ -5,6 +5,7 @@
 // isEmpty: nothing that can be drawn, so the section is left out of the served View and the published file alike (FR-11).
 import { fromFile } from "../stores/report.js";
 import { docItems, kindWords, sizeWords, badgeWords, factsWords } from "./files.js";
+import { PageIcon, ActIcon } from "./docIcons.jsx";
 import * as W from "../logic/docLinksWords.js";
 
 export const READY = true;
@@ -31,15 +32,17 @@ export function FileRow({ file, label }) {
   );
 }
 
-// The Open and Download of a row (44px targets in the page's CSS): Open on every row, in a new tab; Download on a file only.
+// The Open and Download of a row: 44px icon buttons named for a screen reader, Open on every row (in a new tab), Download on a file only.
 // A file's own address resolves only beside the client's copy of the report, so a file's actions are drawn in a published file.
 function Actions({ item }) {
-  if (item.kind === "link") return <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer">{W.UNRULED_OPEN}</a>;
+  const name = item.label || (item.kind === "file" ? item.name : item.shown);
+  const open = <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer" title={W.UNRULED_OPEN} aria-label={`${W.UNRULED_OPEN} ${name}`}><ActIcon which="open" /></a>;
+  if (item.kind === "link") return open;
   if (!fromFile.value) return null;
   return (
     <>
-      <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer">{W.UNRULED_OPEN}</a>
-      <a class="tpl-act" href={item.href} download={item.name}>{W.UNRULED_DOWNLOAD}</a>
+      {open}
+      <a class="tpl-act" href={item.href} download={item.name} title={W.UNRULED_DOWNLOAD} aria-label={`${W.UNRULED_DOWNLOAD} ${name}`}><ActIcon which="download" /></a>
     </>
   );
 }
@@ -53,12 +56,12 @@ export function EntryName({ item }) {
 }
 
 // One entry: the page-style icon, the name, and under it "<Type> · <size or site>".
-export function EntryRow({ item }) {
+export function EntryRow({ item, nameNode }) {
   return (
     <>
-      <span class={`tpl-badge tpl-badge-${badgeWords(item).toLowerCase()}`}>{badgeWords(item)}</span>
+      <PageIcon label={badgeWords(item)} />
       <span class="tpl-main">
-        <EntryName item={item} />
+        {nameNode || <EntryName item={item} />}
         <span class="tpl-facts">{factsWords(item)}</span>
       </span>
     </>

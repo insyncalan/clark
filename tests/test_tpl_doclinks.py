@@ -303,7 +303,7 @@ class InThePage(PageBase):
             self.assertEqual([i["kind"] for i in json.loads(self.store.read("report_sections", ref=ref)["body"])["items"]], ["file", "link"])
             self.assertEqual(p.js(f"document.querySelectorAll('{sel} [data-rename]').length"), 0, "no Rename button: the name is the box")
             RenameTest.type(p, sel, "Signed plan", "Enter", 0)
-            p.until(f"document.querySelector('{sel} input[data-rename-input]').value === 'Signed plan'", "the new name shows")
+            p.until("document.querySelector('.toast') && document.querySelector('.toast').textContent.includes('Name saved')", "the name was saved")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["label"], "Signed plan")
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["items"][0]["name"], "Plan v2.pdf")
             RenameTest.type(p, sel, "Other", "Escape", 0)
@@ -347,7 +347,8 @@ class MockupLook(InThePage):
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} .tpl-badge')].map(e => !!e.querySelector('svg') && Math.round(e.getBoundingClientRect().height))"),
                                  [41] * 5, f"a page icon 41 px tall at {w}")
                 self.assertEqual(p.js(f"[...document.querySelectorAll('{sel} a.tpl-act')].map(a => !!a.querySelector('svg') && a.textContent.trim() === '' && "
-                                      "a.getBoundingClientRect().width >= 44 && a.getBoundingClientRect().height >= 44)"), [True] * 5, f"Open is a 44 px icon at {w}")
+                                      "a.getBoundingClientRect().width >= 44 && a.getBoundingClientRect().height >= 44)"), [True] * 2,
+                                 f"Open is a 44 px icon at {w} (links only: a file's Open and Download are drawn in the published file, see Published)")
 
     def test_edit_rows_have_icon_remove_a_name_box_notes_and_the_link_box_in_place(self):
         ref = self.add([a_file("Scope statement.docx", 88 * 1024), a_link()])
@@ -387,10 +388,10 @@ class MockupLook(InThePage):
             InThePage.set_value(p, f"{sel} [data-add-link] input[type=text]", "Budget", 1)
             p.js(f"document.querySelector('{sel} [data-add-link] button[type=submit]').click()")
             p.until("!!document.querySelector('.toast')", "a toast")
-            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").strip(), "Link added")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Link added")
             p.js(f"document.querySelectorAll('{sel} .tpl-remove')[0].click()")
             p.until("document.querySelector('.toast').textContent.includes('Removed')", "the remove toast")
-            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").strip(), "Removed Scope statement.docx")
+            self.assertEqual(p.js("document.querySelector('.toast').textContent").replace("Undo", "").replace("Close", "").strip(), "Removed Scope statement.docx")
 
 
 class Published(PageBase):

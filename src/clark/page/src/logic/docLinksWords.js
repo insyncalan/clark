@@ -15,7 +15,14 @@ export const UNRULED_RENAME = (name) => (name ? `Rename ${name}` : "Rename");
 export const UNRULED_MOVE_UP = (name) => `Move ${name} up`;
 export const UNRULED_MOVE_DOWN = (name) => `Move ${name} down`;
 export const UNRULED_REMOVE = (name) => `Remove ${name}`;
-export const UNRULED_LINK_ADDED = "Link added.";
-export const UNRULED_MOVED = "Moved.";
-export const UNRULED_RENAMED = "Renamed.";
+export const UNRULED_LINK_ADDED = "Link added";
+export const UNRULED_MOVED = "Moved";
+export const UNRULED_RENAMED = "Name saved";
 export const UNRULED_NOTE = "A file is copied into the client folder's “Report files” folder and opens from the client's copy of the report.";
+export const UNRULED_REMOVED = (name) => `Removed ${name}`;
+// The mockup's note under the list (docs-mockup.html), verbatim.
+export const UNRULED_ALLOWED_HEAD = "Files you can add:";
+export const UNRULED_ALLOWED_TYPES = "PDF, Word (.doc .docx), Excel (.xls .xlsx .csv), PowerPoint (.ppt .pptx), JPG, PNG and TXT.";
+export const UNRULED_NOT_HEAD = "Not allowed:";
+export const UNRULED_NOT_TYPES = "HTML, SVG, ZIP and any program or script, because they can run code or hide what is inside. Links (to a SharePoint file, a web page or an email): https:// or mailto:.";
+export const UNRULED_RENAME_HINT = "Name: click to rename, Enter saves, Esc cancels.";

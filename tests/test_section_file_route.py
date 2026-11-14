@@ -394,7 +394,7 @@ class InThePage(PageBase):
             self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').getAttribute('aria-label')"), "Add a file")
             p.js(f"document.querySelector('{sel} [data-add-file]').click()")
             p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the file is drawn")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-name').textContent"), "Plan v2.pdf")
+            self.assertEqual(p.js(f"document.querySelector('{sel} input[data-rename-input]').value"), "Plan v2.pdf", "in Edit the name is a box in place")
             self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "PDF · 2 KB")
             p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
             self.assertIn("was copied into the client folder", p.js("document.querySelector('.toast').textContent"))

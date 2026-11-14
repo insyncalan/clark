@@ -4,6 +4,7 @@
 import { useState, useRef } from "preact/hooks";
 import { docItems, linkProblem } from "../../templates/files.js";
 import { EntryRow } from "../../templates/DocLinks.jsx";
+import { ActIcon } from "../../templates/docIcons.jsx";
 import { chooseFile } from "./fileRoute.js";
 import { stored, oneLine, labelProblem, saveContent } from "./filesEdit.js";
 import * as W from "../../logic/docLinksWords.js";
@@ -23,7 +24,7 @@ export function Edit({ section }) {
   const [boxOpen, setBoxOpen] = useState(false);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
-  const [renaming, setRenaming] = useState(-1);
+  const [boxProblem, setBoxProblem] = useState("");
   const linkIcon = useRef(null);
   const root = useRef(null);
   const content = stored(section);
@@ -33,7 +34,7 @@ export function Edit({ section }) {
   const save = (items, words) => saveContent(section, { ...content, items }, words);
   const remove = (n) => {
     const item = raw[n];
-    save(raw.filter((_, i) => i !== n), item && item.kind === "file" ? "File taken off the section. It stays in the client folder." : "Link removed.");
+    save(raw.filter((_, i) => i !== n), W.UNRULED_REMOVED(item ? item.label || item.name || item.href : ""));
   };
   const move = async (n, by) => {
     const to = n + by;
@@ -46,11 +47,12 @@ export function Edit({ section }) {
       if (button) button.focus();
     }
   };
-  const rename = (n, typed) => {
-    setRenaming(-1);
+  // The name is a box in place: Enter or leaving it saves, Esc puts the old name back, an empty or unchanged name is as it was.
+  const rename = (n, typed, box) => {
     const words = oneLine(typed), item = raw[n];
-    if (!words || !item || words === item.label || (item.kind === "file" && !item.label && words === item.name)) return;   // empty or unchanged: as it was
-    if (labelProblem(words)) { setProblem(labelProblem(words)); return; }
+    const was = item ? item.label || (item.kind === "file" ? item.name : "") : "";
+    if (!words || !item || words === was) { if (box) box.value = was || (item && item.href) || ""; return; }
+    if (labelProblem(words)) { setProblem(labelProblem(words)); if (box) box.value = was; return; }
     save(raw.map((x, i) => (i === n ? { ...x, label: words } : x)), W.UNRULED_RENAMED);
   };
   const addFile = async () => {
@@ -59,12 +61,12 @@ export function Edit({ section }) {
     setBusy(true);
     try { await chooseFile(section.id); } finally { setBusy(false); }
   };
-  const closeBox = () => { setBoxOpen(false); setHref(""); setLabel(""); setProblem(""); if (linkIcon.current) linkIcon.current.focus(); };
+  const closeBox = () => { setBoxOpen(false); setHref(""); setLabel(""); setProblem(""); setBoxProblem(""); if (linkIcon.current) linkIcon.current.focus(); };
   const addLink = async (e) => {
     e.preventDefault();
     const link = href.trim(), words = oneLine(label);
     const why = full ? FULL : linkProblem(link) || (words ? labelProblem(words) : W.UNRULED_NO_DESCRIPTION);
-    setProblem(why);
+    setBoxProblem(why);
     if (why) return;
     const reply = await save([...raw, { kind: "link", href: link, label: words }], W.UNRULED_LINK_ADDED);
     if (reply) closeBox();
@@ -75,20 +77,21 @@ export function Edit({ section }) {
       <div class="tpl-icons">
         <button type="button" class="btn quiet tpl-icon" data-add-file disabled={busy} onClick={addFile} title={W.UNRULED_ADD_FILE} aria-label={W.UNRULED_ADD_FILE}><Icon d={FILE_ICON} /></button>
         <button type="button" class="btn quiet tpl-icon" data-open-link ref={linkIcon} aria-expanded={boxOpen} onClick={() => setBoxOpen(!boxOpen)} title={W.UNRULED_ADD_LINK} aria-label={W.UNRULED_ADD_LINK}><Icon d={LINK_ICON} /></button>
-      </div>
-      {boxOpen ? (
+            {boxOpen ? (
         <form class="tpl-form" onSubmit={addLink} data-add-link onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeBox(); } }}>
           <label for={`${fid}-href`}>{W.UNRULED_LINK_ADDRESS_LABEL}</label>
           <input id={`${fid}-href`} type="text" inputMode="url" autocomplete="off" spellcheck={false} placeholder="https://" autofocus
             value={href} onInput={(e) => setHref(e.currentTarget.value)} />
           <label for={`${fid}-label`}>{W.UNRULED_DESCRIPTION_LABEL}</label>
           <input id={`${fid}-label`} type="text" autocomplete="off" aria-required="true" value={label} onInput={(e) => setLabel(e.currentTarget.value)} />
+          {boxProblem ? <p class="tpl-problem" role="alert">{boxProblem}</p> : null}
           <div class="tpl-actions">
             <button type="button" class="btn quiet" onClick={closeBox}>{W.UNRULED_CANCEL}</button>
             <button type="submit" class="btn">{W.UNRULED_ADD_LINK_SUBMIT}</button>
           </div>
         </form>
       ) : null}
+      </div>
       {problem ? <p class="tpl-problem" role="alert">{problem}</p> : null}
       {docItems(section).length ? (
         <ul class="tpl-dl">
@@ -98,27 +101,25 @@ export function Edit({ section }) {
             const name = i.label || i.name || i.shown;
             return (
               <li key={n} data-row={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
-                {renaming === n ? (
-                  <>
-                    <span class={`tpl-badge tpl-badge-${i.kind}`}>{i.kind === "link" ? (/^mailto:/i.test(i.href) ? "MAIL" : "URL") : "FILE"}</span>
-                    <input class="tpl-rename" data-rename-input type="text" autocomplete="off" autofocus defaultValue={name} aria-label={W.UNRULED_RENAME(name)}
-                      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); rename(n, e.currentTarget.value); } else if (e.key === "Escape") { e.preventDefault(); setRenaming(-1); } }} />
-                  </>
-                ) : (
-                  <>
-                    <EntryRow item={i} />
-                    <button type="button" class="btn sm quiet" data-rename onClick={() => setRenaming(n)} aria-label={W.UNRULED_RENAME(name)}>{W.UNRULED_RENAME("")}</button>
-                  </>
-                )}
+                <EntryRow item={i} nameNode={
+                  <input key={`${n}:${name}`} class="tpl-rename" data-rename-input type="text" autocomplete="off" defaultValue={name} aria-label={W.UNRULED_RENAME(name)}
+                    onKeyDown={(e) => {
+                      const box = e.currentTarget;
+                      if (e.key === "Enter") { e.preventDefault(); box.dataset.done = "1"; rename(n, box.value, box); }
+                      else if (e.key === "Escape") { e.preventDefault(); box.dataset.done = "1"; box.value = name; box.blur(); }
+                    }}
+                    onBlur={(e) => { const box = e.currentTarget; if (box.dataset.done) { delete box.dataset.done; return; } rename(n, box.value, box); }} />
+                } />
                 <button type="button" class="btn sm quiet tpl-icon" data-up disabled={n === 0} onClick={() => move(n, -1)} title={W.UNRULED_MOVE_UP(name)} aria-label={W.UNRULED_MOVE_UP(name)}><Icon d={UP_ICON} /></button>
                 <button type="button" class="btn sm quiet tpl-icon" data-down disabled={n === raw.length - 1} onClick={() => move(n, 1)} title={W.UNRULED_MOVE_DOWN(name)} aria-label={W.UNRULED_MOVE_DOWN(name)}><Icon d={DOWN_ICON} /></button>
-                <button type="button" class="btn sm quiet tpl-remove" onClick={() => remove(n)} aria-label={W.UNRULED_REMOVE(name)}>Remove</button>
+                <button type="button" class="btn sm quiet tpl-icon tpl-remove" onClick={() => remove(n)} title={W.UNRULED_REMOVE(name)} aria-label={W.UNRULED_REMOVE(name)}><ActIcon which="trash" /></button>
               </li>
             );
           })}
         </ul>
       ) : <p class="quiet tpl-empty">{W.UNRULED_EMPTY}</p>}
-      <p class="quiet tpl-hint">{W.UNRULED_NOTE}</p>
+      <p class="tpl-allowed"><strong>{W.UNRULED_ALLOWED_HEAD}</strong>{" "}{W.UNRULED_ALLOWED_TYPES}{" "}<strong>{W.UNRULED_NOT_HEAD}</strong>{" "}{W.UNRULED_NOT_TYPES}</p>
+      <p class="quiet tpl-hint">{W.UNRULED_RENAME_HINT} {W.UNRULED_NOTE}</p>
     </div>
   );
 }

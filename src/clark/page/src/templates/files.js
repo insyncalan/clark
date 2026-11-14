@@ -110,8 +110,11 @@ export function badgeWords(item) {
   const m = /\.([A-Za-z0-9]{1,8})$/.exec(String(item.name || ""));
   return (m && BADGES[m[1].toLowerCase()]) || "FILE";
 }
+// The type as a person reads it on the second line: PDF, Word, Excel, PowerPoint, Image, File, Web link, Email link.
+const TYPES = { PDF: "PDF", DOC: "Word", XLS: "Excel", PPT: "PowerPoint", JPG: "Image", PNG: "Image", URL: "Web link", MAIL: "Email link" };
+export const typeWords = (item) => TYPES[badgeWords(item)] || "File";
 // The second line of a row: "<Type> · <size or site>".
-export const factsWords = (item) => [badgeWords(item), item.kind === "link" ? item.shown : sizeWords(item.bytes)].filter(Boolean).join(" · ");
+export const factsWords = (item) => [typeWords(item), item.kind === "link" ? item.shown : sizeWords(item.bytes)].filter(Boolean).join(" · ");
 
 // Edit's check of a typed link before it is sent, in the same words as the store's (section_kinds/doclinks.py BAD_LINK): "" when
 // it can be saved.
