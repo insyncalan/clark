@@ -7,7 +7,7 @@
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
+import { data, rows, fromFile, project, openWork, openPeek, openUseCases } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
@@ -232,7 +232,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
               onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
-            {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => { window.location.hash = `#usecases&p=${code}`; }} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
+            {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => openUseCases()} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
           </div>
         ) : null}
       </div>

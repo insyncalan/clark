@@ -1556,8 +1556,7 @@ def item_pointer(con, key):
     for table, col in REVERT_REFS:
         if table in ("links", "item_labels") or col not in columns(con, table):
             continue
-        live = " AND removed_at IS NULL" if table == "use_case_milestones" else ""      # item 1148: a link taken off is history, not a pointer
-        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?{live} LIMIT 1", (key,)).fetchone()
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?" + (" AND removed_at IS NULL" if table == "use_case_milestones" else "") + " LIMIT 1", (key,)).fetchone()   # item 1148: a link taken off is history, not a pointer
         if r:
             return table, key_of(table, r)
     return None

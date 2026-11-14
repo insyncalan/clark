@@ -1202,7 +1202,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
   .msl-hc > span { position: relative; min-width: 0; }
   .msl-hd + .msl, .msl-hd ~ .msl { margin-top: 0; }
   .msl-box:has(.msl-row.has-eye) .msl-hc { padding-right: calc(var(--space-2) + 38px); }
-  .msl-box:has(.msl-row.has-more) .msl-hc { padding-right: calc(var(--space-2) + 72px); }
+  .msl-box:has(.msl-row.has-more) .msl-hc { padding-right: calc(var(--space-2) + 70px); }
   .msl-box[style*="--msl-cols:"] .msl-cells, .msl-box[style*="--msl-cols:"] .msl-hc { grid-template-columns: var(--msl-cols); }
 }
 @media (min-width: 1201px) {
