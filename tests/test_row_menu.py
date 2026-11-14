@@ -1547,32 +1547,31 @@ class Menu(board.Base):
             self.assertNotIn("clark:draft-email", (ROOT / "src" / "clark" / "page" / "src" / f).read_text(encoding="utf-8"))
         self.assertNotIn("clark:draft-email", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
-    def test_row_658_the_more_actions_button_opens_the_same_menu_beside_it_and_does_nothing_else_at_1400_and_900(self):
+    def test_row_1196_no_more_actions_button_ends_a_row_and_the_menu_keys_still_open_the_menu_at_1400_and_900(self):
+        """Item 1196: the "..." button is gone from every row (it opened the same menu as a right click); the eye stays; Menu and Shift+F10 on a focused row still open the menu."""
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width=width, height=900)
                 a = self.id_of("Order the laptops")
-                btn = f"tr[data-id='{a}'] button.rmore"
-                self.assertEqual(cdp.js(f"[document.querySelectorAll('tr[data-id] button.rmore').length, document.querySelectorAll('tr[data-id]').length]", sid)[0],
-                                 cdp.js("document.querySelectorAll('tr[data-id]').length", sid), "one on every row")
-                self.assertEqual(cdp.js(f"(() => {{ const b = document.querySelector({json.dumps(btn)}); return [b.getAttribute('aria-label'), b.title, b.tabIndex]; }})()", sid), ["More actions", "More actions", -1])
-                self.assertEqual(cdp.js(f"getComputedStyle(document.querySelector({json.dumps(btn)})).opacity", sid), "0", "hidden until the row is hovered or focused")
-                before = self.steps()
-                cdp.js(f"document.querySelector({json.dumps(btn)}).scrollIntoView({{block: 'center'}})", sid)
-                cdp.js(f"document.querySelector({json.dumps(btn)}).focus()", sid)
-                self.assertEqual(cdp.js(f"getComputedStyle(document.querySelector({json.dumps(btn)})).opacity", sid), "1", "shown on focus")
-                cdp.js("document.activeElement.blur()", sid)
-                click(cdp, sid, btn)
-                self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu")
-                self.settled(cdp, sid)
+                row = f"tr[data-id='{a}']"
+                self.assertEqual(cdp.js("document.querySelectorAll('button.rmore, [data-rowmore]').length", sid), 0, f"{width}: no More actions button on any row")
+                self.assertEqual(cdp.js("document.querySelectorAll('#work tr[data-id] button[aria-label=\"More actions\"]').length", sid), 0)
+                self.assertGreaterEqual(cdp.js("document.querySelectorAll('tr[data-id] button.weye').length", sid), 1, "the eye stays")
+                cdp.js(f"document.querySelector({json.dumps(row)}).scrollIntoView({{block: 'center'}})", sid)
+                cdp.js(f"document.querySelector({json.dumps(row)} + ' [data-cell]').focus()", sid)
+                key(cdp, sid, "ContextMenu")
+                self.until(cdp, sid, "!!document.querySelector('.rowmenu [role=menu]')", "the menu from the Menu key")
                 self.assertEqual(cdp.js("document.querySelector('.rowmenu [role=menu]').getAttribute('aria-label')", sid), f"Actions for {a}")
                 self.assertEqual([e[1] for e in self.entries(cdp, sid)][-1], "Delete")
-                self.assertFalse(cdp.js("!!document.querySelector('.peek.on, #peek.on, [data-peek].on')", sid), "no peek")
-                self.assertEqual(cdp.js("document.querySelectorAll('tr[data-id].picked').length", sid), 0, "no row selected")
-                self.assertEqual(self.steps(), before)
                 key(cdp, sid, "Escape")
                 self.shut(cdp, sid)
-                self.until(cdp, sid, f"document.activeElement && document.activeElement.matches({json.dumps(btn)})", "focus back on the button")
+
+    def test_row_1196_the_source_has_no_row_more_button(self):
+        page = ROOT / "src" / "clark" / "page"
+        for f in ("src/edit/RowMenu.jsx", "src/edit/index.js", "src/components/WorkItems.jsx", "shell.css"):
+            text = (page / f).read_text(encoding="utf-8")
+            for word in ("RowMore", "data-rowmore", ".rmore"):
+                self.assertNotIn(word, text, f"{f} still has {word}")
 
     def test_the_published_page_has_no_menu(self):
         view = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
