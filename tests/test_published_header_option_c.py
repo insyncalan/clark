@@ -111,6 +111,7 @@ class InTheFile(Published):
 
     def test_a_click_on_the_date_opens_a_calendar(self):
         cdp, p = self.bar(1400, False)
+        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 0, "no date box is there before the click")
         before = p.js(CAL)
         p.js("""(() => { const bar = document.querySelector('header.top'), re = /\\b\\d\\d-\\d\\d-\\d{4}\\b/;
           const el = [...bar.querySelectorAll('*')].filter((e) => re.test(e.textContent) && ![...e.children].some((c) => re.test(c.textContent)))
@@ -118,8 +119,10 @@ class InTheFile(Published):
           (el.closest('button, a[href], [role=button], input, [tabindex]') || el).click(); })()""")
         wait(lambda: p.js(CAL)["native"] or p.js(CAL)["pops"] > before["pops"] or p.js(CAL)["days"] >= 28, 3)
         after = p.js(CAL)
-        opened = after["native"] or after["pops"] > before["pops"] or after["days"] >= 28
+        self.assertFalse(before["native"], "the date box did not hold focus before the click")
+        opened = after["native"] or after["pops"] > before["pops"] or after["days"] > before["days"]
         self.assertTrue(opened, f"a calendar opened (before {before}, after {after})")
+        self.assertEqual(p.js("document.querySelectorAll('input[type=date]').length"), 1, "the click put one date box on the page")
 
     def test_no_published_chip_or_weeks_list_in_the_header(self):
         for width, dark in CASES:
