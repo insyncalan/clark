@@ -892,6 +892,31 @@ class PreviousReleaseAcceptsThisOneTest(unittest.TestCase):
         self.assertIsNotNone(old, tags[0])
         self.assertEqual([], self.unsafe_for(old), f"{tags[0]} would refuse this tree's zip as outside its own list")
 
+    def test_the_last_release_own_check_coverage_accepts_this_trees_zip(self):
+        """Item 1151: run the newest tag's real updates.check_coverage (its own code and its own list), not release_files.covers alone."""
+        import importlib.util
+        import clark
+        tags = subprocess.run(["git", "-C", str(ROOT), "tag", "--list", "v*", "--sort=-v:refname"], capture_output=True, text=True).stdout.split()
+        if not tags:
+            self.skipTest("no v* release tag (shallow clone without tags); the sibling test decides skip or fail")
+        tag = tags[0]
+        old_rf = self._old_module(tag)
+        src = subprocess.run(["git", "-C", str(ROOT), "show", f"{tag}:src/clark/updates.py"], capture_output=True)
+        self.assertEqual(0, src.returncode, tag)
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "old_updates.py"
+            path.write_bytes(src.stdout)
+            spec = importlib.util.spec_from_file_location("old_updates", path)
+            old = importlib.util.module_from_spec(spec)
+            with mock.patch.object(clark, "release_files", old_rf):      # the old file does `from clark import release_files`
+                spec.loader.exec_module(old)
+        for system in sorted(set(release_files.SYSTEMS) - release_files.NOT_BUILT_YET):
+            rels = _files_in_zip(release_files.listed(system) + (release_files.START_HERE,))
+            try:
+                old.check_coverage(system, rels)
+            except old.UpdateError as e:
+                self.fail(f"{tag} would refuse this tree's {system} zip: {e}")
+
 
 if __name__ == "__main__":
     unittest.main()

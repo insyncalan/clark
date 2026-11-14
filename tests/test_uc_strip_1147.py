@@ -55,6 +55,10 @@ class PublishedBars(Published):
                 got = p.js(PROBE)
                 self.assertLessEqual(abs(got["right"]), 1, got)
                 self.assertTrue(got["sameLine"], got)
+                if width == 900:
+                    self.assertGreaterEqual(got["width"], 40, got)
+                    self.assertLessEqual(got["width"], 81, got)
+                    self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), f"no sideways scroll at 900 px: {got}")
 
 
 if __name__ == "__main__":
