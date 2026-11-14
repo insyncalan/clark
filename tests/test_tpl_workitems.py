@@ -545,7 +545,7 @@ class InThePage(PageBase):
             self.assertEqual(line, f"{self.a_due} · Pat Demo")
 
     def test_an_empty_match_is_left_out_of_view_and_said_in_edit(self):
-        ref = self.add({"owner": ["Sam Demo"]})
+        ref = self.add({"owner": ["Nobody Demo"]})
         with chrome() as cdp:
             p = self.show(cdp)
             self.assertFalse(p.js(f"!!document.querySelector('[data-id=\"{ref}\"]')"), "View leaves an empty match out")
@@ -591,7 +591,8 @@ class InThePage(PageBase):
             p.js(f"(el => {{ el.focus(); el.value = '2'; el.dispatchEvent(new Event('change', {{bubbles: true}})); }})(document.querySelector({json.dumps(sel)}))")
             p.saved()
             self.assertEqual(json.loads(self.store.read("report_sections", ref=ref)["body"])["max"], 2)
-            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length === 2", "two rows")
+            p.until(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr .weye[aria-pressed=true]').length === 2", "two rows the client sees")
+            self.assertEqual(p.js(f"document.querySelectorAll('[data-id=\"{ref}\"] .wil-table tbody tr').length"), 4, "and the two the eye took off, listed where they fall")
             p.clear_toast()
             cap = f"[data-id=\"{ref}\"] [data-field=caption] input"
             p.js(f"document.querySelector({json.dumps(cap)}).focus()")

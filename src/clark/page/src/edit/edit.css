@@ -576,6 +576,9 @@ textarea.tpl-field { resize: vertical; }
 .wil-capbox { margin: var(--space-2) 0 0; }
 .wil-none { margin: var(--space-2) 0; padding: 10px var(--space-3); border: 1px dashed var(--grey-300); border-radius: var(--radius); color: var(--text); font-size: var(--size-small); }
 .wil-live tbody tr, .wil-live li { cursor: pointer; }
+.wil-table .wil-c-eye { width: 44px; padding-left: 0; padding-right: 0; text-align: center; }   /* row 1113: the Work items page eye, at the end of each row */
+.wil-lines.wil-live li { position: relative; padding-right: 44px; }
+.wil-lines .wil-eye { position: absolute; top: 2px; right: 0; }
 .wil-live tbody tr:hover, .wil-live li:hover { background: var(--grey-50); }
 .wil-live tbody tr:focus-visible, .wil-live li:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
 
