@@ -30,6 +30,6 @@ export function ProjectSwitch({ name, cover }) {      // `cover` (item 1176): th
     if (id === "__settings") { navigate({ view: "settings", project: project.value }); return; }
     setProject(id);
   };
-  if (cover) return <Menu btnCls="cover-switch" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Click to change project`} menuId="cover-project-menu" menuLabel="Projects" left items={items} onPick={pick} onOpen={read} focusChecked />;
+  if (cover) return <Menu btnCls="cover-switch" label={shown} tip="Click to change project" ariaLabel={`Project: ${shown}. Click to change project`} menuId="cover-project-menu" menuLabel="Projects" left fixed="start" items={items} onPick={pick} onOpen={read} focusChecked />;
   return <Menu id="project-name" btnCls="proj projbtn" label={shown} ariaLabel={`Project: ${shown}. Change project`} menuId="project-menu" menuLabel="Projects" left labelCls="sr" items={items} onPick={pick} onOpen={read} focusChecked />;
 }
