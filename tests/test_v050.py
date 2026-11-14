@@ -47,7 +47,7 @@ COVERED = [
     ("#157", "The Use cases status filter takes any number of statuses and clears", "test_use_cases_list::Narrowing::test_the_status_field_takes_any_number_of_words_and_the_x_clears_it"),
     ("#157", "The On or Not on the dashboard switch changes the store, syncs with the dashboard and undoes",
      "test_use_cases_list::Eye::test_the_eye_changes_the_store_syncs_with_the_dashboard_and_undoes"),
-    ("#157", "Use cases sort by reference, status or open work items", "test_use_cases_list::Narrowing::test_sort_by_reference_status_and_open_work_items_on_the_column_names"),
+    ("#157", "Use cases sort by reference, status or open work items", "test_use_cases_list::Narrowing::test_sort_by_reference_status_and_open_work_items_is_a_menu_beside_group_by"),
     ("#157", "A use case opens on its own page and Esc or the crumb goes back to the list", "test_use_case_detail::Detail::test_esc_and_the_crumb_return_to_the_list"),
     ("#69", "The published Work items tab filters, counts and groups, and each control works", "test_client_page_filters::ClientPageFilters::test_each_control_works"),
     ("#69", "The published page remembers a reader's filter choices in its own key", "test_client_page_filters::ClientPageFilters::test_choices_are_remembered_in_the_pages_own_key"),
