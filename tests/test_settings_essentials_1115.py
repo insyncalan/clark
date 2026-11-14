@@ -78,6 +78,7 @@ class Essentials(Head):
                     # Spacing
                     p.js("document.querySelector('[data-ess-density-pick=comfortable]').click()")
                     p.until("document.documentElement.dataset.density === 'comfortable' && document.querySelector('input[name=density][value=comfortable]').checked", "Spacing set from Essentials shows in Personal")
+                    p.until("(document.querySelector('.toast .toast-text') || {}).textContent === 'Spacing: Comfortable.'", "Spacing set from Essentials saves at once with the same toast as Personal")
                     p.js("document.querySelector('[data-ess-density-pick=compact]').click()")
                     p.until("document.documentElement.dataset.density === 'compact'", "Compact again")
                     # Motion

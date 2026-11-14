@@ -4,12 +4,12 @@
 // start with "ess-" so the page never holds one twice. Edit parts only (a published file has no Settings).
 import { useEffect, useRef, useState } from "preact/hooks";
 import { data } from "../stores/report.js";
-import { density, setDensity } from "../stores/density.js";
+import { density } from "../stores/density.js";
 import { motionOn, setMotion } from "../stores/motionPref.js";
 import { profile, loadProfile, setProfile } from "../stores/profile.js";
 import { announce } from "./aboutYouToast.js";
 import { SettingRow } from "./SettingRow.jsx";
-import { DENSITIES, AppearancePick, KeysSwitch } from "./Personal.jsx";
+import { DENSITIES, AppearancePick, KeysSwitch, pickDensity } from "./Personal.jsx";
 import { CopyFolder } from "./Safety.jsx";
 import { listBackups, setCopyFolder } from "./safetyApi.js";
 import { LocalFolderPick } from "./ClientFolder.jsx";
@@ -49,7 +49,7 @@ function SpacingRow() {
     <SettingRow id="ess-spacing-first" name="Spacing">
       <div class="seg" role="radiogroup" aria-label="Spacing" data-ess-density>
         {DENSITIES.map(([id, name], i) => (
-          <button key={id} type="button" role="radio" id={i === 0 ? "ess-spacing-first" : undefined} data-ess-density-pick={id} aria-checked={density.value === id ? "true" : "false"} onClick={() => setDensity(id)}>{name}</button>
+          <button key={id} type="button" role="radio" id={i === 0 ? "ess-spacing-first" : undefined} data-ess-density-pick={id} aria-checked={density.value === id ? "true" : "false"} onClick={() => pickDensity(id)}>{name}</button>
         ))}
       </div>
     </SettingRow>

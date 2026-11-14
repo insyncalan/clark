@@ -159,7 +159,7 @@ function chosen(label, list, set, current, next) {
   announceSwitch(`${label}: ${nameOf(next)}.`, () => { set(current); return { ok: true }; }, `${label}: ${nameOf(current)}.`);
 }
 const pickAppearance = (next) => chosen("Appearance", APPEARANCES, setAppearance, appearance.value, next);
-const pickDensity = (next) => chosen("Spacing", DENSITIES, setDensity, density.value, next);
+export const pickDensity = (next) => chosen("Spacing", DENSITIES, setDensity, density.value, next);
 
 function flipKeys() {
   const now = !singleKeys.value;

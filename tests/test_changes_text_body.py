@@ -71,7 +71,7 @@ class NewWithBody(TextBody):
         self.assertEqual(self.stored(got["ref"]), self.STARTER, "the empty paragraph and the empty list item survive the cleaner")
 
     def test_a_body_on_another_type_is_refused(self):
-        for kind in ("needs", "tracker", "table"):
+        for kind in ("tracker", "table"):
             with self.subTest(kind=kind):
                 before = self.state()
                 status, got = self.change(self.req("new", values={"type": kind, "title": "x", "body": "<p>x</p>"}, after=SUMMARY))

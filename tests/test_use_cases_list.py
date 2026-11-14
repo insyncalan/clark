@@ -561,14 +561,13 @@ class Narrowing(Setup):
             self.assertEqual(self.refs(p), ["UC 1.10", "UC 2.1"])
             self.assertEqual(self.count(p), "Showing 2 of 4 · 2 on the dashboard")
 
-    def test_import_export_and_add_use_case_sit_on_the_tabs_row(self):
+    def test_group_by_and_add_use_case_sit_on_the_tabs_row(self):
         with chrome() as cdp:
             p = self.show(cdp)
             got = p.js("[...document.querySelectorAll('#usecases .fvrow .ucl-tools button')].map(b => [b.id, b.getAttribute('aria-label')])")
-            self.assertEqual(got, [["ucl-group", "Group by: Nothing"], ["ucl-sort", "Sort by: Reference"], ["impBtn", "Import from Excel"], ["expBtn", "Export to Excel"], ["ucAddPage", "Add use case"]], "Group by, Sort by, Import (up arrow), Export (down arrow), then the + with the Work items word, at the right end of the tabs row")
+            self.assertEqual(got, [["ucl-group", "Group by: Nothing"], ["ucl-sort", "Sort by: Reference"], ["ucAddPage", "Add use case"]], "Group by, Sort by, then the + with the Work items word, at the right end of the tabs row; no Import or Export (item 1142)")
             self.assertEqual(p.js("document.querySelectorAll('#usecases .head button').length"), 0, "nothing is left in the head")
-            self.assertEqual(p.js("document.querySelectorAll('#usecases .fvrow #impBtn.bib, #usecases .fvrow #expBtn.bib').length"), 2, "Import and Export are the Work items icons (the ruling)")
-            self.assertEqual(p.js("document.querySelector('#impBtn svg use, #impBtn svg') ? 1 : 0"), 1)
+            self.assertEqual(p.js("document.querySelectorAll('#impBtn, #expBtn').length"), 0, "no Import or Export icon on the page")
             self.assertGreater(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().left"), p.js("document.querySelector('[data-tab=risk]').getBoundingClientRect().right"), "to the right of the last tab")
             self.assertLess(p.js("document.querySelector('#ucAddPage').getBoundingClientRect().bottom"), p.js("document.querySelector('#usecases [data-fline]').getBoundingClientRect().top") + 1, "above the line")
             self.click(p, "#ucAddPage")

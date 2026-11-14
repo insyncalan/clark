@@ -43,13 +43,17 @@ class Matches(unittest.TestCase):
         self.assertEqual([x for x in got if x in editor], got, "nothing in the file that the editor does not list")
         self.assertEqual([x for x in editor if x in got], got, "the same order")
 
-    def test_a_needs_section_the_editor_has_still_gets_the_flagged_rows(self):
+    def test_a_stored_needs_section_with_rows_and_a_flagged_item_is_not_in_the_file(self):
+        """Item 1158: a Needs from you section already stored simply stops showing; it stays stored."""
+        body = json.dumps({"v": 1, "rows": [{"what": "Typed row", "kind": "decision", "from": "", "by": "", "hidden": 0}]})
         with self.s.step("dashboard", USER) as st:
-            st.create("report_sections", {"project": "ABC", "type": section_bodies.NEEDS, "title": "Needs from you", "body": "",
-                                          "sort_order": 1, "beside": 0, "hidden": 0})
+            ref = st.create("report_sections", {"project": "ABC", "type": section_bodies.NEEDS, "title": "Needs from you", "body": body,
+                                                "sort_order": 1, "beside": 0, "hidden": 0})
         self.flag()
-        got = [s for s in publish.build(self.s, "ABC", now=NOW)["published"]["sections"] if s["type"] == "needs"]
-        self.assertEqual([r["what"] for r in got[0]["rows"]], ["Send the access list"])
+        built = publish.build(self.s, "ABC", now=NOW)
+        self.assertNotIn("needs", [s["type"] for s in built["published"]["sections"]])
+        self.assertNotIn(b"Typed row", built["body"])
+        self.assertEqual(json.loads(self.s.read("report_sections", ref=ref)["body"]), json.loads(body), "the stored section is untouched")
 
 
 if __name__ == "__main__":
