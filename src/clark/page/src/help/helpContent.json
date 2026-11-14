@@ -576,7 +576,7 @@
      "In Edit, a small menu beside the status reads **Set commitment** when there is none: choose a word, or **No flag** to clear it. Each choice is one change, with one Undo and one line in History.",
      "A published file shows the chip but never the menu. A use case taken off the page with the eye is left out of the published file whole, chip and all.",
      "In the detail, write **Where it stands**, or add a next step as “Owner: what it is”.",
-     "**Archive this use case** asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
+     "**Archive** in the **More actions** menu asks first. It leaves the usual lists, the counts and the published page; its work items stay and lose the link. **Restore** or Undo brings it back."
     ],
     "page": [
      "dashboard"
@@ -1648,8 +1648,8 @@
      [
       "ul",
       [
-       "**The top bar**: Previous item and Next item, the milestone’s number, Archive (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
-       "**Archive**: the Archive button archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
+       "**The top bar**: Previous item and Next item, the milestone’s number, More actions (in Edit, and on the Milestones page), Make this panel fill the screen and Close this panel.",
+       "**Archive**: pressing it in the **More actions** menu archives the milestone and closes the peek. A message says, for example, M3 archived. It is out of the lists and the published page. Press **Undo** in that message and it says M3 is back.",
        "**Tabs** (in Edit): Details, then Activity, the history of the milestone.",
        "**The title** is the milestone’s **Name**: in Edit, click it to change it.",
        "**The header line**: the state, the **Owner** and the progress. Achieved appears only once the milestone is achieved, and picking Achieved sets the progress to 100%. In View it carries its date; in Edit the date is in the Achieved on row, not repeated in the header.",
@@ -1834,7 +1834,7 @@
      [
       "ul",
       [
-       "**The cover**: the project, the week ending and who it is for.",
+       "**The top bar**: the project, the week ending and who it is for.",
        "**Three tabs**: Dashboard, Work items and Milestones.",
        "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**. **Profile** keeps the reader’s name in their own browser only, and the button then shows their initials. **Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
        "**Dashboard**: the report in the Spacing you chose, with **On this page** at the right.",
@@ -2044,7 +2044,7 @@
        ],
        [
         "Use cases",
-        "ID, Use case, Shown as, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
+        "ID, Reference, Use case, Status, Commitment, Headline, Where it stands, Order, Client-visible, Linked milestones"
        ]
       ]
      ],

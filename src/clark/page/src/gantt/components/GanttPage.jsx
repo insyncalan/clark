@@ -154,7 +154,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     <>
     {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing && BarNote ? <BarNote /> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
-      <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
+      {fromFile.value ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar */}
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
         {bar}
