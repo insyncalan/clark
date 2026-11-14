@@ -1,4 +1,4 @@
-"""The View | Edit switch (#665, item 1177): on the Dashboard it is the floating icon pill (#mode-pill, fixed under the header; where it sits is
+"""The View | Edit switch (item 665, item 1177): on the Dashboard it is the floating icon pill (#mode-pill, fixed under the header; where it sits is
 test_hdr1177_pill) and not in the top bar or the report bar; on every other tab there is no switch at all (row 804). Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_mode_pill
@@ -35,6 +35,11 @@ class ModePill(Base):
             p = self.visit(cdp)
             self.assertEqual(p.js(PLACE), [1, False, False])
             self.assertEqual(p.js(f"getComputedStyle({GROUP}).position"), "fixed")
+
+    def test_the_two_buttons_are_one_named_group_for_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            self.assertEqual(p.js(f"[{GROUP}.getAttribute('role'), {GROUP}.getAttribute('aria-label')]"), ["group", "View or Edit"])
 
     def test_on_the_other_tabs_there_is_no_switch_at_all(self):      # row 804: View | Edit is the Dashboard's alone
         with chrome() as cdp:

@@ -1,5 +1,5 @@
 """Row 1064, changed by item 1177: the editor's one header now DRAWS the project name, once, as the .hdr-project button (the switcher); the logo stays, with room
-between it and the top menu items; the profile circle (Settings is behind it) stays inside the window at 1400 and 900 px (#1033), in light and dark; the header is
+between it and the top menu items; the profile circle (Settings is behind it) stays inside the window at 1400 and 900 px (item 1033), in light and dark; the header is
 85 px high at 1400 and 129 px at 900. Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_header_no_project_name

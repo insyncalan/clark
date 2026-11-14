@@ -50,7 +50,7 @@ class PillModes(Base):
         with chrome() as cdp:
             p = self.visit(cdp)
             p.until(SHOWN, "the pill is shown")
-            self.assertEqual(p.js("document.querySelectorAll('[aria-label=\"View or Edit\"]').length"), 0, "no old View or Edit group left")
+            self.assertEqual(p.js("document.querySelectorAll('[aria-label=\"View or Edit\"]:not(#mode-pill)').length"), 0, "no old View or Edit group left")
             self.assertEqual(p.js("document.querySelectorAll('#report-bar [data-mode]').length"), 0, "no mode button left in the report bar")
             self.assertEqual(p.js("document.querySelectorAll('.top [data-mode]').length"), 0, "no mode button in the header")
             self.assertEqual(p.js("document.querySelectorAll('button[data-mode]').length"), 2, "exactly the pill's two mode buttons")      # buttons only: #report itself carries data-mode (Dashboard.jsx:100), as an attribute and not a switch

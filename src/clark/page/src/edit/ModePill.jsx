@@ -8,7 +8,7 @@ export function ModePill() {
   if (!data.value) return null;
   const editing = mode.value === "edit";
   return (
-    <span class="modes" id="mode-pill">
+    <span class="modes" id="mode-pill" role="group" aria-label="View or Edit">
       <button type="button" class="mode" data-mode="view" title="View" aria-keyshortcuts={singleKeys.value ? "V" : undefined} aria-pressed={editing ? "false" : "true"} onClick={() => { mode.value = "view"; }}>
         <svg class="tb-ico" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 10s3-5.5 8-5.5S18 10 18 10s-3 5.5-8 5.5S2 10 2 10z" /><circle cx="10" cy="10" r="2.4" /></svg>
       </button>
