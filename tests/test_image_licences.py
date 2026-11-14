@@ -1,4 +1,4 @@
-"""#637: the image licence list. Pure parts with made-up data; the compose file's image line and the docker folder are checked
+"""item 637: the image licence list. Pure parts with made-up data; the compose file's image line and the docker folder are checked
 as text. No Docker is run. Run: python3 dev/run_tests.py test_image_licences
 """
 import json

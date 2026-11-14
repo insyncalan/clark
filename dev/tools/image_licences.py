@@ -1,4 +1,4 @@
-"""Turn what is inside the Python image into THIRD-PARTY-IMAGE.txt and a package list (#637, v1.1 Windows download).
+"""Turn what is inside the Python image into THIRD-PARTY-IMAGE.txt and a package list (item 637, v1.1 Windows download).
 
 Run on a computer that has Docker, with the image named in docker/compose.yaml loaded:
     python3 dev/tools/image_licences.py --image python:3.12.12-slim-bookworm --out build/image-licences
