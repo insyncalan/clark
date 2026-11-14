@@ -28,6 +28,8 @@ class MotionAsk(Panel):
                     for motion, up, down in (("no-preference", "ask-up", "ask-down"), ("reduce", "none", None)):
                         with self.subTest(width=width, theme=theme, motion=motion):
                             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": motion}]}, p.sid)
+                            if motion == "no-preference":
+                                p.js("delete document.documentElement.dataset.motion")  # a Mac that reduces motion had the page paint data-motion=reduce at load
                             p.key("/", code="Slash", vk=191)
                             p.until("!!document.querySelector('#ask-panel')", "opened")
                             self.assertEqual(p.js(NAME), up)
