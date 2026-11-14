@@ -26,6 +26,7 @@ import { openCard } from "./Board.jsx";
 import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
 
 // The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
 // so a published file holds no trace of it (#115).
@@ -76,7 +77,7 @@ function openFor(el, x, y, pointer, back) {
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1) return;
+      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1 || handing()) return;   // Hand over (item 199) ticks and nothing else
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -85,7 +86,7 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (view.value !== "work" || workSelection.size.value >= 1 || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
