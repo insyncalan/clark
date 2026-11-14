@@ -168,6 +168,7 @@ class Head(unittest.TestCase):
                 # the Activity line
                 click(cdp, sid, "[data-pk-htab=activity]")
                 self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('[data-activity-row]').length", sid) > 0))
+                self.assertTrue(wait(lambda: "Demo User" in cdp.js("document.querySelector('[data-activity-row]').textContent", sid)), "the new line is read in: " + cdp.js("document.querySelector('[data-activity-row]').textContent", sid))
                 first = cdp.js("document.querySelector('[data-activity-row]').textContent", sid)
                 self.assertIn("Demo User", first, "the line names who made the change")
                 for word in set(was.split()) | set(new.split()):           # the line draws the change word by word, old words struck and new ones added
