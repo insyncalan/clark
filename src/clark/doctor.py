@@ -14,6 +14,8 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - the browser: Chrome found, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
 - Claude Code, for ask clark (advice: clark runs without it)
+- folders saved in the data (a project's source folders, a publication's saved paths) that do not exist on this computer (advice:
+  a backup made on another computer holds that computer's paths; clark still starts)
 With --docker two more (required): Docker Desktop is running Linux containers, and Windows has not set the port aside.
 
 It ends with "Everything clark needs is ready." or how many things to fix. The exit code is 0 when every required check is
@@ -263,6 +265,43 @@ def check_port_reserved(seen):
     return Line(READY, f"Port {port} isn't set aside.")
 
 
+def saved_paths(folder):
+    """Every folder path the database in `folder` holds, read without changing it: source_folders.path and publications.local_path /
+    client_path. [] when there is no database yet or a table is not there (an older schema). Raises sqlite3.Error if it can't be read."""
+    db = Path(folder) / "clark.db"
+    if not db.is_file():
+        return []
+    con = sqlite3.connect(f"file:{db.as_posix()}?mode=ro", uri=True)
+    try:
+        found = []
+        for sql in ("SELECT path FROM source_folders", "SELECT local_path FROM publications",
+                    "SELECT client_path FROM publications"):
+            try:
+                found += [row[0] for row in con.execute(sql)]
+            except sqlite3.OperationalError as e:
+                if "no such table" not in str(e):
+                    raise
+        return sorted({p for p in found if p})
+    finally:
+        con.close()
+
+
+def check_saved_folders(seen):
+    """Folders saved in the data that do not exist here (issue 635): a backup is portable, but the paths in it are the other
+    computer's. Advice, never a block."""
+    if sqlite3 is None:
+        raise RuntimeError("no SQLite")         # run_check says "couldn't finish"
+    paths = saved_paths(seen.folder())
+    missing = [p for p in paths if not os.path.exists(p)]
+    if not paths:
+        return Line(READY, "No folders are saved in your data yet.")
+    if not missing:
+        return Line(READY, "Every folder saved in your data is here.")
+    shown = ", ".join(seen.tilde(p) for p in missing[:3]) + (f" and {len(missing) - 3} more" if len(missing) > 3 else "")
+    return Line(ADVICE, f"Folders saved in your data that do not exist here: {shown}. This happens after moving your data from "
+                        "another computer. clark still starts; choose these folders again where you use them.")
+
+
 DOCKER_CHECKS = (
     Check("The Docker check for Linux containers", True, check_docker_mode),
     Check("The check that Windows has not set the port aside", True, check_port_reserved),
@@ -277,6 +316,7 @@ CHECKS = (
     Check("The browser check", False, check_browser),
     Check("The check that nothing is in the way", True, check_port),
     Check("The Claude Code check", False, check_claude),
+    Check("The check for saved folders", False, check_saved_folders),
 )
 
 

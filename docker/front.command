@@ -44,7 +44,7 @@ case "$1" in
     fi
     export CLARK_PORT="$port" CLARK_SERVER_PORT="$sport"
     docker compose -f "$PWD/docker/compose.front.yaml" up -d || { say "Docker could not start. clark itself is still running: open http://127.0.0.1:$sport instead, or use bash clark.command."; exit 1; }
-    echo "Open http://localhost:$port to use clark."
+    echo "Open http://127.0.0.1:$port to use clark (type 127.0.0.1, not localhost)."
     ;;
   *)
     say "Type: bash docker/front.command server, or bash docker/front.command, or bash docker/front.command stop"
