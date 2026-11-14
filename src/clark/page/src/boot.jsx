@@ -9,7 +9,7 @@ export function boot(tools) {
   if (!tools) keepChoices();                 // a published file remembers the client's choices in their own browser (#69)
   if (tools && tools.pageErrors) tools.pageErrors();        // page faults reach the log through the server (#110); a published file has none
   if (tools && tools.askPanel) tools.askPanel.installKeys();
-  if (tools && tools.modeKeys) tools.modeKeys.install();      // V and E (keys.js): heard from the start, not when the switch mounts (#665)
+  if (tools && tools.modeKeys) tools.modeKeys.install();      // V and E, and Cmd+Option+S for Settings (keys.js): heard from the start, not when the switch mounts (item 665)
   render(<App tools={tools} />, document.getElementById("app"));
   document.documentElement.dataset.ready = "1";
   // The server puts this run's token in a data block after this script, and a published file (#39) has its data in one: read

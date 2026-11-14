@@ -2210,6 +2210,10 @@
     "Opens ask clark, from any page, even in a box. It does nothing while Help or another dialog is open"
    ],
    [
+    "Cmd+Option+S",
+    "Opens Settings, from any page. Mac only. It does nothing while you are typing in a box, or while Help, a record or another dialog is open."
+   ],
+   [
     "[[Up]] [[Down]] [[Home]] [[End]]",
     "Work items table: move the cursor from row to row (never onto a group heading), to the first row or to the last. The blue outline shows where it is. The table is one stop for [[Tab]]"
    ],
