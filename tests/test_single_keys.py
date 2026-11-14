@@ -116,7 +116,7 @@ class PageKeys(Base):
                     p.until(f"window.innerWidth === {w}", "resized")
                     where = f"{scheme} {w}"
                     p.js("document.activeElement.blur()")
-                    self.assertEqual(p.js(TITLES), ["View (V)|V", "Edit (E)|E"], where)
+                    self.assertEqual(p.js(TITLES), ["View|V", "Edit|E"], where)
                     for key, test in (("e", EDIT), ("v", VIEW), ("E", EDIT), ("V", VIEW)):
                         self.letter(p, key)
                         p.until(test, f"{where}: {key} does its job when on")
@@ -135,7 +135,7 @@ class PageKeys(Base):
                     self.assertTrue(p.js(EDIT), f"{where}: V does nothing when off")
                     p.view()
                     self.flip(p, True)                                                # read live: no reload
-                    self.assertEqual(p.js(TITLES), ["View (V)|V", "Edit (E)|E"], f"{where}: the letter is back")
+                    self.assertEqual(p.js(TITLES), ["View|V", "Edit|E"], f"{where}: the letter is back")
                     self.letter(p, "e")
                     p.until(EDIT, f"{where}: E works again, no reload")
                     p.view()

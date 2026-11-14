@@ -192,7 +192,8 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:9], ["menuitem"] * 7 + ["separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443), Settings (row 1092); Help follows the group
+                lead = 1 if w == 1400 else 2     # item 1177: the name line, and at 900 'Go to or do' (ProfileMenu.jsx:108-110, asking is off here), then the state line (role presentation, ProfileMenu.jsx const state)
+                self.assertEqual(roles[:lead + 1 + 6 + 2], ["menuitem"] * lead + ["presentation"] + ["menuitem"] * 6 + ["separator", "group"])     # Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443), Settings (row 1092); Help follows the group
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")

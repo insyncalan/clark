@@ -348,6 +348,9 @@ class Page(Base):
             p.edit()
             self.set(p, ref, "[data-overall-edit] [data-f=health]", "ontrack", "change")
             self.assertTrue(self.wait_until(lambda: self.stored(ref)["overall"]["health"] == "ontrack"))
+            # item 1177: the words field is contenteditable="false" while the health save is busy (TrackerWords.jsx, `busy ? "false"`), and the store is read
+            # before the page has set busy back; wait for the page to be free, as the columns step below does, or the typing lands in a field that is off.
+            p.until("!" + self.one(ref, "[data-overall-edit] [data-f=health]") + ".disabled" + " && " + self.one(ref, "[data-tr-words]") + ".isContentEditable", "the words are editable again after the health saved")
             self.assertEqual(p.js(self.count(ref, "[data-overall-edit] input[data-f=note]")), 0, "the words are edited in place now")
             p.js("(function(){var el=" + self.one(ref, "[data-tr-words]") + "; el.focus(); getSelection().selectAllChildren(el);})()")
             p.type("All good")

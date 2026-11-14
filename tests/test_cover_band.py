@@ -1,4 +1,5 @@
-"""A-D1 page side: the report's cover band (name, WEEKLY REPORT, week ending, for <client>), in a real browser.
+"""A-D1 page side: the report's cover band, in a real browser. Item 1177: the editor's Dashboard has no cover band any more; its words and
+picture are in the one slim header (.top-hdr). The Gantt page still draws header.cover (Cover.jsx), so the band cases that still apply run there.
 
 Run: python3 dev/run_tests.py test_cover_band
 Served page (View) and the published file, at 1400 and 900 px, light and dark. Fictional data.
@@ -15,26 +16,40 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from _demo import USER
-from test_glance_page import Published, Setup
+from test_glance_page import Published, Setup, Pg
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
 import _testpage as testpage
 from clark import page
 from test_brand_picture import png
 
+# item 1177: the editor's header (.top-hdr) holds the project name (.hdr-project), "Weekly report" (.hdr-kind) and the week (.hdr-date); no "for <client>".
 BAND = """(() => {
-  const c = document.querySelector('header.cover'); if (!c) return null;
-  const h = c.querySelector('h1'), line = c.querySelector('.cover-line');
-  const f = document.querySelector('.frame').getBoundingClientRect(), r = c.getBoundingClientRect();
-  return {name: h.textContent, line: line.textContent, kind: c.querySelector('.cover-kind').textContent,
-          bg: getComputedStyle(c).backgroundColor, top: r.top - f.top, left: r.left - f.left, right: f.right - r.right,
-          h1count: document.querySelectorAll('h1').length, wide: document.documentElement.scrollWidth <= window.innerWidth,
-          fg: getComputedStyle(h).color, crumbs: document.querySelectorAll('.report .crumbs').length};
+  const c = document.querySelector('.top-hdr'); if (!c) return null;
+  const h = c.querySelector('.hdr-project'), line = c.querySelector('.hdr-line');
+  const r = c.getBoundingClientRect();
+  return {name: h.textContent, line: line.textContent, kind: c.querySelector('.hdr-kind').textContent,
+          bg: getComputedStyle(c).backgroundColor, top: r.top, left: r.left, right: window.innerWidth - r.right,
+          covers: document.querySelectorAll('header.cover, #cover').length, headers: document.querySelectorAll('.top-hdr').length,
+          wide: document.documentElement.scrollWidth <= window.innerWidth, crumbs: document.querySelectorAll('.report .crumbs').length,
+          text: c.textContent};
 })()"""
 LUM = """(() => { const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
   const l = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
-  const c = document.querySelector('header.cover'), bg = l(rgb(getComputedStyle(c).backgroundColor));
-  return ['h1', '.cover-line', '.cover-kind'].map((s) => { const x = l(rgb(getComputedStyle(c.querySelector(s)).color)); return (Math.max(x, bg) + 0.05) / (Math.min(x, bg) + 0.05); }); })()"""
+  const c = document.querySelector('@BAND@'), bg = l(rgb(getComputedStyle(c).backgroundColor));
+  return ['@WORDS@'].flatMap((s) => s.split(',')).map((s) => { const x = l(rgb(getComputedStyle(c.querySelector(s.trim())).color)); return (Math.max(x, bg) + 0.05) / (Math.min(x, bg) + 0.05); }); })()"""
+LUM_HDR = LUM.replace("@BAND@", ".top-hdr").replace("@WORDS@", ".hdr-project,.hdr-line,.hdr-kind")
+LUM_COVER = LUM.replace("@BAND@", "header.cover").replace("@WORDS@", "h1,.cover-line,.cover-kind")
+
+
+def gantt_page(test, cdp, width=1400, dark=False):
+    """The Gantt page of the served app (it still draws header.cover, Cover.jsx), waited for by its cover."""
+    p = Pg.at(test, cdp, test.s.port, "#gantt&p=ABC", section_style="slim")
+    cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 1100, "deviceScaleFactor": 1, "mobile": False}, p.sid)
+    if dark:
+        p.js("document.documentElement.dataset.theme = 'dark'")
+    p.until("!!document.querySelector('header.cover')", "the Gantt page drew its cover")
+    return p
 
 
 class Served(Setup):
@@ -43,54 +58,63 @@ class Served(Setup):
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"client_name": "Example Client", "week_ending": "2026-10-23"})
 
-    def test_the_band_names_the_project_the_week_and_the_client(self):
+    def test_the_header_names_the_project_and_the_week_with_no_client_and_no_band(self):
         for width, dark in ((1400, False), (900, True), (1400, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
                 b = p.js(BAND)
-                self.assertTrue(b["name"])
+                self.assertTrue(b["name"].strip())
                 self.assertEqual(b["kind"].upper(), "WEEKLY REPORT")
                 self.assertIn("Week ending 23-10-2026", b["line"])
-                self.assertIn("for Example Client", b["line"])
-                self.assertEqual((b["h1count"], b["crumbs"]), (1, 0), "one heading, and the small client line is gone")
-                self.assertLessEqual(abs(b["left"] - 1), 1.5, "full width of the frame, inside its border")
-                self.assertLessEqual(abs(b["right"] - 1), 1.5)
+                self.assertNotIn("for Example Client", b["text"], "item 1177: the editor's header has no 'for <client>'")
+                self.assertEqual((b["headers"], b["covers"], b["crumbs"]), (1, 0, 0), "one header, no cover band under it, and no small client line")
+                self.assertLessEqual(abs(b["left"]), 1.5, "full width of the window")
+                self.assertLessEqual(abs(b["right"]), 1.5)
                 self.assertTrue(b["wide"], "no sideways scroll")
-                self.assertGreaterEqual(b["top"], -1.5, "the band does not start above the frame")
-                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+                self.assertLessEqual(abs(b["top"]), 1.5, "the header is at the top of the window")
+                self.assertGreaterEqual(min(p.js(LUM_HDR)), 4.5)
 
 
-RADII = """(() => { const c = document.querySelector('header.cover'), s = getComputedStyle(c);
+RADII = """(() => { const c = document.querySelector('@SEL@'), s = getComputedStyle(c);
   return {r: [s.borderTopLeftRadius, s.borderTopRightRadius, s.borderBottomRightRadius, s.borderBottomLeftRadius], shadow: s.boxShadow}; })()"""
 
 
 class Corners(Setup):
-    """Row 997: a band standing alone over separate section cards has four round corners and the card shadow; as the top of the
-    one-card frame (the Card style) it keeps the top two only and no shadow of its own."""
+    """Row 997 on the Gantt page's cover band: standing alone over separate section cards it has four round corners and the card shadow;
+    as the top of the one-card frame (the Card style) it keeps the top two only and no shadow of its own. Item 1177: the editor's header
+    is a square bar edge to edge in either style."""
 
-    def test_the_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
-        for style in ("comfortable",):
-            with self.subTest(style=style), chrome() as cdp:
-                p = self.show(cdp)
-                p.js(f"document.documentElement.dataset.density = '{style}'")
-                got = p.js(RADII)
-                self.assertEqual(len(set(got["r"])), 1, got)
-                self.assertNotEqual(got["r"][0], "0px", got)
-                self.assertNotEqual(got["shadow"], "none", got)
-
-    def test_the_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
+    def test_the_gantt_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
         with chrome() as cdp:
-            p = self.show(cdp)
+            p = gantt_page(self, cdp)
+            p.js("document.documentElement.dataset.density = 'comfortable'")
+            got = p.js(RADII.replace("@SEL@", "header.cover"))
+            self.assertEqual(len(set(got["r"])), 1, got)
+            self.assertNotEqual(got["r"][0], "0px", got)
+            self.assertNotEqual(got["shadow"], "none", got)
+
+    def test_the_gantt_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
+        with chrome() as cdp:
+            p = gantt_page(self, cdp)
             p.js("document.documentElement.dataset.density = 'compact'")
-            got = p.js(RADII)
+            got = p.js(RADII.replace("@SEL@", "header.cover"))
             self.assertEqual(got["r"][2:], ["0px", "0px"], got)
             self.assertNotEqual(got["r"][0], "0px", got)
             self.assertEqual(got["shadow"], "none", got)
 
+    def test_the_editor_header_is_a_square_bar_with_no_shadow_in_either_style(self):
+        for density in ("comfortable", "compact"):
+            with self.subTest(density=density), chrome() as cdp:
+                p = self.show(cdp)
+                p.js(f"document.documentElement.dataset.density = '{density}'")
+                got = p.js(RADII.replace("@SEL@", ".top-hdr"))
+                self.assertEqual(got["r"], ["0px"] * 4, got)
+                self.assertEqual(got["shadow"], "none", got)
 
-PICTURE = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::before');
+
+PICTURE = """(() => { const c = document.querySelector('@SEL@'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::before');
   return {band: [r.width, r.height], box: [parseFloat(s.width), parseFloat(s.height)], image: s.backgroundImage, size: s.backgroundSize,
-          pos: s.backgroundPosition, repeat: s.backgroundRepeat, overflow: getComputedStyle(c).overflow}; })()"""
+          pos: s.backgroundPosition, repeat: s.backgroundRepeat, overflow: getComputedStyle(c).overflow, opacity: s.opacity}; })()"""
 
 
 def artwork():
@@ -103,8 +127,10 @@ def artwork():
     return 'url("data:image/png;base64,' + base64.b64encode(png).decode() + '")'
 
 
-def check_fills(test, got, has_picture):
-    test.assertEqual(got["overflow"], "hidden", "the picture is clipped to the band's rounded shape")
+def check_fills(test, got, has_picture, share, clipped):
+    """share: the part of the band's width the picture's box covers (the Gantt cover 0.6, the editor header 0.45)."""
+    if clipped:
+        test.assertEqual(got["overflow"], "hidden", "the picture is clipped to the band's rounded shape")
     if not has_picture:
         test.assertEqual(got["image"], "none", "no brand picture: the plain band, nothing drawn")
         return
@@ -112,35 +138,54 @@ def check_fills(test, got, has_picture):
     test.assertEqual(got["size"], "cover", "the picture is scaled to fill, never drawn at its own size")
     test.assertEqual(got["repeat"], "no-repeat")
     test.assertAlmostEqual(got["box"][1], got["band"][1], delta=1.5, msg="the picture's box is as tall as the band: no empty band under it")
-    test.assertAlmostEqual(got["box"][0], got["band"][0] * 0.6, delta=1.5, msg="and reaches the band's right edge")
+    test.assertAlmostEqual(got["box"][0], got["band"][0] * share, delta=1.5, msg="and reaches the band's right edge")
 
 
 class Picture(Setup):
-    """Row 1003: a brand picture fills the report band (no hard edge with an empty band under it), in the editor's page, light
-    and dark, at 1400 and 900; without a brand picture the band is plain."""
+    """Row 1003: a brand picture fills the report band (no hard edge with an empty band under it), light and dark, at 1400 and 900;
+    without a brand picture the band is plain. Item 1177: in the editor the picture is a wash on the header's right 45 percent
+    (shell.css, .top-hdr::before, about 42 percent strength); the Gantt page's cover keeps the row 1003 band (its right 60 percent)."""
 
-    def test_the_brand_picture_fills_the_band(self):
+    def test_the_brand_picture_fills_the_gantt_band(self):
+        for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = gantt_page(self, cdp, width, dark)
+                js = PICTURE.replace("@SEL@", "header.cover")
+                check_fills(self, p.js(js), False, 0.6, True)
+                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
+                check_fills(self, p.js(js), True, 0.6, True)
+
+    def test_the_brand_picture_is_a_wash_over_the_right_of_the_editor_header(self):
         for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.show(cdp, width, dark)
-                check_fills(self, p.js(PICTURE), False)
+                js = PICTURE.replace("@SEL@", ".top-hdr")
+                check_fills(self, p.js(js), False, 0.45, False)
                 p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
-                check_fills(self, p.js(PICTURE), True)
+                got = p.js(js)
+                check_fills(self, got, True, 0.45, False)
+                self.assertAlmostEqual(float(got["opacity"]), 0.42, delta=0.01, msg="a soft wash, not the full picture")
 
 
 LOGO = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::after');
   return {band: [r.width, r.height], display: s.display, image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat,
           pos: s.backgroundPosition, abs: s.position, w: parseFloat(s.width), h: parseFloat(s.height), top: parseFloat(s.top), right: parseFloat(s.right)}; })()"""
+# item 1177: what the editor's header draws of the brand logo today: nothing. Its own clark logo (.logo) is the product's, not the brand's.
+HDR_LOGO = """(() => { const c = document.querySelector('.top-hdr'), s = getComputedStyle(c, '::after');
+  return {content: s.content, image: s.backgroundImage, covers: document.querySelectorAll('header.cover').length,
+          var: getComputedStyle(document.documentElement).getPropertyValue('--image-logo').trim(),
+          drawn: [...c.querySelectorAll('*')].filter((e) => !e.closest('.logo') && /data:image[/]png|one-brand/.test(getComputedStyle(e).backgroundImage + getComputedStyle(e, '::after').backgroundImage)).length}; })()"""
 
 
 class Logo(Setup):
     """item 1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right (the
-    prototype's .cover .mark), in the editor's page at 1400 and 900, light and dark; nothing is drawn without a brand logo."""
+    prototype's .cover .mark), at 1400 and 900, light and dark; nothing is drawn without a brand logo. Item 1177: the Gantt page's
+    cover still has it; the editor's header has no place for the brand logo (OPEN DESIGN QUESTION), so it draws none."""
 
-    def test_the_brand_logo_sits_at_the_right_of_the_band(self):
+    def test_the_brand_logo_sits_at_the_right_of_the_gantt_band(self):
         for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                p = self.show(cdp, width, dark)
+                p = gantt_page(self, cdp, width, dark)
                 plain = p.js(LOGO)
                 self.assertEqual(plain["image"], "none", "no brand logo: nothing is drawn")
                 p.js("document.documentElement.style.setProperty('--image-logo', %s)" % json.dumps(artwork()))
@@ -153,13 +198,22 @@ class Logo(Setup):
                 self.assertTrue(got["pos"].startswith("100%"), "against the right edge of its box")
                 self.assertLessEqual(got["w"] + got["right"], got["band"][0], "inside the band")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
-                self.assertGreaterEqual(min(p.js(LUM)), 4.5, "the text keeps its contrast")
+                self.assertGreaterEqual(min(p.js(LUM_COVER)), 4.5, "the text keeps its contrast")
+
+    def test_the_editor_header_draws_no_brand_logo_even_when_the_brand_has_one(self):
+        for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                p.js("document.documentElement.style.setProperty('--image-logo', %s)" % json.dumps(artwork()))
+                got = p.js(HDR_LOGO)
+                self.assertIn(got["content"], ("none", "normal"), "no ::after box in the header")
+                self.assertEqual((got["image"], got["covers"], got["drawn"]), ("none", 0, 0), got)
 
 
 class BrandLogo(Setup):
     """item 1154: the logo comes from the installed brand's assets/logo.png, through the real wiring (the page text the brand layer
-    builds and the picture route), not from a variable set by hand: at 1400 and 900 it is drawn in the band; a brand with no
-    logo draws nothing."""
+    builds and the picture route), not from a variable set by hand: at 1400 and 900 it is drawn in the Gantt page's band (item 1177:
+    the editor's header has no place for it, so there the variable only reaches the page); a brand with no logo draws nothing."""
 
     def serve(self, with_logo):
         tmp = tempfile.TemporaryDirectory()
@@ -179,19 +233,28 @@ class BrandLogo(Setup):
         self.serve(True)
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
-                p = self.show(cdp, width, dark)
+                p = gantt_page(self, cdp, width, dark)
                 got = p.js(LOGO)
                 self.assertIn("/assets/one-brand/logo.png", got["image"])
                 self.assertEqual((got["display"], got["h"], got["top"], got["right"]), ("block", 64, 24, 36))
                 p.js("window.__logo = 0; const i = new Image(); i.onload = () => { window.__logo = i.naturalWidth; }; i.src = '/assets/one-brand/logo.png';")
                 p.until("window.__logo === 40", "the logo picture loaded from the route")
-                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+                self.assertGreaterEqual(min(p.js(LUM_COVER)), 4.5)
+
+    def test_the_installed_brand_logo_reaches_the_editor_page_but_the_header_draws_none(self):
+        self.serve(True)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                got = self.show(cdp, width).js(HDR_LOGO)
+                self.assertIn("/assets/one-brand/logo.png", got["var"], "the brand's logo address is in the page")
+                self.assertEqual((got["image"], got["covers"], got["drawn"]), ("none", 0, 0), got)
 
     def test_a_brand_without_a_logo_draws_nothing(self):
         self.serve(False)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                self.assertEqual(self.show(cdp, width).js(LOGO)["image"], "none")
+                self.assertEqual(gantt_page(self, cdp, width).js(LOGO)["image"], "none")
+                self.assertEqual(self.show(cdp, width).js(HDR_LOGO)["var"], "none")
 
 
 ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.querySelector('h1'), l = c.querySelector('.cover-line'),
@@ -203,7 +266,7 @@ ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.query
 
 class LogoRoom(Setup):
     """item 1154: a long project title and cover line wrap before the logo box when a brand logo is set (at 1400 and 900), and
-    the band's padding is what it was with no logo."""
+    the band's padding is what it was with no logo. Item 1177: on the Gantt page's cover, the only band left."""
     serve = BrandLogo.serve
 
     def setUp(self):
@@ -216,7 +279,7 @@ class LogoRoom(Setup):
         self.serve(True)
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
-                got = self.show(cdp, width).js(ROOM)
+                got = gantt_page(self, cdp, width).js(ROOM)
                 self.assertGreater(got["lines"], 1, "the title is long enough to wrap")
                 self.assertLessEqual(got["h1"], got["logoLeft"], "the title ends at or left of the logo box")
                 self.assertLessEqual(got["line"], got["logoLeft"], "the cover line ends at or left of the logo box")
@@ -225,7 +288,7 @@ class LogoRoom(Setup):
         self.serve(False)
         for width, pad in ((1400, "28px"), (900, "16px")):
             with self.subTest(width=width), chrome() as cdp:
-                self.assertEqual(self.show(cdp, width).js(ROOM)["pad"], pad)
+                self.assertEqual(gantt_page(self, cdp, width).js(ROOM)["pad"], pad)
 
 
 class BrandLogoPage(unittest.TestCase):
@@ -254,11 +317,11 @@ class TheWeek(Setup):
         d = date.today()
         return (d + timedelta(days=(4 - d.weekday()) % 7))
 
-    def test_row_34_a_project_with_no_week_shows_the_coming_friday_on_the_cover(self):
+    def test_row_34_a_project_with_no_week_shows_the_coming_friday_in_the_header(self):
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"week_ending": None})
         with chrome() as cdp:
-            line = self.show(cdp).js("document.querySelector('.cover-line').textContent")
+            line = self.show(cdp).js("document.querySelector('.top-hdr .hdr-date').textContent")
         self.assertIn("Week ending " + self.coming_friday().strftime("%d-%m-%Y"), line)
 
 

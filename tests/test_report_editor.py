@@ -211,7 +211,7 @@ class Modes(Base):
             p.js("window.marker = 'same page'; window.lengthBefore = history.length")
             hash_before = p.js("location.hash")
             self.assertEqual(p.js("document.querySelector('#report').dataset.mode"), "view", "a page opens in View")
-            pressed = "[...document.querySelectorAll('.mode')].map(b => b.textContent + ':' + b.getAttribute('aria-pressed'))"
+            pressed = "[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + ':' + b.getAttribute('aria-pressed'))"
             self.assertEqual(p.js(pressed), ["View:true", "Edit:false"])
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
@@ -277,7 +277,8 @@ class Modes(Base):
             p.ready()
             self.assertEqual(p.js("document.querySelectorAll('.sec').length"), 0)
             self.assertEqual(p.js("document.querySelector('#no-sections').textContent"), "This report has no sections yet. Switch to Edit to add one.")
-            self.assertEqual(p.js("document.querySelector('h1').textContent"), "Example Programme")
+            # item 1177: the Dashboard has no banner h1 any more; the header's project button (.hdr-project) holds the open project's own name
+            p.until("!!document.querySelector('.top .hdr-project') && document.querySelector('.top .hdr-project').textContent.indexOf('Example Programme') >= 0", "the header names the project")
             p.edit()
             self.assertEqual(p.js("document.querySelectorAll('[data-add]').length"), 1, "an empty report can still get its first section")
             # Only a request that sends something is counted: the page reads the project again after a change (#188), and that GET
@@ -310,8 +311,8 @@ class Keys(Base):
     def test_v_and_e_switch_the_dashboard_and_the_buttons_say_so(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            self.assertEqual(p.js("[...document.querySelectorAll('.mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
-                             ["View (V)|V", "Edit (E)|E"])
+            self.assertEqual(p.js("[...document.querySelectorAll('#mode-pill .mode')].map(b => b.title + '|' + b.getAttribute('aria-keyshortcuts'))"),
+                             ["View|V", "Edit|E"])      # item 1177: the pill's tooltips are exactly View and Edit (ModePill.jsx:14,17)
             p.js("window.marker = 'same page'; window.lengthBefore = history.length; document.activeElement.blur()")
             self.press(p, "e")
             p.until("document.querySelector('#report').dataset.mode === 'edit'", "E switches to Edit")

@@ -184,7 +184,7 @@ class SettingsChips(unittest.TestCase):
 class AskOff(unittest.TestCase):
     def test_the_button_hides_and_the_slash_still_opens(self):
         text = flat(SECS["ask-clark"])
-        self.assertIn("if (!askOn.value) return null;", code("edit", "AskButton.jsx"))
+        self.assertIn("if (!askOn.value || narrowHeader.value) return null;", code("edit", "AskButton.jsx"))  # item 1177: AskButton.jsx:11 keeps the askOn guard and adds narrowHeader (ask clark is in the profile menu at 900)
         keys = code("edit", "askPanelState.js")
         self.assertIn('e.key === "/"', keys)
         self.assertNotIn("askOn", keys[keys.index("export function installAskKeys"):keys.index("document.addEventListener(\"mousedown\"")])
