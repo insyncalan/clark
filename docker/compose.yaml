@@ -53,6 +53,8 @@ services:
       CLARK_PORT: "8766"
       CLARK_PUBLISHED_PORT: "${CLARK_PORT:-8766}"
       CLARK_DATA_SOURCE: "${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}"
+      # Optional: a time zone to keep whatever the page says (an IANA name such as Asia/Dubai, not a Windows zone name). Empty: the page's zone is used.
+      TZ: "${TZ:-}"
       PYTHONDONTWRITEBYTECODE: "1"
       PYTHONUNBUFFERED: "1"
     healthcheck:

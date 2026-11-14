@@ -1471,6 +1471,12 @@ class Handler(BaseHTTPRequestHandler):
         """Whether the Host header is exactly this machine. (creaite host_ok, BL-212; clark: strict, see host_allowed)"""
         return host_allowed(self.headers.get("Host"))
 
+    def follow_zone(self):
+        """item 631: in the container only, the page's time zone (X-Clark-Tz) is applied before the request is routed; anything that is not
+        an IANA name is ignored. Found by name when asked, so this module imports no other clark module."""
+        if container_mode():
+            importlib.import_module("clark.zone").follow_header(self.headers.get("X-Clark-Tz"), True)
+
     def headers_ok(self):
         """No second Host or Content-Length (which one counts would depend on who reads it); sends the 400 when not."""
         get_all = getattr(self.headers, "get_all", None)       # a request with no version has no parsed headers (a dict)
@@ -1581,6 +1587,7 @@ class Handler(BaseHTTPRequestHandler):
         if container_mode() and not local_peer(self.client_address[0]):      # item 427: with the container's 0.0.0.0 bind, the page and /health are for this machine only too
             note_refused_peer(self.client_address[0])
             return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
+        self.follow_zone()
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))
@@ -1620,6 +1627,7 @@ class Handler(BaseHTTPRequestHandler):
             return csp_report_route(self)
         if not self.authorised() or updating(self, route):
             return None
+        self.follow_zone()
         if (self.headers.get("Content-Type") or "").split(";")[0].strip().lower() != "application/json":
             return self.send(415, error_body("send_json"))
         try:
@@ -1691,6 +1699,7 @@ class SetupHandler(Handler):
         if container_mode() and not local_peer(self.client_address[0]):
             note_refused_peer(self.client_address[0])
             return self.send(403, CONTAINER_REFUSED_PAGE, "text/html")
+        self.follow_zone()
         route = self.path.split("?")[0]
         if route == "/health":
             return self.send(200, health_answer(self.headers.get(MARK_HEADER)))

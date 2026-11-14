@@ -8,6 +8,13 @@ import { knownRefusal } from "./edit/movementWords.js";
 
 const KIND = "report_sections";
 
+// item 631: every request says which time zone this computer is in, so the server's 'today' is the person's day (X-Clark-Tz, an IANA name).
+const zone = () => { try { return Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) { return ""; } };
+const fetch = (url, init = {}) => {
+  const tz = zone();
+  return window.fetch(url, tz ? { ...init, headers: { ...init.headers, "X-Clark-Tz": tz } } : init);
+};
+
 // While the page is going away (Back to another page load, a closed tab) a save started by leaving a field must still reach clark: the browser
 // keeps a keepalive request going, up to its size limit (64 KiB, so a smaller body only; the reply is not read by a page that has gone).
 const alive = (body) => (leaving.on && body.length < 60000 ? { keepalive: true } : {});
