@@ -32,6 +32,21 @@ class SaveAtOnce(Head):
                     p.until(f"{TEXT} === 'Spacing: Compact.'", "Undo says the spacing it put back")
                     self.assertTrue(p.js("document.querySelector('[data-density-pick] input[value=compact]').checked"))
 
+    def test_item_1168_the_motion_switch_says_its_new_state_in_a_toast_with_one_undo(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                self.open_settings(p, w)
+                start = p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')")
+                now, was = ("Off", "On") if start == "true" else ("On", "Off")
+                p.js("document.querySelector('[data-ess-motion]').click()")
+                p.until(f"{TEXT} === 'Motion: {now}.'", "the toast says the new motion state")
+                self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 1, "one Undo")
+                p.js("document.querySelector('.toast [data-undo]').click()")
+                p.until(f"{TEXT} === 'Motion: {was}.'", "Undo says the state it put back")
+                self.assertEqual(p.js("document.querySelector('[data-ess-motion]').getAttribute('aria-checked')"), start)
+                self.assertEqual(p.js("document.querySelectorAll('.toast [data-undo]').length"), 0, "no Undo of an Undo")
+
     def test_S5_choosing_what_is_already_chosen_says_nothing(self):
         with chrome() as cdp:
             p = self.page(cdp)
