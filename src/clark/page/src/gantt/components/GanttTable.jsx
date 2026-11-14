@@ -11,6 +11,7 @@
 // Row numbers are the lines' own places in the plan, so they stay the same when the filter hides lines. Every value is a text node.
 import { useEffect, useRef, useState } from "preact/hooks";
 import { Fade } from "../../components/Menu.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
 import {
   COLUMNS, DEFAULT_HIDDEN, WORDS, hideable, addLine, cellCount, clampSel, clampZoom, clashes, clearCells, deleteLines, emptyHistory, endSel, enterNext, fillDown,
@@ -20,6 +21,9 @@ import {
 
 const ROW_HEAD = 44;
 const PAGE_ROWS = 10;
+
+// The icon of a row-menu line comes from its words and its danger flag, here at the drawing, so the lines that build the menus stay as they were.
+const rowAction = (it) => (it[2] ? "delete" : /^Add /.test(it[0]) ? "add" : it[0] === "Clear cells" ? "clear" : "copy");
 
 export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filter = "all", today = "", onChange, onAdd, onDelete, onHiddenChange, onUndo, addBelowWord = "" }) {
   const cols = visibleColumns(hidden, edit);
@@ -416,7 +420,7 @@ export function GanttTable({ lines, edit = false, hidden = DEFAULT_HIDDEN, filte
         <Fade class="gt-menu" role="menu" boxRef={menuBox} style={{ left: `${Math.min(menu.x, (window.innerWidth || 1400) - 230)}px`, top: `${Math.min(menu.y, (window.innerHeight || 900) - 200)}px` }}
           onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); setMenu(null); focusBox(); } }}>
           {menu.items.map((it, n) => (it === "-" ? <hr key={n} /> : (
-            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}>{it[0]}</button>
+            <button key={n} type="button" role="menuitem" class={it[2] ? "gt-danger" : ""} onClick={() => { setMenu(null); it[1](); }}><Icon name={actionIcon(rowAction(it))} cls="mi" /><span>{it[0]}</span></button>
           )))}
         </Fade>
       ) : null}

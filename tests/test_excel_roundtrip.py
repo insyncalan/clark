@@ -414,7 +414,7 @@ class ClientView(RoundTrip):
         wb = load_workbook(str(self.path))
         for n, cv in enumerate((None, "Yes", "No")):
             tag = {None: "blank", "Yes": "yes", "No": "no"}[cv]
-            for sheet, cells in (("Use cases", {"Use case": f"UC {tag}", "Shown as": f"9.{n}", "Status": "On track"}),
+            for sheet, cells in (("Use cases", {"Use case": f"UC {tag}", "Reference": f"9.{n}", "Status": "On track"}),
                                  ("Actions", {"Description": f"A {tag}"}),
                                  ("Risks & Issues", {"Type": "Risk", "Description": f"R {tag}", "Impact": "High", "Likelihood": "Low"}),
                                  ("Decisions", {"Decision": f"D {tag}", "Status": "Pending"})):

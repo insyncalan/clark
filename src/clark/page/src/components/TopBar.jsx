@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
+import { coverLine } from "../logic/cover.js";
 import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
@@ -41,13 +42,20 @@ export function TopBar({ tools }) {
     e.preventDefault(); show(vs[j]);
     setTimeout(() => { const b = row.current && row.current.querySelector(`[data-view="${vs[j]}"]`); if (b) b.focus(); }, 0);
   };
+  const file = fromFile.value;
+  const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week, the client) sit under the name
+  const ganttTitle = data.value && data.value.gantt && typeof data.value.gantt.title === "string" ? data.value.gantt.title : "";
+  const shownName = (view.value === "gantt" && ganttTitle) || name || project.value || "No project open";      // the Gantt page's own title, when the file carries one, as the banner showed it
+  const Name = view.value === "dashboard" || view.value === "gantt" ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
   return (
-    <header class="top">
+    <header class={file ? "top top-file" : "top"}>
       {fromFile.value
         ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
         : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
-      <span class="divider"></span>
-      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
+      {file ? null : <span class="divider"></span>}
+      {file
+        ? <div class="top-id"><Name class="top-name" id="project-name">{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
+        : ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
       <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
           ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
@@ -55,6 +63,7 @@ export function TopBar({ tools }) {
         ))}
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
+      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {SearchButton ? <SearchButton /> : null}
