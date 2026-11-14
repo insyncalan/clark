@@ -103,6 +103,11 @@ class Parts(_reg.PageSide):
         self.val("(T.fromFile.value = false, 0)")
 
 
+for _name in [n for n in dir(_reg.PageSide) if n.startswith("test_")]:
+    setattr(Parts, _name, None)      # the base class's own tests run in test_section_registry, not here
+del _name
+
+
 class InThePage(Setup):
     def test_view_draws_the_summary_through_the_template_at_both_widths(self):
         for width in (1400, 900):
@@ -112,7 +117,7 @@ class InThePage(Setup):
                 self.assertEqual(p.js("document.querySelector('.sec[data-type=usecases] .uctotal').textContent"), "2 use cases")
                 self.assertEqual(p.js("[...document.querySelectorAll('.sec[data-type=usecases] .ucrow .ucref')].map(e => e.textContent)"), ["UC 1.1", "UC 1.2"])
                 self.assertEqual(p.js("document.querySelector('.sec[data-type=usecases] [data-uc-more]').textContent"), "2 more on the Use cases page")
-                self.assertEqual(p.js("document.querySelectorAll('.sec[data-type=usecases] [data-uc-add], .sec[data-type=usecases] [data-eye]').length"), 0, "View has no editing controls")
+                self.assertEqual(p.js("document.querySelectorAll('.sec[data-type=usecases] [data-edit-only]').length"), 0, "View has no editing controls")
 
     def test_view_with_none_on_the_dashboard_still_says_so(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0")
@@ -126,8 +131,7 @@ class InThePage(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#dashboard&p=ABC")
             p.edit()
-            p.until("!!document.querySelector('.sec[data-type=usecases] .sec-head button') && !!document.querySelector('.sec[data-type=usecases] [data-eye]')", "Edit drew the Add and the eyes")
-            self.assertTrue(p.js("[...document.querySelectorAll('.sec[data-type=usecases] .sec-head button')].some(b => /use case/i.test(b.getAttribute('aria-label') || b.textContent))"))
+            p.until("!!document.querySelector('.sec[data-type=usecases] .sec-head .uc-add button') && !!document.querySelector('.sec[data-type=usecases] [data-uc-status]')", "Edit drew the Add and the eyes")
             self.assertGreater(p.js("document.querySelectorAll('.sec[data-type=usecases] .ucrow').length"), 0)
 
 

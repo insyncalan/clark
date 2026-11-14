@@ -364,7 +364,7 @@ class PageSide(unittest.TestCase):
             if x["type"] == "text":       # not templates of the registry: always placeable
                 self.assertIs(x["ready"], True)
                 continue
-            if x["type"] in PAGE_FIRST:      # row 926: no registry module, the store takes the type: placeable
+            if x["type"] in PAGE_FIRST + ("usecases",):      # item 1191: Use Cases is drawn as a template with no registry module (a built-in type); row 926: no registry module, the store takes the type: placeable
                 self.assertIs(x["ready"], True, tid)
                 self.assertEqual(self.val(f"T.templates.available(T.templates.CATALOGUE.find(t => t.id === {json.dumps(tid)}))"), True, tid)
                 continue
@@ -396,6 +396,9 @@ class PageSide(unittest.TestCase):
         for t in section_kinds.TYPES:
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}, body: '{{\"v\":1}}'}}, {{}})"), True, t)
         for t in BUILT_IN:
+            if t == "usecases":      # item 1191: drawn as a template; the empty rule is tests/test_use_cases_template_1191.py
+                self.assertEqual(self.val('typeof T.templateFor("usecases").view'), "function")
+                continue
             self.assertIsNone(self.val(f"T.templateFor({json.dumps(t)})"), t)
             self.assertIs(self.val(f"T.templateEmpty({{id: 'x', type: {json.dumps(t)}}}, {{}})"), False, t)
         self.assertIsNone(self.val("T.templateFor('__proto__')"))
