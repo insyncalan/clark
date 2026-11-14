@@ -1480,7 +1480,7 @@ def download_name(name, code, when):
     code = code.encode("utf-8")[:DOWNLOAD_FILE_BYTES - len(tail)].decode("utf-8", "ignore").strip()      # by bytes, so it alone always fits
     name = _download_clean(name).lstrip(". ")[:DOWNLOAD_NAME_CUT].strip()
     room = min(DOWNLOAD_NAME_BYTES, DOWNLOAD_FILE_BYTES - len(tail) - len(code.encode("utf-8")) - 2)     # a file name holds 255 bytes, not characters
-    name = name.encode("utf-8")[:max(room, 0)].decode("utf-8", "ignore").strip()
+    name = name.encode("utf-8")[:max(room, 0)].decode("utf-8", "ignore").strip().rstrip(". ")      # a cut can land on a dot: none before "(" or the date
     if not name:
         name, code = code or "work items", ""
     return platform.safe_name(f"{name}{f'({code})' if code else ''}{tail}", max_name=DOWNLOAD_FILE_BYTES)
