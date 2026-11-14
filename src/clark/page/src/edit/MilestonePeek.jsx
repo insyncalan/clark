@@ -22,6 +22,8 @@ import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
 import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
+import { stampText } from "./peekLatest.js";
+import { Icon } from "../components/Icon.jsx";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -80,9 +82,12 @@ function ClientWording({ m }) {
 // Item 1185: the milestone's Latest update, on the same editor as the work item peek's, with its history. One change, one Undo.
 function Latest({ m }) {
   const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
+  const shown = m.client_visible !== false && m.client_visible !== 0 && !leftOutIds(data.value).includes(m.id), stamp = stampText(m.updated_at);   // the same label and stamp as PeekLatest.jsx
   return (
     <>
+      {shown ? <div class="pk-lab"><span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span></div> : null}
       <RichField field="latest_update" id={m.id} value={asHtml(m.latest_update)} label="Latest update" empty={DASH} save={put} />
+      {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
       <PeekLatestHistory key={`h-${m.id}`} id={m.id} />
     </>
   );
