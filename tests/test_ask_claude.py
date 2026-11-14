@@ -921,5 +921,12 @@ class Source(unittest.TestCase):
         self.assertIn("shell=False", self.RUN)
 
 
+class VersionKey(unittest.TestCase):
+    def test_prerelease_orders_below_its_release_and_by_number(self):
+        paths = ["/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.8/bin", "/n/v1.0.9-rc1/bin", "/n/v1.0.7/bin"]
+        got = sorted(paths, key=ac._version_key, reverse=True)
+        self.assertEqual(got, ["/n/v1.0.9-rc1/bin", "/n/v1.0.8/bin", "/n/v1.0.8-rc10/bin", "/n/v1.0.8-rc9/bin", "/n/v1.0.7/bin"])
+
+
 if __name__ == "__main__":
     unittest.main()
