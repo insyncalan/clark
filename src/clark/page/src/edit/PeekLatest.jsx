@@ -14,6 +14,7 @@ import { warnFor, stampText } from "./peekLatest.js";
 import { Icon } from "../components/Icon.jsx";
 import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 
+const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " ").trim();
 const raw = (row) => ((data.value && data.value[tableOf(row)]) || []).find((r) => r.id === row.id) || null;
 const toClose = () => { const el = document.activeElement; if (!el || el === document.body || !el.isConnected) { const c = document.querySelector("#peek [data-pk-close]"); if (c) c.focus(); } };
 
