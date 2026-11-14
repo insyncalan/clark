@@ -246,9 +246,9 @@ class TheEditor(Setup):
                   cover: document.querySelectorAll('header.cover').length, h: document.querySelector('header.top').getBoundingClientRect().height,
                   pos: getComputedStyle(document.querySelector('header.top')).position, bar: getComputedStyle(document.documentElement).getPropertyValue('--topbar').trim(),
                   margin: getComputedStyle(document.querySelector('.sec')).scrollMarginTop}))()""")
-                self.assertEqual((got["bars"], got["file"], got["cover"]), (1, 0, 1), "the bar and the banner are both still there")
-                self.assertEqual((got["h"], got["bar"], got["pos"]), (56, "56px", "sticky"))
-                self.assertEqual(got["margin"], "0px")
+                self.assertEqual((got["bars"], got["file"], got["cover"]), (1, 0, 0), "item 1177: the one header is there and the banner is gone")
+                self.assertEqual((got["h"], got["bar"], got["pos"]), (129, "129px", "sticky") if width == 900 else (85, "85px", "sticky"))
+                self.assertEqual(got["margin"], f"{got['h'] + 16:.0f}px", "item 1177: a jump stops below the sticky header (shell.css scroll-margin-top rule)")
 
 
 class TheHelpLine(unittest.TestCase):

@@ -22,6 +22,10 @@ import { toast } from "../stores/changes.js";
 import { ToastCard, ToastBar, startHeld, keepFocus } from "./ToastCard.jsx";
 import { actionIcon } from "../menuIcons.js";
 import { Welcome } from "./Welcome.jsx";
+import { narrowHeader } from "./narrowHeader.js";
+import { openPalette } from "./Palette.jsx";
+import { askOn } from "./askState.js";
+import { closePanel, openPanel, panelOpen } from "./askPanelState.js";
 
 export const MENU_NAME = "Your menu";
 const LOOK_WORDS = { light: "Light", dark: "Dark", system: "System" };
@@ -99,9 +103,13 @@ export function ProfileMenu() {
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
-  const shown = [who, ...(last ? [{ id: "note", lab: last }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
+  // item 1177: at 900 px and narrower the header has no search or ask clark button; they are the first two entries here (ask clark only while asking is on)
+  const near = narrowHeader.value ? [{ id: "search", name: "Go to or do", icon: actionIcon("search") }, ...(askOn.value ? [{ id: "ask", name: "ask clark", icon: actionIcon("ask") }] : [])] : [];
+  const shown = [...(named ? [who, ...near] : [...near, who]), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest, ...(last ? [{ id: "sep", sep: true }] : []), ...(last ? [{ id: "note", lab: last }] : [])];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
-    if (id === "publish") openPublish();
+    if (id === "search") openPalette();
+    else if (id === "ask") { if (panelOpen.value) closePanel(); else openPanel(); }
+    else if (id === "publish") openPublish();
     else if (id === "preview") preview();
     else if (id === "export") exportExcel();
     else if (id === "published") showPublished();

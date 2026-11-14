@@ -351,7 +351,8 @@ class LowWordsRound(unittest.TestCase):
         self.assertEqual(self.ALL.count("the usual lists, the counts and the published page"), 2)
 
     def test_editing_line_says_what_it_does(self):
-        self.assertIn("while you edit, that each change saves on its own", self.ALL)
+        self.assertIn("The note at the bottom of your profile menu: “Published” on its date", self.ALL)
+        self.assertNotIn("Draft · not published yet", self.ALL)
         self.assertNotIn("“Editing", self.ALL)       # the page has no such label to quote
 
     def test_the_report_has_no_look_to_choose(self):

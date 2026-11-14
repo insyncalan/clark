@@ -433,7 +433,7 @@ class Page(Base):
             press(cdp, sid, "Escape")
             self.assertEqual(self.picked(cdp, sid), [], "Esc")
             pick2()
-            tap(cdp, sid, "header.top .divider")     # a neutral spot on the bar: not the project name, which opens the project menu
+            tap(cdp, sid, "header.top .hdr-kind")     # a neutral spot on the bar (item 1177: the words "Weekly report", no divider any more): not the project name or the week, which open a menu
             self.assertEqual(self.picked(cdp, sid), [], "a click outside")
             self.assertFalse(cdp.js("!!document.querySelector('#project-menu')", sid), "the click outside opened no menu")
             pick2()
