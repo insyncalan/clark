@@ -2618,6 +2618,8 @@ html:has(.top-hdr) { --topbar: 85px; }
   .top-hdr .logo-icon { width: 18px; height: 18px; }
   .top-hdr .logo .wm { font-size: var(--size-body); line-height: 18px; }
   .top-hdr .hdr-id { grid-area: id; }
+  .top-hdr .hdr-line { min-width: 0; }   /* item 1177: the week gives way (an ellipsis) so a 390 px window has no sideways page scroll */
+  .top-hdr .hdr-date { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .top-hdr .hdr-end { grid-area: end; margin-left: 0; gap: 6px; }
   .top-hdr .tabs { grid-area: tabs; margin: 0 -20px; padding: 0 14px; border-top: 1px solid color-mix(in srgb, var(--white) 14%, transparent); overflow-x: auto; scrollbar-width: none; align-self: end; }
   .top-hdr .tabs::-webkit-scrollbar { display: none; }
