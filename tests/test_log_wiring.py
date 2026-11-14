@@ -606,7 +606,7 @@ class Settings(Rig):
             self.opened.clear()
             self.fail_open = False
             self.js("document.querySelector('[data-open-log]').click()")
-            self.until("!document.querySelector('[data-open-log]').disabled", "done")
+            self.until("document.querySelector('[data-open-log]').getAttribute('aria-disabled') !== 'true'", "done")
             self.assertEqual(self.opened, [self.tmp / "logs"])
             self.fail_open = True
             self.js("document.querySelector('[data-open-log]').click()")
