@@ -11,8 +11,10 @@ from test_peek_latest import Browser as _Harness, OVERDUE
 from test_server import chrome, wait
 from test_work_filters import click
 
-SUB = "Lists it under “Needs from you”"
+SUB = "Lists it under “Needs from you” when the report has that section"      # row 1066: the published page adds no section the editor lacks
 LABEL = "Needed from the client"
+ON = "Marked as needed from the client"
+OFF = "No longer marked as needed from the client"
 
 
 class Page(unittest.TestCase):
@@ -70,13 +72,20 @@ class Page(unittest.TestCase):
                 if dark:
                     blue = self.want(cdp, sid, "--brand-blue")
                     self.assertTrue(wait(lambda: self.look(cdp, sid, "#peek [data-pk-needed] [role=switch]")["bg"] == blue), "the on switch is the brand blue")
+                self.assertIn(ON, self.toast(cdp, sid))
+                self.assertNotIn(OFF, self.toast(cdp, sid))
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.state(cdp, sid) == "false"), "one Undo puts it back")
+                self.assertTrue(wait(lambda: OFF in self.toast(cdp, sid)), "the Undo toast says it is no longer marked")
                 self.assertEqual(self.flag("actions", OVERDUE), 0)
                 click(cdp, sid, "#peek [data-pk-needed] [role=switch]")
                 self.assertTrue(wait(lambda: self.state(cdp, sid) == "true"))
                 click(cdp, sid, "#peek [data-pk-needed] [role=switch]")
                 self.assertTrue(wait(lambda: self.state(cdp, sid) == "false"), "and it switches off")
+                self.assertTrue(wait(lambda: OFF in self.toast(cdp, sid)), "switching off says so")
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.state(cdp, sid) == "true"))
+                self.assertTrue(wait(lambda: ON in self.toast(cdp, sid)), "its Undo says it is marked again")
                 self.assertEqual(sent[-1]["changes"], {"client_action": 0})
 
     def test_a_risk_has_it_and_a_decision_has_none(self):

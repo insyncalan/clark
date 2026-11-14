@@ -10,6 +10,7 @@ import struct
 import tempfile
 import zlib
 import unittest
+from unittest import mock
 from datetime import date, timedelta
 from pathlib import Path
 
@@ -17,6 +18,9 @@ from _demo import USER
 from test_glance_page import Published, Setup
 from test_report_editor import tearDownModule  # noqa: F401
 from test_server import chrome
+import _testpage as testpage
+from clark import page
+from test_brand_picture import png
 
 BAND = """(() => {
   const c = document.querySelector('header.cover'); if (!c) return null;
@@ -65,10 +69,10 @@ class Corners(Setup):
     one-card frame (the Card style) it keeps the top two only and no shadow of its own."""
 
     def test_the_band_is_rounded_all_round_with_a_shadow_when_the_sections_are_separate(self):
-        for style in ("slim", "roomy", "grey"):
+        for style in ("comfortable",):
             with self.subTest(style=style), chrome() as cdp:
                 p = self.show(cdp)
-                p.js(f"document.documentElement.dataset.secstyle = '{style}'")
+                p.js(f"document.documentElement.dataset.density = '{style}'")
                 got = p.js(RADII)
                 self.assertEqual(len(set(got["r"])), 1, got)
                 self.assertNotEqual(got["r"][0], "0px", got)
@@ -77,7 +81,7 @@ class Corners(Setup):
     def test_the_band_keeps_its_top_corners_only_as_the_top_of_the_card_frame(self):
         with chrome() as cdp:
             p = self.show(cdp)
-            p.js("document.documentElement.dataset.secstyle = 'card'")
+            p.js("document.documentElement.dataset.density = 'compact'")
             got = p.js(RADII)
             self.assertEqual(got["r"][2:], ["0px", "0px"], got)
             self.assertNotEqual(got["r"][0], "0px", got)
@@ -124,6 +128,127 @@ class Picture(Setup):
                 check_fills(self, p.js(PICTURE), True)
 
 
+LOGO = """(() => { const c = document.querySelector('header.cover'), r = c.getBoundingClientRect(), s = getComputedStyle(c, '::after');
+  return {band: [r.width, r.height], display: s.display, image: s.backgroundImage, size: s.backgroundSize, repeat: s.backgroundRepeat,
+          pos: s.backgroundPosition, abs: s.position, w: parseFloat(s.width), h: parseFloat(s.height), top: parseFloat(s.top), right: parseFloat(s.right)}; })()"""
+
+
+class Logo(Setup):
+    """item 1154: the brand's logo at the right of the report band, 64 px tall, 24 px from the top and 36 px from the right (the
+    prototype's .cover .mark), in the editor's page at 1400 and 900, light and dark; nothing is drawn without a brand logo."""
+
+    def test_the_brand_logo_sits_at_the_right_of_the_band(self):
+        for width, dark in ((1400, False), (900, True), (1400, True), (900, False)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                plain = p.js(LOGO)
+                self.assertEqual(plain["image"], "none", "no brand logo: nothing is drawn")
+                p.js("document.documentElement.style.setProperty('--image-logo', %s)" % json.dumps(artwork()))
+                got = p.js(LOGO)
+                self.assertIn("data:image/png", got["image"])
+                self.assertEqual((got["abs"], got["display"]), ("absolute", "block"))
+                self.assertEqual((got["h"], got["top"], got["right"]), (64, 24, 36))
+                self.assertEqual(got["size"], "contain", "the logo is scaled to fit, never stretched or cropped")
+                self.assertEqual(got["repeat"], "no-repeat")
+                self.assertTrue(got["pos"].startswith("100%"), "against the right edge of its box")
+                self.assertLessEqual(got["w"] + got["right"], got["band"][0], "inside the band")
+                self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
+                self.assertGreaterEqual(min(p.js(LUM)), 4.5, "the text keeps its contrast")
+
+
+class BrandLogo(Setup):
+    """item 1154: the logo comes from the installed brand's assets/logo.png, through the real wiring (the page text the brand layer
+    builds and the picture route), not from a variable set by hand: at 1400 and 900 it is drawn in the band; a brand with no
+    logo draws nothing."""
+
+    def serve(self, with_logo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        folder = Path(tmp.name)
+        (folder / "assets").mkdir()
+        (folder / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
+        if with_logo:
+            (folder / "assets" / "logo.png").write_bytes(png(40, 12, (200, 30, 120)))
+        hook = mock.patch.object(page, "PAGE", mock.Mock(read_text=lambda **kw: testpage.html()))
+        hook.start()
+        self.addCleanup(hook.stop)
+        self.s.httpd.page_html = lambda: page.page_html(branding=folder, brand_id="one-brand")
+        self.s.httpd.brand_picture = lambda name, brand_id=None: page.brand_picture(name, folder) if brand_id == "one-brand" else None
+
+    def test_the_installed_brand_logo_reaches_the_band(self):
+        self.serve(True)
+        for width, dark in ((1400, False), (900, True)):
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                p = self.show(cdp, width, dark)
+                got = p.js(LOGO)
+                self.assertIn("/assets/one-brand/logo.png", got["image"])
+                self.assertEqual((got["display"], got["h"], got["top"], got["right"]), ("block", 64, 24, 36))
+                p.js("window.__logo = 0; const i = new Image(); i.onload = () => { window.__logo = i.naturalWidth; }; i.src = '/assets/one-brand/logo.png';")
+                p.until("window.__logo === 40", "the logo picture loaded from the route")
+                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
+
+    def test_a_brand_without_a_logo_draws_nothing(self):
+        self.serve(False)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                self.assertEqual(self.show(cdp, width).js(LOGO)["image"], "none")
+
+
+ROOM = """(() => { const c = document.querySelector('header.cover'), h = c.querySelector('h1'), l = c.querySelector('.cover-line'),
+  a = getComputedStyle(c, '::after'), r = c.getBoundingClientRect();
+  const edge = (e) => { const g = document.createRange(); g.selectNodeContents(e); return Math.max(...[...g.getClientRects()].map((x) => x.right)); };
+  return {h1: edge(h), line: edge(l), logoLeft: r.right - parseFloat(a.right) - parseFloat(a.width), pad: getComputedStyle(c).paddingRight,
+          lines: Math.round(h.getBoundingClientRect().height / parseFloat(getComputedStyle(h).lineHeight))}; })()"""
+
+
+class LogoRoom(Setup):
+    """item 1154: a long project title and cover line wrap before the logo box when a brand logo is set (at 1400 and 900), and
+    the band's padding is what it was with no logo."""
+    serve = BrandLogo.serve
+
+    def setUp(self):
+        super().setUp()
+        with self.store.step("dashboard", USER) as st:
+            st.update("projects", "ABC", {"name": "Example Programme of a very long name that goes on and on " * 3,
+                                          "client_name": "Example Client of a very long name that goes on and on " * 3, "week_ending": "2026-10-23"})
+
+    def test_a_long_title_and_cover_line_stop_before_the_logo(self):
+        self.serve(True)
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                got = self.show(cdp, width).js(ROOM)
+                self.assertGreater(got["lines"], 1, "the title is long enough to wrap")
+                self.assertLessEqual(got["h1"], got["logoLeft"], "the title ends at or left of the logo box")
+                self.assertLessEqual(got["line"], got["logoLeft"], "the cover line ends at or left of the logo box")
+
+    def test_with_no_logo_the_band_padding_is_unchanged(self):
+        self.serve(False)
+        for width, pad in ((1400, "28px"), (900, "16px")):
+            with self.subTest(width=width), chrome() as cdp:
+                self.assertEqual(self.show(cdp, width).js(ROOM)["pad"], pad)
+
+
+class BrandLogoPage(unittest.TestCase):
+    def folder(self, logo):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        d = Path(tmp.name)
+        (d / "assets").mkdir()
+        (d / "tokens.css").write_text(":root { --brand-navy: #123456; }", encoding="utf-8")
+        if logo:
+            (d / "assets" / "logo.png").write_bytes(png())
+        return d
+
+    def test_only_a_served_page_of_a_brand_with_a_logo_names_it(self):
+        html = '<html><head><style id="brand-demo"></style></head><body></body></html>'
+        with mock.patch.object(page, "PAGE", mock.Mock(read_text=lambda **kw: html)), mock.patch.object(page, "VIEW_PAGE", mock.Mock(read_text=lambda **kw: html)):
+            self.assertIn('--image-logo: url("/assets/b-1/logo.png")', page.page_html(self.folder(True), brand_id="b-1"))
+            self.assertIn('--image-logo: url("/assets/logo.png")', page.page_html(self.folder(True)))
+            self.assertNotIn("--image-logo", page.page_html(self.folder(False), brand_id="b-1"))
+            self.assertNotIn("--image-logo", page.page_html(self.folder(True), view=True, brand_id="b-1"), "the published file carries no address")
+            self.assertNotIn("--image-logo", page.page_html(page.NO_BRAND))
+
+
 class TheWeek(Setup):
     def coming_friday(self):
         d = date.today()
@@ -143,33 +268,17 @@ class InTheFile(Published):
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"client_name": "Example Client", "week_ending": "2026-10-23"})
 
-    def test_the_published_file_draws_the_band_from_its_own_data(self):
+    def test_the_published_file_draws_the_words_in_its_bar_from_its_own_data(self):
+        """Issue 1146: the banner's words sit under the project name in the file's one bar (test_published_one_bar.py draws the rest)."""
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
-                b = p.js(BAND)
-                self.assertEqual(b["kind"].upper(), "WEEKLY REPORT")
-                self.assertIn("Week ending 23-10-2026", b["line"])
-                self.assertIn("for Example Client", b["line"])
-                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
-
-    def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
-        path = self.publish()
-        with chrome() as cdp:
-            got = self.draw(cdp, path).js(RADII)
-        self.assertEqual(len(set(got["r"])), 1, got)
-        self.assertNotEqual(got["r"][0], "0px", got)
-        self.assertNotEqual(got["shadow"], "none", got)
-
-    def test_row_1003_the_published_file_fills_the_band_with_the_brand_picture(self):
-        path = self.publish()
-        for width, dark in ((1400, False), (900, True)):
-            with self.subTest(width=width, dark=dark), chrome() as cdp:
-                p = self.draw(cdp, path, width, dark)
-                check_fills(self, p.js(PICTURE), False)
-                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
-                check_fills(self, p.js(PICTURE), True)
+                got = p.js("({kind: document.querySelector('header.top .cover-kind').textContent, line: document.querySelector('header.top .cover-line').textContent, h1: document.querySelectorAll('h1').length, cover: document.querySelectorAll('header.cover').length})")
+                self.assertEqual(got["kind"].upper(), "WEEKLY REPORT")
+                self.assertIn("Week ending 23-10-2026", got["line"])
+                self.assertIn("for Example Client", got["line"])
+                self.assertEqual((got["h1"], got["cover"]), (1, 0))
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):
         with self.store.step("dashboard", USER) as st:

@@ -1,7 +1,7 @@
 """#440 (S2): the Settings chips' bar that stays under the top bar, with the chip of the card you are reading marked, in a real
 browser at 1400 and 900 px, light and dark. Run: python3 dev/run_tests.py test_settings_bar
 
-What is asserted: the bar (the list at the left above 900 px, the row of chips at 900 px and narrower; issue 697) stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
+What is asserted: the bar (the list at the left at 900 px and wider, the row of chips below 900 px is not tested: only 1400 and 900 px are; issues 697 and 842) stays under the top bar as you scroll, on the page's own ground, and a card a chip goes to is never hidden by
 it; one chip is marked (aria-current="location") and it follows the card you are reading, both as you scroll and when a chip is chosen
 (the last chip, near the foot of the page, too); the marked chip's words are 4.5:1 on its fill and its fill 3:1 on the bar; the menu's link still puts the cursor in the name
 box, clear of the bar. Chrome is required: these tests fail, never skip, without it.
@@ -13,7 +13,7 @@ from test_publish_dialog import Base
 from test_server import chrome, wait
 from test_settings_head import ratio, rgb
 
-WIDTHS = (1400, 901, 900, 800)
+WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 MARKED = "document.querySelector('.set-nav .set-chip[aria-current]')"
 
@@ -57,9 +57,9 @@ class SettingsBar(Base):
         p.settled("the scroll finished")
 
     def clear_of_bar(self, p, sel):
-        """Clear of the bar: below it when the bar is a row of chips (900 px and narrower), at its right when it is the list at the left."""
+        """Clear of the bar: at its right, the list at the left (the only shape at 1400 and 900 px); the row-of-chips branch is never reached."""
         return p.js(f"(() => {{ const h = document.querySelector('{sel}').getBoundingClientRect(), b = document.querySelector('.set-bar').getBoundingClientRect(); "
-                    f"return window.innerWidth > 900 ? h.left >= b.right : h.top >= b.bottom; }})()")
+                    f"return window.innerWidth >= 900 ? h.left >= b.right : h.top >= b.bottom; }})()")
 
     def test_C_the_bar_stays_under_the_top_bar_on_the_page_ground_and_never_hides_a_card(self):
         for w in WIDTHS:
@@ -89,7 +89,7 @@ class SettingsBar(Base):
                 p = self.page(cdp)
                 self.open_settings(p, w)
                 for name, head_id in (("Personal", "personal-h"), ("Backups", "safety-h"), ("Logs and diagnostics", "diagnostics-h")):
-                    p.js(f"(() => {{ const c = document.getElementById('{head_id}').closest('section'), b = document.querySelector('.set-bar'), room = window.innerWidth > 900 ? 0 : b.offsetHeight; "
+                    p.js(f"(() => {{ const c = document.getElementById('{head_id}').closest('section'), b = document.querySelector('.set-bar'), room = window.innerWidth >= 900 ? 0 : b.offsetHeight; "
                          f"window.scrollTo(0, window.scrollY + c.getBoundingClientRect().top - room - document.querySelector('.top').offsetHeight - 8); }})()")
                     p.until(f"({MARKED} || {{}}).textContent === '{name}'", f"{name} is marked once its card is under the bar")
                     self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
@@ -101,6 +101,23 @@ class SettingsBar(Base):
                 self.settle(p)
                 self.assertEqual(self.marked(p), "Asking", "the last chip, near the foot of the page, stays marked")
                 self.assertTrue(self.clear_of_bar(p, "#ask-settings-h"))
+
+    def test_row_1041_scrolled_to_the_very_foot_of_settings_the_marked_chip_is_asking(self):
+        """Scrolled by hand (no chip chosen) to the very bottom. The cards of Feedback and Quit are too short to ever come up to the bar, so the
+        last chip that can be marked by scrolling is Asking (Views.jsx cardHere), which is what the row says. Mutation tried: make cardHere
+        return cards[0] when at the foot: the marked chip is then Profile."""
+        for w in WIDTHS:
+            for mode in MODES:
+                with self.subTest(width=w, mode=mode), chrome() as cdp:
+                    p = self.page(cdp)
+                    self.open_settings(p, w, mode)
+                    self.assertEqual(self.marked(p), "Profile")
+                    self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Asking,Feedback,Quit")
+                    p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
+                    self.settle(p)
+                    self.assertTrue(p.js("window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2"), "the page is at its very foot")
+                    p.until(f"({MARKED} || {{}}).textContent === 'Asking'", "the foot of the page marks Asking")
+                    self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
 
     def test_C_the_marked_chip_can_be_read_in_light_and_dark(self):
         for w in WIDTHS:

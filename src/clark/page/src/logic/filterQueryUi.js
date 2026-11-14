@@ -4,7 +4,7 @@
 // issue 662 (filterQueryParse.js, filterQueryEval.js), so a field added to the schema, or passed in as `extra`, is understood here too.
 import { LINE_FIELDS, FIELD_NOTES, NO_ME, unknownFilter, offers, isOn, word as typedWord, isStartingView } from "./filterLine.js";
 import { NONE } from "../filters.js";
-import { parseQuery, schemaOf, resolveField, squash, colonAt } from "./filterQueryParse.js";
+import { parseQuery, schemaOf, ownSchema, resolveField, squash, colonAt } from "./filterQueryParse.js";
 import { evaluateQuery } from "./filterQueryEval.js";
 
 const low = (s) => String(s == null ? "" : s).toLowerCase();
@@ -16,7 +16,7 @@ const quoted = (v) => (/[\s,":]/.test(v) ? `"${String(v).replace(/"/g, "")}"` : 
 const cache = { rows: null, key: "", schema: null, extra: null };
 /** schemaOf() less the `is:` words this page cannot answer yet (the page turns them on with ctx.isReady), so such a word reads as an unknown state. */
 export function pageSchema(rows, ctx, extra) {
-  const c = ctx || {}, key = `${c.isReady ? 1 : 0}${c.quietReady ? 1 : 0}`;
+  const c = ctx || {}, key = `${c.isReady ? 1 : 0}${c.quietReady ? 1 : 0}${c.archivedReady ? 1 : 0}`;
   if (cache.rows === rows && cache.key === key && cache.extra === (extra || null) && cache.schema) return cache.schema;
   const base = schemaOf(extra || []);
   const schema = { ...base, states: base.states.filter((s) => isOn(s, c, rows)) };
@@ -30,12 +30,13 @@ export const rowsFor = (rows, line, ctx, extra) => evaluateQuery(rows, parseFor(
 
 // ── The words for a token that cannot be used ─────────────────────────────────────────────────────────────────────────────
 
-/** The sentence for a token the parser could not use ("" when there is nothing to say). */
-export function messageOf(e) {
+/** The sentence for a token the parser could not use ("" when there is nothing to say). With a page's own schema (row 1085) the sentence
+ *  names that page's fields. */
+export function messageOf(e, extra) {
   if (!e) return "";
-  const first = e.suggestions && e.suggestions[0];
+  const first = e.suggestions && e.suggestions[0], own = ownSchema(extra);
   switch (e.code) {
-    case "unknown-field": if (!e.qualifier) return unknownFilter(e.name);      // a word before a colon: the line's own sentence; has: and no: keep theirs
+    case "unknown-field": if (!e.qualifier) return own ? unknownFilter(e.name, own.fields.map((f) => f.key), first ? first.key : "") : unknownFilter(e.name);      // a word before a colon: the line's own sentence; has: and no: keep theirs
       return first ? `Unknown field '${e.name}'. Did you mean ${first.name}?` : `Unknown field '${e.name}'.`;
     case "ambiguous-field": return `'${e.name}' could mean more than one field. Use the full name.`;
     case "unknown-state": return first ? `Unknown state '${e.name}'. Did you mean ${first.name}?` : `Unknown state '${e.name}'.`;
@@ -61,6 +62,9 @@ const TONES = {
   status: { open: "b", pending: "b", delayed: "a", closed: "n", cancelled: "n", made: "g", withdrawn: "n" },
 };
 export const toneOf = (field, value) => (has(TONES, field) && has(TONES[field], low(value)) ? TONES[field][low(value)] : "");
+// A page's own field (row 1085) names its own tones; a Work items field has the pill colours above.
+const ownField = (extra, key) => { const own = ownSchema(extra); return own ? own.fields.find((f) => f && f.key === key) || null : null; };
+const toneFor = (extra, field, value) => { const f = ownField(extra, field); return f ? (typeof f.tone === "function" ? f.tone(value) || "" : "") : toneOf(field, value); };
 
 // ── The typed text, in pieces ─────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -73,21 +77,22 @@ function splitCommas(s) {
 
 /** The line cut into pieces to draw: [{text, cls: "gap" | "txt" | "fld" | "val" | "sep" | "err", tone?, message?, start?, end?}].
  *  Together the pieces are exactly the line. Field names are plain, values are chips, an unusable token is "err" with its words.
- *  `caret`: a token still being typed (a field name with nothing after the colon yet) is not marked while the caret is in it. */
-export function pieces(line, parsed, caret) {
+ *  `caret`: a token still being typed (a field name with nothing after the colon yet) is not marked while the caret is in it.
+ *  `extra`: the page's own schema (row 1085), for its messages and tones; none for the Work items line. */
+export function pieces(line, parsed, caret, extra) {
   const out = []; let at = 0;
-  const push = (text, cls, extra) => { if (text) out.push({ text, cls, ...extra }); };
+  const push = (text, cls, more) => { if (text) out.push({ text, cls, ...more }); };
   for (const t of parsed.tokens) {
     if (t.start > at) push(line.slice(at, t.start), "gap");
     at = t.end;
     const typing = t.error && t.error.code === "missing-value" && caret !== undefined && caret >= t.start && caret <= t.end;
-    if (t.error && !typing) { push(t.raw, "err", { message: messageOf(t.error), start: t.start, end: t.end }); continue; }
+    if (t.error && !typing) { push(t.raw, "err", { message: messageOf(t.error, extra), start: t.start, end: t.end }); continue; }
     if (t.kind === "text" || typing) { push(t.raw, "txt"); continue; }
     const ci = colonAt(t.raw);
     push(t.raw.slice(0, ci + 1), "fld");
     splitCommas(t.raw.slice(ci + 1)).forEach((v, i) => {
       if (i) push(",", "sep");
-      push(v, "val", { tone: t.kind === "field" ? toneOf(t.field, v.replace(/"/g, "")) : "" });
+      push(v, "val", { tone: t.kind === "field" ? toneFor(extra, t.field, v.replace(/"/g, "")) : "" });
     });
   }
   if (at < line.length) push(line.slice(at), "gap");
@@ -165,23 +170,26 @@ const noteOf = (key) => (has(FIELD_NOTES, key) ? FIELD_NOTES[key] : "");
 export const FIELD_ICONS = { is: "check", type: "table", status: "half", owner: "user", priority: "flash", due: "cal", workstream: "bars",
   usecase: "doc", milestone: "flag", client: "ext", has: "eye", no: "eyeoff" };
 export const iconOf = (key) => (has(FIELD_ICONS, key) ? FIELD_ICONS[key] : "filter");
-const fieldRow = (key, neg) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note: noteOf(key), icon: iconOf(key), close: false });
+const fieldRow = (key, neg, note = noteOf(key), icon = iconOf(key)) => ({ kind: "field", ins: `${neg ? "-" : ""}${key}:`, label: `${neg ? "-" : ""}${key}:`, note, icon, close: false });
 
 /** What to offer for the word the caret is in. [{kind: "field" | "lead" | "value", ins, label, note, tone?, close}]:
  *  - an empty word: every filterable field, `is:` first, then the built-in fields, the custom ones, `has:` and `no:`; narrowed as it is typed
  *  - after `field:`: "No X", "Has X", "Exclude X", then the field's values (a `close` row ends the word: a space follows, then the field list again)
  *  - after `is:`, `has:`, `no:`: the states, or the fields. */
 export function suggestions(text, caret, rows, ctx, extra) {
-  const schema = pageSchema(rows, ctx, extra), c = ctx || {};
+  const schema = pageSchema(rows, ctx, extra), c = ctx || {}, own = ownSchema(extra);
   const { word } = wordAt(text, caret);
   const neg = word.startsWith("-"), body = neg ? word.slice(1) : word, ci = colonAt(body);
   if (ci < 0) {
     const n = squash(body);
     const fit = (key, name) => !n || squash(key).startsWith(n) || squash(name || key).startsWith(n);
     const out = [];
-    if (fit("is")) out.push(fieldRow("is", neg));
-    for (const f of [...schema.fields.filter((x) => !x.custom), ...schema.fields.filter((x) => x.custom)]) if (fit(f.key, f.name)) out.push(fieldRow(f.key, neg));
-    if (!neg) for (const q of ["has", "no"]) if (fit(q)) out.push(fieldRow(q, false));
+    if (schema.states.length && fit("is")) out.push(fieldRow("is", neg));          // a page's own schema with no states has no is:
+    for (const f of [...schema.fields.filter((x) => !x.custom), ...schema.fields.filter((x) => x.custom)]) {
+      const o = ownField(extra, f.key);
+      if (fit(f.key, f.name)) out.push(o ? fieldRow(f.key, neg, o.note || "", o.icon || iconOf(f.key)) : fieldRow(f.key, neg));
+    }
+    if (!neg) for (const q of ["has", "no"]) if (fit(q)) out.push(own ? fieldRow(q, false, "") : fieldRow(q, false));   // the Work items note names owner and date: not this page's
     return out;
   }
   const name = body.slice(0, ci).replace(/"/g, "").trim(), rest = body.slice(ci + 1);
@@ -206,6 +214,15 @@ export function suggestions(text, caret, rows, ctx, extra) {
     out.push({ kind: "lead", ins: `has:${k}`, label: `Has ${F.name}`, note: "", icon: iconOf(k), close: true });
     out.push({ kind: "lead", ins: `-${k}:`, label: `Exclude ${F.name}`, note: "", icon: "circleminus", close: false });
   }
+  const mine = ownField(extra, k);
+  if (mine) {                                                                     // a page's own field: the values it offers, each with its own tone
+    for (const [v, l] of typeof mine.offers === "function" ? mine.offers(rows, c) : []) {
+      if (v === NONE || v === "none" || taken.includes(low(v))) continue;
+      if (part && !low(v).includes(part) && !low(l).includes(part)) continue;
+      out.push({ kind: "value", ins: `${pre}${k}:${done}${quoted(v)}`, label: v, note: l !== v ? l : "", tone: toneFor(extra, k, v), close: true });
+    }
+    return out;
+  }
   if (!has(LINE_FIELDS, k)) return out;                                          // a custom field: the three lead rows only
   for (const [v, l] of offers(k, rows, c)) {
     if (v === NONE || v === "none") continue;                                    // "nothing there" is the lead row "No X"
@@ -215,6 +232,14 @@ export function suggestions(text, caret, rows, ctx, extra) {
     out.push({ kind: "value", ins: `${pre}${k}:${done}${quoted(typed)}`, label: typed, note: l !== typed ? l : "", tone: toneOf(k, typed), close: true });
   }
   return out;
+}
+
+/** Item 1014: Backspace or Delete with the caret right after a half-typed `field:value` takes the whole word away. Returns the text and caret
+ *  after it goes, or null when the caret is not at the end of such a word (a bare `field:`, a plain word, a caret inside the word, or Delete with a space after the caret: that takes the space). */
+export function dropWordAt(text, caret, key) {
+  const s = String(text || ""), { start, word } = wordAt(s, caret);
+  if (!/^-?[a-z]+:./i.test(word) || (caret < s.length && (key === "Delete" || !/\s/.test(s[caret])))) return null;
+  return { text: s.slice(0, start) + s.slice(caret).replace(/^\s+/, ""), caret: start };
 }
 
 /** The text and caret after choosing `opt` for the word the caret is in. A choice that ends the word adds one space after it. */
@@ -275,9 +300,9 @@ export function withCounts(options, chips, rows, ctx, extra) {
   });
 }
 
-/** The word a chip's remove button names: the field's name, or the word typed before the colon (is, has, no). */
+/** The word a chip's remove button names: the field's name, or the whole chip for is, has and no (two is: chips must not both be "the is filter"). */
 export function chipName(chip, rows, ctx, extra) {
   const t = parseFor(chip, rows, ctx, extra).tokens[0];
   if (t && t.kind === "field") { const f = pageSchema(rows, ctx, extra).fields.find((x) => x.key === t.field); return f ? f.name : t.field; }
-  return String(chip).replace(/^-/, "").split(":")[0];
+  return String(chip);
 }

@@ -8,6 +8,7 @@ select() dropped is in no part, in four spellings; a field select() did not keep
 text goes through the sanitiser; a value is only ever text in the XML.
 """
 import copy
+from datetime import date
 import io
 import re
 import time
@@ -19,7 +20,7 @@ from unittest import mock
 from _paths import ROOT   # noqa: F401  (puts src/ on the path)
 
 import _publish_fixture as fx
-from clark import docx_build, docx_read, look, platform, publish
+from clark import docx_build, docx_read, glance, look, platform, publish
 from clark.docx_build import WordError
 
 SENSITIVE_WORDS = r"(?i)traceback|exception|\bxml\b|\bzip\b|errno|\bAPI\b"
@@ -53,6 +54,89 @@ def with_project(p, **fields):
     p = copy.deepcopy(p)
     p["data"]["project"].update(fields)
     return p
+
+
+class HostileValues(unittest.TestCase):
+    """A stored value that is not text (a list, a dict) in a field that picks a colour must not break the Word build (an unhashable
+    value in a dict or set lookup raised TypeError): it just has no colour. The risks are LINKED to a use case and open, so the
+    use-case strip (glance.use_case_strip, worst colour, pill_of, colour_of_priority) is reached as well as the table cells."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        for row in data["raid"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        for row in data["actions"]:
+            row["priority"] = bad
+            row["use_case"] = data["use_cases"][0]["id"]
+        for row in data["decisions"]:
+            row["status"] = bad
+        return plant
+
+    def test_a_priority_or_status_that_is_not_text_builds_with_no_colour(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                data = docx_build.build(published(self.plant(bad)))
+                self.assertTrue(data.startswith(b"PK"))
+
+    def test_a_priority_that_is_not_text_is_not_rated_on_a_linked_risk(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = self.plant(bad)
+                d = plant["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                linked = [r for r in rows if r["id"] == plant["data"]["use_cases"][0]["id"]]
+                self.assertTrue(linked)
+                self.assertIsNone(linked[0]["worst"])
+                self.assertIsNone(glance.colour_of_priority(bad))
+
+
+class HostileHealthAndStatus(unittest.TestCase):
+    """Row 1035: a project's health or a use case's status that is a list or dict (an unhashable key in a colour lookup raised
+    TypeError) builds with no colour, with a use case linked to open work."""
+    def plant(self, bad):
+        plant = fx.load()
+        data = plant["data"]
+        data["project"]["health"] = bad
+        for uc in data["use_cases"]:
+            uc["status"] = bad
+        for row in data["raid"]:
+            row["use_case"] = data["use_cases"][0]["id"]
+            row["status"] = "Open"
+        return plant
+
+    def test_a_health_or_use_case_status_that_is_not_text_builds(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                self.assertTrue(docx_build.build(published(self.plant(bad))).startswith(b"PK"))
+
+    def test_the_pill_and_the_strip_give_no_colour(self):
+        for bad in (["On track"], {"a": 1}):
+            with self.subTest(bad=bad):
+                pill = glance.health_pill(bad)
+                self.assertIsNone(pill["colour"])
+                self.assertEqual(pill["words"], "Not set")
+                d = self.plant(bad)["data"]
+                rows = glance.use_case_strip(d["use_cases"], glance.work_rows(d), "2026-10-28")["rows"]
+                self.assertTrue(rows)
+                self.assertEqual([r["colour"] for r in rows], [None] * len(rows))      # no colour at all, not a grey one
+
+
+class HostileColourLookups(unittest.TestCase):
+    """Row 1035 follow-up: the priority and status cells in the Word tables (docx_build colour_for lookups) take a stored list
+    or dict without an unhashable-key error and give it no colour."""
+    def test_a_priority_state_or_status_that_is_not_text_builds(self):
+        for bad in (["High"], {"a": 1}):
+            with self.subTest(bad=bad):
+                plant = fx.load()
+                data = plant["data"]
+                for table, fields in (("actions", ("priority", "status")), ("raid", ("priority", "status")),
+                                      ("decisions", ("status",))):
+                    for row in data.get(table, []):
+                        for f in fields:
+                            row[f] = bad
+                self.assertTrue(docx_build.build(published(plant)).startswith(b"PK"))
 
 
 class Repeatable(unittest.TestCase):
@@ -249,7 +333,7 @@ class WhatIsInIt(unittest.TestCase):
         self.assertEqual(blocks(docx_build.build(with_project(self.p, week_ending=None)))[1]["text"], "As at 28-10-2026")
 
     def test_a_table_for_each_kind(self):
-        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Ref")]
+        heads = [b["rows"][0] for b in self.blocks if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id", "Ref")]
         self.assertEqual([h[1] for h in heads], ["Use case", "Milestone", "Type", "Action", "Decision"])
 
     def test_client_wording_replaces_the_rows_own_text(self):
@@ -272,6 +356,24 @@ class WhatIsInIt(unittest.TestCase):
         text = every_text(docx_build.build(p))
         self.assertIn("Achieved 14-10-2026", text)
 
+    def test_an_achieved_milestone_with_no_actual_date_says_achieved_alone(self):
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(status="Done", actual_date=None, state="Reached", state_word="Reached")
+        text = every_text(docx_build.build(p))
+        self.assertIn("Achieved", text)
+        self.assertNotIn("Achieved \u2014", text)
+        self.assertNotIn("Achieved \u2014".replace("\u2014", "-"), text)
+
+    def test_a_milestones_client_wording_is_rich_and_reads_as_plain_words_in_word(self):
+        # Item 1078: the client wording is stored as the editor's HTML; the Word copy must show its words, never the tags.
+        p = copy.deepcopy(self.p)
+        p["data"]["milestones"][0].update(client_message="<p>ZQ-RICH-WORDS <strong>bold</strong> &amp; more</p>")
+        text = every_text(docx_build.build(p))
+        self.assertIn("ZQ-RICH-WORDS", text)
+        self.assertIn("bold", text)
+        self.assertNotIn("&lt;p&gt;", text)
+        self.assertNotIn("&lt;strong&gt;", text)
+
     def test_dates_read_dd_mm_yyyy_and_are_never_stored_dates(self):
         both = parts(self.data)
         words = (both["word/document.xml"] + both["word/footer1.xml"]).decode("utf-8")
@@ -285,11 +387,11 @@ class WhatIsInIt(unittest.TestCase):
         self.assertIn("Project health: ", doc)
         self.assertIn("At risk", doc)
         self.assertIn("ZQ-HEALTH-REASON", doc)
-        self.assertIn(docx_build.TOKENS["status-amber-tint"], doc)
+        self.assertIn(docx_build.TOKENS["tone-amber-tint"], doc)
 
     def test_status_words_travel_with_their_colour(self):
         for b in self.blocks:
-            if b["kind"] == "table" and b["rows"][0][0] == "ID" and "Priority" in b["rows"][0]:
+            if b["kind"] == "table" and b["rows"][0][0] in ("ID", "Id") and "Priority" in b["rows"][0]:
                 col = b["rows"][0].index("Priority")
                 self.assertTrue(all(r[col] in ("Urgent", "High", "Medium", "Low") for r in b["rows"][1:]))
 
@@ -403,10 +505,17 @@ class RichText(unittest.TestCase):
                                 ("list_item", 0, False, "one"), ("list_item", 1, False, "deep"), ("list_item", 2, False, "deeper"),
                                 ("list_item", 0, False, "two"), ("list_item", 0, True, "first"), ("list_item", 0, True, "second")])
 
-    def test_lists_deeper_than_three_levels_stay_at_three(self):
+    def test_lists_deeper_than_four_levels_stay_at_four(self):
         _, both = self.render("<ul><li>a<ul><li>b<ul><li>c<ul><li>d<ul><li>e</li></ul></li></ul></li></ul></li></ul></li></ul>")
         levels = {int(x) for x in re.findall(r'<w:ilvl w:val="(\d+)"/>', both["word/document.xml"].decode())}
-        self.assertEqual(levels, {0, 1, 2})
+        self.assertEqual(levels, {0, 1, 2, 3})
+
+    def test_four_deep_nested_list_round_trips_all_four_levels(self):
+        data, both = self.render("<ul><li>a<ul><li>b<ul><li>c<ul><li>d</li></ul></li></ul></li></ul></li></ul>")
+        levels = [int(x) for x in re.findall(r'<w:ilvl w:val="(\d+)"/>', both["word/document.xml"].decode())]
+        self.assertEqual(levels, [0, 1, 2, 3])
+        got = [(b["level"], b["text"]) for b in blocks(data) if b["kind"] == "list_item" and b["text"] in "abcd"]
+        self.assertEqual(got, [(0, "a"), (1, "b"), (2, "c"), (3, "d")])
 
     def test_a_value_is_only_text_in_the_xml(self):
         nasty = '</w:t></w:r></w:p><w:p><w:r><w:t>INJECTED & "quoted" \x00\x0b\ud800 end'
@@ -445,6 +554,17 @@ class RichText(unittest.TestCase):
         self.assertNotIn("ZQ-STANDING", text)
         self.assertNotIn("ZQ-BODY", text)
         self.assertIn("fine", text)
+
+
+class UseCaseHeadings(unittest.TestCase):
+    def test_a_heading_inside_a_use_case_is_below_the_use_cases_own_heading(self):
+        p = published()
+        p["data"]["use_cases"][0]["standing"] = "<h1>ZQ-BIG</h1><p>text</p>"
+        doc = parts(docx_build.build(p))["word/document.xml"].decode()
+        styles = re.findall(r'<w:pStyle w:val="Heading(\d)"/>', doc)
+        i = styles.index("3")
+        self.assertEqual(styles[i + 1], "4", styles)
+        self.assertNotIn("2", styles[i + 1:i + 2])
 
 
 class Brand(unittest.TestCase):
@@ -523,6 +643,93 @@ class Refusals(unittest.TestCase):
         self.assertIn("PUB-A-1999", every_text(data))
 
 
+    def test_the_plan_picture_alt_text_is_capped_at_a_word(self):
+        p = published()
+        base = p["data"]["milestones"][0]
+        p["data"]["milestones"] = [dict(base, id=f"PUB-M-{n:04d}", name=f"Milestone {n} " + "wordy " * 12) for n in range(200)]
+        z = zipfile.ZipFile(io.BytesIO(docx_build.build(p)))
+        doc = z.read("word/document.xml").decode("utf-8")
+        lens = [len(d) for d in re.findall(r'descr="([^"]*)"', doc)]
+        self.assertTrue(lens)
+        self.assertLessEqual(max(lens), 1500)
+        self.assertTrue(any(n > 1000 for n in lens))
+
+
+class MutantsB1(unittest.TestCase):
+    """Edges the mutation hunt found no test pinning: each one fails if its line of docx_build.py is changed."""
+
+    def test_escaping_gives_text_and_quoted_attributes(self):
+        self.assertEqual(docx_build.esc("a>b"), "a&gt;b")
+        self.assertEqual(docx_build.esc(None), "")
+        self.assertEqual(docx_build.attr('say "hi"'), "say &quot;hi&quot;")
+
+    def test_a_colour_with_spaces_around_it_still_counts(self):
+        self.assertEqual(docx_build.palette({"brand-navy": "  #112233 "})["brand-navy"], "112233")
+
+    def test_one_address_and_one_picture_are_each_one_relationship_and_a_second_is_another(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        a = ctx.link("https://example.org/a")
+        self.assertEqual(ctx.link("https://example.org/a"), a)
+        self.assertNotEqual(ctx.link("https://example.org/b"), a)
+        one = ctx.image(b"one")
+        self.assertEqual(ctx.image(b"one"), one)
+        self.assertNotEqual(ctx.image(b"two"), one)
+
+    def test_relationship_ids_are_all_different_and_clear_of_the_fixed_four(self):
+        _, both = RichText.render(self, '<p><a href="https://example.org/a">x</a> <a href="https://example.org/b">y</a></p>')
+        ids = re.findall(r'Relationship Id="(rId\d+)"', both["word/_rels/document.xml.rels"].decode())
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(sorted(ids)[:4], ["rId1", "rId2", "rId3", "rId4"])
+        self.assertGreaterEqual(len(ids), 6)
+
+    def test_a_picture_is_never_less_than_one_unit_tall_and_keeps_its_shape(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        self.assertIn('cy="1"', docx_build.picture(ctx, (b"x", 1000, 1), 1, "alt"))
+        tall = docx_build.picture(ctx, (b"y", 100, 200), 100, "alt")
+        self.assertIn('cx="63500" cy="127000"', tall)
+
+    def test_a_task_that_starts_today_is_in_progress_and_one_percent_is_too(self):
+        d = date(2026, 11, 6)
+        r = lambda s, e, p, t="task": {"start": date.fromisoformat(s), "end": date.fromisoformat(e), "pct": p, "type": t}
+        self.assertEqual(docx_build._gantt_status(r("2026-11-06", "2026-11-30", 0), d), "inprogress")
+        self.assertEqual(docx_build._gantt_status(r("2026-12-01", "2026-12-30", 1), d), "inprogress")
+        self.assertEqual(docx_build._gantt_status(r("2026-11-06", "2026-11-06", 0), d), "inprogress")   # ends today: not yet late
+
+    def test_a_task_at_exactly_one_hundred_percent_is_done_even_when_it_ended_before_today(self):
+        """Mutant: pct > 100 for Done."""
+        d = date(2026, 11, 6)
+        r = {"start": date(2026, 10, 1), "end": date(2026, 10, 5), "pct": 100, "type": "task"}
+        self.assertEqual(docx_build._gantt_status(r, d), "done")
+        self.assertEqual(docx_build._gantt_status({**r, "pct": 99}, d), "late")
+
+    def test_a_para_rule_draws_the_line_and_a_plain_para_does_not(self):
+        """Mutant: the rule flag is inverted or ignored."""
+        self.assertIn("<w:pBdr>", docx_build.para("x", rule=True))
+        self.assertNotIn("<w:pBdr>", docx_build.para("x"))
+
+    def test_the_limit_message_says_the_limit_in_binary_megabytes(self):
+        big = 30 * 1048576
+        with mock.patch.object(docx_build, "MAX_BYTES", big), mock.patch.object(docx_build, "zip_bytes", return_value=b"x" * (big + 1)):
+            with self.assertRaises(WordError) as caught:
+                docx_build.build(published())
+        self.assertIn("30 MB limit", str(caught.exception))
+        self.assertIn("30.0 MB", str(caught.exception))
+
+    def test_the_documents_title_is_the_project_name_or_else_its_code(self):
+        named = parts(docx_build.build(with_project(published(), name="Zed Name")))["docProps/core.xml"].decode()
+        self.assertIn("<dc:title>Zed Name</dc:title>", named)
+        bare = parts(docx_build.build(with_project(published(), name="")))["docProps/core.xml"].decode()
+        self.assertIn("<dc:title>PUB</dc:title>", bare)
+
+    def test_a_stray_closing_tag_does_not_make_what_follows_bold(self):
+        ctx = docx_build._Ctx(docx_build.palette(), "2026-10-28")
+        r = docx_build._Rich(ctx)
+        r.end("strong")
+        self.assertEqual(r.fmt["strong"], 0)
+        r.start("strong", [])
+        self.assertEqual(r.fmt["strong"], 1)
+
+
 class FileName(unittest.TestCase):
     def test_the_name(self):
         self.assertEqual(docx_build.file_name("PUB", "2026-10-23", "2026-10-28"), "PUB-report-2026-10-23.docx")
@@ -574,7 +781,7 @@ class Source(unittest.TestCase):
 
 # Row 769: the Word copy's tables. The narrowest each column may be, in twentieths of a point, so that an ID, a date, a status
 # word or "Commitment" is never broken across two lines (nine-point text and 80-twip cell margins on each side).
-MIN_COL = {"ID": 1150, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
+MIN_COL = {"ID": 1150, "Id": 1150, "Review by": 1050, "Ref": 700, "Type": 1150, "Owner": 1100, "Priority": 900, "Due": 1050, "Status": 1050, "Agreed": 1050,
            "Forecast": 1050, "State": 1050, "Slip": 900, "Commitment": 1300, "Impact / likelihood": 1000, "Made by": 1300,
            "Date": 1700, "Work items": 1000}
 W_NS = {"w": "http://schemas.openxmlformats.org/wordprocessingml/2006/main"}
@@ -596,7 +803,7 @@ class WordTableWidths(unittest.TestCase):
                                 "repeat": rows[0].find("w:trPr/w:tblHeader", W_NS) is not None})
 
     def data_tables(self):
-        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Ref")]
+        return [t for t in self.tables if t["head"] and t["head"][0] in ("ID", "Id", "Ref")]
 
     def test_every_table_fits_the_text_width_and_the_cells_follow_the_grid(self):
         self.assertTrue(self.tables)
@@ -620,8 +827,8 @@ class WordTableWidths(unittest.TestCase):
 
     def test_open_actions_and_risks_columns_are_wide_enough_for_ids_dates_and_words(self):
         for second, names, wide in (("Action", ["ID", "Owner", "Priority", "Due", "Status"], "Action"),
-                                    ("Type", ["ID", "Type", "Owner", "Priority", "Impact / likelihood", "Due", "Status"], "Item")):
-            (t,) = [x for x in self.tables if x["head"][:2] == ["ID", second]]
+                                    ("Type", ["Id", "Type", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"], "Title")):
+            (t,) = [x for x in self.tables if x["head"][:2] in (["ID", second], ["Id", second])]
             for name in names:
                 self.assertGreaterEqual(t["grid"][t["head"].index(name)], MIN_COL[name], f"{second} table, {name}")
             self.assertGreaterEqual(t["grid"][t["head"].index(wide)], 1800)
@@ -649,7 +856,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 out += "".join(x.text or "" for x in t.iter(q + "t"))
         return out
 
@@ -674,7 +881,7 @@ class WordOpenItemsOnly(unittest.TestCase):
         for t in root.iter(q + "tbl"):
             rows = t.findall("w:tr", W_NS)
             head = ["".join(x.text or "" for x in c.iter(q + "t")) for c in rows[0].findall("w:tc", W_NS)]
-            if head[:2] in (["ID", "Action"], ["ID", "Type"]):
+            if head[:2] in (["ID", "Action"], ["Id", "Type"]):
                 counts[head[1]] = len(rows) - 1
         self.assertEqual(counts, {"Action": 3, "Type": 2})
 

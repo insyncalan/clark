@@ -412,6 +412,62 @@ class Choosing(Base):
         self.refused(got, 409, "dialog_failed")
         self.assertIn("Try Choose folder again", got[1]["message"])
 
+    def test_a_window_that_can_never_open_says_why_and_points_to_typing(self):
+        self.pick(ask_folders.platform.NotBuiltYet("needs the Mac"))
+        with mock.patch.object(ask_folders.platform, "container_mode", return_value=True):
+            got = self.choose()
+        self.refused(got, 409, "no_window")
+        self.assertIn("Docker", got[1]["message"])
+        self.assertIn("Type the folder's location", got[1]["message"])
+        self.assertNotIn("Try Choose folder again", got[1]["message"])
+        self.assertIn("Nothing was changed.", got[1]["message"])
+        got = self.choose()
+        self.assertNotIn("Docker", got[1]["message"])
+        self.assertIn("Add folder", got[1]["message"])
+        self.assertIn("Nothing was changed.", got[1]["message"])
+
+    def test_a_typed_location_is_added_when_no_window_can_open(self):
+        self.assertEqual(self.post({"project": "ABC", "action": "add", "path": str(self.docs)})[0], 200)
+        self.assertEqual(self.stored(), [str(self.docs)])
+
+    def test_a_save_that_cannot_be_made_says_try_choose_folder_again_and_stores_nothing(self):
+        """Row 1109: add, remove and undo each answer 409 cant_save when the one step cannot be written."""
+        kept = self.add(self.docs)[1]["apply_id"]
+        real_open = ask_folders.open_store
+
+        def broken(*a, **k):
+            store = real_open(*a, **k)
+
+            def no_step(*args, **kw):
+                raise ask_folders.Invalid("cannot write")
+            store.step = no_step
+            store.undo = lambda *args, **kw: {"reversed": False}
+            return store
+        with mock.patch.object(ask_folders, "open_store", broken):
+            for got in (self.add(self.more),
+                        self.post({"project": "ABC", "action": "remove", "path": str(self.docs)}),
+                        self.post({"project": "ABC", "action": "undo", "apply_id": kept})):
+                self.refused(got, 409, "cant_save")
+                self.assertIn("Try Choose folder again", got[1]["message"])
+        self.assertEqual(self.stored(), [str(self.docs)])
+
+    def test_choosing_starts_in_the_last_folder_added(self):
+        self.add(self.docs)
+        self.add(self.more)
+        calls = self.pick(None)
+        self.choose()
+        self.assertEqual(str(calls[0][1]), str(self.more))
+
+    def test_after_a_failed_choose_in_docker_the_typed_location_is_added(self):
+        self.pick(ask_folders.platform.NotBuiltYet("needs the Mac"))
+        with mock.patch.object(ask_folders.platform, "container_mode", return_value=True):
+            got = self.choose()
+        self.refused(got, 409, "no_window")
+        self.assertIn("Type the folder's location", got[1]["message"])
+        self.assertEqual(self.stored(), [])
+        status, body = self.add(self.docs)
+        self.assertEqual((status, body["folders"], self.stored()), (200, [str(self.docs)], [str(self.docs)]))
+
     def test_choose_takes_no_path(self):
         self.pick(self.docs)
         self.refused(self.post({"project": "ABC", "action": "choose", "path": str(self.docs)}), 400, "bad_request")

@@ -18,6 +18,7 @@ from openpyxl import load_workbook
 from clark import excel
 from clark import excel_colours as colours
 from clark import look
+from clark import sanitise
 from test_excel import Demo, ON
 
 FIXED_ID = "0123456789ab4def8123456789abcdef"     # an export id held still, so two exports can be compared byte for byte
@@ -118,6 +119,10 @@ class Formatting(unittest.TestCase):
                   "Use cases": "Use case"}
         for name, title in titles.items():
             ws = wb[name]
+            if name == "Use cases":          # item 1160: Reference sits between ID and Use case, so the title is the third column
+                self.assertEqual(ws.freeze_panes, "D2", name)
+                self.assertEqual([ws["A1"].value, ws["B1"].value, ws["C1"].value], ["ID", "Reference", title], name)
+                continue
             self.assertEqual(ws.freeze_panes, "C2", name)
             self.assertEqual([ws["A1"].value, ws["B1"].value], ["ID", title], name)
 
@@ -245,11 +250,11 @@ class Formatting(unittest.TestCase):
                          {"Urgent": "red", "High": "amber", "Medium": "grey", "Low": "grey"})
         self.assertIs(colours.BY_FIELD[("raid", "priority")], colours.PRIORITY)
         self.assertIs(colours.BY_FIELD[("actions", "priority")], colours.ACTION_PRIORITY)
-        self.assertEqual(colours.hexes("red"), ("F6E0DD", "A3301F"))
-        self.assertEqual(colours.hexes("amber"), ("FCEFCF", "8A5200"))
-        self.assertEqual(colours.hexes("green"), ("D9F1EC", "006B5E"))
+        self.assertEqual(colours.hexes("red"), ("F4DEDB", "B3392F"))
+        self.assertEqual(colours.hexes("amber"), ("FBF0D2", "8A5A12"))
+        self.assertEqual(colours.hexes("green"), ("DFF1EA", "2F6E57"))
         self.assertEqual(colours.MILESTONE_STATE["At risk"], "amber")
-        self.assertEqual(colours.DECISION_STATUS, {"Pending": "amber", "Made": "green", "Withdrawn": "grey"})
+        self.assertEqual(colours.DECISION_STATUS, {"Pending": "green", "Made": "blue", "Withdrawn": "grey"})
 
     def test_use_case_status_is_green_amber_red_and_done_grey(self):
         """#412: Done is grey on the Use cases sheet, as the page draws it; the word is always in the cell."""
@@ -262,8 +267,8 @@ class Formatting(unittest.TestCase):
 
     def test_action_and_raid_status_follow_the_pages_tones(self):
         self.assertEqual(colours.BY_FIELD[("actions", "status")],
-                         {"Open": "blue", "Delayed": "amber", "Closed": "grey", "Cancelled": "grey"})
-        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "blue", "Closed": "grey", "Cancelled": "grey"})
+                         {"Open": "green", "Delayed": "amber", "Closed": "blue", "Cancelled": "grey"})
+        self.assertEqual(colours.BY_FIELD[("raid", "status")], {"Open": "green", "Closed": "blue", "Cancelled": "grey"})
         wb = load_workbook(self.build(self.everything()))
         for sheet, label, table in (("Actions", "Status", "actions"), ("Risks & Issues", "Status", "raid")):
             ws = wb[sheet]
@@ -318,7 +323,7 @@ class Formatting(unittest.TestCase):
         for name, (date_label, status_label, states) in want.items():
             ws = wb[name]
             head = {c.value: c.column_letter for c in ws[1]}
-            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression"]
+            late = [(col, r) for col, r in rules_of(ws) if r.type == "expression" and col == head[date_label]]      # row 1021: the Status column has its own overdue rule (test_status_colours)
             with self.subTest(sheet=name):
                 self.assertEqual(len(late), 1)
                 col, rule = late[0]
@@ -373,11 +378,13 @@ class Formatting(unittest.TestCase):
         try:
             d.export()
             back = excel.read_workbook(d.path)
+            names = excel._ref_names({t: d.store.read(t, "ABC") for t in ("milestones", "use_cases")})
+            shown_ids = {f: {text: i for i, text in m.items()} for f, m in names.items()}
             for _, table, cols, _ in excel.SHEETS:
-                fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
-                stored = {r["id"]: {f: r[f] for f in fields} for r in d.store.read(table, "ABC")}
-                got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
-                       for r in back[table]}      # item 710: the cell reads ID: name; the import takes the ID
+                fields = [f for _, f in cols if f not in excel.DERIVED and f not in ("labels", "milestones")]
+                stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in d.store.read(table, "ABC")}
+                got = {r["id"]: {f: (shown_ids[f].get(r.get(f), r.get(f)) if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                       for r in back[table]}      # item 1150: the cell reads the name; mapped back to the id here
                 self.assertEqual(got, stored, table)
         finally:
             d.close()

@@ -10,7 +10,7 @@ The owner's side project. It is separate from creaite: its own repo, its own boa
 
 - **Private, always** ("Keep clark private"). Making the repo public, pushing to another repo or sharing outside the team needs the owner's word.
 - **No real names or client data.** Use fictional demo data in code, tests, docs and examples. Never copy a real client, company or person's name from the owner's vaults or from creaite's private repos.
-- **A real client brand stays on this laptop.** Logos, colours, fonts, names and source files of a real client brand live only in `system/branding/`, which git ignores. Nothing derived from them that names or shows the client is committed. The repo, its tests and examples use a fictional demo brand.
+- **A real client brand stays on this laptop.** Logos, colours, fonts, names and source files of a real client brand live only in `branding/`, which git ignores. Nothing derived from them that names or shows the client is committed. The repo, its tests and examples use a fictional demo brand.
 - **No secrets.** No tokens, keys or passwords in the repo, ever. Credentials stay in the keychain or environment.
 - **The owner decides scope.** The team proposes; the owner chooses what is built and when.
 - **Releases publish without the owner's sign-off** ("You do not need my eyes to publish"): the Head publishes a private release once the gate is green on the exact commit and the required verdicts are in. Public posts still wait for the owner.

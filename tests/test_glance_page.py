@@ -337,6 +337,16 @@ class EditTiles(Setup):
             p.saved()
             self.assertEqual(self.tiles(p)[:2], ["risks", "health"])
 
+    def test_escape_in_the_outline_menu_returns_focus_to_the_grip(self):
+        with chrome() as cdp:
+            p = self.show(cdp)
+            p.edit()
+            p.js("document.querySelector('[data-tile=overdue]').dispatchEvent(new MouseEvent('contextmenu', {bubbles: true, cancelable: true}))")
+            p.until("!!document.querySelector('.tilemenu')", "the colour menu")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('.tilemenu:not(.leaving)')", "closed")
+            self.assertTrue(p.js("document.activeElement === document.querySelector('[data-tile=overdue] [data-tile-grip]')"))
+
     def test_right_click_sets_the_outline_colour_and_undo_puts_it_back(self):
         with chrome() as cdp:
             p = self.show(cdp)
@@ -441,6 +451,17 @@ class UseCases(Setup):
             p.js("history.back()")
             p.until("!!document.querySelector('.ucrow')", "back on the Dashboard")
 
+    def test_a_next_step_line_ends_with_its_id_link_alone_that_never_breaks(self):
+        """Row 1004: no ' due' text after the id; the id link keeps to one line."""
+        with chrome() as cdp:
+            p = self.show(cdp, width=900)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "the row opened")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li').length"), 3)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0, "no due text on a step line")
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0, "no muted tail after the id")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True, "an id never breaks across lines")
+
     def test_next_steps_are_every_open_item_in_the_client_wording_with_the_owner_in_a_circle(self):
         """#441: a risk and a decision linked to the use case are next steps too; an item with client wording shows that, not its title."""
         uc = self.demo.use_case
@@ -468,24 +489,113 @@ class Styles(Setup):
         with chrome() as cdp:
             p = self.show(cdp, hash_="#settings&p=ABC", settings=True, standard=True)
             p.until("!!document.querySelector('#personal')", "Personal")
-            self.assertEqual(p.js("[...document.querySelectorAll('input[name=secstyle]')].map(i => i.value)"), ["slim", "roomy", "grey", "card"])
-            self.assertEqual(p.js("document.querySelector('input[name=secstyle]:checked').value"), "card", "One card is the default")
-            for value in ("roomy", "grey", "card", "slim"):
-                p.js(f"document.querySelector('input[name=secstyle][value={value}]').click()")
-                p.until(f"document.documentElement.dataset.secstyle === '{value}'", f"{value} applied")
-            p.js("document.querySelector('input[name=secstyle][value=grey]').click()")
+            self.assertEqual(p.js("[...document.querySelectorAll('input[name=density]')].map(i => i.value)"), ["compact", "comfortable"])
+            self.assertEqual(p.js("document.querySelector('input[name=density]:checked').value"), "compact", "Compact is the default")
+            for value in ("comfortable", "compact"):
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
+            p.js("document.querySelector('input[name=density][value=comfortable]').click()")
             reload_to_new_page(p.js)
-            p.until("document.documentElement.dataset.secstyle === 'grey'", "remembered after a reload")
+            p.until("document.documentElement.dataset.density === 'comfortable'", "remembered after a reload")
+            flat = {}
+            for value in ("comfortable", "compact"):
+                p.js("location.hash = '#settings&p=ABC'")
+                p.until(f"!!document.querySelector('input[name=density][value={value}]')", "Personal")
+                p.js(f"document.querySelector('input[name=density][value={value}]').click()")
+                p.until(f"document.documentElement.dataset.density === '{value}'", f"{value} applied")
+                p.js("location.hash = '#dashboard&p=ABC'")
+                p.until("!!document.querySelector('.secs .sec')", "dashboard")
+                flat[value] = p.js("getComputedStyle(document.querySelector('.secs .sec')).boxShadow === 'none'")
+            self.assertEqual(flat, {"comfortable": False, "compact": True}, "Comfortable sections are cards, Compact sections run on flat")
             gap = []
-            for value in ("slim", "roomy"):
-                p.js(f"document.documentElement.dataset.secstyle = '{value}'")
+            for value in ("compact", "comfortable"):
+                p.js(f"document.documentElement.dataset.density = '{value}'")
                 p.js("location.hash = '#dashboard&p=ABC'")
                 p.until("!!document.querySelector('.secs')", "dashboard")
-                gap.append(p.js("parseFloat(getComputedStyle(document.querySelector('.secs')).rowGap)"))
-            self.assertGreater(gap[1], gap[0], "Roomy gaps are roomier than Slim gaps")
+                gap.append(p.js("(() => { const s = getComputedStyle(document.querySelector('.sec')); return parseFloat(s.paddingTop) + parseFloat(s.paddingBottom); })()"))
+            self.assertGreater(gap[1], gap[0], "a Comfortable section has more padding above and below than a Compact one")
 
 
 class Published(PublishedFile, Setup):
+    def plant_more_work(self):
+        """Two more of each kind the tiles count: one that is left out of the file (client-off, or taken off the report), so the file holds fewer than the project."""
+        with self.store.step("dashboard", USER) as st:
+            risk = {"project": "ABC", "type": "Risk", "raised": "2026-10-01", "source": "demo", "impact": "High", "likelihood": "High", "owner": "Pat Demo"}
+            st.create("raid", {**risk, "description": "ZQ second risk"})
+            st.create("raid", {**risk, "description": "ZQ-client-off risk", "client_visible": 0})
+            hidden = st.create("raid", {**risk, "description": "ZQ-hidden risk"})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ second decision", "source": "demo", "status": "Pending", "needed_by": "2020-03-01"})
+            st.create("decisions", {"project": "ABC", "decision": "ZQ-client-off decision", "source": "demo", "status": "Pending", "client_visible": 0})
+            gone = st.create("decisions", {"project": "ABC", "decision": "ZQ-hidden decision", "source": "demo", "status": "Pending"})
+            if not self.store.read("glance_tiles", "ABC"):
+                st.seed_tiles("ABC")
+            st.update("glance_tiles", "ABC|decisions", {"hidden": 0})
+        for item in (hidden, gone):
+            self.store.con.execute("INSERT INTO report_hidden (project, item_id) VALUES ('ABC', ?)", (item,))
+        self.store.con.commit()
+
+    def test_row_1112_a_published_tile_opens_the_files_work_items_with_what_it_counts(self):
+        self.plant_more_work()
+        path = self.publish()
+        text = path.read_text(encoding="utf-8")
+        for planted in ("ZQ-client-off risk", "ZQ-hidden risk", "ZQ-client-off decision", "ZQ-hidden decision"):
+            self.assertNotIn(planted, text, "a left-out item is not in the file")
+        for tile in ("overdue", "risks", "decisions"):
+            for width in (1400, 900):
+                with self.subTest(tile=tile, width=width), chrome() as cdp:
+                    p = self.draw(cdp, path, width)
+                    self.assertEqual(p.js(f"document.querySelector('[data-fig={tile}]').tagName"), "BUTTON", "a published tile is a button")
+                    self.assertEqual(p.js("document.querySelector('[data-fig=health]').tagName"), "DIV", "Project health counts nothing to open")
+                    shown = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
+                    self.assertEqual(shown, {"overdue": 1, "risks": 2, "decisions": 2}[tile], "the file's own figure, not the project's")
+                    p.js(f"document.querySelector('[data-fig={tile}]').click()")
+                    p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                    p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+                    self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), shown, "the Work row count is the tile's value")
+                    self.assertNotIn("ZQ-", p.js("document.querySelector('#work').textContent"), "no left-out item shows")
+
+    def test_row_1112_each_published_tile_opens_the_work_items_it_counts_and_no_others(self):
+        """Each figure tile opens the file's Work items filtered by what ITS number counts: the overdue tile the overdue actions, the
+        risks tile the high risks and issues; and a tile whose number is the count of rows shown."""
+        path = self.publish()
+        seen = {}
+        for width in (1400, 900):
+            for tile in ("overdue", "risks"):
+                with self.subTest(width=width, tile=tile), chrome() as cdp:
+                    p = self.draw(cdp, path, width)
+                    value = int(p.js(f"document.querySelector('[data-fig={tile}] .v').textContent"))
+                    self.assertGreaterEqual(value, 1, "the fictional file holds something for the tile to open")
+                    p.js(f"document.querySelector('[data-fig={tile}]').click()")
+                    p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                    p.until("document.querySelectorAll('#work tbody tr[data-id]').length >= 1", "rows drawn")
+                    ids = p.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => r.dataset.id)")
+                    self.assertEqual(len(ids), value, "the rows shown are the ones the tile counted")
+                    seen.setdefault(tile, set()).update(ids)
+        self.assertTrue(seen["overdue"].isdisjoint(seen["risks"]), "the two tiles open different rows")
+
+    def test_row_1112_the_risks_tile_opens_exactly_the_rows_it_counted(self):
+        path = self.publish()
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.draw(cdp, path, width)
+                want = int(p.js("document.querySelector('[data-fig=risks] .v').textContent"))
+                self.assertEqual(p.js("document.querySelector('[data-fig=risks]').tagName"), "BUTTON")
+                self.assertTrue(p.js("document.querySelector('[data-fig=risks]').getAttribute('aria-label').endsWith('Opens Work items showing these')"), "the spoken name says where it goes")
+                p.js("document.querySelector('[data-fig=risks]').click()")
+                p.until("location.hash.startsWith('#work')", "the file's Work items opened")
+                p.until("!!document.querySelector('#work')", "Work items drawn")
+                self.assertEqual(p.js("document.querySelectorAll('#work tbody tr[data-id]').length"), want, "list and count match")
+                p.js("history.back()")
+                p.until("!!document.querySelector('.glance')", "Back returns to the Dashboard")
+
+    def test_row_1112_a_tile_button_keeps_its_box_on_paper(self):
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path, 1400)
+            p.js("document.documentElement.classList.add('print-all')")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('button[data-fig=overdue]')).borderTopWidth"), "1px", "the print reset does not strip the tile")
+            self.assertEqual(p.js("getComputedStyle(document.querySelector('.glance .fig .v')).display === 'none'"), False)
+
     def test_the_file_draws_both_sections_view_only_with_the_files_own_figures(self):
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
@@ -493,7 +603,7 @@ class Published(PublishedFile, Setup):
                 p = self.draw(cdp, path, width, dark)
                 self.assertEqual(p.js("[...document.querySelectorAll('.glance > .tcell')].map(e => e.dataset.tile)"), ["health", "overdue", "risks"])
                 self.assertEqual(p.js("document.querySelector('[data-fig=overdue] .v').textContent"), "1", "the client counts only what the file holds")
-                self.assertEqual(p.js("document.querySelectorAll('.glance button, .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
+                self.assertEqual(p.js("document.querySelectorAll('.glance button:not(.fig), .glance textarea, .glance input, .uc textarea, .uc input').length"), 0)
                 self.assertEqual(p.js("document.querySelectorAll('[data-tile-grip], [data-tile-eye], [data-reason], #health-pill').length"), 0)
                 self.assertEqual(p.js("document.querySelector('.uctotal').textContent"), "2 use cases")
                 health, overdue = (p.js(f"document.querySelector('[data-tile={t}]').getBoundingClientRect().width") for t in ("health", "overdue"))
@@ -527,6 +637,17 @@ class Published(PublishedFile, Setup):
             self.assertNotIn("Sam Demo", shown)
             self.assertNotIn("Lee Demo", shown)
 
+    def test_published_next_steps_show_only_the_id_link(self):
+        """Row 1004: in the finished file a step line has the id link and no due text, and the id does not break."""
+        path = self.publish()
+        with chrome() as cdp:
+            p = self.draw(cdp, path)
+            p.js("document.querySelector('.ucrow .ucbar').click()")
+            p.until("!!document.querySelector('.ucdetail [data-stepid]')", "opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail .ucstepl li')].filter(e => /due/i.test(e.innerText)).length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('.ucdetail .ucstepl li > .muted').length"), 0)
+            self.assertEqual(p.js("[...document.querySelectorAll('.ucdetail [data-stepid]')].every(e => getComputedStyle(e).whiteSpace === 'nowrap')"), True)
+
     def test_a_hidden_tile_and_a_hidden_use_case_are_absent(self):
         self.store.con.execute("UPDATE use_cases SET client_visible = 0 WHERE id = ?", (self.uc2,))
         self.store.con.commit()
@@ -548,7 +669,7 @@ class Published(PublishedFile, Setup):
         copy.write_text(marked, encoding="utf-8")
         with chrome() as cdp:
             p = self.draw(cdp, copy)
-            self.assertEqual(p.js("document.documentElement.dataset.secstyle"), "grey")
+            self.assertEqual(p.js("document.documentElement.dataset.density"), "compact", "a file with a word the page does not map is Compact")
 
 
 class PublishedPage(unittest.TestCase):

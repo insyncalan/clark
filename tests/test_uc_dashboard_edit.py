@@ -32,7 +32,7 @@ class Edit(Setup):
         p = self.show(cdp, width, dark)
         p.js("document.querySelector('[data-mode=edit]').click()")
         p.until("!!document.querySelector('.uc [data-uc-status]')", "Edit shows the status buttons")
-        p.until("document.getAnimations().length === 0", "the animations to end before anything is measured")
+        p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the animations to end before anything is measured")
         return p
 
     def row(self, uc):
@@ -70,7 +70,7 @@ class Edit(Setup):
             rest = width()
             self.assertLess(rest, 40, "a plus at rest")
             p.js("document.querySelector('#ucAdd').focus()")
-            p.until("document.querySelector('#ucAdd').getBoundingClientRect().width > 90 && document.getAnimations().length === 0", "it grew with the keyboard on it")
+            p.until("document.querySelector('#ucAdd').getBoundingClientRect().width > 90 && document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "it grew with the keyboard on it")
             self.assertEqual(p.js("document.querySelector('#ucAdd .w').textContent"), "Add use case")
 
     def test_the_status_menu_changes_the_status_in_one_step_with_undo(self):
@@ -108,6 +108,27 @@ class Edit(Setup):
             p.saved()
             self.assertEqual(self.row(self.demo.use_case)["title"], "Invoice matching, live")
             self.assertEqual(p.js("!!document.querySelector('.ucdetail')"), True, "the row stays open after a save")
+
+    def test_add_use_case_with_an_archived_use_cases_id_or_a_blank_id_is_refused_in_the_box(self):
+        """Not the page's "Reload the page" toast: the ID of an archived use case is still taken, and a blank ID is not an ID."""
+        with self.store.step("dashboard", USER) as st:
+            st.archive("use_cases", self.uc3)
+        before = len(self.store.read("use_cases", "ABC"))
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                p = self.edit(cdp, width)
+                for ref in ("1.10", "   "):
+                    self.click(p, "#ucAdd")
+                    p.until("!!document.querySelector('#ucF')", "the box")
+                    self.type_in(p, "#ucI", ref)
+                    self.type_in(p, "#ucT", "Another one")
+                    p.js("document.querySelector('#ucF').requestSubmit()")
+                    p.until("!document.querySelector('#ucF [type=submit]').disabled", "the box answered")
+                    self.assertEqual(p.js("!!document.querySelector('#ucF')"), True, "the box stays open")
+                    self.assertNotIn("Reload", p.js("(document.querySelector('.toast-text') || {}).textContent || ''"))
+                    p.key("Escape", code="Escape", vk=27)
+                    p.until("!document.querySelector('#ucF')", "Esc closed the box")
+        self.assertEqual(len(self.store.read("use_cases", "ABC")), before, "nothing was added")
 
     def test_add_use_case_opens_the_box_and_adds_it_hidden_from_the_client(self):
         with chrome() as cdp:
@@ -176,6 +197,21 @@ class Edit(Setup):
                     p.until("!document.querySelector('form.picker')", "the picker closed")
                     p.until("document.querySelectorAll('.ucrow').length === %d" % (2 + n), "on the dashboard once its eye is on")
                     self.assertEqual(self.store.read("use_cases", ref=made["id"])["client_visible"], 1)
+
+    def test_esc_closes_the_add_box_while_the_save_is_out(self):
+        """With the save on its way the Add button is disabled and the focus drops to the page: Esc must still close the box."""
+        with chrome() as cdp:
+            p = self.edit(cdp)
+            p.js("window.fetch = (u, o) => (String(u).indexOf('/api/change') >= 0 ? new Promise(() => {}) : Promise.reject(new Error('x')))")
+            self.click(p, "#ucAdd")
+            p.until("!!document.querySelector('#ucF')", "the box")
+            self.type_in(p, "#ucI", "9.9")
+            self.type_in(p, "#ucT", "Slow save")
+            p.js("document.querySelector('#ucF').requestSubmit()")
+            p.until("document.querySelector('#ucF [data-place]').disabled", "the Add button is disabled while the save is out")
+            p.js("document.activeElement && document.activeElement.blur()")
+            p.key("Escape", code="Escape", vk=27)
+            p.until("!document.querySelector('#ucF')", "Esc closed the box while busy")
 
     def test_an_id_already_used_is_not_added(self):
         with chrome() as cdp:
@@ -263,12 +299,12 @@ class Edit(Setup):
                     p = self.edit(cdp, width, dark)
                     p.js("document.querySelector('[data-uc-eye=\"%s\"]').click()" % self.uc2)
                     p.until("document.querySelectorAll('.ucrow').length === 1", "the row left the dashboard")
-                    p.js("document.activeElement && document.activeElement.blur()")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Use case 1.2 taken off the page.'", "the toast")
-                    p.until("document.getAnimations().length === 0", "the toast finished arriving")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the toast finished arriving")
+                    p.js("document.activeElement && document.activeElement.blur()")      # after the page has settled: focus is dropped just before Undo
                     p.js("document.querySelector('[data-undo]').click()")
                     p.until("(document.querySelector('.toast-text') || {}).textContent === 'Undone: Use case 1.2 taken off the page.'", "Undo names the use case")
-                    p.until("document.getAnimations().length === 0", "the animations ended before focus is read")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the animations ended before focus is read")
                     p.until("document.activeElement && document.activeElement.dataset.ucEye === %s" % json.dumps(self.uc2), "focus is on the use case's eye")
 
     def test_where_it_stands_is_changed_in_place_in_one_step_with_one_undo(self):
@@ -443,9 +479,11 @@ class PublishedFile(Published):
     def test_the_file_has_none_of_edit_for_the_use_cases(self):
         path = self.publish()
         text = path.read_text(encoding="utf-8")
-        for edit_only in ("Add a use case", "Add use case", "from your project record", "data-uc-back", "uchead-in",
+        for edit_only in ("Add a use case", "Add use case", "from your project record", "uchead-in",
                           "Link an existing work item", "Add a next step", "data-uc-eye", "off the page", "data-uc-step", "data-uc-link"):
             self.assertNotIn(edit_only, text, edit_only)
+        # the use case page in a file has its own crumb back to the list, marked data-uc-back; the editor's back link is not in the file
+        self.assertEqual(text.count("data-uc-back"), 1, "only the file page's own crumb")
         with chrome() as cdp:
             p = self.draw(cdp, path)
             self.assertEqual(p.js("document.querySelectorAll('#ucAdd, [data-uc-status], [data-uc-back], [data-uc-eye], [data-uc-step], [data-uc-link], [data-rich], .uc textarea, .uc button').length"), 0)

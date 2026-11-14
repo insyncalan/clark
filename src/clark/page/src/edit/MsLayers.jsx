@@ -8,6 +8,7 @@ import { Picker } from "../components/Picker.jsx";
 import { pickerFrom, offThePage } from "./MsAddBack.jsx";
 import { addMilestonesBack } from "./actions.js";
 import { ArchivedPeek } from "./ArchivedPeek.jsx";
+import { AskLayer } from "./Bulk.jsx";
 
 const BEHIND = ["#main", ".top"];                       // made inert while the picker is open, as the Add a section box does
 
@@ -40,6 +41,7 @@ export function MsLayers() {
     <>
       {from && isEditing() ? <PickerBox key="picker" from={from} /> : null}
       <ArchivedPeek />
+      {isEditing() ? <AskLayer /> : null}
     </>
   );
 }

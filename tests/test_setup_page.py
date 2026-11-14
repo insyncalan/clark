@@ -23,11 +23,11 @@ from test_server import Running, chrome, wait  # noqa: E402
 PAGE_SRC = SRC / "clark" / "page" / "src"
 DEMO = ROOT / "tests" / "fixtures" / "setup_demo.jsx"
 READY = {"id": "python", "status": "ready", "words": "Python 3.11.4 is ready."}
-CHROME = {"id": "chrome", "status": "ready", "words": "Chrome is there, so clark opens in its own window."}
+CHROME = {"id": "chrome", "status": "ready", "words": "Chrome is there, so clark opens in Chrome."}
 DATA = {"id": "data", "status": "ready", "words": "Your clark data can be saved in ~/clark-data."}
 ONEDRIVE = {"id": "onedrive", "status": "fix", "words": "Your clark data is set to go in ~/OneDrive/clark, which is inside OneDrive. "
             "OneDrive copies files while they are being written, which damages the data. Choose a folder on this computer that it doesn't sync."}
-NOCHROME = {"id": "chrome", "status": "advice", "words": "Chrome wasn't found, so clark will open in your usual browser. Install Chrome to give clark its own window."}
+NOCHROME = {"id": "chrome", "status": "advice", "words": "Chrome wasn't found, so clark will open in your usual browser."}
 MIXED = {"id": "versions", "status": "fix", "words": "These clark files are not all from the same version, so clark will not start. "
          "Move the clark folder aside (rename it) and unzip the download again."}
 OK = lambda body, status=200: {"status": status, "body": body}  # noqa: E731
@@ -218,6 +218,108 @@ class Setup(unittest.TestCase):
         self.settle()
         self.assertEqual(self.js("T.ready"), 0)
         self.assertFalse(self.present("#setup-ready") or self.present("[data-line]"))
+
+    # Mutation proof (row 836): the rules a mutant left alone, driven through the page at both widths.
+    def pending(self, key, body="[{id: 'a', status: 'ready', words: 'Fine.'}]"):
+        self.js(f"T.replies.{key} = () => new Promise(r => {{ T.release_{key} = () => r({{status: 200, body: {body}}}); }})")
+
+    def test_a_list_that_is_empty_or_has_a_line_that_is_not_understood_does_not_say_ready(self):
+        def body():
+            self.replies(checks=OK([]))
+            self.mount()
+            self.assertFalse(self.present("#setup-ready"), "no checks is not everything ready")
+            self.assertEqual(self.js("T.ready"), 0)
+            self.replies(checks=OK([READY, {"id": "odd", "status": "weird", "words": "Something new."}]))
+            self.click("[data-again]")
+            self.assertEqual(self.js("document.querySelectorAll('.upd-l')[1].textContent"), "Not checked:")
+            self.assertEqual(self.js("document.querySelector('[data-line=odd]').parentElement.dataset.status"), "not checked")
+            self.assertFalse(self.present("#setup-ready"), "a line that was not checked does not let the person go on")
+        self.each_view(body)
+
+    def test_only_a_200_with_the_list_is_taken_and_lines_are_bounded(self):
+        self.load()
+        for status in (500, 403, 404):
+            self.replies(checks=OK([READY], status))
+            self.mount()
+            self.assertTrue(self.present("#setup-refused"), f"status {status}")
+        for words in ("", "x" * 601):
+            self.replies(checks=OK([{"id": "a", "status": "ready", "words": words}]))
+            self.mount()
+            self.assertTrue(self.present("#setup-refused"), f"{len(words)} characters")
+        self.replies(checks=OK([{"id": "a", "status": "ready", "words": "x" * 600}]))
+        self.mount()
+        self.assertTrue(self.present("[data-line=a]"), "600 characters is the longest line taken")
+        self.replies(checks=OK([{"status": "ready", "words": "One."}, {"id": "b" * 80, "status": "ready", "words": "Two."}]))
+        self.mount()
+        self.assertEqual([i for i, _ in self.lines()], ["0", "b" * 60], "a line without an id is numbered, a long id is cut at 60")
+
+    def test_a_folder_answer_that_is_not_plainly_ok_or_a_short_sentence_says_the_fallback(self):
+        self.load()
+        self.replies(checks=OK([ONEDRIVE]))
+        self.mount()
+        fallback = "That folder could not be chosen. Nothing was changed."
+        for answer in (OK({"ok": 1}), OK({"ok": "yes"}), OK({"ok": False, "message": ""}, 409), OK({"ok": False, "message": "m" * 601}, 409)):
+            self.replies(folder=answer)
+            self.click("[data-folder]")
+            self.assertEqual(self.text("#setup-msg"), fallback, json.dumps(answer))
+        self.replies(folder=OK({"ok": False, "message": "m" * 600}, 409))
+        self.click("[data-folder]")
+        self.assertEqual(self.text("#setup-msg"), "m" * 600)
+        self.assertEqual(self.js("T.calls.filter(c => c === 'checks').length"), 1, "no answer but a plain ok asks the checks again")
+
+    def test_a_chooser_or_checks_call_that_fails_is_a_refusal_not_a_stuck_page(self):
+        self.load()
+        self.js("T.replies.checks = () => Promise.reject(new Error('down'))")
+        self.mount()
+        self.assertTrue(self.present("#setup-refused"))
+        self.replies(checks=OK([ONEDRIVE]))
+        self.click("[data-again]")
+        self.js("T.replies.folder = () => Promise.reject(new Error('down'))")
+        self.click("[data-folder]")
+        self.assertEqual(self.text("#setup-msg"), "That folder could not be chosen. Nothing was changed.")
+        self.assertFalse(self.js("document.querySelector('[data-folder]').disabled"), "the buttons come back")
+
+    def test_the_message_is_an_alert_when_it_is_an_error_and_quiet_when_it_is_not_and_check_again_clears_it(self):
+        def body():
+            self.replies(checks=OK([ONEDRIVE]), folder=OK({"ok": True, "cancelled": True}))
+            self.mount()
+            self.click("[data-folder]")
+            self.assertEqual(self.js("document.querySelector('#setup-msg').getAttribute('role')"), "status")
+            self.assertTrue(self.js("document.querySelector('#setup-msg').classList.contains('muted') && !document.querySelector('#setup-msg').classList.contains('error')"))
+            self.replies(folder=OK({"ok": False, "message": "Not that one."}, 409))
+            self.click("[data-folder]")
+            self.assertEqual(self.js("document.querySelector('#setup-msg').getAttribute('role')"), "alert")
+            self.assertTrue(self.js("document.querySelector('#setup-msg').classList.contains('error')"))
+            self.click("[data-again]")
+            self.assertFalse(self.present("#setup-msg"), "Check again clears the message")
+        self.each_view(body)
+
+    def test_while_the_chooser_is_open_both_buttons_wait_and_while_checking_again_the_page_says_so(self):
+        def body():
+            self.replies(checks=OK([ONEDRIVE]))
+            self.mount()
+            self.pending("folder", "{ok: true, cancelled: true}")
+            self.js("document.querySelector('[data-folder]').click()")
+            self.assertTrue(self.js("document.querySelector('[data-again]').disabled && document.querySelector('[data-folder]').disabled"))
+            self.js("T.release_folder()")
+            self.settle()
+            self.assertFalse(self.js("document.querySelector('[data-again]').disabled || document.querySelector('[data-folder]').disabled"))
+            self.pending("checks")
+            self.js("document.querySelector('[data-again]').click()")
+            self.assertEqual(self.text("#setup-loading"), "Checking this computer.")
+            self.assertTrue(self.js("document.querySelector('#setup-loading').classList.contains('muted')"))
+            self.assertFalse(self.present("[data-line]"), "the old lines go while it asks again")
+            self.js("T.release_checks()")
+            self.settle()
+            self.assertFalse(self.present("#setup-loading"))
+        self.each_view(body)
+
+    def test_each_line_is_tied_to_its_label_and_carries_its_status(self):
+        self.load()
+        self.replies(checks=OK([READY, ONEDRIVE, NOCHROME]))
+        self.mount()
+        got = self.js("[...document.querySelectorAll('[data-line]')].map(p => { const g = p.parentElement; const l = document.getElementById(g.getAttribute('aria-labelledby')); return [g.dataset.status, l ? l.textContent : '']; })")
+        self.assertEqual(got, [["ready", "Ready:"], ["fix", "To fix:"], ["advice", "Worth knowing:"]])
 
 
 if __name__ == "__main__":

@@ -62,6 +62,7 @@ import re
 from datetime import date
 
 from clark import publish, sanitise        # select(): the one function that chooses what a client may see (#39)
+from clark import timefmt
 
 HEALTHS = ("On track", "At risk", "Off track")                       # (projects.health, schema.sql)
 HEALTH_COLOUR = {"On track": "green", "At risk": "amber", "Off track": "red"}
@@ -98,8 +99,7 @@ def show_date(iso):
     """DD-MM-YYYY; text that is not a stored day is shown as stored; no date is a dash. (workItems.js showDate)"""
     if not iso:
         return DASH
-    text = str(iso)
-    return f"{text[8:10]}-{text[5:7]}-{text[0:4]}" if _ISO.fullmatch(text) else text
+    return timefmt.day_text(iso)
 
 
 def plural(n, one, many):
@@ -116,6 +116,8 @@ def _need_today(today):
 
 def colour_of_priority(priority):
     """D-12: Urgent and High are red, Medium amber, Low green; anything else is not rated (None). (workItems.js colourOf)"""
+    if not isinstance(priority, str):      # a stored list or dict is not a rating, and is never an unhashable lookup
+        return None
     if priority in HIGH:
         return "red"
     return {"Medium": "amber", "Low": "green"}.get(priority)
@@ -135,9 +137,9 @@ def due_field(row):
 
 
 def is_overdue(row, today):
-    """Open, and due before today. Due today is not overdue. (workItems.js dueCell: tone "late")"""
+    """Open, and due before today. Due today is not overdue, and a Completed item is finished work, never overdue. (workItems.js isLate)"""
     a, b = day_number(due_field(row)), day_number(today)
-    return a is not None and b is not None and is_open(row) and a < b
+    return a is not None and b is not None and is_open(row) and row.get("status") != "Completed" and a < b
 
 
 def pill_of(row, today):
@@ -153,12 +155,29 @@ def pill_of(row, today):
     if kind == "action":
         n, t = day_number(row.get("due_date")), day_number(today)
         if n is not None and t is not None and n < t:
-            return {"text": "Overdue", "class": "r"}
+            return {"text": "Open", "class": "b"} if s == "Completed" else {"text": "Overdue", "class": "r"}
         if s == "Delayed":
             return {"text": "Delayed", "class": "a"}
         if n is not None and t is not None and n - t <= SOON_DAYS:
             return {"text": "Due soon", "class": "a"}
     return {"text": "Open", "class": "b"}
+
+
+PLAIN_STATUS = (None, "", "Open", "Planned")             # a status that says nothing of its own (sectionRows.js PLAIN_STATUS)
+OWN_STATUS_CLASS = {"Blocked": "a", "In progress": "g", "Completed": "b"}      # the colour of a status word a record carries itself; any other is grey
+
+
+def client_pill(row, today):
+    """The status word a client reads on a report row (row 1021, option B). An open action or risk or issue whose own status is
+    something other than Open or Planned (Blocked, In progress, ...) keeps that word, in its colour (amber, green, blue, else grey);
+    Delayed and Closed are read as pill_of reads them. Otherwise it is pill_of, except that an action neither late, delayed nor due
+    soon, with a plain status, reads "On track" (green) instead of "Open". The page, the published file and the Word copy all say
+    this word. (sectionRows.js clientPill)"""
+    s, kind = row.get("status"), row.get("kind")
+    if kind in ("action", "risk", "issue") and isinstance(s, str) and s not in PLAIN_STATUS and s not in CLOSED + ("Delayed",):
+        return {"text": s, "class": OWN_STATUS_CLASS.get(s, "n")}
+    p = pill_of(row, today)
+    return {"text": "On track", "class": "g"} if kind == "action" and p["text"] == "Open" else p
 
 
 _CLASS_COLOUR = {"r": "red", "a": "amber", "g": "green"}
@@ -220,7 +239,7 @@ def use_case_items(kept, use_case_id):
 def health_pill(health):
     """The pill's words and colour. The colour is always named in `label`, so it is never the only signal. A project with no
     health yet reads 'Not set'."""
-    colour = HEALTH_COLOUR.get(health)
+    colour = HEALTH_COLOUR.get(health) if isinstance(health, str) else None      # row 1035: a stored list or dict has no colour
     words = health if colour else "Not set"
     return {"health": health if colour else None, "words": words, "colour": colour, "class": COLOUR_CLASS[colour],
             "label": f"Project health: {words}" + (f", {colour}" if colour else "")}
@@ -324,6 +343,8 @@ def _risks_tile(rows):
     colour = "red" if high else "amber" if open_ else "green"          # the page's rule (glanceTiles.js tiles()), item 391
     if not open_:
         detail = "None open"
+    elif not high:
+        detail = "None high"                                         # #669: the page's words
     elif len(open_) == 1:
         detail = "of 1 open risk or issue"
     else:
@@ -341,7 +362,7 @@ def _decisions_tile(rows):
     elif oldest:
         detail = f"Oldest needed by {show_date(oldest)}"
     else:
-        detail = "No date needed by"
+        detail = "No date set"
     return {"tile": "decisions", "title": TILE_TITLES["decisions"], "value": len(pending), "detail": detail,
             "oldest": oldest, "oldest_shown": show_date(oldest) if oldest else "", "auto_colour": "amber" if pending else "green"}
 
@@ -376,7 +397,7 @@ def tiles(rows_by_table, today, tile_order=None, hidden=None, outlines=None, for
             continue
         t = made[name]()
         outline = choice.get(name) or ""
-        colour = OUTLINE_COLOUR[outline] if outline in OUTLINE_COLOUR else t["auto_colour"]
+        colour = OUTLINE_COLOUR[outline] if isinstance(outline, str) and outline in OUTLINE_COLOUR else t["auto_colour"]
         t["colour"], t["class"] = colour, COLOUR_CLASS[colour]
         if "label" not in t:
             t["label"] = _label(t["title"], t["value"], t["detail"], colour)
@@ -424,7 +445,7 @@ def use_case_strip(use_cases, work_rows_, today, for_client=False, kept=None):
         late = [w for w in open_ if is_overdue(w, today)]
         steps = [w for w in open_ if w["kind"] == "action"]
         status = u.get("status")
-        colour = USE_CASE_COLOUR.get(status)
+        colour = USE_CASE_COLOUR.get(status) if isinstance(status, str) else None      # row 1035
         words = ("No linked work items" if not mine else "No open work items" if not open_
                  else f"{len(open_)} open" + (f", {len(late)} overdue" if late else ""))
         row = {"id": u["id"], "ref": u.get("ref") or "", "title": u.get("title") or "", "headline": u.get("headline") or "",

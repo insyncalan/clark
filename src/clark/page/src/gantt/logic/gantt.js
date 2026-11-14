@@ -50,8 +50,15 @@ export const linesShown = (n, m) => `${n} of ${m} lines shown`;
 const ISO = /^(\d{4})-(\d{2})-(\d{2})$/;
 const SHOWN = /^(\d{1,2})-(\d{1,2})-(\d{4})$/;
 
-// Days since 1970-01-01 for a stored date, or null if it is not a real date.
+// Days since 1970-01-01 for a stored date, or null if it is not a real date or its year is outside YEARS (the same years the table accepts when
+// typed), so one far-off year cannot stretch the chart over thousands of months.
 export function dayNum(iso) {
+  const m = ISO.exec(String(iso || ""));
+  if (!m || +m[1] < YEARS[0] || +m[1] > YEARS[1]) return null;
+  return realDay(iso);
+}
+// The same without the year check: chart arithmetic steps one day past the last accepted day (1 January 2101), which must still count.
+function realDay(iso) {
   const m = ISO.exec(String(iso || ""));
   if (!m) return null;
   const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
@@ -63,7 +70,7 @@ export function isoOf(days) {
   const a = new Date(days * DAY_MS);
   return `${a.getUTCFullYear()}-${String(a.getUTCMonth() + 1).padStart(2, "0")}-${String(a.getUTCDate()).padStart(2, "0")}`;
 }
-export const addDays = (iso, n) => isoOf(dayNum(iso) + n);
+export const addDays = (iso, n) => isoOf(realDay(iso) + n);
 // "2026-11-06" -> "06-11-2026"; anything that is not a stored date comes back empty (no bare dashes).
 export function formatDate(iso) {
   return dayNum(iso) === null ? "" : `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
@@ -215,8 +222,13 @@ export function chartRange(lines, today) {
   if (!ok.length) return null;
   const first = monthStart(isoOf(Math.min(...ok)));
   let stop = nextMonth(monthStart(isoOf(Math.max(...ok))));
-  while (daysBetween(first, stop) < 180) stop = nextMonth(stop);
-  return { start: first, end: addDays(stop, -1) };
+  const last = `${YEARS[1] + 1}-01-01`;
+  let start = first;
+  if (realDay(stop) > realDay(last)) stop = last;
+  while (realDay(stop) - realDay(start) < 180) {
+    if (stop === last) { const y = +start.slice(0, 4), m = +start.slice(5, 7); start = m === 1 ? `${y - 1}-12-01` : `${y}-${String(m - 1).padStart(2, "0")}-01`; } else stop = nextMonth(stop);
+  }
+  return { start, end: addDays(stop, -1) };
 }
 // The pixels one day gets when the whole range fits the width.
 export function fitPpd(width, range) {
@@ -231,33 +243,33 @@ export function ppdFor(scale, fit, zoom) {
   const base = scale === "week" ? Math.max(fit, WEEK_PPD) : fit;
   return base * clampZoom(zoom);
 }
-export const xOf = (iso, range, ppd) => (dayNum(iso) - dayNum(range.start)) * ppd;
+export const xOf = (iso, range, ppd) => (realDay(iso) - realDay(range.start)) * ppd;      // 1 January 2101 (the end of the last header cell) has a place too
 
 // The date header: an upper band and a lower band, each cell { iso, label, to } where `to` is the date the cell stops at (exclusive).
 export function headerCells(scale, range, ppd) {
   const upper = [], lower = [];
   const stop = addDays(range.end, 1);
   if (scale === "quarter") {
-    for (let m = monthStart(range.start); dayNum(m) < dayNum(stop); m = nextMonth(m)) {
+    for (let m = monthStart(range.start); realDay(m) < realDay(stop); m = nextMonth(m)) {
       const mo = +m.slice(5, 7) - 1;
       lower.push({ iso: m, label: MONTHS[mo], to: nextMonth(m) });
       if (mo % 3 === 0 || m === monthStart(range.start)) {
-        let q = m; do { q = nextMonth(q); } while (dayNum(q) < dayNum(stop) && (+q.slice(5, 7) - 1) % 3 !== 0);
-        upper.push({ iso: m, label: `Q${Math.floor(mo / 3) + 1} ${m.slice(0, 4)}`, to: dayNum(q) > dayNum(stop) ? stop : q });
+        let q = m; do { q = nextMonth(q); } while (realDay(q) < realDay(stop) && (+q.slice(5, 7) - 1) % 3 !== 0);
+        upper.push({ iso: m, label: `Q${Math.floor(mo / 3) + 1} ${m.slice(0, 4)}`, to: realDay(q) > realDay(stop) ? stop : q });
       }
     }
     return { upper, lower };
   }
-  for (let m = monthStart(range.start); dayNum(m) < dayNum(stop); m = nextMonth(m)) {
+  for (let m = monthStart(range.start); realDay(m) < realDay(stop); m = nextMonth(m)) {
     upper.push({ iso: m, label: `${MONTHS[+m.slice(5, 7) - 1]} ${m.slice(2, 4)}`, to: nextMonth(m) });
     if (scale === "month" && ppd * 7 >= 28) {
       for (const d of [1, 8, 15, 22]) lower.push({ iso: addDays(m, d - 1), label: String(d).padStart(2, "0"), to: addDays(m, d + 6), edge: d === 1 });
     }
   }
   if (scale === "week") {
-    let t = dayNum(range.start);
+    let t = realDay(range.start);
     t += (8 - ((t + 3) % 7 + 1)) % 7;                // forward to a Monday (1970-01-01 was a Thursday)
-    for (; t < dayNum(stop); t += 7) lower.push({ iso: isoOf(t), label: isoOf(t).slice(8, 10), to: isoOf(t + 7) });
+    for (; t < realDay(stop); t += 7) lower.push({ iso: isoOf(t), label: isoOf(t).slice(8, 10), to: isoOf(t + 7) });
   }
   return { upper, lower };
 }
@@ -276,15 +288,17 @@ export function arrowPath(ax, ay, bx, by, rowH) {
 // ── changes a person makes ───────────────────────────────────────────────────
 
 // A bar moved by whole days keeps its length; a milestone moves its one date.
+// A move that would leave the years the chart accepts (YEARS) changes nothing.
 export function moved(line, delta) {
   const start = addDays(line.start, delta);
-  return { start, end: line.type === "milestone" ? start : addDays(line.end, delta) };
+  const end = line.type === "milestone" ? start : addDays(line.end, delta);
+  return dayNum(start) === null || dayNum(end) === null ? { start: line.start, end: endOf(line) } : { start, end };
 }
 // A bar's right edge dragged by whole days: never before its start. A milestone does not stretch.
 export function resized(line, delta) {
   if (line.type === "milestone") return { start: line.start, end: line.start };
   const end = Math.max(dayNum(line.start), dayNum(line.end) + delta);
-  return { start: line.start, end: isoOf(end) };
+  return dayNum(isoOf(end)) === null ? { start: line.start, end: line.end } : { start: line.start, end: isoOf(end) };
 }
 
 // What typed text means for one field of one line. Returns { ok: true, field, value } (field "dates" carries { start, end }; every other
@@ -298,7 +312,7 @@ export function checkEdit(line, field, text) {
   if (field === "pct") {
     const raw = String(text == null ? "" : text).trim().replace(/%$/, "");
     const n = Number(raw);
-    return raw !== "" && Number.isInteger(n) && n >= 0 && n <= 100 ? { ok: true, field, value: n } : bad(WORDS.badPct);
+    return /^\d{1,3}$/.test(raw) && Number.isInteger(n) && n >= 0 && n <= 100 ? { ok: true, field, value: n } : bad(WORDS.badPct);
   }
   if (field === "start" || field === "end") {
     const iso = parseDate(text);
@@ -342,7 +356,7 @@ export function detailOf(line, lines, today) {
   return {
     title: `${no[line.id]} ${line.name}`,
     kind: typeWord(line.type),
-    when: line.type === "milestone" ? formatDate(line.start) : `${formatDate(line.start)} to ${formatDate(line.end)} (${spanDays(line)} days)`,
+    when: line.type === "milestone" ? formatDate(line.start) : `${formatDate(line.start)} to ${formatDate(line.end)} (${spanDays(line)} day${spanDays(line) === 1 ? "" : "s"})`,
     pct: line.pct,
     status: statusWord(statusOf(line, today)),
     depends: line.depends.filter((d) => by[d]).map((d) => no[d] || d),

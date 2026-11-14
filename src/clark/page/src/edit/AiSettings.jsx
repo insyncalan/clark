@@ -2,7 +2,7 @@
 // uses. clark holds no key or password: Disconnect only stops clark using the person's own sign-in.  Below them, AI suggestions (#72): one status line for the Edit parts' Settings, in the server's own words (GET /api/ai/status): on,
 // off, not signed in, or busy. There is one switch for Claude on this computer, the one under Asking; this line only says what it
 // means for suggestions. Until the server has answered, or when it cannot, the line says so and AI reads as off.
-import { useEffect, useState } from "preact/hooks";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { token } from "../stores/report.js";
 import { realAiClient } from "./aiClient.js";
 import { askProvider } from "./askState.js";
@@ -23,6 +23,8 @@ function ConnectCard() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
   const [weaker, setWeaker] = useState(null);            // {model, text}: a smaller model asks first
+  const back = useRef("");                                // selector of the control to refocus once the card has redrawn
+  const busyNow = useRef(false);
   const readable = (b) => b && b.ok === true && b.claude && b.chatgpt && Array.isArray(b.models);
   useEffect(() => { if (conn && conn.active) askProvider.value = conn.active; }, [conn && conn.active]);
   useEffect(() => {
@@ -30,13 +32,23 @@ function ConnectCard() {
     aiConnectRead().then((r) => { if (live) setConn(r.status === 404 ? "later" : r.status === 200 && readable(r.body) ? r.body : "unavailable"); });
     return () => { live = false; };
   }, []);
+  useLayoutEffect(() => {
+    if (!back.current) return;
+    const el = document.querySelector(back.current);
+    back.current = "";
+    if (el) el.focus({ preventScroll: true });
+  }, [conn]);
   if (conn === null || conn === "later") return null;
   if (conn === "unavailable") return <p id="ai-connect-state" class="muted">Could not check the AI connection just now. Reload the page to try again.</p>;
 
-  async function send(request, what) {
+  async function send(request, what, again) {
+    if (busyNow.current) return null;                  // aria-disabled keeps focus on the control, so the click is ignored here
+    busyNow.current = true;
+    back.current = again || "";
     setBusy(true);
     setMsg(null);
     const r = await request();
+    busyNow.current = false;
     setBusy(false);
     const b = r.body;
     if (r.status === 200 && readable(b)) { setConn(b); setWeaker(null); setMsg({ kind: "note", text: b.message }); return null; }
@@ -46,7 +58,7 @@ function ConnectCard() {
     return null;
   }
   async function choose(model) {
-    const text = await send(() => aiModelSend(model), "save that choice");
+    const text = await send(() => aiModelSend(model), "save that choice", "#ai-model");
     if (text) { setConn({ ...conn }); setWeaker({ model, text }); }
   }
   const c = conn.claude;
@@ -62,26 +74,26 @@ function ConnectCard() {
             <p class="muted">{line}</p>
             {c.why ? <p data-ai-why>{c.why}</p> : null}
             {c.connected
-              ? <button type="button" class="btn sm" data-ai-disconnect={id} disabled={busy} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`)}>Disconnect</button>
-              : <button type="button" class="btn pri sm" data-ai-connect={id} disabled={busy} onClick={() => send(() => aiConnectSend(id), `connect ${name}`)}>Connect</button>}
+              ? <button type="button" class="btn sm" data-ai-disconnect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiDisconnectSend(id), `disconnect ${name}`, `[data-ai-connect=${id}]`)}>Disconnect</button>
+              : <button type="button" class="btn pri sm" data-ai-connect={id} aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiConnectSend(id), `connect ${name}`, `[data-ai-disconnect=${id}]`)}>Connect</button>}
           </div>
         );
       })}
     </div>
     <div class="ai-model">
       <label for="ai-model">Model for ask clark</label>{" "}
-      <select id="ai-model" disabled={busy || !conn.models.length} value={conn.model} onChange={(e) => choose(e.currentTarget.value)}>
+      <select id="ai-model" disabled={!conn.models.length} aria-disabled={busy ? "true" : undefined} value={conn.model} onChange={(e) => { if (busy) setConn({ ...conn }); else choose(e.currentTarget.value); }}>
         {conn.models.length ? conn.models.map((m) => <option key={m.id} value={m.id}>{m.label}{m.recommended ? " (recommended)" : ""}</option>) : <option value="">Connect Claude or ChatGPT first</option>}
       </select>
     </div>
     {weaker ? (
       <div class="ai-msg" role="alert" data-ai-weaker>
         <p>{weaker.text}</p>
-        <button type="button" class="btn sm" data-ai-accept disabled={busy} onClick={() => send(() => aiModelSend(weaker.model, true), "save that choice")}>Use it anyway</button>{" "}
+        <button type="button" class="btn sm" data-ai-accept aria-disabled={busy ? "true" : undefined} onClick={() => send(() => aiModelSend(weaker.model, true), "save that choice", "#ai-model")}>Use it anyway</button>{" "}
         <button type="button" class="btn sm" data-ai-keep onClick={() => setWeaker(null)}>Keep the model I have</button>
       </div>
     ) : null}
-    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role="status" data-ai-msg>{msg ? msg.text : ""}</p>
+    <p class={`ai-msg${msg && msg.kind === "error" ? " bad" : ""}`} role={msg && msg.kind === "error" ? "alert" : "status"} data-ai-msg>{msg ? msg.text : ""}</p>
     </>
   );
 }

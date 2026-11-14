@@ -102,6 +102,21 @@ def restore_parser():
     return p
 
 
+class CheckParser(Parser):
+    def error(self, message):
+        print(f"check-data takes only --data FOLDER.\nRun {typed.clark('check-data --help')} to see the options.", file=sys.stderr)
+        raise SystemExit(2)
+
+
+def check_parser():
+    p = CheckParser(prog=typed.clark("check-data"),
+                    description="Check that your data matches this clark before clark starts (Docker does this first). If it matches, nothing "
+                                "happens. If it is older, a copy is kept in the backups folder, then the data is brought up to date. "
+                                "If it is newer, nothing is changed and the exit code is 2. If something goes wrong, the exit code is 1.")
+    p.add_argument("--data", metavar="FOLDER", help="the folder for clark's data (default: clark's own folder for your system)")
+    return p
+
+
 def parser():
     p = Parser(prog=typed.clark(), description="Start clark on this computer. Only this computer can reach it.",
                epilog=f"To list the backups or put one back: {typed.clark('restore --help')}")
@@ -124,7 +139,7 @@ def port_number(text, where):
 
 
 def port_free(port):
-    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (#575) the
+    """True when nothing is listening on `port` of the address the server binds: 127.0.0.1, or in the Docker container (item 575) the
     container's own bind address, so a listener on any of the container's addresses counts."""
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
         if os.name == "posix":
@@ -162,6 +177,10 @@ def shown_port(port):
     return port
 
 
+HOST_NETWORK_WARNING = ("Warning: this container shares the computer's network, so clark listens on every address of this computer, "
+                        "not only this one. Start it with docker/compose.yaml, which publishes the port to this computer only.")
+
+
 def start_line(address):
     if platform.container_mode():      # #696: in Docker there is no window to leave open, and Ctrl+C is not how it is stopped
         return f"Open {address} to use clark. Stop it with: docker compose -f docker/compose.yaml down"
@@ -183,6 +202,8 @@ class ServerOutput:
         self.done = True
         address = address_for(shown_port(int(found.group(1))), self.code)
         self.out.write(start_line(address))
+        if platform.container_on_host_network():      # item 575: a 0.0.0.0 bind on the host's own network is reachable from the LAN
+            print(HOST_NETWORK_WARNING, file=self.err, flush=True)
         if self.opener:
             try:
                 self.opener(address)
@@ -299,8 +320,9 @@ def page_of(path, onedrive_roots=None):
                 brand = next((r["brand"] for r in found.read("projects") if r["code"] == project), "generic")
             finally:
                 found.close()
-        folder = brands.folder(page.BRANDING.parent.parent, brand)
-        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder)
+        folder = brands.folder(page.BRANDING.parent, brand)
+        return page.page_html(branding=page.NO_BRAND if folder is brands.GENERIC else folder,
+                              brand_id=None if folder is brands.GENERIC or folder == page.BRANDING else brand)
     return page_html
 
 
@@ -394,6 +416,40 @@ def restore_main(argv, out, err, home=None, onedrive_roots=None):
         return 1
 
 
+def check_main(argv, out, err, home=None, onedrive_roots=None):
+    """`python3 -m clark check-data [--data FOLDER]`: the exit code. 0: the data is at this version, there is none yet, or it was
+    older and is now brought up to date (after the copy store.bring_up_to_date takes). 2: it needs a newer clark, and nothing was
+    changed (the version is read only, never written). 1: anything else, in plain words, with the data as it was."""
+    args = check_parser().parse_args(argv)
+    try:
+        folder = platform.check_data_dir(Path(args.data).expanduser() if args.data else platform.data_dir(home), onedrive_roots)
+        database = folder / DB_NAME
+        found = clark_store.data_version(database)
+        if found is None:
+            return 0
+        if found > clark_store.SCHEMA_VERSION:
+            print(clark_store.NEWER_FOLDER, file=err, flush=True)
+            return 2
+        if found == clark_store.SCHEMA_VERSION:
+            print("The data is up to date.", file=out, flush=True)
+            return 0
+        held = clark_store.open_store(database, onedrive_roots=onedrive_roots)      # takes the copy first, then updates in one step
+        try:
+            copy = held.migration_backup
+        finally:
+            held.close()
+        named = f" A copy of your data from before the update is in the backups folder. Its name is {Path(copy).name}." if copy else ""
+        print(f"The data was brought up to date.{named}", file=out, flush=True)
+        return 0
+    except (platform.PlatformError, clark_store.Invalid) as e:
+        print(e, file=err, flush=True)
+        return 1
+    except OSError as e:
+        print(f"A file clark needs couldn't be read or written ({backup.plain_reason(e)}). Check the data folder, then try again.",
+              file=err, flush=True)
+        return 1
+
+
 def use_case_ids_on_file(store):
     """The rule for Use Cases' on_dashboard, as a function of the project code: the use cases the published file's Use Cases
     tab carries, which publish.client_use_cases decides (select stores its answer as use_case_pages). The route never
@@ -438,8 +494,10 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
     out, err = out or sys.stdout, err or sys.stderr
     environ = os.environ if environ is None else environ
     given = sys.argv[1:] if argv is None else list(argv)
-    if given[:1] == ["restore"] and same_version.refuse(err, argv=given):
+    if given[:1] in (["restore"], ["check-data"]) and same_version.refuse(err, argv=given):
         return 1
+    if given[:1] == ["check-data"]:
+        return check_main(given[1:], out, err, home, onedrive_roots)
     if given[:1] == ["restore"]:
         return restore_main(given[1:], out, err, home, onedrive_roots)
     p = parser()
@@ -513,23 +571,28 @@ def main(argv=None, out=None, err=None, serve=server.serve, open_url=platform.op
                 print(str(e), file=err or sys.stderr, flush=True)
                 return 1
             print(str(e), file=err or sys.stderr)
-        brand_root = page.BRANDING.parent.parent         # #944: the clark folder that holds system/branding (as page.BRANDING finds it)
+        brand_root = page.BRANDING.parent         # #944: the clark folder that holds branding/ (as page.BRANDING finds it)
+        try:
+            brands.copy_old_folder(brand_root)    # 1.0.6: the first start copies system/branding to branding/ (never over one, never deleting); before the server or the page reads it
+        except Exception as e:                    # a very deep folder (RecursionError) or anything else: start without the copy, branding/ stays absent, the next start tries again
+            LOG.warning("brands: could not copy the old brand folder: %s", e)
         server.set_brand_paths(brand_root, store.path.parent)       # before serve(): until it is told, the brand routes answer 503
         try:
             brands.recover(brand_root)           # a crash between a brand's two renames is put right now, not at the next brand action
         except OSError as e:
             LOG.warning("brands: could not put right a leftover from a crash: %s", e)
         connect, asker = ai_connect.chain(store.path.parent)       # #54: Settings › AI; asking goes through it
+        draft_seam = draft_email_feed.make(
+            store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
+            rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
+            chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c)))
         done = serve(port=port, data_for=store.data_for, page_html=page_of(store.path, roots),
                      projects=projects, out=shown,
                      err=err,
                      publisher=publish_flow.Publisher(store.path, roots, by_user=who.who, data_dir=store.path.parent),
                      profile=who,
-                     draft_email=draft_email_feed.make(
-                         store.data_for, profile=lambda: {"name": who.get()[1]["name"], "own_domains": who.own_domains()},
-                         rules_for=lambda c: draft_email_feed.rules_from_inputs(publish.read_inputs(store, c)),
-                         chased=lambda c: draft_email_feed.chase_counts_of(store.email_sent_for(c))),
-                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who),
+                     draft_email=draft_seam,
+                     draft_email_sent=draft_email_feed.make_sent(store.path, roots, by_user=who.who, subject_for=draft_email_feed.subject_of(draft_seam)),
                      milestones=milestone_feed.make_feed(store.data_for),
                      movement=movement_read.make_read(store.milestone_moves, store.data_for),
                      use_cases=use_cases_read.make_read(store.data_for, use_case_ids_on_file(store), use_case_history(store)),

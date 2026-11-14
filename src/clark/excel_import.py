@@ -114,7 +114,7 @@ import zipfile
 import zlib
 from html import unescape
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, time, timezone
 from pathlib import Path
 
 from openpyxl import load_workbook
@@ -131,7 +131,8 @@ SHEET_TABLES["raid"] = "raid"                      # the oldest name, written ou
 # Header names the export has used or will use (#143): the old and the new read as the same column. They are written out here
 # and not taken from excel.COLUMN_OF, so a rename in the export can never stop an older workbook from importing.
 HEADER_ALIASES = {"client messaging": "client_message", "client wording": "client_message",
-                  "baseline": "baseline_date", "agreed": "baseline_date"}
+                  "baseline": "baseline_date", "agreed": "baseline_date",
+                  "shown as": "ref"}      # item 1160: a use case's Reference was headed "Shown as" before; an older workbook still imports
 TABLE_ORDER = ("milestones", "use_cases", "actions", "raid", "decisions")     # the order changes are written in
 GANTT = "gantt_lines"          # row 926: the Gantt sheet (named for the project's Gantt tab, else 'Gantt'); read by gantt_sheet(), not by the generic reader
 WRITE_ORDER = TABLE_ORDER + (GANTT,)                                         # the Gantt lines are written after the rest
@@ -142,6 +143,7 @@ WORDS = {"actions": "action", "raid": "RAID item", "decisions": "decision", "mil
 LOCKED = {"id", "project", "source", "updated_at", "archived", "closed", "state_set"}
 LOCKED_IN = {"raid": {"priority"}}                       # worked out from impact and likelihood
 LABELS = "labels"      # not a column: an item's labels, as the export writes them (comma-separated); the store keeps them apart
+UC_MILESTONES = "milestones"      # row 1107: not a use_cases column: the milestones a use case is linked to directly, as ids ('ID, ID'); the store keeps them in use_case_milestones
 FLAGS = {"client_visible", "state_set", "active"}
 # what applying "removed from the workbook" does (#126: nothing is deleted or closed; the row is archived, status unchanged)
 REMOVED_BY = {"actions": "archived", "raid": "archived", "decisions": "archived", "milestones": "archived"}
@@ -173,6 +175,29 @@ def clean_rich(field, text):
 _FORMULA = object()        # a cell typed as a formula: not read (it is neither blank nor a value)
 
 
+def virtual_columns(table):
+    """The columns of a sheet that are not columns of its table: labels (actions, risks, decisions) and a use case's direct milestones."""
+    return [LABELS] if table in writer.LABELLED else [UC_MILESTONES] if table == "use_cases" else []
+
+
+def milestone_ids(text, refs=None):
+    """(ids, bad): a Linked milestones cell as the sorted, distinct milestone ids it names. The export writes one 'ID: name' per line (item 1150 left this column as it was);
+    a line with no ': ' may hold several ids split by commas. `bad` is the first piece that is not a milestone id."""
+    found, bad = set(), ""
+    for line in str(text).replace("\r", "\n").split("\n"):
+        if not line.strip():
+            continue
+        head = resolve_ref("milestone", line, refs)
+        pieces = [head] if (": " in line or "," not in line) else [p.strip() for p in line.split(",") if p.strip()]
+        for piece in pieces:
+            m = writer.ITEM_ID.fullmatch(piece)
+            if m and m.group(2) == "M":
+                found.add(piece)
+            elif not bad:
+                bad = piece
+    return sorted(found), bad
+
+
 def _label(table, f):
     """A column as the person sees it: the export's header label (Due, Agreed, Client wording ...)."""
     for label, field_ in (excel.COLUMN_OF.get(table, {}).items() if table != GANTT else ((l, g) for l, g in excel.GANTT_SHEET_COLUMNS)):
@@ -191,8 +216,16 @@ def plain(table, msg):
     if m:
         return f"There is no label {m.group(1)} {m.group(2)}"
     m = re.match(r"([a-z_]+) (must be|is not) ", msg)
-    if m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
+    if m and m.group(1) == "review_after_days":
+        msg = "Not reviewed after (days)" + msg[len(m.group(1)):]
+    elif m and m.group(1) in excel.COLUMN_OF.get(table, {}).values():
         msg = _label(table, m.group(1)) + msg[len(m.group(1)):]
+    m = re.fullmatch(r"(.*) \(got (.*)\)", msg, re.S)
+    if m:
+        cell = m.group(2)
+        if len(cell) >= 2 and cell[0] == cell[-1] and cell[0] in "'\"":
+            cell = cell[1:-1]
+        msg = f"{m.group(1)} (the cell says {cell})"
     return re.sub(r"\b(\d{4})-(\d{2})-(\d{2}) 00:00:00\b", lambda x: f"{x.group(3)}-{x.group(2)}-{x.group(1)}", msg)
 
 
@@ -212,6 +245,8 @@ def _got(value):
         return writer.shown(value.date().isoformat()) + (value.strftime(" %H:%M") if value.hour or value.minute else "")
     if isinstance(value, date):
         return writer.shown(value.isoformat())
+    if isinstance(value, time):
+        return value.strftime("%H:%M")
     return repr(_short(value, 60)) if isinstance(value, str) else repr(value)
 
 
@@ -441,11 +476,13 @@ def same(a, b):
 
 def read_date(value):
     """A date cell as YYYY-MM-DD: a real Excel date, DD-MM-YYYY text (also / or .), or YYYY-MM-DD text. Raises ValueError."""
-    if isinstance(value, datetime):
-        return value.date().isoformat()
     if isinstance(value, date):
-        return value.isoformat()
+        if (value.date() if isinstance(value, datetime) else value) < date(1900, 3, 1):
+            raise ValueError(value)        # Excel's day 60 (a 29 February 1900 that never was) reads as 28 February, and a negative day as 1899: neither is a date
+        return value.isoformat()[:10]
     s = str(value).strip()
+    if not s.isascii():                      # \d also takes other scripts' digits; refuse them like check_id does
+        raise ValueError(s)
     m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", s)
     if m:
         return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
@@ -461,35 +498,129 @@ def read_date(value):
 REF_FIELDS = ("milestone", "use_case")
 
 
-def resolve_ref(field, text):
-    """A Milestone or Use case cell as the id it names (item 710). The export writes 'ID: name'; a bare id is also fine. If the
-    text holds ': ' and what comes before the first ': ' is an item id, that is the id (the name after it is only a label, so a
-    renamed milestone still resolves and is no change); otherwise the whole text is the value and the store refuses it as it
-    always did. A name that itself contains ': ' is fine: only the first one counts."""
+class RefClash(ValueError):
+    """Item 1150: a Milestone or Use case cell's text matches more than one item."""
+    def __init__(self, kind, text, names):
+        super().__init__(text)
+        self.kind, self.text, self.names = kind, text, names
+
+
+def _ref_key(text):
+    return " ".join(str(text or "").split()).casefold()
+
+
+class RefLookup:
+    """Item 1150: finds the milestone or use case a cell's text names, now that the drop-downs carry no id. `items` is
+    {"milestone": [row, ...], "use_case": [row, ...]} (rows with id, name or title, and a use case's ref); `then` is the same for the
+    rows as the export held them, so a cell written before an item was renamed still finds it. A use case is found by the text the
+    export shows ('UC 1.5 Title'), then by its reference, then by its title; a milestone by the text shown, then its name. The first
+    of those that matches anything decides: one item is the answer, more than one is a RefClash (never a guess), none is None."""
+    def __init__(self, items, then=None):
+        self.tiers, self.rows = {}, {}
+        for field, (_, nf) in excel.REF_TABLES.items():
+            rows = list(items.get(field, ()))
+            self.rows[field] = {r["id"]: r for r in rows}
+            old = [r for r in (then or {}).get(field, ()) if r["id"] in self.rows[field]]      # an item still here, as the export held it
+            self.tiers[field] = [(r["id"], self._keys(field, nf, r)) for r in rows + old]
+
+    @staticmethod
+    def _keys(field, nf, r):
+        if field == "use_case":
+            ref = r.get("ref")
+            return [_ref_key(excel.ref_text(r["id"], r.get(nf), ref)), _ref_key(ref), _ref_key(r.get(nf))]
+        return [_ref_key(excel.ref_text(r["id"], r.get(nf))), _ref_key(r.get(nf)), ""]
+
+    def shown(self, field, item_id):
+        r = self.rows[field].get(item_id) or {}
+        return excel.ref_text(item_id, r.get(excel.REF_TABLES[field][1]), r.get("ref") if field == "use_case" else None)
+
+    def names(self, field, item_id, text):
+        """Whether `text` is the text the export shows for this item (now, or as the export held it)."""
+        key = _ref_key(text)
+        return any(i == item_id and key and key in keys[:2 if field == "milestone" else 3] for i, keys in self.tiers.get(field, ()))
+
+    def find(self, field, text, own=()):
+        key = _ref_key(text)
+        for i in own:                                  # a cell that still shows the item the row has is no change, whoever else shares the name
+            if self.names(field, i, text):
+                return i
+        for n in range(3):
+            hits = []
+            for item_id, keys in self.tiers.get(field, ()):
+                if keys[n] and keys[n] == key and item_id not in hits:
+                    hits.append(item_id)
+            if len(hits) == 1:
+                return hits[0]
+            if hits:
+                names = []
+                for i in hits:
+                    t = self.shown(field, i)
+                    if t not in names:
+                        names.append(t)
+                raise RefClash("use case" if field == "use_case" else "milestone", " ".join(str(text).split()), names)
+        return None
+
+
+def resolve_ref(field, text, refs=None, own=()):
+    """A Milestone or Use case cell as the id it names. An older export wrote 'ID: name' (item 710): if the text holds ': ' and what
+    comes before the first ': ' is an item id, that is the id (the name after it is only a label, so
+    a renamed milestone still resolves and is no change). A bare id is also fine. Otherwise (item 1150) `refs`, a RefLookup, finds
+    the item by the text the export shows (first the item the row already has, `own`); text matching nothing stays as it is and the
+    store refuses it as it always did; text matching more than one item raises RefClash. A name that itself contains ': ' is fine:
+    only an id before the first one counts."""
     text = text.strip()
     head, sep, _ = text.partition(": ")
     if sep and writer.ITEM_ID.fullmatch(head.strip()):
         return head.strip()
+    if refs is not None and not writer.ITEM_ID.fullmatch(text):
+        found = refs.find(field, text, own)
+        if found:
+            return found
     return text
 
 
-def from_cell(name, value, kind, label=None):
+OLD_COMMITMENT = "Candidate"                                    # row 1061: the word the flag had before Planned 2026
+
+
+def from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
+    """(stored value, None) or (None, why not); see _from_cell. `refs` (a RefLookup) lets a Milestone or Use case cell be read by its
+    name (item 1150); a name that matches more than one item is refused, naming the clash."""
+    try:
+        return _from_cell(name, value, kind, label, stored, table, refs)
+    except RefClash as e:
+        return None, f"{label or name}: {e.text} matches more than one {e.kind} ({', '.join(e.names)}). Pick one from the list."
+
+
+def _from_cell(name, value, kind, label=None, stored=(), table=None, refs=None):
     """(stored value, None) or (None, why not). A blank cell is (None, None). (creaite excel_sync.from_cell: dates to
     YYYY-MM-DD, Yes/No to 1/0, blank to None; departure: it refuses what it can't read instead of passing it on.) `label` is
-    the column's name as the person sees it, for the reason given; it defaults to `name`."""
+    the column's name as the person sees it, for the reason given; it defaults to `name`. `stored` is what the item holds now
+    (and held at the export): a long text that is that text, or that text cut to what Excel keeps, is not a change, so it is not
+    refused and comes back as the stored text."""
     label = label or name
     if value is None or (isinstance(value, str) and not value.strip()):
         return None, None
     if isinstance(value, str) and len(value) > MAX_TEXT:
+        for old in stored:
+            if isinstance(old, str) and value in (old, excel.cell_text(old), excel.cell_text(old)[:MAX_CELL_TEXT]):
+                return old, None
         return None, f"{label} is too long ({len(value):,} characters; the most clark will take is {MAX_TEXT:,})"
     if name in writer.DATE_FIELDS:
         try:
             return read_date(value), None
         except (ValueError, OverflowError):
             return None, f"{label} must be a date, shown DD-MM-YYYY (got {_got(value)})"
+    if name == UC_MILESTONES:                                   # row 1107: the ids, in the one form the export keeps ('ID, ID')
+        ids, bad = milestone_ids(value)
+        if bad:
+            return None, f"{label} must be milestone IDs, one per line (got {_got(bad)})"
+        return ", ".join(ids) or None, None
     if name == "commitment":                                    # #709: the owner's words, case exact (spaces round the word are not part of it); never guessed
-        if str(value).strip() in writer.COMMITMENTS:
-            return str(value).strip(), None
+        word = str(value).strip()
+        if word == OLD_COMMITMENT:                              # row 1061: a workbook exported before the rename still says Candidate; it is Planned 2026 (exact word only)
+            word = writer.COMMITMENTS[0]
+        if word in writer.COMMITMENTS:
+            return word, None
         return None, f"{label} must be one of {', '.join(writer.COMMITMENTS[:-1])} or {writer.COMMITMENTS[-1]}, or left empty (got {_got(value)})"
     if name in FLAGS:
         s = str(value).strip().lower()
@@ -513,8 +644,17 @@ def from_cell(name, value, kind, label=None):
     if isinstance(value, (datetime, date)):
         return None, f"{label} is text, but the cell holds a date ({_got(value)})"
     text = excel.unescape_text(str(cell_text(value)))
+    if table == "use_cases" and name == "owner":                # row 875: the change route's checks on a use case's owner (plain one line, 200 characters)
+        from clark import changes
+        if not changes._plain_text(text) or len(unicodedata.normalize("NFC", text).strip()) > changes.UC_OWNER_LIMIT:
+            return None, f"{label} must be plain text of at most {changes.UC_OWNER_LIMIT} characters, with no hidden characters"
+    if table == "use_cases" and name == "ref":                  # the change route's checks on a use case's Reference: plain, 1 to 20 characters
+        from clark import changes
+        shown = unicodedata.normalize("NFC", text).strip()
+        if text.strip() and (not changes._plain_text(shown) or len(shown) > changes.UC_REF_LIMIT):
+            return None, f"{label} must be plain text of at most {changes.UC_REF_LIMIT} characters, with no hidden characters"
     if name in REF_FIELDS:
-        text = resolve_ref(name, text)
+        text = resolve_ref(name, text, refs, [x for x in stored if isinstance(x, str)])
     return (clean_rich(name, text) if name in RICH_FIELDS else text), None      # as typed: no strip (spaces round-trip); undo #37's apostrophe
 
 
@@ -565,23 +705,41 @@ def _title_key(v):
     return " ".join(str(v or "").split()).casefold()
 
 
+def _six_digit_fraction(text):
+    """Python 3.9's fromisoformat takes a fraction of exactly 3 or 6 digits (3.11 takes any): pad or cut the fraction to 6."""
+    return re.sub(r"(\d\d:\d\d:\d\d)\.(\d+)", lambda m: m.group(1) + "." + (m.group(2) + "000000")[:6], text, count=1)
+
+
+def _naive(when):
+    """A date-time with any timezone suffix taken to UTC and then dropped, so two of them can always be subtracted."""
+    if when.tzinfo is not None:
+        when = when.astimezone(timezone.utc).replace(tzinfo=None)
+    return when
+
+
+def _read_when(text):
+    """Text as a naive date-time: a trailing Z or an offset is read and stripped. Raises ValueError when it is not a date-time."""
+    text = text.strip().replace("T", " ")
+    if text[-1:] in ("Z", "z"):
+        text = text[:-1] + "+00:00"
+    return _naive(datetime.fromisoformat(_six_digit_fraction(text)))
+
+
 def _moved(cell, stored):
     """Whether an updated_at cell (an Excel date-time, or text) differs from the database's updated_at by more than the cell can
-    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash."""
-    if isinstance(cell, datetime):
-        then, slack = cell, 0.002
-    else:
-        text = str(cell).strip().replace("T", " ")
-        try:
-            then = datetime.fromisoformat(text)
-        except ValueError:
-            return False
-        slack = 0.002 if "." in text else 1.0
+    hold: 2 milliseconds for a date-time, a second for text without a fraction. Unreadable text says nothing, so is no clash.
+    A timezone suffix (Z or an offset) is read and dropped; this never raises."""
     try:
-        now = datetime.fromisoformat(str(stored).strip().replace("T", " "))
-    except ValueError:
+        if isinstance(cell, datetime):
+            then, slack = _naive(cell), 0.002
+        else:
+            text = str(cell)
+            then = _read_when(text)
+            slack = 0.002 if "." in text else 1.0
+        now = _read_when(str(stored))
+        return abs((now - then).total_seconds()) > slack
+    except (ValueError, TypeError, OverflowError):
         return False
-    return abs((now - then).total_seconds()) > slack
 
 
 # ── Reading the workbook ──────────────────────────────────────────────────────
@@ -703,6 +861,7 @@ class _Reader:
         self.n = 0
         self.today = writer.today()
         self.snapshot = (record or {}).get("rows") or {}     # the export's record of each row: {table: {id: row}}
+        self._refs = None
         self.made = {}                                       # fingerprint → ids an earlier import made from it (used up as rows match)
         for c in created:
             self.made.setdefault(c.get("fp"), []).append(c.get("id"))
@@ -710,14 +869,32 @@ class _Reader:
         self.held = set()                                    # items whose row was skipped for a changed ID: not "removed"
         self.given = {}                                      # a new row's change number → the values its cells gave (no defaults)
         self.formulas = {}                                   # sheet → workbook rows holding a formula cell
+        self.errors = {}                                     # sheet → workbook rows holding an error cell in a column the import reads
+        self.err_cols = {}                                   # (sheet, workbook row) → the column positions holding an error cell
+        self.unplaced = set()                                # sheets with a row whose ID and title are both errors: no item can be told missing there
 
-    def rows_of(self, ws, min_row):
-        """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted)."""
+    @property
+    def refs(self):
+        """Item 1150: the RefLookup for this project's milestones and use cases (and the rows as the export held them)."""
+        if self._refs is None:
+            items = {f: self.store.read(t, project=self.project) for f, (t, _) in excel.REF_TABLES.items()}
+            then = {f: [{**r, "id": i} for i, r in (self.snapshot.get(t) or {}).items()] for f, (t, _) in excel.REF_TABLES.items()}
+            self._refs = RefLookup(items, then)
+        return self._refs
+
+    def rows_of(self, ws, min_row, cols=None):
+        """(row number, [cell values]) for each row from `min_row`; a formula cell is _FORMULA (it is not read, and is noted). `cols` are the
+        column positions the import reads: an error cell in any other column says nothing."""
         for rn, row in enumerate(ws.iter_rows(min_row=min_row), start=min_row):
             vals = []
-            for c in row:
+            for k, c in enumerate(row):
                 if c.data_type == "f":
                     self.formulas.setdefault(ws.title, set()).add(rn)
+                    vals.append(_FORMULA)
+                elif c.data_type == "e":                     # an error value (#REF!, #N/A): not text the person typed
+                    if cols is None or k in cols:
+                        self.errors.setdefault(ws.title, set()).add(rn)
+                        self.err_cols.setdefault((ws.title, rn), set()).add(k)
                     vals.append(_FORMULA)
                 else:
                     vals.append(c.value)
@@ -741,6 +918,9 @@ class _Reader:
         if table in writer.LABELLED:
             cols = cols + [LABELS]
             info[LABELS] = ("TEXT", False, None)
+        if table == "use_cases":
+            cols = cols + [UC_MILESTONES]
+            info[UC_MILESTONES] = ("TEXT", False, None)
         header, named, ignored = header_map(next(ws.iter_rows(min_row=1, max_row=1, values_only=True), ()), table, cols, sheet)
         if "id" not in header:
             self.problem(f"{sheet}: there is no id column, so the sheet was skipped (every row would look new)", sheet)
@@ -753,22 +933,32 @@ class _Reader:
         for r in db.values():
             if LABELS in cols:
                 r[LABELS] = ", ".join(writer.labels_of(self.store.con, r["id"])) or None
+            if UC_MILESTONES in cols:
+                r[UC_MILESTONES] = ", ".join(writer.use_case_milestone_ids(self.store.con, r["id"])) or None
         seen, rows = set(), 0
         self.typed_rows = 0
         self.row_titles = {}                      # id → the title the workbook gives it (to tell a swap from a title edit)
-        for _, row in self.rows_of(ws, 2):
+        for _, row in self.rows_of(ws, 2, set(header.values())):
             i, t = (row[header["id"]] if header["id"] < len(row) else None), None
             if TITLE_OF[table] in header and header[TITLE_OF[table]] < len(row):
                 t = row[header[TITLE_OF[table]]]
             if isinstance(i, str) and i.strip() and isinstance(t, str):
                 self.row_titles.setdefault(i.strip(), _title_key(t))
         snap = self.snapshot.get(table)           # None: no record of what was exported for this sheet
-        for rn, row in self.rows_of(ws, 2):
+        for rn, row in self.rows_of(ws, 2, set(header.values())):
             cell = {c: (row[i] if i < len(row) else None) for c, i in header.items()}
             raw_id = cell["id"]
             if raw_id is _FORMULA:
                 self.held.add(self.other_item(table, cell, db, ""))      # its item is not "removed": only its ID cell is unreadable
-                self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
+                bad = self.err_cols.get((sheet, rn), ())
+                if header["id"] in bad:
+                    if TITLE_OF[table] in header and header[TITLE_OF[table]] in bad:      # nothing says which item this row is: none on the sheet is offered for archiving
+                        self.unplaced.add(sheet)
+                        self.problem(f"{sheet}, row {rn}: the ID and the title are error values; the row was left out and no item on this sheet is offered for archiving", sheet, rn, "", "id")
+                    else:
+                        self.problem(f"{sheet}, row {rn}: the ID is an error value; the row was left out", sheet, rn, "", "id")
+                else:
+                    self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
                 continue
             rid = "" if raw_id is None else str(raw_id).strip()
             placeholder = ""
@@ -792,7 +982,7 @@ class _Reader:
                                    "check this is the right file")
         removed_before = sum(1 for c in self.plan.changes if c.kind == "removed" and c.sheet == sheet)
         for rid, r in db.items():
-            if rid in seen or rid in self.held or r["archived"]:
+            if rid in seen or rid in self.held or r["archived"] or sheet in self.unplaced:
                 continue
             if snap is not None and rid not in snap:
                 self.plan.unchanged += 1             # added in clark after the export: the workbook could not have held it
@@ -878,7 +1068,7 @@ class _Reader:
             label = _label(table, f)
             if cell[f] is _FORMULA:
                 continue                                # a formula is not read: neither a value nor a cleared cell
-            v, err = from_cell(f, cell[f], info[f][0], label)
+            v, err = from_cell(f, cell[f], info[f][0], label, (cur[f], was.get(f) if was else None), table=table, refs=self.refs)
             if err:
                 self.problem(f"{sheet}, row {rn}, {rid}: {err}; the row was left out", sheet, rn, rid, f)
                 bad = True
@@ -914,6 +1104,12 @@ class _Reader:
                                        "agreed date is a rebaseline, which records a decision; do it in clark")
                 continue
             before[f], after[f] = old, v
+        if not bad and table == "use_cases" and isinstance(after.get("ref"), str):      # the change route refuses a Reference another use case already has
+            mine = after["ref"].strip().casefold()
+            taken = [r.get("ref") for i, r in db.items() if i != rid] + [c.after.get("ref") for c in self.plan.changes if c.table == table and c.id != rid]
+            if any(isinstance(x, str) and x.strip().casefold() == mine for x in taken):
+                self.problem(f"{sheet}, row {rn}, {rid}: {_label(table, 'ref')} is already used by another use case; the row was left out", sheet, rn, rid, "ref")
+                bad = True
         if bad:
             return
         if not after:
@@ -933,7 +1129,7 @@ class _Reader:
         for f in editable:
             if f == TITLE_OF[table] or cell.get(f) is _FORMULA or cell.get(f) is None:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], f)
+            v, err = from_cell(f, cell[f], info[f][0], f, refs=self.refs)
             old = row.get(f)
             if not err and v is not None and old is not None and (v == old or (isinstance(v, str) and same(v, old))):
                 n += 1
@@ -960,7 +1156,7 @@ class _Reader:
         for f in editable:
             if cell[f] is _FORMULA:
                 continue
-            v, err = from_cell(f, cell[f], info[f][0], _label(table, f))
+            v, err = from_cell(f, cell[f], info[f][0], _label(table, f), table=table, refs=self.refs)
             if err:
                 self.problem(f"{sheet}, row {rn} (new): {err}; the row was left out", sheet, rn, "", f)
                 bad = True
@@ -1025,11 +1221,12 @@ def _gantt_sheet(self, ws):
     editable = [f for f in header if f != "id"]
     db = {r["id"]: r for r in self.store.read(GANTT, project=self.project)}
     seen, rows = set(), 0
-    for rn, row in self.rows_of(ws, 2):
+    for rn, row in self.rows_of(ws, 2, set(header.values())):
         cell = {f: (row[i] if i < len(row) else None) for f, i in header.items()}
         raw_id = cell["id"]
         if raw_id is _FORMULA:
-            self.problem(f"{sheet}, row {rn}: the ID is a formula, which is not read; the row was left out", sheet, rn, "", "id")
+            what = "an error value" if header["id"] in self.err_cols.get((sheet, rn), ()) else "a formula, which is not read"
+            self.problem(f"{sheet}, row {rn}: the ID is {what}; the row was left out", sheet, rn, "", "id")
             continue
         rid = "" if raw_id is None else str(raw_id).strip()
         placeholder = ""
@@ -1145,9 +1342,9 @@ def _rows_counted(ws, table, cols):
             used = any(not _blank(c.value) for c in row)
         else:
             at = {k: (row[i] if i < len(row) else None) for k, i in header.items()}
-            if at["id"] is not None and at["id"].data_type == "f":
+            if at["id"] is not None and at["id"].data_type in ("f", "e"):
                 continue
-            used = any(c is not None and (c.data_type == "f" or not _blank(c.value)) for c in at.values())
+            used = any(c is not None and (c.data_type in ("f", "e") or not _blank(c.value)) for c in at.values())
         if used:
             rows += 1
             if rows > MAX_ROWS:
@@ -1222,7 +1419,7 @@ def list_sheets(path, store=None, project=None):
             else:
                 cols = None
                 if store is not None:
-                    cols = writer.columns(store.con, table) + ([LABELS] if table in writer.LABELLED else [])
+                    cols = writer.columns(store.con, table) + virtual_columns(table)
                 rows = min(_rows_counted(ws, table, cols), OVER_LIMIT)
             found[table] = (ws.title, rows)
         listed = [{"table": t, "name": SHEET_NAMES[t], "rows": found[t][1]} for t in CHOICE_ORDER if t in found]
@@ -1239,9 +1436,8 @@ def list_sheets(path, store=None, project=None):
 
 MAX_CELL_TEXT = 32767                                # the most characters Excel itself keeps in a cell: a longer text is not from Excel
 _SCAN_CHUNK = 65536
-_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c)(?![\w:.-])[^>]*>")   # matched by local name: <row>, <x:row>, <ns:c>
+_TAG = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?(row|c|t)(?![\w:.-])")   # one tag (cut out by _scan_member), matched by local name: <row>, <x:row>, <ns:c>, <x:t>
 _ATTR_R = re.compile(rb"\sr=\"([A-Za-z]*)(\d*)\"")
-_TEXT = re.compile(rb"<(?:[A-Za-z_][\w.-]*:)?t(?:\s[^>]*)?>([^<]*)</(?:[A-Za-z_][\w.-]*:)?t>")   # by local name too: <x:t>
 _SHEET_TAG = re.compile(rb"<sheet\b[^>]*>")
 _REL_TAG = re.compile(rb"<Relationship\b[^>]*>")
 
@@ -1283,29 +1479,50 @@ def _scan_member(z, member, title):
     with the words the loaded sheet would get, when it reaches past row MAX_SHEET_ROWS or column MAX_SHEET_COLUMNS or holds more
     cells than the limits allow at all; raises _TextTooLong for a text longer than Excel can keep. Memory is one chunk and one
     tag; the read stops at what the zip declares (excel.MAX_MEMBER_BYTES)."""
-    max_row = max_col = cells = row = col = read = 0
+    max_row = max_col = cells = row = col = read = tags = 0
     buf = b""
+    text = None                                          # the bytes of a <t> node read so far (it can run over a chunk cut), else None
     opener = z.open                                      # a zip member is read as bytes, never as text
     with opener(member) as f:
         while True:
             chunk = f.read(_SCAN_CHUNK)
             read += len(chunk)
             buf += chunk
-            cut = len(buf) if (not chunk or buf.endswith(b">")) else max(buf.rfind(b"<"), 0)
-            head, buf = buf[:cut], buf[cut:]
-            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag or a text node this long is not a cell
-                raise _TextTooLong()
-            for t in _TEXT.finditer(head):
-                if len(t.group(1)) > MAX_CELL_TEXT and len(unescape(t.group(1).decode("utf-8", "replace"))) > MAX_CELL_TEXT:
-                    raise _TextTooLong()
-            for m in _TAG.finditer(head):
-                tag = m.group(0)
+            pos = 0
+            while True:                                  # one pass over buf: each byte is looked at a bounded number of times
+                if text is not None:                     # inside a text node: it ends at the next '<', which may be in a later chunk
+                    lt = buf.find(b"<", pos)
+                    text += buf[pos:] if lt < 0 else buf[pos:lt]
+                    if len(text) > 8 * MAX_CELL_TEXT:    # a text node this long is not a cell
+                        raise _TextTooLong()
+                    if lt < 0:
+                        pos = len(buf)
+                        break
+                    if len(text) > MAX_CELL_TEXT and len(unescape(text.decode("utf-8", "replace"))) > MAX_CELL_TEXT:
+                        raise _TextTooLong()
+                    text, pos = None, lt
+                lt = buf.find(b"<", pos)
+                if lt < 0:
+                    pos = len(buf)
+                    break
+                gt = buf.find(b">", lt)
+                if gt < 0:                               # the tag goes on in the next chunk: keep it from its '<'
+                    pos = lt
+                    break
+                tag, pos = buf[lt:gt + 1], gt + 1
+                m = _TAG.match(tag)
+                if m is None:
+                    continue
+                if m.group(1) == b"t":
+                    if not tag.endswith(b"/>"):
+                        text = b""
+                    continue
                 at = _ATTR_R.search(tag)
                 if m.group(1) == b"row":
                     row = int(at.group(2)) if at and at.group(2) else row + 1
                     col = 0
-                    max_row = max(max_row, row)                  # an empty row counts toward the reach too
-                    if max_row > MAX_SHEET_ROWS:
+                    tags += 1                                    # an empty row does not move max_row (its number is only where the next cell
+                    if tags > MAX_SHEET_ROWS:                    # without an r lands), but row tags are still counted, so a flood of them is refused
                         raise Invalid(f"The {title} sheet reaches past row {MAX_SHEET_ROWS:,} or column {MAX_SHEET_COLUMNS}, which is more than "
                                       "clark will import in one go. Check this is the right file. Nothing was changed.")
                     continue
@@ -1320,6 +1537,9 @@ def _scan_member(z, member, title):
                                   "clark will import in one go. Check this is the right file. Nothing was changed.")
                 if cells > MAX_SHEET_ROWS * MAX_SHEET_COLUMNS:
                     raise Invalid(_too_large(title, max_row, max_col))
+            buf = buf[pos:]
+            if len(buf) > 8 * MAX_CELL_TEXT:             # a tag this long is not a cell
+                raise _TextTooLong()
             if not chunk or read > excel.MAX_MEMBER_BYTES:
                 return max_row, max_col
 
@@ -1470,6 +1690,9 @@ def read_workbook(store, path, project, state_path=None, allow_unrecorded=False,
             shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
             rd.plan.notes.append(f"{sheet_name}: a formula cell was ignored in row {shown}; clark reads typed values, not "
                                  "formulas, so type the value instead")
+        for sheet_name, rows_ in rd.errors.items():
+            shown = ", ".join(str(r) for r in sorted(rows_)[:10]) + (" and more" if len(rows_) > 10 else "")
+            rd.plan.notes.append(f"{sheet_name}: an error cell was ignored in row {shown}; type the value instead")
         rd.plan.changes.sort(key=lambda c: (WRITE_ORDER.index(c.table), ("changed", "new", "removed").index(c.kind), c.row))
         for i, c in enumerate(rd.plan.changes, start=1):
             c.n = i
@@ -1530,16 +1753,34 @@ def _write(st, store, c, ctx=None):
         found = store.resolve_owner(after[text]) if after[text] else {"status": "blank"}
         if found["status"] == "one" or c.kind == "changed":
             after["owner_id"] = found["id"] if found["status"] == "one" else None
+    wanted = after.pop(UC_MILESTONES, False) if c.table == "use_cases" and c.kind != "removed" else False      # row 1107: False = the cell was not part of this change
     if c.kind == "new":
-        return st.create(c.table, after)
+        ref = st.create(c.table, after)
+        _write_milestone_links(st, ref, wanted)
+        return ref
     now = store.read(c.table, ref=c.id)
     if now is None:
         raise Invalid(f"{c.id} is no longer in clark; run the import again")
     if now["updated_at"] != c.seen_at:
         raise Invalid(f"{c.id} was changed in clark after this import was checked; run the import again")
     if c.kind == "changed":
-        return st.update(c.table, c.id, after)
+        ref = st.update(c.table, c.id, after) if after else c.id
+        _write_milestone_links(st, c.id, wanted)
+        return ref
     return st.archive(c.table, c.id)
+
+
+def _write_milestone_links(st, use_case, wanted):
+    """Make a use case's direct milestone links the ones the cell names (row 1107): missing ones are added, ones the cell no longer names
+    are ended (their rows are kept). `wanted` is the cell as milestone_ids' text, None for an emptied cell, False when not part of the change."""
+    if wanted is False:
+        return
+    want = set(wanted.split(", ")) if wanted else set()
+    have = set(writer.use_case_milestone_ids(st.con, use_case))
+    for m in sorted(want - have):
+        writer.link_use_case_milestone(st, use_case, m)
+    for m in sorted(have - want):
+        writer.unlink_use_case_milestone(st, use_case, m)
 
 
 def _try(store, changes, by_user, commit, src_ref=None, made=None, route="excel", place="excel"):

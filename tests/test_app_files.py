@@ -130,21 +130,40 @@ class ServiceWorker(unittest.TestCase):
             self.assertNotIn(text, self.code)
 
 
-TOKEN_BODY = re.search(r"--size-body:\s*(\d+px)\s*;", (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")).group(1)
+TOKENS_CSS = (SRC / "clark" / "brand" / "tokens.css").read_text(encoding="utf-8")
+TOKEN_BODY = af.token_size(TOKENS_CSS, "--size-body")      # the very reader the offline page uses, so there is one way to read the token
 
 
 class ServerOwnPagesFollowTheBaseTextSize(unittest.TestCase):
-    """#960: the placeholder page and the gone-preview page use --size-body, kept equal to tokens.css by this test (the server
-    imports nothing from clark)."""
+    """#960, #1017: the placeholder page and the gone-preview page use --size-body. The server imports nothing from clark, so it holds
+    one copy of the value (BODY_SIZE); this class is what keeps that one copy equal to tokens.css, and keeps it the only copy."""
+
+    SERVER = (SRC / "clark" / "server.py").read_text(encoding="utf-8")
 
     def test_the_servers_size_is_the_token(self):
         self.assertEqual(sv.BODY_SIZE, TOKEN_BODY)
 
-    def test_both_pages_carry_it_and_no_literal_16px(self):
+    def test_the_token_is_set_once_so_there_is_one_value_to_follow(self):
+        self.assertEqual(len(re.findall(r"--size-body:", TOKENS_CSS)), 1)
+
+    def test_the_value_is_written_once_in_the_server_and_both_pages_take_it_from_there(self):
+        self.assertEqual(len(re.findall(r'BODY_SIZE\s*=\s*"', self.SERVER)), 1)
+        self.assertEqual(re.findall(r"font:\s*\d+px", self.SERVER), [])       # no page sets its own px text size
+        self.assertEqual(self.SERVER.count("@SIZE_BODY@"), 4)       # the two holders in the pages, the two replaces
+
+    def test_each_page_carries_the_token_size_as_its_text_size(self):
+        self.assertIn(f"body{{font:{TOKEN_BODY} system-ui", sv.PLACEHOLDER)
+        self.assertIn(f"font: {TOKEN_BODY}/1.5 system-ui", sv.PREVIEW_GONE)
+
+    def test_no_page_keeps_a_holder_or_the_old_16px(self):
         for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE):
-            self.assertIn(f"font:{TOKEN_BODY}" if page is sv.PLACEHOLDER else f"font: {TOKEN_BODY}/1.5", page)
-            self.assertNotIn("font:16px", page.replace("font: ", "font:"))
             self.assertNotIn("@SIZE_BODY@", page)
+            self.assertNotRegex(page, r"font:\s*16px")
+
+    def test_the_servers_pages_and_the_offline_page_have_the_same_text_size(self):
+        offline = af.offline_page().decode("utf-8")
+        for page in (sv.PLACEHOLDER, sv.PREVIEW_GONE, offline):
+            self.assertRegex(page, r"font:\s*" + re.escape(TOKEN_BODY) + r"[\s/]")
 
 
 class OfflinePage(unittest.TestCase):
@@ -156,7 +175,7 @@ class OfflinePage(unittest.TestCase):
         self.assertIn("<h1>Start clark to use this window</h1>", self.page)
         self.assertIn("Nothing is running at this address. Start it the way you started it: double-click <b>clark.command</b> in your clark folder, or, if you use Docker, open Terminal in that folder and type:", self.page)
         self.assertIn("<code>docker compose -f docker/compose.yaml up -d</code>", self.page)
-        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
+        self.assertIn("Closing the last clark window stops clark.command after two minutes. Docker keeps running until you stop it with:", self.page)
         self.assertIn("<code>docker compose -f docker/compose.yaml down</code>", self.page)
         self.assertIn('<button type="button" id="again">Check again</button>', self.page)
         self.assertIn('"Still not running. Double-click clark.command, then check again."', self.page)
@@ -174,7 +193,7 @@ class OfflinePage(unittest.TestCase):
 
     def test_it_says_when_each_way_of_starting_stops(self):
         """item 427: one text for both routes (the double-click and Docker)."""
-        self.assertIn("Closing the last clark window stops clark.command after a minute. Docker keeps running until you stop it with:", self.page)
+        self.assertIn("Closing the last clark window stops clark.command after two minutes. Docker keeps running until you stop it with:", self.page)
 
     def test_the_launcher_name_is_escaped_and_nothing_else_is_put_in(self):
         page = af.offline_page('<b>x"&').decode("utf-8")
@@ -296,18 +315,41 @@ class OfflinePageColours(unittest.TestCase):
 
 
 class TheStartFilesNameNoOutsideAddress(unittest.TestCase):
-    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer."""
+    """Nothing in the launcher, the manifest, the worker or the offline page names an address outside this computer:
+    only http://127.0.0.1 and (row 1076) http://clark.localhost, the name Chrome resolves to this computer, each
+    followed by its port, a path or nothing. A name that merely starts with one of them (clark.localhost.evil.example)
+    is outside."""
 
     FILES = ("clark.command", "src/clark/launch.py", "src/clark/appfiles.py", "src/clark/idle.py", "src/clark/app/sw.js",
              "src/clark/app/offline.html")
+    THIS_COMPUTER = re.compile(r"http://(?:127\.0\.0\.1|clark\.localhost)(?::|/|$)")
 
-    def test_only_127_0_0_1_is_ever_named(self):
+    @classmethod
+    def outside_addresses(cls, text):
+        """The addresses `text` names that are not this computer's."""
+        return [found for found in re.findall(r"(?:https?|wss?|ftp)://[^\s\"'<>)]*", text) if not cls.THIS_COMPUTER.match(found)]
+
+    def test_only_this_computer_is_ever_named(self):
         texts = {f: (ROOT / f).read_text(encoding="utf-8") for f in self.FILES}
         texts["manifest"] = af.manifest_json().decode("utf-8")
         for name, text in texts.items():
-            for found in re.findall(r"(?:https?|wss?|ftp)://[^\s\"'<>)]*", text):
-                self.assertTrue(found.startswith("http://127.0.0.1"), f"{name} names {found}")
+            self.assertEqual(self.outside_addresses(text), [], f"{name} names an address outside this computer")
             self.assertNotRegex(text, r"\b(curl|wget|pip|npm)\b", name)
+
+    def test_the_launcher_names_both_of_this_computer_s_addresses_and_the_check_knows_them(self):
+        text = (ROOT / "src/clark/launch.py").read_text(encoding="utf-8")
+        for wanted in ("http://clark.localhost:{port}/", "http://127.0.0.1:{port}/"):
+            self.assertTrue(wanted in text, f"launch.py no longer names {wanted}")
+        self.assertEqual(self.outside_addresses(text), [])
+
+    def test_the_check_rejects_a_name_that_only_looks_like_this_computer(self):
+        for found in ("http://clark.localhost.evil.example:1/", "http://evil.clark.localhost:1/", "https://clark.localhost:1/",
+                      "http://localhost:1/", "http://other.localhost:1/", "http://127.0.0.1.evil.example/", "http://127.0.0.10/",
+                      "ws://clark.localhost:1/", "http://clark.localhost{port}/"):
+            self.assertEqual(self.outside_addresses(f"open {found} now"), [found])
+        for found in ("http://127.0.0.1:{port}/", "http://clark.localhost:{port}/", "http://127.0.0.1:8766/health",
+                      "http://clark.localhost/", "http://127.0.0.1"):
+            self.assertEqual(self.outside_addresses(f"open {found} now"), [], found)
 
 
 class DataMark(unittest.TestCase):

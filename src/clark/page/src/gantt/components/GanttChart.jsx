@@ -15,9 +15,11 @@
 // Every colour is a token. Bars carry their name as text (beside the bar when the bar is too short), so nothing depends on hover.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "preact/hooks";
 import { Fade } from "../../components/Menu.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { Icon } from "../../components/Icon.jsx";
 import { todayIso } from "../../workItems.js";
 import { reduced } from "../../stores/motion.js";
+import { fitCharts } from "../logic/printFit.js";
 import {
   WORDS, SCALES, tidyAll, leftOut, visibleRows, filtersFor, filterWord, outline, clashes, statusOf, statusWord, typeWord, rowsShown, rowsFromDrag,
   chartRange, fitPpd, ppdFor, zoomIn, zoomOut, xOf, headerCells, arrowPath, moved, resized, checkEdit, checkBox, detailOf,
@@ -28,6 +30,8 @@ export const RH = 32;          // a row
 export const HH = 68;          // the header: Today flag, upper band, lower band
 const BAR = 20;
 const PAD = 6;
+const PAPER_W = 680;      // A4 portrait is 794 px wide less 12 mm margins each side; a wider sheet only leaves the chart a little room over
+
 const MINW = { name: 110, start: 84, end: 84, pct: 44 };
 const MAXW = { name: 420, start: 200, end: 200, pct: 120 };
 
@@ -44,12 +48,12 @@ const Glyph = ({ name }) => (
     dangerouslySetInnerHTML={{ __html: G[name] }} />
 );
 
-// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again) per project; a different project key clears it.
+// row 971: the lines whose bar has grown in once, kept across mounts (a tab return draws nothing again), one Set per project for the session.
 const grown = new Map();
-let grownKey = null;
+let grownKey = "";
 function grownFor(key) {
-  const k = key || "";
-  if (grownKey !== k) { grown.clear(); grownKey = k; }
+  const k = key || grownKey;      // a chart with no key (none given) is not a project change: it keeps the Set of the project last open
+  if (key) grownKey = key;
   if (!grown.has(k)) grown.set(k, new Set());
   return grown.get(k);
 }
@@ -74,21 +78,29 @@ export function GanttChart({
   const [box, setBox] = useState(null);                 // the edit box: { id, left, top }
   const [menu, setMenu] = useState(null);               // the add menu: { id, left, top }
   const [showOpen, setShowOpen] = useState(false);
+  const showBtn = useRef(null);
+  const fitBtn = useRef(null);
+  const zoomOutTo = () => { const z = zoomOut(zoom); setZoom(z); if (z <= 1 && fitBtn.current) fitBtn.current.focus(); };      // the button turns itself off at fit: focus moves to the fit button, not to the page top
+  const showBack = () => { if (showBtn.current) showBtn.current.focus(); };      // closing the Show menu hands focus back to its button, not to the page top
   const [msg, setMsg] = useState("");
   const [width, setWidth] = useState(900);
+  const [paper, setPaper] = useState(false);               // true while the browser prints: the chart is fitted to the paper, not to the screen it was measured on
   const [cw0, setCw] = useState({ name: 150, start: 92, end: 92, pct: 52 });
+  const [mine, setMine] = useState({});                // columns the person has dragged: their width is kept as set, never capped again
   const gx = useRef(null);
   const dragged = useRef(false);
   const dragNow = useRef(null);
-  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened or the project changed (not per mount)
+  const seen = grownFor(projectKey);                   // row 971: lines whose bar has been drawn once since the page opened (not per mount)
   const born = useRef(new Map());                      // line id to true while its first-draw grow may still run
 
   // On a narrow page the left columns give up some width so the chart keeps room for its month labels (a person's own widths still win when smaller).
-  const narrow = width < 1000;
-  const cwN = narrow ? { name: Math.min(cw0.name, 120), start: Math.min(cw0.start, 94), end: Math.min(cw0.end, 94), pct: Math.min(cw0.pct, 44) } : cw0;
+  const fitW = paper ? Math.min(width, PAPER_W) : width;      // the screen is unchanged: only a print narrows it
+  const narrow = fitW < 1000;
+  const capW = { name: 120, start: 94, end: 94, pct: 44 };
+  const cwN = narrow ? Object.fromEntries(Object.keys(cw0).map((k) => [k, mine[k] ? cw0[k] : Math.min(cw0[k], capW[k])])) : cw0;
   const cw = cwN;
   const filter = onFilter ? filterProp : ownFilter;
-  const setFilter = (f) => { setShowOpen(false); if (onFilter) onFilter(f); else setOwnFilter(f); };
+  const setFilter = (f) => { setShowOpen(false); showBack(); if (onFilter) onFilter(f); else setOwnFilter(f); };
   const cols = ["start", "end", "pct"].filter((k) => edit || !hiddenCols.includes(k));      // no eye on these in Edit (the data layer refuses them as hidden); an older file may still leave one out
 
   // The lines with a bar being dragged drawn where it is now, so the clash marks and the arrows follow the pointer.
@@ -110,10 +122,50 @@ export function GanttChart({
     return () => ro.disconnect();
   }, [drawn]);
 
+  // The browser lays the page out again for the paper without telling a ResizeObserver, so the chart listens for the print itself (beforeprint, afterprint).
+  useEffect(() => {
+    const on = () => setPaper(true);
+    const off = () => setPaper(false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); };
+  }, []);
+
+  const boxFrom = useRef(null);
+  useEffect(() => {      // the edit box closes (Escape, Save, Cancel): focus goes back to the bar it was opened from, unless it already went somewhere else
+    if (box) { boxFrom.current = box.id; return; }
+    const id = boxFrom.current; boxFrom.current = null;
+    if (!id) return;
+    const a = document.activeElement;
+    if (a && a !== document.body) return;
+    const bar = [...document.querySelectorAll("[data-g-bar]")].find((b) => b.getAttribute("data-g-bar") === id);
+    if (bar) bar.focus();
+  }, [box]);
+
+  useEffect(() => {      // the first item takes focus once when the add menu opens, not again on every redraw
+    if (menu) { const first = document.querySelector("[data-g-addmenu] [role=menuitem]"); if (first) first.focus(); }
+  }, [menu]);
+  // A box or a menu that closes takes the focused button with it: focus goes back to what opened it (a deleted line's bar is gone, so to the first bar).
+  const opener = useRef(null);
+  const wasOpen = useRef(false);
+  useEffect(() => {
+    const open = !!(box || menu || showOpen);
+    if (wasOpen.current && !open && gx.current) {
+      const a = document.activeElement;
+      if (!a || a === document.body || !a.isConnected) {
+        const o = opener.current;
+        const to = o && o.isConnected ? o : (menu === null && !showOpen && gx.current.closest("section").querySelector("[data-g-bar]"));
+        if (to) to.focus({ preventScroll: true });
+      }
+    }
+    if (!open) opener.current = null;
+    wasOpen.current = open;
+  }, [box, menu, showOpen]);
+
   useEffect(() => {
     const onKey = (e) => {
       if (e.key !== "Escape") return;
-      if (box) setBox(null); else if (menu) setMenu(null); else if (showOpen) setShowOpen(false); else if (full) setFull(false);
+      if (box) setBox(null); else if (menu) setMenu(null); else if (showOpen) { setShowOpen(false); showBack(); } else if (full) setFull(false);
     };
     const onDown = (e) => {
       if (showOpen && !e.target.closest("[data-g-showwrap]")) setShowOpen(false);
@@ -126,11 +178,24 @@ export function GanttChart({
     return () => { document.removeEventListener("keydown", onKey); document.removeEventListener("pointerdown", onDown, true); };
   }, [box, menu, showOpen, full, sel]);
 
+  useEffect(() => {      // row 1038: the chart is scaled to the paper's width while the browser prints (logic/printFit.js, shell.css)
+    const on = () => fitCharts(document, true), off = () => fitCharts(document, false);
+    window.addEventListener("beforeprint", on);
+    window.addEventListener("afterprint", off);
+    return () => { window.removeEventListener("beforeprint", on); window.removeEventListener("afterprint", off); off(); };
+  }, []);
+
   const leftW = PAD + (edit ? 28 : 0) + 40 + cw.name + cols.reduce((n, k) => n + 4 + cw[k], 0) + PAD;
-  const fit = fitPpd(Math.max(200, width - leftW), range);
-  const ppd = ppdFor(scale, fit, zoom);
+  const fit = fitPpd(Math.max(200, fitW - leftW), range);
+  const ppd = ppdFor(scale, fit, paper ? 1 : zoom);      // the paper is fitted at the zoom of 100%: a screen zoom would print several pages wide and be clipped at the floor of the fit
   const W = range ? Math.ceil(xOf(range.end, range, ppd) + ppd + 40) : 0;
   const total = rows.length;
+  useEffect(() => {      // drawn inside the print (Ctrl+P from another tab): beforeprint has gone by, so the chart is fitted as it is drawn
+    if (drawn && document.documentElement.classList.contains("print-all")) fitCharts(document, true);
+  }, [drawn]);
+  useLayoutEffect(() => {      // the beforeprint fit ran before the paper was drawn and measured the chart at its screen zoom; once it is drawn for the paper (paper, ppd) the ratio is taken again
+    if (paper && drawn) fitCharts(document, true);
+  }, [paper, ppd, drawn]);
   const nShown = full ? total : (grip !== null ? grip : rowsShown(total, defaultRows, own, edit));
   const cut = !full && nShown < total;
   const canvasH = total * RH;
@@ -153,18 +218,27 @@ export function GanttChart({
 
   const goToday = () => {
     const el = gx.current;
-    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: "smooth" });
+    if (el) el.scrollTo({ left: Math.max(0, X(now) - (el.clientWidth - leftW) / 2), behavior: reduced() ? "auto" : "smooth" });
   };
   const rowsAt = (n) => {
     if (full) return;
     if (edit) { if (onDefaultRows) onDefaultRows(n >= total ? null : n); } else setOwn(n);
   };
+  // Esc or a cancelled pointer ends a drag with nothing saved: `undo` puts the drag's own state back, `done` runs once the pointer lets go
+  const cancellable = (el, undo, done) => {
+    const stop = () => { el.onpointermove = null; el.onpointerup = null; el.onpointercancel = null; document.removeEventListener("keydown", esc, true); };
+    const esc = (k) => { if (k.key !== "Escape") return; k.stopPropagation(); stop(); undo(); el.onpointerup = () => { el.onpointerup = null; done(); }; };
+    el.onpointercancel = () => { stop(); undo(); done(); };
+    document.addEventListener("keydown", esc, true);
+    return stop;
+  };
   const startResize = (key) => (e) => {
     e.preventDefault(); e.stopPropagation();
     const el = e.currentTarget, x0 = e.clientX, w0 = cw[key];
     el.setPointerCapture(e.pointerId);
-    el.onpointermove = (m) => setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) }));
-    el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; };
+    el.onpointermove = (m) => { setMine((o) => ({ ...o, [key]: true })); setCw((c) => ({ ...c, [key]: clamp(w0 + m.clientX - x0, MINW[key], MAXW[key]) })); };
+    const stop = cancellable(el, () => setCw((c) => ({ ...c, [key]: w0 })), () => {});
+    el.onpointerup = () => { stop(); };
   };
   const gripDown = (e) => {
     e.preventDefault();
@@ -172,7 +246,8 @@ export function GanttChart({
     el.setPointerCapture(e.pointerId);
     let last = r0;
     el.onpointermove = (m) => { last = rowsFromDrag(r0, m.clientY - y0, RH, total); setGrip(last); };
-    el.onpointerup = () => { el.onpointermove = null; el.onpointerup = null; setGrip(null); if (last !== r0) rowsAt(last); };
+    const stop = cancellable(el, () => { last = r0; setGrip(null); }, () => {});
+    el.onpointerup = () => { stop(); setGrip(null); if (last !== r0) rowsAt(last); };
   };
   const gripKey = (e) => {
     const step = e.key === "ArrowUp" ? -1 : e.key === "ArrowDown" ? 1 : e.key === "Home" ? -total : e.key === "End" ? total : 0;
@@ -196,8 +271,9 @@ export function GanttChart({
       dragNow.current = { id: l.id, ...next };
       setDrag(dragNow.current);
     };
+    const stop = cancellable(el, () => { dragNow.current = null; setDrag(null); }, () => setTimeout(() => { dragged.current = false; }, 50));
     el.onpointerup = () => {
-      el.onpointermove = null; el.onpointerup = null;
+      stop();
       const d = dragNow.current;
       dragNow.current = null;
       setDrag(null);
@@ -209,11 +285,13 @@ export function GanttChart({
 
   const openBox = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setMenu(null);
     setBox({ id, left: clamp(r.left, 8, window.innerWidth - 330), top: clamp(r.bottom + 6, 8, window.innerHeight - 340) });
   };
   const openAdd = (id, el) => {
     const r = el.getBoundingClientRect();
+    opener.current = el;
     setBox(null);
     setMenu({ id, left: clamp(r.left, 8, window.innerWidth - 220), top: clamp(r.bottom + 4, 8, window.innerHeight - 150) });
   };
@@ -272,11 +350,12 @@ export function GanttChart({
   const labelOut = (l, w) => l.type === "phase" || (l.name.length * 7.6 + 18 > w);
   // A name beside a bar or a milestone goes on the right; where it would run off the right edge of the chart it goes on the left instead.
   const textW = (t) => Math.ceil(t.length * 8 + 6);
-  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W
-    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - gap - 4)}px` }}>{text}</span>
+  // Where the left has less room than the right (a long name on a bar near the left edge), it stays on the right rather than start behind the left columns.
+  const beside = (x1, x2, text, top, cls, gap) => (x2 + 6 + textW(text) > W && x1 - gap - 4 >= W - x2 - 6
+    ? <span class={`${cls} gt-flip`} style={{ right: `${W - x1 + gap}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - gap - 4)}px` }}>{text}</span>
     : <span class={cls} style={{ left: `${x2 + 6}px`, top: `${top}px` }}>{text}</span>);
   const ms2 = (x1, text, top) => (x1 + 22 + textW(text) > W
-    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(40, x1 - 10)}px` }}>{text}</span>
+    ? <span class="gt-mslab gt-flip" style={{ right: `${W - x1 + 6}px`, top: `${top}px`, textAlign: "right", "--gt-room": `${Math.max(0, x1 - 10)}px` }}>{text}</span>
     : <span class="gt-mslab" style={{ left: `${x1 + 22}px`, top: `${top}px` }}>{text}</span>);
   const filters = filtersFor(edit);
   const height = cut ? HH + nShown * RH + 2 : undefined;
@@ -284,8 +363,8 @@ export function GanttChart({
   return (
     <section class={`gt${full ? " gt-full" : ""}`} data-gantt data-mode={edit ? "edit" : "view"} data-full={full ? "1" : "0"}>
       <div class="gt-bar" role="toolbar" aria-label="Chart">
-        <button type="button" class="gt-ib" onClick={() => setZoom(zoomOut(zoom))} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
-        <button type="button" class="gt-zf" onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
+        <button type="button" class="gt-ib" onClick={zoomOutTo} disabled={zoom <= 1} aria-label={WORDS.zoomOut} title={WORDS.zoomOut} data-g-zout><Glyph name="zout" /></button>
+        <button type="button" class="gt-zf" ref={fitBtn} onClick={() => setZoom(1)} aria-label={WORDS.fit} title={WORDS.fit} data-g-fit>{Math.round(zoom * 100)}%</button>
         <button type="button" class="gt-ib" onClick={() => setZoom(zoomIn(zoom))} aria-label={WORDS.zoomIn} title={WORDS.zoomIn} data-g-zin><Glyph name="zin" /></button>
         <span class="gt-sep" aria-hidden="true" />
         <span class="gt-grp" role="group" aria-label="Scale">
@@ -296,12 +375,19 @@ export function GanttChart({
         <span class="gt-sp" />
         <span class="gt-showwrap" data-g-showwrap>
           <button type="button" class="gt-ib" aria-haspopup="menu" aria-expanded={showOpen} aria-label={`${WORDS.show}: ${filterWord(filter)}`} title={`${WORDS.show}: ${filterWord(filter)}`}
-            data-g-show onClick={() => setShowOpen(!showOpen)}><Glyph name="filter" /></button>
+            data-g-show ref={showBtn} onClick={(e) => { opener.current = e.currentTarget; setShowOpen(!showOpen); }}><Glyph name="filter" /></button>
           {showOpen ? (
-            <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu>
+            <div class="gt-pop" role="menu" aria-label={WORDS.show} data-g-showmenu
+              onKeyDown={(e) => {
+                if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+                const items = [...e.currentTarget.querySelectorAll("[role=menuitemradio]")];
+                const at = items.indexOf(document.activeElement);
+                e.preventDefault();
+                items[(at + (e.key === "ArrowDown" ? 1 : -1) + items.length) % items.length].focus();
+              }}>
               {filters.map((f) => (
                 <button type="button" key={f} role="menuitemradio" aria-checked={filter === f || (f === "all" && !filters.includes(filter))} data-g-filter={f} onClick={() => setFilter(f)}>
-                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span>{filterWord(f)}
+                  <span class="gt-ck" aria-hidden="true">{filter === f || (f === "all" && !filters.includes(filter)) ? "✓" : ""}</span><Icon name={actionIcon("filter" + f[0].toUpperCase() + f.slice(1))} cls="mi" />{filterWord(f)}
                 </button>
               ))}
             </div>
@@ -387,20 +473,22 @@ export function GanttChart({
                   <div key={l.id}>
                     <button type="button" class={`gt-ms${l.pct >= 100 ? " done" : ""}${sel === l.id ? " sel" : ""}${edit ? " edit" : ""}`} style={{ left: `${q.x1 + 8}px`, top: `${top + 9}px` }}
                       aria-label={label} data-g-bar={l.id} data-g-type="milestone" onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
-                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }} />
+                      onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
+                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); if (edit && sel === l.id) openBox(l.id, e.currentTarget); else setSel(l.id); } }} />
                     {ms2(q.x1, `${l.name} · ${formatDate(l.start)}`, top + 6)}
                     {flag}
                   </div>
                 );
               }
               const w = q.x2 - q.x1, out = labelOut(l, w);
-              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
+              if (!seen.has(l.id)) { seen.add(l.id); born.current.set(l.id, !reduced()); }
+              else if (reduced() && born.current.get(l.id)) born.current.set(l.id, false);       // row 1039: reduced motion switched on with bars still marked: clear the mark       // row 1000: drawn while reduced = drawn once, never marked (no animationend would take the mark off, and switching reduced motion off would then grow every bar)
               if (drag && drag.id === l.id) born.current.set(l.id, false);       // a grabbed bar never grows, nor does it start when let go
               const label = `${l.name}, ${formatDate(l.start)} to ${formatDate(l.end)}, ${l.pct} percent, ${statusWord(st)}`;
               return (
                 <div key={l.id}>
                   <div role="button" tabindex="0" class={`gt-b gt-b-${l.type}${edit ? " edit" : ""}${sel === l.id ? " sel" : ""}${drag && drag.id === l.id ? " drag" : ""}${born.current.get(l.id) ? " gt-grow" : ""}`}
-                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) born.current.set(l.id, false); }}
+                    onAnimationEnd={(e) => { if (e.target === e.currentTarget) { born.current.set(l.id, false); e.currentTarget.classList.remove("gt-grow"); } }}
                     style={{ left: `${q.x1}px`, width: `${w}px`, top: `${l.type === "phase" ? top + 10 : top + 6}px` }} aria-label={label} data-g-bar={l.id} data-g-type={l.type}
                     onPointerDown={barDown(l)} onClick={() => { if (!dragged.current) setSel(l.id); }}
                     onDblClick={(e) => { if (edit) openBox(l.id, e.currentTarget); }}
@@ -419,7 +507,7 @@ export function GanttChart({
       </div>
 
       <div class="gt-grip" role="separator" aria-orientation="horizontal" aria-label={WORDS.gripLabel} aria-valuemin={1} aria-valuemax={total} aria-valuenow={cut ? nShown : total}
-        tabindex="0" title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
+        tabindex="0" aria-disabled={full ? "true" : undefined} title={WORDS.grip} data-g-grip onPointerDown={gripDown} onKeyDown={gripKey}>
         <i />{grip !== null ? <span class="gt-gl2">{grip} of {total}</span> : null}
       </div>
 
@@ -448,8 +536,8 @@ export function GanttChart({
       {menu ? (
         <Fade class="gt-menu" role="menu" style={{ left: `${menu.left}px`, top: `${menu.top}px` }} data-g-addmenu>
           {[["task", WORDS.addTask], ["phase", WORDS.addPhase], ["milestone", WORDS.addMilestone]].map(([t, w], i) => (
-            <button type="button" role="menuitem" key={t} data-g-addtype={t} ref={(el) => { if (el && i === 0) el.focus(); }}
-              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}>{w}</button>
+            <button type="button" role="menuitem" key={t} data-g-addtype={t} 
+              onClick={() => { const id = menu.id; setMenu(null); if (onAdd) onAdd(id, t); }}><Icon name={actionIcon("add")} cls="mi" /><span>{w}</span></button>
           ))}
         </Fade>
       ) : null}

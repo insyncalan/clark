@@ -12,12 +12,17 @@ import { diffIds, markChanged } from "./changed.js";
 import { undoRequest as wordUndoRequest, words as wordWords } from "../edit/wordApi.js";
 
 // null, or { id, kind: "done" | "note" | "problem", text, undo: the step's id or null, code: the project the step was made in }
+import { toastClock } from "./toastClock.js";
 import { FIELDS as GANTT_FIELDS } from "../gantt/ganttTab.js";
 export const toast = signal(null);
+// Row 1075: a message goes after 5 seconds (stores/toastClock.js), unless the pointer is over it or focus is in it; Cmd or Ctrl+Z still undoes the step after that (below).
+let shown = 0;
+export const toastTimer = toastClock(() => { if (toast.value && toast.value.id === shown) toast.value = null; });
+const clock = toastTimer;
 // Counts the undos that worked, so the Movement block (edit/Movement.jsx) reads its milestones again after one.
 export const undone = signal(0);
 
-let counter = 0, tail = Promise.resolve(), timer = 0;
+let counter = 0, tail = Promise.resolve();
 const wordSteps = new Set();             // the steps a Word import made (#48): their Undo goes by the Word route, which undoes only those
 const focusSteps = new Map();            // row 865: step -> a selector; after its Undo the focus goes there if the page dropped it
 const itemSteps = new Map();             // the steps that changed a work item (#80 cells, #68 board moves), to what their Undo says ("" for "Undone."): their undo reply has no items, so the data is read again
@@ -29,7 +34,18 @@ const undoable = [];
 export const NOTHING_TO_UNDO = "Nothing to undo since this page was opened. Older changes are in Activity.";
 const MAX_KEPT = 50;
 
-export function say(kind, text, undo = null, code = project.value) {
+// A message whose Undo is a function on this page (a saved view put back, row 1071), not a step in the change log. It is in the same list as the steps, so
+// Cmd or Ctrl+Z undoes it in its turn and not an older change. The button and the key both end up in `fn`, once.
+export function sayLocalUndo(kind, text, fn, code = project.value) {
+  say(kind, text, null, code);
+  const entry = { step: null, code, local: null };
+  entry.local = () => { const at = undoable.indexOf(entry); if (at >= 0) undoable.splice(at, 1); fn(); };
+  undoable.push(entry);
+  if (undoable.length > MAX_KEPT) undoable.shift();
+  toast.value = { ...toast.value, local: entry.local };
+}
+
+export function say(kind, text, undo = null, code = project.value, focusUndo = false) {
   if (undo) {
     const at = undoable.findIndex((s) => s.step === undo);
     if (at >= 0) undoable.splice(at, 1);
@@ -37,10 +53,9 @@ export function say(kind, text, undo = null, code = project.value) {
     if (undoable.length > MAX_KEPT) { undoable.shift(); }
   }
   if (kind === "problem") trouble.n++;
-  clearTimeout(timer);
   const id = ++counter;
-  toast.value = { id, kind, text, undo, code };
-  if (kind !== "problem") timer = setTimeout(() => { if (toast.value && toast.value.id === id) toast.value = null; }, 20000);
+  toast.value = { id, kind, text, undo, code, focusUndo };
+  if (kind !== "problem") { shown = id; clock.start(); } else clock.stop();
 }
 
 // A different project is a page load (report.js), which would take the message with its Undo away: the one message on show goes with the
@@ -70,7 +85,7 @@ stayed.push((late) => { if (late) say("problem", plainChange(0)); });      // a 
 takeCarried();
 
 export function dismiss() {
-  clearTimeout(timer);
+  clock.stop();
   toast.value = null;
 }
 
@@ -129,10 +144,10 @@ export function change(req, done, named = null) {
   const code = project.value;
   return enqueue(async () => {
     const r = await sendChange(code, req);
-    if (!r.ok) { say("problem", r.message); return null; }
+    if (!r.ok) { say("problem", r.message); return named && named.inline ? r.message : null; }      // inline: the editor that asked says it too (item 1005)
     redraw(code, r.reply);
     if (!(await readAgain(code, "The change was saved"))) return r.reply;
-    if (r.reply.apply_id && named) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
+    if (r.reply.apply_id && named && !named.inline) { itemSteps.set(r.reply.apply_id, `Undone: ${done}`); if (named.focus) focusSteps.set(r.reply.apply_id, named.focus); }
     if (r.reply.apply_id) say("done", done, r.reply.apply_id, code);
     return r.reply;
   });
@@ -166,7 +181,7 @@ export function changeRecord(req, done) {
     const w = typeof done === "function" ? done(r.reply) : done;     // #442: words that need the reply (a copy's new id)
     itemSteps.set(r.reply.apply_id, w.back || "");
     if (w.focus) focusSteps.set(r.reply.apply_id, w.focus);
-    say("done", w.text, r.reply.apply_id, code);
+    say("done", w.text, r.reply.apply_id, code, !!w.focusUndo);      // focusUndo: the toast puts the focus on its Undo as it is drawn
     return r.reply;
   });
 }
@@ -228,7 +243,7 @@ export function undo(applyId, code = project.value) {
     say("done", skipped && typeof r.reply.words === "string" && r.reply.words ? r.reply.words : back || "Undone.", null, code);
     if (focus) setTimeout(() => {         // row 865: where the person was, unless they have already moved on
       const now = document.activeElement, el = document.querySelector(focus);
-      if (el && (!now || now === document.body || !now.isConnected)) el.focus({ preventScroll: true });
+      if (el && (!now || now === document.body || now.id === "main" || !now.isConnected)) el.focus({ preventScroll: true });
     }, 60);
     return r.reply;
   });
@@ -367,7 +382,12 @@ export function changeBulk(req, back) {
 export function undoLast(code = project.value) {
   for (let i = undoable.length - 1; i >= 0; i--) {
     if (undoable[i].code === code) {
-      const { step } = undoable[i];
+      const { step, local } = undoable[i];
+      if (local) {
+        if (toast.value && toast.value.local === local) dismiss();
+        local();
+        return Promise.resolve(null);
+      }
       if (toast.value && toast.value.undo === step) dismiss();
       return undo(step, code);
     }

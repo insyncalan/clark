@@ -65,7 +65,7 @@ class Appearance(Base):
                 self.assertEqual(p.js("[...document.querySelectorAll('#personal [data-appearance] .seg button')].map(b => b.textContent)"), ORDER)
                 self.assertEqual(self.in_settings(p), ["system"])
                 self.assertEqual(p.js("document.querySelector('#personal [data-appearance-line]').textContent"),
-                                 "Follows your Mac's setting.", "the chosen one's line is under the control")
+                                 "Follows your computer's setting.", "the chosen one's line is under the control")
                 self.assertEqual(p.js("document.documentElement.dataset.theme"), "auto")
                 self.assertTrue(p.js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
 
@@ -105,6 +105,7 @@ class Appearance(Base):
                 self.assertEqual(p.js("document.activeElement.dataset.themePick"), want, "focus follows")
                 at = want
             self.open_menu(p)
+            p.until("JSON.stringify([...document.querySelectorAll('#profile-menu [role=menuitemradio]')].filter(i => i.getAttribute('aria-checked') === 'true').map(i => i.textContent.replace('✓', ''))) === '[\"Dark\"]'", "the menu shows Dark chosen")
             self.assertEqual(self.in_menu(p), ["Dark"], "the menu agrees")
 
     def test_C_chosen_appearance_segment_keeps_the_pill_look_row_902(self):
@@ -180,7 +181,7 @@ class Appearance(Base):
                 p.width(w)
                 self.open_menu(p)
                 roles = p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')})")
-                self.assertEqual(roles[:9], ["menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "menuitem", "separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Import from Word (row 826), Published reports (#443); Settings and Help follow the group
+                self.assertEqual(roles[:9], ["menuitem"] * 7 + ["separator", "group"])     # the name line, Publish, Preview, Export to Excel, Export to Word (#48), Published reports (#443), Settings (row 1092); Help follows the group
                 self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu [role=group]').children, function(e){return e.getAttribute('role')}).join()"),
                                  "presentation,menuitemradio,menuitemradio,menuitemradio", "the label and the three radios are one group")
                 self.assertEqual(p.js("document.querySelectorAll('#profile-menu .lab')[0].textContent"), "Appearance", "the group has the same name in the menu as in Settings")
@@ -246,7 +247,7 @@ class Source(unittest.TestCase):
 
     def test_the_words_are_pinned(self):
         text = (PAGE_SRC / "edit" / "Personal.jsx").read_text(encoding="utf-8")
-        for words in ('["system", "System", "Follows your Mac\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
+        for words in ('["system", "System", "Follows your computer\'s setting."]', '["light", "Light", "Always light."]', '["dark", "Dark", "Always dark."]',
                       "<legend>Appearance</legend>"):
             self.assertIn(words, text)
         self.assertIn('lab: "Appearance"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
@@ -254,3 +255,52 @@ class Source(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+
+class PrintLight(Appearance):
+    def test_1050_printing_is_light_in_dark_and_the_look_comes_back(self):
+        for w in WIDTHS:
+            for pick in ("dark", "system"):
+                with self.subTest(width=w, pick=pick), chrome() as cdp:
+                    p = self.page(cdp)
+                    p.width(w)
+                    scheme(p, "dark")
+                    self.open_settings(p)
+                    p.js(f"document.querySelector('#personal [data-theme-pick={pick}]').click()")
+                    p.until("document.documentElement.dataset.theme", "the dark look is on")
+                    self.assertLess(self.lightness(p), 100, "dark on screen")
+                    chosen = p.js("document.documentElement.dataset.theme")
+                    p.js("window.dispatchEvent(new Event('beforeprint'))")
+                    self.assertIsNone(p.js("document.documentElement.dataset.theme || null"), "printing draws no dark attribute")
+                    self.assertGreater(self.lightness(p), 200, "white paper while printing")
+                    p.js("window.dispatchEvent(new Event('afterprint'))")
+                    self.assertEqual(p.js("document.documentElement.dataset.theme"), chosen, "the chosen look comes back")
+                    self.assertLess(self.lightness(p), 100)
+
+    def test_1050_dashboard_milestones_and_help_print_light_when_the_look_is_dark(self):
+        from test_help_panel import full_help_from_menu
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                scheme(p, "dark")
+                self.open_settings(p)
+                p.js("document.querySelector('#personal [data-theme-pick=dark]').click()")
+                p.until("document.documentElement.dataset.theme === 'dark'", "the dark look is on")
+                for view in ("dashboard", "milestones", "help"):
+                    if view == "help":
+                        full_help_from_menu(p)
+                    else:
+                        p.js(f"document.querySelector('[data-view={view}]').click()")
+                        p.until(f"!!document.querySelector('#{'report' if view == 'dashboard' else view}')", f"{view} drew")
+                    self.assertLess(self.lightness(p), 100, f"{view} is dark on screen")
+                    p.js("window.dispatchEvent(new Event('beforeprint'))")
+                    try:
+                        self.assertIsNone(p.js("document.documentElement.dataset.theme || null"), f"{view}: printing draws no dark attribute")
+                        self.assertGreater(self.lightness(p), 200, f"{view}: white paper while printing")
+                        ink = p.js("(() => { const c = getComputedStyle(document.body).color; return c.match(/\\d+/g).slice(0, 3).map(Number); })()")
+                        self.assertLess(sum(ink) / 3, 120, f"{view}: dark body words on the white paper {ink}")
+                    finally:
+                        p.js("window.dispatchEvent(new Event('afterprint'))")
+                    self.assertEqual(p.js("document.documentElement.dataset.theme"), "dark", f"{view}: the dark look comes back")

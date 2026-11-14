@@ -14,6 +14,7 @@ import { createDrag } from "../logic/dragCore.js";
 import { useSettle } from "../stores/motion.js";
 import { MenuPanel, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { groupIcon, actionIcon } from "../menuIcons.js";
 import { Eye as WorkEye } from "./cells/Eye.jsx";
 import { cursor, stopOf, cardKeys } from "../listKeys.js";
 import { GroupTick } from "../components/SelectBar.jsx";
@@ -274,7 +275,13 @@ export function Board({ rows, today, type }) {
     let on = false, before = null;
     const target = (ev) => {
       const el = document.elementFromPoint(ev.clientX, ev.clientY), col = el && el.closest ? el.closest(".col[data-col]") : null;
-      if (!col || (col.dataset.lane || "") !== lane) return before;
+      if (!col) {                                    // in the gap between two columns of this lane: the nearest column to the right
+        const ls = el && el.closest ? el.closest(".lane") : null;
+        if (!ls || (ls.dataset.lane || "") !== lane) return before;
+        const next = [...ls.querySelectorAll(".col[data-col]")].find((k) => ev.clientX < k.getBoundingClientRect().left);
+        return next ? next.dataset.col : null;
+      }
+      if ((col.dataset.lane || "") !== lane) return before;
       const r = col.getBoundingClientRect(), keys = orderedColumns(work.value, g, ln.columns).map((x) => x.key), i = keys.indexOf(col.dataset.col);
       return ev.clientX < r.left + r.width / 2 ? col.dataset.col : (keys[i + 1] === undefined ? null : keys[i + 1]);
     };
@@ -375,8 +382,8 @@ export function Board({ rows, today, type }) {
               {menuFor(cd.id).map((it, i) => it.head
                 ? <div key={"h" + i} class="mh" role="presentation">{it.head}</div>
                 : <button key={(it.lane ? "l" : "c") + it.key} type="button" role="menuitem" tabIndex={-1} data-to={it.key} data-lane={it.lane ? "1" : undefined}
-                    onClick={() => sendMenu(cd.id, it)}>{it.name}</button>)}
-              {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}>{noMove(byId[cd.id])}</button> : null}
+                    onClick={() => sendMenu(cd.id, it)}><Icon name={groupIcon(it.lane ? b.lane : g)} cls="mi" />{it.name}</button>)}
+              {menuFor(cd.id).length === 0 ? <button type="button" role="menuitem" aria-disabled="true" tabIndex={-1}><Icon name={actionIcon("none")} cls="mi" />{noMove(byId[cd.id])}</button> : null}
             </MenuPanel>
           ) : null}
         </Card>

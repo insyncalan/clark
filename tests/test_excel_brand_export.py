@@ -1,7 +1,7 @@
 """Item 711 (4b): the workbook is drawn in the local brand's LIGHT values at export (excel_palette threaded through excel.py).
 
 Run: python3 dev/run_tests.py test_excel_brand_export
-Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from system/branding.
+Every brand here is invented in a temporary folder (light and dark blocks, same names, different values); nothing is read from branding.
 """
 import shutil
 import tempfile
@@ -20,7 +20,7 @@ from test_excel_picture import make_png
 BRAND_ONE = """/* an invented teal look */
 :root {
   --brand-navy: #0B2545; --brand-blue: #0A7C74; --brand-ink: #101820; --grey-300: #B8C4D0;
-  --status-green-tint: #DDF5F0; --status-green-text: #046B5F;
+  --status-green-tint: #DDF5F0; --status-green-text: #046B5F; --tone-green-tint: #DDF5F0; --tone-green-text: #046B5F;
   --font-office: 'Segoe UI', sans-serif;
 }
 :root[data-theme=dark] { --brand-navy: #FFEEDD; --brand-blue: #AB1234; --font-office: Verdana; --status-green-tint: #123456; }
@@ -204,7 +204,7 @@ class Polish(Rig):
         ours = [r for r in logs.records if "brand-navy" in r.getMessage()]
         self.assertEqual(len(ours), 1)
         self.assertEqual(ours[0].levelname, "WARNING")
-        self.assertTrue(ours[0].getMessage().startswith("Brand colour brand-navy not used"))
+        self.assertTrue(ours[0].getMessage().startswith("The brand colour brand-navy could not be used"))
 
     def test_a_brand_file_that_is_not_utf8_does_not_block_the_export(self):
         d = self.brand(None)
@@ -235,7 +235,7 @@ class Polish(Rig):
                 self.assertTrue(cell.alignment.wrap_text, (sheet, name))
                 self.assertEqual(cell.alignment.vertical, "top")
                 self.assertEqual(ws.column_dimensions[heads[name]].width, 40)
-            self.assertEqual(ws[f"{heads['Use case']}2"].value, "U1: Pay")
+            self.assertEqual(ws[f"{heads['Use case']}2"].value, "Pay")
             for name in ("ID", "Owner", "Labels"):
                 if name in heads:
                     self.assertFalse(ws[f"{heads[name]}2"].alignment.wrap_text, (sheet, name))

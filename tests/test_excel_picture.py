@@ -1,5 +1,5 @@
 """#133: the brand logo on the Excel Cover, put in after openpyxl has saved, with no Pillow (clark.excel_picture). The logo is the
-user's own (system/branding, not in the repo), so every test makes its own tiny PNG in a temporary brand folder.
+user's own (branding, not in the repo), so every test makes its own tiny PNG in a temporary brand folder.
 
 Run: python3 dev/run_tests.py test_excel_picture
 openpyxl reads a workbook back without Pillow by dropping its pictures, so these tests look in the saved zip.

@@ -58,10 +58,30 @@ class Static(unittest.TestCase):
 
     def test_the_catalogue_entry_is_full_width_only_and_before_one_document(self):
         text = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
-        entry = text[text.index('{ id: "gantt"'):text.index('{ id: "one-doc"')]
+        entry = text[text.index('{ id: "gantt"'):text.index('{ id: "gantt-table"')]      # row 1068: the Gantt table card follows the Gantt card, both before One document
         self.assertIn('fit: ["full"]', entry)
         self.assertIn("The plan as bars on a timeline, from your Gantt lines. Only lines put in the client view show.", entry)
         self.assertIn('holds: ["Heading", "The Gantt chart"]', entry)
+        self.assertLess(text.index('{ id: "gantt-table"'), text.index('{ id: "one-doc"'))
+
+    def test_the_table_section_page_parts_are_there_and_its_card_is_a_full_or_half_template(self):
+        """Row 1068: the Gantt table section (store type gantttable) reuses the Gantt page's table; its card is a template section's,
+        full or half (the owner's ruling), named by the one constant GANTT_TABLE_NAME."""
+        for f in (PAGE_SRC / "components" / "GanttTableSection.jsx", PAGE_SRC / "edit" / "templates" / "GanttTableSection.jsx"):
+            text = f.read_text(encoding="utf-8")
+            self.assertIn('store type "gantttable"', text, f.name)
+            self.assertNotIn("dangerouslySetInnerHTML", text, f.name)
+            self.assertNotRegex(text, r"#[0-9a-fA-F]{6}\b", f.name)
+        self.assertIn("gantt/components/GanttTable.jsx", (PAGE_SRC / "components" / "GanttTableSection.jsx").read_text(encoding="utf-8"), "the one table")
+        text = (PAGE_SRC / "logic" / "templates.js").read_text(encoding="utf-8")
+        entry = text[text.index('{ id: "gantt-table"'):text.index('{ id: "one-doc"')]
+        self.assertIn('fit: ["full", "half"]', entry)
+        self.assertIn('type: "gantttable"', entry)
+        self.assertIn("name: GANTT_TABLE_NAME", entry)
+        self.assertIn("title: GANTT_TABLE_NAME", entry)
+        self.assertIn("The plan as a table, from your Gantt lines. Only lines put in the client view show.", entry)
+        self.assertIn('holds: ["Heading", "The plan table"]', entry)
+        self.assertIn('export const GANTT_TABLE_NAME = "Table";', text)
 
 
 class Section(unittest.TestCase):
@@ -182,3 +202,101 @@ class Section(unittest.TestCase):
         self.look(1400)
         self.mount({"project": {}, "gantt_lines": []}, 1400, edit=True)
         self.assertEqual(self.val("document.querySelector('[data-g-none]').textContent"), "No lines to show.")
+
+    # ── the Gantt table section (row 1068) ───────────────────────────────────
+
+    TABLE = "[data-tpl=gantttable] [data-gt]"
+    FILE_DATA = {"project": {}, "gantt": {"columns": ["id", "name", "type", "start", "end", "pct"], "lines": [
+        {"id": "GNT-1", "name": "Plan", "type": "phase", "start": "2026-11-02", "end": "2026-11-20", "pct": 10},
+        {"id": "GNT-2", "name": "Build", "type": "task", "parent": "GNT-1", "start": "2026-11-02", "end": "2026-11-10", "pct": 50}]}}
+
+    def mount_table(self, data, width, **opts):
+        self.js(f"mountSection({lit(data)}, {lit({'width': width - 40, 'type': 'gantttable', **opts})})")
+        self.assertTrue(wait(lambda: self.js(f"!!document.querySelector({lit(self.TABLE)})"), 8), "the table is on the page")
+
+    def table_rows(self):
+        return self.val(f"[...document.querySelectorAll('{self.TABLE} tbody tr')].map(e => e.dataset.id)")
+
+    def test_the_table_section_draws_the_table_alone_read_only_with_only_the_eye_on_lines(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.mount_table(report(), width)
+                self.assertEqual(self.table_rows(), [l["id"] for l in LINES if l["show"]])
+                self.assertEqual(self.count("[data-gantt]"), 0, "no chart, no bars")
+                self.assertEqual(self.val(f"document.querySelector('{self.TABLE}').dataset.mode"), "view")
+                self.assertEqual(self.count("input, select, .gt-eye, .gt-rb, .gt-rh, [data-gt-undo]"), 0, "nothing to change: no row heads, no eyes, no fields")
+                self.assertEqual(self.count("[data-tpl-gantt-note]"), 0, "the note is for Edit")
+                self.assertLessEqual(self.val("document.querySelector('.gt-scroll').getBoundingClientRect().right"), width - 19, "the table keeps to its width and scrolls sideways")
+
+    def test_the_table_section_leaves_out_a_column_hidden_from_the_client(self):
+        self.look(1400)
+        self.mount_table(report(hidden=("owner",)), 1400)
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=o]"), 0, "Owner is hidden from the client")
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=n]"), 1, "the name is always there")
+        self.mount_table(report(), 1400)
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=o]"), 1)
+
+    # mutation hunt (item 1230): the as-at day, the never-hidden columns and the section's ready flag were not pinned
+    def status_of(self, ref):
+        return self.val(f"document.querySelector('{self.TABLE} tr[data-id={ref}] td[data-k=st]').textContent")
+
+    def test_the_table_reads_status_as_at_the_publish_day_in_a_file_and_as_today_otherwise(self):
+        self.look(1400)
+        self.mount_table(self.FILE_DATA, 1400, file=True, asAt="2026-11-05")
+        self.assertEqual(self.status_of("GNT-2"), "In progress", "a file is read as at the day it was published")
+        self.mount_table(self.FILE_DATA, 1400, file=True)
+        self.assertEqual(self.status_of("GNT-2"), "Late", "a file with no day is read as at today")
+
+    def test_the_columns_that_are_never_hidden_stay_when_the_settings_name_them(self):
+        self.look(1400)
+        self.mount_table(report(hidden=("type", "start", "end", "pct", "owner")), 1400)
+        for key in ("t", "s", "e", "pct"):
+            self.assertEqual(self.count(f"{self.TABLE} th[data-k={key}]"), 1, key)
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=o]"), 0, "Owner, which may be hidden, is")
+
+    def test_the_table_section_is_a_ready_template(self):
+        self.assertEqual(self.val("K.templateFor('gantttable').ready"), True)
+
+    def test_the_table_section_reads_a_published_file_as_the_gantt_tab_does(self):
+        """A file carries data.gantt only (every line in it has its eye on; a column it does not carry is hidden)."""
+        self.look(1400)
+        self.mount_table(self.FILE_DATA, 1400, file=True)
+        self.assertEqual(self.table_rows(), ["GNT-1", "GNT-2"])
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=o], {self.TABLE} th[data-k=rag], {self.TABLE} th[data-k=note]"), 0, "columns the file does not carry are not drawn")
+        self.assertEqual(self.count(f"{self.TABLE} th[data-k=s]"), 1)
+        self.assertEqual(self.val("[...document.querySelectorAll('[data-tpl=gantttable] td[data-k=n]')].map(e => e.textContent)"), ["Plan", "Build"])
+
+    def test_the_table_section_is_empty_exactly_when_the_gantt_section_is(self):
+        none = [{**l, "show": False} for l in LINES]
+        for d in (report(), report(none), {}, self.FILE_DATA):
+            self.assertEqual(self.val(f"K.templateEmpty({{type: 'gantttable'}}, {lit(d)})"), self.val(f"K.templateEmpty({{type: 'gantt'}}, {lit(d)})"))
+        self.assertTrue(self.val(f"K.templateEmpty({{type: 'gantttable'}}, {lit(report(none))})"))
+        self.assertFalse(self.val(f"K.templateEmpty({{type: 'gantttable'}}, {lit(report())})"))
+
+    def test_the_table_section_in_edit_is_the_same_read_only_table_and_the_note(self):
+        self.look(1400)
+        self.mount_table(report(), 1400, edit=True)
+        self.assertEqual(self.table_rows(), [l["id"] for l in LINES if l["show"]], "Edit shows what the reader sees")
+        self.assertEqual(self.val(f"document.querySelector('{self.TABLE}').dataset.mode"), "view")
+        self.assertEqual(self.count("input, select, .gt-eye, .gt-rb, .gt-rh"), 0, "the lines are chosen on the Gantt page")
+        self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-note]').textContent"), "Lines are chosen on the Gantt page.")
+
+    def test_the_table_section_in_edit_with_no_eye_on_line_says_so_in_the_charts_words(self):
+        """No eye-on line: the Edit part says what the Gantt section's Edit says (the chart's own sentence), with the note, and draws no
+        header-only grid. (The View leaves an empty section out, as the server does.)"""
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width)
+                self.js(f"mountSection({lit(report([{**l, 'show': False} for l in LINES]))}, {lit({'width': width - 40, 'type': 'gantttable', 'edit': True})})")
+                self.assertTrue(wait(lambda: self.js("!!document.querySelector('[data-tpl=gantttable] [data-g-none]')"), 8), "the sentence is on the page")
+                self.assertEqual(self.val("document.querySelector('[data-tpl=gantttable] [data-g-none]').textContent"), "No lines to show.")
+                self.assertEqual(self.count(self.TABLE), 0, "no header-only grid")
+                self.assertEqual(self.count("[data-gantt]"), 0, "no chart either")
+                self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-note]').textContent"), "Lines are chosen on the Gantt page.")
+                self.assertEqual(self.val("document.querySelector('[data-tpl-gantt-left-out]').textContent"),
+                                 "No Gantt line has its eye turned on, so this section is left out of the published page. Turn an eye on in the Gantt page to include it.")
+        self.look(1400)
+        self.mount_table(report(), 1400, edit=True)
+        self.assertEqual(self.count("[data-tpl-gantt-left-out]"), 0, "with a line the section is published, so no such note")
+        self.assertEqual(self.count("[data-tpl=gantttable] [data-g-none]"), 0, "with a line the table is drawn and the sentence is not")

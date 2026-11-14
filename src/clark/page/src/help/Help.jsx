@@ -6,6 +6,7 @@ import { pictureUrl } from "./helpPictures.js";
 import { helpOpen, helpTab, helpTarget, helpQuery, helpFocusSearch, helpHere, helpLand, landing, setTab, follow, goTo, canGo } from "./helpStore.js";
 import { Md } from "./helpText.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { singleKeys } from "../stores/keyPrefs.js";
 
 let INDEX = null;
 const index = () => INDEX || (INDEX = buildIndex());
@@ -304,13 +305,23 @@ export function Help() {
     if (el) el.focus({ preventScroll: true });
   }, [helpLand.value]);
   useEffect(() => { if (helpFocusSearch.value && search.current) { search.current.focus(); search.current.select(); } }, [helpFocusSearch.value]);
-  useEffect(() => { if (box.current) box.current.focus({ preventScroll: true }); }, []);
+  useEffect(() => { const el = search.current || box.current; if (el) el.focus({ preventScroll: true }); }, []);      // full Help opens on the search box, so typing goes in at once
   const onTabKey = (e) => {
     const ks = TABS.map((t) => t.key), i = ks.indexOf(tab);
     const j = e.key === "ArrowRight" ? (i + 1) % ks.length : e.key === "ArrowLeft" ? (i + ks.length - 1) % ks.length : e.key === "Home" ? 0 : e.key === "End" ? ks.length - 1 : -1;
     if (j < 0) return;
     e.preventDefault(); setTab(ks[j]);
     setTimeout(() => { const b = document.getElementById("hpTab-" + ks[j]); if (b) b.focus(); }, 0);
+  };
+  // Up and Down walk the search results; Up from the first goes back to the search box (as Down from the box came in).
+  const onResKey = (e) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    const links = [...e.currentTarget.querySelectorAll("a.hp-r")], i = links.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    if (e.key === "ArrowUp" && i === 0) { if (search.current) search.current.focus(); return; }
+    const j = e.key === "ArrowDown" ? Math.min(i + 1, links.length - 1) : e.key === "ArrowUp" ? i - 1 : e.key === "Home" ? 0 : links.length - 1;
+    links[j].focus();
   };
   // Left from an entry goes back to its link in the contents list.
   const onPaneKey = (e) => {
@@ -327,12 +338,12 @@ export function Help() {
         </div>
         <div class="hp-actions">
           <label class="search hp-search"><span class="hp-sr">Search Help</span><Icon name="search" />
-            <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby="hpQk" value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
+            <input id="hpQ" ref={search} type="search" placeholder="Search Help" autocomplete="off" aria-describedby={singleKeys.value ? "hpQk" : undefined} value={q} onInput={(e) => { helpQuery.value = e.currentTarget.value; helpTarget.value = null; }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") { const a = document.querySelector("#hpRes a.hp-r"); if (a) { e.preventDefault(); a.click(); } }
                 else if (e.key === "ArrowDown") { const a = document.querySelector(asked ? "#hpRes a.hp-r" : ".hp-idx a[tabindex='0']"); if (a) { e.preventDefault(); a.focus(); } }
               }} />
-            <kbd id="hpQk" aria-label="Press slash to search">/</kbd>
+            {singleKeys.value ? <kbd id="hpQk" aria-label="Press slash to search">/</kbd> : null}
           </label>
         </div>
       </div>
@@ -342,7 +353,7 @@ export function Help() {
             tabIndex={tab === t.key ? 0 : -1} onClick={() => setTab(t.key)}>{t.name}</button>
         ))}
       </div>
-      {asked ? <div id="hpRes" class="hp-res" aria-live="polite"><Results /></div> : null}
+      {asked ? <div id="hpRes" class="hp-res" aria-live="polite" onKeyDown={onResKey}><Results /></div> : null}
       {asked ? null : <div id="hpPane" class={`hp-pane hp-${tab}`} role="tabpanel" data-tab={tab} aria-labelledby={`hpTab-${tab}`} onKeyDown={onPaneKey}><Pane /></div>}
     </section>
   );

@@ -2,6 +2,7 @@
 // menu, the keys and a cell of a selected row (edit/Bulk.jsx) all ask these what is offered, why something is off, and what to
 // send. What is sent is one request to clark (op "bulk", clark/changes.py): one step, one Undo, every item checked there first.
 import { PRIORITIES } from "./itemEdit.js";
+import { statusIcon, priorityIcon, fieldIcon } from "../menuIcons.js";
 
 export const CONFIRM_ABOVE = 25;                   // clark asks again above this many (changes.BULK_CONFIRM_ABOVE)
 export const MAX = 500;                             // clark takes at most this many in one change (changes.MAX_BULK)
@@ -70,9 +71,17 @@ export function changesFor(table, id, value) {
   return null;
 }
 
+/** Item 1133: the statuses an item may be in to take Close (not Cancelled) or Reopen (only Closed). null: any. A risk, issue or other
+ *  RAID line has no Delayed status, and the server refuses a status the table does not have. */
+export function fromStatusFor(id, table = "actions") {
+  if (id === "close") return table === "raid" ? ["Open", "Closed"] : ["Open", "Delayed", "Closed"];
+  if (id === "reopen") return ["Closed", "Open"];
+  return null;
+}
+
 /** The request for clark: one bulk change of `ids` in `table`. */
-export function requestFor(table, ids, changes, { confirm = false, place = "bulk" } = {}) {
-  return { kind: table, op: "bulk", ids: ids.slice(), changes: { ...changes }, place, ...(confirm ? { confirm: true } : {}) };
+export function requestFor(table, ids, changes, { confirm = false, place = "bulk", fromStatus = null } = {}) {
+  return { kind: table, op: "bulk", ids: ids.slice(), changes: { ...changes }, place, ...(confirm ? { confirm: true } : {}), ...(fromStatus ? { from_status: fromStatus.slice() } : {}) };
 }
 
 /** Whether to ask first, and the question: above CONFIRM_ABOVE, counting every item in the request. */
@@ -81,11 +90,11 @@ export const confirmWords = (n) => `Change ${n} items?`;
 
 /** What a picker chooses from, for a control: [{value, text}]. `ctx` has the active workstreams and the milestones. */
 export function choicesFor(table, id, ctx = {}) {
-  if (id === "status") return (STATUSES[table] || []).map((s) => ({ value: s, text: s }));
-  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p }));
-  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p }));
-  if (id === "workstream") return (ctx.workstreams || []).map((w) => ({ value: w, text: w })).concat([{ value: "", text: "No workstream" }]);
-  if (id === "milestone") return (ctx.milestones || []).map((m) => ({ value: m.id, text: m.name })).concat([{ value: "", text: "No milestone" }]);
+  if (id === "status") return (STATUSES[table] || []).map((s) => ({ value: s, text: s, ...statusIcon({ kind: table === "raid" ? "risk" : "action" }, s, ctx.today || "") }));
+  if (id === "priority") return PRIORITIES.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
+  if (id === "impact" || id === "likelihood") return LEVELS.map((p) => ({ value: p, text: p, ...priorityIcon(p) }));
+  if (id === "workstream") return (ctx.workstreams || []).map((w) => ({ value: w, text: w, ...fieldIcon("workstream") })).concat([{ value: "", text: "No workstream", ...fieldIcon("workstream", true) }]);
+  if (id === "milestone") return (ctx.milestones || []).map((m) => ({ value: m.id, text: m.name, ...fieldIcon("milestone") })).concat([{ value: "", text: "No milestone", ...fieldIcon("milestone", true) }]);
   return [];
 }
 

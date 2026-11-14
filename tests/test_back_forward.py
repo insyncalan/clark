@@ -224,7 +224,13 @@ class Editor(unittest.TestCase):
             self.stays("location.hash = '#dashboard&p=XYZ'", "address typed")
 
     def test_a_refused_change_in_a_peek_box_keeps_the_page_when_another_project_is_chosen(self):      # #944 follow-up: a refusal the box shows is a problem too
-        self.failure = lambda req: (400, {"ok": False, "message": "Not that."})
+        self.peek_refused("Not that.", "That change could not be made, and nothing was changed. Reload the page and try again.")      # a message the page does not know: the standard words
+
+    def test_a_refused_change_in_a_peek_box_says_the_words_for_this_refusal(self):      # the server's message is turned into its plain words (CHANGE_KNOWN, report.js)
+        self.peek_refused("That content is too long to save.", "That is too long to save, and nothing was changed. Make the text shorter, or take some of the list out.")
+
+    def peek_refused(self, message, words):
+        self.failure = lambda req: (400, {"ok": False, "message": message})
         with chrome() as cdp:
             self.visit(cdp, "?project=ABC#dashboard&p=ABC")
             self.cdp.call("Emulation.setFocusEmulationEnabled", {"enabled": True}, self.sid)      # the editor saves when the focus leaves it, and only a focused page says so
@@ -247,6 +253,8 @@ class Editor(unittest.TestCase):
             self.assertEqual(self.js("clarkPage.project()"), "ABC")
             self.assertEqual(self.js("document.getElementById('project-name').textContent"), "Example Programme")
             self.assertTrue(self.js("document.querySelector('#peek .ProseMirror').textContent.includes('Typed, then refused')"), "the editor keeps what was typed")
+            self.until("!!document.querySelector('.toast.problem')", "the refusal is said in a toast")
+            self.assertEqual(self.js("[...document.querySelectorAll('.toast.problem .toast-text')].map(e => e.textContent)"), [words], "one toast, in the words for this refusal")
 
     def test_a_save_that_runs_past_the_wait_keeps_the_page_and_says_so(self):
         self.slow = 11

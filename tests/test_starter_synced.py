@@ -31,14 +31,22 @@ class Decision(unittest.TestCase):
             with self.subTest(path):
                 text = sc.refusal(path)
                 self.assertIsNotNone(text)
-                self.assertIn(f"kept in {path} because it is inside ", text)
+                self.assertNotIn("Fictional", text, "the tenant folder is the company: not said")
+                shown = path.replace(" - Fictional Ltd", "").replace("-Fictional Ltd", "")
+                self.assertIn(f"kept in {shown} because it is inside ", text)
                 self.assertIn("which damages the database", text)
 
     def test_the_onedrive_words_are_the_existing_ones(self):
         text = sc.refusal("/Users/sam/OneDrive - Fictional Ltd/clark")
-        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive - Fictional Ltd/clark because it is inside OneDrive (OneDrive - Fictional Ltd). "
+        self.assertEqual(text, "Your data can't be kept in /Users/sam/OneDrive/clark because it is inside OneDrive. "
                                "OneDrive copies files while they are being written, which damages the database. Choose a folder on this computer "
                                "that OneDrive doesn't sync.")
+
+    def test_a_personal_onedrive_folder_is_said_as_it_is_and_a_tenant_one_is_not(self):
+        for name in ("OneDrive - Personal", "OneDrive-Personal"):
+            text = sc.refusal(f"/Users/sam/{name}/clark")
+            self.assertIn(f"kept in /Users/sam/{name}/clark because", text, name)
+        self.assertIn("kept in /Users/sam/OneDrive/clark because", sc.refusal("/Users/sam/OneDrive - Acme Ltd/clark"))
 
     def test_ordinary_folders_are_allowed(self):
         for path in ALLOWED:
@@ -56,6 +64,39 @@ class Decision(unittest.TestCase):
             elsewhere = Path(t) / "ok"
             elsewhere.mkdir()
             self.assertIsNone(sc.refusal(str(elsewhere)))
+
+    def test_each_provider_is_named_by_its_own_name_on_every_mac_shape(self):
+        shapes = {
+            "iCloud Drive": ("/Users/sam/Library/Mobile Documents/com~apple~CloudDocs/clark", "/Users/sam/Library/Mobile Documents/com~apple~CloudDocs/Documents/clark",
+                             "/Users/sam/Library/Mobile Documents/iCloud~com~example/clark", "/Users/sam/library/mobile documents/x/clark"),
+            "Dropbox": ("/Users/sam/Dropbox/clark", "/Users/sam/Library/CloudStorage/Dropbox/clark", "/Users/sam/Library/CloudStorage/Dropbox-Team/clark",
+                        "/Users/sam/Dropbox (Personal)/clark", "/Users/sam/Dropbox(Work)/clark", "/Users/sam/dropbox/clark"),
+            "OneDrive": ("/Users/sam/OneDrive/clark", "/Users/sam/OneDrive - Fictional Ltd/clark", "/Users/sam/Library/CloudStorage/OneDrive-Fictional/clark",
+                         "/Users/sam/ONEDRIVE/clark"),
+            "Google Drive": ("/Users/sam/Library/CloudStorage/GoogleDrive-a@b.test/My Drive/clark", "/Users/sam/Library/CloudStorage/GoogleDrive-a@b.test/Shared drives/clark",
+                             "/Users/sam/Google Drive/clark", "/Users/sam/google drive/clark", "/Users/sam/My Drive/clark"),
+        }
+        for service, paths in shapes.items():
+            for path in paths:
+                with self.subTest(service=service, path=path):
+                    text = sc.refusal(path)
+                    self.assertIsNotNone(text, "refusal must not be lifted")
+                    self.assertIn(f"because it is inside {service}", text)
+                    self.assertIn(f"{service} doesn't sync", text)
+
+    def test_a_not_yet_made_folder_deep_in_each_provider_is_refused(self):
+        for root in ("Dropbox", "Library/Mobile Documents/com~apple~CloudDocs", "Library/CloudStorage/GoogleDrive-a@b.test/My Drive", "OneDrive"):
+            with self.subTest(root):
+                self.assertIsNotNone(sc.refusal(f"/Users/sam/{root}/a/b/not-made-yet/clark"))
+
+    def test_a_link_into_each_provider_is_followed(self):
+        for root in ("Dropbox", "Library/Mobile Documents/com~apple~CloudDocs", "Library/CloudStorage/GoogleDrive-a@b.test/My Drive", "OneDrive"):
+            with self.subTest(root), tempfile.TemporaryDirectory() as t:
+                real = Path(t) / root / "clark"
+                real.mkdir(parents=True)
+                link = Path(t) / "plain"
+                link.symlink_to(real)
+                self.assertIsNotNone(sc.refusal(str(link)))
 
     def test_the_default_folder_is_the_compose_files_default(self):
         self.assertEqual(sc.data_folder({"HOME": "/Users/sam"}), "/Users/sam/Library/Application Support/clark")

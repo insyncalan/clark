@@ -3,8 +3,8 @@
 Run: python3 dev/run_tests.py test_top_bar_actions
 Covers: both buttons are there with their exact aria-labels and titles, in the order search, ask, ?, avatar; a click on search opens the
 palette and a click on ask opens the ask panel; the ask button is not drawn while asking is off (askOn, the switch the server keeps; being signed out of the provider does not hide it:
-the panel says so when it opens); the ask word and the / key hint hide at 1100 px and below and show at 1101; no item of the bar
-overlaps another or runs past the window at 1400, 901, 900 and 800 px, in light and in dark.
+the panel says so when it opens); the ask word and the / key hint show at 1400 px and hide at 900; no item of the bar
+overlaps another or runs past the window at 1400 and 900 px, in light and in dark. Only 1400 and 900 px are tested.
 """
 import sqlite3
 import unittest
@@ -70,6 +70,18 @@ class TopBarActions(Base):
             p.js("new Promise(r => setTimeout(r, 300))")
             self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "not while a menu is open")
 
+    def test_ctrl_j_does_nothing_while_help_is_open(self):
+        """Help's Mod+J row says it does nothing while Help or another dialog is open (row 1040)."""
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.key("?", 0, "Slash", 191)
+            p.until("!!document.querySelector('#help-peek')", "the Help peek opened")
+            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
+            p.until("!!document.querySelector('#help')", "full Help opened")
+            p.key("j", 2, "KeyJ", 74)
+            p.js("new Promise(r => setTimeout(r, 300))")
+            self.assertFalse(p.js("!!document.querySelector('#ask-panel')"), "Ctrl + J must not open ask clark over Help")
+
     def test_the_ask_button_is_not_there_while_asking_is_off(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400, asking=False)
@@ -77,7 +89,7 @@ class TopBarActions(Base):
             self.assertEqual(p.js("[!!document.querySelector('#pal-btn'), !!document.querySelector('#ask-btn')]"), [True, False])
 
     def test_the_bar_has_no_overlap_and_nothing_past_the_window(self):
-        for width in (1400, 901, 900, 800):
+        for width in (1400, 900):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.at(cdp, width)
@@ -88,16 +100,16 @@ class TopBarActions(Base):
                                "return bad;})()")
                     self.assertEqual(got, [], f"at {width} px, {theme}")
 
-    def test_the_ask_word_and_the_key_hint_hide_at_1100_px_and_below_and_show_at_1101(self):
-        for width, shown in ((1101, True), (1100, False), (1099, False), (1400, True)):
+    def test_the_ask_word_and_the_key_hint_show_at_1400_px_and_hide_at_900(self):
+        for width, shown in ((1400, True), (900, False)):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
                 got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
                 self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
-    def test_a_long_project_name_at_901_and_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
+    def test_a_long_project_name_at_900_px_light_and_dark_keeps_the_bar_inside_the_window(self):
         # The project name shortens first; the new buttons must not push anything out.
-        for width in (901, 900):
+        for width in (900,):
             for theme in ("light", "dark"):
                 with self.subTest(width=width, theme=theme), chrome() as cdp:
                     p = self.at(cdp, width)

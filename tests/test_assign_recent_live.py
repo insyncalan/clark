@@ -57,6 +57,12 @@ class Picker(T.Live):
     def section(self, cdp, sid, which):
         return cdp.js(f"[...document.querySelectorAll('[data-pop] [data-section={which}] [data-name]')].map(b => b.dataset.name)", sid)
 
+    def recent_is(self, cdp, sid, want, what):
+        """The Recent section shows exactly `want`: waited for (the picker draws Recent from what the page has read back, which a slow
+        runner delivers a moment after the picker opens), and then read again and compared whole by the test."""
+        self.until(cdp, sid, f"JSON.stringify([...document.querySelectorAll('[data-pop] [data-section=recent] [data-name]')].map(b => b.dataset.name)) === {json.dumps(json.dumps(want, separators=(',', ':')))}", what)
+        self.assertEqual(self.section(cdp, sid, "recent"), want, what)
+
     def all_names(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('[data-pop] [data-name]')].map(b => b.dataset.name)", sid)
 
@@ -112,11 +118,11 @@ class Picker(T.Live):
                 self.choose(cdp, sid, name, cell=f"[data-cell='TUL-A-001:owner']")
                 if i == 0:
                     self.open_picker(cdp, sid)
-                    self.assertEqual(self.section(cdp, sid, "recent"), ["Aaron Wickham"], "the first one is on top at once")
+                    self.recent_is(cdp, sid, ["Aaron Wickham"], "the first one is on top at once")
                     key(cdp, sid, "Escape")
             self.open_picker(cdp, sid)
-            self.assertEqual(self.section(cdp, sid, "recent"), ["Aaron Wickham", "Gwen Hartnoll", "Fenwick Marlowe", "Delphine Ashgrove", "Cedric Dunmore"],
-                             "newest first, each once, five at most")
+            self.recent_is(cdp, sid, ["Aaron Wickham", "Gwen Hartnoll", "Fenwick Marlowe", "Delphine Ashgrove", "Cedric Dunmore"],
+                           "newest first, each once, five at most")
             names = self.all_names(cdp, sid)
             self.assertEqual(len(names), len(set(names)), "a name is drawn once in the picker")
             kept = cdp.js("Object.keys(localStorage).filter(k => k.indexOf('assignRecent') >= 0)", sid)
@@ -166,6 +172,7 @@ class Picker(T.Live):
             self.assertTrue(T.wait(lambda: self.steps() == before + 1, 10), "saved as one step: " + cdp.js("document.body.innerText.slice(0, 300) + ' | ' + (document.querySelector('[data-pop]') || {innerText: 'closed'}).innerText", sid))
             self.assertEqual(self.row("actions", "TUL-A-001")["owner"], "TBC")
             self.changed_once(before, "owner")
+            self.until(cdp, sid, "(document.querySelector('.toast-text')||{}).textContent === 'Owner of TUL-A-001 changed to TBC.'", "the toast")
             self.assertEqual(self.toast(cdp, sid), "Owner of TUL-A-001 changed to TBC.")
             self.open_picker(cdp, sid)
             self.assertEqual(self.section(cdp, sid, "recent"), [], "TBC is not a name to come back to")

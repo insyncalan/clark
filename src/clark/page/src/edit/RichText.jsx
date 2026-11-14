@@ -1,13 +1,15 @@
 // A rich field being edited (#66): clarkEditor with its toolbar, the bubble over a selection, the "/" menu and the link box.
 // The only coupling to the rest of the page is two callbacks: onSave(html) (returns a promise: the reply, or null when the save
-// failed, and then the field stays open) and onClose(back). `back` is true when the person closed it from the keyboard (Esc, or
+// failed, and then the field stays open; a text instead says why in the field, and it stays open) and onClose(back). `back` is true when the person closed it from the keyboard (Esc, or
 // Cmd or Ctrl + Enter), so the field's view takes the focus again (#188); it is false when the focus went elsewhere on its own.
 // Cmd or Ctrl + Enter saves, so does leaving the field; Esc puts the old text back. Every button is a real button with a plain-words name. Text is never drawn as markup here: the editor owns its own
 // document.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { clarkEditor, SanitiseError } from "../core/editor.js";
 import { href } from "../logic/cleanHtml.js";
-import { Menu } from "../components/Menu.jsx";
+import { Menu, Fade } from "../components/Menu.jsx";
+import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 
 const BAR = [
   ["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S", "Strikethrough"],
@@ -18,7 +20,8 @@ const BUBBLE = [["bold", "B", "Bold"], ["italic", "I", "Italic"], ["strike", "S"
 const STYLES = [["paragraph", "Text"], ["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"]];
 const SLASH = [["h1", "Heading 1"], ["h2", "Heading 2"], ["h3", "Heading 3"], ["bullet", "Bulleted list"], ["numbered", "Numbered list"],
   ["checklist", "Checklist"], ["quote", "Quote"], ["rule", "Divider"]];
-const TOO_LONG = "That is too long to save. Shorten it and try again.";
+const SLASH_ICON = { h1: "tline", h2: "tline", h3: "tline", bullet: "dots", numbered: "bars", checklist: "check", quote: "doc", rule: "circleminus" };      // row 1138: the / menu's icons
+export const TOO_LONG = "That is too long to save. Shorten it and try again.";
 const BAD_LINK = "That address can't be used. Start it with https://, http:// or mailto:";
 
 // Where to draw a floating box so that it stays inside the window.
@@ -30,7 +33,7 @@ function place(box, x, y) {
   box.style.top = `${Math.round(top)}px`;
 }
 
-export function RichText({ value, label, onSave, onClose }) {
+export function RichText({ value, label, onSave, onClose, oneLine = false }) {
   const host = useRef(null), root = useRef(null), bubble = useRef(null), slashBox = useRef(null), ed = useRef(null), linkIn = useRef(null);
   const [h, setH] = useState(null);                           // the editor, once it exists (the first draw has none)
   const [, tick] = useState(0);
@@ -52,12 +55,13 @@ export function RichText({ value, label, onSave, onClose }) {
     busy.current = true;
     const r = await props.current.onSave(html);
     busy.current = false;
-    if (r !== null && r !== false) leave(back);
-    else setProblem("");
+    if (r !== null && r !== false && typeof r !== "string") leave(back);
+    else setProblem(typeof r === "string" ? r : "");
   };
   const finishRef = useRef(finish); finishRef.current = finish;
 
   const slashState = (h) => {
+    if (oneLine) return null;
     const { $from, empty } = h.editor.state.selection;
     const para = $from.parent;
     if (empty && para.type.name === "paragraph" && $from.parentOffset === para.content.size && /^\/[a-z0-9 ]{0,20}$/i.test(para.textContent)) {
@@ -79,7 +83,10 @@ export function RichText({ value, label, onSave, onClose }) {
   useLayoutEffect(() => {
     const keyHook = (e) => {
       const s = slashRef.current;
-      if (!s) return false;
+      if (!s) {                                                // a one-line field (item 1005): Enter saves, as in a plain box; Shift+Enter is not a line break either
+        if (oneLine && e.key === "Enter" && !e.metaKey && !e.ctrlKey) { e.preventDefault(); finishRef.current(true); return true; }
+        return false;
+      }
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         setSlash({ ...s, at: (s.at + (e.key === "ArrowDown" ? 1 : s.items.length - 1)) % s.items.length });
@@ -90,7 +97,7 @@ export function RichText({ value, label, onSave, onClose }) {
       return false;
     };
     const made = clarkEditor(host.current, {
-      profile: "rich", html: value || "", keyHook,
+      profile: "rich", html: value || "", keyHook, oneLine,
       onSave: () => finishRef.current(true), onCancel: () => leave(true),
       onError: (e) => { if (e instanceof SanitiseError) setProblem(TOO_LONG); else throw e; },
       onChange: (handle) => {
@@ -155,14 +162,15 @@ export function RichText({ value, label, onSave, onClose }) {
     if (!href(a)) { setProblem(BAD_LINK); return; }
     h.run("link", a); setProblem(""); setLinkOpen(false); refocus();
   };
+  const bar = (oneLine ? BAR.filter((b) => b === "|" || b[0] === "undo" || b[0] === "redo") : BAR).filter((b, i, a) => b !== "|" || (i > 0 && a[i - 1] !== "|" && i < a.length - 1));
   const current = h ? STYLES.find(([n]) => n !== "paragraph" && h.active(n)) : null;
 
   return (
     <div class="rt" ref={root} data-rt aria-label={label || "Rich text"} onFocusOut={away}>
       <div class="rt-bar" role="toolbar" aria-label="Formatting">
-        <Menu label={current ? current[1] : "Text"} ariaLabel="Text style" btnCls="rt-btn rt-style" left
-          items={STYLES.map(([n, w]) => ({ id: n, name: w }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />
-        {BAR.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
+        {!oneLine && <Menu label={current ? current[1] : "Text"} ariaLabel={`Text style: ${current ? current[1] : "Text"}`} btnCls="rt-btn rt-style" left
+          items={STYLES.map(([n, w]) => ({ id: n, name: w, icon: actionIcon("textStyle") }))} onPick={(n) => { h.run(n); tick((x) => x + 1); refocus(); }} />}
+        {bar.map((b, i) => (b === "|" ? <span class="rt-sep" key={i} aria-hidden="true" /> : button(b)))}
         <span class="rt-keys">Cmd+Enter saves. Esc cancels.</span>
       </div>
       {linkOpen ? (
@@ -175,14 +183,14 @@ export function RichText({ value, label, onSave, onClose }) {
       ) : null}
       <div class="rt-host prose" ref={host} />
       {problem ? <p class="rt-problem" role="alert">{problem}</p> : null}
-      {sel && !linkOpen ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
+      {sel && !linkOpen && !oneLine ? <div class="rt-bubble" ref={bubble} role="toolbar" aria-label="Format the selection">{BUBBLE.map(button)}</div> : null}
       {slash ? (
-        <div class="rt-slash" ref={slashBox} role="listbox" aria-label="Insert">
+        <Fade class="rt-slash" boxRef={slashBox} role="listbox" aria-label="Insert">
           {slash.items.map(([n, w], i) => (
             <button type="button" key={n} role="option" aria-selected={i === slash.at ? "true" : "false"} class={`rt-opt${i === slash.at ? " on" : ""}`}
-              onMouseDown={hold} onClick={() => chooseSlash(n)}>{w}</button>
+              onMouseDown={hold} onClick={() => chooseSlash(n)}><Icon name={SLASH_ICON[n] || "tline"} cls="mi" />{w}</button>
           ))}
-        </div>
+        </Fade>
       ) : null}
     </div>
   );

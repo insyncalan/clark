@@ -42,7 +42,7 @@ EXPECTED = {
     "Decisions": {"Project": (["ABC"], False), "Status": (["Pending", "Made", "Withdrawn"], False),
                   "Client-visible": (YES_NO, False), "Use case": (UC, True)},
     "Use cases": {"Project": (["ABC"], False), "Status": (["On track", "Flag", "High risk", "Done"], False),
-                  "Commitment": (["Candidate", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
+                  "Commitment": (["Planned 2026", "Committed", "Planned 2027"], True),       # #709: the store's own words; no flag is allowed
                   "Client-visible": (YES_NO, False)},
 }
 # Free text on purpose: people (until the people table, #115), names, notes and dates. Priority on RAID is worked out (locked).
@@ -137,8 +137,8 @@ class Lists(unittest.TestCase):
 
     def test_the_projects_own_lists_are_on_the_lists_sheet(self):
         self.assertEqual(self.lists[WS], ["Build"])
-        self.assertEqual(self.lists[MS], sorted(f"{r['id']}: {r['name']}" for r in self.d.store.read("milestones", "ABC")))
-        self.assertEqual(self.lists[UC], sorted(f"{r['id']}: {r['title']}" for r in self.d.store.read("use_cases", "ABC")))
+        self.assertEqual(self.lists[MS], sorted((r["name"] for r in self.d.store.read("milestones", "ABC")), key=lambda v: (v.casefold(), v)))
+        self.assertEqual(self.lists[UC], sorted((excel.ref_text(r["id"], r["title"], r.get("ref")) for r in self.d.store.read("use_cases", "ABC")), key=lambda v: (v.casefold(), v)))
 
     def test_the_lists_sheet_is_hidden_and_last(self):
         self.assertEqual(self.wb["Lists"].sheet_state, "hidden")

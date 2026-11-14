@@ -9,6 +9,7 @@ import json
 import re
 import shutil
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from unittest import mock
@@ -35,14 +36,35 @@ def text(path):
 class UseCaseFields(unittest.TestCase):
     def test_page_has_the_pieces(self):
         page = re.sub(r"\s+", " ", text(SRCS / "edit" / "UseCasesPage.jsx"))
-        for want in ("Add a use case", "Export to Excel", "Show archived", "Hide archived", "Restore", "archived use case"):
+        for want in ("Add use case", "Show archived", "Hide archived", "Restore", "archived use case"):     # row 1085: the + says Add use case; Export left the page
             self.assertIn(want, page)
         self.assertIn('op: "restore"', page)
-        self.assertIn("exportExcel", page)
+        self.assertNotIn("exportExcel", page)        # the page reuses the Work items ExportBtn (it holds exportExcel), not its own copy of the call
+        for want in ("ImportBtn", "ExportBtn"):      # row 1085 ruling: the filter line carries Import and Export beside Group by and the +
+            self.assertIn(want, page)
+        self.assertIn("exportExcel", text(SRCS / "edit" / "ProfileMenu.jsx"))
         self.assertIn('plural(n, "archived use case")} ${n === 1 ? "is" : "are"} hidden.', page)     # plural() gives "1 archived use case" / "2 archived use cases"
         self.assertIn('Showing ${plural(n, "archived use case")}.', page)
         helper = text(SRCS / "workItems.js")
         self.assertIn('n === 1 ? one : (many || one + "s")', helper)
+
+    def test_row_1085_the_plus_says_add_use_case_in_code_not_only_in_a_comment(self):
+        page = text(SRCS / "edit" / "UseCasesPage.jsx")
+        self.assertRegex(page, r'<NewTile word="Add use case" kind="use_case" id="ucAddPage"')     # a comment also holds the words; the tag is the pin
+
+    def test_row_1085_the_committed_tab_asks_for_the_servers_word(self):
+        from clark.store import COMMITMENTS
+        js = text(SRCS / "logic" / "useCasesList.js")
+        self.assertRegex(js, r'export const COMMITTED = "([^"]+)"')
+        word = re.search(r'export const COMMITTED = "([^"]+)"', js).group(1)
+        self.assertIn(word, COMMITMENTS)
+
+    def test_row_1085_the_help_says_the_tabs_the_line_and_group_by(self):
+        content = json.loads(text(SRCS / "help" / "helpContent.json"))
+        flat = json.dumps(content, ensure_ascii=False)
+        for want in ("**All use cases**, **On the dashboard**, **Committed** and **At risk**", "**Filter by keyword or by field**", "status:Flag", "commitment:Committed",
+                     "**Group by** draws the list as groups: **Status**, **Commitment**, **On the dashboard** or **Nothing**"):
+            self.assertIn(want, flat)
 
     def test_detail_offers_next_step_and_link_without_edit_mode(self):
         detail = text(SRCS / "components" / "UseCaseDetail.jsx")
@@ -61,7 +83,7 @@ class UseCaseFields(unittest.TestCase):
 UC = "TUL-U-001"                     # demo: "Flag", on the dashboard, 1.1
 LIST = "#usecases&p=TUL"
 SIZES = ((1400, 1400), (915, 900))   # (window, page): the box's scrollbars take 15 px
-GONE = re.compile(r"Add a use case|Export to Excel|Add a next step|Link an existing work item|Show archived|Restore", re.I)
+GONE = re.compile(r"Add a use case|Add use case|Export to Excel|Add a next step|Link an existing work item|Show archived|Restore", re.I)
 
 
 class Live(unittest.TestCase):
@@ -131,10 +153,12 @@ class Live(unittest.TestCase):
             sid = self.visit(cdp, window, scheme, LIST)
             self.until(cdp, sid, "document.querySelectorAll('#usecases .ucl-row[data-uc]').length > 0", "the list drew")
             self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch: the page has no mode")
-            add = cdp.js("(document.querySelector('#usecases .head #ucAddPage') || {}).textContent || ''", sid)
-            exp = cdp.js("(document.querySelector('#usecases .head #ucExp') || {}).textContent || ''", sid)
-            self.assertRegex(add, r"Add a use case")
-            self.assertRegex(exp, r"Export to Excel")
+            # row 1085: Add use case (the growing +) sits at the right end of the tabs row, not in the head, with the Work items word; the head's
+            # Export to Excel button is gone from the head (the ruling puts the Import and Export icons on the tabs row with the +)
+            add = cdp.js("(document.querySelector('#usecases .fvrow #ucAddPage') || {}).getAttribute('aria-label') || ''", sid)
+            self.assertEqual(add, "Add use case")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .head button, #usecases #ucExp').length", sid), 0, "the head holds the title alone")
+            self.assertEqual(cdp.js("document.querySelectorAll('#usecases .fvrow #expBtn, #usecases .fvrow #impBtn').length", sid), 2, "Import and Export sit on the tabs row")
             self.no_sideways(cdp, sid)
             rows = cdp.js("document.querySelectorAll('#usecases .ucl-row[data-uc]').length", sid)
             before, ref, title = self.steps(), f"9.{n}", f"Row 830 case {n}"
@@ -162,9 +186,11 @@ class Live(unittest.TestCase):
             self.until(cdp, sid, f"!!document.querySelector('.ucl-arch [data-arch-uc={json.dumps(UC)}] [data-restore]')", "the archived list with Restore")
             self.assertEqual(re.sub(r"\s+", " ", cdp.js("document.querySelector('[data-archived-uc] .ucx-foot').textContent", sid)).strip(), "Showing 1 archived use case. Hide archived")
             self.no_sideways(cdp, sid)
+            self.assertRegex(cdp.js("document.querySelector('.ucl-arch [data-restore]').getAttribute('aria-label')", sid), r"^Restore .+ · .+")       # each button names its use case
             before = self.steps()
             click(cdp, sid, ".ucl-arch [data-restore]")
             self.until(cdp, sid, f"!!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Restore brought it back to the list")
+            self.until(cdp, sid, "document.activeElement && document.activeElement.classList.contains('ucl-go')", "the last Restore moved the focus to the restored row's name (main's restore())")
             self.assertEqual((self.archived(), self.steps()), (False, before + 1), "Restore is one step")
             click(cdp, sid, "[data-undo]")
             self.until(cdp, sid, f"!document.querySelector('#usecases .ucl-row[data-uc={json.dumps(UC)}]')", "Undo put it back in the archive")
@@ -183,6 +209,44 @@ class Live(unittest.TestCase):
             key(cdp, sid, "Escape")
             self.until(cdp, sid, "!document.querySelector('.uclink')", "Esc closed it")
 
+    def narrow_to_one(self, cdp, sid):
+        """Open the link box on 1.1 and search for the first row's own words, so exactly one row is shown."""
+        self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-uc-link]')", "the link button")
+        click(cdp, sid, "[data-ucd] [data-uc-link]")
+        self.until(cdp, sid, "!!document.querySelector('.uclink .pick input')", "the box with rows")
+        cdp.js("""(() => { const q = document.querySelector('.uclink input[type=search]'), ids = [...document.querySelectorAll('.uclink .pick input')].map((i) => i.value);
+            q.focus(); q.value = ids.find((id) => ids.filter((o) => o.toLowerCase().includes(id.toLowerCase())).length === 1); q.dispatchEvent(new Event('input', {bubbles: true})); })()""", sid)
+        self.until(cdp, sid, "document.querySelectorAll('.uclink .pick input').length === 1", "one row shown")
+
+    def keydown(self, cdp, sid, init):
+        cdp.js(f"document.querySelector('.uclink input[type=search]').dispatchEvent(new KeyboardEvent('keydown', Object.assign({{key: 'Enter', bubbles: true, cancelable: true}}, {json.dumps(init)})))", sid)
+
+    def test_enter_in_the_link_box_ticks_the_one_match_and_does_not_submit(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.narrow_to_one(cdp, sid)
+            before = self.steps()
+            key(cdp, sid, "Enter")
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "Enter ticked the one match")
+            key(cdp, sid, "Enter")                       # a second Enter does not link (no new behaviour: the Add button does)
+            time.sleep(0.5)
+            self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+
+    def test_enter_while_an_input_method_is_composing_ticks_and_submits_nothing(self):
+        for cdp, window, scheme in self.each():
+            sid = self.visit(cdp, window, scheme, f"{LIST}&uc=1.1")
+            self.narrow_to_one(cdp, sid)
+            before = self.steps()
+            for init in ({"isComposing": True}, {"keyCode": 229}, {"isComposing": True, "keyCode": 229}):
+                self.keydown(cdp, sid, init)
+                time.sleep(0.3)
+                self.assertFalse(cdp.js("document.querySelector('.uclink .pick input').checked", sid), f"{init}: Enter picked an input-method candidate, not a row")
+                self.assertTrue(cdp.js("!!document.querySelector('.uclink')", sid), "the box is still open")
+            self.assertEqual(self.steps(), before, "nothing was linked")
+            self.keydown(cdp, sid, {})
+            self.until(cdp, sid, "document.querySelector('.uclink .pick input').checked", "a plain Enter still ticks it")
+
 
 class Published(unittest.TestCase):
     def test_a_published_file_has_none_of_the_buttons(self):
@@ -200,7 +264,7 @@ class Published(unittest.TestCase):
                         cdp.js("document.querySelector('[data-view=usecases]').click()", sid)
                         self.assertTrue(pub_wait(lambda: cdp.js("document.querySelector('h1').textContent", sid) == "Use cases"))
                         cdp.js("document.querySelector('.ucp summary').click()", sid)
-                        self.assertEqual(cdp.js("document.querySelectorAll('#ucAddPage, #ucExp, [data-uc-step], [data-uc-link], [data-arch-toggle], [data-restore]').length", sid), 0)
+                        self.assertEqual(cdp.js("document.querySelectorAll('#ucAddPage, #ucExp, #expBtn, #impBtn, [data-uc-step], [data-uc-link], [data-arch-toggle], [data-restore]').length", sid), 0)
                         self.assertIsNone(GONE.search(cdp.js("document.body.innerText", sid)), "none of the page's buttons")
                         self.assertTrue(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), "no horizontal scroll")
 

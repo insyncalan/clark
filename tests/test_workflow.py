@@ -45,6 +45,26 @@ def jobs(text):
     return {j: block(under, j, 2) for j in ids}
 
 
+def merge_queue_problems(text):
+    """What is wrong with the merge queue wiring in a workflow text (code() form); an empty list means it is pinned."""
+    bad = []
+    on = block(text, "on")
+    if not re.search(r"^  merge_group:", on, re.M):
+        bad.append("merge_group is not an event")
+    elif not re.search(r"types: \[checks_requested\]", block(on, "merge_group", 2)):
+        bad.append("merge_group lacks types: [checks_requested]")
+    plan = jobs(text).get("plan", "")
+    arm = re.search(r"^\s*merge_group\)(.*?)(?:;;|$)", plan, re.M)
+    if not arm:
+        bad.append("the plan has no merge_group arm")
+    elif re.findall(r"\bFULL=([^\s;]*)", arm.group(1)) != ["1"]:
+        bad.append("the merge_group arm does not set FULL=1 and nothing else")
+    cancel = re.search(r"cancel-in-progress: (.*)", block(text, "concurrency"))
+    if not cancel or "merge_group" in cancel.group(1) or "'pull_request'" not in cancel.group(1):
+        bad.append("cancel-in-progress is not limited to pull_request runs")
+    return bad
+
+
 # The browser's names, joined from parts so this file doesn't carry them (they would put it in the browser tier).
 MAC_APP = "/Applications/Google" + " Chrome.app/Contents/MacOS/Google" + " Chrome"
 ON_PATH = "command -v google-chrome || command -v chrom" + "ium || command -v chrom" + "ium-browser"
@@ -63,6 +83,21 @@ class Workflow(unittest.TestCase):
         self.assertIn("pull_request:", on)
         self.assertRegex(block(on, "pull_request", 2), r"types: \[opened, synchronize, reopened, labeled, unlabeled\]")
         self.assertRegex(block(on, "push", 2), r"branches: \[main\]")
+
+    def test_the_merge_queue_trigger_and_its_full_run_plan_are_pinned(self):
+        self.assertEqual(merge_queue_problems(self.text), [])
+
+    def test_losing_the_merge_queue_trigger_or_its_full_plan_is_caught(self):
+        plan_arm = "merge_group) FULL=1 ;;"
+        self.assertIn("merge_group:", self.text)
+        self.assertIn(plan_arm, self.text)
+        for old, new in (("merge_group:", "merge_groupx:"), (plan_arm, "merge_group) FULL=0 ;;"), (plan_arm, ""),
+                         ("types: [checks_requested]", "types: [opened]")):
+            self.assertTrue(merge_queue_problems(self.text.replace(old, new, 1)), (old, new))
+
+    def test_the_tests_passed_gate_needs_both_plan_and_tests(self):
+        needs = re.search(r"needs: \[([^\]]*)\]", self.jobs["passed"]).group(1)
+        self.assertLessEqual({"plan", "tests"}, {n.strip() for n in needs.split(",")})
 
     def test_a_documents_only_change_still_runs_the_suite(self):
         # tests/test_no_real_names.py reads every tracked file, documents included: skipping the run for a document would
@@ -147,11 +182,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("name: ubuntu-24.04 \u00b7 Python 3.9 \u00b7 shard ${{ matrix.shard }}/${{ needs.plan.outputs.count39 }}", py39)
         self.assertIn("SHARDS39='[1,2,3]'; COUNT39=3", self.jobs["plan"])
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards39) }}", py39)
-        # six shards on both paths (the cheap path can reach every file, and as one shard it hit the 30-minute cap): the plan decides, the job reads it
+        # four shards on the full path, six on a wide change, three on the cheap path (as one shard it hit the 30-minute cap): the plan decides, the job reads it
         self.assertIn("shard: ${{ fromJSON(needs.plan.outputs.shards) }}", tests)
         self.assertIn("SHARD: ${{ matrix.shard }}", tests)
         self.assertIn("SHARDS: ${{ needs.plan.outputs.count }}", tests)
-        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])
+        self.assertIn("SHARDS='[1,2,3,4,5,6]'; COUNT=6", self.jobs["plan"])      # wide, not full: six
+        self.assertIn("if [ -n \"$FULL\" ]; then SHARDS='[1,2,3,4]'; COUNT=4; fi", self.jobs["plan"])      # full: four
         self.assertNotIn("SHARDS='[1]'", self.jobs["plan"])
         self.assertIn("fail-fast: false", tests)
         self.assertIn('--quick --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', py39)
@@ -164,8 +200,13 @@ class Workflow(unittest.TestCase):
         self.assertIn('if [ "$EVENT" = "pull_request" ] && [ -z "$FULL" ]; then SCOPE="--push origin/$BASE"; fi', tests)
         self.assertIn('python3 dev/run_tests.py -j "$JOBS" $SCOPE --shard "$SHARD/$SHARDS" --max-fail 8 $FILES', tests)
         # the second Python and macOS exist only on the full path
-        self.assertIn("if: ${{ needs.plan.outputs.full == '1' }}", self.jobs["tests-py39"])
+        self.assertIn("if: ${{ needs.plan.outputs.full == '1' && needs.plan.outputs.py39 == '1' }}", self.jobs["tests-py39"])
         self.assertIn("if: ${{ needs.plan.outputs.macos == '1' }}", self.jobs["macos"])
+        # the py39 output must be declared by the plan job and written by its step: without either, the job's `if` is never true,
+        # WANT_PY39 is always empty and Python 3.9 would silently never run while the gate stays green
+        text = WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("py39: ${{ steps.plan.outputs.py39 }}", text)
+        self.assertIn('echo "py39=$PY39" >> "$GITHUB_OUTPUT"', text)
 
     def test_a_pull_request_fetches_the_whole_history_so_the_base_is_there(self):
         self.assertIn("fetch-depth: ${{ github.event_name == 'pull_request' && '0' || '1' }}", self.jobs["tests"])
@@ -215,12 +256,12 @@ class Workflow(unittest.TestCase):
         self.assertIn("if: ${{ !cancelled() }}", passed)         # a run cancelled by a newer one posts no red gate
         self.assertNotIn("always()", passed)
         for line in ("PLAN: ${{ needs.plan.result }}", "TESTS: ${{ needs.tests.result }}", "PY39: ${{ needs.tests-py39.result }}",
-                     "MACOS: ${{ needs.macos.result }}", "WANT_FULL: ${{ needs.plan.outputs.full }}",
+                     "MACOS: ${{ needs.macos.result }}", "WANT_PY39: ${{ needs.plan.outputs.py39 }}",
                      "WANT_MACOS: ${{ needs.plan.outputs.macos }}"):
             self.assertIn(line, passed)
         self.assertIn('test "$PLAN" = "success"', passed)
         self.assertIn('test "$TESTS" = "success"', passed)
-        self.assertIn('if [ -n "$WANT_FULL" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
+        self.assertIn('if [ -n "$WANT_PY39" ]; then test "$PY39" = "success"; else test "$PY39" = "skipped"; fi', passed)
         self.assertIn('if [ -n "$WANT_MACOS" ]; then test "$MACOS" = "success"; else test "$MACOS" = "skipped"; fi', passed)
         for job, body in self.jobs.items():
             self.assertNotIn("continue-on-error", body, job)
@@ -274,7 +315,11 @@ class Workflow(unittest.TestCase):
         extras = {"src/clark/publish.py", "src/clark/publish_flow.py", "src/clark/secret_screen.py",
                   "src/clark/platform.py", "src/clark/updates.py", ".github/*",
                   "clark.command", "clark/__main__.py", "clark/launch.py", "clark/doctor.py", "src/clark/launch.py", "src/clark/doctor.py",
-                  "src/clark/release_files.py", "dev/tools/package.py"}
+                  "src/clark/release_files.py", "dev/tools/package.py",
+                  # the WIDE patterns (a stylesheet or the page reaches nearly every test file: six Ubuntu shards, not three), not guarded files
+                  "*.css", "src/clark/brand/*", "src/clark/page/*", "src/clark/templates/*",
+                  # a changed test file is only counted: eight or more make the pull request WIDE
+                  "tests/test_*.py"}
         self.assertTrue(sources, "no source file found in run_tests.GUARDED")
         self.assertIn(".github/*", listed, "the plan job must treat .github/* (the workflows) as guarded")
         missing = sorted(sources - listed)
@@ -288,6 +333,34 @@ class Workflow(unittest.TestCase):
         for ln in self.text.splitlines():
             if "github.event.inputs" in ln or "github.head_ref" in ln or "github.base_ref" in ln:
                 self.assertRegex(ln.strip(), r"^(if:|[A-Z_]+:|run-name:|group:|cancel-in-progress:)", ln)
+
+
+class WideByTestFiles(unittest.TestCase):
+    """A pull request that changes 8 or more tests/test_*.py files runs six Ubuntu shards, not three (PR 1339 timed out three times at
+    30 minutes on three). The plan step's own lines are run in bash on a made-up file list."""
+
+    def _wide(self, changed):
+        text = WORKFLOW.read_text(encoding="utf-8")
+        a = text.index("while IFS= read -r F; do")
+        b = text.index('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi') + len('if [ "$NTESTS" -ge 8 ]; then WIDE=1; fi')
+        script = 'FULL=""; MACOS=""; WIDE=""; NTESTS=0\n' + text[a:b].replace("\n              ", "\n") + '\necho "WIDE=$WIDE FULL=$FULL"\n'
+        out = subprocess.run(["bash", "-c", script], input="", capture_output=True, text=True, check=True,
+                             env={"PATH": "/usr/bin:/bin", "CHANGED": changed}).stdout
+        return out.strip()
+
+    def test_eight_test_files_are_wide_and_seven_are_not(self):
+        eight = "\n".join(f"tests/test_x{i}.py" for i in range(8))
+        seven = "\n".join(f"tests/test_x{i}.py" for i in range(7))
+        self.assertEqual(self._wide(eight), "WIDE=1 FULL=")
+        self.assertEqual(self._wide(seven), "WIDE= FULL=")
+
+    def test_other_files_do_not_count_and_the_old_rules_still_hold(self):
+        many = "\n".join(f"docs/n{i}.md" for i in range(20))
+        self.assertEqual(self._wide(many), "WIDE= FULL=")
+        self.assertEqual(self._wide("src/clark/page/x.jsx"), "WIDE=1 FULL=")
+        self.assertEqual(self._wide("src/clark/server.py"), "WIDE= FULL=1")
+        mixed = "\n".join(f"tests/helper{i}.py" for i in range(9))      # not test_*.py
+        self.assertEqual(self._wide(mixed), "WIDE= FULL=")
 
 
 if __name__ == "__main__":

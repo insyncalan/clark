@@ -2,20 +2,31 @@
 // is #102's light panel with a soft wash (#214), built from the page's own tokens (edit.css). The reply is drawn as text only: it is
 // never read as markup. Nothing is sent while asking is off.
 import { useEffect, useRef, useState } from "preact/hooks";
-import { useGrow } from "./useGrow.js";
-import { project, show, token } from "../stores/report.js";
+import { project, show, token, view } from "../stores/report.js";
 import { words } from "./publishApi.js";
+import { stopRestore } from "../router.js";
 import { askProvider } from "./askState.js";
-import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, closePanel, newChat, setWidth, clampWidth, nextQuip, quipDelay } from "./askPanelState.js";
+import { panelOpen, panelState, panelDisconnected, panelModel, panelWidth, panelFocus, turns, pending, chatEpoch, closePanel, newChat, setWidth, clampWidth, widthRange, drawQuip, quipDelay } from "./askPanelState.js";
 import * as W from "./askWords.js";
+import { Icon } from "../components/Icon.jsx";
+import { chatId, histOpen, histTick, chats, keepChat, deleteChat, when } from "./askHistory.js";
 import { ChangeCards, fixedLine } from "./AskChange.jsx";
 
 // Row 890: the files an answer used, as the server sends them ({id, label}). A long file is cut into parts labelled "name (part N)":
 // the suffix is dropped and each file is listed once, in the order first seen.
 function sourceLabels(list) {
   if (!Array.isArray(list)) return [];
-  const names = list.filter((s) => s && typeof s.label === "string" && s.label).map((s) => s.label.replace(/ \(part \d+\)$/, ""));
-  return names.filter((n, i) => names.indexOf(n) === i);
+  const out = [];
+  for (const s of list) {
+    if (!s || typeof s.label !== "string" || !s.label) continue;
+    const name = s.label.replace(/ \(part \d+\)$/, "");
+    const file = typeof s.file === "string" && s.file ? s.file : "";
+    const page = Number.isInteger(s.page) && s.page >= 1 ? s.page : null;
+    const seen = out.find((o) => o.name === name);
+    if (!seen) out.push({ name, file, page });
+    else if (!seen.file && file) { seen.file = file; seen.page = page; }
+  }
+  return out;
 }
 
 async function post(path, body) {
@@ -29,14 +40,26 @@ async function post(path, body) {
 
 const stillMotion = () => document.documentElement.dataset.motion === "reduce" || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
 
+// Row 1093: the suggestions for the page that is open, or for the subject the last question was about.
+function pillsFor(list, page) {
+  const asked = [...list].reverse().find((t) => t && t.role === "user" && typeof t.text === "string");
+  const said = asked ? asked.text.toLowerCase().replace(/[-_\s]+/g, " ") : "";
+  // A whole word (or its plural), with the space inside a two-word name optional: "use-case", "usecase" and "use case" all match.
+  const named = (word) => new RegExp("(^|[^a-z])" + word.replace(/ /g, " ?") + "s?([^a-z]|$)").test(said);
+  const hit = W.PILLS_WORDS.find(([word]) => named(word));
+  const subject = hit ? hit[1] : W.PILLS_PAGE[page];
+  return W.PILLS_BY_SUBJECT[subject] || W.SUGGESTIONS;
+}
+
 export function AskPanel() {
   const open = panelOpen.value, state = panelState.value, model = panelModel.value, width = panelWidth.value;
   const list = turns.value, busy = pending.value;
   const [text, setText] = useState("");
   const [note, setNote] = useState("");
   const [quip, setQuip] = useState("");
-  const box = useRef(null), log = useRef(null);
-  useGrow(box, open ? text : null);
+  const showHist = histOpen.value && !busy;
+  const saved = showHist ? (histTick.value, chats()) : [];
+  const box = useRef(null), log = useRef(null), stopped = useRef(false);
   // Row 885: closing sinks the panel first, and it stays drawn until the animation ends (a 400 ms timer guards it, so no dead overlay is left).
   // Where motion is off it leaves at once, as before.
   const phase = useRef(open ? "open" : "closed"), [, redraw] = useState(0);
@@ -47,25 +70,44 @@ export function AskPanel() {
 
   // Row 858: the box is usable while the check is out (what is typed stays, and so does focus); only Send waits for the answer.
   // The answer arriving (a state change alone) moves focus only while it is still in the panel or nowhere: a person who has moved on keeps their place.
-  const seen = useRef({ open: false, bump: 0 });
+  const seen = useRef({ open: false, bump: 0, busy: false, state });
   useEffect(() => {
-    const fresh = seen.current.open !== open || seen.current.bump !== panelFocus.value;
-    seen.current = { open, bump: panelFocus.value };
+    const was = seen.current;
+    const fresh = was.open !== open || was.bump !== panelFocus.value;
+    seen.current = { open, bump: panelFocus.value, busy, state };
     const at = document.activeElement, c = document.getElementById("ask-panel");
+    // A change of busy alone (a send starting, an answer landing) moves focus only after Stop: the Stop button leaves with the check, so focus is on the body.
+    // A control the person tabbed to meanwhile (Copy, a source link) keeps it.
+    if (!fresh && was.state === state && was.busy !== busy && !(was.busy && !busy && (!at || at === document.body))) return;
     if (!fresh && at && at !== document.body && !(c && c.contains(at))) return;
     if (open && (state === "ready" || state === "checking") && box.current) box.current.focus(); else if (open && c) c.focus();
-  }, [open, state, panelFocus.value]);
-  useEffect(() => { if (log.current) log.current.scrollTop = log.current.scrollHeight; }, [list.length, busy]);
+  }, [open, state, panelFocus.value, busy]);
+  // A reply taller than the log opens at its top (the reader starts at the first line); a short one, or the person's own question, sits at the end.
+  useEffect(() => {
+    const el = log.current;
+    if (!el) return;
+    const last = el.lastElementChild;
+    if (last && last.getAttribute("data-role") === "assistant" && last.offsetHeight > el.clientHeight) el.scrollTop = last.offsetTop - el.offsetTop;
+    else el.scrollTop = el.scrollHeight;
+  }, [list.length, busy]);
   useEffect(() => {
     if (!busy) { setQuip(""); return undefined; }
-    let t = null, last = nextQuip("");
-    setQuip(last);
-    const tick = () => { t = setTimeout(() => { last = nextQuip(last); setQuip(last); tick(); }, quipDelay()); };
+    let t = null;
+    setQuip(drawQuip());
+    const tick = () => { t = setTimeout(() => { setQuip(drawQuip()); tick(); }, quipDelay()); };
     tick();
     return () => clearTimeout(t);
   }, [busy]);
 
   if (!open && !leaving) return null;
+
+  // Item 943: a source that is a saved PDF opens in the system's viewer at its page; the server judges the file again.
+  async function openSource(n) {
+    const r = await post("/api/ask/open-source", { project: project.value, file: n.file, page: n.page });
+    if (r.status === 200) return;
+    const m = r.status === 0 ? W.NOT_REACHED_LINE : words(r, "answer");
+    turns.value = [...turns.value, { role: "assistant", text: m, kind: "problem" }];
+  }
 
   // `preset` is a suggestion's words: it is asked as it stands and leaves what is typed in the box alone.
   async function send(e, preset) {
@@ -73,18 +115,29 @@ export function AskPanel() {
     if (state !== "ready" || busy) return;
     const q = (preset || text).trim();
     if (!q) { setNote(W.EMPTY_LINE); return; }
-    setNote("");
+    setNote(""); stopped.current = false;
+    histOpen.value = false;                       // a question asked over Earlier chats: the answer must come back to the chat, not under the list
     const earlier = list.filter((t) => !t.kind).map((t) => ({ role: t.role, text: t.text }));
-    turns.value = [...list, { role: "user", text: q }];
+    const mine = { role: "user", text: q };
+    turns.value = [...list, mine];
     if (!preset) setText("");
     if (box.current) box.current.focus();         // the suggestion that was pressed is about to be replaced: keep the keyboard's place
     pending.value = true;
+    const epoch = chatEpoch.value;
     const r = await post("/api/ask", { project: project.value, question: q, earlier });
     pending.value = false;
+    setNote("");                                     // the Stopping line is over once the turn (answer or stopped line) is here
+    if (epoch !== chatEpoch.value) return;           // row 1119: the page was left meanwhile; the answer belongs to a chat that is gone
     const b = r.body;
+    const answered = r.status === 200 && b && b.ok === true && typeof b.answer === "string";
+    if (!answered && !preset) {      // nothing was answered: the question goes back in the box unless something new was typed meanwhile, and its turn leaves the transcript so it is not shown twice
+      setText((t) => t || q);
+      if (!stopped.current) turns.value = turns.value.filter((t) => t !== mine);      // a Stop keeps the question: the stopped line follows it
+    }
     if (r.status === 200 && b && b.ok === true && typeof b.answer === "string") {
       const extra = Array.isArray(b.notes) ? b.notes.filter((n) => typeof n === "string") : [];
       turns.value = [...turns.value, { role: "assistant", text: b.answer, sources: sourceLabels(b.sources) }, ...extra.map((n) => ({ role: "assistant", text: n, kind: "note" }))];
+      keepChat(turns.value);
       if (typeof b.reply === "string" && b.reply && Array.isArray(b.changes) && b.changes.length) await showChanges(b.reply);
     } else if (r.status === 409 && b && b.code === "asking_off") {
       panelState.value = "off";
@@ -99,8 +152,10 @@ export function AskPanel() {
   // #47e: the dry run of the changes the answer suggested; the server holds them, so only the reply's ID is sent.
   async function showChanges(reply) {
     pending.value = true;
+    const epoch = chatEpoch.value;
     const r = await post("/api/ask/change/dry", { project: project.value, reply });
     pending.value = false;
+    if (epoch !== chatEpoch.value) return;
     const b = r.body;
     if (r.status === 200 && b && b.ok === true && Array.isArray(b.plans)) {
       turns.value = [...turns.value, { role: "assistant", kind: "changes", text: "", plans: b.plans, fromSource: b.from_source === true, passages: b.passages }];
@@ -112,7 +167,27 @@ export function AskPanel() {
     }
   }
 
+  function openChat(c) {
+    if (busy) return;
+    turns.value = c.turns.map((t) => ({ ...t }));
+    chatId.value = c.id; histOpen.value = false; setNote("");
+    setTimeout(() => { if (box.current) box.current.focus(); }, 0);   // the button that was pressed is gone: the focus goes to the question box
+  }
+
+  // The delete button that was pressed is removed with its row: the focus goes to the same place in the list (the next row's delete
+  // button, else the one before), and to the list's heading when no chat is left, never to the page body.
+  function removeChat(c, e) {
+    const rows = Array.from(e.currentTarget.closest("ul").querySelectorAll("li")), at = rows.indexOf(e.currentTarget.closest("li"));
+    deleteChat(c.id);
+    setTimeout(() => {
+      const left = Array.from(document.querySelectorAll("#ask-hist .ask-hist-del"));
+      const to = left[Math.min(at, left.length - 1)] || document.querySelector("#ask-hist h3");
+      if (to) to.focus();
+    }, 0);
+  }
+
   async function stop() {
+    stopped.current = true;
     setNote(W.STOPPING_LINE);
     await post("/api/ask/stop", {});
   }
@@ -134,7 +209,11 @@ export function AskPanel() {
     e.preventDefault(); closePanel(); show("settings");
     const focusCard = (tries) => {                       // wait for the Settings card to be drawn, then scroll to it and focus its heading
       const c = document.getElementById("ask-settings");
-      if (c) { c.scrollIntoView({ block: "start" }); const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); } }
+      if (c) {                                           // the page's own place-restore would set the scroll back to the top: stop it, then scroll while the cards above settle
+        stopRestore();
+        for (let i = 0; i < 12; i++) setTimeout(() => c.scrollIntoView({ block: "start" }), i * 50);
+        const h = c.querySelector("h2"); if (h) { h.setAttribute("tabindex", "-1"); h.focus({ preventScroll: true }); }
+      }
       else if (tries < 40) setTimeout(() => focusCard(tries + 1), 50);
     };
     focusCard(0);
@@ -142,12 +221,13 @@ export function AskPanel() {
 
   return (
     <aside id="ask-panel" class={leaving ? "ask-panel leaving" : "ask-panel"} onAnimationEnd={(e) => { if (e.target === e.currentTarget && e.animationName === "ask-down") finish(); }} role="complementary" aria-label={W.PANEL_TITLE} tabindex="-1" style={{ width: clampWidth(width) + "px" }}>
-      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
+      <div class="ask-grip" id="ask-grip" role="separator" aria-orientation="vertical" aria-label={W.GRIP} aria-valuenow={clampWidth(width)} aria-valuemin={widthRange().min} aria-valuemax={widthRange().max} tabindex="0" onPointerDown={grip} onKeyDown={gripKey} />
       <header class="ask-head">
         <h2>{W.PANEL_TITLE}</h2>
         <div class="ask-head-btns">
-          <button type="button" class="btn sm" id="ask-new" disabled={busy} onClick={() => { setNote(""); newChat(); }}>{W.NEW_CHAT}</button>
-          <button type="button" class="btn sm" id="ask-close" onClick={closePanel}>{W.CLOSE}</button>
+          <button type="button" class="pkp-btn" id="ask-new" disabled={busy} title={W.NEW_CHAT} aria-label={W.NEW_CHAT} onClick={() => { setNote(""); newChat(); }}><Icon name="plus" /></button>
+          <button type="button" class="pkp-btn" id="ask-history" disabled={busy} title={W.HISTORY} aria-label={W.HISTORY} aria-pressed={showHist ? "true" : "false"} onClick={() => { histOpen.value = !histOpen.value; }}><Icon name="clock" /></button>
+          <button type="button" class="pkp-btn" id="ask-close" title={W.CLOSE} aria-label={W.CLOSE} onClick={closePanel}><Icon name="x" /></button>
         </div>
       </header>
       <p class="ask-status" id="ask-status" role="status" aria-live="polite">
@@ -159,7 +239,21 @@ export function AskPanel() {
       {state === "signed-out" ? (
         <p class="ask-off" id="ask-signed-out">{panelDisconnected.value ? W.DISCONNECTED_LINE : W.named(W.SIGNED_OUT_LINE, askProvider.value)} <a href="#settings" data-ask-settings onClick={toSettings}>{W.SETTINGS_LINK}</a></p>
       ) : null}
-      <div class="ask-log" id="ask-log" role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
+      {showHist ? (
+        <div class="ask-hist" id="ask-hist" role="region" aria-label={W.HISTORY_TITLE}>
+          <h3 tabindex="-1">{W.HISTORY_TITLE}</h3>
+          <p class="ask-hist-note">{W.HISTORY_NOTE}</p>
+          {saved.length ? (
+            <ul>{saved.map((c) => (
+              <li key={c.id} data-chat={c.id}>
+                <button type="button" class="ask-hist-open" title={W.HISTORY_OPEN(c.title)} aria-label={W.HISTORY_OPEN(c.title)} onClick={() => openChat(c)}><span class="ask-hist-title">{c.title}</span><span class="ask-hist-when">{when(c.at)}</span></button>
+                <button type="button" class="pkp-btn ask-hist-del" title={W.DELETE} aria-label={W.HISTORY_DELETE(c.title)} onClick={(e) => removeChat(c, e)}><Icon name="trash" /></button>
+              </li>
+            ))}</ul>
+          ) : <p class="ask-hist-empty" id="ask-hist-empty">{W.HISTORY_EMPTY}</p>}
+        </div>
+      ) : null}
+      <div class="ask-log" id="ask-log" hidden={showHist} role="log" aria-live="polite" aria-label={W.LOG_LABEL} ref={log}>
         {list.map((t, i) => (
           <div key={i} class={`ask-turn ${t.role}${t.kind ? " " + t.kind : ""}`} data-role={t.role}>
             <div class="ask-who">{t.role === "user" ? W.YOU : W.REPLY}</div>
@@ -167,7 +261,7 @@ export function AskPanel() {
             {t.sources && t.sources.length ? (
               <details class="ask-sources">
                 <summary>{W.SOURCES}</summary>
-                <ul>{t.sources.map((n, k) => <li key={k}>{n}</li>)}</ul>
+                <ul>{t.sources.map((n, k) => <li key={k}>{n.file ? <button type="button" class="ask-source-open" data-file={n.file} onClick={() => openSource(n)}>{n.name}</button> : n.name}</li>)}</ul>
               </details>
             ) : null}
           </div>
@@ -178,20 +272,21 @@ export function AskPanel() {
           <span class="ask-dots" aria-hidden="true"><i /><i /><i /></span>
           <span class="ask-quip" id="ask-quip" aria-hidden="true">{quip}</span>
         </p>
-      ) : state === "ready" || state === "off" ? (
+      ) : (state === "ready" || state === "off") && !text.trim() ? (
         <div class="ask-pills" id="ask-pills" role="group" aria-label={W.PILLS_LABEL}>
-          {W.SUGGESTIONS.map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
+          {pillsFor(list, view.value).map((q) => <button type="button" key={q} disabled={state === "off"} aria-disabled={state === "off" ? "true" : undefined} onClick={() => send(null, q)}>{q}</button>)}
         </div>
       ) : null}
-      {state === "ready" || state === "signed-out" ? <p class="ask-sent" id="ask-sent">{W.named(W.SENT_LINE, askProvider.value)}</p> : null}
       <p class="ask-note" id="ask-note" role="status" aria-live="polite">{note}</p>
       <form class="ask-form" onSubmit={send}>
-        <textarea ref={box} id="ask-box" class="grow" rows="3" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
+        <textarea ref={box} id="ask-box" rows="1" value={text} placeholder={W.PLACEHOLDER} aria-label={W.PLACEHOLDER} disabled={state !== "ready" && state !== "checking"}
           onInput={(e) => setText(e.currentTarget.value)}
           onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) send(e); }} />
         <div class="ask-actions">
           {busy ? <button type="button" class="btn" id="ask-stop" onClick={stop}>{W.STOP}</button> : null}
-          <button type="submit" class="btn primary" id="ask-send" disabled={state !== "ready" || busy}>{W.SEND}</button>
+          <button type="submit" class="btn primary" id="ask-send" title={W.SEND} aria-label={W.SEND} disabled={state !== "ready" || busy} data-empty={text.trim() ? undefined : "true"} aria-disabled={text.trim() ? undefined : "true"}>
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" /></svg>
+          </button>
         </div>
       </form>
     </aside>

@@ -13,13 +13,16 @@ when GitHub gives no digest for the asset, as on an older release, any 64-charac
 so), and its zip must have been attached before the release was published (the order in dev/RELEASING.md: build, attach, launch, then publish; 0.3.0 and 0.4.0 got their zips afterwards).
 Once RELEASE_PUBLIC_KEY in src/clark/updates.py is a real key (not the placeholder), the release must also carry
 clark-<version>-mac.zip.sig (dev/RELEASING.md step 7a), and that file must verify over the zip's bytes with that key
-(updates.check_signature); a missing, wrong-length or non-verifying .sig fails. While the key is still the placeholder the app
+(updates.check_signature); a missing, wrong-length or non-verifying .sig fails. With no tag on the command line, a release
+published at or before FIRST_SIGNED (the moment the key went live) is not asked for a .sig, since it could not have had one;
+a tag named on the command line always is. While the key is still the placeholder the app
 asks for no signature, so the check does not either (it says so on standard error).
 A tag named on the command line that matches no published release (a typo, or a release that is still a draft) fails too.
 Exit 0 when all pass, 1 when any fails, 2 when the releases can't be read (gh missing, not signed in, no answer within
 60 seconds, or an unreadable answer).
 The pure check is `problems(releases, tags, notes)`, tested with made-up data.
 """
+import datetime
 import json
 import os
 import re
@@ -35,6 +38,8 @@ REPO_FORM = re.compile(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+")
 GH_TIMEOUT = 60              # seconds one `gh api` call may take before the check gives up (exit 2)
 FIRST_CHECKED = (0, 1, 0)
 FIRST_ORDERED = (0, 5, 0)    # the first release cut with the build-attach-launch-then-publish steps
+FIRST_SIGNED = ""            # when RELEASE_PUBLIC_KEY became a real key, as the UTC time GitHub uses (2026-11-05T00:00:00Z); set it in the
+                             # pull request that sets the key. Empty: every release from 0.5.0 on is asked for its .sig.
 DIGEST = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{64}(?![0-9a-fA-F])")
 
 
@@ -69,9 +74,32 @@ def _asset(r, name):
     return None
 
 
-def _signature_lines(r, tag, want, notes, fetch, key):
+def _utc(value):
+    """A GitHub time (or a bare date) as an aware UTC moment; None for anything that is not a string or does not parse."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    if text.endswith(("Z", "z")):
+        text = text[:-1] + "+00:00"
+    try:
+        moment = datetime.datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    return moment.replace(tzinfo=datetime.timezone.utc) if moment.tzinfo is None else moment.astimezone(datetime.timezone.utc)
+
+
+def _published_by(published_at, limit):
+    """True only when the release was published at or before `limit`, compared as moments in UTC. Fails closed: a missing,
+    non-string or unreadable time counts as later, so the release is asked for its .sig and nothing crashes."""
+    then, bound = _utc(published_at), _utc(limit)
+    return then is not None and bound is not None and then <= bound
+
+
+def _signature_lines(r, tag, want, notes, fetch, key, named=True):
     """The lines for a release whose .sig is missing or does not verify against the release key (none while the key is the placeholder)."""
     if not updates.signature_required(key):
+        return []
+    if not named and FIRST_SIGNED and _published_by(r.get("published_at"), FIRST_SIGNED):
         return []
     sig_name = want + updates.SIGNATURE_SUFFIX
     sig, zipped = _asset(r, sig_name), _asset(r, want)
@@ -92,7 +120,7 @@ def _signature_lines(r, tag, want, notes, fetch, key):
     return []
 
 
-def _rules(r, tag, want, notes=None, fetch=None, key=None):
+def _rules(r, tag, want, notes=None, fetch=None, key=None, named=True):
     """The lines for a release that has its zip but breaks a release rule (Beta, pre-release, digest, publish order).
     A line added to `notes` (when given) is not a failure: it says a check was done in its looser form."""
     out = []
@@ -107,7 +135,7 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None):
                    f"from the notes file.")
     if _ver(tag) < FIRST_ORDERED:
         return out
-    out.extend(_signature_lines(r, tag, want, notes, fetch, key))
+    out.extend(_signature_lines(r, tag, want, notes, fetch, key, named))
     body = r.get("body") or ""
     own = _zip_digest(r, want)
     if not DIGEST.search(body):
@@ -121,8 +149,9 @@ def _rules(r, tag, want, notes=None, fetch=None, key=None):
     elif own not in {m.group(0).lower() for m in DIGEST.finditer(body)}:
         out.append(f"{tag}: the SHA-256 in the release text is not the zip's. GitHub says the zip {want} is {own}. Edit the "
                    f"release text on GitHub and put that line in place of the wrong one (dev/RELEASING.md step 9).")
-    attached = max((a.get("created_at") or "" for a in r.get("assets", []) if a.get("name") == want), default="")
-    if r.get("published_at") and attached > r["published_at"]:
+    published, attached = _utc(r.get("published_at")), [_utc(a.get("created_at")) for a in r.get("assets", []) if a.get("name") == want]
+    attached = max((t for t in attached if t is not None), default=None)
+    if published is not None and attached is not None and attached > published:     # compared as UTC moments; a time that does not parse is skipped: no crash
         out.append(f"{tag}: the zip was attached after the release was published. The zip must be attached to the draft and "
                    f"launched for real first, then the release published (dev/RELEASING.md steps 8 to 19). Do not publish "
                    f"the next release until you have followed them in that order.")
@@ -146,7 +175,7 @@ def problems(releases, tags=None, notes=None, fetch=None, key=None):
         want = f"clark-{tag.lstrip('v')}-mac.zip"
         have = {a.get("name"): a.get("size", 0) for a in r.get("assets", [])}
         if have.get(want):
-            out.extend(_rules(r, tag, want, notes, fetch, key))
+            out.extend(_rules(r, tag, want, notes, fetch, key, bool(tags)))
             continue
         if want in have:
             why = f"{want} is on the release but it is empty."

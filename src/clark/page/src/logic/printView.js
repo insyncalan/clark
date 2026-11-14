@@ -1,6 +1,6 @@
 // Printing the report (item 438): the published page prints itself, so a PDF needs no extra software. Pure parts only; the state is in
 // stores/print.js and the look in shell.css (@media print).
-export const PRINT_ORDER = ["dashboard", "work", "milestones", "clientreport", "usecases", "gantt"];      // the page's tab order with Use cases last (the prototype's PDF); the weekly snapshot a published file carries is printed too; Settings is never printed
+export const PRINT_ORDER = ["dashboard", "work", "milestones", "usecases", "gantt"];      // the page's tab order (Gantt, when the file has one, comes last, after Use cases); Settings is never printed
 
 // The tabs this file has, in print order.
 export const printTabs = (tabs) => PRINT_ORDER.filter((v) => (tabs || []).includes(v));

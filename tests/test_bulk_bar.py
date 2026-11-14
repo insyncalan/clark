@@ -16,7 +16,7 @@ from test_multi_select import CTRL, META, MOD, SHIFT, peek_away, press, tap  # n
 from test_server import Running, chrome, wait  # noqa: E402
 import _testpage as testpage  # noqa: E402
 from test_work_board_page import Base as PageBase  # noqa: E402
-from test_work_filters import click  # noqa: E402
+from test_work_filters import click, set_line  # noqa: E402
 from test_work_items import bundled  # noqa: E402
 
 LOGIC = SRC / "clark" / "page" / "src" / "edit" / "bulkLogic.js"
@@ -97,6 +97,13 @@ class Rules(unittest.TestCase):
                                {"impact": "High"}, {"kind": "actions", "op": "bulk", "ids": ["ABC-A-001"], "changes": {"status": "Closed"}, "place": "bulk"},
                                {"kind": "actions", "op": "bulk", "ids": ["ABC-A-001"], "changes": {"status": "Closed"}, "place": "menu", "confirm": True}])
 
+    def test_close_and_reopen_send_a_from_status(self):                               # item 1133
+        got = self.run_("return [B.fromStatusFor('close'), B.fromStatusFor('reopen'), B.fromStatusFor('status'),"
+                        " B.requestFor('actions', ['ABC-A-001'], {status: 'Open'}, {fromStatus: B.fromStatusFor('reopen')}).from_status,"
+                        " B.fromStatusFor('close', 'raid'), B.fromStatusFor('reopen', 'raid')];")
+        self.assertEqual(got, [["Open", "Delayed", "Closed"], ["Closed", "Open"], None, ["Closed", "Open"], ["Open", "Closed"], ["Closed", "Open"]],
+                         "a RAID line has no Delayed status: its Close sends only Open and Closed")
+
     def test_the_question_is_asked_above_25(self):
         self.assertEqual(self.run_("return [B.needsConfirm(25), B.needsConfirm(26), B.confirmWords(26)];"), [False, True, "Change 26 items?"])
 
@@ -134,10 +141,9 @@ class Page(Base):
 
     def load(self, cdp, width=1400, edit=True, kind="action", mode="all"):
         sid = self.visit(cdp, width=width, edit=edit)
-        click(cdp, sid, f"[data-show={mode}]")
-        if kind:
-            click(cdp, sid, f"[data-type={kind}]")
-            self.until(cdp, sid, f"document.querySelector('[data-type={kind}]').getAttribute('aria-pressed') === 'true'", "the type")
+        # row 1059: the Open / Closed / All and type pills are gone; the same two words are typed on the filter line
+        words = ([f"type:{'risk,issue,assumption,dependency' if kind == 'risk' else kind}"] if kind else []) + ([] if mode == "all" else [f"is:{mode}"])
+        set_line(cdp, sid, " ".join(words))
         self.until(cdp, sid, "document.querySelectorAll('#work-list tr[data-id]').length >= 2", "the rows")
         return sid
 

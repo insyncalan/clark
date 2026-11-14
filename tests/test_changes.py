@@ -37,6 +37,18 @@ class Api(unittest.TestCase):
         self.assertEqual((status, body.get("message")), (200, None), body)
         return body
 
+    def test_a_store_rule_with_no_words_of_its_own_says_the_one_value_sentence_not_the_stores_text(self):
+        for said, shown in (("sort_order must be a whole number (got 'x')", changes.ITEM_VALUE_WORDS), ("A title must be text.", "A title must be text.")):
+            def work(store, by_user, req):
+                raise store_module.Invalid(said)
+            status, body = changes._call(self.path, [], USER, work, {})
+            self.assertEqual((status, body["message"], body["code"]), (400, shown, "refused"))
+        self.assertEqual(changes.ITEM_VALUE_WORDS, "That value isn't one clark can use.")
+
+    def test_an_unknown_key_in_an_undo_request_says_the_one_sentence(self):
+        status, body = self.undo({"project": "ABC", "apply_id": 1, "colour": "red"})
+        self.assertEqual((status, body["message"]), (400, "That change doesn't take 'colour'."))
+
     def refused(self, request, words, status=400):
         before = self.snapshot()
         got = self.change(request)
@@ -80,7 +92,7 @@ class Allowed(Api):
             self.assertFalse(any(never in fields for ops in changes.CHANGE_KINDS.values() for fields in ops.values()), never)
         self.assertEqual([(k, op) for k, ops in changes.CHANGE_KINDS.items() for op, fields in ops.items() if "body" in fields],
                          [(KIND, "new"), (KIND, "update")])             # a body is written by a section's update, and by a new text section (#929: its starting words)
-        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link"})      # #196: + bulk; #199: + handover; #485: + link
+        self.assertEqual(set(changes.OP_KEYS), {"new", "update", "move", "delete", "archive", "restore", "pick", "bulk", "handover", "link", "msadd", "msremove"})      # row 1107: + msadd, msremove; #196: + bulk; #199: + handover; #485: + link
 
     def test_the_route_admits_only_the_approved_kinds(self):
         """#45 (Full tier, approved) added glance_tiles and projects (test_changes_tiles holds their tests) and #67 the eye,
@@ -91,8 +103,8 @@ class Allowed(Api):
             ops = set(changes.CHANGE_KINDS[kind])
             want = {"archive", "restore"} | ({"update"} if kind in changes.ITEM_KINDS or kind in ("projects", "milestones", "use_cases", "documents") else set())
             self.assertEqual(ops, want | ({"new"} if kind in changes.NEWABLE + ("use_cases", "documents") else set())      # #67: a row can be added to four kinds; #455: and a use case (its own writer); #74: + a document link
-                             | ({"bulk", "handover"} if kind in changes.ITEM_KINDS else set())     # #196, #199: only the work items take a bulk change or a hand over
-                             | ({"link"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
+                             | ({"bulk", "handover", "delete"} if kind in changes.ITEM_KINDS else set()) | ({"delete"} if kind in ("milestones", "use_cases") else set())     # #196, #199: only the work items take a bulk change or a hand over; item 658: and a delete
+                             | ({"link", "msadd", "msremove"} if kind == "use_cases" else set()))                 # #485: a use case takes work items to link to it
             self.assertEqual(set(changes.CHANGE_KINDS[kind]["archive"]) | set(changes.CHANGE_KINDS[kind]["restore"]), set())
         for kind in ("workstreams", "labels", "links", "report_sections ", "",
                      "REPORT_SECTIONS", "report_sections; DROP TABLE x"):
@@ -108,7 +120,7 @@ class Refusals(Api):
         self.refused([], changes.NOT_JSON_OBJECT)
         self.refused("text", changes.NOT_JSON_OBJECT)
         self.refused(None, changes.NOT_JSON_OBJECT)
-        self.refused({**self.req("new"), "colour": "red"}, "clark doesn't know 'colour' in that request.")
+        self.refused({**self.req("new"), "colour": "red"}, "That change doesn't take 'colour'.")
         self.refused({"kind": KIND, "op": "new"}, changes.BAD_PROJECT)
         self.refused({**self.req("new"), "project": "abc"}, changes.BAD_PROJECT)
         self.refused({**self.req("new"), "project": "ABC; DROP"}, changes.BAD_PROJECT)
@@ -897,7 +909,7 @@ class Undoing(Api):
     def test_unknown_keys_in_an_undo_are_refused(self):
         self.assertEqual(self.undo([])[1]["message"], changes.NOT_JSON_OBJECT)
         self.assertEqual(self.undo({"project": "ABC", "apply_id": 1, "kind": KIND})[1]["message"],
-                         "clark doesn't know 'kind' in that request.")
+                         "That change doesn't take 'kind'.")
         self.assertEqual(self.undo({"apply_id": 1})[1]["message"], changes.BAD_PROJECT)
 
 
@@ -1117,7 +1129,7 @@ class Items(Api):
     def test_the_fields_are_columns_and_priority_and_archived_are_never_in_the_wrong_list(self):
         columns = {k: set(store_module.columns(self.s.con, k)) for k in changes.ITEM_KINDS}
         for kind, fields in ITEM_FIELDS.items():
-            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover"}, kind)      # #67: + new; #196: + bulk; #199: + handover
+            self.assertEqual(set(changes.CHANGE_KINDS[kind]), {"update", "archive", "restore", "new", "bulk", "handover", "delete"}, kind)      # #67: + new; #196: + bulk; #199: + handover
             self.assertTrue(set(changes.CHANGE_KINDS[kind]["bulk"]) <= columns[kind], kind)
             for never in ("archived", "id", "project", "type", "client_visible", "closed", "description", "decision"):
                 self.assertNotIn(never, changes.CHANGE_KINDS[kind]["bulk"], (kind, never))
@@ -1254,9 +1266,9 @@ class Items(Api):
 
     # the words for what a work item never takes
 
-    def test_no_delete_or_move_for_a_work_item(self):      # #67: `new` is allowed now (tests/test_changes_hidden.py)
+    def test_no_move_or_cancel_for_a_work_item(self):      # #67: `new` is allowed now (tests/test_changes_hidden.py); item 658: so is delete (tests/test_changes_delete_item.py)
         for kind, ref in (("actions", self.a), ("raid", self.r), ("decisions", self.d)):
-            for op, more in (("delete", {"id": ref}), ("move", {"id": ref, "before": None}),
+            for op, more in (("move", {"id": ref, "before": None}),
                              ("cancel", {"id": ref}), ("", {})):
                 with self.subTest(kind=kind, op=op):
                     self.no({"project": "ABC", "kind": kind, "op": op, **more}, changes.BAD_OP)

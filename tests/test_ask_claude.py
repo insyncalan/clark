@@ -79,12 +79,13 @@ for name in os.listdir("/dev/fd"):
 FDS.sort()
 mask = os.umask(0)
 os.umask(mask)
-with open(os.path.join(here, "seen.json"), "w", encoding="utf-8") as f:
+with open(os.path.join(here, "seen.json.part"), "w", encoding="utf-8") as f:   # written whole, then moved into place: a reader never finds it empty (CI flake)
     json.dump({"args": args, "env": dict(os.environ), "cwd": os.getcwd(), "stdin": data.decode("utf-8", "surrogateescape"),
                "stdin_len": len(data), "eof": again == b"", "pid": os.getpid(), "pgid": os.getpgid(0), "fds": FDS,
                "inodes": {str(n): INO[n] for n in FDS if n > 2 and n in INO}, "sockets": [n for n in FDS if n in SOCK],
                "umask": mask, "tmp": tmp, "tmp_mode": (tmp_st.st_mode & 0o777) if tmp_st else None,
                "tmp_uid": tmp_st.st_uid if tmp_st else None, "start_cwd": start_cwd, "start_tmp": start_tmp}, f)
+os.replace(os.path.join(here, "seen.json.part"), os.path.join(here, "seen.json"))
 if mode == "slow":
     time.sleep(60)
 if mode == "helper":
@@ -382,9 +383,9 @@ class FoundAndChecked(Fake):
         with mock.patch.dict(os.environ, {"PATH": str(self.bin)}):
             provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
             self.assertEqual(provider.status()["connected"], False)
-            self.assertTrue(provider.status()["why"].startswith(ac.NOT_INSTALLED))
+            self.assertTrue(provider.status()["why"].startswith(ac.NOT_ELSEWHERE))
             got = provider.ask(self.request())
-        self.assertEqual(got, ask.Failure(ac.NOT_INSTALLED))
+        self.assertEqual(got, ask.Failure(ac.NOT_ELSEWHERE))
         self.assertEqual(self.calls(), [], "a command on PATH is never run")
 
     def test_a_relative_place_is_never_used(self):
@@ -556,6 +557,82 @@ class NativeProgram(Fake):
         roots = ac.roots_for()
         self.assertEqual(roots[0], str(Path(pwd.getpwuid(os.getuid()).pw_dir).resolve()))
         self.assertEqual(roots[1:], tuple(str(Path(r).resolve()) for r in ("/opt/homebrew", "/usr/local")))
+
+
+class NpmAndNvmInstalls(NativeProgram):
+    """An npm global or nvm install: its `claude` is a link, followed to the file it names, which must still be a Mac program."""
+
+    def link(self, target, where=".nvm/versions/node/v20.1.0/bin"):
+        folder = self.d / where
+        folder.mkdir(parents=True)
+        (folder / "claude").symlink_to(target)
+        return folder / "claude"
+
+    def test_the_npm_and_nvm_places_are_looked_in(self):
+        self.assertIn("~/.npm-global/bin/claude", ac.PLACES)
+        self.assertIn("~/.nvm/versions/node/*/bin/claude", ac.PLACES)
+
+    def test_an_nvm_link_to_a_mac_program_is_found(self):
+        real = self.program()
+        self.link(real)
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (real, None))
+
+    def test_the_newest_nvm_version_is_tried_first(self):
+        old, new = self.program(folder=self.d / "a"), self.program(folder=self.d / "b")
+        self.link(old, ".nvm/versions/node/v18.0.0/bin")
+        self.link(new, ".nvm/versions/node/v20.0.0/bin")
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (new, None))
+
+    def _newest_of(self, older, newer):
+        old, new = self.program(folder=self.d / "a"), self.program(folder=self.d / "b")
+        self.link(old, f".nvm/versions/node/{older}/bin")
+        self.link(new, f".nvm/versions/node/{newer}/bin")
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (new, None))
+
+    def test_v20_is_newer_than_v9(self):
+        self._newest_of("v9.11.2", "v20.0.0")
+
+    def test_v10_is_newer_than_v9(self):
+        self._newest_of("v9.0.0", "v10.0.0")
+
+    def test_a_minor_of_two_digits_beats_one_digit(self):
+        self._newest_of("v20.9.0", "v20.10.0")
+
+    def test_an_npm_script_is_still_refused(self):
+        shim = self.program(name="cli.js", head=b"#!/usr/bin/env node\n")
+        self.link(shim)
+        got = ac.find_command((str(self.d / ".nvm/versions/node/*/bin/claude"),), roots=(str(self.d),))
+        self.assertEqual(got, (None, ac.NOT_NATIVE))
+
+    def test_a_command_only_on_the_path_is_told_apart_from_none(self):
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(ac.missing_case(), "elsewhere")
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(ac.missing_case(), "missing")
+
+    def test_each_not_found_case_has_its_own_words(self):
+        words = {"missing": "WORDS-MISSING", "elsewhere": "WORDS-ELSEWHERE"}
+        provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
+        provider.not_found_words = words
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(provider.command(), (None, "WORDS-ELSEWHERE"))
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(provider.command(), (None, "WORDS-MISSING"))
+
+    def test_missing_says_the_old_sentence_and_elsewhere_the_new_one(self):
+        self.assertEqual(ac.NOT_ELSEWHERE, "Claude works in Terminal, but clark can't use it from where it is installed. "
+                         "Install it with its own installer from claude.com/claude-code, then ask again.")
+        self.assertEqual(ac.NOT_FOUND_WORDS, {"missing": ac.NOT_INSTALLED, "elsewhere": ac.NOT_ELSEWHERE})
+        provider = self.make(places=(str(self.d / "nowhere" / "claude"),))
+        with mock.patch.object(shutil, "which", return_value="/somewhere/claude"):
+            self.assertEqual(provider.command(), (None, ac.NOT_ELSEWHERE))
+            self.assertEqual(provider.status(), {"connected": False, "why": ac.NOT_ELSEWHERE})
+        with mock.patch.object(shutil, "which", return_value=None):
+            self.assertEqual(provider.command(), (None, ac.NOT_INSTALLED))
+            self.assertEqual(provider.status(), {"connected": False, "why": ac.NOT_INSTALLED})
 
 
 class SignIn(Fake):

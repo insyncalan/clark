@@ -14,6 +14,7 @@ Update.chip = L.TITLE;                                              // the Setti
 export function Update({ api = REAL, reload = () => window.location.reload(), sleep = (ms) => new Promise((r) => setTimeout(r, ms)), copy = realCopy }) {
   const [state, setState] = useState({ phase: "loading", st: null, message: "" });
   const [panel, setPanel] = useState(null);           // null, or {id, view, reinstall}
+  const opener = useRef("[data-review]");
   const [again, setAgain] = useState(null);           // the source to review again with Install again: "downloads" or "file"
   const [armed, setArmed] = useState(null);           // null, or {id, choice, line}
   const [busy, setBusy] = useState(false);
@@ -33,7 +34,14 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
   useEffect(() => { load(); return () => clearTimeout(disarm.current); }, []);
   useEffect(() => { if (panel && heading.current) heading.current.focus(); }, [panel]);
 
+  const toUndo = () => requestAnimationFrame(() => { const b = document.querySelector("#update [data-undo]"); if (b && (!document.activeElement || document.activeElement === document.body)) b.focus(); });      // the question closed: the focus goes back to Undo update, unless the person has already moved on
+  const dropAsk = () => { clearTimeout(disarm.current); setArmed(null); toUndo(); };      // Esc on the question
+  useEffect(() => { if (armed) { const b = document.querySelector("#update [data-undo-confirm]"); if (b) b.focus(); } }, [armed]);      // the question opens: the focus moves to its button
+
+  const closePanel = () => { setPanel(null); requestAnimationFrame(() => { const b = document.querySelector("#update " + opener.current); if (b) b.focus(); }); };      // Cancel or Esc: the focus goes back to the button that opened the panel
+
   async function review(from, reinstall) {
+    opener.current = from === "file" ? "[data-choose]" : "[data-review]";
     setBusy(true);
     setMsg(null);
     setAgain(null);
@@ -77,7 +85,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
     if (r.status === 200 && r.body && r.body.ok === true) {
       setArmed({ id: r.body.arm_id, choice: r.body.choice === "full" ? "full" : "app_only", line: String(r.body.line || "").slice(0, 400) });
       clearTimeout(disarm.current);
-      disarm.current = setTimeout(() => { setArmed(null); setMsg({ kind: "info", text: L.DISARMED }); }, 5000);
+      disarm.current = setTimeout(() => { setArmed(null); setMsg({ kind: "info", text: L.DISARMED }); toUndo(); }, 5000);
       return;
     }
     setMsg({ kind: "error", text: L.answerWords(r.status, r.body) });
@@ -101,7 +109,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
       <h2 id="update-h" tabIndex={-1}>{L.TITLE}</h2>
       <p class="muted">{L.INTRO}</p>
       {state.phase === "loading" ? <p class="muted">{L.LOADING}</p> : null}
-      {state.phase === "failed" ? <p class="error">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
+      {state.phase === "failed" ? <p class="error" role="alert">{state.message} <button type="button" class="btn sm" data-update-again onClick={load}>{L.LABELS.tryAgain}</button></p> : null}
       {st ? (
         <div class="upd-rows">
           <p class="upd-l" id="update-installed-l">{L.ROWS.installed}</p>
@@ -135,19 +143,19 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
               <div class="upd-c" role="group" aria-labelledby="update-last-l" id="update-last">
                 <p>{st.last}</p>
                 {armed ? (
-                  <>
+                  <div onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); dropAsk(); } }}>
                     <p id="update-armed">{armed.line}</p>
-                    <div class="row"><button type="button" class="btn pri" data-undo-confirm disabled={busy} onClick={confirmUndo}>
+                    <div class="row"><button type="button" class="btn pri" data-undo-confirm aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) confirmUndo(); }}>
                       {armed.choice === "full" ? L.LABELS.undoConfirm : L.LABELS.appOnly}</button></div>
-                  </>
-                ) : <div class="row"><button type="button" class="btn" data-undo disabled={busy} onClick={arm}>{L.LABELS.undo}</button></div>}
+                  </div>
+                ) : <div class="row"><button type="button" class="btn" data-undo aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) arm(); }}>{L.LABELS.undo}</button></div>}
               </div>
             </>
           ) : null}
         </div>
       ) : null}
       {panel ? (
-        <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading">
+        <div class="backup-panel" id="update-panel" role="region" aria-labelledby="update-heading" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closePanel(); } }}>
           <p id="update-heading" tabIndex={-1} ref={heading}><b>{panel.view.heading}</b></p>
           <pre class="update-notes" id="update-notes">{panel.view.notes}</pre>
           {panel.view.hasNotes ? <div class="row"><button type="button" class="btn sm" data-copy onClick={copyNotes}>{L.LABELS.copy}</button></div> : null}
@@ -165,7 +173,7 @@ export function Update({ api = REAL, reload = () => window.location.reload(), sl
           <p>{panel.view.kept}</p>
           <div class="row">
             <button type="button" class="btn pri" data-install disabled={busy} onClick={install}>{panel.reinstall ? L.LABELS.installAgain : L.LABELS.install}</button>
-            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={() => setPanel(null)}>{L.LABELS.cancel}</button>
+            <button type="button" class="btn quiet" data-cancel disabled={busy} onClick={closePanel}>{L.LABELS.cancel}</button>
           </div>
         </div>
       ) : null}

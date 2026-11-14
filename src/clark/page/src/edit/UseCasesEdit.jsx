@@ -17,18 +17,21 @@
 // (a use case is archived, never deleted: its toast says so), the rest keep theirs. A new use case starts hidden from the client (eye off,
 // the owner, 03-11-2026): it is counted in "from your project record (N)" and on the Use cases page until its eye is turned on.
 import { signal } from "@preact/signals";
-import { useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, mode, rows } from "../stores/report.js";
+import { getArchived } from "../api.js";
+import { RecordMore } from "./RecordMore.jsx";
+import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
+import { data, mode, project, rows } from "../stores/report.js";
 import { inertBehind } from "./modalLayers.js";
 import { change, say } from "../stores/changes.js";
 import { NewTile } from "../components/NewTile.jsx";
 import { Menu } from "../components/Menu.jsx";
 import { Picker } from "../components/Picker.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { Line, NAME_MAX, HEAD_MAX, HEADLINE_PROMPT, STANDING_PROMPT } from "../components/UseCaseDetail.jsx";
 import { RichField } from "./RichField.jsx";
 import { KIND_WORDS, todayIso } from "../workItems.js";
-import { splitStep, knownNames, stepValues, linkable, narrow, KINDS, linkedWords } from "../logic/ucRow.js";
+import { splitStep, knownNames, stepValues, linkable, openCount, narrow, KINDS, linkedWords, linkableMilestones } from "../logic/ucRow.js";
 import { peopleList } from "../stores/handover.js";
 import { CommitMenu } from "./CommitMenu.jsx";
 
@@ -65,6 +68,12 @@ function Modal({ onClose, opener, children }) {
       if (opener && opener.isConnected && opener.focus) opener.focus();
     };
   }, []);
+  // Esc also on the document: while a save is out the Add button is disabled, the focus drops to the page, and a key there never reaches the box's own handler.
+  useEffect(() => {
+    const esc = (e) => { if (e.key === "Escape" && !e.defaultPrevented) { e.preventDefault(); onClose(); } };
+    document.addEventListener("keydown", esc);
+    return () => document.removeEventListener("keydown", esc);
+  }, []);
   const keys = (e) => {
     if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onClose(); return; }
     if (e.key !== "Tab" || !root.current) return;
@@ -88,9 +97,13 @@ function AddBox({ onClose, opener }) {
   const submit = async (e) => {
     e.preventDefault();
     const f = e.currentTarget, ref = f.ucI.value.trim(), title = f.ucT.value.trim();
-    if ((data.value.use_cases || []).some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase())) {   // archived ones too: their ID is still taken
-      f.ucI.setCustomValidity("That ID is already used"); f.ucI.reportValidity(); f.ucI.setCustomValidity(""); return;
-    }
+    const taken = (list) => list.some((u) => String(u.ref || "").trim().toLowerCase() === ref.toLowerCase());
+    const refuse = () => { f.ucI.setCustomValidity("That ID is already used"); f.ucI.reportValidity(); f.ucI.setCustomValidity(""); };
+    if (!ref) { f.ucI.value = ""; f.ucI.reportValidity(); return; }   // a blank ID: the field's own "fill in" bubble
+    if (taken(data.value.use_cases || [])) { refuse(); return; }
+    // The page's own data leaves the archived use cases out, but their ID is still taken: read them with the archived rows.
+    const arch = await getArchived(project.value);
+    if (arch.ok && taken((arch.data.use_cases || []).filter((u) => u.archived))) { refuse(); return; }
     setBusy(true);
     const reply = await change({ kind: "use_cases", op: "new", values: { ref, title, status: f.ucS.value, headline: f.ucH.value.trim() }, place: "report" }, "");
     setBusy(false);
@@ -133,7 +146,7 @@ export function Status({ u }) {
   return (
     <span class="ucst" data-uc-status={u.id} data-edit-only>
       <Menu label={u.status} labelCls={`ucword rag-${r}`} btnCls="ucw-btn" ariaLabel={`Status: ${u.status}. Change`} menuLabel="Status" id={`ucst-${u.id}`} chevron={false}
-        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, checked: u.status === n }))}
+        items={STATUSES.map(([n, c]) => ({ id: n, name: n, word: c, icon: actionIcon("status"), checked: u.status === n }))}
         onPick={(n) => { if (n !== u.status) send(u, { status: n }, `Use case ${name(u)} set to ${n}.`); }} />
     </span>
   );
@@ -229,6 +242,29 @@ export function NextStep({ u }) {
   );
 }
 
+/** Row 1141: "Add a milestone" (the link of row 1107): a menu of the project's milestones this use case has no direct link to. A pick is ONE change (msadd) that links the
+ * use case itself to the milestone, with one Undo. */
+export function MilestoneLink({ u }) {
+  const items = linkableMilestones(data.value, u.id);
+  const pick = (id) => {
+    const m = items.find((x) => x.id === id);
+    if (m) change({ kind: "use_cases", op: "msadd", id: u.id, ids: [m.id], place: "report" }, `${m.name} linked to use case ${name(u)}.`);
+  };
+  return (
+    <span class="ucx-mslink" data-ms-link={u.id} data-edit-only>
+      <Menu label="Add a milestone" ariaLabel={`Add a milestone to use case ${name(u)}`} menuLabel="Milestones to link" id={`ucd-mslink-${u.id}`} btnCls="btn sm" left
+        items={items.map((m) => ({ ...m, icon: actionIcon("milestone") }))} onPick={pick} />
+    </span>
+  );
+}
+
+/** Row 1107: "Unlink" on a milestone the use case is linked to directly: ends that one link (msremove), one Undo; its work items are not touched. */
+export function MilestoneUnlink({ u, m }) {
+  const go = () => change({ kind: "use_cases", op: "msremove", id: u.id, ids: [m.id], place: "report" }, `${m.name} unlinked from use case ${name(u)}.`,
+    { focus: "[data-ms-link] button" });
+  return <button type="button" class="link ucx-msrm" data-ms-unlink={m.id} data-edit-only aria-label={`Unlink ${m.name} from use case ${name(u)}`} onClick={go}>Unlink</button>;
+}
+
 /** "+ Link an existing work item": opens the box of the open work items that are not yet linked to this use case. */
 export function LinkButton({ u }) {
   return <button type="button" class="link add-from" data-uc-link={u.id} data-edit-only onClick={() => openBox("link", u.id, true)}>+ Link an existing work item</button>;
@@ -252,6 +288,7 @@ function LinkBox({ uc, onClose, opener }) {
     await change({ kind: "use_cases", op: "link", id: uc, ids: picked, place: "report" }, linkedWords(n, name(u)));
   };
   const typed = (e) => {
+    if (e.isComposing || e.keyCode === 229) return;      // an input method is composing (keyCode 229 is Safari's word for it): Enter picks a candidate, not a row
     if (e.key === "Enter") { e.preventDefault(); if (shown.length === 1 && !chosen.includes(shown[0].id)) setChosen([...chosen, shown[0].id]); }
     else if (e.key === "ArrowDown") { e.preventDefault(); const first = list.current && list.current.querySelector("input"); if (first) first.focus(); }
   };
@@ -281,7 +318,7 @@ function LinkBox({ uc, onClose, opener }) {
               </li>
             ))}
           </ul>
-          {!shown.length ? <p class="muted pk-none" data-none>{items.length ? "Nothing matches." : "Every open work item is linked to this use case already."}</p> : null}
+          {!shown.length ? <p class="muted pk-none" data-none>{items.length ? "Nothing matches." : openCount(rows.value) ? "Every open work item is linked to this use case already." : "There are no open work items to link."}</p> : null}
         </div>
         <div class="pk-foot">
           <span class="muted pk-count" aria-live="polite">{n ? `${n} selected` : "None selected"}</span>
@@ -302,4 +339,4 @@ export function Boxes() {
 }
 
 /** The Edit parts as one object, `tools.ucEdit`. */
-export const UCEDIT = { Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, Boxes, added };
+export const UCEDIT = { RecordMore, Add, Status, Commit: CommitMenu, Headline, Name, FromRecord, Eye, Standing, NextStep, LinkButton, MilestoneLink, MilestoneUnlink, Boxes, added };

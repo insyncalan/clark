@@ -81,9 +81,31 @@ class Title(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_title(cdp, sid, "   ")
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: self.title(cdp, sid) == was))
             self.assertTrue(wait(lambda: "A title can't be blank" in self.toast(cdp, sid)))
             self.assertEqual(sent, [], "nothing was sent")
+
+    def test_a_refused_title_keeps_its_text_and_the_box_gets_focus_back(self):
+        for how in ("Enter", "away"):
+            with self.subTest(how=how), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                text = "x" * 400
+                self.type_title(cdp, sid, text)
+                if how == "Enter":
+                    key(cdp, sid, "Enter")
+                else:
+                    cdp.js("document.querySelector('#peek [data-pk-title-in]').blur()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('#peek [data-pk-title-in]')", sid)), "the box has focus again")
+                self.assertEqual(self.title(cdp, sid), text, "the typed text is kept")
+                self.assertEqual(sent, [], "nothing was sent")
+
+    def test_enter_and_escape_keep_focus_in_the_peek_not_on_the_page_body(self):
+        for keyname in ("Enter", "Escape"):
+            with self.subTest(key=keyname), chrome() as cdp:
+                sent, sid = self.load(cdp, 1400, ACTION)
+                self.type_title(cdp, sid, "Typed then " + keyname)
+                key(cdp, sid, keyname)
+                self.assertTrue(wait(lambda: cdp.js("!!document.activeElement && document.activeElement.closest('#peek') !== null", sid)),
+                                "focus stays inside the peek")
 
     def test_a_click_away_saves_the_title(self):
         with chrome() as cdp:
@@ -100,14 +122,15 @@ class Title(Fields):
 
 
 class Wording(Fields):
-    BOX = "#peek [data-ce]"
+    BOX = "#peek [data-ce]"            # item 1005: the wording drawn as text; a click opens the one editor (a ProseMirror) in its place, Enter saves
 
     def words(self, cdp, sid):
-        return cdp.js(f"(t => t ? t.textContent : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
+        return cdp.js(f"(t => t ? t.textContent.trim() : null)(document.querySelector({json.dumps(self.BOX)}))", sid)
 
     def type_words(self, cdp, sid, text):
-        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).focus()", sid)
-        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).textContent = {json.dumps(text)}", sid)
+        cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
+        self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
+        cdp.js(f"(() => {{ const e = document.activeElement.cxed.editor; e.commands.selectAll(); e.commands.insertContent({json.dumps(text)}); }})()", sid)
 
     def test_the_client_wording_is_changed_in_place_and_undone_in_one_step(self):
         was = (self.action(ACTION).get("client_message") or "").strip()
@@ -136,8 +159,21 @@ class Wording(Fields):
             self.assertTrue(cdp.js("!!document.querySelector('#peek')", sid), "Esc leaves the peek open")
             self.type_words(cdp, sid, "x" * 201)
             key(cdp, sid, "Enter")
-            self.assertTrue(wait(lambda: "200 characters at most" in self.toast(cdp, sid)))
-            self.assertEqual((sent, self.words(cdp, sid)), ([], was))
+            self.assertTrue(wait(lambda: "200 characters at most" in cdp.js("(document.querySelector('#peek .rt-problem') || {textContent: ''}).textContent", sid)), "the field says why")
+            self.assertEqual(sent, [])
+            key(cdp, sid, "Escape")
+            self.assertTrue(wait(lambda: self.words(cdp, sid) == was))
+
+    def test_the_open_peek_wording_editor_shows_no_toolbar_and_no_keys_line(self):
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                cdp.js(f"document.querySelector({json.dumps(self.BOX)}).click()", sid)
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement.classList.contains('ProseMirror')", sid), 15), "the editor opens with the focus in it")
+                shown = cdp.js("['#peek .rt-bar', '#peek .rt-keys'].map(q => { const e = document.querySelector(q); return e ? getComputedStyle(e).display : 'none'; })", sid)
+                self.assertEqual(shown, ["none", "none"], "a one-line plain field has no toolbar")
+                self.assertTrue(self.inside(cdp, sid, "#peek .pk-ce.rich"), "the open editor fits the peek")
+                key(cdp, sid, "Escape")
 
     def test_the_wording_box_is_edit_only(self):
         peek = (SRC / "components/Peek.jsx").read_text(encoding="utf-8")
@@ -257,8 +293,36 @@ class Archive(Fields):
                 self.assertEqual(self.row(ACTION)["archived"], 1)
                 self.assertTrue(wait(lambda: not cdp.js("!!document.querySelector('#peek')", sid)), "the peek closes with the item")
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.toast [data-undo]')", sid)))
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
                 cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
                 self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "one Undo brings it back")
+
+    def test_undo_after_archive_in_the_peek_puts_the_focus_on_the_restored_row_with_real_keys(self):
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.calm(cdp, sid)
+                click(cdp, sid, "#peek [data-pk-archive]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
+                key(cdp, sid, "Enter")
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Enter on Undo brings it back")
+                row = json.dumps(ACTION)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not the page body")
+
+    def test_undo_puts_the_focus_on_the_restored_row_when_the_page_main_has_it(self):
+        """Focus on <main> counts as nothing focused (stores/changes.js); fails if that acceptance is removed."""
+        for width, dark in self.widths():
+            with self.subTest(width=width, dark=dark), chrome() as cdp:
+                sent, sid = self.load(cdp, width, ACTION, dark=dark)
+                self.calm(cdp, sid)
+                click(cdp, sid, "#peek [data-pk-archive]")
+                self.assertTrue(wait(lambda: cdp.js("document.activeElement === document.querySelector('.toast [data-undo]')", sid)), "the focus is on Undo")
+                cdp.js("document.getElementById('main').focus()", sid)
+                self.assertTrue(cdp.js("document.activeElement.id === 'main'", sid), "main has the focus")
+                cdp.js("document.querySelector('.toast [data-undo]').click()", sid)
+                self.assertTrue(wait(lambda: self.row(ACTION)["archived"] == 0), "Undo brings it back")
+                row = json.dumps(ACTION)
+                self.assertTrue(wait(lambda: cdp.js(f"(() => {{ const a = document.activeElement, r = a && a.closest('tr[data-id], article.bcard[data-id]'); return !!r && r.dataset.id === {row}; }})()", sid)), "the focus is on the restored item, not on main")
 
     def test_the_button_is_edit_only(self):
         self.assertIn("editing && forItem && tools.PeekArchive", (SRC / "components/Peek.jsx").read_text(encoding="utf-8"))

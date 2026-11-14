@@ -4,6 +4,7 @@
 Run: python3 dev/run_tests.py test_ci_scan   (quick tier)
 """
 import contextlib
+import hashlib
 import io
 import os
 import re
@@ -613,6 +614,46 @@ class Scan(unittest.TestCase):
         self.assertIn("could not run", out.getvalue())
 
 
+class FeedbackAddressAllowlist(unittest.TestCase):
+    """Row 1069: the feedback recipient address is allowed in exactly two files and nowhere else (the narrowest allowlist)."""
+    ADDRESS = pp.reveal("nyna.znuba@vaprcgvba42.nv")
+    JS, PY = "src/clark/page/src/logic/feedback.js", "tests/test_feedback_tab.py"
+
+    def scan(self, path, text):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write(path, text)
+        r.commit("add")
+        return r.scan()
+
+    def test_the_address_is_allowed_in_exactly_the_two_files(self):
+        self.assertEqual(pp.FEEDBACK_ADDRESS_PATHS, (self.JS, self.PY))
+        for path in (self.JS, self.PY):
+            rc, out = self.scan(path, 'ADDRESS = "%s"\n' % self.ADDRESS)
+            self.assertEqual(rc, 0, out)
+
+    def test_the_address_is_still_refused_in_any_other_file(self):
+        for path in ("src/clark/page/src/logic/other.js", "tests/test_other.py", "README2.md", "docs/a.md", "feedback.js",
+                     # mutation hunt on row 1069: the contact-address files and the sibling tests must not borrow the feedback allowance
+                     "README.md", "LICENSE", "SECURITY.md", "docs/public/README.md", "tests/test_hostile_feedback.py"):
+            rc, out = self.scan(path, 'ADDRESS = "%s"\n' % self.ADDRESS)
+            self.assertEqual(rc, 1, path + out)
+            self.assertIn("a person's name", out)
+
+    def test_another_address_with_the_same_name_or_domain_is_refused_in_those_files(self):
+        local, domain = self.ADDRESS.split("@")
+        for path in (self.JS, self.PY):
+            for other in (local + "@example.com", "x" + local + "@" + domain, local + "@" + domain + ".evil.io", local + "@" + domain + "x"):
+                rc, out = self.scan(path, 'ADDRESS = "%s"\n' % other)
+                self.assertEqual(rc, 1, path + other)
+
+    def test_a_second_name_beside_the_address_is_refused_in_those_files(self):
+        rc, out = self.scan(self.JS, 'A = "%s"\n// %s\n' % (self.ADDRESS, LISTED))
+        self.assertEqual(rc, 1, out)
+        rc, out = self.scan(self.JS, 'A = "%s"\nB = "%s"\n' % (self.ADDRESS, self.ADDRESS.split("@")[0]))
+        self.assertEqual(rc, 1, out)
+
+
 class PinnedPublicFiles(unittest.TestCase):
     """Issue 722: the three files of the folder 'meet clark' are the only PDFs (and the only files in that folder) let through,
     and only byte for byte. The tests use tiny fake files and a fake table (the seam is ci_scan.ALLOWED_PUBLIC_FILES); the real
@@ -909,6 +950,151 @@ class Workflow(unittest.TestCase):
         r.commit("add")
         rc, out = r.scan(fork=False)
         self.assertEqual(rc, 0, out)
+
+
+class VendoredPdfLibrary(unittest.TestCase):
+    """#891: the vendored pypdf is third-party code. Four of its files hold listed words (its authors, its licence, a glyph table), so
+    the listed-word scan skips the CONTENT of exactly those files, each only at its own path AND with its own SHA-256 (a pin table).
+    Anything else under vendor/pypdf/ is scanned in full, and every other rule (secrets, size, links, programs, archives, the path
+    itself, the executable bit) still applies to the pinned files too."""
+    FOLDER = "vendor/pypdf/"
+    PINNED = ("vendor/pypdf/LICENSE", "vendor/pypdf/_codecs/adobe_glyphs.py", "vendor/pypdf/constants.py", "vendor/pypdf/pagerange.py")
+
+    def refused_one(self, name, data, needle, mode="w"):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write(name, data, mode)
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn(needle, out)
+        self.assertNotIn(LISTED, out)
+
+    def test_the_pin_table_is_four_exact_paths_with_sha256_digests_and_no_folder_rule(self):
+        self.assertFalse(hasattr(ci_scan, "VENDORED_THIRD_PARTY"), "no folder allowance any more")
+        self.assertEqual(sorted(ci_scan.VENDORED_PINS), sorted(self.PINNED))
+        for digest in ci_scan.VENDORED_PINS.values():
+            self.assertRegex(digest, r"^[0-9a-f]{64}$")
+
+    def test_a_pin_skips_only_the_exact_bytes_at_the_exact_path_in_a_plain_file(self):
+        data = ("# %s\n" % LISTED).encode()
+        path = self.PINNED[0]
+        pins = {path: hashlib.sha256(data).hexdigest()}
+        with mock.patch.object(ci_scan, "VENDORED_PINS", pins):
+            self.assertTrue(ci_scan.vendored("100644", path, data))
+            self.assertFalse(ci_scan.vendored("100755", path, data), "executable: no allowance")
+            self.assertFalse(ci_scan.vendored("100644", path, data + b"\n"), "a changed byte: no allowance")
+            self.assertFalse(ci_scan.vendored("100644", "vendor/pypdf/copy.py", data), "another path: no allowance")
+
+    def real(self, path):
+        return (ROOT / path).read_bytes()
+
+    def test_the_allowance_is_four_pins_and_not_a_folder(self):
+        self.assertFalse(hasattr(ci_scan, "VENDORED_THIRD_PARTY"), "no folder allowance any more")
+        self.assertEqual(sorted(ci_scan.VENDORED_PINS), sorted(self.PINNED))
+        for path, digest in ci_scan.VENDORED_PINS.items():
+            with self.subTest(path):
+                self.assertRegex(digest, r"^[0-9a-f]{64}$")
+                self.assertEqual(hashlib.sha256(self.real(path)).hexdigest(), digest)
+
+    def test_each_pin_is_needed_and_the_real_files_pass_at_their_paths(self):
+        for path in self.PINNED:
+            with self.subTest(path):
+                self.assertTrue(pp.guard_findings([pp.Entry(1, "100644", "0" * 40, 1, "x.py")], [self.real(path)]), "the pin exists because the scan hits it")
+        r = Repo()
+        self.addCleanup(r.close)
+        for path in self.PINNED:
+            r.write(path, self.real(path), "wb")
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual((rc, out.count("REFUSED")), (0, 0), out)
+
+    def test_a_changed_byte_in_a_pinned_file_is_refused(self):
+        for path in self.PINNED:
+            for label, data in (("appended", self.real(path) + b"\n"), ("edited", self.real(path).replace(b"a", b"b", 1))):
+                with self.subTest("%s %s" % (path, label)):
+                    self.refused_one(path, data, "a person's name", "wb")
+
+    def test_an_unpinned_file_with_a_listed_word_inside_the_folder_is_refused(self):
+        for name in ("vendor/pypdf/other.py", "vendor/pypdf/_codecs/glyphs.py", "vendor/pypdf/_encryption.py", "vendor/pypdf/VENDORED.md"):
+            with self.subTest(name):
+                self.refused_one(name, "# %s\n" % LISTED, "a person's name")
+
+    def test_a_pinned_file_at_another_path_is_refused(self):
+        for path in self.PINNED:
+            for other in ("vendor/pypdf/copy.py", "vendor/other/" + path.rsplit("/", 1)[-1], "src/clark/" + path.rsplit("/", 1)[-1],
+                          "Vendor/pypdf/" + path.rsplit("/", 1)[-1], path + ".txt"):
+                with self.subTest("%s at %s" % (path, other)):
+                    self.refused_one(other, self.real(path), "a person's name", "wb")
+
+    def test_the_same_word_anywhere_else_is_still_refused(self):
+        for name in ("vendor/other/a.py", "vendor/pypdf2/a.py", "vendor/pypdf.py", "vendor/a.py", "Vendor/pypdf/a.py",
+                     "VENDOR/PYPDF/a.py", "src/vendor/pypdf/a.py", "vendor/typing_extensions.py",
+                     "vendor/licenses/pypdf-1-LICENSE.txt", "vendor/pypdf\u200b/a.py"):
+            with self.subTest(name):
+                self.refused_one(name, "# %s\n" % LISTED, "a person's name")
+
+    def test_a_pinned_file_that_is_executable_gets_no_allowance(self):
+        for path in self.PINNED:
+            with self.subTest(path):
+                r = Repo()
+                self.addCleanup(r.close)
+                r.write(path, self.real(path), "wb")
+                os.chmod(os.path.join(r.path, *path.split("/")), 0o755)
+                r.commit("add")
+                rc, out = r.scan()
+                self.assertEqual(rc, 1, out)
+                self.assertIn("a person's name", out)
+
+    def test_a_listed_word_in_a_path_inside_the_folder_is_still_refused(self):
+        self.refused_one(self.FOLDER + "%s.py" % LISTED, "ok\n", "a listed word in its path")
+
+    def test_a_secret_inside_the_folder_is_still_refused(self):
+        self.refused_one(self.FOLDER + "a.py", 'token = "%s"\n' % SECRET, "a GitHub token")
+
+    def test_an_archive_program_or_pdf_inside_the_folder_is_still_refused(self):
+        for name, data in (("a.zip", b"PK\x03\x04rest"), ("b.dat", b"ab\x00cd"), ("c", b"\x7fELF\x00"), ("d.pdf", b"%PDF-1.4\n")):
+            with self.subTest(name):
+                self.refused_one(self.FOLDER + name, data, "file #1", "wb")
+
+    def test_a_link_inside_the_folder_is_still_refused(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        os.makedirs(os.path.join(r.path, "vendor", "pypdf"))
+        os.symlink("/etc/hosts", os.path.join(r.path, "vendor", "pypdf", "link.py"))
+        r.commit("add")
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("is a link or submodule", out)
+
+    def test_a_file_over_the_limit_inside_the_folder_is_still_refused(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write(self.FOLDER + "big.py", "a" * 2000)
+        r.commit("add")
+        old, pp.MAX_BYTES = pp.MAX_BYTES, 1000
+        try:
+            rc, out = r.scan()
+        finally:
+            pp.MAX_BYTES = old
+        self.assertEqual(rc, 1, out)
+        self.assertIn("is over 5 MB", out)
+
+    def test_a_listed_word_in_a_commit_message_is_still_refused_for_a_vendoring_change(self):
+        r = Repo()
+        self.addCleanup(r.close)
+        r.write(self.FOLDER + "a.py", "x = 1\n")
+        r.commit("by %s" % LISTED)
+        rc, out = r.scan()
+        self.assertEqual(rc, 1, out)
+        self.assertIn("a listed word in a name, an address or a message", out)
+
+    def test_the_folder_is_in_the_download_list_and_nothing_wider(self):
+        from clark import release_files
+        self.assertIn("vendor/pypdf/", release_files.SHARED)
+        self.assertIn("vendor/typing_extensions.py", release_files.SHARED)
+        self.assertEqual([s for s in release_files.SHARED if s.startswith("vendor/") and s != "vendor/" and "pypdf" in s],
+                         ["vendor/pypdf/"])
 
 
 if __name__ == "__main__":

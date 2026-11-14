@@ -21,17 +21,20 @@ from clark import look
 
 MIN_CONTRAST = 4.5
 MAX_FONT_NAME = 31      # Excel's limit for a font name
+# NOTE (row 1021): the status cells read the --tone-* tokens. A brand file that only sets the older --status-* names no longer restyles them
+# (it is ignored silently, as any name the export does not read); it sets --tone-red-text, --tone-red-tint ... to restyle the status cells.
 # (fill token, text token, what it draws), each checked at 4.5:1. The status pairs come from excel_colours.COLOURS.
 EXTRA_PAIRS = (
     ("brand-navy", "white", "the header and the title band"),
     ("status-red", "white", "the cover's INTERNAL tag"),
+    ("tone-urgent", "white", "the Urgent tile's white letter"),
     ("grey-50", "grey-700", "the cover's quiet rows"),
-    ("white", "status-red-text", "a late date"),
+    ("white", "tone-red-text", "a late date"),
     ("white", "brand-blue", "the cover's headings"),
     ("brand-navy", "grey-100", "the cover's subtitle"),
     ("grey-50", "brand-ink", "the cover's tiles"),
 )
-DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;]+);")
+DECL = re.compile(r"(--[\w-]+)\s*:\s*([^;]+)(?:;|$)")   # the last declaration of a block may have no closing semicolon
 
 
 def _channel(hexa):
@@ -69,7 +72,7 @@ class Palette:
 
     @property
     def late_text(self):
-        return self.tokens["status-red-text"]
+        return self.tokens["tone-red-text"]
 
     def hexes(self, name):
         """(fill hex, text hex) for a colour name, as excel_colours.hexes."""
@@ -111,7 +114,7 @@ def _merged(brand_css):
     brand = _declarations(brand_css)
     note = None
     if brand is None:
-        brand, note = {}, "The brand's tokens.css has no block of tokens clark can read; the committed look is used."
+        brand, note = {}, "The brand's colours file could not be read, so clark's standard colours were used in the workbook."
     merged = dict(committed)
     merged.update({k: v.strip() for k, v in brand.items()})
     return ":root {\n" + "\n".join(f"{k}: {v};" for k, v in merged.items()) + "\n}", note
@@ -129,11 +132,11 @@ def _brand_css(branding, notes):
         if path is None:
             return None
         if path.stat().st_size > MAX_BRAND_BYTES:
-            notes.append("The brand's tokens.css is too large to read; the committed look is used.")
+            notes.append("The brand's colours file is too large to read, so clark's standard colours were used in the workbook.")
             return None
         return page.strip_css_comments(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeDecodeError, ValueError):
-        notes.append("The brand's tokens.css cannot be read; the committed look is used.")
+        notes.append("The brand's colours file could not be read, so clark's standard colours were used in the workbook.")
         return None
 
 
@@ -154,7 +157,7 @@ def palette(css=None, branding=None, warnings=None):
             try:
                 tokens[name] = look.colour(name, css=merged)
             except look.LookError as e:
-                notes.append(f"Brand colour {name} not used ({e}); the committed colour is used.")
+                notes.append(f"The brand colour {name} could not be used, so clark's standard colour was used for it in the workbook.")
         for _ in range(len(base.TOKEN_NAMES)):
             bad = [(f, t, what) for f, t, what in _pairs(colours) if contrast_ratio(tokens[f], tokens[t]) < MIN_CONTRAST]
             changed = False

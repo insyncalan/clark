@@ -74,7 +74,7 @@ LOG_LIMIT = 1024 * 1024
 WAIT_CLOSE_SECONDS = 30
 WAIT_START_SECONDS = 15
 HIDDEN = ".app"                        # the one hidden folder that holds the program files of a download (issue 694); mirrors release_files.HIDDEN
-PROTECTED = ("system", "data")         # top-level folders that are the person's: never swapped, moved, counted or removed; mirrors release_files.PROTECTED
+PROTECTED = ("system", "data", "branding")         # top-level folders that are the person's: never swapped, moved, counted or removed; mirrors release_files.PROTECTED
 FIRST = (HIDDEN, "src", "vendor", "python")        # .app is one entry for all program files; src and vendor are the flat layout (a source checkout, an older download)
 LAST = ("clark", "clark.command", "clark.cmd")
 SKIP_DIRS = {"__pycache__"}
@@ -200,13 +200,22 @@ class Seams:
     def process_gone(self, pid):
         if not pid:
             return True
+        try:                                    # a server this helper started and that has exited is a zombie until it is reaped (#476)
+            if os.waitpid(pid, os.WNOHANG)[0] == pid:
+                return True
+        except (ChildProcessError, OSError, AttributeError):     # not this process's child: the usual case for a helper's or an old server's id
+            pass
         try:
             os.kill(pid, 0)
         except ProcessLookupError:
             return True
         except PermissionError:
             return False
-        return False
+        try:                                     # exited but not collected by its parent (Linux): gone for every purpose here
+            state = Path(f"/proc/{int(pid)}/stat").read_text(encoding="utf-8", errors="replace").rsplit(")", 1)[1].split()[0]
+            return state in ("Z", "X")
+        except (OSError, IndexError, ValueError):
+            return False
 
     def helper_running(self, pid, ident, started_at=None):
         """Whether the helper that wrote `pid` is still running: the id is alive AND, when an identity was recorded, it is still
@@ -554,6 +563,21 @@ def table_stats(con):
             top = None
         stats[name] = (count, top)
     return stats
+
+
+def content_digest(con):
+    """A hash of every row of every table (in rowid order), to tell whether two files with the same layout hold the same data."""
+    h = hashlib.sha256()
+    names = [n for (n,) in con.execute("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'").fetchall()]
+    for name in sorted(names):
+        h.update(name.encode("utf-8") + b"\0")
+        try:
+            rows = con.execute("SELECT * FROM " + _ident(name) + " ORDER BY rowid")
+        except sqlite3.OperationalError:         # a table without a rowid
+            rows = con.execute("SELECT * FROM " + _ident(name))
+        for row in rows:
+            h.update(repr(row).encode("utf-8") + b"\n")
+    return h.hexdigest()
 
 
 def check_copy_file(path, schema, db_id):
@@ -908,7 +932,23 @@ class Run:
     def s_health(self):
         self.seams.check_install(self.app)
 
+    def live_digest(self):
+        """content_digest of the live database as it is now (the old server is stopped), or None when it can't be read."""
+        db = self.data / DB_NAME
+        if db.is_symlink() or not db.is_file():
+            return None
+        try:
+            con = sqlite3.connect(f"{db.resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+            try:
+                return content_digest(con)
+            finally:
+                con.close()
+        except (sqlite3.Error, OSError):
+            return None
+
     def s_start_new(self):
+        if "digest_before_start" not in self.m:          # taken once: a run again after the new version wrote must not take it afresh
+            self.save(digest_before_start=self.live_digest())
         self.save(phase="started")
         pid = self.seams.start_server(self.app, self.data, self.m["port"], self.data / "server.log")
         self.save(new_pid=pid, new_ident=self.seams.identity(pid))
@@ -960,13 +1000,16 @@ class Run:
         """Put the database back as it was before the update, if the new version migrated it (#280). It runs after the new server
         was stopped and before the old one is started, because the old version refuses data in a newer layout. A migration is one
         transaction, so stopping the new server in the middle of one leaves either the old layout or the new, and this step
-        works from whichever it finds; that is what makes stopping a slow migration safe. Does nothing when the layout is still
-        the one recorded at the start (no migration ran, or this step already ran), so running it again is harmless. It never
+        works from whichever it finds; that is what makes stopping a slow migration safe. Does nothing when the put-back is already
+        recorded (data_restore restored), or when the layout is still the one recorded at the start (no migration ran), so running it again is harmless. It never
         raises for a refusal: the old files are put back anyway and the reason is kept for the person (data_restore)."""
         before = self.m.get("schema_before")
         db = self.data / DB_NAME
         if not isinstance(before, int):
             return                                       # there was no readable database at the start: nothing to compare with
+        done = self.m.get("data_restore")
+        if isinstance(done, dict) and done.get("status") == "restored":
+            return                                       # #992: the put-back already happened (saved by an earlier run): never again
         if db.is_symlink():                              # never read or replaced through a link: leave it, and offer the Undo
             self.keep_pending(Refused("stopped", "the database is a link"), None, None)
             return
@@ -981,8 +1024,8 @@ class Run:
                 found = None
             self.keep_pending(Refused("unreadable", "the database could not be read after the update"), None, found)
             return
-        if live is None or live["schema"] <= before:
-            return                                       # no migration ran, or the data is already back (or there is no file)
+        if live is None or (live["schema"] <= before and not self.m.get("new_pid")):
+            return                                       # no new version was started, or the data is already back (or no file)
         copy = None
         try:
             if not self.seams.process_gone(self.m.get("new_pid")):
@@ -994,11 +1037,16 @@ class Run:
                     live = meta_state(probe)             # looked at again with the file held (through the probe: it holds the lock)
                     if live is None:
                         raise Refused("unreadable", "the database could not be read with the file held")
-                    if live["schema"] <= before:
+                    if live["schema"] <= before and not self.m.get("new_pid"):
                         return
                     if self.m.get("db_id_before") and live["db_id"] != self.m["db_id_before"]:
                         raise Refused("mismatch", "the data belongs to another database")
-                    copy = self.find_copy(before)
+                    if live["schema"] > before:
+                        copy = self.find_copy(before)                # the new version migrated: its own safety copy
+                    else:                                            # #479: a start that did not migrate may still have written
+                        copy = self.same_layout_copy(probe)
+                        if copy is None:
+                            return                                   # nothing differs from before the update (or no set to compare)
                     stats = table_stats(probe) if probe is not None else None
                     aside, changed = put_back_database(db, copy, before, self.m.get("db_id_before"), stats)
                 finally:
@@ -1014,6 +1062,43 @@ class Run:
             self.keep_pending(Refused("stopped", f"{type(e).__name__}: {e}"), live["schema"] if live else None, copy)
             return
         self.save(data_restore=self.restored(db, before, aside, changed))
+
+    def same_layout_copy(self, probe):
+        """The update's own pre-update copy (the backup set's database) when the live data, still at the old layout, differs in any row
+        from what it held just before the new version was started (digest_before_start): the new version wrote something. None when
+        they hold the same rows (an edit made after the copy was taken is the person's: it stays), when that digest was not taken, or
+        when there is no such copy."""
+        before_start = self.m.get("digest_before_start")
+        if not before_start or content_digest(probe) == before_start:
+            return None
+        folder = self.m.get("backup_dir")
+        copy = Path(folder) / "clark.db" if folder else None
+        if copy is None or copy.is_symlink() or not copy.is_file():
+            return None
+        try:
+            if read_json(Path(folder) / "update.json").get("kind") == "undo":
+                return None                      # an Undo's set holds the NEWER layout (the data before Undo was pressed), not what to go back to
+        except (OSError, ValueError, AttributeError):
+            return None                          # a set whose record can't be read is not trusted as the thing to put back
+        # The copy was taken when the update began; the new version wrote, so the data goes back to it, and whatever the live file
+        # held is kept whole in backups/replaced-<stamp>.
+        check_copy_file(copy, self.m.get("schema_before"), self.m.get("db_id_before"))
+        if self.holds_the_rows_of(probe, copy):
+            return None                          # #992: an earlier run already put it back (stopped before it was recorded): never twice
+        return copy
+
+    def holds_the_rows_of(self, probe, copy):
+        """True when the live data (through `probe`) has exactly the rows of `copy`. A copy that can't be read is not 'the same'."""
+        try:
+            other = sqlite3.connect(f"{Path(copy).resolve().as_uri()}?mode=ro", uri=True, timeout=5)
+        except (sqlite3.Error, OSError):
+            return False
+        try:
+            return content_digest(other) == content_digest(probe)
+        except sqlite3.Error:
+            return False
+        finally:
+            other.close()
 
     def find_copy(self, before):
         """The safety copy the new version's migration took: the newest `migrate` copy made since this update began that passes

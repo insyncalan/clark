@@ -3,7 +3,7 @@
 page.html and page-view.html are built by dev/tools/build_page.py and are NOT committed (#495): CI, dev/run_tests.py and
 dev/tools/package.py build them, and a source checkout builds them (ensure_built below) the first time it needs them. The
 download holds them already built and has no dev/ folder, so a download never calls the bundler and installs nothing. It carries the demo brand's
-tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in system/branding/ (git ignores it),
+tokens in <style id="brand-demo">. If the user has a brand of their own, a tokens.css in branding/ (git ignores it),
 its text goes in as a second <style id="brand-local"> after the demo one, so the same token names take the user's values. The
 server hashes the exact bytes it sends, so the policy covers both blocks (#33). A user's own brand is a client's, so the
 top bar's clark icon (#73) is hidden by default under it: the block starts with --logo-icon: none, which the brand's own
@@ -42,17 +42,17 @@ HIDDEN_CODE = ".app"              # a download keeps its program files in this f
 
 
 def branding_folder(root):
-    """The person's own branding folder for a code root: system/branding in the clark folder. In a download the code root is
+    """The person's own branding folder for a code root: branding in the clark folder. In a download the code root is
     the hidden .app folder, so the clark folder is its parent; a source checkout is never named .app and is its own."""
     root = Path(root)
-    return (root.parent if root.name == HIDDEN_CODE else root) / "system" / "branding"
+    return (root.parent if root.name == HIDDEN_CODE else root) / "branding"
 
 
 BRANDING = branding_folder(ROOT)
 LOCAL_TOKENS = ("tokens.css", "design-system/tokens.css")     # the first that exists
 DEMO_ID = "brand-demo"            # the named hook: the local brand is layered after the element with this id
 PICTURE_DIR = "assets"            # beside the user's tokens.css
-PICTURES = {"cover.png": "image/png", "cover.jpg": "image/jpeg", "cover.jpeg": "image/jpeg", "cover.webp": "image/webp"}
+PICTURES = {"logo.png": "image/png", "cover.png": "image/png", "cover.jpg": "image/jpeg", "cover.jpeg": "image/jpeg", "cover.webp": "image/webp"}
 PICTURE_MAX_BYTES = 5 * 1024 * 1024
 NO_BRAND = Path(os.devnull)       # #944: a "folder" with no tokens.css, so page_html(branding=NO_BRAND) has no brand block (a project on Generic)
 CLIENT_BRAND = ":root { --logo-icon: none; }\n"      # before the user's tokens, so theirs win
@@ -319,13 +319,14 @@ def brand_picture_of(name, brand_id=None):
     if brand_id is None:
         return brand_picture(name)
     from clark import brands
-    folder = brands.folder(BRANDING.parent.parent, brand_id)
+    folder = brands.folder(BRANDING.parent, brand_id)
     return None if folder is brands.GENERIC else brand_picture(name, folder)
 
 
-def page_html(branding=None, view=False):
+def page_html(branding=None, view=False, brand_id=None):
     """The page, with the user's own brand tokens layered over the demo ones when they exist. view=True gives the published
-    page (page-view.html) in place of the served one."""
+    page (page-view.html) in place of the served one. item 1154: `brand_id` is the installed brand's id (None: the one brand folder);
+    the served page gets --image-logo from that brand's assets/logo.png when it has one, and the published page never does."""
     ensure_built()
     html = (VIEW_PAGE if view else PAGE).read_text(encoding="utf-8")
     if not view:
@@ -333,8 +334,42 @@ def page_html(branding=None, view=False):
         if platform.container_mode():   # item 427: the page learns it is in the container; the published page never says so
             html = html.replace("<html", '<html data-container="1"', 1)
     css = local_tokens(branding)
+    logo = None if view or css is None or brand_picture("logo.png", branding) is None else logo_url(brand_id)
+    return layer_brand(html, css, logo)
+
+
+# Row 1023: the brand's page background picture, on every page of the app and of the published file. It is drawn from the
+# --image-cover the brand already sets (the report band uses the same one: the file holds the picture once), fixed behind the
+# page below the top bar over the right 60%, faded in from the left (the prototype's body::before, system/prototype/app.css:634).
+# These rules go in the brand block ONLY when the brand sets a cover picture, so a page with no own look (or --image-cover: none)
+# is byte for byte what it was. The picture is washed to a faint tint (opacity) so text over it keeps 4.5:1 in light and dark
+# (tests/test_brand_backdrop.py measures it from the drawn pixels). Paper (print, PDF) gets none; reduced motion no fade-in.
+BACKDROP_CSS = """body::before { content: ""; position: fixed; inset: var(--topbar) 0 0 40%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .14; transform: scale(1.03); }
+@keyframes bg-in { from { opacity: 0; } }
+@media (prefers-reduced-motion: no-preference) { :root:not([data-motion="reduce"]) body::before { animation: bg-in var(--dur-state) var(--ease-enter) both; } }
+@media print { body::before { display: none; } }
+"""
+HAS_PICTURE = re.compile(r"--image-cover\s*:\s*(?!(?:none|inherit|initial|unset|revert)\b)[^;}\s]", re.I)
+
+
+# item 1154: the room the editor's report band keeps free at its right for the logo box (192 px wide, 36 px from the edge), so a long
+# title or cover line wraps before the logo; set only with a logo (the edit.css default is 0px, so no logo leaves the band as it was).
+COVER_LOGO_ROOM = "calc(var(--space-8) * 3 + var(--space-6) + var(--space-1))"
+
+
+def logo_url(brand_id=None):
+    """The address the served page draws the brand's logo from (item 1154): the same route as the cover picture."""
+    return f'url("/assets/{brand_id}/logo.png")' if brand_id else 'url("/assets/logo.png")'
+
+
+def layer_brand(html, css, logo=None):
+    """`html` with the person's brand tokens `css` (comment-stripped text, or None) layered after the demo block. `logo` (a
+    CSS url(), or None) sets --image-logo before the brand's own text, so a brand that names its own logo picture wins."""
     if css is None:
         return html
     css = escape_style(css)
+    if logo:
+        css = f":root {{ --image-logo: {logo}; --cover-logo-room: {COVER_LOGO_ROOM}; }}\n{css}"
+    extra = BACKDROP_CSS if HAS_PICTURE.search(css) else ""
     i = after_demo_block(html)
-    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n</style>' + html[i:]
+    return html[:i] + f'\n<style id="brand-local">\n{CLIENT_BRAND}{css}\n{extra}</style>' + html[i:]

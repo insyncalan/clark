@@ -68,7 +68,7 @@ To look around with made-up projects first, open Terminal in the folder and type
 
 ## The clark folder
 
-The download unzips to one folder called `clark`. Its program files are inside a hidden folder called `.app`, so what you see is only what you use: `README.md`, `START-HERE.md`, `clark.command`, `clark-release.json` and `docker`. If you add your own logo or colours, they go in a folder called `system/branding`, which clark never changes. If you already have a folder called `clark`, rename or move it before you unzip a newer download, so the two do not clash. Your projects are not in that folder. In clark 1.0, updating from inside clark is switched off, so install a newer version by hand: close clark, rename the old folder, unzip the new download and double-click `clark.command`. `START-HERE.md` has the full steps.
+The download unzips to one folder called `clark`. Its program files are inside a hidden folder called `.app`, so what you see is only what you use: `README.md`, `START-HERE.md`, `clark.command`, `clark-release.json` and `docker`. If you add your own logo or colours, they go in a folder called `branding`, which clark never changes. The first time clark 1.0.6 starts, it copies a folder called `system/branding` from an older clark into `branding`, if `branding` has nothing in it yet; the old folder is left as it is. If you already have a folder called `clark`, rename or move it before you unzip a newer download, so the two do not clash. Your projects are not in that folder. In clark 1.0, updating from inside clark is switched off, so install a newer version by hand: close clark, rename the old folder, unzip the new download and double-click `clark.command`. `START-HERE.md` has the full steps.
 
 ## Where your data lives
 

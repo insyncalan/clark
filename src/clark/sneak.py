@@ -20,6 +20,7 @@ from datetime import date, datetime, timedelta
 
 from clark.changes import (ACHIEVED_DATE, ARCHIVED_MILESTONE, ARCHIVED_USE_CASE, NO_PROJECT, UC_COMMITMENTS, UC_COMMITMENT_WORDS,
                            UC_HEADLINE_WORDS, Refused, _checked_use_case_changes)
+from clark import timefmt
 from clark.edit_ai import unseen
 
 TABLES = (("actions", "action"), ("raid", None), ("decisions", "decision"))
@@ -146,8 +147,7 @@ def phrase_of(words, rx, skip=None):
 
 
 def _dmy(iso):
-    m = re.fullmatch(r"(\d{4})-(\d\d)-(\d\d)", iso or "")
-    return f"{m.group(3)}-{m.group(2)}-{m.group(1)}" if m else (iso or "—")
+    return timefmt.day_text(iso) if iso else "—"
 
 
 def _statuses_for(words, kind):
@@ -386,7 +386,7 @@ def read_milestone(data, row, words, now):
     return r
 
 
-COMMIT_WORDS = (("Planned 2027", re.compile(r"\bplanned\s+(?:for\s+)?2027\b", re.I)), ("Candidate", re.compile(r"\bcandidate\b", re.I)),
+COMMIT_WORDS = (("Planned 2027", re.compile(r"\bplanned\s+(?:for\s+)?2027\b", re.I)), ("Planned 2026", re.compile(r"\bplanned\s+(?:for\s+)?2026\b(?![-/.]\d)", re.I)),
                 ("Committed", re.compile(r"\bcommitted\b", re.I)))
 NO_COMMIT = re.compile(r"\bno\s+(?:flag|commitment)\b|\b(?:clear|remove|drop|unset)\s+(?:the\s+)?(?:flag|commitment)\b", re.I)
 HEADLINE_QUOTED = re.compile(r"\bheadline\b\s*(?:\b(?:is|to|as)\b|[:=])?\s*(?:\"([^\"]*)\"|“([^”]*)”)", re.I)

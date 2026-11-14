@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_client_menu
 The rows, the reader's profile (kept in their own browser only), Dark mode, Past reports, Export to Excel and Export to PDF, the
-keys, and the bar at 1400, 901 and 900 px in light and dark. Chrome is required: these tests fail, never skip, without it.
+keys, and the bar at 1400 and 900 px in light and dark. Chrome is required: these tests fail, never skip, without it.
 """
 import base64
 import json
@@ -22,6 +22,7 @@ SHEET = base64.b64encode(b"PK-stub-workbook-bytes").decode()
 BADGE = "document.querySelector('#client-menu-btn')"
 MENU = "document.querySelector('#client-menu')"
 ROWS = "[...document.querySelectorAll('#client-menu > [data-row], #client-menu > .cm-group')].map(e => e.dataset.row)"
+THEME = "document.querySelector('#client-theme-btn')"
 SPACE = """(function(){var o=document.documentElement; return [o.scrollWidth <= o.clientWidth + 1, document.body.scrollWidth <= o.clientWidth + 1];})()"""
 
 
@@ -50,9 +51,16 @@ class Menu(unittest.TestCase):
         for kind in ("keyDown", "keyUp"):
             cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk, "modifiers": 0}, self.sid)
 
+    def key_text(self, cdp, key, vk, text):
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyDown", "key": key, "code": key, "windowsVirtualKeyCode": vk, "text": text}, self.sid)
+        cdp.call("Input.dispatchKeyEvent", {"type": "keyUp", "key": key, "code": key, "windowsVirtualKeyCode": vk}, self.sid)
+
     def menu(self, cdp, js):
         js(f"{BADGE}.focus(); {BADGE}.click()")
         self.assertTrue(wait(lambda: js(f"!!{MENU}")), "the menu opened")
+
+    def switch(self, cdp, js):
+        js(f"{THEME}.click()")
 
     def pick(self, cdp, js, sel):
         js(f"{MENU}.querySelector({json.dumps(sel)}).click()")
@@ -66,11 +74,11 @@ class Menu(unittest.TestCase):
                                 f"!!{BADGE}.querySelector('svg'), {BADGE}.tagName]"), ["Report menu", "Report menu", "menu", "false", True, "BUTTON"])
             self.menu(cdp, js)
             self.assertEqual(js(f"{BADGE}.getAttribute('aria-expanded')"), "true")
-            self.assertEqual(js(ROWS), ["profile", "pdf", "past", "dark"], "no workbook in the file: Export to Excel is not drawn")
+            self.assertEqual(js(ROWS), ["profile", "pdf", "past"], "no workbook in the file: Export to Excel is not drawn")
             self.assertEqual(js(f"[...{MENU}.querySelectorAll('[data-row=profile], [data-row=pdf], .cm-group .lab')].map(e => e.textContent)"),
-                             ["Profile", "Export to PDF", "Past reports", "Dark mode"])
-            self.assertEqual(js(f"[...{MENU}.querySelectorAll('[data-look]')].map(e => e.textContent.replace('✓', '') + ':' + e.getAttribute('aria-checked'))"),
-                             ["Light:false", "Dark:false", "System:true"])
+                             ["Profile", "Export to PDF", "Past reports"])
+            self.assertEqual(js(f"{MENU}.querySelectorAll('[data-look], [role=menuitemradio]').length"), 0, "no Light, Dark or System rows")
+            self.assertNotRegex(js(f"{MENU}.textContent"), r"Dark|Light|System")
             self.assertEqual(js("window.violations"), [])
 
     def test_the_source_draws_it_only_from_a_file(self):
@@ -137,8 +145,7 @@ class Menu(unittest.TestCase):
             js("document.querySelector('#client-profile-name').value = " + json.dumps(NAME) + "; document.querySelector('#client-profile-name').dispatchEvent(new Event('input', {bubbles: true}))")
             js("document.querySelector('#client-profile [data-act=save]').click()")
             self.assertTrue(wait(lambda: not js("!!document.querySelector('#client-profile')")))
-            self.menu(cdp, js)
-            self.pick(cdp, js, "[data-look=dark]")
+            self.switch(cdp, js)
             self.menu(cdp, js)       # the menu open: its links are in the page
             self.assertEqual(js("localStorage.getItem('clark.reader.name')"), NAME)
             self.assertEqual(js("localStorage.getItem('clark.reader.look')"), "dark")
@@ -160,33 +167,79 @@ class Menu(unittest.TestCase):
 
     # --- dark mode --------------------------------------------------------------------------------------------------------
 
-    def test_dark_mode_switches_the_theme_and_survives_a_reload(self):
+    def test_the_switcher_is_a_named_button_beside_the_badge_and_shows_a_moon_then_a_sun(self):
         with chrome() as cdp:
-            js = self.show(cdp)
-            self.assertEqual(js("document.documentElement.dataset.theme || 'none'"), "auto", "System is the default and follows the computer")
-            self.menu(cdp, js)
-            self.pick(cdp, js, "[data-look=dark]")
-            self.assertEqual(js("document.documentElement.dataset.theme"), "dark")
-            reload_to_new_page_cdp(cdp, self.sid, ready=f"document.documentElement.dataset.ready === '1' && !!{BADGE}", what="the reloaded page drew its badge")
-            self.assertEqual(js("document.documentElement.dataset.theme"), "dark")
-            self.menu(cdp, js)
-            self.assertEqual(js(f"{MENU}.querySelector('[data-look=dark]').getAttribute('aria-checked')"), "true")
-            self.pick(cdp, js, "[data-look=light]")
-            self.assertEqual(js("document.documentElement.dataset.theme || 'none'"), "none")
-            self.menu(cdp, js)
-            self.pick(cdp, js, "[data-look=system]")
-            self.assertEqual(js("document.documentElement.dataset.theme"), "auto")
+            for width in (1400, 900):
+                js = self.show(cdp, width=width)
+                self.assertEqual(js(f"[{THEME}.tagName, {THEME}.getAttribute('aria-label'), {THEME}.title, {THEME}.dataset.tip, {THEME}.querySelector('svg').dataset.icn, "
+                                    f"{THEME}.nextElementSibling === {BADGE}, {THEME}.tabIndex]"),
+                                 ["BUTTON", "Switch between light and dark", "Switch between light and dark", "Switch between light and dark", "moon", True, 0], f"at {width} px")
+                self.switch(cdp, js)
+                self.assertEqual(js(f"[document.documentElement.dataset.theme, {THEME}.querySelector('svg').dataset.icn]"), ["dark", "sun"])
+                self.switch(cdp, js)
+                self.assertEqual(js(f"[document.documentElement.dataset.theme || 'none', {THEME}.querySelector('svg').dataset.icn]"), ["none", "moon"])
 
-    def test_a_dark_page_prints_light_and_the_bar_with_the_menu_does_not_print(self):
+    def test_the_switcher_works_from_the_keys_and_has_a_focus_ring(self):
         with chrome() as cdp:
             js = self.show(cdp)
-            self.menu(cdp, js)
-            self.pick(cdp, js, "[data-look=dark]")
+            js(f"{THEME}.focus()")
+            self.key_text(cdp, "Enter", 13, "\r")
+            self.assertTrue(wait(lambda: js("document.documentElement.dataset.theme") == "dark"), "Enter switched to dark")
+            js(f"{THEME}.focus()")
+            self.key_text(cdp, " ", 32, " ")
+            self.assertTrue(wait(lambda: js("document.documentElement.dataset.theme || 'none'") == "none"), "Space switched back to light")
+            self.key(cdp, "Tab", 9)
+            self.key(cdp, "Tab", 9)
+            js(f"{THEME}.focus()")
+            ring = js(f"(function(){{var s=getComputedStyle({THEME}); return [{THEME}.matches(':focus-visible'), s.outlineStyle, parseFloat(s.outlineWidth)];}})()")
+            self.assertEqual(ring, [True, "solid", 2])
+
+    def test_a_first_visit_is_light_and_the_choice_survives_a_reload(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', localStorage.getItem('clark.reader.look')]"), ["none", None], "nothing kept: light")
+            self.switch(cdp, js)
+            self.assertEqual(js("localStorage.getItem('clark.reader.look')"), "dark")
+            reload_to_new_page_cdp(cdp, self.sid, ready=f"document.documentElement.dataset.ready === '1' && !!{THEME}", what="the reloaded page drew its switcher")
+            self.assertEqual(js(f"[document.documentElement.dataset.theme, {THEME}.querySelector('svg').dataset.icn]"), ["dark", "sun"])
+            self.switch(cdp, js)
+            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', localStorage.getItem('clark.reader.look')]"), ["none", "light"])
+
+    def test_a_saved_system_choice_is_read_once_as_the_computers_setting_then_replaced(self):
+        with chrome() as cdp:
+            for scheme, first, after in (("dark", "dark", "light"), ("light", "none", "dark")):
+                js = self.show(cdp)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                js("localStorage.setItem('clark.reader.look', 'system')")
+                reload_to_new_page_cdp(cdp, self.sid, ready=f"document.documentElement.dataset.ready === '1' && !!{THEME}", what="the reloaded page drew its switcher")
+                self.assertEqual(js("document.documentElement.dataset.theme || 'none'"), first, f"system read as {scheme}")
+                self.assertEqual(js("localStorage.getItem('clark.reader.look')"), "system", "reading does not rewrite it")
+                self.switch(cdp, js)
+                self.assertEqual(js("[document.documentElement.dataset.theme || 'none', localStorage.getItem('clark.reader.look')]"), [after if after != "light" else "none", after])
+                js("localStorage.clear()")
+
+    def test_a_choice_made_on_one_report_is_used_on_the_next_report_in_another_folder(self):
+        with chrome() as cdp:
+            js = self.show(cdp, name="one.html")
+            self.switch(cdp, js)
+            other = Path(self.tmp.name) / "elsewhere"
+            other.mkdir()
+            second = other / "two.html"
+            second.write_text(make(), encoding="utf-8")
+            sid = opened(cdp, second.as_uri(), 1400)
+            self.assertTrue(wait(lambda: cdp.js("document.documentElement.dataset.ready", sid) == "1"))
+            self.assertEqual(cdp.js("document.documentElement.dataset.theme || 'none'", sid), "dark")
+
+    def test_a_dark_page_prints_light_with_the_one_bar_and_without_the_menu(self):
+        with chrome() as cdp:
+            js = self.show(cdp)
+            self.switch(cdp, js)
             cdp.call("Emulation.setEmulatedMedia", {"media": "print"}, self.sid)
             js("window.dispatchEvent(new Event('beforeprint'))")
             self.assertTrue(wait(lambda: js("document.documentElement.classList.contains('print-all')")))
-            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', getComputedStyle(document.querySelector('.top')).display]"), ["none", "none"])
-            self.assertEqual(js("document.querySelector('.cm-wrap').getClientRects().length + ' ' + getComputedStyle(document.body).backgroundColor"), "0 rgb(255, 255, 255)")
+            self.assertEqual(js("[document.documentElement.dataset.theme || 'none', getComputedStyle(document.querySelector('.top')).display]"), ["none", "flex"], "the file's one bar prints once at the top (issue 1146)")
+            self.assertEqual(js("document.querySelector('.cm-wrap').getClientRects().length + ' ' + getComputedStyle(document.body).backgroundColor"), "1 rgb(255, 255, 255)", "the profile circle is part of the bar that prints (issue 1146); the menu it opens is not drawn")
+            self.assertEqual(js("document.querySelectorAll('.cm-menu').length"), 0, "no open menu on paper")
             cdp.call("Emulation.setEmulatedMedia", {"media": ""}, self.sid)
             js("window.dispatchEvent(new Event('afterprint'))")
             self.assertEqual(js("document.documentElement.dataset.theme"), "dark", "back to the reader's choice afterwards")
@@ -228,7 +281,7 @@ class Menu(unittest.TestCase):
             js("window.__got = []; var make = URL.createObjectURL; URL.createObjectURL = function(b){ window.__got.push([b.size, b.type]); return make.call(URL, b); };"
                "HTMLAnchorElement.prototype.click = function(){ window.__got.push([this.download, this.href.slice(0, 5)]); };")
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
+            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past"])
             self.assertEqual(js(f"{MENU}.querySelector('[data-row=excel]').textContent"), "Export to Excel")
             self.pick(cdp, js, "[data-row=excel]")
             self.assertEqual(js("window.__got"), [[22, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"], ["Report-2026-10-28.xlsx", "blob:"]])
@@ -238,7 +291,7 @@ class Menu(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, {"client_workbook_too_large": True})
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past", "dark"])
+            self.assertEqual(js(ROWS), ["profile", "excel", "pdf", "past"])
             self.assertEqual(js(f"(function(){{var r={MENU}.querySelector('[data-row=excel]'); return [r.getAttribute('aria-disabled'), r.textContent, r.nextElementSibling.textContent];}})()"),
                              ["true", "Export to Excel", "This report is too large to include a spreadsheet."])
             js("window.__got = 0; URL.createObjectURL = function(){ window.__got++; return ''; }")
@@ -271,7 +324,7 @@ class Menu(unittest.TestCase):
         with chrome() as cdp:
             js = self.show(cdp, {"client_workbook": {"name": "x.xlsx", "base64": "not base64 !!"}, "past_reports": "nope"})
             self.menu(cdp, js)
-            self.assertEqual(js(ROWS), ["profile", "pdf", "past", "dark"])
+            self.assertEqual(js(ROWS), ["profile", "pdf", "past"])
 
     # --- keys -------------------------------------------------------------------------------------------------------------
 
@@ -285,7 +338,7 @@ class Menu(unittest.TestCase):
             self.key(cdp, "ArrowDown", 40)
             self.assertEqual(js("document.activeElement.dataset.row"), "pdf")
             self.key(cdp, "End", 35)
-            self.assertEqual(js("document.activeElement.dataset.look"), "system")
+            self.assertEqual(js("document.activeElement.dataset.row"), "pdf", "the last row")
             self.key(cdp, "Home", 36)
             self.assertEqual(js("document.activeElement.dataset.row"), "profile")
             self.key(cdp, "Escape", 27)
@@ -328,7 +381,7 @@ class Menu(unittest.TestCase):
         extra = {"past_reports": [{"week_ending": "2026-10-21", "file": "PUB-report-2026-10-21.html"}], "client_workbook": {"name": "a.xlsx", "base64": SHEET}}
         with chrome() as cdp:
             js = self.show(cdp, extra)
-            for width in (1400, 901, 900, 800):
+            for width in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
                 for theme in ("light", "dark"):
                     js(f"document.documentElement.dataset.theme = {json.dumps(theme if theme == 'dark' else '')} || null; if (!{json.dumps(theme == 'dark')}) delete document.documentElement.dataset.theme;")

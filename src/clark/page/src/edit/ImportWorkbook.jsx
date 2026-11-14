@@ -3,7 +3,7 @@
 // /api/excel-import) reads the workbook, compares it with this project by ID and applies the ticked changes as ONE step, which Undo
 // this import takes back. The workbook is sent once (#655: "sheets" lists what it has and the server keeps it; the check then names only the
 // ticked sheets, the only ones the server reads, compares or can archive in). `api`, `read` and `tpl` (Get the template: GET /api/export?template=1) are seams for the tests.
-import { useRef, useState } from "preact/hooks";
+import { useEffect, useRef, useState } from "preact/hooks";
 import { Dialog } from "./Dialog.jsx";
 import { Icon } from "../components/Icon.jsx";
 import { templateRequest, saveBlob } from "./publishApi.js";
@@ -18,6 +18,8 @@ const SHOWN = 300;                                       // the changes listed w
 const REAL = { sheets: listSheets, check: checkSheets, apply: applyWorkbook, undo: undoWorkbook };
 const readBytes = async (file) => new Uint8Array(await file.arrayBuffer());
 
+// The sheets ticked last time are kept in this browser only (#1106): a convenience, so a private window just starts with all ticked.
+
 export function ImportWorkbook({ project, projectName, onClose, onDone, opener, api = REAL, read = readBytes, tpl = templateRequest }) {
   const [step, setStep] = useState({ at: "pick" });           // pick | checking | sheets | plan | applying | done
   const [problem, setProblem] = useState("");
@@ -25,6 +27,13 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   const [ticks, setTicks] = useState({});
   const [ticked, setTicked] = useState({});                  // the sheets to import, by table
   const input = useRef(null);
+  const busy = useRef(false);                            // Import or Undo is already on its way: a second click (a double click) is ignored
+  // Choose a file is off while the file is read, which takes the focus away; when the box is back on its first step, give it back.
+  useEffect(() => {
+    if (step.at !== "pick") return;
+    const b = document.querySelector("#import-box #import-choose");
+    if (b && !document.querySelector("#import-box").contains(document.activeElement)) b.focus();
+  }, [step.at]);
 
   async function chosen(e) {
     const file = e.currentTarget.files && e.currentTarget.files[0];
@@ -38,19 +47,18 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
     const r = await api.sheets(project, file.name, data);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
     const sheets = r.body.sheets || [];
-    if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"]); return; }   // none of the five: the check says so
-    const all = {};
-    for (const s of sheets) all[s.table] = true;
-    setTicked(all);
+    if (!sheets.length) { await read_(r.body.file, ["actions", "raid", "decisions", "milestones", "use_cases"], false); return; }   // none of the five: the check says so
+    setTicked(L.startSheets(sheets, L.recalledSheets()));
     setStep({ at: "sheets", file: file.name, key: r.body.file, sheets });
   }
 
   // Check the import of the ticked sheets of the workbook the server is keeping.
-  async function read_(key, tables) {
+  async function read_(key, tables, keep = true) {
     setProblem("");
     setStep({ at: "checking", file: key });
     const r = await api.check(project, key, tables);
     if (!r.ok) { setStep({ at: "pick" }); setProblem(r.words); return; }
+    if (keep) L.rememberSheets(tables);                  // only a check that went through keeps the choice
     setTicks(L.startTicks(r.body.items));
     setStep({ at: "plan", plan: r.body });
   }
@@ -66,25 +74,34 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   async function doImport() {
     const p = step.plan;
     const accept = L.acceptedNumbers(p.items, ticks);
-    if (!accept.length) return;
-    setProblem("");
-    setStep({ at: "applying", plan: p });
-    const r = await api.apply(project, p.plan, accept, p.unrecorded);
-    if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
-    onDone(r.body);
-    setStep({ at: "done", message: r.body.message, applyId: r.body.apply_id });
+    if (!accept.length || busy.current) return;
+    busy.current = true;
+    try {
+      setProblem("");
+      setStep({ at: "applying", plan: p });
+      const r = await api.apply(project, p.plan, accept, p.unrecorded);
+      if (!r.ok) { setStep({ at: "plan", plan: p }); setProblem(r.words); return; }
+      onDone(r.body);
+      setStep({ at: "done", message: r.body.message, applyId: r.body.apply_id });
+    } finally { busy.current = false; }
   }
 
   async function undo() {
     const id = step.applyId;
-    setProblem("");
-    const r = await api.undo(project, id);
-    if (!r.ok) { setProblem(r.words); return; }
-    onDone(r.body);
-    setStep({ at: "undone", message: T.undone });
+    if (busy.current) return;
+    busy.current = true;
+    try {
+      setProblem("");
+      const r = await api.undo(project, id);
+      if (!r.ok) { setProblem(r.words); return; }
+      onDone(r.body);
+      setStep({ at: "undone", message: (r.body && r.body.message) || T.undone });
+    } finally { busy.current = false; }
   }
 
-  const cancel = <button type="button" class="btn quiet" data-close onClick={onClose}>{T.cancel}</button>;
+  const applying = step.at === "applying";               // the import carries on whatever is clicked, so nothing may close the box and lose the result and Undo
+  const close = () => { if (!applying) onClose(); };
+  const cancel = <button type="button" class="btn quiet" data-close aria-disabled={applying ? "true" : undefined} onClick={close}>{T.cancel}</button>;
   const fileInput = <input ref={input} type="file" id="import-file" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden onChange={chosen} />;
 
   if (step.at === "pick" || step.at === "checking") {
@@ -107,7 +124,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
   }
   if (step.at === "done" || step.at === "undone") {
     return (
-      <Dialog key="done" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
+      <Dialog key={step.at} id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} first="#import-close"
         foot={<>{step.at === "done" && step.applyId ? <button type="button" class="btn quiet" id="import-undo" onClick={undo}>{T.undo}</button> : null}<button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button></>}>
         <p role="status" id="import-result">{step.message}</p>
         <p class="error" role="alert" id="import-problem">{problem}</p>
@@ -130,12 +147,13 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
       </Dialog>
     );
   }
+  const hidden = items.slice(SHOWN), hiddenOn = L.acceptedNumbers(hidden, ticks).length;
   const empty = p.already_imported || !items.length;
   const setAll = (on) => { const t = {}; for (const i of items) t[i.n] = on && !!i.default && !i.problem; setTicks(t); };
   const isOn = (i) => !!(Object.prototype.hasOwnProperty.call(ticks, i.n) ? ticks[i.n] : i.default) && !i.problem;
   return (
-    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={onClose} wide first={empty ? "#import-close" : "#import-go"}
-      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" onClick={onClose}>{T.close}</button>
+    <Dialog key="plan" id="import-box" opener={opener} title={T.checkTitle} onClose={close} wide first={empty ? "#import-close" : "#import-go"}
+      foot={<>{cancel}{empty ? <button type="button" class="btn pri" id="import-close" aria-disabled={applying ? "true" : undefined} onClick={close}>{T.close}</button>
         : <button type="button" class="btn pri" id="import-go" disabled={!count || step.at === "applying"} onClick={doImport}>{p.unrecorded ? T.anyway : `Import ${count} ${count === 1 ? "change" : "changes"}`}</button>}</>}>
       <p class="muted">{p.file} into {projectName}</p>
       <div class="stat" id="import-summary">{L.countsRow(p).map(([n, w]) => <span key={w}><b>{n}</b> {w}</span>)}</div>
@@ -163,7 +181,7 @@ export function ImportWorkbook({ project, projectName, onClose, onDone, opener, 
           </ul>
         </>
       )}
-      {items.length > SHOWN ? <p class="muted">and {items.length - SHOWN} more, taken as Accept all is for the rest: new and changed rows with no problem.</p> : null}
+      {items.length > SHOWN ? <p class="muted" id="import-more">and {hidden.length} more, of which {hiddenOn} will be imported (Accept all takes new and changed rows with no problem; Reject all takes none).</p> : null}
       <p class="error" role="alert" id="import-problem">{problem}</p>
     </Dialog>
   );

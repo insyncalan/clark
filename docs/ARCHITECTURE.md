@@ -19,7 +19,7 @@ Proposal by a teammate (technical architect), 27-10-2026. For the project lead (
 | **The page** | Every screen, the editor and the published page, built as one bundle from creaite's front-end stack (see "The page: creaite's front-end stack" below) | Preact and signals, Tiptap, the pinned esbuild and the dashboard's components (`system/templates/dashboard/src/`) |
 | **Work items view** | The list plus the peek panel to view and change one item, and its Activity tab | The dashboard's `Peek.jsx`, `Toast.jsx`, `core/instant.js`, `sneak.js`, and `sneak_peek.py` on the server |
 | **Milestones** | Plan, list, and the state worked out from the dates (Forecast, On track, At risk, Slipped, Overdue, Achieved). Imported and exported on their own Excel sheet. Suggest milestones was removed ("remove suggested milestones") | `tracker.py` milestone rules and state, `forecast.py` |
-| **Use case summary** | A report section with its own table: reference, title, status (On track, Flag, High risk, Done), headline, standing and the commitment flag (Candidate, Committed, Planned 2027, or none; #709), plus the work items linked to each use case | New in clark. The data model is in `docs/handoff/data-model.md` |
+| **Use case summary** | A report section with its own table: reference, title, status (On track, Flag, High risk, Done), headline, standing and the commitment flag (Planned 2026, Committed, Planned 2027, or none; #709), plus the work items linked to each use case | New in clark. The data model is in `docs/handoff/data-model.md` |
 | **Excel in and out** | Export a workbook with a sheet each for actions, risks and issues, decisions, milestones and use cases. Importing it stages the differences for the user to accept | `excel_sync.py`, with the vendored openpyxl (licence kept) |
 | **Word in and out** | Fill the report templates. Read a Word file's text for an import | `docx_tools.py`, the Word templates (`weekly-report`, `client-report`) |
 | **Reports and publishing** | **One report per project,** with no separate internal and external version: what the editor chooses to show is what is published. Layouts: boxed (the standard), spine and cover. The published page is the editor's own markup in a view-only mode, in one self-contained file that loads nothing from the internet. Word is optional, alongside it | `creaite_doc.py`, `report_doc.py`, `export_page.py`, `build_dashboard.py` |
@@ -113,10 +113,10 @@ What this means for the architecture, so nothing built now blocks it:
 - `src/`: clark's code. `tests/`: its tests. Demo data comes from a script, never a copy of real data.
 - **User data lives outside the repo.** `clark.db` is in the system's app data folder on the machine's own disk (`~/Library/Application Support/clark`, `%LOCALAPPDATA%\clark`), never in a OneDrive folder. Reports, exports and daily backups may go to OneDrive. Nothing a user makes is committed. See `docs/handoff/portability-and-sharing.md`.
 - `src/.../brand/tokens.css` and the demo logo: the fictional demo brand, committed. This is the default look.
-- `system/branding/` (git ignores it): a user's own brand. If present, its `tokens.css` and logo are layered over the demo set. This applies to the app, the dashboard and the Word templates' colours. The token names are the same in both, so a brand is a file swap, not a code change.
-- A test fails if anything under `system/branding/` is ever tracked.
+- `branding/` (git ignores it): a user's own brand. If present, its `tokens.css` and logo are layered over the demo set. This applies to the app, the dashboard and the Word templates' colours. The token names are the same in both, so a brand is a file swap, not a code change.
+- A test fails if anything under `branding/` is ever tracked.
 - The brand's picture (#98): the page's own CSS names it (`--image-cover: url("assets/cover.jpg")`), and the local server answers `GET /assets/cover.png`, `.jpg`, `.jpeg` and `.webp` only, from the `assets` folder beside the user's `tokens.css`: no token (an image can't send one), the Host, Origin and Sec-Fetch-Site checked, a fixed list of names looked up and never joined onto a path, a link out of the brand folder not followed, and a 404 in plain words when there is none. The policy's `img-src` allows only that route, `data:` and `blob:`. The published file takes none of it: a brand that names a picture by address is refused at publish, as before. The brand's block is layered after the element with id `brand-demo`, not after one exact string.
-- A second test fails if a published sample contains a name from a deny list. The deny list holds the client's name, so it lives in `system/branding/` too (ignored by git). When the file is absent, as on a fresh checkout, the test is skipped, not failed.
+- A second test fails if a published sample contains a name from a deny list. The deny list holds the client's name, so it lives in `branding/` too (ignored by git). When the file is absent, as on a fresh checkout, the test is skipped, not failed.
 
 ## Design tokens (the project lead's ask)
 
@@ -124,7 +124,7 @@ The design system's token names become the contract. The page reads `--brand-*`,
 
 ## First slice (accepted by the project lead as the basis for milestone 1; she shapes it after the owner has read this note)
 
-Demo data, then the store, then Excel import, then a read-only work items list, then one HTML report published with the demo brand. The two brand tests come with it from day one: nothing under `system/branding/` is tracked, and the local tokens are layered over the demo set. It is small and testable from end to end, and it proves the store, import, publishing and the token layering before any guarded copy (client checks, ask clark) is needed.
+Demo data, then the store, then Excel import, then a read-only work items list, then one HTML report published with the demo brand. The two brand tests come with it from day one: nothing under `branding/` is tracked, and the local tokens are layered over the demo set. It is small and testable from end to end, and it proves the store, import, publishing and the token layering before any guarded copy (client checks, ask clark) is needed.
 
 ## Open (the owner's call; flagged, not decided)
 

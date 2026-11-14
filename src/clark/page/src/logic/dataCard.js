@@ -9,12 +9,25 @@ export const DATA = {
   title: "Data",
   export: "Export workbook",
   import: "Import workbook",
+  wordExport: "Export to Word…",         // row 831: the prototype's own words for its Data card (views.js, Settings)
+  wordImport: "Import from Word…",
   note: "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",
+  layout: "Excel file layout",
+};
+
+// Excel file layout (row 951): a read-only box that says what the exported file holds. It reads nothing and sends nothing.
+export const LAYOUT = {
+  title: "Excel file layout",
+  client: "This file is for you and your team. It holds internal notes, so do not send it to a client.",
+  cover: ["Cover", "The first sheet: the report as the page shows it (Current state, At a glance and the sections), the date it was exported, who exported it, a caution that the file shows the data at that date, and where to send the file back. Changes made on it are ignored."],
+  gantt: ["Gantt", "The lines of the Gantt, one row each. Days and Status are worked out and never read back."],
+  history: ["History", "The changes made to the items. The import leaves this sheet alone."],
+  close: "Close",
 };
 
 export const IMPORT = {
   pickTitle: "Import from Excel",
-  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). A row whose ID exists updates it; a row without an ID adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
+  pickBody: "Sheets called Actions, Risks & Issues, Decisions, Milestones and Use cases can be imported. You choose which after you pick a file (a History sheet from an export is left alone). Every sheet needs an ID column. A row whose ID exists updates it; a row with that column blank adds a new one. You see the changes before anything is saved. If a row breaks a rule, nothing is imported and you are told which rows.",
   sheetsTitle: "What to import",
   sheetsBody: "Tick the sheets to import. Anything you leave unticked is not read and not changed.",
   selectAll: "Select all",
@@ -55,13 +68,13 @@ export const sheetWord = (s) => `${s.name} (${s.rows > SHEET_ROWS_SHOWN ? "more 
 
 // The columns the import reads, per sheet, as the prototype lists them in the first box (tests/test_settings_data_page.py checks them
 // against the export's own layout in excel.py, leaving out the ones that are worked out or never read back).
-export const COLUMNS_INTRO = "Columns, in any order (only the name or title is needed):";
+export const COLUMNS_INTRO = "Columns, in any order (the ID column and the name or title are needed):";
 export const IMPORT_COLUMNS = [
   ["Actions", ["ID", "Description", "Workstream", "Owner", "Priority", "Due", "Status", "Raised", "Latest update", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Risks & Issues", ["ID", "Description", "Type", "Workstream", "Owner", "Response action", "Due", "Impact", "Likelihood", "Status", "Raised", "Client-visible", "Client wording", "Milestone", "Use case", "Labels"]],
   ["Decisions", ["ID", "Decision", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit", "Replaces", "Client-visible", "Client wording", "Use case", "Labels"]],
   ["Milestones", ["ID", "Milestone", "Description", "Workstream", "Agreed", "Forecast", "Status", "Order", "% complete", "Owner", "State", "State reason", "Movement", "Achieved on", "Client-visible", "Client wording", "Internal note"]],
-  ["Use cases", ["ID", "Use case", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible"]],
+  ["Use cases", ["ID", "Reference", "Use case", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible", "Linked milestones"]],
 ];
 
 export const PROJECT = {
@@ -137,7 +150,9 @@ export function countsRow(r) {
 export function sheetLine(r) {
   const of = (tables, kind) => ((r && r.items) || []).filter((i) => tables.includes(i.table) && i.kind === kind).length;
   const part = (name, tables) => `${name}: ${of(tables, "new")} new, ${of(tables, "changed")} updated`;
-  return [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])].join(" · ");
+  const parts = [part("Work items", ["actions", "raid", "decisions"]), part("Milestones", ["milestones"]), part("Use cases", ["use_cases"])];
+  if (of(["gantt_lines"], "new") + of(["gantt_lines"], "changed")) parts.push(part("Gantt", ["gantt_lines"]));
+  return parts.join(" · ");
 }
 
 // The check's reply as the box shows it: the counts in a line, and the numbers each choice sends.
@@ -156,6 +171,20 @@ export function acceptedNumbers(items, ticked) {
 export function startTicks(items) {
   const t = {};
   for (const i of items) t[i.n] = !!i.default;
+  return t;
+}
+
+// The sheets to tick when "What to import" opens (#1106): the ones ticked last time on this computer (`saved`, a list of table names);
+// a remembered sheet the new workbook lacks is simply not there, never ticked or mentioned. With nothing remembered, or none of it in this
+// workbook, every sheet is ticked as before.
+export const SHEETS_KEY = "clark.import.sheets";
+export const recalledSheets = (store = globalThis.localStorage) => { try { return JSON.parse(store.getItem(SHEETS_KEY)); } catch (e) { return null; } };
+export const rememberSheets = (tables, store = globalThis.localStorage) => { try { store.setItem(SHEETS_KEY, JSON.stringify(tables)); } catch (e) { /* only a convenience */ } };
+export function startSheets(sheets, saved) {
+  const mine = Array.isArray(saved) ? saved.filter((n) => typeof n === "string") : [];
+  const any = sheets.some((s) => mine.includes(s.table));
+  const t = {};
+  for (const s of sheets) t[s.table] = any ? mine.includes(s.table) : true;
   return t;
 }
 

@@ -9,23 +9,36 @@ import { signal } from "@preact/signals";
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { data, project, view, openPeek, item as peeked, closePeek } from "../stores/report.js";
 import { itemRows, announce } from "../stores/work.js";
-import { changeCell, changeRecord, say } from "../stores/changes.js";
+import { changeCell, changeNewPerson, changeRecord, say } from "../stores/changes.js";
 import { readDraftEmail, sendEmailSent } from "../api.js";
 import { DraftEmail } from "../components/DraftEmail.jsx";
 import { todayIso } from "../workItems.js";
 import { format } from "../router.js";
 import { MenuPanel, menuMove, menuItemsIn, useFadeOut } from "../components/Menu.jsx";
 import { Icon } from "../components/Icon.jsx";
-import { people, tableOf, canClearDue } from "./itemEdit.js";
+import { actionIcon } from "../menuIcons.js";
+import { people, tableOf, canClearDue, newPersonChange } from "./itemEdit.js";
 import { DuePick } from "./cells/DuePick.jsx";
-import { draftEntry, eyeChange, draftRequest, draftState, NOT_OFFERED, statusList, dueList, ownerList, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
+import { OwnerPick } from "./cells/OwnerPick.jsx";
+import { readPeople } from "./peopleApi.js";
+import { draftEntry, eyeChange, draftRequest, draftState, recipientOf, NOT_OFFERED, statusList, dueList, ownerList, ownerChoices, canAddPerson, duplicateRequest, duplicateWords, rawOf, pickChange, linkFor, VIEW_ONLY } from "../logic/rowMenu.js";
 import { openCard } from "./Board.jsx";
+import { deleteItem } from "./deleteItem.js";
 import { isEditing } from "../logic/editing.js";
 import { workSelection } from "../stores/selection.js";
+import { handing } from "../stores/handover.js";
+
+// The owner link (a person's id) is read here, in the editor, from the data the item came from: the shared row builder never carries it,
+// so a published file holds no trace of it (#115).
+const withOwnerLink = (row, d) => {
+  if (!row || !d) return row;
+  const all = [...(d.actions || []), ...(d.raid || []), ...(d.decisions || [])], src = all.find((r) => r.id === row.id);
+  return src && typeof src.owner_id === "string" ? { ...row, owner_id: src.owner_id } : row;
+};
 
 const ROW = "tr[data-id], article.bcard";
 const draftOpen = signal(null);                // null, or { id, items, state, draft, today, from }: the Draft email dialog over the page
-const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, from: the element to give focus back to }
+const state = signal(null);                    // null, or { id, x, y, fly: "" | "status" | "due" | "owner" (the short list open beside its entry), focusFly: bool, pick: bool, adding: string (the New person form open over the menu, item 1070), from: the element to give focus back to }
 
 // The element a menu belongs to, and where focus goes back to: a table row, or a card's own button.
 const homeOf = (el) => (el.matches("article.bcard") ? el.querySelector(".bc-main") || el : el);
@@ -40,9 +53,22 @@ function refocus(id) {
   setTimeout(back, 150);                        // row 848: the change redraws the row after the first look, and the redrawn row had lost the focus; if nothing holds it by then, the row does
 }
 
-function openFor(el, x, y, pointer) {
+let opened = 0;                                // counts the opens, so only the last one draws
+function openFor(el, x, y, pointer, back) {
   if (!el.dataset.id) return;
-  state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: homeOf(el), pointer: !!pointer };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  const at = ++opened;
+  // a dismiss while the list is still being read (Escape, or a press anywhere) cancels this open: the menu never appears after it
+  const stop = () => { document.removeEventListener("keydown", onKey, true); document.removeEventListener("pointerdown", cancel, true); };
+  const cancel = () => { if (at === opened) opened++; stop(); };
+  const onKey = (e) => { if (e.key === "Escape") cancel(); };
+  document.addEventListener("keydown", onKey, true);
+  document.addEventListener("pointerdown", cancel, true);
+  // #1048: the People list is read first, so the Draft email entry has its reason line from the first paint (the menu never changes size once open, row 848)
+  readPeople().then((r) => {
+    stop();
+    if (at !== opened || !el.isConnected) return;                  // a later open, or the row went, while the list was read
+    state.value = { id: el.dataset.id, x, y, fly: "", focusFly: false, pick: false, from: back || homeOf(el), pointer: !!pointer, reg: r.ok ? r.people : null };      // row 979: `pointer` marks a mouse open, so the first entry shows no ring until a key is used
+  });
 }
 
 // A right click, or the menu key or Shift+F10 on the focused row or card (the key opens beside the row, not at the pointer).
@@ -51,7 +77,7 @@ function openFor(el, x, y, pointer) {
 function useOpeners() {
   useEffect(() => {
     const onContext = (e) => {
-      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1) return;
+      if (view.value !== "work" || !e.target.closest || workSelection.size.value >= 1 || handing()) return;   // Hand over (item 199) ticks and nothing else
       const el = e.target.closest(ROW);
       if (!el || e.target.isContentEditable || e.target.closest("input, textarea, select, .cpop, .ddmenu, .rowmenu")) return;
       e.preventDefault();
@@ -60,12 +86,12 @@ function useOpeners() {
       openFor(el, kbd ? r.left + 24 : e.clientX, kbd ? r.bottom : e.clientY, !kbd);
     };
     const onKey = (e) => {
-      if (view.value !== "work" || workSelection.size.value >= 1 || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
+      if (view.value !== "work" || workSelection.size.value >= 1 || handing() || !(e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey))) return;
       const at = document.activeElement, el = at && at.closest ? at.closest(ROW) : null;
       if (!el || at.isContentEditable || at.closest(".cpop, .ddmenu, .rowmenu, input, textarea")) return;
       e.preventDefault();
       const r = el.getBoundingClientRect();
-      openFor(el, r.left + 24, r.bottom);
+      openFor(el, r.left + 24, r.bottom, undefined, at.matches("[data-rowmore]") ? at : undefined);      // from the row's More actions button, Esc or a pick gives the focus back to that button
     };
     document.addEventListener("contextmenu", onContext, true);
     document.addEventListener("keydown", onKey, true);
@@ -83,40 +109,58 @@ const copied = (text, said) => {
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };
 
-function entries(row, level, edit, d, today) {
-  const dr = draftEntry(row, d), why = edit ? "" : VIEW_ONLY;
+function entries(row, level, edit, d, today, reg) {
+  const dr = draftEntry(row, reg ? { ...d, people: reg } : d), why = edit ? "" : VIEW_ONLY;
+  if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
   if (level === "status") {
     const l = statusList(row);
-    return [...l.map((s) => ({ id: "s:" + s, name: s })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
+    return [...l.map((s) => ({ id: "s:" + s, name: s, icon: actionIcon("status") })), ...(l.length ? [] : [{ id: "none", lab: "There is no other status to give this item." }])];
   }
   if (level === "owner") {
     const l = ownerList(people(d), row);
-    return [...l.map((n) => ({ id: "o:" + n, name: n })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
+    return [...l.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })), ...(l.length ? [] : [{ id: "none", lab: "No one else is named in this project yet." }])];
   }
   if (level === "due") {
-    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line })), { id: "pick", name: "Pick a date" },
-      ...(canClearDue(row) ? [{ id: "d:", name: "No date" }] : [])];
+    return [...dueList(today).map((x) => ({ id: "d:" + x.day, name: x.name, line: x.line, icon: actionIcon("due") })), { id: "pick", name: "Pick a date", icon: actionIcon("due") },
+      ...(canClearDue(row) ? [{ id: "d:", name: "No date", icon: actionIcon("none") }] : [])];
   }
   const edits = (id, name, icon) => ({ id, name, icon, sub: edit && id !== "eye", disabled: !edit, why: edit ? "" : "rm-why-view" });
   return [
-    { id: "draft", name: dr.name, icon: "pencil", line: dr.reason, disabled: dr.disabled },
-    { id: "peek", name: "Open the peek", icon: "expand" },
+    { id: "draft", name: dr.name, icon: actionIcon("draft"), line: dr.reason, disabled: dr.disabled },
+    { id: "peek", name: "Open the peek", icon: actionIcon("peek") },
     { id: "sep1", sep: true },
     ...(edit ? [] : [{ id: "lab1", lab: why, dom: "rm-why-view" }]),
-    edits("status", "Change status", "half"), edits("due", "Move due date", "cal"), edits("owner", "Change owner", "user"),
-    edits("eye", eyeChange(row).name, row.client ? "eyeoff" : "eye"),
+    edits("status", "Change status", actionIcon("status")), edits("due", "Move due date", actionIcon("due")), edits("owner", "Change owner", actionIcon("owner")),
+    edits("eye", eyeChange(row).name, actionIcon(row.client ? "hide" : "show")),
     { id: "sep2", sep: true },
-    { id: "link", name: "Copy link to this item", icon: "ext" }, { id: "copyid", name: "Copy ID", icon: "doc" },
+    { id: "link", name: "Copy link to this item", icon: actionIcon("copyLink") }, { id: "copyid", name: "Copy ID", icon: actionIcon("copyId") },
     { id: "sep3", sep: true },
-    { id: "dup", name: "Duplicate", icon: "plus", disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: "archive", disabled: !edit, why: edit ? "" : "rm-why-view" },
+    { id: "dup", name: "Duplicate", icon: actionIcon("duplicate"), disabled: !edit, why: edit ? "" : "rm-why-view" }, { id: "archive", name: "Archive", icon: actionIcon("archive"), disabled: !edit, why: edit ? "" : "rm-why-view" },
+    ...(edit ? [{ id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true }] : []),         // item 658: not offered when the page is read only
   ];
 }
 
 // A short list (status, due date, owner) open beside its entry: its own box on the window, placed once beside the entry (on the left
 // when the right has no room), so the menu itself never moves or changes size (row 848). Up and Down move in it, Left or Esc
 // go back to the entry.
-function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, onClose }) {
-  const box = useRef(null);
+function Fly({ level, entries: shown, owner, focus, wrap, hover, keep, hold, onPick, onLeave, onClose }) {
+  const box = useRef(null), search = useRef(null);
+  const [typed, setTyped] = useState("");
+  const [register, setRegister] = useState([]);
+  const [loaded, setLoaded] = useState(!owner);          // item 1070: no Add is offered until the people have been read
+  useEffect(() => {                                 // item 1070: the Change owner list searches the people clark holds as well as the project's names
+    if (!owner) return undefined;
+    let on = true;
+    readPeople().then((r) => { if (on) { setRegister(r.ok ? r.people : []); setLoaded(true); } });
+    return () => { on = false; };
+  }, []);
+  if (hold) hold.current = () => !!search.current && (document.activeElement === search.current || search.current.value.trim() !== "");   // item 1070: a search box in use keeps its list open
+  let list = shown;
+  if (owner && typed.trim()) {
+    const found = ownerChoices(register, owner.names, owner.row, typed);
+    list = [...found.map((n) => ({ id: "o:" + n, name: n, icon: actionIcon("owner") })),
+      ...(loaded && canAddPerson(register, owner.names, owner.row, typed) ? [{ id: "addp", name: `Add ${typed.trim()} as a new person`, icon: actionIcon("add") }] : [])];
+  }
   useLayoutEffect(() => {
     const el = box.current, menu = wrap.current, at = menu && menu.querySelector(`[data-rm=${level}]`);
     if (!el || !at) return;
@@ -124,20 +168,32 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
     const right = m.right + w + 8 <= window.innerWidth;
     el.style.left = `${Math.round(right ? m.right - 2 : Math.max(8, m.left - w + 2))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(a.top - 4, window.innerHeight - h - 8)))}px`;
-    if (focus) (menuItemsIn(el)[0] || el).focus({ preventScroll: true });
+    if (focus) (search.current || menuItemsIn(el)[0] || el).focus({ preventScroll: true });
   }, []);
   useFadeOut(box, true, "rowmenu");
   const keys = (e) => {
-    if (menuMove(e, menuItemsIn(box.current))) return;
+    const items = menuItemsIn(box.current);
+    if (search.current && e.target === search.current) {          // the box is for typing: Down goes into the names, Esc goes back, Enter takes the first
+      if (e.key === "ArrowDown" && items.length) { e.preventDefault(); e.stopPropagation(); items[0].focus({ preventScroll: true }); }
+      else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
+      else if (e.key === "Enter" && typed.trim() && list.length) { e.preventDefault(); e.stopPropagation(); onPick(list[0].id === "addp" ? "addp:" + typed.trim() : list[0].id); }
+      else if (e.key === "Tab") onClose("tab");
+      else e.stopPropagation();
+      return;
+    }
+    if (search.current && e.key === "ArrowUp" && items[0] === document.activeElement) { e.preventDefault(); e.stopPropagation(); search.current.focus({ preventScroll: true }); return; }
+    if (menuMove(e, items)) return;
     if (e.key === "ArrowLeft" || e.key === "Escape") { e.preventDefault(); e.stopPropagation(); onLeave(); }
     else if (e.key === "Tab") onClose("tab");
   };
   return (
-    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
+    <div class="ddmenu on rm-fly" role="menu" ref={box} tabIndex={-1} data-rm-loading={loaded ? undefined : ""} style="left:-10000px;top:0" aria-label={{ status: "Change status", due: "Move due date", owner: "Change owner" }[level]}
       onKeyDown={keys} onPointerEnter={keep} onPointerLeave={() => hover("")}>
+      {owner ? <input ref={search} type="text" class="cp-in rm-search" data-rm-search value={typed} autocomplete="off" spellcheck={false} maxLength={200}
+        placeholder="Type a name" aria-label={`Owner of ${owner.row.id}`} onInput={(e) => setTyped(e.currentTarget.value)} /> : null}
       {list.map((it) => it.lab ? <div key={it.id} class="lab" role="presentation">{it.lab}</div> : (
-        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id)}>
-          <span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
+        <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} onClick={() => onPick(it.id === "addp" ? "addp:" + typed.trim() : it.id)}>
+          {it.icon ? <Icon name={it.icon} cls="mi" /> : null}<span class="rm-t"><b>{it.name}</b>{it.line ? <small>{it.line}</small> : null}</span>
         </button>
       ))}
     </div>
@@ -147,13 +203,14 @@ function Fly({ level, entries: list, focus, wrap, hover, keep, onPick, onLeave, 
 const REST = 140;      // ms the pointer rests on an entry before its list opens (row 979)
 
 function Panel({ s }) {
-  const row = itemRows.value.find((r) => r.id === s.id), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
+  const row = withOwnerLink(itemRows.value.find((r) => r.id === s.id), data.value), d = data.value, edit = true;     // Work items are always editable: View and Edit exist only on the Dashboard (ruled 02-11-2026); this menu is an Edit part, so a published file never draws it
   const wrap = useRef(null), today = todayIso();
+  const reg = s.reg;                              // #1048: the People list, read before the menu opens (null when it could not be read)
   const set = (patch) => { state.value = { ...state.value, ...patch }; };
   const close = (how) => {
     const from = s.from;
     state.value = null;
-    if ((how === "esc" || how === "pick") && from && from.isConnected) from.focus({ preventScroll: true });
+    if ((how === "esc" || how === "pick" || how === "tab") && from && from.isConnected) from.focus({ preventScroll: true });
   };
   useLayoutEffect(() => {                         // inside the window, the same rule the pickers have
     const el = wrap.current;
@@ -162,15 +219,16 @@ function Panel({ s }) {
     el.style.left = `${Math.round(Math.max(8, Math.min(s.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(s.y, window.innerHeight - h - 8)))}px`;
   }, []);                                         // placed once: a list opening beside an entry never moves or resizes the menu (row 848)
-  const timer = useRef(0);
+  const timer = useRef(0), hold = useRef(null);
+  const held = () => !!(hold.current && hold.current());
   useEffect(() => () => clearTimeout(timer.current), []);
   const hover = (id) => {                         // a pointer on an entry that opens a list opens it; on another entry it closes after a short grace (the list is on the way)
     clearTimeout(timer.current);
     if (id) {      // row 979: a list opens (or swaps for another) only after the pointer has rested on its entry, so a pointer passing over entries does not mount a list at each
-      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id) set({ fly: id, focusFly: false }); }, REST);
+      if (state.value && state.value.fly !== id) timer.current = setTimeout(() => { if (state.value && state.value.fly !== id && !held()) set({ fly: id, focusFly: false }); }, REST);
       return;
     }
-    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly) set({ fly: "" }); }, 250);
+    timer.current = setTimeout(() => { if (state.value && !state.value.focusFly && !held()) set({ fly: "" }); }, 250);
   };
   useLayoutEffect(() => {      // row 979: opened by the mouse, the first entry takes the focus without a ring until a key is used (MenuPanel cannot know: its anchor is null on the first draw)
     const box = s.pointer && wrap.current && wrap.current.querySelector(":scope > .ddmenu");
@@ -191,6 +249,7 @@ function Panel({ s }) {
     if (id === "pick") return set({ pick: true });
     if (id.startsWith("s:")) return change("status", id.slice(2));
     if (id.startsWith("o:")) return change("owner", id.slice(2));
+    if (id.startsWith("addp:")) return set({ adding: id.slice(5), fly: "", focusFly: false });
     if (id.startsWith("d:")) return change("due", id.slice(2));
     if (id === "eye") {
       const c = eyeChange(row);
@@ -200,10 +259,12 @@ function Panel({ s }) {
     if (id === "draft") {
       const from = s.from, code = project.value;
       close("pick");
-      return readDraftEmail(code, draftRequest(row.id)).then((r) => {
+      const owner = typeof row.owner_id === "string" ? row.owner_id : "";
+      const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
+      return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
         if (!r.ok) { say("note", r.message); refocus(row.id); return; }
         if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from };
+        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: typeof row.owner_id === "string" ? row.owner_id : "" };
       });
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
@@ -215,6 +276,7 @@ function Panel({ s }) {
       return record({ kind: tableOf(row), op: "archive", id: row.id, place: "menu" }, { text: `${row.id} archived. It is out of the lists and the published page.`, back: `${row.id} is back.`, focus: sel(row.id) })
         .then((r) => { if (r && peeked.value === row.id) closePeek(); if (r && nb && nb.dataset.id) refocus(nb.dataset.id); });
     }
+    if (id === "delete") { close("pick"); deleteItem(row, "menu", row.id); return undefined; }
     if (id === "dup") {
       const raw = rawOf(d, row);
       if (!raw) return undefined;
@@ -227,12 +289,12 @@ function Panel({ s }) {
     const at = document.activeElement;
     if (e.key === "ArrowRight" && at && at.dataset.sub) { e.preventDefault(); e.stopPropagation(); run(at.dataset.rm); }
   };
-  const list = entries(row, "", edit, d, today);
+  const list = entries(row, "", edit, d, today, reg);
   return (
     <div class="rowmenu" ref={wrap} data-rowmenu={row.id} style="left:-10000px;top:0" onKeyDown={keys}>
-      {s.pick ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
+      {s.pick || s.adding ? null : <MenuPanel label={`Actions for ${row.id}`} cls="rm" fade="rowmenu" anchor={wrap.current} onClose={close}>
         {list.map((it) => it.sep ? <div key={it.id} class="sep" role="separator"></div> : it.lab ? <div key={it.id} id={it.dom} class="lab" role="presentation">{it.lab}</div> : (
-          <button key={it.id} type="button" role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
+          <button key={it.id} type="button" class={it.danger ? "danger" : undefined} role="menuitem" tabIndex={-1} data-rm={it.id} data-sub={it.sub ? "1" : undefined}
             aria-haspopup={it.sub ? "menu" : undefined} aria-expanded={it.sub ? (s.fly === it.id ? "true" : "false") : undefined}
             onPointerEnter={(e) => { if (e.pointerType !== "touch") hover(it.sub ? it.id : ""); }} aria-disabled={it.disabled ? "true" : undefined}
             aria-describedby={(it.disabled || it.id === "draft") && (it.line || it.why) ? (it.why || "rm-why-" + it.id) : undefined} onClick={() => { if (!it.disabled) run(it.id); }}>
@@ -242,8 +304,21 @@ function Panel({ s }) {
           </button>
         ))}
       </MenuPanel>}
-      {s.fly && !s.pick ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today)} focus={s.focusFly} wrap={wrap} hover={hover} keep={() => clearTimeout(timer.current)}
+      {s.fly && !s.pick && !s.adding ? <Fly key={s.fly} level={s.fly} entries={entries(row, s.fly, edit, d, today, reg)} owner={s.fly === "owner" ? { row, names: people(d) } : null} focus={s.focusFly} wrap={wrap} hover={hover} hold={hold} keep={() => clearTimeout(timer.current)}
         onPick={run} onLeave={() => { set({ fly: "", focusFly: false }); const b = wrap.current && wrap.current.querySelector(`[data-rm=${s.fly}]`); if (b) b.focus({ preventScroll: true }); }} onClose={close} /> : null}
+      {s.adding ? (
+        <OwnerPick row={row} anchor={{ current: s.from }} names={people(d)} addName={s.adding}
+          onPick={(v) => { const c = pickChange(row, "owner", v, today); if (c && c.error) return c.error; change("owner", v); return ""; }}
+          onAdd={async (person) => {
+            const c = newPersonChange(row, person, today);
+            if (c && c.error) return { ok: false, message: c.error, code: "", person: null };
+            if (!c) { close("pick"); return { ok: true }; }
+            const r = await changeNewPerson(tableOf(row), row.id, c, "menu");
+            if (r.ok) { close("pick"); refocus(row.id); }
+            return r;
+          }}
+          onClose={(back) => { state.value = null; if (back && s.from.isConnected) s.from.focus({ preventScroll: true }); }} />
+      ) : null}
       {s.pick ? (
         <DuePick row={row} anchor={{ current: s.from }} today={today}
           onPick={(v) => { const c = pickChange(row, "due", v, today); if (c && c.error) return c.error; change("due", v); return ""; }}
@@ -295,7 +370,7 @@ function DraftHost({ d }) {
     const n = ++asked.current;
     draftOpen.value = { ...draftOpen.value, state: next };           // the ticks and options show at once; the email follows
     let body;
-    try { body = draftRequest(d.id, next); } catch (e) { say("note", e.message); return; }
+    try { body = draftRequest(d.id, next, d.who); } catch (e) { say("note", e.message); return; }
     readDraftEmail(project.value, body).then((r) => {
       if (n !== asked.current || !draftOpen.value) return;
       if (!r.ok) { say("note", r.message); return; }
@@ -314,8 +389,26 @@ function DraftHost({ d }) {
   };
   return (
     <div class="ad-scrim" data-draft-email={d.id} ref={root} onKeyDown={keys} onPointerDown={(e) => { if (e.target === e.currentTarget) close(); }}>
-      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
+      <DraftEmail items={d.items} state={d.state} draft={d.draft} today={d.today} onChange={onChange} onClose={close} onSent={edit ? (entry) => sendEmailSent(project.value, entry, { person: d.person, tone: d.draft ? d.draft.tone : null, reply_by: d.state ? d.state.replyBy : "" }) : undefined} sentOff={edit ? "" : VIEW_ONLY} none={NOT_OFFERED} />
     </div>
+  );
+}
+
+// The "More actions" button at the end of a table row (item 658): the same menu as the right click, opened beside the button. It is a button of its own,
+// so the row's click (the peek, the selection) and the cell edit never see its press. Shown on row hover or focus; always reachable by Tab.
+export function RowMore({ row }) {
+  const s = state.value;
+  const open = (e) => {
+    e.stopPropagation();
+    const b = e.currentTarget, tr = b.closest("tr[data-id]");
+    if (!tr) return;
+    const r = b.getBoundingClientRect();
+    openFor(tr, r.right + 4, r.top, e.detail > 0, b);
+  };
+  return (
+    <button type="button" tabIndex={-1} class="ib rmore" aria-haspopup="menu" aria-expanded={s && s.id === row.id ? "true" : "false"} aria-label="More actions" title="More actions" data-rowmore={row.id} onClick={open} onDblClick={(e) => e.stopPropagation()} onMouseDown={(e) => e.stopPropagation()}>
+      <Icon name="dots" />
+    </button>
   );
 }
 

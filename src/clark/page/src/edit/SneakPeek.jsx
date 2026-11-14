@@ -1,5 +1,5 @@
-// Sneak peek (#42b): change one item, milestone or use case in words. Type, read the from → to lines, press Enter (or Shift+Enter) to apply them as one
-// step; the toast offers Undo. The reading is plain code on the server (POST /api/sneak/read): no model, and it writes nothing.
+// Sneak peek (item 42b), headed "Ask clark to update for you" (row 1077, the owner's words): change one item, milestone or use case in words. Type, read the
+// from → to lines, press Enter (or Shift+Enter) to apply them as one step; the toast offers Undo. The reading is plain code on the server (POST /api/sneak/read): no model, and it writes nothing.
 // Row 776: phrase chips (the typed words, in typed order) above the lines; Not now closes like Esc, Make the change applies like Enter.
 // A reading that needs a confirm is never applied by Enter alone; the Make the change button counts as that OK (the chips and lines are on screen). Applying goes through the work-item change route (#68).
 import { useState, useEffect, useRef } from "preact/hooks";
@@ -49,8 +49,8 @@ export function SneakPeek({ row, kind = "item" }) {
     }
   };
   return (
-    <section class="wordsbox" data-sneak aria-label="Change an item with words">
-      <div class="sn-head"><Icon name="sparkle" /><span>Change an item with words</span></div>
+    <section class="wordsbox" data-sneak aria-label="Ask clark to update for you">
+      <div class="sn-head"><Icon name="sparkle" /><span>Ask clark to update for you</span></div>
       <input ref={box} class="sn-in" type="text" value={words} maxLength={400} aria-label="What should change" placeholder={LEAD + (PLACEHOLDER[kind] || PLACEHOLDER.item)}
         onInput={(e) => { setReading(null); setWords(e.currentTarget.value); }} onKeyDown={key} />
       <div class="sn-out" role="status" aria-live="polite">
@@ -80,7 +80,7 @@ export function SneakPeek({ row, kind = "item" }) {
           </p>
         ) : null}
       </div>
-      <p class="muted sn-foot">Enter applies the changes shown. Shift+Enter applies and keeps this box open. Esc closes it.</p>
+      <p class="muted sn-foot">{found && found.confirm ? "Enter asks you to confirm. Cmd+Enter or Ctrl+Enter applies. Esc closes it." : "Enter applies the changes shown. Shift+Enter applies and keeps this box open. Esc closes it."}</p>
     </section>
   );
 }

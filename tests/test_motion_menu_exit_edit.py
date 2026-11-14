@@ -25,7 +25,7 @@ import test_bulk_bar as bb  # noqa: E402
 import test_use_cases_list as ucl  # noqa: E402
 from test_row_menu import key  # noqa: E402
 from test_server import chrome, wait  # noqa: E402
-from test_work_filters import arm, click  # noqa: E402
+from test_work_filters import arm, click, set_line  # noqa: E402
 
 SRC = ROOT / "src/clark/page/src"
 read = lambda p: (SRC / p).read_text(encoding="utf-8")   # noqa: E731
@@ -166,7 +166,7 @@ class Live(rm.Menu):
                 sid = self.visit(cdp)
                 motion_of(cdp, sid, motion)
                 d = self.drive(cdp, sid)
-                click(cdp, sid, "[data-type=risk]")
+                set_line(cdp, sid, "type:risk,issue,assumption,dependency")      # row 1059: the type pill is gone
                 d.until("!!document.querySelector(\"#work-list tr[data-kind='risk'] [data-cell$=':priority']\")", "a risk row's priority cell")
                 click(cdp, sid, "#work-list tr[data-kind='risk'] [data-cell$=':priority']")
                 d.until("!!document.querySelector('.cpop.rpick')", "the rating picker opened")
@@ -286,25 +286,27 @@ class Bulk(bb.Page):
 
 
 class UseCasesStatus(ucl.Setup):
-    """Row 3: the column filter box (.fbox) exists in the Edit app only on the Use cases page (Status); the Work items one is the published file's older bar."""
+    """Row 3, as row 1085 left it: the Status column filter box (.fbox) went with the Use cases page's switch (the Status choice is the filter line's
+    status: field); the page's one menu, Group by, fades out as every menu does (.ddmenu.leaving). The .fbox rule stays pinned below for the published file's older bar."""
 
-    def test_row_962_3_the_use_cases_status_filter_fades_out(self):
+    def test_row_962_3_the_use_cases_group_by_menu_fades_out(self):
         for motion in ("no-preference", "reduce"):
             with self.subTest(motion=motion), chrome() as cdp:
                 p = self.show(cdp, edit=True)
                 motion_of(cdp, p.sid, motion)
                 d = Drive(self, p.js, lambda e, what: p.until(e, what))
-                p.js("document.querySelector('#ucl-status').click()")
-                d.until("!!document.querySelector('.ucl-pop')", "the status choices")
-                d.fades(motion, esc_on(p.js, ".ucl-pop"), ".fbox.ucl-pop.leaving")
-                d.until("!document.querySelector('.ucl-pop:not(.leaving)')", "closed")
+                self.assertEqual(p.js("document.querySelectorAll('#ucl-status, .ucl-pop').length"), 0, "no Status popup on the page any more")
+                p.js("document.querySelector('#ucl-group').click()")
+                d.until("!!document.querySelector('.ddmenu [role=menuitemradio]')", "the Group by menu")
+                d.fades(motion, esc_on(p.js, ".ddmenu"), ".ddmenu.leaving")
+                d.until("!document.querySelector('.ddmenu:not(.leaving)')", "closed")
 
 
 class Pins(unittest.TestCase):
     def test_row_962_the_css_is_edit_only_in_a_no_preference_block_with_tokens_only(self):
         gate = r'@media \(prefers-reduced-motion: no-preference\) \{\s*:root:not\(\[data-motion="reduce"\]\) '
         rule = r"\{ pointer-events: none; animation: m-out var\(--dur-instant\) var\(--ease-exit\) forwards; \}"
-        for sel in (r"\.cpop\.leaving", r"\.menu\.leaving", r":is\(\.flist, \.fbox, \.gt-menu, \.tset, \.dpick\)\.leaving"):
+        for sel in (r"\.cpop\.leaving", r"\.menu\.leaving", r":is\(\.flist, \.fbox, \.gt-menu, \.gt-pop, \.rt-slash, \.tset, \.dpick\)\.leaving"):
             self.assertRegex(EDIT_CSS, gate + sel + " " + rule)
         self.assertNotRegex(SHELL_CSS, r"\.(cpop|menu|flist|fbox|gt-menu|tset|dpick)\.leaving")     # the published page carries none of it
 
@@ -336,12 +338,15 @@ class Pins(unittest.TestCase):
                 self.assertIn(n + ":not(.leaving)", text, f"{path}: {n} in the list of open layers ignores a copy that is fading")
 
     def test_row_962_every_one_of_the_eleven_is_wired_to_the_fade(self):
-        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Fade boxRef=\{box\} class="fbox ucl-pop"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
+        wired = {"components/FilterLine.jsx": r'<Fade tag="ul" class="flist"', "edit/UseCasesPage.jsx": r'<Menu label="Group by"[^>]*id="ucl-group"', "edit/RowMenu.jsx": r'useFadeOut\(box, true, "rowmenu"\)',
                  "edit/Board.jsx": r"fade ", "edit/GlanceEdit.jsx": r'cls="left tilemenu" fade ',
                  "edit/Gutter.jsx": r'useFadeOut\(boxRef, true, ""\)', "gantt/components/GanttChart.jsx": r'<Fade class="gt-menu"',
                  "edit/TemplateSettings.jsx": r'<Fade class="tset"', "edit/cells/Pop.jsx": r"fadeOut\(box\.current\)"}
         for path, pattern in wired.items():
             self.assertRegex(read(path), pattern, path)
+        # row 1085: the Use cases Status popup (<Fade class="fbox ucl-pop">) is gone; the page's one menu is the shared Menu (Group by), which fades through its own leaving copy
+        self.assertRegex(MENU_JSX, r"<MenuPanel key=\{gen.current\} leaving=\{leaving\}", "the shared Menu draws its closing copy: the Group by menu fades with it")
+        self.assertNotRegex(read("edit/UseCasesPage.jsx"), r"ucl-pop|ucl-status", "the deleted Status popup is not wired any more")
         self.assertEqual(len(re.findall(r"useFadeOut\(root, true", read("edit/Board.jsx"))), 2, "the date box and the decision box")
         self.assertIn("<Pop ", read("edit/Bulk.jsx"), "the bulk menu is a Pop")
 

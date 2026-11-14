@@ -18,7 +18,7 @@ from clark import changes, publish, section_bodies, store as store_module
 from clark.section_kinds import base, doclinks, linkcard
 from test_changes import Api
 from test_report_editor import EMPTY_BRANDING, Base as PageBase, Pg
-from test_server import chrome
+from test_server import chrome, wait
 from test_tpl_doclinks import MARK, check
 
 CARD = {"href": "https://example.org/dashboards/pilot", "title": "Pilot dashboard", "site": "Example Analytics",
@@ -137,6 +137,33 @@ class InThePage(PageBase):
             self.assertEqual(len(self.sent), sent, "nothing was sent")
             labels = p.js(f"[...document.querySelectorAll('{sel} .tpl-form label')].map(l => !!document.getElementById(l.htmlFor))")
             self.assertTrue(labels and all(labels), "every field has its label")
+
+    def test_saving_the_words_keeps_a_typed_unsaved_link_and_an_undo_of_the_card_still_resets_it(self):
+        ref = self.add(CARD)
+        sel = f"[data-id={json.dumps(ref)}]"
+        href = f"{sel} input[id$=-href]"
+        with chrome() as cdp:
+            p = self.visit(cdp)
+            p.edit()
+            p.until(f"!!document.querySelector('{sel} [data-save]')", "the Edit part drew")
+            self.put(p, href, "https://example.org/typed-not-saved")
+            p.js(f"document.querySelector('{sel} [data-rich]').click()")
+            p.until(f"!!document.querySelector('{sel} .ProseMirror')", "the words editor opened")
+            p.until("document.activeElement && document.activeElement.classList.contains('ProseMirror')", "it has the focus")
+            p.js(f"document.querySelector('{sel} .ProseMirror').cxed.editor.commands.insertContent('<p>ZQ-WORDS</p>'); true")
+            p.key("Enter", 4 if p.js("/Mac/.test(navigator.platform)") else 2, code="Enter", vk=13)
+            self.assertTrue(wait(lambda: "ZQ-WORDS" in self.store.read("report_sections", ref=ref)["body"], 15), "the words were saved")
+            p.until(f"!document.querySelector('{sel} .ProseMirror')", "the words field closed")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(href)}).value"), "https://example.org/typed-not-saved")
+            self.put(p, href, CARD["href"])
+            self.put(p, f"{sel} input[id$=-title]", "Pilot dashboard, week 3")
+            p.js(f"document.querySelector('{sel} [data-save] button').click()")
+            self.assertTrue(wait(lambda: json.loads(self.store.read("report_sections", ref=ref)["body"])["title"] == "Pilot dashboard, week 3", 10), "the card saved")
+            p.until("!!document.querySelector('[data-undo]')", "with Undo")
+            self.put(p, href, "https://example.org/typed-again")
+            p.js("document.querySelector('[data-undo]').click()")
+            p.until(f"document.querySelector('{sel} input[id$=-title]').value === 'Pilot dashboard'", "Undo put the card back")
+            self.assertEqual(p.js(f"document.querySelector({json.dumps(href)}).value"), CARD["href"])
 
     def test_the_published_file_draws_the_card(self):
         ref = self.add(dict(CARD, site=""))

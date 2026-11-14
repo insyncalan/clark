@@ -100,7 +100,7 @@ PRINT_RULES = (
     "html,body{-webkit-print-color-adjust:exact;print-color-adjust:exact;background:#fff}"
     # no controls: the live page (top bar, tabs, buttons, the contents lines) is not printed; the stacked copy is
     "body.print-stacked #app{display:none!important}"
-    ".top,.tabs,.toc,.pubbar,nav,dialog,input,select,textarea,.filters,.sec-tools,.add,.wbar,.fbar,.factive,.newb{display:none!important}"
+    ".top,.tabs,.toc,.pubbar,nav,dialog,input,select,textarea,.filters,.sec-tools,.msl-det,[data-uc-page],.ucp-views,.ucp-sorts,.ucp-count,.add,.wbar,.fbar,.factive,.newb{display:none!important}"
     "button,[role=button]{border:0!important;background:none!important;box-shadow:none!important;padding:0!important;"
     "min-height:0!important;cursor:default!important;color:inherit!important;font:inherit!important}"
     # the tabs stacked: each starts on a new page, under its own heading
@@ -125,12 +125,12 @@ def print_css(orientation="portrait"):
     return "@page{size:A4 %s;margin:12mm 12mm 16mm}@media print{%s}" % (orientation, PRINT_RULES)
 
 
-def with_print_css(html, orientation="portrait"):
+def with_print_css(html, orientation="portrait", footed=False):
     """`html` (text) with the print rules in a style tag at the end of its head (or at the start if it has none), and its
     <html> tag set to the light theme."""
     tag = "<style>%s</style>" % print_css(orientation)
     html = re.sub(r"(<html\b[^>]*?)\s+data-theme\s*=\s*(\"[^\"]*\"|'[^']*'|[^\s>]+)", r"\1", html, count=1, flags=re.I)
-    html = re.sub(r"<html\b", '<html data-theme="light"', html, count=1, flags=re.I)
+    html = re.sub(r"<html\b", '<html data-theme="light"%s' % (" data-pdf-foot" if footed else ""), html, count=1, flags=re.I)
     at = html.lower().rfind("</head>")
     return tag + html if at < 0 else html[:at] + tag + html[at:]
 
@@ -345,7 +345,7 @@ class _Pipe:
     another. No port is opened. Same two calls as _Socket (send_json, recv_json) so one session class serves both."""
 
     def __init__(self, to_chrome, from_chrome, deadline):
-        self.out, self.inp, self.deadline, self.buffer = to_chrome, from_chrome, deadline, b""
+        self.out, self.inp, self.deadline, self.buffer = to_chrome, from_chrome, deadline, bytearray()
 
     def close(self):
         for fd in (self.out, self.inp):
@@ -367,15 +367,20 @@ class _Pipe:
             data = data[n:]
 
     def recv_json(self):
-        while b"\0" not in self.buffer:
+        nul = self.buffer.find(0)          # only what was left over from the last message
+        while nul < 0:
             left = self.deadline - time.monotonic()
             if left <= 0 or not select.select([self.inp], [], [], left)[0]:
                 raise socket.timeout()
             chunk = os.read(self.inp, 1 << 16)
             if not chunk:
                 raise ConnectionError("closed")
+            at = chunk.find(0)             # scan the new chunk only
+            if at >= 0:
+                nul = len(self.buffer) + at
             self.buffer += chunk
-        one, self.buffer = self.buffer.split(b"\0", 1)
+        one = bytes(self.buffer[:nul])
+        del self.buffer[:nul + 1]
         return json.loads(one.decode())
 
 
@@ -465,6 +470,15 @@ def _start_piped(chrome, profile, popen):
 CLEAN_NAME = "clark"            # the only Creator and Producer a PDF made here carries
 CLEAN_TITLE = "Report"          # the Title when the page has none
 CANNOT_CLEAN = "The PDF could not be made safe to share, so it was not made. Leave the PDF box unticked and publish again."
+WORK_PREFIX = "clark-pdf-"      # the start of the throwaway folder's name (make_pdf): a printed link that is relative to the page is written by Chrome as file:///<that folder>/...
+FILE_URI = re.compile(rb"(/URI\s*\()(file:(?:\\.|[^\\)])*)\)", re.I)   # any link Chrome wrote as a file: address (it resolves a relative link against the folder the copy was printed from)
+FILE_URI_LEFT = re.compile(rb"/URI\s*(?:\(\s*file:|<\s*" + b"file:".hex().encode() + rb")", re.I)
+
+
+def _neutral_uri(m):
+    """A file: link keeps only its path relative to the throwaway folder; one that is outside it (a link that climbs out) has no address left."""
+    inside = re.search(rb"/" + re.escape(WORK_PREFIX.encode()) + rb"[A-Za-z0-9_]*/", m.group(2))
+    return m.group(1) + (m.group(2)[inside.end():] if inside else b"") + b")"
 
 
 def title_of(html_text):
@@ -512,14 +526,16 @@ def scrub(data, title=CLEAN_TITLE):
             body[num] = chunk
         gone = set()
         for num, chunk in body.items():
-            dictionary = chunk.split(b"stream", 1)[0]
+            dictionary = re.split(rb">>\s*stream\b", chunk, 1)[0]
             if re.search(rb"/Type\s*/Metadata\b|/Subtype\s*/XML\b", dictionary):
                 gone.add(num)
         for num in gone:
             body[num] = b"%d 0 obj\nnull\nendobj\n" % num
         for num, chunk in list(body.items()):
-            dictionary, mark, rest = chunk.partition(b"stream")
+            parts = re.split(rb"(>>\s*stream\b)", chunk, 1)
+            dictionary, mark, rest = parts if len(parts) == 3 else (chunk, b"", b"")
             cleaned = re.sub(rb"/Metadata\s+\d+\s+0\s+R", b"", dictionary)
+            cleaned = FILE_URI.sub(_neutral_uri, cleaned)         # a link beside the report ("Report files/x.pdf") keeps its relative address, not this computer's temporary folder
             if cleaned != dictionary:
                 body[num] = cleaned + mark + rest
         info_num = int(info.group(1)) if info else size
@@ -554,7 +570,7 @@ def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, po
     work = tempfile.mkdtemp(prefix="clark-pdf-")
     try:
         copy = Path(work) / "page.html"
-        copy.write_text(with_print_css(Path(page).read_text(encoding="utf-8"), orientation), encoding="utf-8")
+        copy.write_text(with_print_css(Path(page).read_text(encoding="utf-8"), orientation, bool(footer_left)), encoding="utf-8")
         deadline = time.monotonic() + timeout
         profile = Path(work) / "profile"
         proc, ends = None, None
@@ -576,6 +592,9 @@ def make_pdf(page, out, orientation="portrait", chrome=None, timeout=TIMEOUT, po
         if not data.startswith(b"%PDF"):
             raise PdfError(FAILED)
         data = scrub(data, title_of(Path(page).read_text(encoding="utf-8")))          # nothing about this computer or its browser
+        token = WORK_PREFIX.encode()
+        if FILE_URI_LEFT.search(data) or token in data or token.hex().encode() in data.lower() or Path(work).name.encode() in data:          # a place on this computer left anywhere else: not shared
+            raise PdfError(CANNOT_CLEAN)
         out.parent.mkdir(parents=True, exist_ok=True)
         out.write_bytes(data)
         return out

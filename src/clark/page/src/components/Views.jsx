@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "preact/hooks";
 import { skeleton, reduced } from "../stores/motion.js";
 import { status, message, project, projects, projectsState, openProject, tryAgain, view, isFile, data, fromFile, asAt } from "../stores/report.js";
-import { milestoneRows, headLine, showDate, todayIso } from "../logic/milestones.js";
+import { milestoneRows, headLine, emptyHead, showDate, todayIso } from "../logic/milestones.js";
 
 import { MsBlock } from "./MsBlock.jsx";
 
@@ -75,7 +75,7 @@ function Empty({ title, children, action }) {
 // in the editor, the Add milestone button. The sentence is worked out from the rows the list shows, so a published file's is the client's.
 function MsHead({ Add }) {
   const client = fromFile.value, today = client && asAt.value ? asAt.value : todayIso();
-  const line = headLine(milestoneRows(data.value.milestones, today, client));
+  const rows = milestoneRows(data.value.milestones, today, client), line = headLine(rows);
   return (
     <>
       <p class="crumbs">{data.value.project.name}</p>
@@ -85,7 +85,7 @@ function MsHead({ Add }) {
           <p class="head-sub" id="ms-summary">
             {line
               ? <><b>{line.name}</b>{line.date ? ` is ${line.agreed ? "agreed" : "forecast"} for ${showDate(line.date)}` : " has no date yet"}{line.expected ? ` and now expected ${showDate(line.expected)}` : ""}. {line.achieved} achieved, {line.toCome} to come.</>
-              : "No milestones yet."}
+              : emptyHead(rows)}
           </p>
         </div>
         {Add ? <Add /> : null}
@@ -109,11 +109,10 @@ export function Milestones({ tools }) {
 
 // The Settings head: the title, a line of help and one chip for each card that is on the page. A chip scrolls to its card and moves
 // focus to the card's heading. The chips are buttons, not "#" links, because the page's own address (its hash) names the view.
-// The links (item 440, S2; issue 697) are a list down the left of the cards above 900 px and the old row of chips under the head at 900 px and
-// narrower. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
+// The links (item 440, S2; issue 697) are a list down the left of the cards at 900 px and wider and the old row of chips under the head below 900 px. Either way it stays under the top bar as you scroll, and the link of the card you are reading is marked (aria-current).
 const CARDS = [["Profile", "Profile", "profile-h"], ["ClientFolder", "Publishing", "client-folder-h"], ["Personal", "Personal", "personal-h"], ["ReviewDays", "Freshness", "review-days-h"], ["GanttSetting", "Gantt", "gantt-setting-h"], ["Diagnostics", "Logs and diagnostics", "diagnostics-h"],
   ["Projects", "Projects", "projects-h"], ["Data", "Data", "data-card-h"], ["Safety", "Backups", "safety-h"], ["Update", "", "update-h"], ["Brands", "", "brands-h"],
-  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
+  ["People", "People", "people-h"], ["AskSettings", "Asking", "ask-settings-h"], ["Feedback", "Feedback", "feedback-h"], ["Quit", "", "quit-h"]];       // in the order the cards are drawn; a card that is not on the page has no chip
 
 const cardOf = (headId) => { const head = document.getElementById(headId); return head ? head.closest("section") || head : null; };
 
@@ -130,7 +129,7 @@ function goToCard(headId) {
 function cardHere(cards, picked) {
   const bar = document.querySelector(".set-bar");
   if (!bar || !cards.length) return "";
-  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 900px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
+  const top = document.querySelector(".top"), row = window.matchMedia("(max-width: 899px)").matches;      // a row of chips has the cards under it; a list at the left has them beside it
   const edge = (row ? bar : top || bar).getBoundingClientRect().bottom + 24, foot = window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 2;
   const chosen = picked && cardOf(picked);
   if (foot && chosen && chosen.getBoundingClientRect().top < window.innerHeight) return picked;
@@ -139,8 +138,44 @@ function cardHere(cards, picked) {
   return here;
 }
 
+// Search settings (row 1115, S2): the box in the head. A card whose heading matches stays whole; otherwise a card with setting rows keeps only the rows
+// whose name, help line or data-keywords match, and a card without rows stays when its text matches. Cards with no match, and the row of chips, are hidden
+// while the box holds words. Esc or clearing the box brings every card back. It reads the page, so a card that draws later is filtered too.
+function searchCards(root, query) {
+  const q = query.trim().toLowerCase();
+  for (const card of root.querySelectorAll(":scope > section, :scope > .setting")) {
+    const rows = [...card.querySelectorAll(".set-row")], hit = (el) => (el.textContent + " " + (el.getAttribute("data-keywords") || "")).toLowerCase().includes(q);
+    const head = card.querySelector("h2, h3"), headHit = !!head && head.textContent.toLowerCase().includes(q);
+    let show = !q || headHit;
+    if (!show && rows.length) { for (const r of rows) { const m = hit(r); r.hidden = !m; show = show || m; } }
+    else { for (const r of rows) r.hidden = false; if (!show) show = hit(card); }
+    card.hidden = !show;
+  }
+}
+
+function SettingsSearch({ onQuery }) {
+  const [q, setQ] = useState("");
+  useEffect(() => {
+    const root = document.querySelector(".set-cards");
+    if (!root) return undefined;
+    const run = () => searchCards(root, q);
+    run();
+    const seen = window.MutationObserver ? new MutationObserver(run) : null;
+    if (seen) seen.observe(root, { childList: true, subtree: true });
+    onQuery(q.trim() !== "");
+    return () => { if (seen) seen.disconnect(); };
+  }, [q]);
+  return (
+    <div class="set-search">
+      <label for="set-search-box">Search settings</label>
+      <input id="set-search-box" type="search" value={q} autocomplete="off" onInput={(e) => setQ(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Escape" && q) { e.preventDefault(); setQ(""); } }} />
+    </div>
+  );
+}
+
 function SettingsHead({ cards }) {
   const [here, setHere] = useState("");
+  const [searching, setSearching] = useState(false);
   const picked = useRef("");
   const ids = cards.map(([, , headId]) => headId).join(" ");
   useEffect(() => {
@@ -160,8 +195,9 @@ function SettingsHead({ cards }) {
       <section class="frame set-head">
         <h1>Settings</h1>
         <p class="muted">Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.</p>
+        <SettingsSearch onQuery={setSearching} />
       </section>
-      {cards.length ? (
+      {cards.length && !searching ? (
         <nav class="set-bar" aria-label="Settings sections">
           <ul class="set-nav">{cards.map(([, name, headId]) => (
             <li key={headId}><button type="button" class="set-chip" aria-current={here === headId ? "location" : undefined} onClick={() => go(headId)}>{name}</button></li>
@@ -173,9 +209,8 @@ function SettingsHead({ cards }) {
 }
 
 export function Settings({ tools }) {
-  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Published reports, Freshness) are left out
+  const open = !!data.value;      // item 682: with no project open the cards that need one (Publishing, Freshness) are left out
   const ClientFolder = open && tools && tools.ClientFolder;      // the client folder (#43); the rest of Settings is FR-1
-  const PublishedReports = open && tools && tools.PublishedReports;      // the list of publications, with Open (#443); Edit's page only
   const Profile = tools && tools.Profile;              // the Profile card (#950): About you, name, Alias and email; first on the page; Edit's page only
   const Personal = tools && tools.Personal;            // Settings › Personal (#45): Edit's page only; a published file has no Settings
   const ReviewDays = open && tools && tools.ReviewDays;          // Freshness (item 160): the project's "Not reviewed after (days)"
@@ -186,10 +221,12 @@ export function Settings({ tools }) {
   const Brands = tools && tools.Brands;                  // Brands (#944); a published file has none
   const Update = tools && tools.Update;                  // Version and updates; a published file has none
   // a card's chip says its heading; an Edit-only card with no name here brings its own (`chip`), so a published file never holds it
-  const NEEDS_PROJECT = ["ClientFolder", "PublishedReports", "ReviewDays", "GanttSetting"];
+  const NEEDS_PROJECT = ["ClientFolder", "ReviewDays", "GanttSetting"];
   const cards = CARDS.filter(([tool]) => tools && tools[tool] && (open || !NEEDS_PROJECT.includes(tool))).map(([tool, name, headId]) => [tool, name || tools[tool].chip || "", headId]);
   const AskSettings = tools && tools.AskSettings;        // asking: the switch and its folders (#47)
+  const Feedback = tools && tools.Feedback;              // Feedback (#1069): a form that opens the user's mail app; Edit's page only
   const People = tools && tools.People;                  // the People card (item 454): email, organisation, role, Paste from Excel; Edit's page only
+  const Quit = tools && tools.Quit;                      // Quit clark (#836); Edit's page only
   const Projects = tools && tools.Projects;              // the projects table (A-S6); a published file has none
   return (
     <div class="set-layout">
@@ -197,7 +234,6 @@ export function Settings({ tools }) {
       <div class="set-cards">
       {Profile ? <Profile /> : null}
       {ClientFolder ? <ClientFolder /> : null}
-      {PublishedReports ? <PublishedReports /> : null}
       {Personal ? <Personal /> : null}
       {ReviewDays ? <ReviewDays /> : null}
       {GanttSetting ? <GanttSetting /> : null}
@@ -209,6 +245,8 @@ export function Settings({ tools }) {
       {Brands ? <Brands /> : null}
       {People ? <People /> : null}
       {AskSettings ? <AskSettings /> : null}
+      {Feedback ? <Feedback /> : null}
+      {Quit ? <Quit /> : null}
       </div>
     </div>
   );

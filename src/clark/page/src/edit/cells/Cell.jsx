@@ -27,16 +27,25 @@ export const openCell = signal("");                      // "<id>:<field>" of th
 const key = (row, field) => `${row.id}:${field}`;
 
 // After a change has been drawn the row may have moved (the list is sorted by due date): focus goes back to its cell if it was lost.
-function refocus(k) {
+// If the row itself is gone (a filter no longer holds it), focus goes to the same cell of the next row, else the previous, else the table.
+function near(k) {
+  const own = document.querySelector(`[data-cell="${CSS.escape(k)}"]`), tr = own && own.closest ? own.closest("tr[data-id]") : null, field = k.slice(k.lastIndexOf(":") + 1), out = [];
+  for (let n = tr && tr.nextElementSibling; n; n = n.nextElementSibling) if (n.dataset && n.dataset.id) out.push(`${n.dataset.id}:${field}`);
+  for (let n = tr && tr.previousElementSibling; n; n = n.previousElementSibling) if (n.dataset && n.dataset.id) out.push(`${n.dataset.id}:${field}`);
+  return { out, table: tr && tr.closest("table") };
+}
+function refocus(k, around) {
   setTimeout(() => {
     const now = document.activeElement;
     if (now && now !== document.body && now.isConnected) return;
-    const el = document.querySelector(`[data-cell="${CSS.escape(k)}"]`);
+    let el = document.querySelector(`[data-cell="${CSS.escape(k)}"]`);
+    for (let i = 0; !el && around && i < around.out.length; i++) el = document.querySelector(`[data-cell="${CSS.escape(around.out[i])}"]`);
+    if (!el && around && around.table && around.table.isConnected) { if (around.table.tabIndex < 0) around.table.tabIndex = -1; el = around.table; }
     if (el) el.focus();
   }, 0);
 }
 
-export function Cell({ row, field, said, keep, children, place }) {
+export function Cell({ row, field, said, keep, tip, children, place }) {
   const button = useRef(null);
   if (!canPick(row, field)) {
     const why = whyFixed(row, field);                       // a RAID item's priority: say why a click does nothing
@@ -60,7 +69,8 @@ export function Cell({ row, field, said, keep, children, place }) {
     const c = changeFor(row, pickField(field, value), value, today);
     if (c && c.error) return c.error;
     close(true);
-    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made" }).then(() => refocus(k));
+    const around = near(k);
+    if (c) (c.one ? changeRating : changeCell)(tableOf(row), row.id, c.changes, { text: c.words, back: c.back, always: row.kind === "decision" && field === "status" && value === "Made", place: place || "cell" }).then(() => refocus(k, around));
     return "";
   };
   // Row 986: a name that is not on the list, added and assigned in one step. Resolves to {ok: true} (the picker has closed) or the words to
@@ -81,7 +91,7 @@ export function Cell({ row, field, said, keep, children, place }) {
   };
   return (
     <>
-      <button type="button" class="cell-pick" ref={button} tabIndex={-1} data-edit-only data-cell={k} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
+      <button type="button" class="cell-pick" ref={button} tabIndex={place ? 0 : -1} data-edit-only data-cell={k} data-tip={tip || undefined} aria-haspopup={field === "status" || field === "priority" ? "menu" : "dialog"}
         aria-expanded={open ? "true" : "false"} aria-label={`${fieldName(row, field)} of ${row.id}: ${said}. Change`}
         onClick={(e) => { e.stopPropagation(); toggle(); }} onKeyDown={down}><span class="cell-val">{children}</span></button>
       {open ? <Picker row={row} anchor={button} today={todayIso()} names={field === "owner" ? people(data.value) : undefined} onPick={pick} onAdd={field === "owner" && (place || workSelection.ids.value.length < 2) ? add : undefined} onClose={close} /> : null}

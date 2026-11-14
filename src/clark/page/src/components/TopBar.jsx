@@ -1,11 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
 import { ClientMenu } from "./ClientMenu.jsx";
-import { TITLES, SHORT_TITLES, shownTabs as tabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
+import { coverLine } from "../logic/cover.js";
+import { TITLES, SHORT_TITLES, shownTabs as allTabs, view, show, project, data, fromFile, asAt, mode } from "../stores/report.js";
 
 // A calendar date is shown DD-MM-YYYY (RULES.md); stored YYYY-MM-DD. Never shifted by a time zone.
 const shownDate = (iso) => (/^\d{4}-\d\d-\d\d$/.test(iso) ? iso.slice(8) + "-" + iso.slice(5, 7) + "-" + iso.slice(0, 4) : iso);
 
 export function TopBar({ tools }) {
+  const tabs = { value: allTabs.value.filter((v) => v !== "settings" && v !== "published") };      // row 976: Settings is no tab; it opens from the profile circle's menu (and the address, and Published reports); the route and the view stay
   const name = data.value && data.value.project.name;
   const ProfileMenu = tools && tools.ProfileMenu && !fromFile.value ? tools.ProfileMenu : null;     // the profile circle's menu (#77)
   const ProjectSwitch = tools && tools.ProjectSwitch && !fromFile.value ? tools.ProjectSwitch : null;     // the project switcher (A-D25)
@@ -31,20 +33,37 @@ export function TopBar({ tools }) {
     later();
     return () => { if (watch) watch.disconnect(); if (frame) cancelAnimationFrame(frame); };
   }, [tabs.value.length]);
+  const vs = tabs.value, stop = vs.includes(view.value) ? view.value : vs[0];      // roving tabindex: one tab is in the Tab order, the open one (the first when none is open)
+  const onTabKey = (e) => {      // Left/Right/Home/End move between the tabs and open the one reached, as in Help
+    const i = vs.indexOf(e.target && e.target.dataset ? e.target.dataset.view : "");
+    if (i < 0 || e.altKey || e.ctrlKey || e.metaKey) return;      // Alt+Left is the browser's Back, Ctrl/Cmd+arrows are the system's: not ours
+    const j = e.key === "ArrowRight" ? (i + 1) % vs.length : e.key === "ArrowLeft" ? (i + vs.length - 1) % vs.length : e.key === "Home" ? 0 : e.key === "End" ? vs.length - 1 : -1;
+    if (j < 0) return;
+    e.preventDefault(); show(vs[j]);
+    setTimeout(() => { const b = row.current && row.current.querySelector(`[data-view="${vs[j]}"]`); if (b) b.focus(); }, 0);
+  };
+  const file = fromFile.value;
+  const lines = file ? coverLine(data.value && data.value.project, "") : [];      // issue 1146: a published file has one bar; the banner's words ("Weekly report", the week, the client) sit under the name
+  const ganttTitle = data.value && data.value.gantt && typeof data.value.gantt.title === "string" ? data.value.gantt.title : "";
+  const shownName = (view.value === "gantt" && ganttTitle) || name || project.value || "No project open";      // the Gantt page's own title, when the file carries one, as the banner showed it
+  const Name = view.value === "dashboard" || view.value === "gantt" ? "h1" : "div";      // the Dashboard and Gantt pages had their heading in the banner; the other pages have their own
   return (
-    <header class="top">
+    <header class={file ? "top top-file" : "top"}>
       {fromFile.value
         ? <span class="logo" aria-label="clark"><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></span>      /* a published file has no Home: nothing in it is a button */
         : <button type="button" class="logo" aria-label="clark" onClick={() => show("dashboard")}><span class="logo-icon" aria-hidden="true"></span><span class="wm">clark</span></button>}      {/* row 854: in the app the logo goes Home, the first tab, same project */}
-      <span class="divider"></span>
-      {ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj" id="project-name">{name || project.value || "No project open"}</span>}
-      <nav class="tabs" ref={row} role="tablist" aria-label="Views">
+      {file ? null : <span class="divider"></span>}
+      {file
+        ? <div class="top-id"><Name class="top-name" id="project-name">{shownName}</Name><p class="cover-line top-line"><b class="cover-kind">Weekly report</b>{lines.map((t) => <span key={t}>{t}</span>)}</p></div>
+        : ProjectSwitch ? <ProjectSwitch name={name} /> : <span class="proj sr" id="project-name">{name || project.value || "No project open"}</span>}
+      <nav class="tabs" ref={row} role="tablist" aria-label="Views" onKeyDown={onTabKey}>
         {tabs.value.map((v) => (v === "gantt" && renaming && GanttName && view.value === "gantt"
           ? <span class="tab" role="tab" key={v} data-view={v} aria-selected="true"><GanttName onDone={() => setRenaming(false)} /></span>
-          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
+          : <button class="tab" role="tab" key={v} data-view={v} aria-selected={view.value === v ? "true" : "false"} tabIndex={v === stop ? 0 : -1} onClick={() => (v === "gantt" && GanttName && view.value === "gantt" ? setRenaming(true) : show(v))} title={v === "gantt" && GanttName && view.value === "gantt" ? "Rename the tab" : undefined}>{SHORT_TITLES[v] ? <><span class="tl-full">{TITLES[v]}</span><span class="tl-short">{SHORT_TITLES[v]}</span></> : TITLES[v]}</button>
         ))}
       </nav>
       {fromFile.value && asAt.value ? <span class="asat num">As at {shownDate(asAt.value)}</span> : null}
+      {file ? <span class="top-slot" data-slot="theme"></span> : null}      {/* issue 1146: the place for the light and dark switcher icon (issue 1144), after the date and before the profile circle; empty, it takes no room */}
       {Publish ? <Publish /> : null}
       {/* row 804: the top bar never draws View | Edit. It exists only on the Dashboard, as the report bar's pill (ReportBar.jsx, item 665); the other tabs are always editable */}
       {SearchButton ? <SearchButton /> : null}

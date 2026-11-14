@@ -14,7 +14,7 @@ sanitise.href passed and that starts https: or mailto:), never from row text.
 Rich text (current_state, a use case's standing, a text section's body) is cleaned again with sanitise.clean_html and mapped from
 its token stream: p, h1 to h3 (one level down, so the section title stays the top), strong, em, s, ul and ol to three levels,
 blockquote, hr, br, a checklist box, and a link only to https: or mailto:. The sanitiser has no img, so row text never brings a picture; the only pictures are the ones this module draws (docx_graphics:
-the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media with no label in them.
+the Health bar, the milestone plan, a milestone's progress bar and the Gantt tab), written as PNG parts under word/media; the plan and the Gantt carry each lane's name and the months as pixels, never as markup.
 
 The same rows give the same bytes: parts in a fixed order, a fixed time, system and permission bits on every zip entry, relationship
 ids numbered in order of use, no clock and nothing left to chance, and the file's author and last editor are the word clark, never a person.
@@ -61,7 +61,7 @@ TITLES = {"current": "Current state", "glance": "At a glance", "usecases": "Use 
           "text": "Notes", "raid": "Risks and issues", "actions": "Actions", "decisions": "Decisions", "gantt": "Gantt"}
 HIDDEN_BY_KIND = ("actions", "raid", "decisions")
 HEADING_STYLE = {"h1": "Heading2", "h2": "Heading3", "h3": "Heading4"}
-MAX_LEVELS = 3                                           # list levels written
+MAX_LEVELS = 4                                           # list levels written
 
 
 class WordError(ValueError):
@@ -240,10 +240,13 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
     """A cell of words. `colour` (red, amber, green, blue, grey) gives a fill and text of the same hue, the words always shown;
     `late` draws the text red; `extra` are quieter lines under it."""
     fill = color = None
+    if colour == "urgent":      # row 1021: Urgent is a solid maroon cell with bold white words (the page's maroon tile)
+        fill, color = ctx.tok["tone-urgent"], ctx.tok["white"]
+        return text_paras(text, ctx, color=color, bold=True), fill
     if colour in colours_table.COLOURS:
         fill, color = ctx.hexes(colour)
     elif late:
-        color = ctx.tok["status-red-text"]
+        color = ctx.tok["tone-red-text"]
     body = text_paras(text, ctx, color=color)
     body += "".join(para(run(x, color=ctx.tok["grey-700"], size=16), "TableText") for x in extra if x)
     return body, fill
@@ -253,8 +256,9 @@ def word_cell(text, ctx, colour=None, late=False, extra=()):
 class _Rich:
     """Maps cleaned rich text (sanitise's allow-list) to paragraphs."""
 
-    def __init__(self, ctx):
+    def __init__(self, ctx, floor=2):
         self.ctx, self.out, self.runs = ctx, [], []
+        self.floor = floor                             # the shallowest heading level inside: below a Heading3 parent nothing may sit higher
         self.fmt = {"strong": 0, "em": 0, "s": 0}
         self.link = None
         self.stack, self.lists = [], []
@@ -272,6 +276,8 @@ class _Rich:
         if not re.sub(r"<[^>]*>", "", runs).strip() and "<w:br/>" not in runs:
             return
         heading = next((HEADING_STYLE[t] for t in reversed(self.stack) if t in HEADING_STYLE), None)
+        if heading and int(heading[-1]) < self.floor:
+            heading = f"Heading{self.floor}"
         if heading:
             self.out.append(para(runs, heading, keep_next=True))
         elif "li" in self.stack and self.lists:
@@ -318,13 +324,13 @@ class _Rich:
             self.lists.pop()
 
 
-def rich(html, ctx):
+def rich(html, ctx, floor=2):
     """Rich text as Word paragraphs, after cleaning it again with the sanitiser. Raises WordError for a text that is too long."""
     try:
         clean = sanitise.clean_html(html)
     except sanitise.SanitiseError as e:
         raise WordError(str(e)) from None
-    r = _Rich(ctx)
+    r = _Rich(ctx, floor)
     for t in sanitise.tokens(clean):
         if t[0] == "text":
             r.add_text(sanitise.decode(t[1]))
@@ -416,7 +422,7 @@ def section_usecases(published, ctx, title, sec, kept):
     out.append(table(ctx, ["Ref", "Use case", "Status", "Commitment", "Headline", "Work items"], [700, 2300, 1100, 1350, 3088, 1100], rows))
     standing = {u["id"]: u.get("standing") for u in kept["use_cases"]}
     for u in strip["rows"]:
-        body = rich(standing.get(u["id"]), ctx)
+        body = rich(standing.get(u["id"]), ctx, floor=4)           # its parent is a Heading3, so a heading inside is Heading4
         linked = [str(r["id"]) for r in glance.use_case_items(kept, u["id"]) if r.get("id")]
         if body or linked:
             out.append(_heading(f"{u['ref'] + ' ' if u['ref'] else ''}{u['title']}".strip(), 3) + body)
@@ -434,7 +440,7 @@ def section_milestones(published, ctx, title, sec):
         achieved = m.get("status") == "Done"
         slip = m.get("slip_days")
         name = para(run(m.get("name") or "", bold=True), "TableText")
-        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (m.get("client_message"), {}),
+        for line, kw in ((sanitise.rich_plain_text(m.get("description")), {}), (sanitise.rich_plain_text(m.get("client_message")), {}),     # row 1078: the client wording is rich too
                          (f"Reason: {m['state_reason']}" if m.get("state_reason") else "", {"color": ctx.tok["grey-700"]})):
             if line:
                 name += text_paras(line, ctx, **kw)
@@ -442,12 +448,12 @@ def section_milestones(published, ctx, title, sec):
             name += para(run(f"{m['percent_complete']}% complete", color=ctx.tok["grey-700"], size=16), "TableText")
             name += picture_para(ctx, lambda: (docx_graphics.progress_bar(m["percent_complete"], ctx.tok), f"{m['percent_complete']}% complete"),
                                  1440, "TableText")
-        when = f"Achieved {_date(m.get('actual_date'))}" if achieved else _date(m.get("forecast_date"))
+        when = ("Achieved" + (f" {_date(m['actual_date'])}" if m.get("actual_date") else "")) if achieved else _date(m.get("forecast_date"))
         colour = colours_table.colour_for("milestones", "state", m.get("state"))
         rows.append([word_cell(m.get("id"), ctx), (name, None), word_cell(m.get("owner"), ctx, extra=[m.get("workstream")]),
                      word_cell(_date(m.get("baseline_date")), ctx), word_cell(when, ctx),
                      word_cell(m.get("state_word") or m.get("state"), ctx, colour=colour),
-                     word_cell(f"+{slip} days" if slip and not achieved else "", ctx)])
+                     word_cell(f"+{slip} day{'' if slip == 1 else 's'}" if slip and not achieved else "", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     def plan():                                        # one lane for each milestone, in the order of the table; the words are the table's
@@ -455,12 +461,17 @@ def section_milestones(published, ctx, title, sec):
         if not drawn:
             return None
         image, lanes = drawn
-        return image, "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
-                                f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        words = "; ".join(f"{r['row'].get('name') or ''}, {_date(r['row'].get('baseline_date'))}, "
+                          f"{r['row'].get('state_word') or r['row'].get('state') or ''}" for r in lanes)
+        if len(words) > PLAN_ALT_MAX:                  # 200 long names would make an alt text of many thousand characters: cut at a word
+            words = words[:PLAN_ALT_MAX].rsplit(" ", 1)[0]
+        return image, words
     chart = picture_para(ctx, plan, TEXT_W, keep_next=True, spacing=(0, 60))
     return _heading(title) + chart + table(ctx, ["ID", "Milestone", "Owner", "Agreed", "Forecast", "State", "Slip"],
                                            [1200, 3038, 1150, 1100, 1100, 1100, 950], rows)
 
+
+PLAN_ALT_MAX = 1500
 
 GANTT_STATUS = {"done": "Done", "late": "Late", "inprogress": "In progress", "notstarted": "Not started"}     # the page's WORDS (gantt/logic/gantt.js)
 GANTT_LEGEND = ("Phase", "Task (lighter part = done)", "Milestone", "Achieved", "Today")
@@ -548,6 +559,20 @@ def _due(table_name, field, row, ctx, extra=()):
     return word_cell(_date(iso) + (" (overdue)" if late else "") if iso else "", ctx, late=late, extra=extra)
 
 
+def _status_cell(row, kind, ctx):
+    """The status as the page says it (glance.client_pill): Overdue, Delayed, Due soon or On track on an action; Red, Amber or Green
+    on a risk or issue. Any other RAID type (an assumption, a dependency) is not on the page's lists: it keeps its own status."""
+    if kind not in ("action", "risk", "issue"):
+        return word_cell(row.get("status"), ctx)
+    pill = glance.client_pill({"kind": kind, "status": row.get("status"), "priority": row.get("priority"), "due_date": row.get("due_date")},
+                              ctx.as_at)
+    if pill["text"] in ("Closed", "Made", "Completed"):
+        return word_cell(pill["text"], ctx, colour="blue")      # Completed, made and closed read blue, as on the page, whatever the priority
+    if row.get("priority") == "Urgent" and glance.is_open(row):
+        return word_cell(pill["text"], ctx, colour="urgent")      # an open Urgent item keeps the maroon cell when it is also overdue; the due column says (overdue)
+    return word_cell(pill["text"], ctx, colour={"r": "red", "a": "amber", "g": "green", "n": "grey"}.get(pill["class"]))
+
+
 def section_actions(published, ctx, title, sec):
     rows = []
     for a in _open(_rows(published, "actions")):
@@ -558,7 +583,7 @@ def section_actions(published, ctx, title, sec):
             body += text_paras(update, ctx, color=ctx.tok["grey-700"])
         rows.append([word_cell(a.get("id"), ctx), (body, None), word_cell(a.get("owner"), ctx, extra=[a.get("workstream")]),
                      word_cell(a.get("priority"), ctx, colour=colours_table.colour_for("actions", "priority", a.get("priority"))),
-                     _due("actions", "due_date", a, ctx), word_cell(a.get("status"), ctx)])
+                     _due("actions", "due_date", a, ctx), _status_cell(a, "action", ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
     return _heading(title) + table(ctx, ["ID", "Action", "Owner", "Priority", "Due", "Status"], [1200, 4038, 1250, 950, 1100, 1100], rows)
@@ -572,10 +597,10 @@ def section_raid(published, ctx, title, sec):
                      (text_paras(_words(r, "client_message", "description"), ctx), None),
                      word_cell(r.get("owner"), ctx, extra=[r.get("workstream")]),
                      word_cell(r.get("priority"), ctx, colour=colours_table.colour_for("raid", "priority", r.get("priority"))),
-                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), word_cell(r.get("status"), ctx)])
+                     word_cell(both, ctx), _due("raid", "due_date", r, ctx), _status_cell(r, str(r.get("type") or "").lower(), ctx)])
     if not rows:
         return _heading(title) + para(run(NONE))
-    return _heading(title) + table(ctx, ["ID", "Type", "Item", "Owner", "Priority", "Impact / likelihood", "Due", "Status"],
+    return _heading(title) + table(ctx, ["Id", "Type", "Title", "Owner", "Priority", "Impact / likelihood", "Review by", "Status"],      # the page's header words
                                    [1200, 1200, 1888, 1150, 950, 1050, 1100, 1100], rows)
 
 
@@ -690,7 +715,7 @@ def numbering_xml(ordered_lists):
     nums = '<w:num w:numId="1"><w:abstractNumId w:val="0"/></w:num>' + "".join(
         f'<w:num w:numId="{n + 1}"><w:abstractNumId w:val="1"/><w:lvlOverride w:ilvl="0"><w:startOverride w:val="1"/>'
         "</w:lvlOverride></w:num>" for n in range(1, ordered_lists + 1))
-    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪"[i])
+    return HEAD + (f'<w:numbering {ROOT}>' + abstract(0, "bullet", lambda i: "•◦▪‣"[i])
                    + abstract(1, "decimal", lambda i: f"%{i + 1}.") + nums + "</w:numbering>")
 
 

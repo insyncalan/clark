@@ -92,6 +92,40 @@ class TheCard(Card):
             self.assertTrue(any(w == "undo" for w, _r in self.sent), "Undo went through the board's own /api/undo")
             self.assertFalse(any(w == "change" for w, _r in self.sent), "Apply never used the hand-edit route")
 
+    def test_apply_and_undo_from_the_keyboard_keep_focus_in_the_card(self):
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            inside = "!!document.activeElement && !!document.activeElement.closest('[data-ask-change]')"
+            p.js("(() => { const b = document.querySelector('[data-ask-apply]'); b.focus(); b.click(); })()")      # a key press on a focused button is a click that leaves focus on it
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            p.until(inside, "after Apply focus is in the card, not on the page body")
+            p.js("(() => { const b = document.querySelector('[data-ask-undo]'); b.focus(); b.click(); })()")
+            p.until("document.querySelector('[data-ask-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            p.until(inside, "after Undo focus is in the card, not on the page body")
+
+    def test_an_applied_card_stays_done_with_undo_after_the_panel_is_closed_and_opened(self):
+        self.says(self.close_it())
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask_it(p)
+            self.card(p)
+            p.js("document.querySelector('[data-ask-apply]').click()")
+            p.until("document.querySelector('[data-ask-line]') && document.querySelector('[data-ask-line]').textContent.startsWith('Done.')", "Done.")
+            p.js("document.querySelector('#ask-close').click()")
+            p.until("!document.querySelector('#ask-panel')", "the panel is closed")
+            p.js("document.body.focus()")
+            p.key("/", code="Slash", vk=191)
+            p.until("!!document.querySelector('#ask-panel') && !document.querySelector('#ask-send').disabled", "the panel is back")
+            p.until("!!document.querySelector('[data-ask-change]')", "the card is back")
+            self.assertEqual(p.js("document.querySelectorAll('[data-ask-apply]').length"), 0, "an applied change is not offered again")
+            self.assertTrue(p.js("document.querySelector('[data-ask-line]').textContent.startsWith('Done.')"))
+            p.js("document.querySelector('[data-ask-undo]').click()")
+            p.until("document.querySelector('[data-ask-line]').textContent === 'Undone. The old values are back.'", "Undone")
+            self.assertEqual(self.status(), "Open")
+
     def test_a_use_case_change_shows_in_plain_words_and_applies_with_undo(self):         # issue 729
         uc = self.demo.use_case
         with self.store.step("dashboard", USER) as st:

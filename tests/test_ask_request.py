@@ -14,6 +14,9 @@ P = [ask.Passage("notes/plan.md", "The go-live is planned for March."), ask.Pass
 
 
 class Build(unittest.TestCase):
+    def test_answer_dates_are_dd_mm_yyyy(self):
+        self.assertIn("Write every date in the answer prose as DD-MM-YYYY.", ask.RULES)
+
     def test_the_rules_text_is_fixed(self):
         text = ask.build_request("What is late?", P).text
         self.assertNotIn(ask.RULES, text, "the rules are the system prompt, not part of the request text (#278)")
@@ -21,7 +24,7 @@ class Build(unittest.TestCase):
                      "only a suggestion", '"current_title"', '"current_owner"', "Never suggest archiving"):
             self.assertIn(line, ask.RULES)
         self.assertEqual(len(ask.RULES.splitlines()), 12)
-        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "74e4ecca0da06df6c0e6d99c3c7ab7e789aead3051f00a88c1bcf4eb6d3c807c")      # a change to the rules is a deliberate edit of this line
+        self.assertEqual(hashlib.sha256(ask.RULES.encode("utf-8")).hexdigest(), "61e8afbc84cfea268ffa100cea694356f9f7fbfdc93f8659fe29af92c3aefdca")      # a change to the rules is a deliberate edit of this line
 
     def test_passages_get_ids_in_order_and_the_question_is_carried(self):
         r = ask.build_request("What is late?", P)

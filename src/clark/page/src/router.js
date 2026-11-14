@@ -18,7 +18,10 @@
 // key written in the address would. `f` is written with navigate({...state, f}, {replace: true}): a filter change never pushes an
 // entry, so Back never stops on one. navigate() replaces by itself when only `f` differs, even if the caller forgets. A change
 // of page or project that also changes `f` pushes one entry, like any other change, and Back and Forward bring `f` back.
-export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "clientreport", "settings"];   // "clientreport": Client Requested Report View (#192); "gantt": the project's Gantt, offered only where its setting says so (#926)
+// A last key, `mv`, is the Milestones block's Calendar choice in a published file: "#milestones&p=PDF&mv=cal". Only "cal" is carried (the
+// Timeline is the start), so a reload of a file keeps the choice where the browser's storage on file:// cannot be trusted. Like `f`, a
+// change of only `mv` replaces the entry and never pushes one.
+export const VIEWS = ["dashboard", "work", "milestones", "usecases", "gantt", "settings", "published"];   // "gantt": the project's Gantt, offered only where its setting says so (#926)
 const CODE = /^[A-Z][A-Z0-9]{2,6}$/;                       // a project's code (the store's rule)
 const ID = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;            // a work item's or a milestone's id
 const UC_KEY = /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/;        // a use case's address key: its reference as written ("1.2") or its id; only the Use cases page reads it
@@ -38,11 +41,12 @@ function clean(state) {
   const text = (v) => (typeof v === "string" ? v : "");
   const view = VIEWS.includes(s.view) ? s.view : "dashboard";
   const project = CODE.test(text(s.project)) ? s.project : "";
-  const peekable = view !== "settings";                    // Settings has no peek; one peek at a time, an item before a milestone
+  const peekable = view !== "settings" && view !== "published";                    // Settings has no peek; one peek at a time, an item before a milestone
   const item = peekable && ID.test(text(s.item)) ? s.item : "";
   const ms = peekable && !item && ID.test(text(s.ms)) ? s.ms : "";
   const uc = view === "usecases" && UC_KEY.test(text(s.uc)) ? s.uc : "";     // "#usecases&p=PDF&uc=1.2": one use case's own page; no other page has it
-  return { view, project, item, ms, f: opaque(s.f), uc };
+  const out = { view, project, item, ms, f: opaque(s.f), uc };
+  return s.mv === "cal" ? { ...out, mv: "cal" } : out;      // `mv` is present only when it is "cal", so every other address reads as it always did
 }
 
 /** True for a well-formed project code. */
@@ -61,27 +65,81 @@ export function parse(hash) {
   for (const part of parts.slice(1)) {
     const at = part.indexOf("=");
     const key = at < 0 ? part : part.slice(0, at);
-    if (key in found || !["p", "item", "ms", "f", "uc"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
+    if (key in found || !["p", "item", "ms", "f", "uc", "mv"].includes(key)) continue;     // the first of a repeated key wins; others are ignored
     const raw = at < 0 ? "" : part.slice(at + 1);
     found[key] = key === "f" ? raw : unescape(raw);                        // `f` is passed through as it stands, never decoded
   }
-  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc });
+  return clean({ view: unescape(parts[0]), project: found.p, item: found.item, ms: found.ms, f: found.f, uc: found.uc, mv: found.mv });
 }
 
 /** {view, project, item, ms, f, uc} as a hash, the one form of each address ("#dashboard" for an empty state). Never throws. */
 export function format(state) {
   const s = clean(state);
   return "#" + s.view + (s.project ? "&p=" + s.project : "") + (s.uc ? "&uc=" + encodeURIComponent(s.uc) : "") + (s.item ? "&item=" + encodeURIComponent(s.item) : "") +
-    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "");
+    (s.ms ? "&ms=" + encodeURIComponent(s.ms) : "") + (s.f ? "&f=" + s.f : "") + (s.mv ? "&mv=" + s.mv : "");
 }
 
 try { history.scrollRestoration = "manual"; } catch (e) { /* the page works with the browser's default */ }
 
+const spots = new Map();                                   // where each screen was scrolled to when it was left: key -> pixels (item 1019)
+let shown = "";                                            // the key of the screen last drawn
+let restoring = 0;                                         // counts restores, so a newer move cancels an older one still waiting for the page to grow
 let seen = "";                                             // the hash the page last drew, so one move is never handled twice
 let moves = 0;                                             // counts every move (navigate, Back, Forward): back()'s stuck check reads it
 
 function here() {
   try { return location.hash; } catch (e) { return ""; }
+}
+shown = screenKey(parse(here()));
+
+/** The screen an address is on: page, project and use case. A peek, the filters and the item are not part of it, so opening or closing
+ *  a peek never counts as leaving. */
+function screenKey(state) {
+  const s = clean(state);
+  return s.view + "|" + s.project + "|" + s.uc;
+}
+
+/** Stop any place-restore still running, so a scroll the page makes itself (a link that lands on a card) is not set back to the top. */
+export function stopRestore() { restoring++; }
+
+function scrollNow() {
+  try { return Math.max(0, Math.round(window.scrollY || 0)); } catch (e) { return 0; }
+}
+
+/** Put the page where `key` was left (a screen not seen before starts at the top). The page redraws after the move, and its height
+ *  and layout settle over a few frames (a project's data may still be arriving), so the place is set again each frame until it has
+ *  held for a few frames in a row. Only the person ends it (wheel, touch, key, click) or a newer move: the page's own scrolls (the open tab brought into view, a focus) are not the person's and are set right again, so the place holds. */
+function restore(key) {
+  const mine = ++restoring;
+  const want = spots.get(key) || 0;
+  let frames = 0, held = 0;
+  const root = document.documentElement;
+  const evs = ["wheel", "touchstart", "keydown", "mousedown"];
+  const unhook = () => { for (const ev of evs) { try { removeEventListener(ev, stop); } catch (e) { /* none */ } } };     // none left attached once the restore has stopped or finished
+  const done = () => { unhook(); try { root.style.overflowAnchor = ""; } catch (e) { /* none */ } };     // the browser's own scroll anchoring would shift the place while the page redraws
+  const stop = () => { if (mine === restoring) { restoring++; done(); } else unhook(); };
+  try { root.style.overflowAnchor = "none"; } catch (e) { /* none */ }
+  for (const ev of evs) { try { addEventListener(ev, stop, { once: true, passive: true }); } catch (e) { /* none */ } }
+  const step = () => {
+    if (mine !== restoring) { unhook(); return; }
+    try {
+      const room = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+      const at = Math.min(want, room);
+      if (Math.round(window.scrollY) !== at) { window.scrollTo(0, at); held = 0; } else if (at === want) held++;
+      if (++frames < 120 && held < 30) requestAnimationFrame(step); else done();
+    } catch (e) { /* no window to scroll */ }
+  };
+  step();
+  try { requestAnimationFrame(step); } catch (e) { /* as above */ }
+}
+
+/** Called when the person leaves `from` for `to`: remember the leaving screen's place, and place the new one. */
+function moved(fromKey, toState) {
+  const toKey = screenKey(toState);
+  if (fromKey === toKey) return;
+  spots.set(fromKey, scrollNow());
+  shown = toKey;
+  restore(toKey);
 }
 
 /** The state of the address the page is on now. */
@@ -104,10 +162,11 @@ export function navigate(state, { replace = false } = {}) {
   const hash = format(next);
   const now = parse(here());
   if (hash === format(now)) return false;
-  if (format({ ...next, f: "" }) === format({ ...now, f: "" })) replace = true;      // only `f` differs
+  if (format({ ...next, f: "", mv: "" }) === format({ ...now, f: "", mv: "" })) replace = true;      // only `f` or `mv` differs
   const opened = !!(next.item || next.ms) && !(current().item || current().ms);
   const mark = (opened && !replace) || (replace && (next.item || next.ms) && peekWasPushed()) ? { clarkPeek: MARK } : null;
   try { history.scrollRestoration = "manual"; } catch (e) { /* as above */ }
+  const fromKey = screenKey(now);
   seen = hash;                                             // set first: location.hash = ... can fire popstate inside the call
   moves++;
   try {
@@ -115,7 +174,14 @@ export function navigate(state, { replace = false } = {}) {
   } catch (e) {
     try { if (replace) location.replace(hash); else location.hash = hash; } catch (e2) { seen = here(); /* no history: the page still works */ }
   }
+  moved(fromKey, next);
   return true;
+}
+
+/** Give this page's address, in place: no navigation and no new entry (the hash is unchanged by the caller's url). Used when a Generic project's
+ *  page keeps the document it was served as but its address names the project, as a reload would have left it. */
+export function replaceAddress(url) {
+  try { history.replaceState(history.state, "", url); } catch (e) { /* no history: the page still works */ }
 }
 
 /** Step Back one entry (the browser's Back); the handler given to onPop then redraws. If `stuck` is given and nothing has moved a
@@ -136,7 +202,11 @@ export function onPop(handler) {
     if (now === seen) return;                              // popstate and hashchange both fire for one move: draw once
     seen = now;
     moves++;
-    try { handler(parse(now)); } catch (e) { /* a faulty handler must not break the next move */ }
+    const fromKey = shown, to = parse(now);
+    if (fromKey !== screenKey(to)) spots.set(fromKey, scrollNow());     // the page has not redrawn yet: the place is still the leaving screen's
+    shown = screenKey(to);
+    try { handler(to); } catch (e) { /* a faulty handler must not break the next move */ }
+    if (fromKey !== shown) restore(shown);
   };
   seen = here();
   addEventListener("popstate", run);

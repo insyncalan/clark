@@ -44,6 +44,14 @@ function cleanPaste(html) {
   try { return cleanHtml(html); } catch (e) { return ""; }
 }
 
+// A one-line field: a paste is its words on one line, whatever markup or paragraphs it came with.
+function pasteWords(html) {
+  const t = document.createElement("template");
+  t.innerHTML = cleanPaste(html).replace(/<\/(p|li|h[1-6]|blockquote|div)>|<(br|hr)\s*\/?>/gi, " ");          // the cleaner first: a script's text is never words
+  const words = (t.content.textContent || "").replace(/[\s\u0085]+/g, " ").trim();
+  return `<p>${words.replace(/&/g, "&amp;").replace(/</g, "&lt;")}</p>`;
+}
+
 const COMMANDS = {
   bold: (c) => c.toggleBold(), italic: (c) => c.toggleItalic(), strike: (c) => c.toggleStrike(),
   h1: (c) => c.toggleHeading({ level: 1 }), h2: (c) => c.toggleHeading({ level: 2 }), h3: (c) => c.toggleHeading({ level: 3 }),
@@ -58,8 +66,15 @@ const ACTIVE = { bold: ["bold"], italic: ["italic"], strike: ["strike"], h1: ["h
   h3: ["heading", { level: 3 }], bullet: ["bulletList"], numbered: ["orderedList"], checklist: ["taskList"], quote: ["blockquote"],
   link: ["link"] };
 
-export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel, onChange, keyHook, onError } = {}) {
+// Item 1005: the cleaner drops the next-line character (U+0085) as a control, which glued the words either side of it. It is a space.
+function nelToSpace(node) {
+  if (node && typeof node.text === "string") return { ...node, text: node.text.replace(/\u0085/g, " ") };
+  return node && node.content ? { ...node, content: node.content.map(nelToSpace) } : node;
+}
+
+export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel, onChange, keyHook, onError, oneLine = false } = {}) {
   const plain = profile === "plain";
+  const bare = plain || oneLine;                     // oneLine (item 1005): the rich profile's HTML in and out, but paragraphs only: no marks, no lists, no input rules, a paste is its words on one line
   const stored = html || "";
   let initial = null, done = false;
   let start = "";
@@ -81,11 +96,12 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
     return false;
   };
   const editor = createEditor(el, {
-    features: plain ? "plain" : "current",
+    features: bare ? "plain" : "current",
     html: plain ? `<p></p>` : start,
-    extensions: plain ? undefined : rich,
+    extensions: bare ? undefined : rich,
     injectCSS: false,
-    editorProps: { handleKeyDown: keys, transformPastedHTML: cleanPaste,
+    editorProps: { handleKeyDown: keys, transformPastedHTML: oneLine ? pasteWords : cleanPaste,
+      ...(oneLine ? { transformPastedText: (text) => text.replace(/\s+/g, " ").trim() } : {}),      // text only on the clipboard (a terminal, a plain editor, Shift+paste) is one line too
       attributes: { class: "clark-ed", "aria-label": plain ? "Text" : "Rich text", "aria-multiline": plain ? "false" : "true", role: "textbox" } },
     onUpdate: () => { if (onChange) onChange(handle); },
     onSelectionUpdate: () => { if (onChange) onChange(handle); },
@@ -95,7 +111,7 @@ export function clarkEditor(el, { profile = "rich", html = "", onSave, onCancel,
   const handle = {
     editor,
     dirty: () => !editor.state.doc.eq(initial),
-    written: () => (plain ? textOf(editor.getJSON()) : toHtml(editor.getJSON())),
+    written: () => (plain ? textOf(editor.getJSON()) : toHtml(nelToSpace(editor.getJSON()))),
     html() {
       if (!this.dirty()) return stored;
       return this.written();

@@ -231,6 +231,35 @@ class Chart(unittest.TestCase):
                         if g[0] != "Very long":
                             self.assertFalse(g[3], f"a normal label is not cut: {g}")
 
+    def test_row_1037_a_long_label_beside_a_bar_stays_inside_the_chart(self):
+        for where, lines in (("left edge", [ln("GNT-001", "Edge " * 34, "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Late", "phase", "2027-05-01", "2027-05-28", 0, show=True)]),
+                             ("right edge", [ln("GNT-001", "Early", "phase", "2026-09-01", "2026-09-05", 0, show=True), ln("GNT-002", "Edge " * 34, "phase", "2027-05-20", "2027-05-28", 0, show=True)])):
+            for width in (1400, 900):
+                with self.subTest(where=where, width=width):
+                    self.look(width, "light")
+                    self.mount(edit=False, lines=lines)
+                    got = self.val("[...document.querySelectorAll('.gt-mslab')].filter(e => e.textContent.startsWith('Edge')).map(e => { const b = e.getBoundingClientRect(), p = e.offsetParent.getBoundingClientRect(); return [b.left - p.left, b.right - p.right, parseFloat(getComputedStyle(e).maxWidth), parseFloat(e.style.getPropertyValue('--gt-room')) || null, e.classList.contains('gt-flip')]; })")
+                    self.assertTrue(got, "the long label is drawn")
+                    for left, right, maxw, room, flip in got:
+                        self.assertGreaterEqual(left, -1, "the label does not start left of the chart")
+                        if flip:
+                            self.assertLessEqual(maxw, room + 0.5, "a word left of its bar is held to the room there")
+    def test_row_1037_a_long_label_near_the_left_edge_never_starts_left_of_the_chart(self):
+        # a long name on a milestone at the very start of the plan flips left of its mark; it must stay inside the chart and end in an ellipsis
+        lines = [dict(l) for l in LINES]
+        lines[2].update(name="Records audit complete " * 8, start="2026-08-30", end="2026-08-30")
+        lines[0]["start"] = "2026-08-30"
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=False, lines=lines)
+                got = self.val("[...document.querySelectorAll('.gt-mslab.gt-flip')].map(e => [e.textContent.trim().slice(0, 7), e.getBoundingClientRect().left - e.offsetParent.getBoundingClientRect().left, getComputedStyle(e).textOverflow])")
+                flipped = [g for g in got if g[0] == "Records"]
+                self.assertTrue(flipped, "the long label is drawn left of its mark")
+                for _, left, to in flipped:
+                    self.assertGreaterEqual(left, -0.5, "the label starts at or right of the chart's left edge, never behind the left columns")
+                    self.assertEqual(to, "ellipsis")
+
     def test_a_line_with_no_usable_date_is_said_to_be_left_out(self):
         bad = [dict(l) for l in LINES] + [dict(LINES[0], id="GNT-090", name="No date", start="garbage", end="", show=True)]
         self.look(1400, "light")
@@ -275,6 +304,16 @@ class Chart(unittest.TestCase):
         self.assertIn("30% done · In progress", d)
         self.assertIn("On the dashboard: Yes", d)
 
+    def test_zoom_out_hands_focus_to_the_fit_button_when_it_turns_itself_off(self):
+        self.look(1400, "light")
+        self.mount(edit=False)
+        self.js("document.querySelector('[data-g-zin]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '125%'", "zoomed in")
+        self.js("document.querySelector('[data-g-zout]').focus(); document.querySelector('[data-g-zout]').click()")
+        self.until("document.querySelector('[data-g-fit]').textContent === '100%'", "back at fit")
+        self.assertTrue(self.val("document.querySelector('[data-g-zout]').disabled"))
+        self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-fit]')"), "focus did not fall to the page top")
+
     def test_scales_zoom_and_the_height_grip_in_view(self):
         self.look(1400, "light")
         self.mount(edit=False)
@@ -317,6 +356,20 @@ class Chart(unittest.TestCase):
         self.mouse("mouseReleased", g["x"], g["y"] + 70, buttons=0, clickCount=1)
         self.until("document.querySelector('[data-g-grip]').getAttribute('aria-valuenow') === '5'", "two rows more (70 px is 2.2 rows)")
         self.assertEqual(self.calls(), [])
+
+    def test_hunt18_widening_a_column_at_900_works_and_the_grip_says_it_is_off_in_full(self):
+        self.look(900, "light")
+        self.mount(edit=False)
+        w0 = self.val("document.querySelector('.gt-h-name').getBoundingClientRect().width")
+        h = self.centre("[data-g-rz='name']")
+        self.drag(h["x"], h["y"], 40)
+        self.until(f"document.querySelector('.gt-h-name').getBoundingClientRect().width > {w0} + 20", "the name column widens at 900")
+        self.js("document.querySelector('[data-g-expand]').click()")
+        self.until("document.querySelector('[data-gantt]').dataset.full === '1'", "full screen")
+        self.assertEqual(self.val("document.querySelector('[data-g-grip]').getAttribute('aria-disabled')"), "true", "the grip says it is off in full")
+        self.js("document.querySelector('[data-g-expand]').click()")
+        self.until("document.querySelector('[data-gantt]').dataset.full === '0'", "back")
+        self.assertIsNone(self.val("document.querySelector('[data-g-grip]').getAttribute('aria-disabled')"))
 
     def test_expand_to_full_screen_and_back(self):
         self.look(1400, "light")
@@ -402,6 +455,40 @@ class Chart(unittest.TestCase):
             self.assertEqual(len(self.calls()), 3, f"{field}: nothing was sent")
         self.assertEqual(self.count('[data-g-edit="GNT-003:end"]'), 0, "a milestone has one date: it has no End cell")
 
+    def test_hunt7_closing_the_show_menu_hands_focus_back_to_its_button(self):
+        for w in (1400, 900):
+            self.look(w, "light")
+            self.mount(edit=False)
+            self.js("document.querySelector('[data-g-show]').click()")
+            self.until("document.querySelector('[data-g-showmenu]')", "the menu")
+            self.js("document.querySelector('[data-g-filter=phases]').focus()")
+            self.keypress("[data-g-showmenu]", "ArrowDown")
+            self.assertEqual(self.val("document.activeElement.dataset.gFilter"), self.val("document.querySelectorAll('[data-g-filter]')[2].dataset.gFilter"), "ArrowDown moves to the next item")
+            def press_escape():      # the key listener is attached just after the menu opens, so press again until it has taken it
+                if self.count("[data-g-showmenu]"):
+                    self.keypress("[data-g-filter]", "Escape")
+                return not self.count("[data-g-showmenu]")
+            self.assertTrue(wait(press_escape, 8), "Escape closes the menu")
+            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"Escape returns focus to Show at {w}")
+            self.js("document.querySelector('[data-g-show]').click()")
+            self.until("document.querySelector('[data-g-showmenu]')", "the menu again")
+            self.js("document.querySelector('[data-g-filter=phases]').focus(); document.querySelector('[data-g-filter=phases]').click()")
+            self.until("!document.querySelector('[data-g-showmenu]')", "choosing closes the menu")
+            self.assertTrue(self.val("document.activeElement === document.querySelector('[data-g-show]')"), f"choosing a view returns focus to Show at {w}")
+
+    def test_hunt7_the_add_menu_does_not_pull_focus_back_when_the_chart_redraws(self):
+        for w in (1400, 900):
+            self.look(w, "light")
+            self.mount(edit=True)
+            self.js("document.querySelector('[data-g-add=GNT-004]').click()")
+            self.until("document.querySelector('[data-g-addmenu]')", "the menu")
+            self.until("document.activeElement && document.activeElement.dataset.gAddtype === 'task'", "the first item takes focus on open")
+            self.js("document.querySelector('[data-g-addtype=phase]').focus()")
+            self.js("document.getElementById('host').style.width = (document.getElementById('host').clientWidth - 37) + 'px'")
+            self.until("document.querySelector('[data-g-addmenu]')", "still open")
+            wait(lambda: False, 0.4)      # let the redraw happen
+            self.assertEqual(self.val("document.activeElement.dataset.gAddtype"), "phase", f"a redraw leaves focus where the person moved it at {w}")
+
     def test_add_a_line_below_asks_what_kind(self):
         self.look(1400, "light")
         self.mount(edit=True)
@@ -440,6 +527,62 @@ class Chart(unittest.TestCase):
         self.until("window.calls.length === 2", "two changes")
         self.assertEqual(self.calls(), [["change", "GNT-005", "dates", {"start": "2026-10-22", "end": "2026-12-10"}], ["change", "GNT-005", "pct", 80]])
         self.until("!document.querySelector('[data-g-box]')", "the box closed")
+
+    def test_enter_or_space_on_a_milestone_opens_its_edit_box_with_real_keys(self):
+        for width in (1400, 900):
+            for key, code, vk, text in (("Enter", "Enter", 13, "\r"), (" ", "Space", 32, " ")):
+                self.look(width, "light")
+                self.mount(edit=True)
+                sel = "[data-g-bar=GNT-007]"
+                self.js(f"document.querySelector({lit(sel)}).focus()")
+                for press in (1, 2):
+                    for kind in ("keyDown", "keyUp"):
+                        self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": code, "windowsVirtualKeyCode": vk,
+                                                                 **({"text": text} if kind == "keyDown" else {})}, self.sid)
+                    if press == 1:      # first press selects only
+                        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", f"{code} selected at {width}")
+                        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+                self.until("document.querySelector('[data-g-box]')", f"{code} second press opened the box at {width}")
+                self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
+
+    def test_focus_goes_back_to_what_opened_a_box_or_menu_when_it_closes(self):
+        for width in (1400, 900):
+            with self.subTest(width=width):
+                self.look(width, "light")
+                self.mount(edit=True)
+                esc = "document.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))"
+                self.js("document.querySelector('[data-g-add=GNT-004]').focus(); document.querySelector('[data-g-add=GNT-004]').click()")
+                self.until("document.activeElement === document.querySelector('[data-g-addtype=task]')", "the menu has focus")
+                self.js(esc)
+                self.until("!document.querySelector('[data-g-addmenu]')", "the menu closed")
+                self.until("document.activeElement === document.querySelector('[data-g-add=GNT-004]')", "focus is back on the plus button, not the page body")
+                self.js("document.querySelector('[data-g-bar=GNT-005]').focus(); document.querySelector('[data-g-bar=GNT-005]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.activeElement === document.querySelector('[data-g-bn]')", "the box has focus")
+                self.js("document.querySelector('[data-g-bsave]').click()")
+                self.until("!document.querySelector('[data-g-box]')", "saved")
+                self.until("document.activeElement === document.querySelector('[data-g-bar=GNT-005]')", "focus is back on the bar")
+                self.js("document.querySelector('[data-g-bar=GNT-010]').dispatchEvent(new MouseEvent('dblclick', {bubbles: true}))")
+                self.until("document.querySelector('[data-g-bdel]')", "the box")
+                self.js("document.querySelector('[data-g-bdel]').focus(); document.querySelector('[data-g-bdel]').click()")
+                self.until("document.querySelectorAll('[data-g-row]').length === 10", "deleted")
+                self.until("document.activeElement && document.activeElement.hasAttribute('data-g-bar')", "after a delete focus lands on a bar, not the page body")
+                self.js("document.querySelector('[data-g-show]').focus(); document.querySelector('[data-g-show]').click()")
+                self.until("document.querySelector('[data-g-showmenu]')", "the show menu")
+                self.js("document.querySelector('[data-g-filter]').focus(); document.querySelector('[data-g-filter]').click()")
+                self.until("!document.querySelector('[data-g-showmenu]')", "closed")
+                self.until("document.activeElement === document.querySelector('[data-g-show]')", "focus is back on the Show button")
+
+    def test_enter_on_a_selected_milestone_opens_the_edit_box_from_the_keyboard(self):
+        self.look(1400, "light")
+        self.mount(edit=True)
+        sel = "[data-g-bar=GNT-007]"
+        self.assertEqual(self.val(f"document.querySelector({lit(sel)}).tagName"), "BUTTON")
+        self.keypress(sel, "Enter")      # not yet selected: selects only
+        self.until(f"document.querySelector({lit(sel)}).classList.contains('sel')", "selected")
+        self.assertTrue(self.val("!document.querySelector('[data-g-box]')"))
+        self.keypress(sel, "Enter")      # selected: opens the box, as a bar does
+        self.until("document.querySelector('[data-g-box]')", "the box")
+        self.assertEqual(self.val("document.querySelector('[data-g-bn]').value"), "Pilot office live")
 
     def test_the_edit_box_stays_inside_the_window_at_900_and_1400(self):
         for width in (900, 1400):

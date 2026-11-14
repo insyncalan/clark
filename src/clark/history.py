@@ -9,9 +9,9 @@ from datetime import datetime, timedelta, timezone
 from clark import freshness as fresh, timefmt
 from clark.publish import LEGACY_RICH, RICH
 from clark.sanitise import SanitiseError, plain_text, rich_plain_text
-from clark.store import BATCH_UNDO, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
+from clark.store import BATCH_UNDO, EMAIL_NOTE_KEY, FLAG_COLUMNS, OP_MADE, REMOVED, REVERT_VIA, SEED_VIA, reverted_rowids
 
-JOINED = ("links", "item_labels")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
+JOINED = ("links", "item_labels", "use_case_milestones")      # rows keyed by an item's ID with another: "from|to|kind", "item|label"
 
 
 def touches(r, item_id):
@@ -19,7 +19,7 @@ def touches(r, item_id):
     if r["tbl"] not in JOINED:
         return True
     parts = str(r["item_id"]).split("|")
-    return item_id in (parts[:2] if r["tbl"] == "links" else parts[:1])
+    return item_id in (parts[:2] if r["tbl"] in ("links", "use_case_milestones") else parts[:1])
 
 
 ROW_SQL = ("SELECT c.rowid AS rowid, c.tbl, c.item_id, c.field, c.old_value, c.new_value, c.op, c.via, c.apply_id, "
@@ -320,6 +320,7 @@ FIELD_NAMES = {
     "use_cases": {"title": "Title"},
     "links": {"kind": "Link type"},
     "item_labels": {"item_id": "Item", "label": "Label"},
+    "use_case_milestones": {"removed_at": "Milestone link ended", "removed_by": "Link ended by", "use_case": "Use case", "milestone": "Milestone"},   # row 1107
     "updates": {"health": "Health", "summary": "Summary", "key_changes": "Key changes"},
 }
 REMOVED_NAME = "Removed"
@@ -327,7 +328,8 @@ CONTENT_FIELD, CONTENT_CHANGED = "Content", "Changed"    # a section's body (a n
 THING = {"links": "Link", "item_labels": "Label", "labels": "Label", "report_sections": "Section", "glance_tiles": "Tile",
          "report_hidden": "Hidden item", "saved_views": "Saved view", "documents": "Document", "source_folders": "Folder",
          "projects": "Project", "milestones": "Milestone", "workstreams": "Workstream", "actions": "Action", "raid": "RAID item",
-         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line"}      # what a Created or Removed row is about
+         "decisions": "Decision", "use_cases": "Use case", "updates": "Weekly update", "gantt_lines": "Gantt line",
+         "use_case_milestones": "Milestone link"}      # what a Created or Removed row is about
 
 
 def field_name(table, field):
@@ -479,7 +481,7 @@ class _Titles:
 def _ends(tbl, item_id):
     """The item IDs a change_log key is about: both ends of a link, the item of a label, else the key (a project's own code too)."""
     parts = str(item_id).split("|")
-    if tbl == "links":
+    if tbl in ("links", "use_case_milestones"):
         return parts[:2]
     if tbl in ("item_labels", "report_hidden", "documents", "glance_tiles", "saved_views", "report_sections"):
         return parts[:1] if tbl != "report_hidden" else parts[1:2]
@@ -591,6 +593,8 @@ def _display(con, rows, keep):
             row["to"] = f"{a['id']} {vals.get('kind') or 'blocks'} {b['id']}".strip()
         elif row["table"] == "item_labels":
             row["to"] = vals.get("label") or ""
+        elif row["table"] == "use_case_milestones":
+            row["to"] = vals.get("milestone") or ""
         elif col:
             row["to"] = vals.get(col) or row["title"]
         else:
@@ -624,13 +628,17 @@ EMAIL_HOW = "in the Draft email"          # the History's "how" for a sent recor
 
 def _email_rows(con, where, params, titles):
     """The "I sent it" records (#50) as rows: who pressed it, when, and the items asked about. Only in All: a sent record is not a
-    change and not a comment. The ids are the record's own, in order; the email's words were never stored."""
+    change and not a comment. The ids are the record's own, in order; the email's body and address were never stored (row 983: only the one History sentence holds the recipient's name and the subject)."""
     out = []
     for e in con.execute("SELECT seq, at, day, mode, by_user FROM email_sent WHERE " + where + " ORDER BY seq DESC", params):
         ids = [x["item_id"] for x in con.execute("SELECT item_id FROM email_sent_items WHERE seq = ? ORDER BY item_id", (e["seq"],))]
         when, note = when_text(e["at"], None)
         items = [{"id": i, "title": titles.of(i)} for i in ids]
         words = f"Emailed {_dmy(e['day'])} ({EMAIL_MODE_WORDS.get(e['mode'], e['mode'])}) about " + ", ".join(ids)
+        # Row 983: a record made with its sentence shows that sentence (written once, at the press); an older one keeps the line above.
+        sent = con.execute("SELECT src_ref FROM item_events WHERE place = 'email' AND change IS NULL AND item_id = ? "
+                           "ORDER BY event_id DESC LIMIT 1", (EMAIL_NOTE_KEY + str(e["seq"]),)).fetchone()
+        words = sent[0] if sent and sent[0] else words
         out.append({"when": when, "zone_note": note, "when_text": when + " - " + note, "who": e["by_user"], "how": EMAIL_HOW,
                     "item_id": ids[0] if ids else "", "title": items[0]["title"] if items else "", "items": items,
                     "item": ", ".join((i["id"] + " " + i["title"]).strip() for i in items), "field": "Email sent", "from": "", "to": words,
@@ -656,8 +664,7 @@ def _publication_rows(con, code):
 
 
 def _dmy(day):
-    y, m, d = str(day).split("-")
-    return f"{d}-{m}-{y}"
+    return timefmt.day_text(day)
 
 
 def _when_key(stamp):

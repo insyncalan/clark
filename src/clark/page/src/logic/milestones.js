@@ -213,9 +213,10 @@ export function calendarChips(rows) {
   return out;
 }
 
-/** The Legend: the six states in order, then Expected and Today. A published file says the client's word. */
+/** The Legend: the six states in order, then (in the editor only) Cancelled, then Expected and Today. A published file says the client's word and drops Cancelled rows, so it has no Cancelled entry. */
 export function legend(client) {
   const out = STATES.map((s) => ({ state: s, word: client ? CLIENT_WORD[s] : s, colour: LOOK[s][0], mark: LOOK[s][1], means: LOOK[s][2] }));
+  if (!client) out.push({ state: CANCELLED, word: CANCELLED, colour: LOOK[CANCELLED][0], mark: LOOK[CANCELLED][1], means: LOOK[CANCELLED][2] });
   out.push({ state: "Expected", word: "Expected", colour: null, mark: "ghost", means: "Where a slipped milestone is now expected; a dashed line joins it to its agreed date" });
   out.push({ state: "Today", word: "Today", colour: null, mark: "today-line", means: "The line on the timeline; the blue date on the calendar" });
   return out;
@@ -247,4 +248,20 @@ export function headLine(rows) {
   if (!live.length) return null;
   const dated = live.filter((r) => r.baseline || r.forecast), last = (dated.length ? dated : live).slice(-1)[0], achieved = live.filter((r) => r.state === "Achieved").length;
   return { name: last.name, date: last.baseline || last.forecast, agreed: !!last.baseline, expected: last.slip > 0 ? last.expected : null, achieved, toCome: live.length - achieved };
+}
+
+/** The second line of a list row under its date: what the date means for this state. A cancelled milestone is not described as agreed. */
+export function subLine(r) {
+  if (r.state === "Achieved" && r.achieved) return { text: r.achievedNote || "Achieved", late: false };
+  if (r.state === "Achieved") return { text: "Achieved, date not recorded", late: false };
+  if (r.state === CANCELLED) return { text: "No longer going ahead", late: false };
+  if (r.state === "Forecast") return { text: "Forecast, not agreed", late: false };
+  if (r.slip) return { text: `Expected ${showDate(r.expected)} \u00b7 ${r.slipText}`, late: true };
+  return { text: r.baseline ? "Agreed" : "No agreed date", late: false };
+}
+
+/** The Milestones head when headLine gives nothing: 'No milestones yet.' only when there are no rows to draw; if every row is cancelled, say so. */
+export function emptyHead(rows) {
+  const n = (rows || []).length;
+  return n ? (n === 1 ? "The only milestone is cancelled." : `All ${n} milestones are cancelled.`) : "No milestones yet.";
 }

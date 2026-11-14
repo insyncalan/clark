@@ -399,6 +399,42 @@ class Table(unittest.TestCase):
         self.assertEqual(self.val("T.calls.slice(-2).map((c) => c[0])"), ["change", "delete"])
         self.assertEqual(self.state()["msg"][:12], "Line GNT-008")
 
+    def test_a_line_added_under_a_filter_that_hides_it_opens_no_edit_box_and_keeps_the_keys_working(self):
+        self.load(filter="phases")
+        names = self.names()
+        self.assertGreater(self.val("T.grid.visibleRows(T.lines, {edit: true, filter: 'phases'}).length"), 1)
+        self.click(0, 1)
+        self.go("T.mouse(T.cell(0, 1), 'contextmenu', {button: 2})")
+        self.go("[...document.querySelectorAll('.gt-menu button')][0].click()")      # Add a task below: a task is hidden by Phases only
+        s = self.state()
+        self.assertFalse(s["editing"], "no edit box opens on the next phase")
+        self.assertEqual(s["msg"][:12], "A line was a")
+        self.assertIn("hides it", s["msg"])
+        self.assertEqual(self.val("T.lines.length"), len(names) + 1)
+        self.assertEqual([n for n in self.names() if n != "New task"], names)
+        self.press("End", meta=True)
+        self.press("Tab")      # the last cell of the last phase: the new task is hidden, so nothing is left in editing
+        self.assertFalse(self.state()["editing"])
+        before = self.state()["act"]
+        self.press("ArrowUp")
+        self.assertNotEqual(self.state()["act"], before, "the arrow keys still move the cell")
+
+    def test_shift_tab_after_escape_leaves_the_table(self):
+        self.load()
+        self.click(1, 1)
+        self.press("Escape")
+        self.press("Shift")      # holding Shift sends its own key first
+        before = self.state()["act"]
+        self.assertFalse(self.val("T.press('Tab', {shift: true})"), "Shift+Tab is left to the browser")
+        self.assertEqual(self.state()["act"], before)
+
+    def test_deleting_from_the_row_menu_leaves_focus_in_the_table(self):
+        self.load()
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        self.go("[...document.querySelectorAll('.gt-menu button')].pop().click()")
+        self.assertEqual(self.val("document.activeElement.classList.contains('gt-scroll') || !!document.activeElement.closest('.gt-scroll')"), True)
+        self.assertEqual(self.val("document.activeElement === document.body"), False)
+
     def test_right_click_on_several_rows_offers_to_delete_them(self):
         self.load()
         self.go("T.mouse(document.querySelector('th[data-row=\"1\"]'), 'mousedown')")
@@ -410,6 +446,33 @@ class Table(unittest.TestCase):
         self.go("[...document.querySelectorAll('.gt-menu button')].pop().click()")
         self.assertEqual(len(self.names()), 5)
         self.assertEqual(self.val("T.lines.every((l) => l.dep.every((d) => T.lines.some((x) => x.id === d)))"), True, "nothing waits for a deleted line")
+
+    def test_the_fading_copy_of_the_menu_keeps_the_delete_colour_and_the_rule(self):
+        """The copy of a closed menu is drawn on the body, outside [data-gt]: it looks as the live menu did (red Delete, the hr's border and the button box)."""
+        self.load()
+        edit_css = (ROOT / "src/clark/page/src/edit/edit.css").read_text(encoding="utf-8")
+        self.js("(() => { const sh = new CSSStyleSheet(); sh.replaceSync(%s); document.adoptedStyleSheets = [sh]; })()" % lit(edit_css))
+        self.cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "no-preference"}]}, self.sid)
+        look = ("(() => { const m = document.querySelector('.gt-menu%s'); if (!m) return null; const d = m.querySelector('button.gt-danger'), h = m.querySelector('hr'), b = m.querySelector('button');"
+                " const c = (e, ks) => ks.map((k) => getComputedStyle(e)[k]); return JSON.stringify({danger: c(d, ['color']), hr: c(h, ['borderTopWidth', 'borderTopStyle', 'borderTopColor', 'marginTop']),"
+                " btn: c(b, ['display', 'paddingTop', 'paddingLeft', 'color', 'textAlign']), box: c(m, ['borderTopWidth', 'paddingTop', 'minWidth'])}); })()")
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        live = json.loads(self.js(look % ":not(.leaving)"))
+        self.assertNotEqual(live["danger"], live["btn"][3:4], "the live Delete is not drawn in the plain text colour")
+        self.js("(() => { window.__seen = null; new MutationObserver(() => { if (!window.__seen && document.querySelector('.gt-menu.leaving')) window.__seen = %s; })"
+                ".observe(document.body, {subtree: true, childList: true}); })()" % look.replace("%s", ".leaving"))
+        self.press("Escape")
+        self.assertTrue(wait(lambda: self.js("!!window.__seen")), "a copy of the closed menu was drawn")
+        self.assertEqual(json.loads(self.js("window.__seen")), live)
+
+    def test_escape_in_the_menu_closes_only_the_menu(self):
+        """Esc inside the context menu is the menu's: it is stopped and prevented, so a peek listening on the page keeps its card."""
+        self.load()
+        self.go("T.mouse(T.cell(3, 1), 'contextmenu', {button: 2})")
+        self.js("(() => { window.__peekSaw = false; document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !e.defaultPrevented) window.__peekSaw = true; }); })()")
+        self.go("document.querySelector('.gt-menu button').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}))")
+        self.assertFalse(self.js("window.__peekSaw"), "the peek never saw the Esc")
+        self.assertFalse(self.val("!!document.querySelector('.gt-menu:not(.leaving)')"), "the menu closed")
 
     def test_view_menu_offers_only_copy(self):
         self.load(edit=False)

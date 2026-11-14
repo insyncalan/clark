@@ -131,7 +131,7 @@ Programme managers spend hours each week turning their work items into a report 
   - History is data, not logs: the diagnostic log never holds report text, names or values (FR-8b); a log line for a saved change holds only the kind, the ID and the field.
 - **FR-43c (28-10-2026):** **Nothing is ever deleted; it is archived** ("we never delete - we archive"). Projects, work items, milestones, use cases and supporting documents have **Archive** where they had Delete. An archived record:
   - leaves the default views, the counts and the published page;
-  - is found with **Show archived** (Work items, Milestones and Settings › Projects);
+  - is found with **Show archived** (Milestones and Settings › Projects) or, for work items, the filter word **is:archived**;
   - opens read-only with **Restore**;
   - keeps all its history.
 
@@ -141,7 +141,7 @@ Programme managers spend hours each week turning their work items into a report 
   - Three modes: an update request, a chase (First, Second, Firmer, stepping up with each chase recorded) and a decision request to a decision's maker.
   - Items can be unticked, and the wording can be edited in the preview before copying.
   - **Copy for Outlook** puts the HTML and the plain text on the clipboard; **Copy as text** gives the plain text. Nothing is sent and no Outlook draft is made.
-  - **I sent it** records the item IDs, the date and the mode in the item's history, never the email's text.
+  - **I sent it** records the item IDs, the date and the mode, and writes one History line, once, when it is pressed: Emailed <Name> on 29-10-2026, "<the email's subject>". The History line may hold the recipient's name and the email's subject, never the address or the body.
 - **FR-45 (new):** For an address outside the user's own domains, items not marked client-visible start unticked and tagged "internal". Internal notes, hidden rows and the source of an item are never put in an email. The email is drawn on white with inline styles and simple tables, whatever the theme, so it pastes into Outlook as it looks. Polish the wording (a model call) waits for ask clark.
 
 ### 5.6 Milestones
@@ -227,7 +227,7 @@ Then, the same day: "for team sharing clark should check on open to se if there 
 - **FR-100:** Supporting documents is a list of links with a type and a date. Each can be shown, hidden or edited.
 
 ### 5.12 Design system and brand
-- **FR-110:** The look comes from design tokens. The repo carries a fictional demo brand. A user's real brand is a local override in `system/branding/`, which is never committed.
+- **FR-110:** The look comes from design tokens. The repo carries a fictional demo brand. A user's real brand is a local override in `branding/`, which is never committed.
 - **FR-111:** The client brand uses the client's logo only.
 - **FR-112 (28-10-2026):** **"ask clark" is always written in lower case** ("Ask clark always in lowercase"), like clark itself: in the interface, Help, emails, documents and the published page, and at the start of a sentence too. Rephrase a sentence so it does not need a capital, for example "In ask clark, choose…".
 
@@ -374,10 +374,10 @@ Written by a teammate (technical architect), 28-10-2026. It reads with `ARCHITEC
 - **Review:** this touches secrets, so it gets a Full review with two reviewers, the same as a guarded copy, and the owner approves the exact copy.
 
 ### Brand layering and the two brand tests
-- The committed demo `tokens.css` and demo logo are the default. A user's own `system/branding/tokens.css` and logo are layered on top, if present (that folder is ignored by git). Exports copy in the values in use, so a file is self-contained.
-- **Test 1:** fails if anything under `system/branding/` is tracked by git.
+- The committed demo `tokens.css` and demo logo are the default. A user's own `branding/tokens.css` and logo are layered on top, if present (that folder is ignored by git). Exports copy in the values in use, so a file is self-contained.
+- **Test 1:** fails if anything under `branding/` is tracked by git.
 - **Test 2:** fails if the local tokens aren't layered over the demo set (the override wins, and the token names match).
-- **Test 3**, when a deny list exists: fails if a published sample contains a name from the deny list kept in `system/branding/`. It is skipped when that file is absent, as on a fresh checkout.
+- **Test 3**, when a deny list exists: fails if a published sample contains a name from the deny list kept in `branding/`. It is skipped when that file is absent, as on a fresh checkout.
 
 ### Guarded copies from creaite
 - Copied from release tag v2.6.9 (`db5adb2`). Each copy is listed in the reuse record with its path and commit.
@@ -454,7 +454,7 @@ Written by a teammate (technical architect), 28-10-2026. It reads with `ARCHITEC
   - the report as wide as the Work items page ("Make Dashboard same width as work items... can we get it into 0.1"), in the page shell (#35) and the published report (#39)
   - demo data, the store, milestone state, the local server, Excel export and import, a read-only work items list, and one HTML report published with the demo brand
   - two guarded copies, #31 (the store, from `tracker.py`) and #33 (the server, from `live_server.py`), each with a design note and two reviewers
-  - the three brand tests: nothing tracked under `system/branding/` (#29), the deny list (#29, skipped when absent) and token layering (#35)
+  - the three brand tests: nothing tracked under `branding/` (#29), the deny list (#29, skipped when absent) and token layering (#35)
 - Every v0.1 item's tests pass on macOS, with the Windows-readiness source tests (NFR-9).
 - **v0.2:** the report editor (#65 to #67), the peek (#42), milestones with the Calendar and Legend (#44), tiles and use cases with the section styles (#45), To client (#43), (backlogged 28-10-2026: the Health spine and Cover-led layouts) (#46), Back and Forward (#63), and the Work items filters, Add buttons, profile, dark mode and client page look (#64).
 - **v0.3:** ask clark and creaite's AI menu on **Claude only, as creaite works today** (#47, #72; "interim Claude-only route in v0.3, as creaite works today"): a Claude subscription through the Claude command, or a Claude API key. Draft email in the editor (#50), Word (#48), and the Work items board and Group by (#68; "68 in v.0.3"), with board full screen (#81), table edits in place (#80) and Publish, Preview and Excel export in the profile menu (#77); and a launcher and clark as a Chrome app ("Let's also ensure we have a launcher plus I want to be able to download as a Chrome App. Put both into 0.3").

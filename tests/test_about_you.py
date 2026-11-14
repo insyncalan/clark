@@ -152,6 +152,19 @@ class AboutYou(Base):
             p.until("!!document.querySelector('#about-name')", "Settings › Profile drew")
             p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
 
+    def test_C_the_link_with_settings_already_open_puts_the_cursor_in_the_name_box(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in WIDTHS:
+                p.width(w)
+                self.open_settings(p)
+                p.until("document.activeElement && document.activeElement.id === 'about-name'", f"opening Settings gave the name box the cursor at {w}")      # let that finish, then move away
+                p.js("document.querySelector('#profile-btn').focus()")
+                self.assertNotEqual(p.js("document.activeElement.id"), "about-name")
+                self.open_menu(p)
+                p.js("document.querySelector('#profile-menu .who-link').click()")
+                p.until("document.activeElement && document.activeElement.id === 'about-name'", f"the name box has the cursor with Settings already open at {w}")
+
     def test_C_long_values_are_cut_on_one_line_each_and_never_widen_the_menu(self):
         name, email = "N" * 60, ("e" * 48) + "@example.test"
         self.assertEqual((len(name), len(email)), (60, 61))
@@ -260,6 +273,32 @@ class AboutYou(Base):
             self.assertEqual(self.refused_under(p, "name"), NAME_TOO_LONG)
             self.assertEqual(p.js("[document.querySelector('#about-name').value, document.querySelector('#about-email').value]"), ["N" * 61, "sam@example.test"])
             self.assertEqual(self.saved(), {})
+
+    def test_hunt18_enter_then_blur_sends_one_save_and_an_untouched_box_sends_none(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            self.slow_saves(p, delays=[1500])
+            self.type_into(p, "name", "Sam Lee", leave="enter")
+            p.js("document.querySelector('#about-name').dispatchEvent(new FocusEvent('blur'))")
+            p.until("window.__answered >= 1", "the first save was answered")
+            self.handled(p, "Sam Lee")
+            p.js("document.querySelector('#about-name').dispatchEvent(new FocusEvent('blur'))")
+            time.sleep(0.5)
+            self.assertEqual(p.js("window.__sentn"), 1, "one save for the name, not one per Enter and blur")
+
+    def test_hunt18_closing_the_page_with_a_box_focused_saves_its_text(self):
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_settings(p)
+            p.js("document.activeElement.blur()")
+            time.sleep(0.3)
+            p.js("window.__posts = 0; const f = window.fetch; window.fetch = (u, o) => { if (String(u).includes('/api/profile') && o && o.method === 'POST') window.__posts++; return f(u, o); }")
+            p.js("(() => { const el = document.querySelector('#about-email'); el.focus(); el.value = 'pat@example.com'; el.dispatchEvent(new Event('input', {bubbles: true})); })()")
+            time.sleep(0.3)
+            self.assertEqual(p.js("window.__posts"), 0, "typing alone sends nothing")
+            p.js("window.dispatchEvent(new Event('pagehide'))")
+            p.until("window.__posts >= 1", "the text was sent on pagehide")
 
     def test_C_text_typed_while_a_save_is_on_its_way_stays_in_the_box(self):
         """The page must not put the saved value back over a box typed in since the save was sent (a person who keeps typing during a slow
@@ -464,8 +503,8 @@ class AboutYou(Base):
     # ── the toast in View goes as it does in Edit (#429) ────────────────────
 
     def quick_toasts(self, p):
-        """Make the toast's 20 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
-        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 20000 ? 400 : ms, ...a); })()")
+        """Make the toast's 5 seconds 0.4 s: the page's own timer (changes.js say), only shorter."""
+        p.js("(() => { const t = window.setTimeout; window.setTimeout = (f, ms, ...a) => t(f, ms === 5000 ? 400 : ms, ...a); })()")
 
     def test_C_in_view_the_toast_goes_after_its_time_like_in_edit(self):
         with chrome() as cdp:

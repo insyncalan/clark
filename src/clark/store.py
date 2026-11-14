@@ -27,6 +27,7 @@ from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 
 from clark import doclinks, freshness as fresh, people as people_rules, platform, published_copies, sanitise, section_bodies
+from clark import timefmt
 from clark.default_sections import DEFAULT_SECTIONS
 from clark.order import GAP
 
@@ -38,12 +39,12 @@ SCHEMA_V2 = Path(__file__).with_name("schema_v2.sql")      # #126: version 2's t
 SCHEMA_V9 = Path(__file__).with_name("schema_v9.sql")      # #115: the people table, frozen: migrate_people reads this, never schema.sql
 SCHEMA_V6 = Path(__file__).with_name("schema_v6.sql")      # #47: app_settings (the ask switch), frozen: migrate_settings reads this, never schema.sql
 SCHEMA_USE_CASES_DONE = Path(__file__).with_name("schema_v11.sql")   # #412: use_cases taking 'Done', frozen: migrate_use_case_done reads this, never schema.sql
-SCHEMA_VERSION = 20          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
+SCHEMA_VERSION = 24          # 2 (#126): documents can be archived; 3 (#48): item_events takes the route 'word'; 4: a section may be of type needs or tracker; 5 (#123): applies.utc_offset and the wider places; 6 (#47): app_settings, the ask switch; 7 (#50): the sent record of the Draft email; 8 (#96): the section template types; 9 (#115): the people table and owner_id; 10 (#120): publications.number, one counter per project; 11 (#412): a use case can be Done; 12 (#325): the publications update trigger also guards client_path; 13 (#368): a web page and its Word copy can share one publication number; 14 (#171): projects.review_after_days; 15 (#269): publications.pdf_name, the name of the PDF saved with a publication; 16 (#709): use_cases.commitment, the flag; 17 (row 811): actions.client_action and raid.client_action, needed from the client; 18 (row 926): the gantt_lines table and the project's six Gantt columns; 19 (row 926): report_sections.type takes 'gantt'; 20 (#944): projects.brand; 21 (row 1061): the commitment Candidate is stored as Planned 2026; 22 (row 875): use_cases.owner and use_cases.owner_id; 23 (row 1068): report_sections.type takes 'gantttable'; 24 (row 1107): the use_case_milestones table, a use case linked straight to a milestone. The number is written as a literal beside its step in MIGRATIONS below too (a test pins them equal)
 
 # ── Rules (mirror schema.sql; the schema is still the final check) ─────────────
 
 TABLES = ("projects", "milestones", "workstreams", "actions", "raid", "decisions", "use_cases", "links", "labels",
-          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines")
+          "item_labels", "updates", "report_sections", "glance_tiles", "report_hidden", "documents", "source_folders", "people", "gantt_lines", "use_case_milestones")
 SETTINGS_TABLES = ("app_settings",)     # clark (#47): the writer's too, but kept apart from TABLES: what walks TABLES (backups, the demo, publishing) has no use for it
 ASK_WHEN_MISSING = False      # clark (#47): asking reads as OFF when the file holds no answer (no app_settings table or no row): it never fails open
 # clark: - promises, + use_cases, and + the report's own tables (#65, one amendment: the route admits only report_sections)
@@ -52,7 +53,7 @@ KEYS = {"projects": ("code",), "milestones": ("id",), "workstreams": ("id",), "a
         "item_labels": ("item_id", "label"), "updates": ("week_ending", "project"),
         "report_sections": ("id",), "glance_tiles": ("project", "tile"), "report_hidden": ("project", "item_id"),
         "documents": ("project", "id"), "source_folders": ("project", "path"), "app_settings": ("id",),
-        "people": ("id",), "gantt_lines": ("id",)}
+        "people": ("id",), "gantt_lines": ("id",), "use_case_milestones": ("use_case", "milestone", "link_id")}      # row 1107: the key holds both ends, so History finds a link from either item
 # clark (#65): a section's id holds its project's code, so one column finds the row (and next_id and history keep working)
 REQUIRED_NEW = {
     "projects": ("code", "name"),
@@ -74,6 +75,7 @@ REQUIRED_NEW = {
     "app_settings": ("id",),                                            # clark (#47): the migration makes its one row; a second is refused
     "documents": ("project", "title", "url"),                           # clark (#126); #74: added and edited too (_document_rules)
     "gantt_lines": ("project", "type", "name", "start", "end"),   # row 926
+    "use_case_milestones": ("use_case", "milestone"),                # row 1107
 }
 ARCHIVE_KINDS = ("projects", "milestones", "actions", "raid", "decisions", "use_cases", "documents", "people")   # what Step.archive takes (#126)
 SETTINGS_ROW = "This computer has one settings row. It can be changed, but not added, cancelled or archived."
@@ -81,15 +83,16 @@ SECTION_TYPES = ("current", "glance", "usecases", "milestones", "text", "raid", 
                  "needs", "tracker",
                  "textimage", "headline", "figures4", "figures3", "gallery", "table", "doclinks", "linkcard", "raid3", "raid4",
                  "workitems", "callout", "imagecap", "quote", "contacts", "checklist", "keydates", "onedoc",
-                 "gantt")                                                    # row 926: the Gantt section, which carries no body of its own
-# the thirty of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
+                 "gantt",                                                    # row 926: the Gantt section, which carries no body of its own
+                 "gantttable")                                               # row 1068: the Gantt table alone, the same lines and no body of its own
+# the thirty-one of schema.sql's CHECK, the first twenty-nine of them: 'needs', 'tracker' and the eighteen section templates (#96) carry content, through the
 # registry in section_bodies.py (section_kinds/); tests/test_section_registry.py pins this list to that registry
 BODY_TYPES = ("text",) + section_bodies.BODY_TYPES   # the section types that may have a body; text is written only by its own item (#188), the others by changes.py through the checker
 DELETABLE_TYPES = SECTION_TYPES                 # row 906: any section may be deleted; a built-in's row holds no data (its records live in their own tables)
 # #709: the words of a use case's commitment flag, the owner's own, case exact. The ONE place they are written: changes.py, the Excel
 # import and export, the data feed to the page and the tests all read this tuple. No flag is NULL. SQL has no CHECK on the column,
 # so a fourth word later is a change here and not a layout step.
-COMMITMENTS = ("Candidate", "Committed", "Planned 2027")
+COMMITMENTS = ("Planned 2026", "Committed", "Planned 2027")
 ALLOWED = {
     ("report_sections", "type"): SECTION_TYPES,                         # clark (#65): every type of schema.sql's CHECK
     ("glance_tiles", "tile"): ("health", "overdue", "risks", "decisions"),
@@ -187,8 +190,10 @@ def attach_freshness(con, data, days, cache=None):
 PUBLISH_TABLES = ("milestones", "workstreams", "actions", "raid", "decisions", "use_cases")     # what publish_inputs reads, in
 # Columns publish_inputs refuses to read, whatever it is asked for: working notes and folders that no report carries (Head
 # place that reads for a published file.
-NEVER_PUBLISH = frozenset({"internal_note", "movement", "source", "reasoning", "options", "response_action", "keywords",
+NEVER_PUBLISH = frozenset({"internal_note", "movement", "reasoning", "options", "response_action", "keywords",
                            "aliases", "lead", "publish_local", "publish_client", "by_user", "device"})
+# `source` left this list on row 1077 (the owner's ruling of 10-11-2026): a published file carries a row's source by NAME only; publish.select
+# puts the stored words through source_name.source_name, so a path never reaches a file.
 PUBLISH_ORDER = {"milestones": "sort_order, id", "workstreams": "id", "actions": "id", "raid": "id", "decisions": "id",
                  "use_cases": "sort_order, id"}                                                  # this order
 # #136: what the Movement read (Store.milestone_moves) may read from change_log: a fixed list, never a caller's. The internal
@@ -221,12 +226,13 @@ REVERT_CREATED = ("actions", "raid", "decisions", "milestones", "use_cases", "li
                   "report_sections", "source_folders", "people")      # #115: a person is never deleted; only the Undo of the step that made them takes the row away
 # a creation of these may be undone. clark: + use cases, and + links and labels, which creaite left to "undo last apply";
 # clark has only this one undo.
-REVERT_CREATED += ("report_hidden", "documents", "gantt_lines")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
+REVERT_CREATED += ("report_hidden", "documents", "gantt_lines", "use_case_milestones")    # #67: hiding a row from the report adds a report_hidden row; Undo takes it away (kept apart, so it merges with the other additions to the list above)
 REVERT_REFS = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "replaces"), ("links", "from_item"),
                ("links", "to_item"), ("item_labels", "item_id"),
                ("gantt_lines", "parent"),                                                   # row 926: a phase with lines under it (depends is a list: see referred_to)
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"),   # clark: + use_case
-               ("item_labels", "label"))                                                # clark: a label still on an item
+               ("item_labels", "label"),                                                # clark: a label still on an item
+               ("use_case_milestones", "milestone"), ("use_case_milestones", "use_case"))   # row 1107: a live link between a use case and a milestone
 
 
 class Invalid(Exception):
@@ -284,7 +290,7 @@ def today():
 
 def shown(iso):
     """YYYY-MM-DD → DD-MM-YYYY for anything a person reads."""
-    return f"{iso[8:10]}-{iso[5:7]}-{iso[0:4]}" if iso and len(iso) >= 10 else iso
+    return iso if iso is None else timefmt.day_text(iso, prefix=True)
 
 
 def _table(table):
@@ -958,6 +964,28 @@ def _gantt_detach(con, gone, step):
             _update_row(con, "gantt_lines", {"table": "gantt_lines", "op": "update"}, r["id"], r, changes, cols, step)
 
 
+UC_MS_NO_USE_CASE, UC_MS_NO_MILESTONE = "There is no use case {}.", "There is no milestone {}."
+UC_MS_OTHER_PROJECT = "A use case can only be linked to a milestone of its own project."
+UC_MS_ARCHIVED = "An archived use case or milestone cannot be linked. Restore it first."
+
+
+def _uc_milestone_rules(con, table, row, changed):
+    """Row 1107: a new link names a use case and a milestone that exist, are live, and belong to one project (an update only ends or
+    restores a link, so this is judged on a new row, and on a change to the pair)."""
+    if not ({"use_case", "milestone"} & set(changed)):
+        return
+    uc = con.execute("SELECT project, archived FROM use_cases WHERE id = ?", (row.get("use_case"),)).fetchone()
+    if uc is None:
+        raise Invalid(UC_MS_NO_USE_CASE.format(str(row.get("use_case"))[:40]))
+    ms = con.execute("SELECT project, archived FROM milestones WHERE id = ?", (row.get("milestone"),)).fetchone()
+    if ms is None:
+        raise Invalid(UC_MS_NO_MILESTONE.format(str(row.get("milestone"))[:40]))
+    if uc["project"] != ms["project"]:
+        raise Invalid(UC_MS_OTHER_PROJECT)
+    if uc["archived"] or ms["archived"]:
+        raise Invalid(UC_MS_ARCHIVED)
+
+
 ROW_RULES = {
     "actions": _ITEM_RULES,
     "raid": _ITEM_RULES,
@@ -975,6 +1003,7 @@ ROW_RULES = {
     "report_hidden": (_project_exists, _hidden_item),
     "source_folders": (_project_exists, _source_folder),                     # clark (#47)
     "gantt_lines": (_project_exists, _gantt_rules),                          # row 926
+    "use_case_milestones": (_uc_milestone_rules,),                           # row 1107
 }
 
 
@@ -1172,8 +1201,8 @@ def write_item(con, item, step):
     reverting = bool(item.get("revert"))
     if not reverting:
         refuse_archived_field(item)
-    if op not in ("new", "update", "cancel", "archive", "restore"):
-        raise Invalid(f"op must be new, update, cancel, archive or restore (got {op!r})")
+    if op not in ("new", "update", "cancel", "archive", "restore", "delete"):
+        raise Invalid(f"op must be new, update, cancel, archive, restore or delete (got {op!r})")
     if table == "app_settings" and op != "update":      # clark (#47): the one row is made by the migration step and only changed
         raise Invalid(SETTINGS_ROW)
     cols = columns(con, table)
@@ -1189,6 +1218,8 @@ def write_item(con, item, step):
         _refuse_label_on_archived(con, table, current)
     if op == "cancel" and table in DELETED_ON_CANCEL:
         return delete_row(con, table, key, current, step)
+    if op == "delete":
+        return delete_item(con, table, key, current, step)
     changes = _cancel_changes(table) if op == "cancel" else dict(item.get("changes") or {})
     return _update_row(con, table, item, key, current, changes, cols, step)
 
@@ -1406,6 +1437,11 @@ def _insert_row(con, table, item, cols, step):
         values["id"] = next_id(con, table, values["project"])
     if table == "people":
         values["id"] = next_person_id(con)
+    if table == "use_case_milestones":      # row 1107: the next link number (never one a logged link had), made and by whom
+        used = [r[0] for r in con.execute("SELECT max(link_id) FROM use_case_milestones UNION ALL SELECT max(CAST(item_id AS INTEGER)) "
+                                          "FROM change_log WHERE tbl = 'use_case_milestones'") if r[0] is not None]
+        values["link_id"] = 1 + max(used + [0])
+        values["created_at"], values["created_by"] = now(), step.by_user[:200]
     if "updated_at" in cols:
         values["updated_at"] = now()
     if fetch(con, table, key_of(table, values)):
@@ -1492,10 +1528,10 @@ def all_sections_deleted(con, code):
     return not con.execute("SELECT 1 FROM report_sections WHERE project = ? LIMIT 1", (code,)).fetchone() and sections_were_made(con, code)
 
 
-def delete_row(con, table, key, current, step):
-    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row. The row is kept in
-    change_log (field REMOVED) so undo can put it back."""
-    if table not in DELETED_ON_CANCEL:
+def delete_row(con, table, key, current, step, item=False):
+    """Remove a links, item_labels, labels (or, #65, report_sections, glance_tiles, report_hidden) row; item 658: or, when `item`
+    is true (only delete_item says so), an action, RAID item or decision. The row is kept in change_log (field REMOVED) so undo can put it back."""
+    if table not in DELETED_ON_CANCEL and not (item and (table in DELETABLE_ITEMS or table == "use_case_milestones")):
         raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
     current = dict(current)
     if table == "labels":
@@ -1509,6 +1545,45 @@ def delete_row(con, table, key, current, step):
     con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
     log(con, step, table, key, REMOVED, json.dumps(current, ensure_ascii=False), None, "update")
     return key
+
+
+DELETABLE_ITEMS = ("actions", "raid", "decisions", "milestones", "use_cases")     # item 658: the work items a person may delete (not by cancel: cancel closes them); item 1148: and a milestone and a use case, the same way
+
+
+def item_pointer(con, key):
+    """(table, the referring row's key) where another record names this item and the delete cannot take that pointer with it
+    (a decision's 'replaces'), or None. A link, a label on it and its hiding from the report go with the item, so they are not pointers."""
+    for table, col in REVERT_REFS:
+        if table in ("links", "item_labels") or col not in columns(con, table):
+            continue
+        r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?" + (" AND removed_at IS NULL" if table == "use_case_milestones" else "") + " LIMIT 1", (key,)).fetchone()   # item 1148: a link taken off is history, not a pointer
+        if r:
+            return table, key_of(table, r)
+    return None
+
+
+def delete_item(con, table, key, current, step):
+    """Item 658: delete one action, RAID item or decision (item 1148: or a milestone or a use case), with its links, its labels and its hiding from the report, in the
+    caller's one step. Each row is kept in change_log (field REMOVED) so one Undo puts all of them back while they are still gone.
+    Refused for another table, an archived item or project, or an item another record points at. The ID is never reused
+    (next_id reads change_log)."""
+    if table not in DELETABLE_ITEMS:
+        raise Invalid(f"{table} rows are never deleted; close or cancel them instead")
+    _refuse_if_archived(table, key, current)
+    if con.execute("SELECT 1 FROM projects WHERE code = ? AND archived = 1", (current["project"],)).fetchone():
+        raise Invalid(f"{current['project']} is archived. Restore it first.")
+    pointer = item_pointer(con, key)
+    if pointer:
+        raise Invalid(f"{key} can't be deleted: something refers to it ({_REF_WORDS.get(pointer[0], pointer[0])} {pointer[1]}).")
+    for t, rows_ in (("links", con.execute("SELECT * FROM links WHERE from_item = ? OR to_item = ?", (key, key)).fetchall()),
+                     ("item_labels", con.execute("SELECT * FROM item_labels WHERE item_id = ?", (key,)).fetchall()),
+                     ("report_hidden", con.execute("SELECT * FROM report_hidden WHERE project = ? AND item_id = ?", (current["project"], key)).fetchall()),
+                     # item 1148: the links of a milestone or use case that were taken off stay as history; they go with it (no live one is left: that is a pointer)
+                     ("use_case_milestones", con.execute("SELECT * FROM use_case_milestones WHERE use_case = ? OR milestone = ?", (key, key)).fetchall()
+                      if table in ("milestones", "use_cases") else [])):
+        for r in rows_:
+            delete_row(con, t, key_of(t, r), dict(r), step, item=(t == "use_case_milestones"))
+    return delete_row(con, table, key, current, step, item=True)
 
 
 # ---------- updates and cancels ----------
@@ -1693,10 +1768,39 @@ def _merged_row(con, table, current, changes, revert=False, archiving=False):
     return row
 
 
+def _carry_filter_names(step, field, old, new, project=None):
+    """Row 1113: a saved Work items filter names an owner or a workstream by its words. A rename changes those words in every such
+    filter (a person: every project's; a workstream: its project's), in the same step, so the section follows the live name."""
+    same = lambda x: isinstance(x, str) and " ".join(x.split()).casefold() == " ".join(old.split()).casefold()
+    sql, args = "SELECT id, body FROM report_sections WHERE type = 'workitems'", ()
+    if project:
+        sql, args = sql + " AND project = ?", (project,)
+    for sid, body in step.con.execute(sql, args).fetchall():
+        try:
+            v = json.loads(body or "")
+        except ValueError:
+            continue
+        if not isinstance(v, dict):
+            continue
+        changed = False
+        for part in (v, v.get("not")):
+            got = part.get(field) if isinstance(part, dict) else None
+            if isinstance(got, list) and any(same(x) for x in got):
+                out = []
+                for x in got:
+                    x = new if same(x) else x
+                    if x not in out:
+                        out.append(x)
+                part[field], changed = out, True
+        if changed:
+            step.update("report_sections", sid, {"body": json.dumps(v)})
+
+
 def _carry_workstream_rename(con, current, diff, step):
     """A rename carries the project's items with it (clark: milestones too, as they name a workstream)."""
     if "name" not in diff:
         return
+    _carry_filter_names(step, "workstream", current["name"], diff["name"], current["project"])
     for t in ("actions", "raid", "milestones"):
         for r in con.execute(f"SELECT id, workstream, updated_at FROM {_table(t)} WHERE project = ? AND "
                              "workstream = ? COLLATE NOCASE", (current["project"], current["name"])).fetchall():
@@ -1791,7 +1895,8 @@ def referred_to(con, key):
     decision it replaces, a use case), or None."""
     for table, col in REVERT_REFS:
         if col in columns(con, table):
-            r = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ? LIMIT 1", (key,)).fetchone()
+            rows = con.execute(f"SELECT * FROM {_table(table)} WHERE {col} = ?", (key,)).fetchall()
+            r = next((x for x in rows if not (table == "use_case_milestones" and x["removed_at"])), None)      # a link taken off is not a reference
             if r:
                 return table, key_of(table, r)
     if GANTT_ID.fullmatch(str(key)):          # row 926: a Gantt line another line depends on (a comma list, so it is read, not matched)
@@ -1853,6 +1958,41 @@ def revert_plan(con, rows, step, undoing_a_revert):
     return done, skipped
 
 
+def _link_end_gone(con, old):
+    """Item 658: whether either work item a removed link joined is not in the project now."""
+    for end in (old.get("from_item"), old.get("to_item")):
+        if end and not any(fetch(con, t, end) is not None for t in DELETABLE_ITEMS):
+            return True
+    return False
+
+
+def _return_links(con, step, key, undoing):
+    """Item 658: an item came back by Undo: put back each link to it that its own delete (or the delete of the item at the other end)
+    took away while the other end was still gone, now that both ends are there. A link taken away by hand, or put back already, is left."""
+    out = []
+    for r in con.execute("SELECT rowid, * FROM change_log WHERE tbl = 'links' AND field = ? ORDER BY rowid", (REMOVED,)).fetchall():
+        old = json.loads(r["old_value"])
+        if key not in (old.get("from_item"), old.get("to_item")) or _link_end_gone(con, old):
+            continue
+        if r["apply_id"] == undoing:
+            continue                                               # the step being undone puts its own links back itself
+        lk = r["item_id"]
+        if fetch(con, "links", lk) is not None:
+            continue
+        if con.execute("SELECT 1 FROM change_log WHERE tbl = 'links' AND item_id = ? AND rowid > ?", (lk, r["rowid"])).fetchone():
+            continue                                               # the link was put back, or taken away again, since
+        if not con.execute("SELECT 1 FROM change_log WHERE apply_id = ? AND field = ? AND tbl IN ('actions', 'raid', 'decisions', 'milestones', 'use_cases')",
+                           (r["apply_id"], REMOVED)).fetchone():
+            continue                                               # not removed by a delete of an item
+        back = {k: v for k, v in old.items() if k in columns(con, "links") and v is not None}
+        check_row(con, "links", dict(back), set(back))
+        _insert_sql(con, "links", back)
+        for f, v in back.items():
+            log(con, step, "links", lk, f, None, v, OP_MADE, undoes=r["rowid"])
+        out.append({"rowid": r["rowid"], "ref": lk, "field": REMOVED, "change": "put back"})
+    return out
+
+
 def revert_group(con, apply_id, table, key, rows_, step):
     """One item's rows from one step (`apply_id`), put back under `step`. Returns (done, skipped)."""
     def entry(r, **k):
@@ -1876,6 +2016,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
             return [], [entry(rows_[0], field=None, by_step=None,
                               why=f"something refers to it now ({_REF_WORDS.get(ref[0], ref[0])} {ref[1]}): left as it is")]
         current = fetch(con, table, key)
+        if table == "milestones":                          # a link taken off is kept, marked removed; it must go before the row it names
+            con.execute("DELETE FROM use_case_milestones WHERE milestone = ? AND removed_at IS NOT NULL", (key,))
+        elif table == "use_cases":
+            con.execute("DELETE FROM use_case_milestones WHERE use_case = ? AND removed_at IS NOT NULL", (key,))
         con.execute(f"DELETE FROM {_table(table)} WHERE {where_key(table)}", key_values(table, key))
         log(con, step, table, key, REMOVED, json.dumps(dict(current), ensure_ascii=False), None, "update",
             undoes=made[0]["rowid"])
@@ -1886,6 +2030,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
         if fetch(con, table, key) is not None:
             return [], [entry(x, why="is back already: left as it is", by_step=None) for x in rows_]
         old = json.loads(r["old_value"])
+        if table == "links" and _link_end_gone(con, old):          # item 658: the other end of the link is still deleted; the link comes back
+            return [], []                                          # with that item's own Undo (_return_links), so nothing is lost
         back = {k: v for k, v in old.items() if k in columns(con, table) and v is not None}
         before = {}                                    # #197: a field the step changed before the delete goes back to its first old value
         for x in rows_:
@@ -1896,7 +2042,10 @@ def revert_group(con, apply_id, table, key, rows_, step):
         _insert_sql(con, table, back)
         for f, v in back.items():
             log(con, step, table, key, f, None, v, OP_MADE, undoes=r["rowid"])
-        return [entry(x, change="put back") for x in rows_], []
+        out = [entry(x, change="put back") for x in rows_]
+        if table in DELETABLE_ITEMS:
+            out += _return_links(con, step, key, apply_id)
+        return out, []
     done, skipped, changes, undoes = [], [], {}, {}
     row = fetch(con, table, key)
     if row is None:
@@ -1941,7 +2090,8 @@ def revert_group(con, apply_id, table, key, rows_, step):
 
 
 _REF_WORDS = {"actions": "an action", "raid": "a RAID item", "decisions": "a decision", "links": "a link",
-              "item_labels": "a label on an item"}   # named with the referring row's key
+              "item_labels": "a label on an item",
+              "use_case_milestones": "a use case and milestone link"}   # named with the referring row's key
 
 
 def _typed(con, table, changes):
@@ -2036,6 +2186,9 @@ MIGRATE_INCONSISTENT = ("The database could not be updated because some of its r
 MIGRATE_PART_WAY = ("The database could not be updated, and it may have been left part way. The copy taken before the update "
                     "is in the backups folder. Ask the clark team for help, and tell them the name of the data file.")
 NEWER_DATA = "This data needs a newer clark. Nothing was changed. Install the latest clark, then try again."
+# The same refusal as said by the check run before the server starts in Docker, where the fix is a folder, not an install.
+# NEWER_DATA stays as it is for the Mac (tests pin it).
+NEWER_FOLDER = "This data needs a newer clark. Start from the newer clark folder. Nothing was changed."
 
 # The lowest SQLite the migration code is written for. Stated, not enforced at run time; a test checks the steps use nothing newer.
 MIN_SQLITE = (3, 24, 0)
@@ -2045,6 +2198,31 @@ MIN_SQLITE = (3, 24, 0)
 # a newer file): the server shows these sentences as they are instead of "clark can't read its data".
 MIGRATE_REFUSAL_STARTS = ("The database could not be updated", "This copy of clark cannot bring the database",
                           "The database has a version clark does not know", "This data needs a newer clark")
+
+
+def data_version(path):
+    """The schema version written in the data file at `path`, read and nothing else (a read-only connection: no step, no copy,
+    no migration, no table made), or None when there is no file. Raises Invalid when the file is not a clark database or has no
+    usable version. Before the try: Path.is_file and stat (an OSError on an unreadable folder is left to the caller, which says it in words)."""
+    path = Path(path)
+    if not path.is_file() or path.stat().st_size == 0:
+        return None
+    con = None
+    try:
+        con = connect(path, readonly=True)
+        row = con.execute("SELECT v FROM meta WHERE k = 'schema_version'").fetchone()
+    except sqlite3.OperationalError as e:        # a lock, or a read-only folder with no room for the -shm file: not a damaged file
+        if "locked" in str(e) or "busy" in str(e):
+            raise Invalid(_busy(e)) from e
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    except sqlite3.DatabaseError as e:           # a file that isn't a database, a database with no meta table, or one that can't be read
+        raise Invalid(f"{path.name} is not a database clark can read. Choose another file, or restore a backup.") from e
+    finally:
+        if con is not None:
+            con.close()
+    if row is None or not str(row[0]).isdigit():
+        raise Invalid(f"{path.name} is a clark database with no usable version. It may be damaged.")
+    return int(row[0])
 
 
 def bring_up_to_date(con, path, onedrive_roots=None):
@@ -2545,7 +2723,7 @@ def migrate_publication_pdf_name(con):
 
 def migrate_use_case_commitment(con):
     """Schema version 15 to 16 (#709): `use_cases.commitment`, the flag that says how firm a use case is (Candidate, Committed or
-    Planned 2027). NULL for every row already there: no flag is guessed. An optional column with no default and no CHECK (the words are
+    Planned 2027; Candidate became Planned 2026 in step 21). NULL for every row already there: no flag is guessed. An optional column with no default and no CHECK (the words are
     store.COMMITMENTS, so a fourth is not another layout step), added in place: no table is made again. Skipped when the column is
     already there (a new database, or a second run). Runs inside the caller's transaction and does not touch the version (the runner
     does). It is step 16 in MIGRATIONS."""
@@ -2656,6 +2834,126 @@ def migrate_brand(con):
         con.execute("ALTER TABLE projects ADD COLUMN " + BRAND_COLUMN)
 
 
+def migrate_commitment_planned_2026(con):
+    """Schema version 20 to 21 (row 1061): the commitment word Candidate is now Planned 2026. Every use case that holds Candidate is
+    rewritten to Planned 2026; no other value is touched. History lines are not rewritten (they keep the word they were written with)
+    and no new one is written. Safe to run twice (nothing holds Candidate the second time). Runs inside the caller's transaction and does
+    not touch the version (the runner does). It is step 21 in MIGRATIONS."""
+    con.execute("UPDATE use_cases SET commitment = 'Planned 2026' WHERE commitment = 'Candidate'")
+
+
+OWNER_STEP = 22        # row 875's step number, written once here and used by MIGRATIONS
+OWNER_COLUMNS = ("owner TEXT", "owner_id TEXT REFERENCES people(id)")      # the same text as schema.sql's use_cases table, in this order
+
+
+def migrate_use_case_owner(con):
+    """Schema version 21 to 22 (row 875): use_cases.owner (free text, as milestones.owner) and use_cases.owner_id (the link to the people
+    list). Both are added at the end of use_cases with the text of schema.sql, so no table is made again; every existing use case has no
+    owner (NULL), nothing is backfilled and no existing value changes. Each column is skipped when it is already there (a new database, or
+    a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and does not touch the
+    version (the runner does). It is step 22 in MIGRATIONS."""
+    have = columns(con, "use_cases")
+    for text in OWNER_COLUMNS:
+        if text.split()[0] not in have:
+            con.execute("ALTER TABLE use_cases ADD COLUMN " + text)
+
+
+# Row 1068: the table-only section type. The report_sections table as schema.sql makes it once a section may be of type 'gantttable',
+# frozen here (tests/test_gantt_table_section.py pins it to schema.sql as it is today). It keeps every type the earlier steps allow.
+REPORT_SECTIONS_WITH_GANTT_TABLE = REPORT_SECTIONS_WITH_GANTT.replace("'onedoc','gantt')),", "'onedoc','gantt','gantttable')),", 1)
+GANTT_TABLE_STEP = 23        # row 1068's step number, written once here and used by MIGRATIONS
+
+
+def migrate_gantt_table_section_type(con):
+    """Schema version 22 to 23 (row 1068): report_sections.type gains 'gantttable'. SQLite cannot change a CHECK in place, so the table
+    is made again from the frozen text above, the rows copied in their order (as steps 8 and 19 do; nothing references this table, it
+    has no trigger or index, and its one outgoing key is kept). Skipped when the table's own definition already names 'gantttable' (a
+    new database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the caller's transaction and
+    does not touch the version (the runner does). It is step 23 in MIGRATIONS."""
+    have = con.execute("SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'report_sections'").fetchone()
+    if have is None:
+        con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE)
+        return
+    if "'gantttable'" in have[0]:
+        return
+    con.execute(REPORT_SECTIONS_WITH_GANTT_TABLE.replace("CREATE TABLE IF NOT EXISTS report_sections (", "CREATE TABLE report_sections_table (", 1))
+    con.execute("INSERT INTO report_sections_table (project, id, type, title, body, beside, hidden, sort_order) "
+                "SELECT project, id, type, title, body, beside, hidden, sort_order FROM report_sections ORDER BY rowid")
+    con.execute("DROP TABLE report_sections")
+    con.execute("ALTER TABLE report_sections_table RENAME TO report_sections")
+
+
+UC_MILESTONES_STEP = 24        # row 1107's step number, written once here and used by MIGRATIONS
+UC_MILESTONES_TABLE = """CREATE TABLE IF NOT EXISTS use_case_milestones (
+  link_id    INTEGER PRIMARY KEY,
+  use_case   TEXT NOT NULL REFERENCES use_cases(id),
+  milestone  TEXT NOT NULL REFERENCES milestones(id),
+  created_at TEXT NOT NULL,
+  created_by TEXT NOT NULL DEFAULT '',
+  removed_at TEXT,
+  removed_by TEXT
+)"""      # the same statement as schema.sql's (a test pins the two together)
+UC_MILESTONES_INDEXES = (
+    "CREATE UNIQUE INDEX IF NOT EXISTS use_case_milestones_live ON use_case_milestones(use_case, milestone) WHERE removed_at IS NULL",
+    "CREATE INDEX IF NOT EXISTS use_case_milestones_milestone ON use_case_milestones(milestone)")
+
+
+def migrate_use_case_milestones(con):
+    """Schema version 23 to 24 (row 1107): the `use_case_milestones` table, a use case linked straight to a milestone. The table is new
+    and empty, so no table is made again and no existing value changes (the work item to milestone links stay where they are). Skipped
+    when it is already there (a new database, or a second run). The safety copy is taken by the runner before this runs. Runs inside the
+    caller's transaction and does not touch the version (the runner does). It is step 24 in MIGRATIONS."""
+    con.execute(UC_MILESTONES_TABLE)
+    for sql in UC_MILESTONES_INDEXES:
+        con.execute(sql)
+
+
+def link_use_case_milestone(st, use_case, milestone):
+    """Link a use case straight to a milestone of its project (row 1107), in the step `st`: logged, so History shows it and Undo takes it
+    back. True when a link was made, False when it was already live. Linking again after a removal adds a new row."""
+    if st.con.execute("SELECT 1 FROM use_case_milestones WHERE use_case = ? AND milestone = ? AND removed_at IS NULL", (use_case, milestone)).fetchone():
+        return False
+    st.create("use_case_milestones", {"use_case": use_case, "milestone": milestone})
+    return True
+
+
+def use_case_link_ids(con, project):
+    """Row 1107: the link numbers (as text) of every direct use case to milestone link of THIS project's use cases, live or removed."""
+    return {str(r[0]) for r in con.execute(
+        "SELECT l.link_id FROM use_case_milestones l JOIN use_cases u ON u.id = l.use_case WHERE u.project = ?", (project,))}
+
+
+def unlink_use_case_milestone(st, use_case, milestone):
+    """End a direct link (row 1107), in the step `st`: the row is kept with removed_at and removed_by set, never deleted, and the change
+    is logged (Undo puts the link back). True when a live link was ended."""
+    row = st.con.execute("SELECT link_id FROM use_case_milestones WHERE use_case = ? AND milestone = ? AND removed_at IS NULL", (use_case, milestone)).fetchone()
+    if row is None:
+        return False
+    st.update("use_case_milestones", f"{use_case}|{milestone}|{row[0]}", {"removed_at": now(), "removed_by": st.by_user[:200]})
+    return True
+
+
+def use_case_milestone_ids(con, use_case):
+    """The milestone ids a use case is linked to directly (live links), sorted. Not the ones its work items reach."""
+    return [r[0] for r in con.execute("SELECT milestone FROM use_case_milestones WHERE use_case = ? AND removed_at IS NULL ORDER BY milestone", (use_case,))]
+
+
+def milestone_use_case_ids(con, milestone):
+    """The use case ids linked directly to a milestone (live links), sorted."""
+    return [r[0] for r in con.execute("SELECT use_case FROM use_case_milestones WHERE milestone = ? AND removed_at IS NULL ORDER BY use_case", (milestone,))]
+
+
+def use_case_milestone_history(con, use_case=None, milestone=None):
+    """Every link row ever made (ended ones too), oldest first, as dicts; narrowed to a use case and/or a milestone when given."""
+    where, args = [], []
+    for col, v in (("use_case", use_case), ("milestone", milestone)):
+        if v is not None:
+            where.append(col + " = ?")        # fixed column names
+            args.append(v)
+    sql = "SELECT * FROM use_case_milestones" + (" WHERE " + " AND ".join(where) if where else "") + " ORDER BY link_id"
+    return [dict(r) for r in con.execute(sql, args)]
+
+
 # version -> the step that brings a file TO that version. Each number is a literal; a step that lands before another takes the next
 # number and the later one is renumbered (its literal and SCHEMA_VERSION's line); the runner refuses a gap.
 MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies), (5, migrate_to_history), (6, migrate_settings),
@@ -2663,7 +2961,9 @@ MIGRATIONS = ((2, migrate_to_2), (3, migrate_to_3), (4, migrate_section_bodies),
               (11, migrate_use_case_done), (12, migrate_publication_trigger_client_path),
               (13, migrate_publication_shared_number),
               (REVIEW_DAYS_STEP, migrate_review_after_days), (15, migrate_publication_pdf_name), (16, migrate_use_case_commitment),
-              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand))
+              (17, migrate_client_action), (18, migrate_gantt), (19, migrate_gantt_section_type), (BRAND_STEP, migrate_brand),
+              (21, migrate_commitment_planned_2026), (OWNER_STEP, migrate_use_case_owner), (GANTT_TABLE_STEP, migrate_gantt_table_section_type),
+              (UC_MILESTONES_STEP, migrate_use_case_milestones))
 
 
 def migration_plan(version, table=None):
@@ -2908,6 +3208,34 @@ def cut_whole_steps(events, cap):
     return [e for e in events if e["step"] in keep]
 
 
+EMAIL_NOTE_KEY = "sent:"             # row 983: the item_events item_id of an "I sent it" sentence, then the email_sent number
+EMAIL_NOTE_MAX = 300                 # item_events.src_ref's own limit
+EMAIL_NOTE_NAME_MAX = 100
+_HIDDEN_CATEGORIES = frozenset({"Cf", "Co", "Cs"})
+
+
+def _note_text(text):
+    """One plain line: line breaks and controls become spaces, hidden marks (bidi, zero width) go, white space is collapsed."""
+    flat = "".join(" " if unicodedata.category(c) in ("Cc", "Zl", "Zp") else "" if unicodedata.category(c) in _HIDDEN_CATEGORIES else c
+                   for c in str(text or ""))
+    return " ".join(flat.split())
+
+
+def email_note(name, day, subject):
+    """The one History sentence for "I sent it" (row 983): NEW words, ruled by the Head, exactly
+    `Emailed Pat Example on 29-10-2026, "Example Programme · ABC-A-004 · Chase: Order the laptops"`, or without the name when no
+    person is named. Never an address, never the body. A double quote inside the subject becomes a single one, and a subject too long
+    for src_ref is cut with an ellipsis, so the sentence always fits (300 characters) and has no line break."""
+    y, m, d = str(day).split("-")
+    who = _note_text(name)[:EMAIL_NOTE_NAME_MAX].rstrip()
+    lead = "Emailed " + (who + " " if who else "") + f"on {d}-{m}-{y}, \""      # NEW
+    what = _note_text(subject).replace('"', "'")
+    room = EMAIL_NOTE_MAX - len(lead) - 1
+    if len(what) > room:
+        what = what[:room - 1].rstrip() + "\u2026"
+    return lead + what + '"'
+
+
 class Store:
     """clark.db, written only through steps."""
 
@@ -3012,6 +3340,7 @@ class Store:
                     elif table == "item_labels":
                         con.execute("DELETE FROM item_labels WHERE item_id = ? AND label = ?", key.split("|"))
                 for sql in ("DELETE FROM actions WHERE project = ?", "DELETE FROM raid WHERE project = ?", "DELETE FROM decisions WHERE project = ?",
+                            "DELETE FROM use_case_milestones WHERE use_case IN (SELECT id FROM use_cases WHERE project = ?)",
                             "DELETE FROM use_cases WHERE project = ?", "DELETE FROM milestones WHERE project = ?", "DELETE FROM workstreams WHERE project = ?",
                             "DELETE FROM updates WHERE project = ?", "DELETE FROM report_sections WHERE project = ?", "DELETE FROM glance_tiles WHERE project = ?",
                             "DELETE FROM report_hidden WHERE project = ?", "DELETE FROM documents WHERE project = ?", "DELETE FROM source_folders WHERE project = ?", "DELETE FROM gantt_lines WHERE project = ?",
@@ -3052,6 +3381,11 @@ class Store:
             return []
         where = "" if archived is None else (" WHERE archived = 1" if archived else " WHERE archived = 0")
         return [dict(r) for r in self.con.execute("SELECT * FROM people" + where + " ORDER BY id")]
+
+    def gone_owners(self):
+        """Row 1113: the names (lower case, spaces tidied) of archived people that no live person also has: an owner that is no longer on
+        the list, so a Work items filter naming it matches nothing."""
+        return gone_owner_names(self.con)
 
     def resolve_owner(self, text):
         """What an owner name typed on a work item points at (#115), read only. The one resolver: the same answer for the page's
@@ -3113,6 +3447,9 @@ class Store:
                 if r["item_id"] in ids:
                     labels.setdefault(r["item_id"], []).append(r["label"])
             out["labels"] = labels
+            out["uc_milestones"] = [{"use_case": r["use_case"], "milestone": r["milestone"]} for r in con.execute(      # row 1107: the live direct links of this project's use cases
+                "SELECT use_case, milestone FROM use_case_milestones WHERE removed_at IS NULL AND use_case IN "
+                "(SELECT id FROM use_cases WHERE project = ?) ORDER BY use_case, milestone", (code,))]
             out["report_sections"] = [dict(r) for r in con.execute(           # #65: its own query; no archived column
                 "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                 "ORDER BY sort_order, id", (code,))]
@@ -3135,6 +3472,7 @@ class Store:
                 from clark import history                  # history imports this module, so it is read here
                 self.review_cache = history.ReviewCache()
             attach_freshness(con, out, review_days_for(out["project"]), self.review_cache)
+            out["gone_owners"] = gone_owner_names(con)             # row 1113: an owner archived from the people list, for a Work items filter
             out["commitments"] = list(COMMITMENTS)                 # #709: the flag's words, so the page never writes them itself
             return out
         finally:
@@ -3198,6 +3536,7 @@ class Store:
                         "SELECT id, type, title, body, beside, hidden, sort_order FROM report_sections WHERE project = ? "
                         "ORDER BY sort_order, id", (code,))],
                     "sections_deleted": all_sections_deleted(con, code),
+                    "gone_owners": gone_owner_names(con),
                     "glance_tiles": [dict(r) for r in con.execute(           # #45: the same query as data_for's, in this transaction
                         "SELECT project, tile, hidden, outline, sort_order FROM glance_tiles WHERE project = ? "
                         "ORDER BY sort_order, tile", (code,))],
@@ -3398,14 +3737,20 @@ class Store:
     EMAIL_MAX_IDS = 50
     EMAIL_REPEAT_SECONDS = 10               # the same press from a second tab inside this long is the same record
 
-    def log_email_sent(self, code, ids, mode, day, by_user, today=None):
+    def log_email_sent(self, code, ids, mode, day, by_user, today=None, person=None, subject=None):
         """Record one press of "I sent it" in the Draft email editor (#50): an `email_sent` row (project, who, when, mode, the day it
         was sent) and one `email_sent_items` row for each item asked about. Never the email's text or address. Like a publication it
         is a record of something done outside clark, not an edit: no step, no change_log, no Undo. Refused in plain words, before
         anything is written: a project that isn't here or is archived, a mode that isn't one of the three, no id or more than 50, an
         id that is not a work item (action, risk or issue, decision) of this project, a day that is not a real date or is more than
         one day either side of the server's today (a time zone may differ by that much), and no name for who pressed it. Duplicate ids count once. One
-        transaction. Returns the record's number."""
+        transaction. Returns the record's number.
+
+        Row 983: with a `subject` (the server's own, composed again from the ticks, never the page's) the one History sentence is
+        written once, in the same transaction, as an item_events row with no change (place "email", item_id "sent:<seq>", the
+        sentence in src_ref): an existing history store, no schema change, and the email_sent rows still hold ids, mode and day only. `person` is a
+        people id; the name in the sentence is that record's name now (a snapshot: a later rename does not rewrite it), and a
+        person who is not on file, or none, gives the sentence without a name. A press repeated inside the repeat window writes nothing more."""
         if not str(by_user or "").strip():
             raise Invalid("Add your name in Settings, then try again. Nothing was saved.")
         if mode not in self.EMAIL_MODES:
@@ -3423,10 +3768,10 @@ class Store:
             sent = date.fromisoformat(str(day))
         except ValueError:
             raise Invalid("The date this page sent is not a real date. Reload the page and try again. Nothing was saved.") from None
-        now = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
-        if sent < now - timedelta(days=1):
+        server_day = today or date.today()                      # the server's own clock; the page's day is only accepted within a day of it
+        if sent < server_day - timedelta(days=1):
             raise Invalid("The date on this computer is too far in the past to be right. Check its clock, then reload the page and try again. Nothing was saved.")
-        if sent > now + timedelta(days=1):
+        if sent > server_day + timedelta(days=1):
             raise Invalid("The date on this computer is ahead of today. Check its clock, then reload the page and try again. Nothing was saved.")
         if self.con.in_transaction:
             raise Invalid("Another change is still being saved. Wait a moment, then try again. Nothing was saved.")
@@ -3465,6 +3810,14 @@ class Store:
             seq = self.con.execute("INSERT INTO email_sent (project, day, mode, by_user) VALUES (?, ?, ?, ?)",
                                    (code, str(day), mode, str(by_user).strip())).lastrowid
             self.con.executemany("INSERT INTO email_sent_items (seq, item_id) VALUES (?, ?)", [(seq, i) for i in ids])
+            if isinstance(subject, str) and subject.strip():
+                name = ""
+                if isinstance(person, str) and person:
+                    found = self.con.execute("SELECT name FROM people WHERE id = ?", (person,)).fetchone()
+                    name = found["name"] if found else ""
+                self.con.execute("INSERT INTO item_events (at, apply_id, item_id, change, kind, route, place, origin, actor, src_ref, undoes) "
+                                 "VALUES (?, NULL, ?, NULL, 'change', 'dashboard', 'email', NULL, 'you', ?, NULL)",
+                                 (now(), EMAIL_NOTE_KEY + str(seq), email_note(name, day, subject)))
             self.con.execute("COMMIT")
             return seq
         except BaseException:
@@ -3697,7 +4050,15 @@ class Store:
         return {"project": code, "milestones": out, "truncated": truncated}
 
 
-OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by"}   # #115: the text column beside each owner_id
+OWNER_TEXT = {"actions": "owner", "raid": "owner", "milestones": "owner", "workstreams": "lead", "decisions": "made_by", "use_cases": "owner"}   # #115: the text column beside each owner_id
+
+
+def gone_owner_names(con):
+    if not con.execute("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'people'").fetchone():
+        return []
+    tidy = lambda n: " ".join(str(n or "").split()).casefold()
+    live = {tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 0")}
+    return sorted({tidy(r[0]) for r in con.execute("SELECT name FROM people WHERE archived = 1")} - live - {""})
 
 
 def _live_person(con, ref):
@@ -3803,9 +4164,10 @@ class Step:
     def rename_person(self, ref, new_name):
         """#115: a new name for a person and, in this one step, on every live work item that points at them. Returns the number of
         items changed. Archived items keep the name they had."""
-        _live_person(self.con, ref)
+        was = _live_person(self.con, ref)["name"]
         self.update("people", ref, {"name": new_name})
         name = fetch(self.con, "people", ref)["name"]
+        _carry_filter_names(self, "owner", was, name)
         return _repoint_owner_text(self, ref, ref, name)
 
     def merge_people(self, source, target):
@@ -3822,6 +4184,7 @@ class Step:
             self.update("people", source, {"email": None})
         self.update("people", target, {"aliases": aliases or None})
         n = _repoint_owner_text(self, source, target, tgt["name"])
+        _carry_filter_names(self, "owner", src["name"], tgt["name"])
         write_item(self.con, {"table": "people", "op": "archive", "id": source}, self)
         return n
 
@@ -3832,6 +4195,10 @@ class Step:
     def restore(self, kind, ref):
         """Bring an archived record back, as it was (#126)."""
         return write_item(self.con, {"table": kind, "op": "restore", "id": ref}, self)
+
+    def delete(self, kind, ref):
+        """Item 658: delete an action, RAID item or decision with its links and labels: one step, one Undo."""
+        return write_item(self.con, {"table": kind, "op": "delete", "id": ref}, self)
 
     def cancel(self, kind, ref):
         """Close a row as cancelled (work items, projects, workstreams), or remove a link, label or item label."""

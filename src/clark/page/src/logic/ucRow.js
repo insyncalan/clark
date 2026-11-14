@@ -65,6 +65,9 @@ export function linkable(d, all, ucId, today) {
   });
 }
 
+/** How many of the work items are open: the link box says "none to link" when this is 0, and "all linked" only when it is not. */
+export const openCount = (all) => all.filter((r) => isOpen(r)).length;
+
 /** The rows the box shows: the kind chosen ("" is all) and the words typed (every word must be in the row's text). */
 export function narrow(items, kind, query) {
   const want = (KINDS.find(([k]) => k === kind) || [])[2];
@@ -74,3 +77,16 @@ export function narrow(items, kind, query) {
 
 /** "3 work items linked to use case 1.1." */
 export const linkedWords = (n, name) => `${n} work item${n === 1 ? "" : "s"} linked to use case ${name}.`;
+
+/** Row 1107: the milestones a use case can still be linked to directly: the project's live ones it has no direct link to: [{id, name}]. */
+export function linkableMilestones(d, ucId) {
+  const have = new Set(((d && d.uc_milestones) || []).filter((l) => l.use_case === ucId).map((l) => l.milestone));
+  return ((d && d.milestones) || []).filter((m) => !m.archived && !have.has(m.id)).map((m) => ({ id: m.id, name: m.name }));
+}
+
+/** The live use cases that reach a milestone, linked straight to it (row 1107) or through a work item that names both, in the project's order: [{id, ref, title}]. */
+export function usecasesOfMilestone(d, msId) {
+  const ids = new Set(((d && d.uc_milestones) || []).filter((l) => l.milestone === msId).map((l) => l.use_case));
+  for (const r of [...((d && d.actions) || []), ...((d && d.raid) || []), ...((d && d.decisions) || [])]) if (r.milestone === msId && r.use_case) ids.add(r.use_case);
+  return ((d && d.use_cases) || []).filter((u) => !u.archived && ids.has(u.id)).map((u) => ({ id: u.id, ref: u.ref, title: u.title }));
+}

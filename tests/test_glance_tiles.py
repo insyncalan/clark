@@ -93,7 +93,7 @@ class Tiles(unittest.TestCase):
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "Back returns to the Dashboard")
 
     def test_the_published_file_has_no_clickable_tile(self):
-        """A published file is view-only: its tiles are not buttons and open nothing."""
+        """A published file is view-only: its tiles open nothing but the file's own Work items (row 1112), and none is an edit control."""
         from pathlib import Path
         from clark import publish
         from test_report_editor import DemoStore, EMPTY_BRANDING, USER
@@ -106,7 +106,30 @@ class Tiles(unittest.TestCase):
             sid = page_target(cdp)
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.glance')", sid)), "the file drew its tiles")
-            self.assertEqual(cdp.js("document.querySelectorAll('.fig.go, .glance button').length", sid), 0)
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance [data-fig]')].map(e => e.dataset.fig).join()", sid), "health,overdue,risks", "the file drew exactly its three tiles, in order")
+            figs = cdp.js("[...document.querySelectorAll('.glance .fig')].map(f => [f.dataset.fig, f.tagName])", sid)
+            self.assertTrue(figs and all((tag == "BUTTON") == (key != "health") for key, tag in figs), f"every counting tile is a button and Project health is not: {figs}")
+            self.assertEqual(cdp.js("[...document.querySelectorAll('.glance button')].filter(b => !b.classList.contains('fig')).length", sid), 0)
+
+    def test_the_risks_tile_is_red_with_its_word_when_a_high_risk_is_open_and_amber_when_only_other_risks_are(self):
+        s = self.serve()
+        code = next(iter(self.data))
+        base = self.data[code]
+        for name, high, cls, word in (("a high risk", True, "rag-r", "High"), ("only other risks", False, "rag-a", "Watch")):
+            d = copy.deepcopy(base)
+            for r in d["raid"]:
+                if r["status"] not in CLOSED:
+                    r["priority"] = "High" if high and r is next(x for x in d["raid"] if x["status"] not in CLOSED and str(x["type"]).lower() != "decision") else "Low"
+            self.data[code] = d
+            self.addCleanup(self.data.__setitem__, code, base)
+            opened = [r for r in d["raid"] if r["status"] not in CLOSED]
+            self.assertTrue(opened, "an open risk is there")
+            with self.subTest(case=name), chrome() as cdp:
+                sid = self.load(cdp, s.port, code)
+                self.assertEqual(expected(d)["risks"] > 0, high)
+                self.assertEqual(cdp.js("document.querySelector('[data-fig=risks]').classList.contains('%s')" % cls, sid), True, cls)
+                self.assertEqual(cdp.js("document.querySelectorAll('[data-fig=risks].rag-r, [data-fig=risks].rag-a').length", sid), 1, "one colour only")
+                self.assertEqual(cdp.js("document.querySelector('[data-fig=risks] .tw').textContent", sid), word)
 
     def test_project_health_is_two_tile_widths_and_the_tiles_fill_the_row(self):
         s = self.serve()

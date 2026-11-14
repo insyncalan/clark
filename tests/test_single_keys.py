@@ -151,9 +151,13 @@ class PageKeys(Base):
             self.assertTrue(p.js(VIEW))
             # Esc and the question mark: Help opens and closes; Space is not taken from a button
             p.key("?", code="Slash", vk=191)
-            p.until("!!document.querySelector('#help-peek')", "? opened the peek")
-            p.js("document.querySelector('#help-peek [data-hpk-full]').click()")   # the foot link opens the full Help
-            p.until("!!document.querySelector('#help')", "? still opens Help when off")
+            p.key("/", code="Slash", vk=191)
+            time.sleep(0.3)
+            self.assertFalse(p.js("!!document.querySelector('#help-peek, #help, #ask-panel')"), "? and / open nothing when off")
+            p.js("clarkPage.help.open()")                                          # the profile menu's Help item goes the same way
+            p.until("!!document.querySelector('#help')", "Help opens by the menu when off")
+            p.until("document.activeElement.id === 'hpQ'", "Help opens on its search box")  # the focus lands in a post-render effect, after #help exists
+            p.js("document.activeElement.blur()")                                  # full Help opens on its search box (row 1054); leave it first
             p.key("/", code="Slash", vk=191)
             time.sleep(0.2)
             self.assertNotEqual(p.js("document.activeElement.id"), "hpQ", "'/' does not go to the search box when off")

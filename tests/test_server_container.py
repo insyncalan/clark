@@ -199,6 +199,30 @@ class Compose(unittest.TestCase):
         for block in bad:
             self.assertTrue(self.bad_ports(head + block), block)
 
+    def test_the_port_check_reads_ranges_protocol_suffixes_and_ipv6_samples(self):
+        """Ranges, /tcp and /udp suffixes and a bracketed IPv6 host are read like any other short entry: only 127.0.0.1 passes
+        (the check is strict on purpose: [::1] is flagged too, the compose file says 127.0.0.1)."""
+        head = "services:\n  clark:\n    image: x\n    ports:\n"
+        good = ['      - "127.0.0.1:8080:80/tcp"\n', "      - 127.0.0.1:8080:80/udp\n",
+                '      - "127.0.0.1:8000-8010:8000-8010"\n', '      - "127.0.0.1:8000-8010:8000-8010/tcp"\n']
+        bad = ['      - "8000-8010:8000-8010"\n', "      - 8080:80/tcp\n", '      - "0.0.0.0:8080:80/udp"\n',
+               '      - "0.0.0.0:8000-8010:8000-8010/tcp"\n', '      - "[::1]:8080:80"\n', "      - [::1]:8080:80\n",
+               '      - "[::]:8080:80/tcp"\n', '      - "127.0.0.1:8080:80"\n      - "8081:81/udp"\n']
+        for entry in good:
+            self.assertEqual(self.bad_ports(head + entry), [], entry)
+        for entry in bad:
+            self.assertTrue(self.bad_ports(head + entry), entry)
+        self.assertEqual(self.bad_ports(head + '      - "8000-8010:8000-8010"\n'), ["8000-8010:8000-8010"])
+        self.assertEqual(self.bad_ports(head + '      - "[::1]:8080:80"\n'), ["[::1]:8080:80"])
+
+    def test_a_flow_style_ports_list_is_not_read_so_the_guard_says_no_port_was_found(self):
+        """"ports: [...]" is not read as a list; that must never pass as 'nothing is published', it fires the guard."""
+        head = "services:\n  clark:\n    image: x\n"
+        for block in ('    ports: ["0.0.0.0:8766:8766"]\n', '    ports: [ "127.0.0.1:8766:8766" ]\n', "    ports: [8766:8766]\n",
+                      "    ports: []\n", "    image: y\n"):
+            self.assertEqual(self.bad_ports(head + block), ["no published port found"], block)
+        self.assertEqual(self.bad_ports(head + '    ports:\n      - "127.0.0.1:8766:8766"\n'), [])
+
     def service(self):
         return (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")
 
@@ -255,7 +279,7 @@ class Compose(unittest.TestCase):
             if m["target"] != shared[0]:
                 self.assertFalse(m["target"].startswith(shared[0] + "/"), f"{m['target']} is inside the read-only share {shared[0]}")
         self.assertIn("      - type: bind\n        source: ${CLARK_DATA_DIR:-${HOME}/Library/Application Support/clark}\n        target: /data\n", text)
-        self.assertIn('"--data", "/data"', text, "clark is told the folder that is mounted")
+        self.assertIn("--data /data", text, "clark is told the folder that is mounted")
 
     def test_it_runs_as_an_ordinary_user_not_root(self):
         """item 462: a stock image runs as root, and would write the owner's folder as root."""
@@ -267,13 +291,22 @@ class Compose(unittest.TestCase):
     def test_the_command_starts_clark_as_the_terminal_does_with_the_mounted_data(self):
         """python3 -m clark builds the pages (page.ensure_built, item 495) before it serves, as on the Terminal route."""
         text = self.service()
-        self.assertIn('    command: ["python3", "-m", "clark", "--data", "/data", "--port", "8766"]', text)
+        self.assertIn("exec python3 -m clark --data /data --port 8766", text)
         self.assertTrue((ROOT / "clark" / "__main__.py").is_file(), "the stand-in that python3 -m clark runs from /clark")
         main = (ROOT / "src" / "clark" / "__main__.py").read_text(encoding="utf-8")
         self.assertLess(main.index("page.ensure_built()"), main.index("done = serve("))
 
     def test_the_container_setting_is_set_in_the_compose_file(self):
         self.assertRegex(self.service(), r'(?m)^      CLARK_CONTAINER: "1"$')
+
+    def test_the_service_comes_back_after_docker_or_the_computer_restarts_unless_it_was_stopped(self):
+        """item 1080: restart "no" left clark stopped after a Docker Desktop quit, update or Mac restart. unless-stopped brings it
+        back with Docker, while docker compose down or stop still stop it for good."""
+        text = self.service()
+        block = text.split("services:\n  clark:\n", 1)[1]
+        self.assertRegex(block, r"(?m)^    restart: unless-stopped$")
+        self.assertNotRegex(block, r'(?m)^    restart: "?no"?$')
+        self.assertNotRegex(block, r"(?m)^    restart: always$", "always would restart a container someone stopped on purpose")
 
 
 class ComposeIsLanSafe(unittest.TestCase):
@@ -302,7 +335,7 @@ class ComposeIsLanSafe(unittest.TestCase):
         address, rest = ports_line.split('"')[1].split(":", 1)
         self.assertEqual(address, "127.0.0.1")
         self.assertEqual(rest, "${CLARK_PORT:-8766}:8766")
-        self.assertIn('"--port", "8766"]', self.CODE)
+        self.assertIn("--data /data --port 8766;", self.CODE)
         self.assertRegex(self.CODE, r'(?m)^      CLARK_PORT: "8766"$')
         for unsafe in ("${CLARK_PORT}", "${CLARK_PORT:-0.0.0.0", "${HOST", "${CLARK_HOST"):
             self.assertNotIn(unsafe, self.CODE, unsafe)

@@ -8,6 +8,7 @@ switch reads as off too. The folder choice calls
 server with the route would give are put in by replacing the page's fetch for that one address. Chrome is required: fails, never skips.
 """
 import os
+import json
 import re
 import shutil
 import sqlite3
@@ -26,7 +27,7 @@ from clark import app_settings, page, store as st
 
 PAGE_SRC = Path(page.PAGE).parent / "src"
 WIDTHS = (1400, 900)
-ON = "Asking is on. Your question and the passages it needs go to Claude, which Anthropic runs."
+ON = "Asking is on."
 OFF = "Asking is off. Turn it on in Settings."
 CHECKING = "Checking whether asking is on…"
 UNAVAILABLE = "Asking is off, because clark could not check the setting just now. Reload the page to try again."
@@ -46,6 +47,7 @@ window.fetch = function (url, opts) {
     window.__ask.choices = window.__ask.choices || ['/Example/Programme files'];
     const next = window.__ask.choices.shift();
     if (next === '/bad') { status = 409; out = {ok: false, code: 'closed_place', message: 'Asking can not read that folder, because it holds your passwords.'}; }
+    else if (next === '/nowin') { status = 409; out = {ok: false, code: 'no_window', message: 'The folder window needs the Mac. Type the folder location below.'}; }
     else if (next === '/gone') { status = 500; out = null; }
     else { if (f.indexOf(next) < 0) f.push(next); out = {ok: true, folders: f, message: 'Added.'}; }
   } else if (body && body.action === 'add') {
@@ -312,6 +314,88 @@ class Settings(unittest.TestCase):
             js("document.querySelector('[data-ask-remove]').click()")
             self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
             self.assertEqual(js("window.__ask.calls.map(c => c && c.action).filter(Boolean)"), ["choose", "choose", "choose", "remove"])
+
+    def test_choose_and_remove_keep_the_focus_in_the_folders_part(self):
+        """Choose folder and Remove are disabled while the request runs: the focus comes back to Choose folder, or after a Remove to
+        the Remove button now in that place (Choose folder when none is left). 1400 and 900."""
+        act = "document.activeElement"
+        choose = "document.querySelector('[data-ask-choose]')"
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders-none') || {}).innerText") == NONE, 10))
+            for w in WIDTHS:
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                js("window.__ask.choices = ['/Example/One', '/Example/Two']")
+                for _ in range(2):
+                    js(f"{choose}.focus(); {choose}.click()")
+                    self.until(lambda: js(f"{act} === {choose}"), True, f"{w}: focus is back on Choose folder")
+                self.until(lambda: js("document.querySelectorAll('[data-ask-remove]').length"), 2, f"{w}: two folders")
+                rm = "document.querySelectorAll('[data-ask-remove]')"
+                js(f"{rm}[0].focus(); {rm}[0].click()")
+                self.until(lambda: js(f"{act} === {rm}[0] && {rm}.length === 1"), True, f"{w}: focus is on the Remove button that took its place")
+                js(f"{rm}[0].focus(); {rm}[0].click()")
+                self.until(lambda: js(f"{act} === {choose} && !document.querySelector('#ask-folders')"), True, f"{w}: none left, focus is on Choose folder")
+
+    def test_when_no_window_can_open_a_box_to_type_the_location_appears(self):
+        for scheme, width in [(a, b) for a in ("light", "dark") for b in WIDTHS]:
+            with chrome() as cdp:
+                js = self.show_page(cdp, fake=True)
+                cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": scheme}]}, self.sid)
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": width, "height": 900, "deviceScaleFactor": 1, "mobile": False}, self.sid)
+                self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+                msg = "(document.querySelector('#ask-settings .pub-msg') || {}).innerText"
+                js("window.__ask.choices = ['/nowin']")
+                js("document.querySelector('[data-ask-choose]').click()")
+                self.assertTrue(wait(lambda: "Type the folder location" in (js(msg) or ""), 10))
+                self.assertTrue(js("!!document.querySelector('#ask-folder-path')"))
+                self.assertTrue(js("document.querySelector('[data-ask-add]').disabled"), "nothing to add yet")
+                js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = '/Example/typed'; i.dispatchEvent(new Event('input', {bubbles: true})); })()")
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').click()")
+                self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+                self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed")
+                self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "")
+                self.assertLessEqual(js("document.documentElement.scrollWidth"), width)
+
+    def test_add_folder_keeps_the_focus_in_the_location_box(self):
+        """Add folder is disabled while the request runs and again once the box is emptied: the focus goes to the box, refused or not."""
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+            js("window.__ask.choices = ['/nowin']")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+            put = lambda text: js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(text))
+            for text in ("/bad", "/Example/typed"):
+                put(text)
+                self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+                js("document.querySelector('[data-ask-add]').focus(); document.querySelector('[data-ask-add]').click()")
+                self.until(lambda: js("document.activeElement === document.querySelector('#ask-folder-path')"), True, f"{text}: focus is in the box")
+
+    def test_the_typed_location_is_trimmed_spaces_alone_add_nothing_and_a_refused_one_stays_in_the_box(self):
+        with chrome() as cdp:
+            js = self.show_page(cdp, fake=True)
+            self.assertTrue(wait(lambda: js("!!document.querySelector('[data-ask-choose]')"), 10))
+            js("window.__ask.choices = ['/nowin']")
+            js("document.querySelector('[data-ask-choose]').click()")
+            self.assertTrue(wait(lambda: js("!!document.querySelector('#ask-folder-path')"), 10))
+            put = lambda text: js("(() => { const i = document.querySelector('#ask-folder-path'); i.value = %s; i.dispatchEvent(new Event('input', {bubbles: true})); })()" % json.dumps(text))
+            put("    ")
+            self.assertTrue(wait(lambda: js("document.querySelector('#ask-folder-path').value") == "    ", 10))
+            self.assertTrue(js("document.querySelector('[data-ask-add]').disabled"), "spaces alone are nothing to add")
+            before = js("window.__ask.calls.filter(Boolean).length")
+            js("document.querySelector('#ask-folder-form').requestSubmit()")                    # Enter in the box submits even when the button is off
+            self.assertEqual(js("window.__ask.calls.filter(Boolean).length"), before, "nothing was sent for spaces")
+            put("/bad")                                                                           # the server refuses it: the words stay to be corrected
+            self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+            js("document.querySelector('[data-ask-add]').click()")
+            self.assertTrue(wait(lambda: "passwords" in (js("(document.querySelector('#ask-settings .pub-msg') || {}).innerText") or ""), 10))
+            self.assertEqual(js("document.querySelector('#ask-folder-path').value"), "/bad", "a refused location is not cleared")
+            put("  /Example/typed  ")
+            self.assertTrue(wait(lambda: not js("document.querySelector('[data-ask-add]').disabled"), 10))
+            js("document.querySelector('[data-ask-add]').click()")
+            self.assertTrue(wait(lambda: js("(document.querySelector('#ask-folders') || {innerText: ''}).innerText").startswith("/Example/typed"), 10))
+            self.assertEqual(js("window.__ask.calls.filter(Boolean).pop().path"), "/Example/typed", "sent without the spaces")
 
     def test_the_sources_hold_no_sentence_that_starts_with_the_product_name_and_the_published_page_has_none_of_it(self):
         text = "\n".join((PAGE_SRC / "edit" / n).read_text(encoding="utf-8") for n in ("AskSettings.jsx", "askState.js"))

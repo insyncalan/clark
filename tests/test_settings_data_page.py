@@ -12,6 +12,7 @@ from pathlib import Path
 
 from _paths import SRC
 from test_publish_dialog import Base
+from _new_page import reload_to_new_page
 from test_server import chrome, wait
 
 from clark import excel, excel_route
@@ -96,7 +97,7 @@ class Card(Base):
                 self.open_settings(p)
                 self.settle(p, "!!document.querySelector('#import-workbook')", "the Import workbook button")
                 self.assertEqual(p.js("[...document.querySelectorAll('#data-card .row button')].map(b => b.textContent)"),
-                                 ["Export workbook", "Import workbook"])
+                                 ["Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…"])
                 self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w)
 
     def test_import_checks_then_imports_in_one_step_and_undo_puts_it_back(self):
@@ -129,11 +130,36 @@ class Card(Base):
                 self.assertIn("1 changed", p.js("document.querySelector('#import-result').textContent"))
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
                 self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
-                p.js("document.querySelector('#import-undo').click()")
+                p.js("document.querySelector('#import-undo').focus(); document.querySelector('#import-undo').click()")
                 p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
                 self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-close'", "Undo took its button away: the focus is on Close, so Esc and Tab still work")
                 p.js("document.querySelector('#import-close').click()")
                 p.until("!document.querySelector('#import-box')", "the box closed")
+
+    def test_a_double_click_on_import_and_on_undo_applies_once_and_shows_no_error(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                folder = Path(self.tmp.name) / ("dbl" + str(w))
+                folder.mkdir()
+                b64, action, old = workbook(self.rig, folder, "Agree the cut-over plan, version three")
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.choose(p, b64)
+                p.until("!!document.querySelector('#import-go')", "the check")
+                steps = self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0]
+                p.js("(() => { const b = document.querySelector('#import-go'); b.click(); b.click(); })()")
+                p.until("!!document.querySelector('#import-result')", "the result")
+                self.settle(p, "!!document.querySelector('#import-undo')", "Undo offered")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click")
+                self.assertEqual(self.rig.store.con.execute("SELECT count(*) FROM applies").fetchone()[0], steps + 1, "ONE step")
+                p.js("(() => { const b = document.querySelector('#import-undo'); b.click(); b.click(); })()")
+                p.until("document.querySelector('#import-result') && document.querySelector('#import-result').textContent.startsWith('Put back')", "Undo")
+                self.assertEqual(p.js("document.querySelector('#import-problem').textContent"), "", "no error after a double click on Undo")
+                self.assertEqual(self.rig.store.read("actions", ref=action)["description"], old)
 
     def open_box(self, p):
         self.open_settings(p)
@@ -205,6 +231,25 @@ class Card(Base):
             p.until("!!document.querySelector('#import-result')", "the result")
             self.assertEqual(self.rig.store.read("actions", ref=action)["description"], "Agree the cut-over plan, version two")
 
+    def test_the_sheets_ticked_are_saved_in_the_browser_and_ticked_again_next_time(self):
+        """Row 1106: Continue keeps the ticked sheets in localStorage and the next What to import opens with only those ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list")
+            p.js("document.querySelector('#import-clear').click()")
+            p.js("document.querySelector('[data-sheet=actions]').click()")              # only Actions ticked
+            p.js("document.querySelector('#import-continue').click()")
+            p.until("!!document.querySelector('#import-summary')", "the check")
+            self.assertEqual(p.js("localStorage.getItem('clark.import.sheets')"), '["actions"]')
+            reload_to_new_page(p.js, ready="!!document.querySelector('#profile-btn')", what="the page came back")
+            self.open_box(p)
+            self.pick_file(p, b64)
+            p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+            self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list input')].filter(i => i.checked).map(i => i.dataset.sheet)"), ["actions"])
+
     def test_a_sheet_the_file_does_not_have_is_not_shown(self):
         from openpyxl import load_workbook
         b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
@@ -220,6 +265,32 @@ class Card(Base):
             self.assertEqual(p.js("[...document.querySelectorAll('#import-sheet-list li')].map(li => li.innerText.trim().split(' (')[0])"),
                              ["Actions", "Risks & Issues", "Milestones", "Use cases"])
 
+    def test_the_sheets_ticked_last_time_are_ticked_again_when_the_box_is_opened_again(self):
+        """#1106, in the browser: Continue keeps exactly the ticked sheets, and the next time the sheet list opens only those are ticked."""
+        b64, _, _ = workbook(self.rig, self.tmp.name, "Agree the cut-over plan, version two")
+        ticks = "[...document.querySelectorAll('#import-sheet-list li')].map(li => li.querySelector('input').checked)"
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_box(p)
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list")
+                self.assertEqual(p.js(ticks), [True] * 5, "nothing remembered: all ticked")
+                p.js("document.querySelector('#import-clear').click()")
+                p.js("document.querySelector('[data-sheet=raid]').click()")
+                p.js("document.querySelector('[data-sheet=milestones]').click()")
+                p.js("document.querySelector('#import-continue').click()")
+                p.until("!!document.querySelector('#import-none') || !!document.querySelector('#import-summary')", "the check")
+                self.assertEqual(p.js("JSON.parse(localStorage.getItem('clark.import.sheets'))"), ["raid", "milestones"], "the ticked tables are kept")
+                p.js("document.querySelector('#import-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true}))")
+                p.until("!document.querySelector('#import-box')", "Esc closed it")
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened again")
+                self.pick_file(p, b64)
+                p.until("!!document.querySelector('#import-continue')", "the sheet list again")
+                self.assertEqual(p.js(ticks), [False, True, False, True, False], "Risks & Issues and Milestones are ticked again, the rest are not")
+
     def test_the_first_box_lists_each_sheets_columns_as_the_export_writes_them(self):
         from clark import excel_import
         with chrome() as cdp:
@@ -230,7 +301,7 @@ class Card(Base):
             p.until("!!document.querySelector('#import-box')", "the box opened")
             self.settle(p, "!!document.querySelector('#import-columns')", "the column lists")
             self.assertEqual(p.js("document.querySelector('#import-columns').previousElementSibling.textContent"),
-                             "Columns, in any order (only the name or title is needed):")
+                             "Columns, in any order (the ID column and the name or title are needed):")
             shown = p.js("[...document.querySelectorAll('#import-columns > span')].map(s => [s.querySelector('b').textContent, s.textContent.slice(s.querySelector('b').textContent.length).trim().split(', ')])")
         want = {name: [label for label, field in cols if field == "id" or field not in (set(locked) | excel_import.LOCKED)]
                 for name, _, cols, locked in excel.SHEETS}
@@ -247,6 +318,26 @@ class Card(Base):
             p.until("!!document.querySelector('#import-problem').textContent", "the refusal")
             self.assertIn("can't be read as an Excel workbook", p.js("document.querySelector('#import-problem').textContent"))
             self.assertTrue(p.js("!!document.querySelector('#import-choose') && !document.querySelector('#import-summary')"))
+
+    def test_tab_and_shift_tab_move_on_from_choose_a_file_and_back_1121(self):
+        for w in WIDTHS:
+            with self.subTest(width=w), chrome() as cdp:
+                p = self.page(cdp)
+                p.width(w)
+                self.open_settings(p)
+                p.js("document.querySelector('#import-workbook').click()")
+                p.until("!!document.querySelector('#import-box')", "the box opened")
+                self.settle(p, "document.activeElement && document.activeElement.id === 'import-choose'", "focus on Choose a file")
+                here = "document.activeElement && document.activeElement.id"
+                tab = lambda shift: [p.cdp.call("Input.dispatchKeyEvent", {"type": k, "key": "Tab", "code": "Tab", "windowsVirtualKeyCode": 9, "modifiers": 8 if shift else 0}, p.sid) for k in ("keyDown", "keyUp")]
+                tab(False)
+                self.settle(p, here + " === 'import-template'", "Tab from Choose a file wraps to the first visible control")
+                tab(True)
+                self.settle(p, here + " === 'import-choose'", "Shift+Tab from the first control wraps back to Choose a file")
+                tab(True)
+                self.settle(p, "document.querySelector('#import-box').contains(document.activeElement) && document.activeElement.id !== 'import-choose'", "Shift+Tab moves to the control before it")
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#import-box')", "Esc closed it")
 
     def test_escape_closes_the_box_and_focus_goes_back_to_the_button(self):
         with chrome() as cdp:

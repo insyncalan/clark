@@ -11,13 +11,14 @@ import unittest
 from unittest import mock
 
 from test_publish_dialog import Base, PAGE_SRC
-from test_server import chrome
-from clark import excel, server as sv
+from test_server import Running, chrome, wait
+from test_page import navigate
+from clark import excel, page as clark_page, server as sv
 
 # The tooltip is built from the entries that carry a short word, so it follows them; the test below pins the two together.
-TIP = "Your menu: Publish, Preview, Export"                                                                 # no name typed: the top line is the link to Settings, so there is no Settings entry (issue 787)
+TIP = "Your menu: Publish, Preview, Export"                                                                 # Settings has no short word, so the tooltip is the same with or without a name
 NAME = "Your menu"
-ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Import from Word", "Published reports", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
+ITEMS = ["Publish…", "Preview the page in a new tab", "Export to Excel", "Export to Word", "Published reports", "Settings", "Help"]       # the commands (#443: Published reports, after Export; row 826: Import from Word, after Export to Word, in View too)
 LOOK = ["System", "Light", "Dark"]                                                                            # the Appearance group (#179), radio items between Export and Settings
 WHO = "Add your name in Settings"                                                                          # the top line while no name is typed (#180): a link
 ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
@@ -25,8 +26,10 @@ ORDER = [WHO] + ITEMS[:6] + LOOK + ITEMS[6:]
 
 class ProfileMenu(Base):
     def open_menu(self, p):
-        p.js("document.querySelector('#profile-btn').focus(); document.querySelector('#profile-btn').click()")
-        p.until("!!document.querySelector('#profile-menu')", "the menu opened")
+        p.js("document.querySelector('#profile-btn').focus()")
+        p.until("(() => { if (document.querySelector('#profile-menu')) return true; "
+                "if (Date.now() - (window.__menuTried || 0) > 1000) { window.__menuTried = Date.now(); document.querySelector('#profile-btn').click(); } "
+                "return !!document.querySelector('#profile-menu'); })()", "the menu opened")
 
     def labels(self, p):
         return p.js("[].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent})")
@@ -62,7 +65,7 @@ class ProfileMenu(Base):
                              "Appearance", "the group is named Appearance, so a screen reader says it before each radio")
 
     def test_C_the_last_published_note_is_reachable_when_narrow(self):
-        for w in (390, 900):
+        for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.page(cdp)
                 p.width(w, 700)
@@ -90,7 +93,6 @@ class ProfileMenu(Base):
 
     def test_C_the_tooltip_is_pinned_to_the_entries(self):
         words = re.findall(r'tip: "([A-Za-z]+)"', (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
-        words = [w for w in words if w != "Settings"]       # issue 787: with no name typed the top line is the link to Settings, so the Settings entry (and its word) is left out
         self.assertEqual("Your menu: " + ", ".join(words), TIP, "the words in the source")
         with chrome() as cdp:
             p = self.page(cdp)
@@ -100,7 +102,7 @@ class ProfileMenu(Base):
             shown = self.labels(p)
             for word in tip[len(NAME) + 2:].split(", "):
                 self.assertTrue(any(l.startswith(word) for l in shown), word + " is an entry")
-            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Import from Word", "Help"], "only the who line, Import from Word and Help have no word in the tip (Export to Word starts with the tip's Export)")
+            self.assertEqual([l for l in shown if not any(l.startswith(w) for w in words)], [WHO, "Settings", "Help"], "only the who line, Settings and Help have no word in the tip (Export to Word starts with the tip's Export)")
 
     def toast(self, p):
         p.until("!!document.querySelector('.toast .toast-text')", "a message appeared")
@@ -185,14 +187,73 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#help-peek [data-hpk-full]').click()")
             p.until("!!document.querySelector('.hp-tabs')", "Help opened")
 
-    def test_C_settings_is_listed_once_the_link_or_the_entry(self):
-        """Issue 787: with no name typed the top line is the link to Settings and there is no second Settings entry at the foot; with a name, the entry is there."""
+    def test_C_settings_is_an_entry_after_published_reports_before_appearance(self):
+        """Row 1092: the Settings entry is there with no name typed too (the link at the top is a second way in), and opens Settings."""
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                self.open_menu(p)
+                labels = self.labels(p)
+                self.assertEqual(labels.count("Settings"), 1)
+                self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
+                self.assertEqual(p.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).indexOf('group') - [].map.call(document.querySelectorAll('#profile-menu [role=menuitem]'), function(e){return e.textContent}).indexOf('Settings')"), 2, "Settings, then the separator, then the group")
+                self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
+                p.key("Escape", code="Escape", vk=27)
+                p.until("!document.querySelector('#profile-menu')", "Esc closed it")
+            self.open_menu(p)
+            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_with_a_name_typed_the_menu_still_has_settings_in_order_and_it_opens_settings(self):
+        """Row 1092: the named pass. The top line is the name (no link), Settings is still one entry after Published reports and before the
+        Appearance group, and a click on it opens Settings."""
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
-            self.assertEqual(self.labels(p).count("Settings"), 0)
-            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=settings]').length"), 0)
-            self.assertEqual(p.js("document.querySelectorAll('#profile-menu [data-kind=who]').length"), 1)
+            p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
+            p.until("!!document.querySelector('#about-name')", "About you drew")
+            p.js("(() => { const el = document.querySelector('#about-name'); el.value = 'Sam Lee'; el.dispatchEvent(new Event('input', {bubbles: true})); "
+                 "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true})); })()")
+            p.js("location.hash = '#dashboard&p=PUB'")
+            p.until("!!document.querySelector('#profile-btn')", "back on a report")
+            for _ in range(2):
+                p.js("document.querySelector('#profile-menu') || document.querySelector('#profile-btn').click()")
+                if p.js("!!document.querySelector('#profile-menu b') && document.querySelector('#profile-menu b').textContent === 'Sam Lee'"):
+                    break
+                p.js("document.querySelector('#profile-menu') && document.querySelector('#profile-btn').click()")
+            p.until("!!document.querySelector('#profile-menu') && !!document.querySelector('#profile-menu .who b')", "the menu opened with the name")
+            self.assertEqual(p.js("document.querySelector('#profile-menu .who b').textContent"), "Sam Lee")
+            self.assertEqual(p.js("document.querySelectorAll('#profile-menu .who-link').length"), 0, "no link once a name is typed")
+            labels = self.labels(p)
+            self.assertEqual(labels.count("Settings"), 1)
+            self.assertEqual(labels.index("Settings"), labels.index("Published reports") + 1)
+            nxt = "document.querySelector('#profile-menu [data-kind=settings]').nextElementSibling"
+            self.assertEqual(p.js(nxt + ".getAttribute('role')"), "separator", "Settings, then the separator")
+            self.assertEqual(p.js(nxt + ".nextElementSibling.getAttribute('role')"), "group", "then the Appearance group")
+            p.js("document.querySelector('#profile-menu [data-kind=settings]').click()")
+            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
+
+    def test_C_the_top_line_stacks_the_name_over_the_email(self):
+        """The name in bold with the email under it (not side by side), at 1400 and 900, in light and in dark."""
+        (self.rig.data_dir / "settings.json").write_text(json.dumps({"profile_name": "Sam Lee", "profile_email": "sam@example.test"}), encoding="utf-8")
+        with chrome() as cdp:
+            p = self.page(cdp)
+            for w in (1400, 900):
+                p.width(w)
+                for theme in ("light", "dark"):
+                    with self.subTest(width=w, theme=theme):
+                        p.js("document.documentElement.setAttribute('data-theme', %s)" % json.dumps(theme))
+                        self.open_menu(p)
+                        p.until("!!document.querySelector('#profile-menu .who b')", "the name line drew")
+                        r = p.js("(function(){var w=document.querySelector('#profile-menu .who'),b=w.querySelector('b').getBoundingClientRect(),s=w.querySelector('small').getBoundingClientRect();"
+                                 "return {top:b.bottom,sTop:s.top,bl:b.left,sl:s.left,disp:getComputedStyle(w).display,name:w.querySelector('b').textContent,email:w.querySelector('small').textContent}})()")
+                        self.assertEqual((r["name"], r["email"]), ("Sam Lee", "sam@example.test"))
+                        self.assertNotIn("flex", r["disp"], "the line is a block, not the owner cell's inline-flex row")
+                        self.assertGreaterEqual(r["sTop"], r["top"] - 1, "the email is under the name")
+                        self.assertAlmostEqual(r["bl"], r["sl"], delta=1, msg="both start at the same left edge")
+                        p.key("Escape", code="Escape", vk=27)
+                        p.until("!document.querySelector('#profile-menu')", "closed")
 
     def test_C_the_settings_link_opens_settings(self):
         with chrome() as cdp:
@@ -201,16 +262,17 @@ class ProfileMenu(Base):
             p.js("document.querySelector('#profile-menu [data-kind=who]').click()")
             p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
 
-    def test_C_the_published_reports_entry_opens_settings_at_its_card(self):
-        """#443: after Export; it opens Settings and brings the Published reports card to the top. Nothing is published or written."""
+    def test_C_the_published_reports_entry_opens_its_own_page(self):
+        """#443, row 1087: after Export; it opens the Published reports page (no tab, no Settings card). Nothing is published or written."""
         with chrome() as cdp:
             p = self.page(cdp)
             before = self.rig.everything_written()
             self.open_menu(p)
             p.js("document.querySelector('#profile-menu [data-kind=published]').click()")
-            p.until("location.hash.indexOf('#settings') === 0", "Settings opened")
-            p.until("!!document.querySelector('#pubs')", "the Published reports card is there")
-            self.assertEqual(p.js("document.querySelector('#pubs h2').textContent.indexOf('Published reports') === 0"), True)
+            p.until("location.hash.indexOf('#published') === 0", "the Published reports page opened")
+            p.until("!!document.querySelector('#pubs-page')", "the Published reports page is there")
+            self.assertEqual(p.js("document.querySelector('#pubs-page h1').textContent"), "Published reports")
+            self.assertEqual(p.js("[...document.querySelectorAll('header.top [role=tab]')].some(t => t.textContent.includes('Published'))"), False, "no tab")
             self.assertEqual(self.rig.everything_written(), before, "opening it writes nothing")
 
     def test_C_the_keys(self):
@@ -234,11 +296,35 @@ class ProfileMenu(Base):
             p.until("document.activeElement.id === 'profile-btn'", "focus is back on the circle")
 
 
+class NoProject(unittest.TestCase):
+    """Row 1092: with no project open the menu is exactly the who line, Settings, a separator, the Appearance group, a separator and Help."""
+
+    def test_the_menu_with_no_project_is_settings_the_look_group_and_help_only(self):
+        import tempfile
+        s = Running(data_for=lambda code, archived=None: None, projects=lambda archived=False: [], page_html=lambda: clark_page.page_html(tempfile.mkdtemp()))
+        self.addCleanup(s.close)
+        with chrome() as cdp:
+            sid = navigate(cdp, s.port, "#dashboard")
+            ok = lambda expr, what: self.assertTrue(wait(lambda: cdp.js(expr, sid), 30), what)
+            ok("document.querySelector('main').innerText.includes('There are no projects yet.')", "the empty screen")
+            ok("!!document.querySelector('#profile-btn')", "the circle")
+            cdp.js("document.querySelector('#profile-btn').click()", sid)
+            ok("!!document.querySelector('#profile-menu')", "the menu")
+            self.assertEqual(cdp.js("[].map.call(document.querySelector('#profile-menu').children, function(e){return e.getAttribute('role')}).join()", sid),
+                             "menuitem,menuitem,separator,group,separator,menuitem")
+            self.assertEqual(cdp.js("[].map.call(document.querySelectorAll('#profile-menu > [role=menuitem]'), function(e){return e.textContent}).join('|')", sid),
+                             WHO + "|Settings|Help")
+            self.assertEqual(cdp.js("document.querySelectorAll('#profile-menu [data-kind=settings]').length", sid), 1)
+            self.assertEqual(cdp.js("document.querySelector('#profile-menu [data-kind=settings]').nextElementSibling.getAttribute('role')", sid), "separator",
+                             "Settings sits before the separator that opens the Appearance group")
+            self.assertEqual(cdp.js("document.querySelector('#profile-menu [role=group]').textContent.indexOf('Appearance')", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('#profile-menu [data-kind=published],[data-kind=publish],[data-kind=preview],[data-kind=export],[data-kind=word-export]').length", sid), 0)
+
+
 class Published(unittest.TestCase):
     def test_the_page_has_no_menu_of_its_own_in_a_published_file(self):
         from clark import page
         self.assertNotIn("profile-btn", page.VIEW_PAGE.read_text(encoding="utf-8"))
-        self.assertIn("menuTip(items)", (PAGE_SRC / "edit" / "ProfileMenu.jsx").read_text(encoding="utf-8"))
 
 
 if __name__ == "__main__":

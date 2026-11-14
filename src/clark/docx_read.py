@@ -62,7 +62,8 @@ OWN_PICTURE = re.compile(re.escape(OWN_PICTURE_NAME) + r"[0-9]{1,6}\Z")         
 OLE_SIGNATURE = b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1"      # an older Word file, or an Office file with a password
 
 # Elements whose whole content is not read: deleted text, pictures and drawings, text boxes, the old-style fallback of a drawing.
-SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText"}
+SKIP = {"del", "moveFrom", "drawing", "pict", "object", "txbxContent", "delText", "instrText", "delInstrText", "pPrChange", "rPrChange"}
+# pPrChange and rPrChange hold the paragraph and run settings from before a tracked formatting change; only the current ones are read
 NOT_TEXT = re.compile("[\x00-\x08\x0b\x0c\x0e-\x1f\x7f-\x9f\ud800-\udfff￾￿]")
 UNSEEN = re.compile("[​-‏‪-‮⁠-⁤⁦-⁩﻿\U000e0000-\U000e007f]")
 SPACES = re.compile(r"[ \t  -   　]+")
@@ -294,7 +295,7 @@ def _own_images(name, raw, names):
 
 
 def _styles(name, raw):
-    """{style id: {"name", "outline", "based", "num"}} from styles.xml (the parts of a style that say heading or list)."""
+    """{style id: {"name", "outline", "based", "num", "hidden"}} from styles.xml (the parts of a style that say heading or list)."""
     out, cur = {}, {}
     flags = {"numpr": False}
 
@@ -305,7 +306,7 @@ def _styles(name, raw):
         val = _attr(attrs, "val")
         if local == "style":
             cur.clear()
-            cur.update(id=_attr(attrs, "styleId"), name="", outline=None, based=None, num=None, ilvl=0)
+            cur.update(id=_attr(attrs, "styleId"), name="", outline=None, based=None, num=None, ilvl=0, hidden=False)
         elif not cur:
             return
         elif local == "name" and depth == 3:
@@ -314,6 +315,8 @@ def _styles(name, raw):
             cur["based"] = val
         elif local == "outlineLvl":
             cur["outline"] = _int(val)
+        elif local == "vanish" and depth == 4:
+            cur["hidden"] = (val or "true").lower() not in ("0", "false", "off")
         elif local == "numPr":
             flags["numpr"] = True
         elif flags["numpr"] and local == "numId":
@@ -392,6 +395,7 @@ class _Body:
         self.skip = 0                 # the depth of the element being skipped, or 0
         self.para = None              # the paragraph being read
         self.run_hidden = False
+        self.run_why, self.run_counted = None, False
         self.in_run = False
         self.in_t = False
         self.in_ppr = False
@@ -408,6 +412,11 @@ class _Body:
         if self.skip or not self.in_run or self.para is None or not s:
             return
         if self.run_hidden:
+            if s.strip() and not self.run_counted and not (self.run_why == "para" and self.para.get("hidden_counted")):
+                self.counts["hidden"] += 1      # counted when text is really dropped, once per hidden run (once per paragraph for a hidden paragraph style)
+                self.run_counted = True
+                if self.run_why == "para":
+                    self.para["hidden_counted"] = True
             return
         self.para["len"] += len(s)
         self.total += len(s)
@@ -445,11 +454,13 @@ class _Body:
             return
         val = _attr(attrs, "val")
         if local == "p":
-            self.para = {"text": [], "len": 0, "style": None, "num": None, "ilvl": 0, "outline": None}
+            self.para = {"text": [], "len": 0, "style": None, "num": None, "ilvl": 0, "outline": None, "hidden": False}
         elif local == "pPr":
             self.in_ppr = True
         elif local == "pStyle" and self.para is not None and self.in_ppr:
             self.para["style"] = val
+            if self.style_hidden(val):
+                self.para["hidden"] = True
         elif local == "numPr" and self.in_ppr:
             self.in_numpr = True
         elif local == "numId" and self.in_numpr and self.para is not None:
@@ -459,11 +470,20 @@ class _Body:
         elif local == "outlineLvl" and self.in_ppr and self.para is not None:
             self.para["outline"] = _int(val)
         elif local == "r":
-            self.in_run, self.run_hidden = True, False
-        elif local == "vanish" and self.in_run:
+            self.in_run = True
+            self.run_hidden = bool(self.para and self.para.get("hidden"))      # hidden by the paragraph's style; counted once per paragraph when text is dropped
+            self.run_why = "para" if self.run_hidden else None
+            self.run_counted = False
+        elif local == "rStyle" and self.in_run and not self.in_ppr:
+            if not self.run_hidden and self.style_hidden(val):
+                self.run_hidden, self.run_why = True, "run"
+        elif local == "vanish" and self.in_run and not self.in_ppr:
             if (val or "true").lower() not in ("0", "false", "off"):
+                if not self.run_hidden:
+                    self.run_why = "run"
                 self.run_hidden = True
-                self.counts["hidden"] += 1
+            else:
+                self.run_hidden, self.run_why = False, None      # an explicit "not hidden" on the run wins over a hidden style: Word shows that text
         elif local == "t":
             self.in_t = True
         elif local == "tab" and self.in_run and not self.in_ppr:
@@ -475,11 +495,14 @@ class _Body:
         elif local == "hyperlink":
             self.counts["links"] += 1
         elif local == "tbl":
-            self.tables.append({"rows": [], "row": None, "cell": None})
+            self.tables.append({"rows": [], "row": None, "cell": None, "span": 1})
         elif local == "tr" and self.tables:
             self.tables[-1]["row"] = []
         elif local == "tc" and self.tables:
             self.tables[-1]["cell"] = []
+            self.tables[-1]["span"] = 1
+        elif local == "gridSpan" and self.tables and self.tables[-1]["cell"] is not None:
+            self.tables[-1]["span"] = min(max(_int(val) or 1, 1), 64)       # a spanning cell fills this many columns
 
     def text(self, data):
         if self.in_t:
@@ -509,15 +532,19 @@ class _Body:
             self.finish_paragraph()
         elif local == "tc" and self.tables:
             t = self.tables[-1]
+            if t["row"] is None:                             # a cell with no row around it: the file is damaged
+                raise _Stop(_damaged(self.name))
             t["row"].append("\n".join(t["cell"] or []))
+            t["row"] += [""] * (t["span"] - 1)
             t["cell"] = None
         elif local == "tr" and self.tables:
             t = self.tables[-1]
-            if any(c.strip() for c in t["row"] or []):
-                t["rows"].append(t["row"])
+            t["rows"].append(t["row"] or [])             # a blank row inside a table is kept; trailing ones go at </tbl>
             t["row"] = None
         elif local == "tbl" and self.tables:
             done = self.tables.pop()
+            while done["rows"] and not any(c.strip() for c in done["rows"][-1]):
+                done["rows"].pop()
             if self.tables:                                  # nested: its text goes into the cell it sits in
                 outer = self.tables[-1]
                 if outer["cell"] is not None:
@@ -545,6 +572,10 @@ class _Body:
             out.append(self.styles[style_id])
             style_id = self.styles[style_id].get("based")
         return out
+
+    def style_hidden(self, style_id):
+        """True when the style, or one it is based on, hides its text."""
+        return any(s.get("hidden") for s in self.style_chain(style_id))
 
     def heading_level(self, p, chain):
         if p["outline"] is not None:

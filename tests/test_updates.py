@@ -498,6 +498,9 @@ class VersionRuleTest(Base):
         self.assertGreater(updates.version_key("1.0.0"), updates.version_key("0.99.99"))
         self.assertGreater(updates.version_key("0.1.0"), updates.version_key("0.1.0.dev0"), "a release beats its dev copy")
         self.assertGreater(updates.version_key("0.1.0.dev3"), updates.version_key("0.0.9"))
+        self.assertLess(updates.version_key("0.2.1.dev1"), updates.version_key("0.2.1.dev2"))
+        self.assertLess(updates.version_key("0.2.1.dev2"), updates.version_key("0.2.1.dev10"))
+        self.assertLess(updates.version_key("0.2.1.dev99"), updates.version_key("0.2.1"), "a dev stays below its release")
         for bad in ("0.1", "a.b.c", "1.2.3.4", "01.2.3", "1.2.3-rc1"):
             with self.subTest(bad=bad), self.assertRaises(ValueError):
                 updates.version_key(bad)
@@ -1202,7 +1205,7 @@ class LongVersionTextTest(Base):
                 with self.assertRaises(ValueError):
                     updates.version_key(text)
                 self.assertFalse(updates.is_release_version(text))
-        self.assertEqual((0, 1, 0, 0), updates.version_key("0.1.0.dev123456789"))
+        self.assertEqual((0, 1, 0, 0, 123456789), updates.version_key("0.1.0.dev123456789"))
 
 
 @unittest.skipIf(hasattr(os, "geteuid") and os.geteuid() == 0, "root can read anything")
@@ -1335,15 +1338,15 @@ class ProtectedTest(Base):
     """system and data belong to the person: a download can neither carry them nor name them."""
 
     def test_a_member_in_system_or_data_is_refused(self):
-        for rel in ("system/branding/logo.png", "data/clark.db", "System/branding/x", "DATA/y", "system"):
+        for rel in ("branding/logo.png", "system/branding/logo.png", "Branding/x", "data/clark.db", "System/branding/x", "DATA/y", "system"):
             with self.subTest(rel=rel):
                 e = self.refuses(make_zip(self.fresh(), extra={f"clark/{rel}": b"mine"}), "unsafe")
                 self.assertTrue(e.detail.startswith(("member in a folder that belongs to the person",
                                                      "outside the app's own list")), e.detail)
 
     def test_a_member_in_system_is_refused_for_that_reason_when_the_list_would_allow_it(self):
-        listed = release_files.SHARED + ("system/", "data/")
-        for rel in ("system/branding/logo.png", "data/clark.db", "SYSTEM/x"):
+        listed = release_files.SHARED + ("system/", "data/", "branding/")
+        for rel in ("branding/logo.png", "system/branding/logo.png", "data/clark.db", "SYSTEM/x"):
             with self.subTest(rel=rel), mock.patch.object(release_files, "SHARED", listed):
                 path = make_zip(self.fresh(), extra={f"clark/{rel}": b"mine"})
                 self.refuses(path, "unsafe", detail=f"member in a folder that belongs to the person: clark/{rel}")
@@ -1354,19 +1357,22 @@ class ProtectedTest(Base):
             self.assertEqual("0.3.1", self.read(make_zip(self.tmp, files=files)).version)
 
     def test_a_manifest_row_naming_system_is_refused(self):
-        row = lambda r: r.update({"system/branding/logo.png": dict(r["README.md"])})
-        self.refuses(make_zip(self.tmp, rows=row), "incomplete", detail="manifest and members differ")      # it is no member of the zip
+        for name in ("branding/logo.png", "system/branding/logo.png"):
+            with self.subTest(name=name):
+                row = lambda r: r.update({name: dict(r["README.md"])})
+                self.refuses(make_zip(self.tmp, rows=row), "incomplete", detail="manifest and members differ")      # it is no member of the zip
 
     def test_check_coverage_names_a_protected_file_as_unsafe(self):
         rels = [release_files.place(i) + ("x.py" if i.endswith("/") else "") for i in release_files.listed("mac")] \
             + [release_files.START_HERE]
         updates.check_coverage("mac", rels)
-        with self.assertRaises(UpdateError) as said:
-            updates.check_coverage("mac", rels + ["system/branding/a.png"])
-        self.assertEqual("unsafe", said.exception.key)
+        for name in ("branding/a.png", "system/branding/a.png"):
+            with self.assertRaises(UpdateError) as said:
+                updates.check_coverage("mac", rels + [name])
+            self.assertEqual("unsafe", said.exception.key)
 
     def test_the_installed_record_may_not_name_system_or_data(self):
-        for rel in ("system/branding/logo.png", "system", "Data/clark.db"):
+        for rel in ("branding/logo.png", "Branding", "system/branding/logo.png", "system", "Data/clark.db"):
             with self.subTest(rel=rel):
                 with self.assertRaises(UpdateError) as said:
                     updates.check_record_names({"files": {rel: {}}})
@@ -1376,14 +1382,17 @@ class ProtectedTest(Base):
     def test_check_app_folder_and_plan_refuse_a_record_that_names_system(self):
         app = install_to(Path(self.tmp) / "app", "0.3.0")
         record = json.loads((app / updates.INSTALLED_RECORD).read_text(encoding="utf-8"))
-        record["files"]["system/branding/logo.png"] = record["files"]["README.md"]
-        (app / updates.INSTALLED_RECORD).write_text(json.dumps(record), encoding="utf-8")
-        with self.assertRaises(UpdateError) as said:
-            updates.check_app_folder(app)
-        self.assertEqual("unsafe", said.exception.key)
-        with self.assertRaises(UpdateError) as said:
-            updates.plan(self.read(make_zip(self.fresh())), app)
-        self.assertEqual("unsafe", said.exception.key)
+        for rel in ("branding/logo.png", "system/branding/logo.png"):
+            with self.subTest(rel=rel):
+                record["files"][rel] = record["files"]["README.md"]
+                (app / updates.INSTALLED_RECORD).write_text(json.dumps(record), encoding="utf-8")
+                with self.assertRaises(UpdateError) as said:
+                    updates.check_app_folder(app)
+                self.assertEqual("unsafe", said.exception.key)
+                with self.assertRaises(UpdateError) as said:
+                    updates.plan(self.read(make_zip(self.fresh())), app)
+                self.assertEqual("unsafe", said.exception.key)
+                del record["files"][rel]
 
 
 class StartFileNameTest(Base):
@@ -1447,19 +1456,19 @@ class WalkSkipsThePersonsFoldersTest(Base):
     def setUp(self):
         super().setUp()
         self.app = install_to(Path(self.tmp) / "app", "0.3.0")
-        brand = self.app / "system" / "branding"
-        brand.mkdir(parents=True)
-        (brand / "logo.png").write_bytes(b"png")
+        for brand in (self.app / "branding", self.app / "system" / "branding"):
+            brand.mkdir(parents=True)
+            (brand / "logo.png").write_bytes(b"png")
         (self.app / "data").mkdir()
         (self.app / "data" / "clark.db").write_bytes(b"db")
 
     def test_walk_app_lists_neither(self):
         files, links = updates.walk_app(self.app)
-        self.assertEqual([], [f for f in files if f.startswith(("system", "data"))])
+        self.assertEqual([], [f for f in files if f.startswith(("system", "data", "branding"))])
         self.assertEqual([], links)
 
     def test_a_link_inside_system_branding_does_not_block_an_update(self):
-        os.symlink(self.app / "README.md", self.app / "system" / "branding" / "alias")
+        os.symlink(self.app / "README.md", self.app / "branding" / "alias")
         files, links = updates.walk_app(self.app)
         self.assertEqual([], links)
         updates.check_app_folder(self.app)

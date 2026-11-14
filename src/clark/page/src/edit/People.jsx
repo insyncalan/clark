@@ -21,7 +21,7 @@ export function People() {
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [done, setDone] = useState(null);             // {text, step, problem}: what the last paste did, with Undo while its step can be taken back
-  const pasteBtn = useRef(null), box = useRef(null);
+  const pasteBtn = useRef(null), box = useRef(null), doneLn = useRef(null);
   useGrow(box, text);
 
   const load = async () => {
@@ -33,11 +33,14 @@ export function People() {
   const owners = workRows.value.map((r) => r.owner).concat(((data.value && data.value.milestones) || []).map((m) => m.owner));
   const all = peopleRows(list || [], owners);
   const need = needDetails(all).length;
+  useEffect(() => { if (list !== null && need === 0 && only) setOnly(false); }, [list, need, only]);      // nobody left to show: the filter is off, so the button is not left saying the wrong thing
   const filtered = only && need > 0;
   const shown = filtered ? needDetails(all) : all;
   const read = open && text.trim() ? readPaste(text, list || []) : null;
 
   const toggle = () => { const on = !open; setOpen(on); setMsg(""); if (on) setTimeout(() => box.current && box.current.focus(), 0); };
+
+  const closeBox = () => { setOpen(false); setMsg(""); setTimeout(() => pasteBtn.current && pasteBtn.current.focus(), 0); };      // Esc in the box: it folds away (what was typed is kept) and the focus goes back to Paste from Excel
 
   const add = async () => {
     if (busy) return;
@@ -66,7 +69,9 @@ export function People() {
     setBusy(true);
     const back = await undoPeople(done.step);
     setBusy(false);
-    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); } else setDone({ text: back.message, step: null, problem: true });
+    if (back.ok) { setList(back.people); setDone({ text: "Undone.", step: null, problem: false }); }
+    else setDone({ text: back.message, step: done.step, problem: true });      // kept, so Undo can be tried again
+    setTimeout(() => doneLn.current && doneLn.current.focus(), 0);      // the Undo button is gone or was disabled while it worked: the focus goes to the line that says what happened
   };
 
   const dash = (v) => (v ? v : <span class="muted">—</span>);
@@ -77,10 +82,10 @@ export function People() {
         <button type="button" class="btn sm" id="ppPasteBtn" ref={pasteBtn} aria-expanded={open ? "true" : "false"} aria-controls="ppPaste" onClick={toggle}>Paste from Excel</button>
       </div>
       <p class="muted pp-intro">Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.</p>
-      <div class="pp-paste" id="ppPaste" hidden={!open}>
+      <div class="pp-paste" id="ppPaste" hidden={!open} onKeyDown={(e) => { if (e.key === "Escape" && open) { e.preventDefault(); e.stopPropagation(); setOpen(false); setMsg(""); if (pasteBtn.current) pasteBtn.current.focus(); } }}>
         <label for="ppText">Rows from Excel: name, email, organisation, role, separated by tabs</label>
         <textarea id="ppText" class="grow" ref={box} rows={3} value={text} placeholder="Sam Rivers[tab]sam@example.com[tab]Supplier[tab]Delivery lead"
-          aria-describedby="ppPlan" onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
+          aria-describedby="ppPlan" onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); closeBox(); } }} onInput={(e) => { setText(e.currentTarget.value); setMsg(""); }} />
         <div id="ppPlan" role="status" aria-live="polite">
           {read ? (
             <>
@@ -109,7 +114,7 @@ export function People() {
           <span class="muted" id="ppMsg" role="status">{msg}</span>
         </div>
       </div>
-      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" role="status" hidden={!done}>
+      <p class={`pp-done${done && done.problem ? " error" : ""}`} id="ppDone" ref={doneLn} tabIndex={-1} role="status" hidden={!done}>
         {done ? <>{done.text}{done.step !== null ? <> <button type="button" class="link" id="ppUndo" disabled={busy} onClick={undo}>Undo</button></> : null}</> : null}
       </p>
       {list === null ? <p class="muted" id="ppLoading">Reading the people list.</p> : null}
@@ -119,7 +124,7 @@ export function People() {
           <>
             <p class="pp-sum" id="ppCount">
               <span>{countLine(need, all.length)}</span>
-              {need || only ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
+              {need > 0 ? <button type="button" class="link" id="ppOnly" aria-pressed={filtered ? "true" : "false"} onClick={() => setOnly(!only)}>{filtered ? "Show everyone" : "Show only these"}</button> : null}
             </p>
             <table class="pp-table" id="ppTable">
               <thead><tr><th>Name</th><th>Email</th><th>Organisation</th><th>Role</th></tr></thead>

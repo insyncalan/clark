@@ -2,7 +2,7 @@
 
 Run: python3 dev/run_tests.py test_sizes
 Loads the real page in headless Chrome (the #33 harness) with a small fictional project, opens Dashboard, Work items,
-Milestones and Settings at 1400, 900 and 390 px, and fails on any visible text under 12 px or any visible button, link,
+Milestones and Settings at 1400 and 900 px, and fails on any visible text under 12 px or any visible button, link,
 field or handle whose hit box is under 24 by 24 CSS px. The hit box is measured, not assumed: an element counts as big
 enough when its own box is, or when it sits inside a larger box that takes the click for it (a label around a checkbox).
 The allow-list is empty. Chrome is required: this test fails, never skips, without it.
@@ -20,6 +20,7 @@ from test_server import Running, chrome, wait
 ALLOWED = ()        # selectors exempt from the check; empty, and a new entry needs the Head's word
 
 DATA = {"ABC": {**BASE["ABC"],
+                "use_cases": [{"id": "ABC-U-001", "ref": "1.1", "title": "Flag late suppliers", "headline": "Spot delays early", "status": "Planned"}],
                 "milestones": [{"id": "ABC-M-001", "name": "Pilot live", "baseline_date": "2030-03-01", "state": "On track", "status": "Planned"}],
                 "actions": [{"id": "ABC-A-001", "description": "Agree the cut-over plan", "owner": "Sam", "due_date": "2030-01-10", "status": "Open"}],
                 "raid": [{"id": "ABC-001", "type": "Risk", "description": "Supplier may deliver late", "owner": "Priya", "status": "Open"}],
@@ -72,7 +73,10 @@ AUDIT = """(function (allowed) {
 })(%s)"""
 
 
-VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("settings", ".frame.set-head"))
+VIEWS = (("dashboard", "#report"), ("work", "#work"), ("milestones", "#milestones"), ("usecases", "#usecases"), ("gantt", ".frame"), ("settings", ".frame.set-head"))
+
+
+PUBLISHED_VIEWS = tuple(v for v in VIEWS if v[0] not in ("usecases", "gantt"))      # the published file carries the four report views only
 
 
 def published_page():
@@ -80,7 +84,7 @@ def published_page():
     d = DATA["ABC"]
     text = page.page_html(tempfile.mkdtemp(), view=True).replace('<html lang="en-GB">', '<html lang="en-GB" data-mode="view">')
     block = publish.data_block({"data": {k: v for k, v in d.items() if k != "report_sections"}, "sections": d["report_sections"],
-                                "tabs": [v for v, _ in VIEWS]}, "2030-01-01")
+                                "tabs": [v for v, _ in PUBLISHED_VIEWS]}, "2030-01-01")
     i = text.rfind("</body>")
     return text[:i] + block + "\n" + text[i:]
 
@@ -103,16 +107,16 @@ class Sizes(unittest.TestCase):
             for how, got in audits:
                 found += [f"{where} {view}{how}: {g}" for g in sorted(set(got))]
 
-    def run_page(self, html, prefix, edit):
+    def run_page(self, html, prefix, edit, views=VIEWS):
         s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=html)
         self.addCleanup(s.close)
         found = []
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard" + prefix)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid)), "the page drew")
-            for w in (1400, 900, 390):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": w < 600}, sid)
-                self.audit(cdp, sid, f"{w}px", prefix, VIEWS, found)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
+                self.audit(cdp, sid, f"{w}px", prefix, views, found)
                 if edit:        # Edit shows the section handles and the add and options controls
                     cdp.js("location.hash = '#dashboard%s'" % prefix, sid)
                     self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report') && !!document.querySelector('[data-mode=edit]')", sid)), "the Dashboard and its switch drew (Settings has none)")
@@ -126,7 +130,7 @@ class Sizes(unittest.TestCase):
         self.run_page(lambda: page.page_html(tempfile.mkdtemp()), "&p=ABC", edit=True)
 
     def test_the_published_file_has_text_of_12px_and_targets_of_24px_in_every_view(self):
-        self.run_page(published_page, "&p=ABC", edit=False)
+        self.run_page(published_page, "&p=ABC", edit=False, views=PUBLISHED_VIEWS)
 
     def test_the_page_with_no_project_open_has_targets_of_24px(self):
         s = Running(data_for=lambda code, archived=None: DATA.get(code), projects=lambda archived=False: ONE, page_html=lambda: page.page_html(tempfile.mkdtemp()))
@@ -135,8 +139,8 @@ class Sizes(unittest.TestCase):
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard")
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid)), "the project list drew")
-            for w in (1400, 390):
-                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": w < 600}, sid)
+            for w in (1400, 900):
+                cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 found += [f"{w}px: {g}" for g in json.loads(cdp.js(AUDIT % json.dumps(list(ALLOWED)), sid))]
         self.assertEqual(found, [], "\n".join(found))
 

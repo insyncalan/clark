@@ -111,7 +111,7 @@ class Commitment(unittest.TestCase):
                 self.assertEqual(problem.id, self.uc)
                 self.assertIn("Use cases, row", problem.message)
                 self.assertIn(self.uc, problem.message)
-                self.assertIn("Commitment must be one of Candidate, Committed or Planned 2027, or left empty", problem.message)
+                self.assertIn("Commitment must be one of Planned 2026, Committed or Planned 2027, or left empty", problem.message)
                 self.assertIn("the row was left out", problem.message)
                 self.assertIsNone(self.flag(self.uc))
 
@@ -143,19 +143,19 @@ class Commitment(unittest.TestCase):
         ws = wb[SHEET]
         head = {c.value: c.column for c in ws[1]}
         row = ws.max_row + 1
-        ws.cell(row, head["Use case"]).value, ws.cell(row, head["Commitment"]).value = "A typed one", "Candidate"
+        ws.cell(row, head["Use case"]).value, ws.cell(row, head["Commitment"]).value = "A typed one", "Planned 2026"
         ws.cell(row + 1, head["Use case"]).value, ws.cell(row + 1, head["Commitment"]).value = "A bad one", "Soon"
         wb.save(str(self.path))
         p = self.read()
         news = [c for c in p.changes if c.kind == "new"]
-        self.assertEqual([c.after.get("commitment") for c in news], ["Candidate"])
+        self.assertEqual([c.after.get("commitment") for c in news], ["Planned 2026"])
         self.assertEqual(len(p.problems), 1)
         self.assertIn("(new)", p.problems[0].message)
 
     def test_spaces_round_a_word_are_not_part_of_it(self):
-        edit(self.path, self.uc, Commitment="  Candidate ")
+        edit(self.path, self.uc, Commitment="  Planned 2026 ")
         (c,) = self.read().changes
-        self.assertEqual(c.after, {"commitment": "Candidate"})
+        self.assertEqual(c.after, {"commitment": "Planned 2026"})
 
     def test_a_workbook_from_before_the_column_imports_as_before_and_keeps_every_flag(self):
         wb = load_workbook(self.path)
@@ -171,6 +171,48 @@ class Commitment(unittest.TestCase):
         p.accept_all()
         xi.apply_import(self.s, p, USER)
         self.assertEqual(self.flag(self.other), "Committed")
+
+
+    def test_an_old_workbook_saying_candidate_lands_as_planned_2026(self):
+        """Row 1061: a workbook from before the rename. Only the exact word is mapped; the row is changed."""
+        for old in ("Candidate", "  Candidate "):
+            with self.subTest(old=old):
+                edit(self.path, self.uc, Commitment=old)
+                p = self.read()
+                self.assertEqual(p.problems, [])
+                (c,) = p.changes
+                self.assertEqual(c.after, {"commitment": "Planned 2026"})
+                p.accept_all()
+                xi.apply_import(self.s, p, USER)
+                self.assertEqual(self.flag(self.uc), "Planned 2026")
+                with self.s.step("dashboard", USER) as st:
+                    st.update("use_cases", self.uc, {"commitment": None})
+                excel.export_project(self.s, "ABC", self.path, self.state, on=ON)
+
+    def test_a_hostile_old_workbook_maps_only_the_exact_old_word(self):
+        """Look-alikes of the old word are still reported, never guessed; a row that already says the new word is untouched."""
+        for bad in ("candidate", "CANDIDATE", "Candidate 2026", "Candidates", "Candidate;Committed", "Cand\u0131date"):
+            with self.subTest(bad=bad):
+                edit(self.path, self.uc, Commitment=bad)
+                p = self.read()
+                self.assertEqual(p.changes, [])
+                (problem,) = p.problems
+                self.assertIn("Commitment must be one of Planned 2026, Committed or Planned 2027", problem.message)
+                self.assertIsNone(self.flag(self.uc))
+        edit(self.path, self.uc, Commitment='="Candidate"')      # a formula has no stored value to read: it is never mapped
+        p = self.read()
+        self.assertEqual(p.changes, [])
+        self.assertIsNone(self.flag(self.uc))
+        edit(self.path, self.other, Commitment="Candidate")      # one old row beside a hostile one: the old row still lands
+        edit(self.path, self.uc, Commitment="candidate")
+        p = self.read()
+        self.assertEqual(len(p.problems), 1)
+        (c,) = p.changes
+        self.assertEqual((c.id, c.after), (self.other, {"commitment": "Planned 2026"}))
+        p.accept_all()
+        xi.apply_import(self.s, p, USER)
+        self.assertEqual(self.flag(self.other), "Planned 2026")
+        self.assertIsNone(self.flag(self.uc))
 
 
 if __name__ == "__main__":

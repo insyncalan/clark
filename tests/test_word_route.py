@@ -18,6 +18,7 @@ from pathlib import Path
 from unittest import mock
 
 from _demo import DemoStore
+from _links import needs_links
 from _paths import SRC
 from clark import docx_read, history, platform, word_route
 from test_docx_read import P, TBL, TR, docx
@@ -758,6 +759,46 @@ class Export(unittest.TestCase):
         self.assertEqual(self.post(project="NOPE")[1]["code"], "project_not_found")
         self.assertEqual(self.seam([])[1]["message"], word_route.NOT_JSON_OBJECT)
 
+    def seam_for(self, folder):
+        return word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY, choose_folder=lambda p: str(folder))
+
+    @needs_links
+    def test_a_folder_reached_through_a_link_into_the_client_folder_is_refused(self):
+        """#1047: the link as the folder, as a parent of it, and as the saved client folder; nothing is written or recorded."""
+        links = self.tmp / "links"
+        links.mkdir()
+        (links / "to-client").symlink_to(self.client, target_is_directory=True)
+        (self.client / "Inner").mkdir()
+        cases = ((links / "to-client", self.client), (links / "to-client" / "Inner", self.client), (self.client / "Inner", links / "to-client"),
+                 (self.client, links / "to-client"))
+        for chosen, saved in cases:
+            self.save_client_folder(saved)
+            for extra in ({}, {"on_clash": "number"}):
+                status, got = self.seam_for(chosen)({"project": "ABC", **extra})
+                self.assertEqual((status, got["code"]), (409, "same_folder"), (chosen, saved, got))
+            self.assertEqual((self.publications(), self.files(self.client)), ([], ["Inner"]), (chosen, saved))
+            self.assertEqual(self.files(self.client / "Inner"), [], (chosen, saved))
+
+    @needs_links
+    def test_a_folder_reached_through_a_link_elsewhere_is_not_the_client_folder(self):
+        links = self.tmp / "links"
+        links.mkdir()
+        (links / "to-local").symlink_to(self.local, target_is_directory=True)
+        self.save_client_folder()
+        status, got = self.seam_for(links / "to-local")({"project": "ABC"})
+        self.assertEqual(status, 200, got)
+
+    @needs_links
+    def test_a_folder_reached_through_a_link_into_clarks_own_data_is_refused(self):
+        links = self.tmp / "links"
+        links.mkdir()
+        data = Path(self.store.path).parent
+        (links / "to-data").symlink_to(data, target_is_directory=True)
+        before = self.files(data)
+        status, got = self.seam_for(links / "to-data")({"project": "ABC"})
+        self.assertEqual((status, got["code"]), (400, "folder_data"), got)
+        self.assertEqual((self.files(data), self.publications()), (before, []))
+
     def test_a_chosen_folder_inside_clarks_own_data_is_refused(self):
         seam = word_route.make_word_export(self.store.path, [], USER, today=lambda: TODAY,
                                            choose_folder=lambda p: str(Path(self.store.path).parent))
@@ -910,7 +951,8 @@ class ThroughTheServer(unittest.TestCase):
         self.assertEqual(status, 500)
         self.assertNotIn("secret", json.dumps(body))
 
-    def test_the_server_module_still_imports_nothing_from_clark(self):
+    def test_the_server_module_imports_no_clark_module(self):
+        # item 1100: the needs-Mac error is found by its class name, so server.py imports no clark module at all (test_updater pins the same)
         import ast
         tree = ast.parse((SRC / "clark" / "server.py").read_text(encoding="utf-8"))
         names = [a.name for n in ast.walk(tree) if isinstance(n, ast.Import) for a in n.names]

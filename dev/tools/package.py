@@ -2,8 +2,20 @@
 files in its hidden .app/ folder (issue 694; #57, step 3 of docs/handoff/packaging-57.md).
 
 Run: python3 dev/tools/package.py mac [--out FOLDER] [--dirty] [--release] [--notes FILE] [--extra-folder PATH]...   # writes dist/clark-<version>-mac.zip
+     python3 dev/tools/package.py mac --app                       # also writes dist/clark.app (row 836; needs a Mac: osacompile)
      python3 dev/tools/package.py mac --for-client                # in a checkout of the scrubbed public snapshot only
      python3 dev/tools/package.py windows                         # not built yet (steps 6 and 7 of the note)
+
+clark.app (row 836) is the same download as an app a person double-clicks: osacompile (part of every Mac) compiles the
+AppleScript source dev/tools/clark_applet.applescript into an applet bundle, and the clark folder the zip would unzip to
+(clark.command, .app/, clark-release.json, README.md, START-HERE.md, docker/) is put in its Contents/Resources, byte for byte
+the same bytes and modes as the zip holds. The applet runs that clark.command with no Terminal window; the bundle needs nothing
+beside it, so a quarantined download that macOS runs from a copy elsewhere still finds its files. The Info.plist gets the bundle
+id and the version. Last, codesign (also part of every Mac) signs the bundle ad hoc (`-s -`, no account): the applet stub
+osacompile copies may carry Apple's signature, which the rewritten Info.plist and the filled Resources would break, and Gatekeeper
+calls a download with a broken signature damaged, with no Open Anyway; an ad-hoc one keeps that route. Nothing is notarised.
+The bundle is never committed; it is built on the Head's Mac at release time, and --app is all or nothing: when the bundle
+can't be built, the zip of the same run is not left behind either.
 
 Who the zip is for is decided by the tree it is built from, not by a flag (#463). If git tracks any private-only file in
 it (any path publish_public.is_excluded names: the notes in EXCLUDED and docs/public/), it is the private copy, and the zip
@@ -35,11 +47,14 @@ import datetime
 import hashlib
 import json
 import os
+import plistlib
 import re
+import shutil
 import stat
 import subprocess
 import sys
 import tempfile
+import urllib.parse
 import zipfile
 from pathlib import Path
 
@@ -82,8 +97,7 @@ def make_pages(root=ROOT, twice=False):
         if script.is_file():
             done = subprocess.run([sys.executable, str(script)], cwd=str(root), capture_output=True, text=True)
             if done.returncode != 0:
-                raise Refused("The pages could not be built, so nothing was written: "
-                              + (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1])
+                raise Refused(COULD_NOT_BUILD.format(what="The pages", why=_last_line(done)))
         missing = [n for n in names if not (root / n).is_file()]
         if missing:
             raise Refused(f"A page the download needs has not been built: {', '.join(missing)}. Run python3 dev/tools/build_page.py, "
@@ -112,7 +126,7 @@ These steps are for a Mac.
 
 What is in this folder: README.md says what clark is. START-HERE.md is this
 page. Double-click clark.command to start clark. docker is for starting clark
-with Docker. system/branding holds your own logo and colours, if you add them.
+with Docker. branding holds your own logo and colours, if you add them.
 The program files are in a hidden folder called .app: you do not need to open
 it.
 
@@ -157,8 +171,9 @@ If you already have clark:
   2. Rename your old clark folder (for example to clark-old) or move it away,
      so the two folders do not clash.
   3. Unzip this download.
-  4. If you added your own logo or colours, copy the system/branding folder
-     from the old clark folder into the new one. An update never changes that
+  4. If you added your own logo or colours, copy the branding folder
+     (an older clark keeps it in system/branding) from the old clark folder into
+     the new one. An update never changes that
      folder, but replacing the whole clark folder by hand removes it.
   5. If you use Docker and your data is in a data folder inside the old clark
      folder, move that data folder out of it before you delete the old folder,
@@ -234,7 +249,8 @@ def version(root=ROOT):
     return found.group(1)
 
 
-GIT_TIMEOUT = 60     # seconds; git is never waited on for ever (a hang reads as 'git cannot say')
+GIT_TIMEOUT = 60     # seconds; every git call in this file is given this limit. A hang reads as 'git cannot say': the
+                     # audience, snapshot and tag checks refuse or fall back, files() and uncommitted() refuse, released_on() uses today
 
 
 def tracked(root, paths):
@@ -253,9 +269,13 @@ def files(system, root=ROOT):
     """The repo files that go in the zip for `system`, sorted (START-HERE.md is not one: it is written here)."""
     chosen, kept = set(), set()
     for item in listed(system):
-        found = tracked(root, [item]) if item.endswith("/") else [item]
+        try:
+            found = tracked(root, [item]) if item.endswith("/") else [item]
+        except subprocess.TimeoutExpired:
+            raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files under {item} can't be listed. "
+                          "Nothing was written. Try again.") from None
         if not found or not all((Path(root) / zip_source(p, root)).is_file() for p in found):
-            raise Refused(f"A file the download needs is missing: {item}. Restore it, then build again.")
+            raise Refused(MISSING_FILE.format(what=item))
         kept.update(p for p in found if protected(p))
         chosen.update(p for p in found if not LEFT_OUT.search(p))
     if kept:
@@ -281,9 +301,9 @@ def with_extra_folders(text, names):
     import textwrap
     head, found, rest = text.partition("What is in this folder:")
     para, blank, tail = rest.partition("\n\n")
-    if not found or "system/branding holds" not in para:
+    if not found or "branding holds" not in para:
         raise Refused("START-HERE has no 'What is in this folder' paragraph to add the extra folders to.")
-    flat = " ".join(para.split()).replace("system/branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " system/branding holds", 1)
+    flat = " ".join(para.split()).replace("branding holds", " ".join(EXTRA_SENTENCES[n] for n in names) + " branding holds", 1)
     glued = re.sub(r" (clark)", "\x00\\1", "What is in this folder: " + flat, flags=re.I)
     return head + textwrap.fill(glued, width=78, break_on_hyphens=False).replace("\x00", " ") + blank + tail
 
@@ -341,8 +361,11 @@ def snapshot_problem(root):
         return "git could not list this folder's files, so it can't be told from the private copy"
     if private:
         return "this folder is the private copy: it holds the team's own notes that the public snapshot leaves out"
-    log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
-                         capture_output=True, text=True)
+    try:
+        log = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%an%n%ae%n%cn%n%ce"],
+                             capture_output=True, text=True, timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say who made its last commit, so it isn't a public snapshot"
     neutral = [pub.AUTHOR_NAME, pub.AUTHOR_EMAIL] * 2
     if log.returncode != 0 or log.stdout.splitlines() != neutral:
         return "its last commit was not made by the publish tool, so it isn't a public snapshot"
@@ -385,7 +408,11 @@ def schema_version(root=ROOT):
 
 def released_on(root=ROOT):
     """The date of the last commit, YYYY-MM-DD, so two builds of the same commit are byte for byte the same."""
-    out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True)
+    try:
+        out = subprocess.run(["git", "-C", str(root), "log", "-1", "--format=%cs"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return datetime.date.today().isoformat()
     day = out.stdout.strip()
     return day if out.returncode == 0 and re.fullmatch(r"[0-9]{4}-[0-9]{2}-[0-9]{2}", day) else datetime.date.today().isoformat()
 
@@ -422,7 +449,7 @@ COMPOSE_WORKDIR_HIDDEN = "    working_dir: /clark/.app\n"
 
 def compose_for_zip(data):
     """The compose file as the zip holds it: the program files sit in .app, so the container starts there. Exactly one
-    `working_dir: /clark` line is changed (the bind of the whole folder stays, so system/branding is still seen);
+    `working_dir: /clark` line is changed (the bind of the whole folder stays, so branding is still seen);
     anything else about it is refused, so a changed compose file never ships half-changed."""
     text = data.decode("utf-8")
     lines = [ln for ln in text.splitlines(keepends=True) if ln.rstrip("\r\n") == COMPOSE_WORKDIR.rstrip("\n")]
@@ -442,7 +469,7 @@ def placed_bytes(name, data):
 # Folders that are not in git (written at build time) go at the top of the clark folder under their own names. At most
 # EXTRA_MAX_BYTES of files in all of them; regular files only; a link anywhere refuses the build.
 EXTRA_MAX_BYTES = 5 * 1024 * 1024
-RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "clark")
+RESERVED_TOP = (".app", "README.md", *START_HERE_NAMES, MANIFEST, "clark.command", "clark.cmd", "docker", "system", "data", "branding", "clark")
 
 
 def extra_name(path):
@@ -527,15 +554,23 @@ def entries(system, root=ROOT, extra_folders=()):
 
 
 def uncommitted(root, paths):
-    out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
-                         capture_output=True, check=True, text=True).stdout
+    try:
+        out = subprocess.run(["git", "-C", str(root), "status", "--porcelain", "--", *paths],
+                             capture_output=True, check=True, text=True, timeout=GIT_TIMEOUT).stdout
+    except subprocess.TimeoutExpired:
+        raise Refused(f"git did not answer in {GIT_TIMEOUT} seconds, so the files can't be checked for changes that aren't "
+                      "committed. Nothing was written. Try again.") from None
     return out.rstrip()                 # the first line's leading space is part of its status
 
 
 def tag_problem(root, ver):
     """Why a release zip can't be built from `root`: HEAD is not the commit tagged v<ver>, or git can't say. None when it is.
     The v0.2.1 download was built from a tree that was not its tag (#400)."""
-    run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True)
+    try:
+        run = subprocess.run(["git", "-C", str(root), "tag", "--points-at", "HEAD"], capture_output=True, text=True,
+                             timeout=GIT_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        return "git did not say which tag this folder is at"
     if run.returncode != 0:
         return "git could not say which tag this folder is at"
     if f"v{ver}" not in run.stdout.split():
@@ -556,10 +591,10 @@ def entry(name, mode):
     return info
 
 
-def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
-          released=None, min_from="0.0.0", extra_folders=()):
-    """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
-    and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
+def download_content(system, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
+                     released=None, min_from="0.0.0", extra_folders=()):
+    """Everything the download for `system` holds, after every refusal: {name in the zip (with the top folder): (bytes, mode)},
+    the manifest included. The zip (build) and the app bundle (build_app) are both written from this, so the two can't drift."""
     if system in NOT_BUILT_YET:
         raise Refused(f"The {system.capitalize()} download isn't built yet. Only the Mac one is: package.py mac")
     if system not in SYSTEMS:
@@ -610,6 +645,14 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
             raise Refused("A zip for a client must hold no one's name, and the name guard found one in: "
                           f"{', '.join(where)}. Nothing was written. Take the name out, then build again.")
     content[f"{top}/{place(MANIFEST)}"] = (manifest_bytes(system, content, top, root, released, notes, min_from), FILE_MODE)
+    return content
+
+
+def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="",
+          released=None, min_from="0.0.0", extra_folders=()):
+    """Build the zip for `system` into the folder `out`; its path. With `for_client`, only from the scrubbed snapshot
+    and only when the name guard finds nothing (`banned` replaces the hashed list, for the tests)."""
+    content = download_content(system, root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
     out = Path(out)
     out.mkdir(parents=True, exist_ok=True)
     target = out / zip_name(system, root)
@@ -628,6 +671,103 @@ def build(system, out=DIST, root=ROOT, dirty=False, for_client=False, banned=Non
     return target
 
 
+# --- clark.app (row 836) ----------------------------------------------------------------------------------------------------
+APP_NAME = "clark.app"
+APPLET_SOURCE = Path("dev") / "tools" / "clark_applet.applescript"    # the applet's AppleScript, kept in the repo and read by its test
+OSACOMPILE = "osacompile"                                              # the Mac's own compiler; found on the PATH, never named by path
+CODESIGN = "codesign"                                                  # the Mac's own signer, found the same way; it runs last
+BUNDLE_ID = "local.clark.app"                                          # Info.plist CFBundleIdentifier (a label, not a web address)
+APP_RESOURCES = Path("Contents") / "Resources"                         # where the clark folder sits inside the bundle
+TOOL_TIMEOUT = 300                                                     # seconds, for each of the two tools
+COULD_NOT_BUILD = "{what} could not be built, so nothing was written: {why}"       # make_pages says it of the pages
+MISSING_FILE = "A file the download needs is missing: {what}. Restore it, then build again."    # files() says it of a listed file
+
+
+def app_tools(which=shutil.which):
+    """{name: path} of the two Mac tools the bundle needs, osacompile and codesign, as the PATH has them; a Refused in the
+    missing-file words for the first it lacks (a Linux box, or a PATH without them)."""
+    found = {}
+    for tool in (OSACOMPILE, CODESIGN):
+        found[tool] = which(tool)
+        if found[tool] is None:
+            raise Refused(MISSING_FILE.format(what=tool))
+    return found
+
+
+def _last_line(done):
+    return (done.stderr.strip().splitlines() or done.stdout.strip().splitlines() or ["no reason given"])[-1]
+
+
+def _tool(run, argv):
+    """Run one of the Mac tools (`argv`, no shell): its finished run, or a Refused in the could-not-build words when it fails
+    or does not finish in TOOL_TIMEOUT."""
+    try:
+        done = run(argv, capture_output=True, text=True, timeout=TOOL_TIMEOUT)
+    except subprocess.TimeoutExpired:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{Path(argv[0]).name} did not finish in {TOOL_TIMEOUT} s")) from None
+    if done.returncode != 0:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=_last_line(done)))
+    return done
+
+
+def build_app(out=DIST, root=ROOT, dirty=False, for_client=False, banned=None, release=False, notes="", released=None,
+              min_from="0.0.0", extra_folders=(), which=shutil.which, run=subprocess.run):
+    """Build clark.app into the folder `out` (replacing one already there); its path. The content is download_content("mac"),
+    so every refusal the zip makes, the bundle makes too; a missing osacompile or codesign is refused first, before anything
+    is read. A tool that fails or hangs, or a file that can't be written or moved, is refused in the could-not-build words."""
+    tools = app_tools(which)
+    root = Path(root)
+    content = download_content("mac", root, dirty, for_client, banned, release, notes, released, min_from, extra_folders)
+    top = top_folder(root)
+    out = Path(out)
+    target = out / APP_NAME
+    part = None
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+        if target.is_dir() and not target.is_symlink() and not _our_bundle(target):
+            raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{shown(target)} is a folder this tool did not make, so it was left as it is"))
+        part = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.app."))      # built whole beside the target, then moved into place
+        bundle = part / APP_NAME
+        _tool(run, [tools[OSACOMPILE], "-o", str(bundle), str(root / APPLET_SOURCE)])
+        info_path = bundle / "Contents" / "Info.plist"
+        if not info_path.is_file() or not (bundle / "Contents" / "MacOS").is_dir():
+            raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{OSACOMPILE} wrote no applet bundle"))
+        info = plistlib.loads(info_path.read_bytes())
+        info.update({"CFBundleIdentifier": BUNDLE_ID, "CFBundleName": TOP, "CFBundleShortVersionString": version(root),
+                     "CFBundleVersion": version(root)})
+        info_path.write_bytes(plistlib.dumps(info, sort_keys=True))
+        resources = bundle / APP_RESOURCES
+        taken = {p.name.casefold() for p in resources.iterdir()} if resources.is_dir() else set()
+        for first in sorted({name[len(top) + 1:].split("/")[0] for name in content}):
+            if first.casefold() in taken:                                   # the applet's own files (Scripts, applet.icns) and ours never mix
+                raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=f"{OSACOMPILE} already put {first} in {APP_RESOURCES.as_posix()}"))
+        for name in sorted(content):
+            data, mode = content[name]
+            path = resources / name[len(top) + 1:]
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(data)
+            os.chmod(path, mode & 0o777)
+        _tool(run, [tools[CODESIGN], "--force", "--deep", "-s", "-", str(bundle)])     # last: the signature seals Info.plist and Resources
+        _tool(run, [tools[CODESIGN], "--verify", "--deep", "--strict", str(bundle)])   # and it must hold
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        os.rename(bundle, target)
+    except OSError as e:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
+    finally:
+        if part is not None:
+            shutil.rmtree(part, ignore_errors=True)
+    return target
+
+
+def _our_bundle(folder):
+    """True when `folder` is a clark.app this tool built: its Contents/Info.plist carries BUNDLE_ID. Anything else is not ours to delete."""
+    try:
+        return plistlib.loads((Path(folder) / "Contents" / "Info.plist").read_bytes()).get("CFBundleIdentifier") == BUNDLE_ID
+    except Exception:
+        return False
+
+
 def shown(path):
     """`path` as the builder reads it: from the repo's top folder when it is inside it, else with ~ for the home folder."""
     path = Path(path).resolve()
@@ -637,6 +777,103 @@ def shown(path):
         except ValueError:
             pass
     return str(path)
+
+
+# ---- Image papers (item 637): THIRD-PARTY-IMAGE.txt and an SBOM for the stock container image. Generators only; the build does not call them.
+
+def image_packages(status):
+    """The installed packages in a dpkg status file: [{name, version, arch}], sorted by name."""
+    found = []
+    for block in re.split(r"\n\s*\n", status.strip()):
+        fields = {}
+        for line in block.splitlines():
+            if line[:1] in (" ", "\t") or ":" not in line:
+                continue
+            key, _, value = line.partition(":")
+            fields[key.strip().lower()] = value.strip()
+        if "package" in fields and fields.get("status", "").split()[-1:] == ["installed"]:
+            found.append({"name": fields["package"], "version": fields.get("version", ""), "arch": fields.get("architecture", "")})
+    return sorted(found, key=lambda p: p["name"])
+
+
+_GPL_OPTION = re.compile(                                                                                       # a GPL that stands on its own beside LGPL text: a GPL-x token, or "or"/"either" wording joining the two
+    r"(?<![A-Za-z])GPL\b|(?<![/\w])(?:or|either)\s+(?:the\s+)?(?:GNU\s+)?General Public|Lesser General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?General Public|GNU General Public[^.;]{0,200}(?<![/\w])or\s+(?:the\s+)?(?:GNU\s+)?Lesser", re.I)
+
+
+def image_licences(copyright_text):
+    """The licence names a copyright file states: its 'License:' lines, or well-known names found in free text."""
+    names = set()
+    for m in re.finditer(r"^License:\s*(.+)$", copyright_text or "", re.M):
+        names.update(part.strip() for part in re.split(r"\s+(?:and|or)\s+|,", m.group(1)) if part.strip())
+    if not names and copyright_text:
+        for label, rx in (("LGPL", r"GNU (?:Lesser|Library) General Public"), ("GPL", r"GNU General Public"),
+                          ("Apache-2.0", r"Apache License"), ("MIT", r"\bMIT\b|Expat"), ("BSD", r"\bBSD\b"),
+                          ("PSF-2.0", r"Python Software Foundation"), ("public-domain", r"public[- ]domain")):
+            if re.search(rx, copyright_text, re.I):
+                names.add(label)
+        if "LGPL" in names and _GPL_OPTION.search(copyright_text):
+            names.add("GPL")
+        elif "LGPL" in names:
+            names.discard("GPL")  # the LGPL text itself names the GPL; that alone does not make the package GPL
+    return sorted(names)
+
+
+def _purl_part(text, safe=""):
+    """One package-URL segment, percent-encoded as the purl spec asks (+, @, spaces, slashes and so on)."""
+    return urllib.parse.quote(text or "", safe=safe)
+
+
+def image_sbom(packages, copyrights, pip=(), base=""):
+    """A CycloneDX 1.5 document (a dict): the Debian packages, the pip packages and the base image."""
+    components = []
+    for p in packages:
+        comp = {"type": "library", "name": p["name"], "version": p["version"],
+                "purl": f"pkg:deb/debian/{_purl_part(p['name'])}@{_purl_part(p['version'], ':')}?arch={_purl_part(p['arch'])}"}
+        lic = image_licences(copyrights.get(p["name"], ""))
+        if lic:
+            comp["licenses"] = [{"license": {"name": name}} for name in lic]
+        components.append(comp)
+    for item in pip:
+        components.append({"type": "library", "name": item["name"], "version": item["version"],
+                           "purl": f"pkg:pypi/{_purl_part(item['name'].lower().replace('_', '-'))}@{_purl_part(item['version'])}"})
+    return {"bomFormat": "CycloneDX", "specVersion": "1.5", "version": 1,
+            "metadata": {"component": {"type": "container", "name": base or "image", "version": ""}}, "components": components}
+
+
+def image_third_party(packages, copyrights, pip=(), base=""):
+    """THIRD-PARTY-IMAGE.txt as one string: every package with its version and licences."""
+    lines = ["Third-party software in the container image", "",
+             f"Base image: {base or 'not named'}. Each package keeps its own licence, which applies to that package and not to clark's own code.",
+             "", f"Debian packages ({len(packages)}): name, version, licences", ""]
+    for p in packages:
+        lic = ", ".join(image_licences(copyrights.get(p["name"], ""))) or f"see /usr/share/doc/{p['name']}/copyright in the image"
+        lines.append(f"  {p['name']} {p['version']}: {lic}")
+    if pip:
+        lines += ["", f"Python packages ({len(pip)}):", ""] + [f"  {i['name']} {i['version']}" for i in pip]
+    return "\n".join(lines) + "\n"
+
+
+def build_both(args, notes):
+    """(zip, bundle) for --app. All or nothing: the zip is built in a part folder and moved over an earlier one only when the
+    bundle is built too, so a run that fails leaves what an earlier run made exactly as it was."""
+    out = Path(args.out)
+    try:
+        out.mkdir(parents=True, exist_ok=True)
+        stage = Path(tempfile.mkdtemp(dir=str(out), prefix=".clark.zip."))
+    except OSError as e:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
+    try:
+        staged = build(args.system, stage, dirty=args.dirty, for_client=args.for_client, release=args.release,
+                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+        app = build_app(out, dirty=args.dirty, for_client=args.for_client, release=args.release, notes=notes,
+                        min_from=args.min_from, extra_folders=args.extra_folder)
+        target = out / staged.name
+        os.replace(staged, target)
+    except OSError as e:
+        raise Refused(COULD_NOT_BUILD.format(what=APP_NAME, why=e)) from None
+    finally:
+        shutil.rmtree(stage, ignore_errors=True)
+    return target, app
 
 
 def main(argv=None):
@@ -652,11 +889,19 @@ def main(argv=None):
                    help="put this folder's files at the top of the clark folder under the folder's own name "
                         f"({', '.join(EXTRA_TOP)}); repeat for more; at most 5 MB in all; never committed")
     p.add_argument("--min-from", metavar="X.Y.Z", default="0.0.0", help="the oldest version that may update to this one")
+    p.add_argument("--app", action="store_true",
+                   help=f"also build {APP_NAME} (row 836), the same download as an app a person double-clicks: needs a Mac ({OSACOMPILE}, {CODESIGN})")
     args = p.parse_args(argv)
     try:
+        if args.app:
+            app_tools()                                                     # before the zip is written: all or nothing
         notes = Path(args.notes).read_text(encoding="utf-8") if args.notes else ""
-        target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
-                       notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+        if args.app:
+            target, app = build_both(args, notes)
+        else:
+            target = build(args.system, args.out, dirty=args.dirty, for_client=args.for_client, release=args.release,
+                           notes=notes, min_from=args.min_from, extra_folders=args.extra_folder)
+            app = None
     except OSError:
         print("The release notes file can't be read. Check its name, then build again.", file=sys.stderr)
         return 1
@@ -666,6 +911,8 @@ def main(argv=None):
     who = ("It is for a client: it was built from the scrubbed public snapshot and the name guard found nothing."
            if args.for_client else audience(ROOT))
     print(f"Built the {args.system.capitalize()} download: {shown(target)}. {who}")
+    if app:
+        print(f"Built the {args.system.capitalize()} download: {shown(app)}. {who}")
     return 0
 
 

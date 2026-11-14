@@ -1,0 +1,271 @@
+"""Row 853: the Word report on the brand's own Word template (a letterhead): its page, header, footer, styles, theme and logo.
+
+A brand's folder may hold word/template.docx. `wrap(template, built)` takes that file's bytes and the report docx_build made, and
+gives the template's file with the report's body in it: the template's page set-up, headers, footers, theme, fonts and pictures
+stay as they are; the template's own styles win by name and the report's styles are added only where the template has none of
+that name; the report's lists, links and pictures come across under names that cannot clash with the template's. The template is
+opened with the same safety rules as any Word file (word_template._load). Nothing in the template is read as text, and no
+placeholder is filled: the body is the report's. `find(branding)` is the template file of a brand folder or None.
+Standard library only, Python 3.9.
+"""
+import io
+import os
+import re
+import zipfile
+import xml.etree.ElementTree as ET
+from pathlib import Path
+from urllib.parse import unquote
+
+from clark import docx_build as _b
+from clark import docx_read as _r
+from clark import word_template
+from clark.docx_read import WordRefused
+
+REL_PATH = ("word", "template.docx")
+NAME = "The Word template in the branding folder"
+PREFIX = "rIdBrand"
+STYLE = re.compile(r'<w:style\s[^>]*?w:styleId="([A-Za-z0-9_-]+)"[^>]*>.*?</w:style>', re.S)
+SECT_TAG = re.compile(r"<(/?)w:sectPr(?=[\s>/])[^>]*?(/?)>")
+SECT_END = re.compile(r"</w:sectPr>\s*</w:body>\s*(?:</w:document>\s*)?$")
+
+
+def body_sect(doc):
+    """The section properties that are a direct child of the body and end it, or None (one inside a paragraph is not it)."""
+    end = SECT_END.search(doc)
+    if end is None:
+        return None
+    depth, stop = 0, end.start() + len("</w:sectPr>")
+    for m in reversed([m for m in SECT_TAG.finditer(doc, 0, stop)]):
+        if m.group(1):
+            depth += 1
+        elif not m.group(2):
+            depth -= 1
+            if depth == 0:
+                return doc[m.start():stop]
+    return None
+RELS = "word/_rels/document.xml.rels"
+# Client-leak hunt B4: parts of the template the report never draws and the client must never get: review comments (and who made them),
+# custom properties (a sensitivity label, an internal id), the template's first-page preview picture, custom XML and the glossary.
+# The template's own look (page set-up, headers, footers, styles, theme, pictures) is kept.
+DROPPED = re.compile(r"^(word/(comments\w*|people)\.xml|word/glossary/.+|docProps/(custom\.xml|thumbnail\..+)|customXml/.+)$", re.I)
+def _target_of(rels_name, target):
+    """The part a relationship in `rels_name` names (inside the file), as a part name."""
+    src = rels_name.replace("_rels/", "", 1) if rels_name.startswith("_rels/") else rels_name.replace("/_rels/", "/", 1)
+    base = src[:-len(".rels")].rsplit("/", 1)[0] if "/" in src[:-len(".rels")] else ""
+    path = target.lstrip("/") if target.startswith("/") else (base + "/" + target if base else target)
+    out = []
+    for seg in path.replace("\\", "/").split("/"):
+        if seg == "..":
+            out and out.pop()
+        elif seg and seg != ".":
+            out.append(seg)
+    return "/".join(out)
+
+
+def _local(tag):
+    return tag.rsplit("}", 1)[-1]
+
+
+def _parse(data, name):
+    try:
+        return ET.fromstring(data)
+    except ET.ParseError:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} is not well-formed XML.") from None
+
+
+def _unwrite(root):
+    ns = root.tag[1:].split("}")[0] if root.tag.startswith("{") else ""
+    ET.register_namespace("", ns)
+    return ET.tostring(root, encoding="utf-8", xml_declaration=True)
+
+
+def _drop_unwanted(out):
+    """Take the DROPPED parts out of `out` (name -> bytes), with the relationships and content types that name them and the
+    relationships files of the parts that went, so nothing left points at a part that is gone. Part names are compared without
+    regard to case and after percent-decoding (as Word does); the two XML files are parsed, so quoting and empty-element style
+    do not matter."""
+    gone = {n for n in out if DROPPED.search(n)}
+    if not gone:
+        return
+    gone_ci = {n.lower() for n in gone}
+    for n in gone:
+        del out[n]
+    for n in [n for n in out if n.endswith(".rels")]:
+        owner = n.replace("_rels/", "", 1)[:-len(".rels")] if n.startswith("_rels/") else n.replace("/_rels/", "/", 1)[:-len(".rels")]
+        if owner.lower() in gone_ci:
+            del out[n]
+            continue
+        root = _parse(out[n], n)
+        for rel in [r for r in root if _local(r.tag) == "Relationship"]:
+            if rel.get("TargetMode", "").lower() != "external" and _target_of(n, unquote(rel.get("Target", ""))).lower() in gone_ci:
+                root.remove(rel)
+        out[n] = _unwrite(root)
+    root = _parse(out["[Content_Types].xml"], "[Content_Types].xml")
+    for ov in [o for o in root if _local(o.tag) == "Override"]:
+        if unquote(ov.get("PartName", "")).lstrip("/").lower() in gone_ci:
+            root.remove(ov)
+    out["[Content_Types].xml"] = _unwrite(root)
+
+
+def find(branding):
+    """The path of the brand folder's Word template, or None: a regular file, inside the folder after links are followed, no
+    bigger than the reader's limit. A folder with none (or the Generic one) gives None and the report keeps its own layout."""
+    try:
+        base = Path(branding).resolve()
+        found = base.joinpath(*REL_PATH)
+        if found.is_symlink() or not found.is_file() or not found.resolve().is_relative_to(base):
+            return None
+        return found if found.stat().st_size <= _r.MAX_FILE_BYTES else None
+    except (OSError, RuntimeError, ValueError):
+        return None
+
+
+def on_template(built, branding):
+    """The report `built` on the brand folder's Word template if it has one; else `built` as it is. Raises WordRefused."""
+    found = find(branding)
+    if found is None:
+        return built
+    with open(found, "rb") as f:
+        return wrap(f.read(), built)
+
+
+def _text(data, name):
+    try:
+        return data[name].decode("utf-8")
+    except (KeyError, UnicodeDecodeError):
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} can't be read.") from None
+
+
+def _close(text, tag, name):
+    """Where the closing `tag` of part `name` starts; a part with no closing tag (a self-closed one) is refused in the same words
+    as a part that can't be read."""
+    i = text.rfind(tag)
+    if i < 0:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part {name} can't be read.")
+    return i
+
+
+def numbering_shift(raw):
+    """(abstractNum shift, num shift): how far the report's list ids move so they sit after every id the template's numbering uses."""
+    text = raw.decode("utf-8", "replace") if raw else ""
+    if "</w:numbering>" not in text:
+        return 0, 0
+    abstract = [int(v) for v in re.findall(r'<w:abstractNum\s[^>]*?w:abstractNumId="(\d+)"', text)]
+    nums = [int(v) for v in re.findall(r'<w:num\s[^>]*?w:numId="(\d+)"', text)]
+    return (max(abstract) + 1 if abstract else 0), (max(nums) if nums else 0)
+
+
+def merged_numbering(raw, mine, shift):
+    """The template's numbering with the report's lists added under shifted ids, so a template style that points at a numId keeps
+    its own list. A template numbering part that can't be read as one is replaced by the report's (as before)."""
+    text = raw.decode("utf-8", "replace") if raw else ""
+    if "</w:numbering>" not in text:
+        return mine.encode("utf-8")
+    ids = lambda d: (lambda m: m.group(1) + str(int(m.group(2)) + d) + '"')       # noqa: E731
+    mine = re.sub(r'(<w:abstractNumId w:val=")(\d+)"', ids(shift[0]), mine)
+    mine = re.sub(r'(<w:abstractNum\s[^>]*?w:abstractNumId=")(\d+)"', ids(shift[0]), mine)
+    mine = re.sub(r'(<w:num\s[^>]*?w:numId=")(\d+)"', ids(shift[1]), mine)
+    abstracts = "".join(re.findall(r"<w:abstractNum\s.*?</w:abstractNum>", mine, re.S))
+    nums = "".join(re.findall(r"<w:num\s.*?</w:num>", mine, re.S))
+    first = re.search(r"<w:num\s", text)
+    at = first.start() if first else text.rindex("</w:numbering>")
+    text = text[:at] + abstracts + text[at:]
+    i = text.rindex("</w:numbering>")
+    return (text[:i] + nums + text[i:]).encode("utf-8")
+
+
+def wrap(template, built):
+    infos, parts = word_template._load(template, NAME)
+    for n in sorted(parts):                                # a DOCTYPE or entity is refused in any part, as when reading
+        if n.endswith((".xml", ".rels")) and _r.DOCTYPE.search(parts[n].decode("utf-8", "replace")):
+            raise _r._not_safe(NAME)
+    with zipfile.ZipFile(io.BytesIO(built)) as z:
+        mine = {i.filename: z.read(i.filename) for i in z.infolist()}
+    doc = _text(parts, "word/document.xml")
+    sect = body_sect(doc)
+    mine_doc = mine["word/document.xml"].decode("utf-8")
+    body = mine_doc[mine_doc.index("<w:body>") + 8:mine_doc.rindex("<w:sectPr")]
+    if sect:
+        tail = sect.rstrip()
+    else:                                                  # no page set-up in the template: the report's, with no footer of its own
+        tail = re.sub(r"<w:footerReference[^>]*/>", "", mine_doc[mine_doc.rindex("<w:sectPr"):mine_doc.rindex("</w:body>")])
+    m = re.search(r"<w:body(?:\s[^>]*)?>", doc)
+    if m is None or "</w:body>" not in doc:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: it has no body.")
+    root = re.search(r"<w:document(?:\s[^>]*)?>", doc)
+    if root is None:
+        raise WordRefused(f"{NAME} is not a Word document clark can use: part word/document.xml can't be read.")
+    root = root.group(0)
+    head = root
+    for prefix, uri in (("w", _b.NS_W), ("r", _b.NS_R)):
+        if f"xmlns:{prefix}=" not in head:
+            head = head[:-1] + f' xmlns:{prefix}="{uri}">'
+    num = re.search(r'Type="[^"]*/numbering"[^>]*?Target="([^"/][^"]*)"|Target="([^"/][^"]*)"[^>]*?Type="[^"]*/numbering"',
+                    _text(parts, RELS) if RELS in parts else "")
+    target = next((g for g in num.groups() if g), "numbering.xml") if num else "numbering.xml"
+    shift = numbering_shift(parts.get("word/" + target))
+    body = re.sub(r'(<w:numId w:val=")(\d+)"', lambda m5: m5.group(1) + str(int(m5.group(2)) + shift[1]) + '"', body)    # the report's lists after the template's own
+    # the report's relationship ids (links and pictures) get a prefix no template uses
+    rid = {}
+    for m2 in re.finditer(r'<Relationship Id="(rId\d+)" Type="[^"]*/(hyperlink|image)" Target="([^"]*)"(?: TargetMode="External")?/>',
+                          mine["word/_rels/document.xml.rels"].decode("utf-8")):
+        rid[m2.group(1)] = (PREFIX + m2.group(1)[3:], m2.group(0))
+    body = re.sub(r'(r:(?:id|embed)=")(rId\d+)"', lambda m3: m3.group(1) + rid.get(m3.group(2), (m3.group(2),))[0] + '"', body)
+    new_rels = ""
+    media = {}
+    for old, (new, xml) in rid.items():
+        xml = xml.replace(f'Id="{old}"', f'Id="{new}"')
+        mt = re.search(r'Target="media/([^"]+)"', xml)
+        if mt:
+            media[f"word/media/{mt.group(1)}"] = f"word/media/clark-{mt.group(1)}"
+            xml = xml.replace(f"media/{mt.group(1)}", f"media/clark-{mt.group(1)}")
+        new_rels += xml
+    out = dict(parts)
+    out["word/document.xml"] = (_b.HEAD + head + "<w:body>" + body + tail + "</w:body></w:document>").encode("utf-8")
+    # styles: the template's win; ours are added where the template has none of that id
+    ours = mine["word/styles.xml"].decode("utf-8")
+    if "word/styles.xml" in parts:
+        theirs = _text(parts, "word/styles.xml")
+        have = set(STYLE.findall(theirs))
+        extra = "".join(m4.group(0) for m4 in STYLE.finditer(ours) if m4.group(1) not in have)
+        i = _close(theirs, "</w:styles>", "word/styles.xml")
+        out["word/styles.xml"] = (theirs[:i] + extra + theirs[i:]).encode("utf-8")
+    else:
+        out["word/styles.xml"] = mine["word/styles.xml"]
+    out["word/" + target] = merged_numbering(parts.get("word/" + target), mine["word/numbering.xml"].decode("utf-8"), shift)
+    for old, new in media.items():
+        out[new] = mine[old]
+    # relationships and content types
+    rels = _text(parts, RELS) if RELS in parts else f'{_b.HEAD}<Relationships xmlns="{_b.NS_REL}"></Relationships>'
+    add = new_rels
+    for typ in ("styles", "numbering"):
+        if not re.search(rf'Type="[^"]*/{typ}"', rels):
+            add += f'<Relationship Id="{PREFIX}{typ.capitalize()}" Type="{_b.NS_R}/{typ}" Target="{typ}.xml"/>'
+    i = _close(rels, "</Relationships>", RELS)
+    out[RELS] = (rels[:i] + add + rels[i:]).encode("utf-8")
+    ct = _text(parts, "[Content_Types].xml")
+    add = ""
+    if not re.search(r'Extension="png"', ct) and media:
+        add += '<Default Extension="png" ContentType="image/png"/>'
+    for part, kind in ((f"/word/{target}", "numbering"), ("/word/styles.xml", "styles")):
+        if f'PartName="{part}"' not in ct:
+            add += f'<Override PartName="{part}" ContentType="{_b.DOC_TYPE}.{kind}+xml"/>'
+    i = _close(ct, "</Types>", "[Content_Types].xml")
+    out["[Content_Types].xml"] = (ct[:i] + add + ct[i:]).encode("utf-8")
+    for n in ("docProps/core.xml", "docProps/app.xml"):         # the file's author and company are clark's, never the template's
+        if n in parts and n in mine:
+            out[n] = mine[n]
+    _drop_unwanted(out)
+    order = [i.filename for i in infos if i.filename in out]
+    order += [n for n in out if n not in parts]
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w") as w:
+        for n in order:
+            zi = zipfile.ZipInfo(n, _b.ZIP_TIME)
+            zi.compress_type, zi.create_system, zi.external_attr = zipfile.ZIP_DEFLATED, 3, 0o644 << 16
+            w.writestr(zi, out[n], compresslevel=6)
+    data = buf.getvalue()
+    if len(data) > _b.MAX_BYTES:
+        raise _b.WordError(f"The report is {len(data) / 1048576:.1f} MB, which is over the {_b.MAX_BYTES // 1048576} MB limit. "
+                           "Leave out some sections or pictures and try again.")
+    return data

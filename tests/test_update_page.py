@@ -129,6 +129,17 @@ class InBrowser(unittest.TestCase):
     def present(self, selector):
         return bool(self.js(f"!!document.querySelector({lit(selector)})"))
 
+    def press(self, key, vk):
+        """A real key to the focused element, then a moment for the page to redraw."""
+        for kind in ("keyDown", "keyUp"):
+            self.cdp.call("Input.dispatchKeyEvent", {"type": kind, "key": key, "code": key, "windowsVirtualKeyCode": vk}, self.sid)
+        self.settle()
+
+    def focused(self):
+        """Which control holds the focus: its data- attribute names, or its tag, or 'body'."""
+        return self.js("(() => { const e = document.activeElement; if (!e || e === document.body) return 'body'; "
+                       "return e.tagName.toLowerCase() + [...e.attributes].filter(a => a.name.startsWith('data-')).map(a => '[' + a.name + ']').join(''); })()")
+
     def calls(self):
         return self.val("T.calls.map(c => c[0])")
 
@@ -195,6 +206,13 @@ class Card(InBrowser):
         self.assertEqual(self.text("#update-blocked"), updates.MESSAGES["git"])
         self.assertFalse(self.present("[data-review]") or self.present("[data-choose]"))
 
+    def test_in_docker_the_update_row_says_so_and_neither_the_file_row_nor_undo_is_drawn(self):
+        self.replies(status=OK({**STATUS, "available": None, "blocked": up.CONTAINER, "last": None}))
+        self.mount()
+        self.assertEqual(self.text("#update-blocked"), up.CONTAINER)
+        self.assertFalse(self.present("[data-review]") or self.present("[data-choose]") or self.present("[data-undo]"))
+        self.assertFalse(self.present("#update-file"))
+
     def test_review_then_install_is_a_second_click_and_the_page_reloads_when_the_new_run_answers(self):
         self.mount()
         self.click("[data-review]")
@@ -208,6 +226,21 @@ class Card(InBrowser):
         self.click("[data-install]")
         self.assertEqual(self.val("T.calls[2]"), ["install", "r1"])
         self.assertEqual(1, self.val("T.reloads"))
+
+    def test_keys_cancel_and_escape_on_the_review_panel_give_the_focus_back_to_the_button_that_opened_it(self):
+        """Item keys-settings: closing the panel took the focus with it (it fell to the page, so the next Tab began at the top bar)."""
+        for how in ("cancel", "escape"):
+            with self.subTest(how=how):
+                self.mount()
+                self.js("document.querySelector('[data-review]').focus()")
+                self.click("[data-review]")
+                self.assertEqual(self.focused(), "p", "the panel's heading holds the focus once it opens")
+                if how == "cancel":
+                    self.click("[data-cancel]")
+                else:
+                    self.press("Escape", 27)
+                self.assertFalse(self.present("#update-panel"), "the panel closed")
+                self.assertEqual(self.focused(), "button[data-review]", "the focus is back on the button that opened the panel")
 
     def test_copy_puts_the_notes_on_the_clipboard_and_says_so(self):
         self.mount()
@@ -272,6 +305,43 @@ class Card(InBrowser):
         self.assertEqual(self.text("[data-undo-confirm]"), "Put back the app and settings only")
         self.click("[data-undo-confirm]")
         self.assertEqual(self.val("T.calls.at(-2)"), ["undo", {"id": "a2", "appOnly": True}])
+
+    def test_undo_question_takes_the_focus_and_esc_or_running_out_hands_it_back_to_undo(self):
+        """Undo update swaps its button for the question: the focus must land on the confirm button, and Esc (or the arm running out)
+        must close the question with the focus back on Undo update, not dropped to the page."""
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        for how in ("escape", "timeout"):
+            with self.subTest(how=how):
+                self.replies(status=OK(last), arm=OK({"ok": True, "arm_id": "a1", "choice": "full", "seconds": 5, "line": "Armed."}))
+                self.mount()
+                self.js("document.querySelector('[data-undo]').focus()")
+                self.click("[data-undo]")
+                self.assertEqual(self.focused(), "button[data-undo-confirm]", "the focus is on the question's button")
+                if how == "escape":
+                    self.press("Escape", 27)
+                else:
+                    self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 5400))", "awaitPromise": True}, self.sid)
+                self.assertFalse(self.present("[data-undo-confirm]"), "the question closed")
+                self.assertEqual(self.focused(), "button[data-undo]", "the focus is back on Undo update")
+                self.assertNotIn("undo", self.calls(), "nothing was undone")
+
+    def test_undo_update_keeps_the_focus_while_it_asks_for_the_question(self):
+        """While the question is being fetched the button is only marked busy (aria-disabled), never disabled: a disabled button
+        drops the focus to the page, and a failed ask would leave the person there."""
+        last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}
+        self.replies(status=OK(last))
+        self.mount()
+        self.js("T.replies.arm = () => new Promise(r => setTimeout(() => r({status: 409, body: {ok: false, code: 'busy', message: 'x'}}), 400))")
+        self.js("document.querySelector('[data-undo]').focus()")
+        self.js("document.querySelector('[data-undo]').click()")
+        self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 100))", "awaitPromise": True}, self.sid)
+        self.assertEqual(self.focused(), "button[data-undo]", "the focus stays on Undo update while the question is fetched")
+        self.assertEqual(self.val("document.querySelector('[data-undo]').getAttribute('aria-disabled')"), "true")
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'arm').length"), 1)
+        self.js("document.querySelector('[data-undo]').click()")          # a second press while busy asks nothing more
+        self.assertEqual(self.val("T.calls.filter(c => c[0] === 'arm').length"), 1, "a press while busy is ignored")
+        self.cdp.call("Runtime.evaluate", {"expression": "new Promise(r => setTimeout(r, 600))", "awaitPromise": True}, self.sid)
+        self.assertEqual(self.focused(), "button[data-undo]", "the ask failed and the focus is still on Undo update")
 
     def test_the_arm_runs_out(self):
         last = {**STATUS, "last": {"from": "0.3.0", "to": "0.3.1", "line": "Last update."}}

@@ -1,6 +1,6 @@
 // Settings › Personal (#45, #179): how the page looks for you: Appearance (Light, Dark or System) and how the Dashboard's sections look. It applies at once and is remembered on this computer. Edit's page only:
 // a published file has no Settings.
-import { style, setStyle } from "../stores/style.js";
+import { density, setDensity } from "../stores/density.js";
 import { useEffect, useRef, useState } from "preact/hooks";
 import { appearance, setAppearance } from "../stores/appearance.js";
 import { profile, profileRead, loadProfile, setProfile, wantName } from "../stores/profile.js";
@@ -9,15 +9,13 @@ import { announce, leave, noteTyped } from "./aboutYouToast.js";
 import { announceSwitch, leaveSwitch } from "./switchToast.js";
 import { aliasOffer } from "../logic/alias.js";
 
-export const STYLES = [
-  ["slim", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture."],
-  ["roomy", "Roomy gaps", "The same, with more space between the sections."],
-  ["grey", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups."],
-  ["card", "One card", "All the sections in one long card."],
+export const DENSITIES = [
+  ["compact", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen."],
+  ["comfortable", "Comfortable", "Each Dashboard section is its own card, with room between them."],
 ];
 
 export const APPEARANCES = [                                 // the ruled order: System first, the default
-  ["system", "System", "Follows your Mac's setting."],
+  ["system", "System", "Follows your computer's setting."],
   ["light", "Light", "Always light."],
   ["dark", "Dark", "Always dark."],
 ];
@@ -61,10 +59,13 @@ function AboutYou() {
                alias: ownAlias.current ? (typedIn.current.alias ? t.alias : profile.value.alias || "") : follow(n) };
     });
   }, [profile.value.name, profile.value.email, profile.value.alias, profileRead.value]);
+  const wanted = wantName.value;                                                  // read while drawing, so the link in the menu redraws this box when Settings is already open
   useEffect(() => { if (wantName.value && name.current) { wantName.value = false; name.current.focus(); } });
   useEffect(() => { noteTyped(typed); }, [typed.name, typed.email, typed.alias]);      // the toast's Undo goes once the boxes hold something else (aboutYouToast.js, #429)
   useEffect(() => leave, []);                                             // leaving Settings takes the toast (and its Undo) with it, in View as in Edit
+  const flying = useRef(""), saveNow = useRef(null);
   const save = async (field) => {
+    if (!typedIn.current[field]) return;      // nothing typed since the last save: Enter and then the blur must not send twice
     // the boxes are read as they are now (not from an earlier draw), so a box left a moment ago is never saved over another. An Alias that
     // is not the person's is the suggestion for the name now; before clark has said what Alias it has, none is sent (clark keeps its own)
     const sent = { name: name.current ? name.current.value : typed.name, email: email.current ? email.current.value : typed.email };
@@ -72,10 +73,14 @@ function AboutYou() {
     // Before clark has answered a read, a box nobody has typed in holds only the empty draw, not what is saved: it is not sent, and the
     // store fills it from clark's own answer (#420), so saving one box first never blanks the other.
     const unread = !profileRead.value;
+    const key = JSON.stringify([sent, unread]);
+    if (flying.current === key) return;
+    flying.current = key;
     const r = await setProfile(unread && !typedIn.current.name ? undefined : sent.name, unread && !typedIn.current.email ? undefined : sent.email, sent.alias);
     // One rule: an answer speaks only for the newest save. A late answer to an older save changes nothing on the page (it can neither clear
     // nor replace what a newer save said), so a refusal is never lost and an old refusal never shows over text that was saved. A refusal is
     // also shown only while the box still holds the text that was refused (text typed since has not been sent yet).
+    if (flying.current === key) flying.current = "";
     if (!r.newest) return;
     if (r.ok) {
       // A saved Alias is frozen (item 613): it becomes what clark has, so the name no longer carries it and only the person changes it.
@@ -99,6 +104,12 @@ function AboutYou() {
     if ((mine.current ? mine.current.value : typed[about]) !== sent[about]) return;
     setSaid({ name: about === "name" ? r.message : "", email: about === "email" ? r.message : "", alias: about === "alias" ? r.message : "" });
   };
+  saveNow.current = save;
+  useEffect(() => {      // closing the tab with a box focused and unsaved text saves it
+    const gone = () => { const f = document.activeElement && document.activeElement.getAttribute && document.activeElement.getAttribute("data-about"); if (f) saveNow.current(f); };
+    window.addEventListener("pagehide", gone);
+    return () => window.removeEventListener("pagehide", gone);
+  }, []);
   // The name box carries the Alias with it while the Alias is not the person's; typing in the Alias box makes it theirs.
   const onInput = (field, v) => {
     typedIn.current[field] = true;
@@ -165,12 +176,12 @@ export function Personal() {
   return (
     <section class="frame personal" id="personal" aria-labelledby="personal-h">
       <h2 id="personal-h" tabIndex={-1}>Personal</h2>
-      <p class="muted">These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.</p>
-      <fieldset class="styles secstyles" role="radiogroup" data-secstyles>
-        <legend>Dashboard sections</legend>
-        {STYLES.map(([id, name, line]) => (
+      <p class="muted">These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.</p>
+      <fieldset class="styles secstyles" role="radiogroup" data-density-pick>
+        <legend>Spacing</legend>
+        {DENSITIES.map(([id, name, line]) => (
           <label key={id} class={`secpick sk-${id}`}>
-            <input type="radio" name="secstyle" value={id} checked={style.value === id} onChange={() => setStyle(id)} />
+            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => setDensity(id)} />
             <span class="secpick-card">
               <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="secpick-name"><b>{name}</b>

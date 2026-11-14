@@ -39,16 +39,15 @@ class ReportMenu(unittest.TestCase):
     def test_the_bullet_and_the_code_behind_each_sentence(self):
         t = flat(SECS["client-page"])
         for sentence in (
-            "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF**, **Past reports** and **Dark mode**.",
+            "The round button at the top right opens the **Report menu**: **Profile**, **Export to Excel** (only when the file holds a workbook; when the report is too large to include one, the row is greyed and a note says so), **Export to PDF** and **Past reports**.",
             "**Profile** keeps the reader’s name in their own browser only, and the button then shows their initials.",
             "**Past reports** lists earlier reports kept in the same folder as this one, newest first, and opens the one you press; with none it says No earlier reports.",
-            "**Dark mode** offers Light, Dark or System (the standard), is remembered in the same browser, and a printed page is always light.",
         ):
             self.assertIn(sentence, t)
         self.assertIn("client-page", LATER["reference"], "still held: this PR unholds nothing")
         menu = code("components", "ClientMenu.jsx")
-        for w in ('menu: "Report menu"', 'profile: "Profile"', 'excel: "Export to Excel"', 'pdf: "Export to PDF"', 'past: "Past reports"', 'dark: "Dark mode"',
-                  'none: "No earlier reports."', "Kept only in this browser", '[["light", "Light"], ["dark", "Dark"], ["system", "System"]]',
+        for w in ('menu: "Report menu"', 'profile: "Profile"', 'excel: "Export to Excel"', 'pdf: "Export to PDF"', 'past: "Past reports"', 'theme: "Switch between light and dark"',
+                  'none: "No earlier reports."', "Kept only in this browser",
                   "{book ? item(\"excel\"", "{big ? ", "{ini ?"):
             self.assertIn(w, menu)
         self.assertLess(menu.index("WORDS.profile"), menu.index("WORDS.excel", menu.index("WORDS.profile")))
@@ -75,7 +74,7 @@ class ReportMenu(unittest.TestCase):
     def test_profile_and_dark_mode_are_kept_in_the_browser(self):
         rd = code("stores", "reader.js")
         self.assertIn("localStorage", rd)
-        self.assertIn(': "system"', rd)
+        self.assertIn('v === "system"', rd)
         self.assertIn("lightForPrint", code("stores", "print.js"))
 
 
@@ -83,7 +82,7 @@ class ExcelCells(unittest.TestCase):
     def test_the_excel_paragraph(self):
         t = flat(SECS["excel"])
         for sentence in (
-            "On the Actions, Risks & Issues and Decisions sheets, a Milestone or Use case cell reads “ID: name”; on import only the ID before the first colon counts, so renaming a milestone is not a change.",
+            "On the Actions, Risks & Issues and Decisions sheets, a Milestone cell reads the milestone’s name and a Use case cell reads its reference and title, such as “UC 1.5 Title”; on import clark finds the item by that text (an older “ID: name” or a bare ID still works), so renaming a milestone is not a change.",
             "The Milestones and Use cases sheets have an Open work items column that lists the IDs of the open actions, risks and issues and decisions linked to that row; it is worked out for the sheet and never read back.",
             "and Priority on Risks & Issues.",
         ):
@@ -91,7 +90,7 @@ class ExcelCells(unittest.TestCase):
         self.assertNotIn("Risks and issues", t)
         ex, im = py("excel.py"), py("excel_import.py")
         self.assertIn('("Risks & Issues", "raid"', ex)
-        self.assertIn('return f"{item_id}: {name}"', ex)
+        self.assertIn('text = " ".join(f"{ref or \'\'} {name or \'\'}".split())', ex)
         self.assertIn('("Milestone", "milestone")', ex)
         self.assertIn('if table in ("milestones", "use_cases")', ex)
         self.assertIn("names[f].get(r.get(f), r.get(f)) for f in REF_TABLES", ex)

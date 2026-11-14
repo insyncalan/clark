@@ -45,7 +45,12 @@ class Listed(unittest.TestCase):
     def built(self):
         return publish.build(self.s, "ABC", now=NOW)
 
+    def has_needs(self):
+        return self.s.con.execute("SELECT count(*) FROM report_sections WHERE type = 'needs'").fetchone()[0] > 0
+
     def rows(self):
+        if not self.has_needs():
+            self.section()        # row 1066: the editor has a 'Needs from you' section (none is made for the file any more)
         return [r for sec in self.built()["published"]["sections"] if sec["type"] == "needs" for r in sec["rows"]]
 
     def whats(self):
@@ -198,15 +203,18 @@ class Listed(unittest.TestCase):
         self.assertIn("Title of the action", data)
 
     def test_the_internal_fields_never_reach_the_needs_section__and_a_column_never_published_is_not_in_the_file(self):
-        self.action("Client words", owner="ZQ-OWNER-NAME", latest_update="ZQ-UPDATE-TEXT", source="ZQ-NOTE-TEXT")
-        self.risk("Client risk", owner="ZQ-OWNER-RISK", source="ZQ-NOTE-RISK")
+        self.action("Client words", owner="ZQ-OWNER-NAME", latest_update="ZQ-UPDATE-TEXT", source="ZQ-NOTE-TEXT/plan.xlsx")
+        self.risk("Client risk", owner="ZQ-OWNER-RISK", source="ZQ-NOTE-RISK/risk.xlsx")
         needs = self.needs_text()
         for word in ("ZQ-OWNER", "ZQ-UPDATE", "ZQ-NOTE"):
             self.assertNotIn(word, needs)
         # the Work rows publish an item's owner and latest update by the existing rules (PUBLISH_FIELDS), so only the needs section is asserted on for
-        # those two; actions and risks have no notes column; source (never published) stands in for one and is asserted on the whole text
+        # those two; actions and risks have no notes column; source stands in for one. Row 1077: a source is published by NAME, so the planted
+        # value is a path whose name is not the marker: the file carries plan.xlsx and risk.xlsx and never the folder marker
         whole = self.built()["body"].decode("utf-8")
         self.assertNotIn("ZQ-NOTE", whole)
+        self.assertIn("plan.xlsx", whole)
+        self.assertIn("risk.xlsx", whole)
 
     def test_long_wording_is_cut_at_300_and_hidden_characters_are_dropped_as_in_typed_rows(self):
         self.action("A" * 400)
@@ -233,14 +241,11 @@ class Listed(unittest.TestCase):
         self.assertEqual([s["id"] for s in got], [ref])
         self.assertEqual([r["what"] for r in got[0]["rows"]], ["Generated one"])
 
-    def test_without_any_needs_section_one_is_made_for_the_file_and_comes_last(self):
+    def test_without_any_needs_section_none_is_made_for_the_file(self):
         self.action("Generated one")
         shown = self.built()["published"]["sections"]
-        got = [s for s in shown if s["type"] == "needs"]
-        self.assertEqual(len(got), 1)
-        self.assertEqual(got[0]["title"], "Needs from you")
-        self.assertGreater(len(shown), 1, "the default sections are there too")
-        self.assertIs(shown[-1], got[0], "the made section is the last one")
+        self.assertEqual([s for s in shown if s["type"] == "needs"], [], "row 1066: the file has no section the editor does not have")
+        self.assertGreater(len(shown), 1, "the default sections are there")
         self.assertEqual(self.s.con.execute("SELECT count(*) FROM report_sections WHERE type = 'needs'").fetchone()[0], 0, "nothing is stored")
 
     def test_newlines_tabs_and_runs_of_spaces_in_the_text_become_single_spaces(self):

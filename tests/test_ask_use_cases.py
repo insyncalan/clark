@@ -42,6 +42,20 @@ class UseCaseChanges(Base):
         row = self.row()
         self.assertEqual((row["status"], row["headline"], row["commitment"]), ("On track", "Matches invoices to orders", None))
 
+    def test_row_875_the_owner_of_a_use_case_is_neither_shown_to_the_model_nor_claimed_nor_changed_by_it(self):
+        with self.s.step("dashboard", USER) as st:
+            st.update("use_cases", self.uc, {"owner": "ZQ-OWNER-ASK-6604 Placeholder"})
+        before = self.counts()
+        plan = self.planned({"op": "change", "id": self.uc, "status": "Flag"})
+        self.assertNotIn("ZQ-OWNER", repr(plan))
+        self.assertNotIn("owner", {k.lower() for k in plan["before"]} | {k.lower() for k in plan["after"]})
+        self.refused({"op": "change", "id": self.uc, "current_owner": "ZQ-OWNER-ASK-6604 Placeholder", "status": "Flag"}, "not_a_change")
+        self.refused({"op": "change", "id": self.uc, "current_owner": "Someone Else", "status": "Flag"}, "not_a_change")
+        self.refused({"op": "change", "id": self.uc, "owner": "Pat Placeholder"}, "field_not_allowed")
+        self.assertEqual(self.counts(), before)
+        self.assertEqual(self.row()["owner"], "ZQ-OWNER-ASK-6604 Placeholder")
+        self.assertNotIn("ZQ-OWNER", repr(ask_data.project_data(self.s, "ABC", "who owns Invoice matching").passages))
+
     def test_a_word_that_is_not_allowed_is_refused_in_the_editors_words(self):
         for field, value, words in (("status", "Great", changes.UC_STATUS_WORDS), ("headline", "x" * 400, changes.UC_HEADLINE_WORDS)):
             with self.subTest(field=field, value=value[:12]):
@@ -51,10 +65,14 @@ class UseCaseChanges(Base):
                 self.assertEqual(body["message"], words)
                 self.assertEqual(self.counts(), before)
 
+    def test_the_rules_name_the_three_commitment_words(self):
+        self.assertIn("(Planned 2026, Committed or Planned 2027)", ask.RULES)
+        self.assertNotIn("Candidate", ask.RULES)
+
     def test_the_model_may_read_the_commitment_flag_but_a_proposal_to_change_it_is_refused(self):      # the Head's ruling
         with self.s.step("dashboard", USER) as st:
-            st.update("use_cases", self.uc, {"commitment": "Candidate"})
-        for word in ("Candidate", "Committed", "Planned 2027", "", "Maybe", None):
+            st.update("use_cases", self.uc, {"commitment": "Planned 2026"})
+        for word in ("Planned 2026", "Committed", "Planned 2027", "", "Maybe", None):
             with self.subTest(word=word):
                 before = self.counts()
                 self.refused({"op": "change", "id": self.uc, "commitment": word}, "field_not_allowed")
@@ -64,7 +82,7 @@ class UseCaseChanges(Base):
                 self.assertGreaterEqual(status, 400)
                 self.assertEqual(body["code"], "not_yet")
                 self.assertEqual(self.counts(), before)
-                self.assertEqual(self.row()["commitment"], "Candidate")
+                self.assertEqual(self.row()["commitment"], "Planned 2026")
 
     def test_an_unknown_id_and_another_projects_use_case_are_refused(self):
         self.refused({"op": "change", "id": "ABC-U-099", "status": "Flag"}, "unknown_id")
@@ -87,6 +105,11 @@ class UseCaseChanges(Base):
         for name in ("title", "ref", "commitment", "client_visible", "sort_order", "archived_at", "internal_note"):
             with self.subTest(name=name):
                 self.refused({"op": "change", "id": self.uc, name: "x"}, "field_not_allowed")
+
+    def test_row_875_the_facts_of_a_use_case_never_carry_an_owner_even_if_a_row_did(self):
+        """Second line of defence: the claims check's facts for a use case have an empty owner, whatever the row it is given holds."""
+        facts = ask_data.facts_of({"use_cases": [{"id": self.uc, "title": "Invoice matching", "owner": "ZQ-OWNER-FACT-6605 Placeholder"}]})
+        self.assertEqual(facts[self.uc], {"title": "Invoice matching", "owner": ""})
 
     def test_archive_delete_a_new_use_case_and_an_owner_claim_are_still_refused(self):
         for op in ("archive", "delete", "restore", "remove"):
@@ -129,11 +152,11 @@ class WhatTheModelSees(Base):
     def test_a_shown_use_case_gives_the_model_its_id_status_commitment_headline_and_standing_only(self):
         uc = self.demo.use_case
         with self.s.step("dashboard", USER) as st:
-            st.update("use_cases", uc, {"headline": "Matches invoices", "standing": "<p>Going well</p>", "commitment": "Candidate",
+            st.update("use_cases", uc, {"headline": "Matches invoices", "standing": "<p>Going well</p>", "commitment": "Planned 2026",
                                         "client_visible": 1})
         data, text = self.passages()
         (line,) = [x for x in text.splitlines() if x.startswith(uc)]
-        self.assertEqual(line, f"{uc} Invoice matching | status: On track | commitment: Candidate | headline: Matches invoices"
+        self.assertEqual(line, f"{uc} Invoice matching | status: On track | commitment: Planned 2026 | headline: Matches invoices"
                                " | standing: Going well")
         self.assertEqual(ask_data.SHOWN["use_cases"], ("ref", "status", "commitment", "headline", "standing"))
         self.assertIn(uc, data.facts)

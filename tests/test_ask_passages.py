@@ -3,7 +3,7 @@
 Run: python3 dev/run_tests.py test_ask_passages
 Every file is made in the test from made-up text. What is asserted: only the open project's own saved folders are read; a file
 outside them, a link out of them, a secret file (.env, .pem), a file with two names and a hostile Word file never reach a
-passage; a path swapped between listing and reading is refused when it is opened; PDF is a counted "not supported yet"; the 40,000
+passage; a path swapped between listing and reading is refused when it is opened; an unread PDF is counted with its reason; the 40,000
 character budget holds; the reply says how many files were left out for safety; and the provider is sent nothing but the
 published data and passages from the saved folders.
 """
@@ -119,7 +119,7 @@ class WhatIsRead(Folders):
         self.assertIn("ZQ-FINE", self.text_of(got))
         self.assertEqual(got.safety, 2)
 
-    def test_pdf_is_counted_as_not_supported_and_never_opened(self):
+    def test_pdf_that_cannot_be_read_is_counted_and_gives_no_passage(self):
         self.put(self.box, "scan.pdf", b"%PDF-1.4 ZQ-PDF", binary=True)
         self.put(self.box, "photo.png", b"\x89PNG", binary=True)
         real = reach.read_bytes
@@ -127,7 +127,7 @@ class WhatIsRead(Folders):
         with mock.patch.object(reach, "read_bytes", side_effect=lambda p, *a, **k: (opened.append(str(p)), real(p, *a, **k))[1]):
             got = self.run_it()
         self.assertEqual((got.pdf, got.other, got.passages), (1, 1, ()))
-        self.assertEqual(opened, [], "neither is opened")
+        self.assertEqual([os.path.basename(p) for p in opened], ["scan.pdf"], "only the PDF is opened (#891; tests/test_ask_pdf_passages.py)")
 
     def test_a_label_that_could_forge_a_line_is_left_out(self):
         self.put(self.box, "bad‮name.txt", "ZQ-BIDI")
@@ -298,12 +298,13 @@ class OnTheRoute(tr.Base):
         self.assertIn("nothing was sent", got["message"])
         self.assertEqual(self.provider.sent, [])
 
-    def test_pdf_is_said_to_be_not_supported_yet(self):
+    def test_a_pdf_that_cannot_be_read_is_said_with_its_reason(self):
         (self.mine / "scan.pdf").write_bytes(b"%PDF-1.4 ZQ-PDF")
         status, got = self.question("What is the cutover plan?")
         self.assertEqual(status, 200, got)
         self.assertNotIn("ZQ-PDF", self.provider.sent[0])
-        self.assertTrue(any("PDF" in n and "not supported yet" in n for n in got["notes"]), got["notes"])
+        self.assertTrue("1 PDF was not read: it could not be read safely." in got["notes"], got["notes"])
+        self.assertFalse(any("not supported" in n for n in got["notes"]), got["notes"])
 
 
 if __name__ == "__main__":

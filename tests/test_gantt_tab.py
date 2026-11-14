@@ -53,7 +53,7 @@ class Source(unittest.TestCase):
             self.assertIn(n, one)
 
     def test_the_view_is_routed_like_the_others(self):
-        self.assertIn('"usecases", "gantt", "clientreport", "settings"]', read("router.js"))
+        self.assertIn('"usecases", "gantt", "settings", "published"]', read("router.js"))
         self.assertIn("get gantt()", read("stores", "report.js"))
         self.assertIn("gantt: GanttView", read("components", "App.jsx"))       # the page joined to its data (GanttView mounts GanttPage with a host)
         self.assertIn('from "../gantt/components/GanttView.jsx"', read("components", "App.jsx"))
@@ -134,13 +134,13 @@ class Tab(unittest.TestCase):
 
     def test_no_gantt_tab_while_the_setting_is_off(self):
         self.load()
-        self.assertEqual(self.labels(), ["Dashboard", "Work items", "Milestones", "Use cases", "Settings"])
+        self.assertEqual(self.labels(), ["Dashboard", "Work items", "Milestones", "Use cases"])
 
     def test_the_editor_tick_adds_the_tab_with_the_project_name_for_it(self):
         for width in (1400, 900):
             with self.subTest(width=width):
                 self.load({"show_gantt_editor": 1}, width=width)
-                self.assertEqual(self.labels(), ["Dashboard", "Work items", "Milestones", "Use cases", "Gantt", "Settings"])
+                self.assertEqual(self.labels(), ["Dashboard", "Work items", "Milestones", "Use cases", "Gantt"])
                 self.go("G.set({ gantt_tab_name: 'Plan' })")
                 self.assertIn("Plan", self.labels())
 

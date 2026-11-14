@@ -9,13 +9,13 @@ import { decode, encode, fits, hasReviewDates, setPublished, setReviewDays } fro
 import { searchIndex } from "../clientView.js";
 import { lineApi } from "./lineSlot.js";
 import { ucKey } from "../logic/useCasesList.js";
-import { useFileStyle } from "./style.js";
+import { useFileDensity } from "./density.js";
 import { leaving, saved, beforeReload, trouble } from "./leave.js";
 import { editorOn, tabName } from "../gantt/ganttTab.js";
 
 export const VIEWS = route.VIEWS;
-export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, get clientreport() { return fromFile.value ? "Weekly snapshot" : "Client Requested Report View"; }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383); the published client report tab is "Weekly snapshot" (a client has not asked for anything by that name)
-export const SHORT_TITLES = { get clientreport() { return fromFile.value ? "Snapshot" : "Client report"; } };   // the tab button on a narrow window; the page keeps its full name (#192)
+export const TITLES = { dashboard: "Dashboard", work: "Work items", milestones: "Milestones", usecases: "Use cases", get gantt() { return tabName(data.value && data.value.project); }, settings: "Settings" };   // "Use cases" in the editor and in a published file alike (#383)
+export const SHORT_TITLES = {};   // a tab's name for a narrow window, where it has a shorter one; the page keeps the full name (none has one now)
 
 // The address (router.js) holds the page, the project and the open peek, so a reload or a bookmark opens the same ones and
 // Back and Forward step through them (#63). Each change of page, project or peek goes through navigate() there.
@@ -46,12 +46,16 @@ function reloadFor(s, wait = true) {
     return true;
   } catch (e) { return false; }
 }
-reloadFor(start, false);
+// The address names its project in the hash, which the server never sees: a page served with a brand block of its own cannot stay for another
+// project, so it is replaced at once. A page served on Generic reads the project first (load() below): only a project with a brand of its own
+// goes to GET /?project=<code>, and a Generic one is one load, not two (row 107: the first load was the one a slow computer's tests polled).
+if (typeof document !== "undefined" && document.getElementById && document.getElementById("brand-local")) reloadFor(start, false);
 export const project = signal(start.project);
-export const view = signal(start.view === "clientreport" && !published() ? "dashboard" : start.view);   // the served page has no client report (#559): its address opens the first tab; a published file keeps it (its own tab list decides in openPublished)
+export const view = signal(start.view);
 export const item = signal(start.item);              // the open peek: a work item's id, or "" (the peek itself is #42)
 export const ms = signal(start.ms);                  // ... or a milestone's id
 export const uc = signal(start.uc);                  // the open use case's address key on the Use cases page (its reference as written, else its id), or ""
+export const mv = signal(start.mv);                  // a published file's Milestones block view in the address: "cal" or "" (the Timeline); see setMsView()
 const filterText = signal(start.f);                  // the Work items filters' text, opaque to the router (#64a): see setFilters()
 export const f = computed(() => filterText.value);   // read-only: a component changes it only through setFilters()
 export const peek = computed(() => (item.value ? { kind: "item", id: item.value } : ms.value ? { kind: "milestone", id: ms.value } : null));
@@ -72,7 +76,7 @@ export const mode = signal("view");          // view | edit (#65): memory only, 
 export const dropAt = signal(undefined);     // Edit, while a section is dragged: what to draw (logic/placement.js indicator: { line: "before", ids } | { line: "end" } | { outline, side }), undefined for none
 export const asAt = signal("");              // view mode: the publish date, YYYY-MM-DD; due dates and Overdue read as at this
 export const rebuilt = signal("");           // item 349: the day the Dashboard is shown as at, rebuilt from the change history (YYYY-MM-DD), else "": memory only, never in the address; while set the page is read only
-export const SERVED_TABS = VIEWS.filter((v) => v !== "clientreport");   // the served page never offers the client report (#559); only a published file lists it, from its own p.tabs
+export const SERVED_TABS = VIEWS;   // the served page offers every view; a published file lists its own, from p.tabs
 export const tabs = signal(SERVED_TABS);           // the views the tab bar offers; a published file has no Settings, and only the Use Cases it was given
 // The tabs the bar offers right now. A published file lists its own (the server decides, #926); the served page adds the Gantt tab only
 // when the open project's setting says so, and until a project is read it does not (a reload on #gantt opens it once the setting is known).
@@ -95,7 +99,7 @@ export const me = signal("");
 export const filterCtx = () => {
   const d = data.value;
   return {
-    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value),
+    today: fromFile.value && asAt.value ? asAt.value : todayIso(), me: me.value, quietReady: hasReviewDates(rows.value), archivedReady: !fromFile.value,
     workstreams: d ? (d.workstreams || []).map((w) => w.name).filter(Boolean) : [],
     milestones: d ? (d.milestones || []).map((m) => ({ name: m.name, date: m.forecast_date || m.baseline_date || "" })).filter((m) => m.name) : [],
   };
@@ -108,21 +112,21 @@ export const counts = computed(() => {
 
 let openedF = null;                                  // null: not known (a reload or a restored tab), so closing rewrites the entry
 
-const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value });
+const where = () => ({ view: view.value, project: project.value, item: item.value, ms: ms.value, f: filterText.value, uc: uc.value, mv: mv.value });
 
 // Draw the page from an address: the signals follow it, and a project that changed is read again. A published file has one
 // project and only its own tabs: an address that names another project or a tab the file does not have (typed, or a Back to it)
 // stays on the file's project and opens its first tab, as a reload of that address does.
 function apply(s) {
   if (rebuilt.value && (s.project !== project.value || s.view !== "dashboard")) leaveAsAt(s.project === project.value);   // item 349: another page or project is now, not then
-  if (!fromFile.value && s.view === "clientreport") s = { ...s, view: SERVED_TABS[0] };   // #559
-  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: "" };
+  if (fromFile.value) s = { ...s, project: project.value, view: tabs.value.includes(s.view) ? s.view : (tabs.value[0] || s.view), uc: s.view === "usecases" ? s.uc : "" };   // row 1111: a file keeps the use case address on its Use cases tab, no other
   if (s.view !== view.value || s.project !== project.value) { openFilter.value = ""; filterNote.value = ""; }   // a filter change keeps its box open
   batch(() => {                                          // one move: an effect (the client's kept choices) sees the page and its filters together, never a new page with the old page's filters
     view.value = s.view;
     item.value = s.item;
     ms.value = s.ms;
     uc.value = s.uc || "";
+    mv.value = s.mv || "";
     filterText.value = s.f;
   });
   if (s.project !== project.value) {
@@ -138,6 +142,12 @@ function apply(s) {
 // Whether the loaded data has a work item (`milestone` false) or a milestone with this id.
 function known(d, id, milestone) {
   return !!d && (milestone ? d.milestones.some((m) => m.id === id) : [...d.actions, ...d.raid, ...d.decisions].some((r) => r.id === id));
+}
+
+// The published file's Calendar or Timeline choice, kept in the address (`mv`) so a reload brings it back; the entry is rewritten, not added.
+export function setMsView(v) {
+  mv.value = v === "cal" ? "cal" : "";
+  route.navigate(where(), { replace: true });
 }
 
 // Move to `s` through the router and draw it. Drawn from `s` itself (made well-formed as the router makes it), not from the
@@ -243,7 +253,7 @@ export function setProject(code) {
 // A different project is a fresh page load, GET /?project=<code> (#944): the server sends that project's one brand block with the policy's
 // hashes of exactly those bytes. The page is asked for first: if it cannot be had, this page stays and moves in place as before (as it does
 // for the same project, or an address that cannot be set).
-function loadProject(s) {
+function loadProject(s, replace) {
   if (s.project === project.value || typeof fetch !== "function") { go(s); return; }
   const url = "/?project=" + s.project + route.format(s);
   const since = trouble.n;
@@ -252,7 +262,7 @@ function loadProject(s) {
     if (!r) return;                                        // the save failed or ran past the wait: this page stays, as it is
     if (!r.ok) { go(s); return; }
     try { beforeReload.forEach((f) => f()); } catch (e) {}
-    location.assign(url);
+    location[replace ? "replace" : "assign"](url);          // the auto-open replaces: Back from it leaves, it does not land on the bare address again
   }, () => go(s));
 }
 
@@ -315,7 +325,7 @@ function openPublished(p) {
   project.value = p.data.project.code;
   asAt.value = p.as_at || "";
   publication.value = p.publication && Number.isInteger(p.publication.n) && p.publication.n >= 1 ? p.publication.n : 0;
-  useFileStyle(p.style);                                  // the look it was published with (#45); a file written before that has the default
+  useFileDensity(p.style);                                // the look it was published with (item 45); a file written before that has the default
   data.value = { ...p.data, report_sections: Array.isArray(p.sections) ? p.sections : [] };     // the file holds only the sections that show
   status.value = "ready";
   settle();
@@ -334,9 +344,14 @@ const READ_FAILED = "This project could not be read. Reload the page. If it happ
 const STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again.";
 const BAD_CODE = "Use a project code of 3 to 7 capital letters or digits.";
 const NO_PROJECT = "There is no project with that code. Check the code in the address, or choose a project from the list.";
-const NOT_ACCEPTED = "That request was not accepted. Reload the page.";
+const NOT_ACCEPTED = "That was not accepted. Reload the page.";
+// Row 1080: in Docker clark never stops by itself and clark.command is not how it is started, so the page says neither. The page
+// knows it is in Docker from data-container="1" on <html> (page.page_html sets it; a published file never has it).
+const NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.";
+export const NOT_ANSWERING_DOCKER = "Nothing is running behind this page. Start clark again the same way you did before.";
+const inDocker = () => typeof document !== "undefined" && document.documentElement.dataset.container === "1";
 const ALLOWED = {
-  400: { fallback: "That request could not be read. Reload the page.",
+  400: { fallback: "That could not be read. Reload the page.",
          known: { [BAD_CODE]: BAD_CODE } },
   403: { fallback: NOT_ACCEPTED,
          known: { "Not allowed": NOT_ACCEPTED, [NOT_ACCEPTED]: NOT_ACCEPTED, [STALE]: STALE,
@@ -347,11 +362,12 @@ const ALLOWED = {
          known: { [NO_PROJECT]: NO_PROJECT,
                   "There is no project with that code.": NO_PROJECT } },
   500: { fallback: "A problem came up reading this project. Reload the page. If it happens again, restart clark.", known: {} },
-  0: { fallback: "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command.", known: {} },
+  0: { fallback: NOT_ANSWERING, known: {} },
 };
 export function plain(code, body) {
   const row = ALLOWED[code];
   if (!row) return READ_FAILED;
+  if (code === 0 && inDocker()) return NOT_ANSWERING_DOCKER;
   const said = body && typeof body.message === "string" ? body.message : "";
   if (code === 403 && body && body.stale === true) return STALE;
   return Object.prototype.hasOwnProperty.call(row.known, said) ? row.known[said] : row.fallback;
@@ -382,7 +398,7 @@ const CHANGE_KNOWN = {
     "A decision that has been made can't go back to Pending, and nothing was changed. Record a new decision that replaces it.",
   "A decision that has been made can't be put back. Record a new decision that replaces it.":
     "That decision has been made, so it was left as it is. Record a new decision that replaces it.",
-  "Use plain text, with no line breaks or hidden characters.": "A name can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
+  "Use plain text, with no line breaks or hidden characters.": "That can only be plain text, with no line breaks or hidden characters. Nothing was changed.",
   "That value isn't one clark can use.": "That value can't be used, and nothing was changed. Try another.",
   "A latest update can be at most 1000 characters. Shorten it and try again.": "A latest update can be 1000 characters at most. Nothing was changed. Shorten it and try again.",
   "That has a hidden character in it. Take it out and try again.": "That update has a hidden character in it, often from copying and pasting. Nothing was changed. Type it again, then press Enter.",
@@ -459,12 +475,36 @@ export async function loadProjects() {
   }
 }
 
+// The address of a Generic project's page, as the reload would have left it (/?project=<code> and the same hash), set in place: no navigation.
+function nameProject(s) {
+  try {
+    if (published() || !s.project || !/^https?:$/.test(location.protocol) || s.project === (new URLSearchParams(location.search).get("project") || "")) return;
+    route.replaceAddress("/?project=" + s.project + route.format(s));
+  } catch (e) {}
+}
+// A bare address (no project named) on the page's first read: the only project opens by itself; with two or more, the last one used here
+// does if it is still there. Otherwise the chooser stays. Later visits to the chooser (the project button, a removed project) never jump.
+const LAST = "clark.lastProject";
+function lastUsed() { try { return localStorage.getItem(LAST) || ""; } catch (e) { return ""; } }
+export function rememberProject(code) { try { if (code) localStorage.setItem(LAST, code); } catch (e) { /* a private window: not remembered */ } }
+function forgetProject() { try { localStorage.removeItem(LAST); } catch (e) { /* not remembered anyway */ } }
+function autoOpen() {
+  const list = projects.value;
+  if (projectsState.value !== "ready" || !list.length) return;
+  if (view.value === "settings" || view.value === "published") return;          // these pages work without a project: opening one would pull the page away
+  const pick = list.length === 1 ? list[0].code : (list.find((p) => p.code === lastUsed()) || {}).code;
+  if (!pick) { if (list.length > 1 && lastUsed()) forgetProject(); return; }          // a remembered project that is gone is dropped
+  if (!route.isProject(pick)) return;
+  loadProject({ view: view.value, project: pick, item: "", ms: "", f: "" }, true);
+}
+let firstLoad = true;          // only the page's first read may go to another page for its brand: a switch that could not get the page stays put (loadProject)
 export async function load() {
+  const first = firstLoad; firstLoad = false;
   const p = published();
   if (p) return openPublished(p);          // a published file never asks a server for anything
   const code = project.value;
   const mine = ++reading;
-  if (!code) { status.value = "none"; return loadProjects(); }
+  if (!code) { status.value = "none"; await loadProjects(); if (first && mine === reading) autoOpen(); return; }
   status.value = "loading";
   try {
     const r = await fetch(`/api/data?project=${encodeURIComponent(code)}`, { headers: { "X-Clark-Token": token() } });
@@ -472,6 +512,11 @@ export async function load() {
     if (mine !== reading) return;
     if (r.status === 404) { status.value = "missing"; message.value = plain(404, body); return; }
     if (!r.ok || !body.ok) { status.value = "failed"; message.value = plain(r.status, body); return; }
+    rememberProject(code);          // only a project that opened is remembered as the last used
+    if (first) {
+      if (!(body.data && body.data.project && body.data.project.brand === "generic") && reloadFor(where(), false)) return;   // a brand of its own (or none known): the page for it, before anything is drawn
+      nameProject(where());          // a Generic project keeps this page; its address names it as the reload would have (no second load)
+    }
     data.value = body.data;
     status.value = "ready";
     settle();

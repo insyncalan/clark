@@ -57,6 +57,7 @@ class Rules(unittest.TestCase):
             colour: c.priority_colour.map((x) => WI.colourOf(x.priority)),
             owner: c.owner.map((x) => WI.ownerOf(x.owner)),
             sort: WI.sortRows(c.sort.rows, c.today).map((r) => r.id),
+            ties: WI.sortRows(["XYZ-1000", "XYZ-999", "XYZ-12", "ABC-5"].map((id) => ({ id, status: "Open" })), c.today).map((r) => r.id),
             count: c.count_line.map((x) => WI.countOf(x.total, x.open)),
             useCase: WI.metaOf(WI.rowsOf(c.use_case_label.data)[0]),
             sub: (() => { const r = { id: "A-1", uc: "Use case 1", milestone: "Go live", workstream: "Build" };   // #947
@@ -88,6 +89,9 @@ class Rules(unittest.TestCase):
 
     def test_the_sort_order(self):
         self.assertEqual(self.out["sort"], CASES["sort"]["expected_order"])
+
+    def test_equal_rows_tie_break_on_the_number_in_the_id_not_its_text(self):
+        self.assertEqual(self.out["ties"], ["ABC-5", "XYZ-12", "XYZ-999", "XYZ-1000"])
 
     def test_each_list_becomes_rows_of_its_kind_and_a_decision_s_owner_is_who_made_it(self):
         self.assertEqual(self.out["kinds"], [["A", "action", "a", None, True], ["R", "dependency", "r", None, False],
@@ -174,9 +178,9 @@ class RealBrowser(unittest.TestCase):
 
     def rows(self, cdp, sid):
         return cdp.js("[...document.querySelectorAll('#work tbody tr[data-id]')].map(r => ({id: r.dataset.id, kind: r.dataset.kind,"
-                      " badge: (r.querySelector('.kb') || {}).textContent, badgeWord: (r.querySelector('.kb') || {}).title,"
+                      " badge: (r.querySelector('.ico') || {}).textContent, badgeWord: ((r.querySelector('.ico') && r.querySelector('.ico').closest('[data-tip]') || {dataset: {tip: ''}}).dataset.tip || '').split(' · ')[0],"
                       " text: r.innerText, late: !!r.querySelector('.due-l.late'), words: (r.querySelector('.due-l') || {}).textContent,"
-                      " pill: r.querySelector('.pill').textContent, pillClass: r.querySelector('.pill').className}))", sid)
+                      " pill: ((r.querySelector('.ico') && r.querySelector('.ico').closest('[data-tip]') || {dataset: {tip: ''}}).dataset.tip || '').split(' · ')[1], pillClass: r.querySelector('.ico').className}))", sid)
 
     def test_every_demo_row_is_listed_at_1400_and_900_px(self):
         s = self.serve()
@@ -204,7 +208,7 @@ class RealBrowser(unittest.TestCase):
                         text = cdp.js("document.querySelector('#work').innerText", sid)
                         self.assertNotRegex(text, r"\d{4}-\d{2}-\d{2}", "dates read DD-MM-YYYY")
                         # #442: in View exactly the four picker cells (owner, due, priority, status) edit, and the eye (row 819), as buttons carrying data-cell; nothing else does
-                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]):not(.weye), #work table select,"
+                        self.assertEqual(cdp.js("document.querySelectorAll('#work table input:not(.gtick), #work table button:not(.grp-b):not([data-cell]):not(.weye):not(.rmore), #work table select,"
                                                 " #work table textarea, #work table [contenteditable]').length", sid), 0, "nothing else in the list edits data (a group heading only opens and shuts its rows; its tick box only selects them)")
                         self.assertEqual(cdp.js("[...new Set([...document.querySelectorAll('#work table [data-cell]')].map(c => c.dataset.cell.split(':')[1]))].sort()", sid),
                                          ["due", "owner", "priority", "status"], "the four picker cells show in View (the eye, Duplicate and Archive are not in the rows: they stay in Edit)")
@@ -246,7 +250,7 @@ class RealBrowser(unittest.TestCase):
             cdp.call("Input.dispatchKeyEvent", {"type": "rawKeyDown", "key": " ", "code": "Space", "windowsVirtualKeyCode": 32}, sid)     # row 931: Space opens the list
             cdp.call("Input.insertText", {"text": "st"}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#fline-list')", sid)))
-            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #work .fhint, #fline-list .fopt')]"
+            targets = cdp.js("[...document.querySelectorAll('#work .vtab, #work .fx, #work .newb, #fline-list .fopt')]"
                              ".filter(e => { const r = e.getBoundingClientRect(); return r.height < 24 || r.width < 24; }).map(e => e.className || e.textContent)", sid)
             self.assertEqual(targets, [], "targets are at least 24 px")
             self.assertEqual(cdp.js("(() => { const r = document.querySelector('#fline-list').getBoundingClientRect(); return r.left >= 0 && r.right <= window.innerWidth; })()", sid), True)
@@ -332,7 +336,7 @@ class RealBrowser(unittest.TestCase):
             order = [r["id"] for r in self.rows(cdp, sid)]
             self.assertEqual(order[0], "TUL-A-002", "the oldest open date comes first")
             late = rows["TUL-010"]                                    # an open Urgent issue due 25-10-2026
-            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Red"))   # #448: the status cell shows the live look, as in Edit: an open Urgent issue reads its rating word
+            self.assertEqual((late["words"], late["late"], late["pill"]), ("3 days late", True, "Urgent"))   # row 1139: an Urgent issue says Urgent, not its colour word as well
             self.assertIn("25-10-2026", late["text"])
             self.assertEqual(rows["TUL-A-002"]["pill"], "Overdue")    # #448: the live look: a late action reads Overdue (its status, Delayed, is in the picker)
             closed = rows["TUL-A-003"]                                # closed: its date, no words

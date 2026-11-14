@@ -12,11 +12,30 @@ const session = () => { try { return window.sessionStorage; } catch (e) { return
 export const local = () => { try { return window.localStorage; } catch (e) { return null; } };
 const memo = signal(0);                              // bumped when the kept line changes, so lineText is read again
 
-/** The line on the page: the one kept for this project when it is the address's state, else the address's state as words. */
+// The `q` item of the address (item 1134): the whole line, encoded, for what the older state cannot hold (several types, a plain word,
+// a repeated field). It is read only when it still agrees with the rest of the address, so a hand-edited address cannot make the two disagree.
+const Q_MAX = 600;                                   // the router trusts `f` only up to this many characters (filters.js MAX_F)
+function addressLine(text) {
+  for (const p of String(text || "").split(";")) {
+    if (!p.startsWith("q:")) continue;
+    try { return decodeURIComponent(p.slice(2)); } catch (e) { return null; }
+  }
+  return null;
+}
+function withLine(text, line, exact) {
+  if (exact || !String(line).trim()) return text;
+  return `${text}${text ? ";" : ""}q:${encodeURIComponent(String(line).trim())}`;
+}
+
+/** The line on the page: the one kept for this project when it is the address's state, else the address's own line, else the address's state as words. */
 export const lineText = computed(() => {
   void memo.value;
-  const st = decode(f.value), mem = project.value ? FL.lineGet(session(), project.value) : FL.BASE;
-  return encode(FL.toState(mem, rows.value, filterCtx()).state) === encode(st) ? mem : FL.fromState(st);
+  const st = decode(f.value), mem = project.value ? FL.lineGet(session(), project.value) : FL.BASE, ctx = filterCtx();
+  const want = encode(st);
+  const q = addressLine(f.value);
+  if (q !== null && q.length <= Q_MAX && encode(FL.toState(q, rows.value, ctx).state) === want) return q;
+  if (encode(FL.toState(mem, rows.value, ctx).state) === want) return mem;
+  return FL.fromState(st);
 });
 /** The line kept for this project in this session (the start line when none). */
 export const rememberedLine = () => (project.value ? FL.lineGet(session(), project.value) : FL.BASE);
@@ -24,8 +43,9 @@ export const rememberedLine = () => (project.value ? FL.lineGet(session(), proje
 /** A change of the line: the line goes to the session, and its older-state form to the address, as any filter change does.
  *  False (nothing changes, a plain line says why) when it would not fit in the address. */
 export function setLine(line) {
-  const next = FL.toState(line, rows.value, filterCtx()).state;
-  if (!fits(next)) {
+  const ctx = filterCtx(), got = FL.toState(line, rows.value, ctx), next = got.state;
+  const text = fits(next) ? withLine(encode(next), line, got.exact) : "";
+  if (!fits(next) || text.length > Q_MAX) {
     refusals.value++;
     filterNote.value = "That filter would not fit in the page's address, so it was not added. Remove another filter first.";
     return false;
@@ -33,7 +53,7 @@ export function setLine(line) {
   filterNote.value = "";
   if (project.value) FL.linePut(session(), project.value, line);
   memo.value++;
-  setFilters(encode(next));
+  setFilters(text);
   return true;
 }
 
@@ -82,4 +102,9 @@ function switches(rows_, ctx) {
 const pickMode = (v) => setLine(Q.withMode(lineText.value, v, rows.value, filterCtx()));
 const pickType = (v) => setLine(Q.withType(lineText.value, v, rows.value, filterCtx()));
 
-export const LINE_CORE = { empty: Q.EMPTY, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => Q.rowsFor(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };
+/** True while the line asks for archived work (is:archived, not negated): Work items then draws the archived list in place of the live one. */
+function wantsArchived(rows_, ctx) {
+  try { return Q.parseFor(lineText.value, rows_, ctx).terms.some((t) => t.kind === "state" && !t.negate && t.states.includes("archived")); } catch (e) { return false; }
+}
+
+export const LINE_CORE = { empty: Q.EMPTY, wantsArchived, lineText, setLine, view, switches, pickMode, pickType, restore, remember, usable, base: FL.BASE, apply: (rows_, ctx) => Q.rowsFor(rows_, lineText.value, ctx), toState: (rows_, ctx) => FL.toState(lineText.value, rows_, ctx).state };

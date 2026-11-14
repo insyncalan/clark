@@ -112,9 +112,9 @@ SHEETS = [
         ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "original_date", "shown_state", "source", "updated_at", "open_items"}),
     ("Use cases", "use_cases", [                                       # clark's own table, in creaite's style
-        ("ID", "id"), ("Use case", "title"), ("Project", "project"), ("Shown as", "ref"), ("Status", "status"),
+        ("ID", "id"), ("Reference", "ref"), ("Use case", "title"), ("Project", "project"), ("Status", "status"),
         ("Commitment", "commitment"), ("Headline", "headline"), ("Where it stands", "standing"), ("Order", "sort_order"),
-        ("Client-visible", "client_visible"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
+        ("Client-visible", "client_visible"), ("Linked milestones", "milestones"), ("Open work items", "open_items"), ("Source", "source"), ("Updated", "updated_at")],
      {"id", "source", "updated_at", "open_items"}),
 ]
 TABLES = tuple(t for _, t, _, _ in SHEETS)
@@ -126,7 +126,7 @@ DATES = {"due_date", "raised", "closed", "date", "baseline_date", "forecast_date
          "original_date"}
 YES_NO = {"client_visible", "state_set"}
 LABELLED = ("actions", "raid", "decisions")
-RICH_WORDS = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "internal_note"))     # row 1005: rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list for the first two)
+RICH_WORDS = (("actions", "latest_update"), ("milestones", "description"), ("milestones", "client_message"), ("milestones", "internal_note"), ("use_cases", "standing"))     # rows 1005, 1060 (row 1078: + a milestone's client wording): rich now (the editor's HTML or an older plain text); the sheet carries its words, and the import compares a cell with the words (publish.LEGACY_RICH is the same list without the Movement note, which comes last; row 1060: a use case's Where it stands is HTML too)
 DERIVED = {"original_date", "shown_state", "open_items"}    # clark: worked out for the sheet, never read back as a change
 WIDE = {"description", "decision", "client_message", "latest_update", "response_action", "reasoning", "options", "revisit",
         "state_reason", "internal_note", "source", "headline", "standing"}
@@ -679,10 +679,13 @@ def from_cell(field, value):
             return None
         value = unescape_text(value)
         if field in DATES:
+            m = re.fullmatch(r"(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})", value.strip())     # as excel_import.read_date: - / or .
             try:
-                return datetime.strptime(value.strip(), "%d-%m-%Y").date().isoformat()
+                if m:
+                    return date(int(m.group(3)), int(m.group(2)), int(m.group(1))).isoformat()
             except ValueError:
-                return value  # left as typed; the store's checks report it
+                pass
+            return value  # left as typed; the store's checks report it
     if field in YES_NO:
         if str(value).lower() in ("yes", "y", "1", "true"):
             return 1
@@ -747,6 +750,13 @@ def add_colour_rules(ws, col, n_rows, values, pal=None):
         ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
+def add_late_status_rule(ws, col, n_rows, date_col, open_states, pal=None):
+    """Row 1021: an open item past its date reads Overdue (red) on the page and in Word, so its Status cell is red here too, ahead of the
+    green Open rule (stop if true). A formula rule evaluated by Excel against today's date; the sheet's words are unchanged."""
+    rule = Rule(type="expression", formula=[late_formula(date_col, col, open_states)], dxf=_dxf("red", pal), stopIfTrue=True)
+    ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
+
+
 def late_formula(date_col, status_col, open_states):
     """The overdue rule for row 2 (it applies down the column): a real date before today on a row whose status is open."""
     is_open = ",".join(f'${status_col}2="{s}"' for s in sorted(open_states))
@@ -759,27 +769,27 @@ def add_late_rule(ws, col, n_rows, date_col, status_col, open_states, pal=None):
     ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
-REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds ("ID: name"); the name is cut, never the ID
+REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds (item 1150: no id; the text is cut with an ellipsis)
 REF_TABLES = {"milestone": ("milestones", "name"), "use_case": ("use_cases", "title")}
 OPEN_TABLES = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "milestone"),
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"))
 
 
-def ref_text(item_id, name):
-    """What a Milestone or Use case cell shows: 'ID: name' (just the ID when there is no name). A very long name is cut with an
-    ellipsis so the cell stays under REF_CELL_LIMIT; the ID is never cut."""
-    name = " ".join(str(name or "").split())
-    if not name:
+def ref_text(item_id, name, ref=None):
+    """What a Milestone or Use case cell shows (item 1150, no id): a milestone's name; a use case's reference, one space, then its
+    title ('UC 1.5 Title'; the title alone when it has no reference). The id only when the item has neither. A very long text is
+    cut with an ellipsis so the cell stays under REF_CELL_LIMIT."""
+    text = " ".join(f"{ref or ''} {name or ''}".split())
+    if not text:
         return item_id
-    room = REF_CELL_LIMIT - len(item_id) - 2
-    if len(name) > room:
-        name = name[:max(room - 1, 0)].rstrip() + "\u2026"
-    return f"{item_id}: {name}"
+    if len(text) > REF_CELL_LIMIT:
+        text = text[:REF_CELL_LIMIT - 1].rstrip() + "\u2026"
+    return text
 
 
 def _ref_names(rows_by_table):
-    """{"milestone": {id: 'ID: name'}, "use_case": {id: 'ID: name'}} from the milestone and use case rows."""
-    return {f: {r["id"]: ref_text(r["id"], r.get(nf)) for r in rows_by_table.get(t, [])}
+    """{"milestone": {id: text}, "use_case": {id: text}} from the milestone and use case rows (see ref_text)."""
+    return {f: {r["id"]: ref_text(r["id"], r.get(nf), r.get("ref") if f == "use_case" else None) for r in rows_by_table.get(t, [])}
             for f, (t, nf) in REF_TABLES.items()}
 
 
@@ -794,6 +804,11 @@ def _open_items(rows_by_table):
     return {k: ", ".join(sorted(v)) for k, v in found.items()}
 
 
+def writer_ids(text):
+    """The ids in a use case row's `milestones` value (the canonical form the export keeps: 'ID, ID')."""
+    return [i for i in (text or "").split(", ") if i]
+
+
 def column_width(table, field):
     """A column's width by its kind: ID 10; the title 40 (48 when it is a long-text column); other long text 48; dates 12;
     flags and numbers 10; the Updated stamp 24 (it is text such as 2030-01-10 09:30:00.000); people, streams and labels 18;
@@ -802,7 +817,7 @@ def column_width(table, field):
         return 10
     if field in REF_TABLES and table not in ("milestones", "use_cases"):
         return 40
-    if field == "open_items":
+    if field in ("open_items", "milestones"):
         return 30
     if field in WIDE:
         return 48
@@ -816,13 +831,13 @@ def column_width(table, field):
 
 
 def wraps(table, field):
-    """Whether a column's text wraps: long text, the title column, and the "ID: name" Milestone and Use case columns of the other sheets."""
-    return (field in WIDE or field == TITLE_OF.get(table) or field == "open_items"
+    """Whether a column's text wraps: long text, the title column, and the Milestone and Use case columns of the other sheets."""
+    return (field in WIDE or field == TITLE_OF.get(table) or field in ("open_items", "milestones")
             or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
 
 def freeze_cell(table, cols):
-    """Where the panes freeze: below the header row, and after the ID and the item's title (C2 on every sheet)."""
+    """Where the panes freeze: below the header row, and after the item's title column (C2 where the title is the second column, D2 on Use cases, whose Reference comes second; item 1160)."""
     fields = [f for _, f in cols]
     return f"{get_column_letter(fields.index(TITLE_OF[table]) + 2)}2"
 
@@ -846,8 +861,8 @@ def _project_lists(project, rows_by_table):
     else:
         names = {r.get("name") for r in streams if r.get("name") and not r.get("archived")}
     out = {"workstream": sorted(names, key=lambda n: (n.lower(), n)),
-           "milestone": [v for _, v in sorted(_ref_names(rows_by_table)["milestone"].items())],
-           "use_case": [v for _, v in sorted(_ref_names(rows_by_table)["use_case"].items())]}
+           "milestone": sorted(_ref_names(rows_by_table)["milestone"].values(), key=lambda v: (v.casefold(), v)),      # item 1150: by name / reference
+           "use_case": sorted(_ref_names(rows_by_table)["use_case"].values(), key=lambda v: (v.casefold(), v))}
     return {k: [to_cell(k, v) for v in vs] for k, vs in out.items() if vs}
 
 
@@ -901,9 +916,11 @@ def gantt_status(line, today):
     pct = line.get("pct") or 0
     if pct >= 100:
         return "Done"
-    if today and (line.get("end") or "") < today:
+    milestone = line.get("type") == "milestone"
+    end = (line.get("start") if milestone else line.get("end")) or ""
+    if today and end and end < today:
         return "Late"
-    if (today and (line.get("start") or "") <= today) or pct > 0:
+    if pct > 0 or (today and not milestone and line.get("start") and line["start"] <= today):
         return "In progress"
     return "Not started"
 
@@ -911,7 +928,8 @@ def gantt_status(line, today):
 def gantt_sheet_name(name, taken=()):
     """The tab's name as a sheet name: no character a sheet name cannot hold, at most 31 characters, not one already used; else 'Gantt'."""
     clean = " ".join(GANTT_BAD_SHEET_CHARS.sub(" ", name).split())[:31] if isinstance(name, str) else ""
-    if not clean or clean.lower() in {t.lower() for t in taken}:
+    reserved = {LISTS_NAME, HISTORY_NAME, COVER_NAME, *taken}       # the sheets written after the Gantt one are named already
+    if not clean or clean.lower() in {t.lower() for t in reserved}:
         clean = GANTT_DEFAULT_NAME
     return clean
 
@@ -1222,6 +1240,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
+            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one "ID: name" per line (the ids are in the row; the import reads them back; item 1150 left this column as it was)
+                r = {**r, "milestones": "\n".join(f"{i}: {names['milestone'][i]}" if names["milestone"].get(i) else i for i in writer_ids(r.get("milestones"))) or None}
             if table in ("milestones", "use_cases"):
                 r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
             else:
@@ -1258,6 +1278,7 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
                 if field != "id":       # the ID is not refused by a rule: the import guards it (#129)
                     lock_column(ws, col, n_rows, label, "Priority follows Impact and Likelihood. Change those instead."
                                 if (table, field) == ("raid", "priority") else None)
+            if field in locked_fields(locked):      # item 1157: every locked column is grey, the Project and the worked-out ones too
                 for c in ws[f"{col}2:{col}{len(rows) + 1}"]:
                     c[0].fill = st.locked
             blank = field not in YES_NO and (table, field) not in NOT_BLANK
@@ -1273,6 +1294,9 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
             elif field in PEOPLE:
                 add_note(ws, col, n_rows, "Owner" if field == "owner" else "Made by",
                          "Type the person's name.")
+            if field == "status" and (table, "due_date") in colours.LATE:
+                add_late_status_rule(ws, col, n_rows, get_column_letter([f for _, f in cols].index("due_date") + 1),
+                                     colours.LATE[(table, "due_date")][1], pal)
             if (table, field) in colours.BY_FIELD:      # clark (#85c): colour follows the value, by conditional format
                 add_colour_rules(ws, col, n_rows, colours.BY_FIELD[(table, field)], pal)
             if (table, field) in colours.LATE:
@@ -1448,6 +1472,9 @@ def export_project(store, project, path=None, state_path=None, on=None, exported
     for t in LABELLED:
         for r in rows[t]:
             r["labels"] = ", ".join(have.get(r["id"], [])) or None
+    from clark import store as clark_store
+    for r in rows["use_cases"]:      # row 1107: the direct links (canonical 'ID, ID'), kept in the export's record too
+        r["milestones"] = ", ".join(clark_store.use_case_milestone_ids(store.con, r["id"])) or None
     for r in rows["milestones"]:
         r["original_date"] = history.original_date(store.con, r["id"], r.get("baseline_date"))
     # The Cover is worked out from what the published page shows (excel_cover.from_store), so the two can't disagree; the person

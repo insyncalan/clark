@@ -270,7 +270,7 @@ class Modes(Base):
             self.assertEqual(edit_elements(cdp, p.sid), [], "and gone again in View")
 
     def test_a_report_with_no_sections_shows_none_and_does_not_crash(self):
-        s = Running(data_for=DATA.get, page_html=lambda: testpage.html())
+        s = Running(data_for=lambda code, archived=None: DATA.get(code), page_html=lambda: testpage.html())
         self.addCleanup(s.close)
         with chrome() as cdp:
             p = Pg.at(self, cdp, s.port)
@@ -405,7 +405,7 @@ class Sections(Base):
             p.until(hidden, "dimmed in Edit")
             self.assertEqual(p.ids(), IDS, "still drawn in Edit")
             self.assertIn("Left out of the published page", p.js("document.querySelector('[data-id=\"ABC-S-002\"]').textContent"))
-            p.until("document.getAnimations().length === 0", "the dimming finished")
+            p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the dimming finished")
             self.assertLess(float(p.js("getComputedStyle(document.querySelector('[data-id=\"ABC-S-002\"] .sec-h')).opacity")), 1, "its words are dimmed")
             self.assertEqual(self.sent[-1][1]["changes"], {"hidden": 1}, "0 or 1, never true")
             self.assertEqual(p.toast(), "Section left out of the published page.")
@@ -569,13 +569,13 @@ class Sections(Base):
                     p.key("ArrowUp", ALT, code="ArrowUp", vk=38)
                     p.order_is(IDS[:2] + ["ABC-S-004", "ABC-S-003"] + IDS[4:], "the move")
                     said = p.toast()
-                    p.until("document.getAnimations().length === 0", "the toast finished arriving")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the toast finished arriving")
                     self.assertTrue(said and not said.startswith("Undone"), said)
                     p.js("document.activeElement.blur()")
                     p.key("z", 2, code="KeyZ", vk=90)
                     p.order_is(IDS, "Cmd+Z undid the move")
                     p.toast_is("Undone: " + said)
-                    p.until("document.getAnimations().length === 0", "the animations ended before focus is read")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the animations ended before focus is read")
                     self.assertTrue(wait(lambda: p.js("document.activeElement.matches('[data-drag]') && document.activeElement.closest('.sec').dataset.id === 'ABC-S-004'"), 5),
                                     "focus is back on the moved section's handle")
 
@@ -953,7 +953,7 @@ class Gutter(Base):
         p.js(f"document.querySelector('[data-id=\"{ref}\"] [data-options]').click()")
         p.until(f"!!document.querySelector('[data-id=\"{ref}\"] .menu')", "the menu opened")
         p.until("document.activeElement.matches('[role=menuitem]')", "focus went into the menu")
-        p.until("document.getAnimations().length === 0", "the menu finished opening")
+        p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", "the menu finished opening")
 
     def test_one_control_in_the_margin_and_the_old_add_lines_are_gone(self):
         with chrome() as cdp:
@@ -970,24 +970,29 @@ class Gutter(Base):
                 self.open_menu(p, ref)
                 self.assertFalse([t for t in p.js(self.MENU_TEXTS % ref) if "text section" in t.lower()], "no text-section entry")
                 p.key("Escape", code="Escape", vk=27)
-            # the grip and the + are in the margin, left of the section's own box
+            # the grip and the + are inside the section's own box, in its left padding (row 1152: the tiles run the width of the band)
             for ref in ("ABC-S-001", "ABC-S-006"):
                 box = p.js(f"(function(){{var s=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect(),"
                            f"c=document.querySelector('[data-id=\"{ref}\"] .sec-ctl').getBoundingClientRect();"
-                           "return [c.right <= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
+                           "return [c.left >= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
                 self.assertEqual(box, [True, True, True], ref)
 
     def test_faint_at_rest_clear_on_hover_and_focus_and_while_open(self):
         with chrome() as cdp:
             p = self.visit(cdp)
+            # motion pinned (a runner may set either), and every reading is taken once the fade has finished: a poll that lands
+            # inside a transition read 0.2934 against 0.3 on a slow runner
+            cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)
             p.edit()
             p.js("document.activeElement.blur()")
             p.mouse("mouseMoved", 5, 5)
-            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.01" % (self.CTL % "ABC-S-004"), "faint at rest")
+            p.until("Math.abs(getComputedStyle(%s).opacity - 0.3) < 0.004" % (self.CTL % "ABC-S-004"), "faint at rest")
+            p.until("document.getAnimations().length === 0", "the fade finished")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-004"), 0.3, places=2)
             x, y, _ = p.box('[data-id="ABC-S-004"] .sec-head')
             p.mouse("mouseMoved", x, y)
             p.until("parseFloat(getComputedStyle(%s).opacity) === 1" % (self.CTL % "ABC-S-004"), "clear on hover")
+            p.until("document.getAnimations().length === 0", "the fade finished")
             self.assertAlmostEqual(self.opacity(p, "ABC-S-003"), 0.3, places=2, msg="only the section being pointed at")
             p.mouse("mouseMoved", 5, 5)
             p.until("parseFloat(getComputedStyle(%s).opacity) < 1" % (self.CTL % "ABC-S-004"), "faint again")
@@ -1113,12 +1118,12 @@ class Gutter(Base):
                 p.edit()
                 self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-            # the right half: its control sits in the gap between the two columns and covers no content
+            # the right half: its control sits inside its own tile, right of the left column's tile (row 1152)
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                        "r=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
                        "c=document.querySelector('[data-id=\"ABC-S-007\"] .sec-ctl').getBoundingClientRect();"
-                       "return [c.left >= l.right, c.right <= r.left];})()")
-            self.assertEqual(gap, [True, True], "in the gap")
+                       "return [c.left >= r.left, c.left >= l.right];})()")
+            self.assertEqual(gap, [True, True], "inside its own tile")
             # opening the menu or hovering moves nothing either
             before = rects()
             self.open_menu(p, "ABC-S-007")
@@ -1140,16 +1145,13 @@ class Gutter(Base):
                 for w in (900, 1400):
                     cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                     p.until(f"window.innerWidth === {w}", "resized")
-                    p.until("document.getAnimations().length === 0", f"the animations ended at {w} in {scheme}")
+                    p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"the animations ended at {w} in {scheme}")
                     rows = p.js(self.MEASURE)
                     self.assertEqual(len(rows), 11)
                     for ref, ctl_right, head_left, content_left, ctl_left, sec_left in rows:
                         self.assertLessEqual(ctl_right, head_left, f"{ref} at {w} in {scheme}: the control ends before the heading")
                         self.assertLessEqual(ctl_right, content_left, f"{ref} at {w} in {scheme}: and before all content")
-                        if w == 900:
-                            self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at 900")
-                        else:
-                            self.assertLessEqual(ctl_right, sec_left, f"{ref}: in the margin at 1400")
+                        self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at {w}")      # row 1152: at every width
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, f"no sideways scroll at {w} in {scheme}")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             # a left-out section too
@@ -1306,7 +1308,7 @@ class Look(Base):
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
                 p.until("document.documentElement.scrollWidth <= window.innerWidth", f"no sideways scroll at {w}")
-                p.until("document.getAnimations().length === 0", f"the animations ended at {w}")
+                p.until("document.getAnimations().filter(a => !(a.effect && a.effect.target && a.effect.target.classList && a.effect.target.classList.contains('toast-bar'))).length === 0", f"the animations ended at {w}")
                 small = p.js("""[...document.querySelectorAll('[data-drag], [data-options], [data-add], .mode, .menu-item, .toast-btn')]
                     .map(e => [e.className || e.tagName, e.getBoundingClientRect().width, e.getBoundingClientRect().height])
                     .filter(x => x[1] < 24 || x[2] < 24)""")
@@ -1380,7 +1382,7 @@ class Published(unittest.TestCase):
             titles = cdp.js("[...document.querySelectorAll('.sec-h')].map(e => e.textContent)", sid)
             self.assertNotIn("Hidden secret plan", titles)
             self.assertIn("Shown <b>plan</b>", titles)
-            self.assertEqual(titles, ["At a glance", "Use case summary", "Shown <b>plan</b>", "Next week"],
+            self.assertEqual(titles, ["At a glance", "Use case summary", "Milestones", "Shown <b>plan</b>", "Next week"],
                              "At a glance and the use case summary (#45) and the two text sections with words: Summary is hidden, and no other type is drawn in a file yet")
             self.assertEqual(edit_elements(cdp, sid), [])
             self.assertEqual(cdp.js("document.querySelectorAll('.mode, [aria-pressed]').length", sid), 0, "no Edit button")
@@ -1512,10 +1514,10 @@ class Published(unittest.TestCase):
             cdp.call("Page.navigate", {"url": Path(done["path"]).as_uri()}, sid)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-id=\"ABC-S-005\"] .sec-body')", sid)), "the file drew")
             drawn = cdp.js("[...document.querySelectorAll('.sec')].map(s => s.dataset.type)", sid)
-            self.assertEqual(drawn, ["glance", "usecases"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
-                             "only text sections, At a glance and the use case summary (#45) are drawn")
+            self.assertEqual(drawn, ["glance", "usecases", "milestones"] + ["text"] * len([s for s in sections if s["type"] == "text"]),
+                             "only text sections, At a glance, the use case summary (#45) and Milestones are drawn")
             for s in sections:
-                if s["type"] not in ("text", "glance", "usecases"):
+                if s["type"] not in ("text", "glance", "usecases", "milestones"):
                     self.assertIsNone(cdp.js(f"document.querySelector('[data-id=\"{s['id']}\"]')", sid), s["type"])
             page_text = cdp.js("document.body.innerText", sid)
             self.assertNotIn("is not shown", page_text)

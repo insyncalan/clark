@@ -6,10 +6,13 @@
 import { useEffect, useState } from "preact/hooks";
 import { data, rows, openWork, openPeek, fromFile, show, project, mode } from "../stores/report.js";
 import { format } from "../router.js";
-import { isOn, liveOf } from "../logic/useCasesList.js";
-import { isOpen, dueField, showDate, ownerOf } from "../workItems.js";
+import { isOn, liveOf, refText, refBox, stepsWord } from "../logic/useCasesList.js";
+import { isOpen, ownerOf } from "../workItems.js";
 import { initial, setFilter } from "../filters.js";
 import { CommitChip } from "./CommitChip.jsx";
+import { RAIL, railRows } from "../logic/milestones.js";
+import { recall, remember } from "../logic/remember.js";
+import { printing } from "../stores/print.js";
 
 export const STATUSES = [["On track", "g"], ["Flag", "a"], ["High risk", "r"], ["Done", "n"]];     // Done is grey: finished, and always said in its word
 const rag = (status) => (STATUSES.find((s) => s[0] === status) || [0, "n"])[1];
@@ -30,10 +33,7 @@ export function summary(d, all) {
   });
 }
 
-/** The reference as it is read in the small box: references that were merged ("1.3, 1.4" or "1.3 and 1.4") read "1.3 + 1.4". */
-export function refText(ref) {
-  return String(ref || "").split(/\s*(?:,|;|\+|\band\b)\s*/i).map((x) => x.trim()).filter(Boolean).join(" + ");
-}
+export { refText };
 
 // A row and "See all" are buttons by role, not <button> elements: a published file has no button but its tabs (and nothing in it edits).
 // In Edit a row holds its own controls (the status button, the headline's box): a press on one of them is theirs, not the row's.
@@ -43,7 +43,7 @@ const press = (e, run) => { if (e.key === "Enter" || e.key === " ") { e.preventD
 /** One next step: the owner's initials in a circle, the owner, then the client's wording when the item has some, else its own title. */
 export function StepLine({ r }) {
   const o = ownerOf(r.owner), who = o.initials ? o.text : "No owner";
-  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span><b>{who}:</b> {r.client_message || r.title}</span></>;
+  return <>{o.initials ? <span class="av" data-step-av aria-hidden="true">{o.initials}</span> : null}<span class="ucstept"><b>{who}:</b> {r.client_message || r.title}</span></>;
 }
 
 function Row({ s, shown, toggle, ed }) {
@@ -55,14 +55,14 @@ function Row({ s, shown, toggle, ed }) {
       <div class="ucbar" role="button" tabIndex={0} aria-expanded={shown ? "true" : "false"} aria-controls={id}
         onClick={(e) => { if (ed && mine(e)) return; toggle(); }} onKeyDown={(e) => { if (ed && e.target !== e.currentTarget) return; press(e, toggle); }}>
         {ed ? <ed.Eye u={u} /> : null}
-        {u.ref ? <span class="ucref num" data-ref>{refText(u.ref)}</span> : <span></span>}
+        {u.ref ? <span class="ucref num" data-ref>{refBox(u.ref)}</span> : <span></span>}
         <span class="uctitle">{u.title}</span>
         {ed ? <ed.Headline u={u} /> : <span class="uchead">{u.headline}</span>}
         <span class="ucstc">
           {ed ? <ed.Status u={u} /> : <span class={`ucword rag-${rag(u.status)}`} data-word><i class="ragdot" aria-hidden="true"></i>{u.status}</span>}
           {ed ? <ed.Commit u={u} /> : <CommitChip u={u} />}
         </span>
-        <span class="ucsteps num">{s.steps.length === 1 ? "1 next step" : s.steps.length ? `${s.steps.length} next steps` : "No open steps"}</span>
+        <span class="ucsteps num">{stepsWord(s.steps.length)}</span>
       </div>
       {shown ? (
         <div class="ucdetail" id={id}>
@@ -75,8 +75,8 @@ function Row({ s, shown, toggle, ed }) {
             <div>
               <h3>{`Next steps \u00b7 ${s.steps.length}`}</h3>
               {s.steps.length ? <ul class="plain ucstepl">{s.steps.map((r) => {
-                const due = dueField(r), see = () => openPeek(r.id, "item");
-                return <li key={r.id}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span>{due ? <span class="muted">{` \u00b7 due ${showDate(due)}`}</span> : null}</li>;
+                const see = () => openPeek(r.id, "item");
+                return <li key={r.id} data-step onClick={(e) => { if (!e.target.closest("[data-stepid]") && !window.getSelection().toString()) see(); }}><StepLine r={r} /> <span class="link" role="button" tabIndex={0} data-stepid={r.id} onClick={see} onKeyDown={(e) => press(e, see)}>{r.id}</span></li>;
               })}</ul> : <p class="muted">No open next steps.</p>}
             </div>
           </div>
@@ -96,13 +96,18 @@ function More({ n }) {
   return <p class="ucmore"><a href={format({ view: "usecases", project: project.value })} data-uc-more onClick={go}>{n === 1 ? "1 more on the Use cases page" : `${n} more on the Use cases page`}</a></p>;
 }
 
+// Row 1108: the summary shows the first 5 use cases, then "Show all N use cases" / "Show the first 5" (as the Milestones list does), kept for this browser.
+export const allWord = (n, all) => (all ? "Show the first 5" : `Show all ${n} use cases`);
+
 export function UseCases({ tools }) {
   const d = data.value, [open, setOpen] = useState(() => new Set());
+  const [all, setAll] = useState(() => !fromFile.value && !!recall("ucAll", false));       // a published file never reads or writes the editor's key
+  const toggleAll = () => { if (!fromFile.value) remember("ucAll", !all); setAll(!all); };
   const ed = tools && tools.ucEdit && !fromFile.value && mode.value === "edit" ? tools.ucEdit : null;       // Edit's parts (#455, #485): only in Edit; View and a published file have none
   const list = summary(d, rows.value), off = fromFile.value ? 0 : liveOf(d).filter((u) => !isOn(u)).length;
   const fresh = ed ? ed.added.value : "";                                           // a use case just added opens its row
   useEffect(() => {
-    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); ed.added.value = ""; }
+    if (ed && fresh && list.some((s) => s.u.id === fresh)) { setOpen(new Set([...open, fresh])); if (list.findIndex((s) => s.u.id === fresh) >= RAIL) setAll(true); ed.added.value = ""; }
   }, [fresh, list.length]);   // eslint-disable-line react-hooks/exhaustive-deps
   const strip = fromFile.value && d.glance && d.glance.strip;
   const counts = strip ? strip.words : Object.fromEntries(STATUSES.map(([k]) => [k, list.filter((s) => s.u.status === k).length]));
@@ -118,7 +123,8 @@ export function UseCases({ tools }) {
           {STATUSES.flatMap(([k, c]) => Array.from({ length: counts[k] || 0 }, (_, n) => <i key={k + n} class={`m-${c}`}></i>))}
         </span>
       </div>
-      <ul class="ucrows plain">{list.map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      <ul class="ucrows plain">{railRows(list, all || printing.value).map((s) => <Row key={s.u.id} s={s} shown={open.has(s.u.id)} toggle={() => flip(s.u.id)} ed={ed} />)}</ul>
+      {list.length > RAIL ? <button type="button" class="link ucall" data-ucall onClick={toggleAll}>{allWord(list.length, all)}</button> : null}
       {ed ? <ed.FromRecord n={off} /> : null}
       <More n={off} />
     </div>

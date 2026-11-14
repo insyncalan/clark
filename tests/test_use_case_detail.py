@@ -28,6 +28,7 @@ import build_page  # noqa: E402
 from clark import __main__ as launcher, page, server as sv, use_cases_read  # noqa: E402
 from clark.store import open_store  # noqa: E402
 from test_inline_edits import EMPTY_BRANDING, KEYS, click, key, need_chrome  # noqa: E402,F401
+from test_undo_key import press_z  # noqa: E402
 from test_server import chrome, wait, wait_toast  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
@@ -38,6 +39,7 @@ import { boot } from "./boot.jsx";
 import { EDIT } from "./edit/index.js";
 import { startApp } from "./app.js";
 import { UseCaseDetail } from "./components/UseCaseDetail.jsx";
+import { UCEDIT } from "./edit/UseCasesEdit.jsx";
 
 boot(EDIT);
 if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", startApp); else startApp();
@@ -49,7 +51,7 @@ window.clarkMountUc = (id) => {
     document.getElementById("main").style.display = "none";
     document.getElementById("main").after(host);
   }
-  render(<UseCaseDetail id={id} />, host);
+  render(<UseCaseDetail id={id} ed={UCEDIT} />, host);
 };
 """
 
@@ -205,6 +207,12 @@ class Detail(unittest.TestCase):
     def toast(self, cdp, sid):
         return wait_toast(lambda: cdp.js("(document.querySelector('.toast-text') || {}).textContent || ''", sid))
 
+    def archive(self, cdp, sid):
+        """Item 1148: Archive is in the use case page's More actions menu."""
+        click(cdp, sid, "#ucd-more")
+        self.until(cdp, sid, "!!document.querySelector('.ddmenu [data-kind=archive]')", "the More actions menu opened")
+        click(cdp, sid, ".ddmenu [data-kind=archive]")
+
     def undo(self, cdp, sid):
         before = self.steps()
         click(cdp, sid, "[data-undo]")
@@ -229,15 +237,16 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js("document.querySelector('[data-ucd] [data-word]').textContent"), "Flag", "the status is a word, not only a colour")
                     self.assertRegex(js("document.querySelector('.ucd-sub').textContent"), r"^FlagCommitted2 of 2 work items open · 1 milestone$")
                     self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').title"), "On the dashboard")
-                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()"), "", "the eye has no words")
+                    self.assertEqual(js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()"), "On the dashboard", "item 1010: the eye carries its words, one control")
+                    self.assertEqual(js("document.querySelectorAll('[data-dash]').length"), 0, "item 1010: no second Dashboard row while the control is there")
                     self.assertEqual(js("[...document.querySelectorAll('#ucd-status')].length"), 1)
                     self.assertEqual(js("document.querySelector('[data-rich=standing]').textContent"), re.sub(r"<[^>]+>", "", u["standing"]))
                     self.assertEqual(sorted(js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)")), linked)
-                    self.assertTrue(js("[...document.querySelectorAll('[data-item]')].every(b => b.querySelector('.pill') && b.querySelector('.ucd-x').textContent)"), "each row has a status pill and an owner or due")
+                    self.assertTrue(js("[...document.querySelectorAll('[data-item]')].every(b => b.querySelector('.ico') && !b.querySelector('.pill') && b.querySelector('.ucd-x').textContent)"), "each row has the status icon (no pill with words) and an owner or due")
                     self.assertEqual(js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms)"), ["TUL-M-005"])
                     self.assertIn("added the use case", js("document.querySelector('[data-history]').textContent"))
-                    self.assertEqual(js("document.querySelector('[data-archive]').textContent"), "Archive this use case (it can be restored; nothing is deleted)")
-                    self.assertFalse(js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText + [...document.querySelectorAll('[data-ucd] [aria-label],[data-ucd] [title]')].map(e => (e.getAttribute('aria-label') || '') + (e.title || '')).join(' '))"), "no Delete anywhere")
+                    self.assertEqual(js("document.querySelector('#ucd-more').getAttribute('aria-label')"), "More actions")      # item 1148: Archive moved into More actions, with Delete
+                    self.assertFalse(js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText + [...document.querySelectorAll('[data-ucd] [aria-label],[data-ucd] [title]')].map(e => (e.getAttribute('aria-label') || '') + (e.title || '')).join(' '))"), "Delete is only inside the closed More actions menu")
                     self.assertTrue(js("document.documentElement.scrollWidth <= window.innerWidth"), "no sideways scroll")
                     columns = js("getComputedStyle(document.querySelector('.ucd-grid')).gridTemplateColumns.split(' ').length")
                     self.assertEqual(columns, 2 if width == 1400 else 1, "two columns at 1400 px, one at 900 px")
@@ -294,7 +303,7 @@ class Detail(unittest.TestCase):
                     sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
                     self.assertNotEqual(cdp.js("document.querySelector('#report').dataset.mode", sid), "edit", "the page is not in Edit")
                     self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea').length", sid), 2, "name and headline are boxes")
-                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] [data-archive]", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
+                    for sel in ("#ucd-status", "[data-ucd] [data-eye]", "[data-ucd] #ucd-more", "[data-ucd] [data-rich]", "[data-ucd] [data-uc-commit] button"):
                         self.assertEqual(cdp.js(f"document.querySelectorAll({json.dumps(sel)}).length", sid), 1, sel)
 
     def test_each_control_saves_as_one_change_with_one_undo_with_no_edit_mode_row_825(self):
@@ -329,12 +338,12 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["commitment"], was["commitment"])
             before = self.steps()
-            click(cdp, sid, "[data-ucd] [data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered with no Edit mode")
             self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1))
             self.assertNotIn("Switch to Edit", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             click(cdp, sid, "[data-restore]")
-            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-archive]')", "Restore worked with no Edit mode")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] #ucd-more')", "Restore worked with no Edit mode")
             self.assertEqual(self.row()["archived"], 0)
 
     def test_the_standing_text_saves_with_no_edit_mode_row_825(self):
@@ -411,7 +420,7 @@ class Detail(unittest.TestCase):
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('.lab')].map(e => e.textContent.trim())"), ["Commitment"])
                     self.assertEqual(js(f"{menu}.firstElementChild.querySelector('.lab') !== null || {menu}.firstElementChild.classList.contains('lab')"), True, "the heading is first")
                     self.assertEqual(js(f"[...{menu}.querySelectorAll('[role=menuitemradio]')].map(e => e.textContent.replace('\u2713', '').trim())"),
-                                     ["Candidate", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
+                                     ["Planned 2026", "Committed", "Planned 2027", "No flag"], "the heading is not a pickable row")
                     self.assertEqual(js(f"{menu}.querySelector('[aria-checked=true]').textContent.replace('\u2713', '').trim()"), "Committed")
                     shots = os.environ.get("CLARK_SHOTS")
                     if shots:
@@ -500,12 +509,12 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "!!document.querySelector('.sn-in')", "the box opened again")
             type_words("done")
             self.until(cdp, sid, "!!document.querySelector('[data-sneak-confirm]')", "Done asks first, again")
-            type_words("high risk, candidate, headline: Vendor is late")
+            type_words("high risk, planned 2026, headline: Vendor is late")
             self.until(cdp, sid, "document.querySelectorAll('.sn-list li').length === 3", "three lines")
             key(cdp, sid, "Enter")
             self.until(cdp, sid, "!!document.querySelector('[data-undo]') && document.querySelector('[data-ucd] [data-word]').textContent === 'High risk'", "applied")
             row = self.row()
-            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Candidate", "Vendor is late", before + 1))
+            self.assertEqual((row["status"], row["commitment"], row["headline"], self.steps()), ("High risk", "Planned 2026", "Vendor is late", before + 1))
             self.assertFalse(cdp.js("!!document.querySelector('[data-sneak]')", sid), "Enter closes the box")
             self.undo(cdp, sid)
             row = self.row()
@@ -557,7 +566,7 @@ class Detail(unittest.TestCase):
             self.undo(cdp, sid)
             self.assertEqual(self.row()["status"], "Flag")
 
-    def test_the_eye_is_an_icon_with_a_tooltip_and_toggles_with_one_undo(self):
+    def test_the_eye_is_one_button_with_its_words_and_toggles_with_one_undo(self):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
@@ -565,8 +574,8 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "document.querySelector('.ucd-eye[data-eye]').title === 'Not on the dashboard'", "the tooltip changed")
             self.assertEqual((self.row()["client_visible"], self.steps()), (0, before + 1))
             self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').getAttribute('aria-label')", sid), "Not on the dashboard")
-            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()", sid), "")
-            self.assertEqual(cdp.js("document.querySelector('[data-dash]').textContent", sid), "Not on the dashboard")
+            self.assertEqual(cdp.js("document.querySelector('.ucd-eye[data-eye]').textContent.trim()", sid), "Not on the dashboard")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-dash]').length", sid), 0)
             self.assertEqual(self.sent[-1][1]["changes"], {"client_visible": 0})
             self.undo(cdp, sid)
             self.assertEqual(self.row()["client_visible"], 1)
@@ -584,7 +593,7 @@ class Detail(unittest.TestCase):
                     self.assertGreaterEqual(got["gap"], 4, got)
                     self.assertGreaterEqual(got["eye"], got["btn"] - 1, got)
 
-    def test_the_eye_has_no_words_beside_it_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
+    def test_the_eye_and_its_words_are_one_button_that_works_from_the_keyboard_and_never_meets_the_commitment_chip(self):
         """Issue 753."""
         for width in (1400, 900):
             for scheme in ("light", "dark"):
@@ -596,7 +605,7 @@ class Detail(unittest.TestCase):
                           head: document.querySelector('[data-ucd]').innerText.toLowerCase().includes('home dashboard'), n: others.length,
                           inside: b.left >= 0 && b.right <= innerWidth, side: Math.min(b.width, b.height),
                           clash: others.some(x => { const c = x.getBoundingClientRect(); return b.left < c.right && c.left < b.right && b.top < c.bottom && c.top < b.bottom; }) }; })()""", sid)
-                    self.assertEqual((got["tag"], got["words"], got["svg"], got["head"]), ("BUTTON", "", 1, False), got)
+                    self.assertEqual((got["tag"], got["words"], got["svg"], got["head"]), ("BUTTON", "On the dashboard", 1, False), got)
                     self.assertEqual((got["title"], got["label"]), ("On the dashboard", "On the dashboard"))
                     self.assertTrue(got["inside"] and not got["clash"] and got["n"] >= 2, got)
                     self.assertGreaterEqual(got["side"], 24)
@@ -618,11 +627,11 @@ class Detail(unittest.TestCase):
         with chrome() as cdp:
             sid = self.open_detail(cdp)
             before = self.steps()
-            click(cdp, sid, "[data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "Restore is offered")
             self.assertEqual((self.row()["archived"], self.steps()), (1, before + 1), "Archive is one step and the row is still there")
             self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "use_cases", "op": "archive", "id": UC, "place": "cell"})
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], [data-archive], #ucd-status').length", sid), 0, "read-only")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-ucd] [data-rich], #ucd-more, #ucd-status').length", sid), 0, "read-only")
             self.assertIn("Archived", cdp.js("document.querySelector('.ucd-sub').textContent", sid))
             self.assertIn("read-only", cdp.js("document.querySelector('[data-archived-note]').textContent", sid))
             self.assertFalse(cdp.js("/\\bdelete\\b/i.test(document.querySelector('[data-ucd]').innerText)", sid), "no Delete")
@@ -630,13 +639,13 @@ class Detail(unittest.TestCase):
             self.until(cdp, sid, "document.querySelectorAll('[data-item]').length === 2", "its work items are still listed")
             self.undo(cdp, sid)
             self.assertEqual(self.row()["archived"], 0)
-            self.until(cdp, sid, "!!document.querySelector('[data-archive]') && !document.querySelector('[data-restore]')", "Undo brings it back, editable")
+            self.until(cdp, sid, "!!document.querySelector('#ucd-more') && !document.querySelector('[data-restore]')", "Undo brings it back, editable")
             # archive again, then Restore: one step, one Undo of that
-            click(cdp, sid, "[data-archive]")
+            self.archive(cdp, sid)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived again")
             before = self.steps()
             click(cdp, sid, "[data-restore]")
-            self.until(cdp, sid, "!!document.querySelector('[data-archive]')", "Restore made it editable again")
+            self.until(cdp, sid, "!!document.querySelector('#ucd-more')", "Restore made it editable again")
             self.assertEqual((self.row()["archived"], self.steps()), (0, before + 1))
             self.until(cdp, sid, "((document.querySelector('.toast-text') || {}).textContent || '') === 'Use case restored.'", "the toast says it was restored")
             self.assertEqual(self.toast(cdp, sid), "Use case restored.")
@@ -651,7 +660,7 @@ class Detail(unittest.TestCase):
             sid = self.open_detail(cdp)
             self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "the archived use case was found and Restore is offered")
             self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-word]').textContent", sid), "Flag")
-            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, [data-archive]').length", sid), 0)
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] textarea, #ucd-more').length", sid), 0)
             self.assertEqual(cdp.js("document.querySelector('[data-dash]').textContent", sid), "Archived")
 
     def test_a_use_case_that_is_not_there_says_so_and_leads_back(self):
@@ -699,6 +708,119 @@ class Detail(unittest.TestCase):
             self.assertTrue(cdp.js("!!document.querySelector('[data-ucd]')", sid), "the page is still there")
             self.until(cdp, sid, f"document.activeElement === document.querySelector({json.dumps(opener)})", f"{how}: the focus is back on the opener")
 
+    def test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081(self):
+        """Row 1081: ID, title, one tinted status chip, then Owner and Due in muted text, on ONE line at 1400 and 900, light and dark.
+        The chip takes the colours of row 1021 (Open green, Made and Closed blue, grey when withdrawn or cancelled), not the old pill's."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } const u = document.createElement('i'); u.style.cssText = 'color:var(--tone-on-urgent);background:var(--tone-urgent)'; document.body.appendChild(u); const k = getComputedStyle(u); out.urgent = [k.color, k.backgroundColor]; u.remove(); return out; })()")
+        rows = ("[...document.querySelectorAll('[data-item]')].map(b => { const q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), chip = q('.ico'), c = getComputedStyle(chip), x = q('.ucd-x');"
+                " return {id: b.dataset.item, h: r(b).height, chips: b.querySelectorAll('.ico').length, pills: b.querySelectorAll('.pill').length, urgent: /Urgent/.test(b.dataset.tip || ''), word: (b.dataset.tip || '').split(' · ')[1], cls: chip.className, fg: c.color, bg: c.backgroundColor,"
+                " one: r(q('.ucd-id')).top < r(chip).bottom && r(x).top < r(chip).bottom && r(chip).top < r(q('.ucd-id')).bottom + 8 && Math.abs(r(x).top - r(q('.ucd-id')).top) < 12,"
+                " muted: getComputedStyle(x).color === getComputedStyle(q('.ucd-id')).color, ordered: r(chip).left < r(q('.ucd-id')).left && r(q('.ucd-id')).left < r(q('.ucd-t')).left && r(q('.ucd-t')).left < r(x).left}; })")
+        want = {"On track": "green", "Open": "green", "Pending": "green", "Made": "blue", "Closed": "blue", "Overdue": "red", "Due soon": "amber"}
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    tones = cdp.js(probe, sid)
+                    found = cdp.js(rows, sid)
+                    self.assertTrue(found, "the card lists its items")
+                    for r in found:
+                        self.assertEqual((r["chips"], r["pills"]), (1, 0), r["id"])      # row 1145: the icon alone, no pill with words
+                        self.assertTrue(r["one"], f"{r['id']}: the id, title, chip and owner and due sit on one line at {width}")
+                        self.assertTrue(r["ordered"], f"{r['id']}: icon, id, title, then owner and due")
+                        self.assertTrue(r["muted"], f"{r['id']}: owner and due are muted like the id")
+                        self.assertLess(r["h"], 48, r["id"])
+                        if r["word"] in want:
+                            self.assertEqual([r["fg"], r["bg"]], tones["urgent" if r["urgent"] else want[r["word"]]], f"{r['id']} {r['word']} takes its row 1021 tone (an Urgent item is the maroon tile)")
+
+    def _uc_items(self):
+        data = self.read("TUL")
+        return [(k, r) for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC]
+
+    def test_hostile_a_huge_unbroken_unicode_title_keeps_one_line_and_no_sideways_scroll_row_1081(self):
+        """Hostile row 1081: a 600-character title with no spaces, RTL and emoji must not wrap the row to many lines or push the page sideways."""
+        kind, row = next((k, r) for k, r in self._uc_items() if k == "actions")
+        with self.store.step("dashboard", USER) as st:
+            st.update(kind, row["id"], {"description": ("\u202e\u05e9\u05dc\u05d5\u05dd\U0001F525" + "W" * 600)})
+        for width in (1400, 900):
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width, scheme, edit=False)
+                    m = cdp.js("(() => { const b = document.querySelector('[data-item=' + JSON.stringify(%s) + ']'); const r = b.getBoundingClientRect();"
+                               " return {h: r.height, sw: document.documentElement.scrollWidth, cw: document.documentElement.clientWidth}; })()" % json.dumps(row["id"]), sid)
+                    self.assertLessEqual(m["sw"], m["cw"], "no sideways scroll")
+                    self.assertLess(m["h"], 48, "ONE line per item: a long title is cut, it does not make the row many lines tall")
+
+    def test_hostile_markup_in_a_title_is_text_and_a_closed_item_takes_the_blue_tone_row_1081(self):
+        """Hostile row 1081: <img onerror> in a title shows as text, never an element; a Closed item has the blue chip, in both schemes."""
+        items = self._uc_items()
+        with self.store.step("dashboard", USER) as st:
+            for k, r in items:
+                if k == "actions":
+                    st.update(k, r["id"], {"description": "<img src=x onerror=window.__pwn=1><b>bold</b>", "status": "Closed"})
+        for scheme in ("light", "dark"):
+            with self.subTest(scheme=scheme), chrome() as cdp:
+                sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                self.assertFalse(cdp.js("!!window.__pwn || !!document.querySelector('.ucd-item img, .ucd-item b')", sid), "markup in a title is text")
+                blue = cdp.js("(() => { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-blue-text);background:var(--tone-blue-tint)'; document.body.appendChild(e); const c = getComputedStyle(e); return [c.color, c.backgroundColor]; })()", sid)
+                for b in cdp.js("[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.ico')); return {id: b.dataset.item, word: (b.dataset.tip || '').split(' · ')[1], urgent: /Urgent/.test(b.dataset.tip || ''), fg: c.color, bg: c.backgroundColor}; })", sid):
+                    if b["word"] == "Closed":
+                        self.assertEqual([b["fg"], b["bg"]], blue, f"{b['id']} Closed is blue")
+
+    def test_hostile_an_archived_work_item_is_not_listed_and_enter_opens_the_peek_row_1081(self):
+        """Hostile row 1081: an archived work item is not on the card; only this use case's items are; Enter on a row opens the peek."""
+        items = self._uc_items()
+        kind, row = items[0]
+        with self.store.step("dashboard", USER) as st:
+            st.archive(kind, row["id"])
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, 1400, "light", edit=False)
+            ids = cdp.js("[...document.querySelectorAll('[data-item]')].map(b => b.dataset.item)", sid)
+            self.assertNotIn(row["id"], ids, "an archived item is not on the card")
+            self.assertTrue(set(ids) <= {r["id"] for _k, r in items}, "only this use case's items")
+            if ids:
+                cdp.js("document.querySelector('[data-item]').focus()", sid)
+                key(cdp, sid, "Enter")
+                self.until(cdp, sid, "!!document.querySelector('.peek, [data-peek], [data-sneak-open]')", "Enter opens the peek")
+
+    def test_every_chip_tone_red_amber_green_blue_grey_is_painted_on_the_card_row_1081(self):
+        """Row 1081 (mutation gap): the demo's two items only show amber and one other tone, so a wrong red, green or grey chip passed. Seed each state and read the colours."""
+        probe = ("(() => { const out = {}; for (const t of ['red', 'amber', 'green', 'blue', 'grey']) { const e = document.createElement('i'); e.style.cssText = 'color:var(--tone-' + t + '-text);background:var(--tone-' + t + '-tint)'; document.body.appendChild(e); "
+                 "const c = getComputedStyle(e); out[t] = [c.color, c.backgroundColor]; e.remove(); } const u = document.createElement('i'); u.style.cssText = 'color:var(--tone-on-urgent);background:var(--tone-urgent)'; document.body.appendChild(u); const k = getComputedStyle(u); out.urgent = [k.color, k.backgroundColor]; u.remove(); return out; })()")
+        chips = "[...document.querySelectorAll('[data-item]')].map(b => { const c = getComputedStyle(b.querySelector('.ico')); return {id: b.dataset.item, word: (b.dataset.tip || '').split(' · ')[1], urgent: /Urgent/.test(b.dataset.tip || ''), fg: c.color, bg: c.backgroundColor}; })"
+        cases = [({"status": "Open", "due_date": "2020-01-01"}, "Overdue", "red"), ({"status": "Open", "due_date": "2030-01-01"}, "On track", "green"),
+                 ({"status": "Open", "due_date": "2026-11-02"}, "Due soon", "amber"), ({"status": "Closed", "due_date": "2030-01-01"}, "Closed", "blue"),
+                 ({"status": "Cancelled", "due_date": "2030-01-01"}, "Cancelled", "grey")]
+        for change, word, tone in cases:
+            with self.subTest(word=word):
+                with self.store.step("dashboard", USER) as st:
+                    st.update("actions", "TUL-A-001", change)
+                for scheme in ("light", "dark"):
+                    with chrome() as cdp:
+                        sid = self.open_detail(cdp, 1400, scheme, edit=False)
+                        tones = cdp.js(probe, sid)
+                        got = next(c for c in cdp.js(chips, sid) if c["id"] == "TUL-A-001")
+                        self.assertEqual(got["word"], word)
+                        self.assertEqual([got["fg"], got["bg"]], tones["urgent" if got["urgent"] else tone], f"{word} chip is {tone} in {scheme} (an Urgent item is the maroon tile)")
+
+    def test_the_card_row_cuts_long_text_with_dots_and_never_overlaps_the_id_row_1081(self):
+        """Row 1081 (mutation gap): id, title and owner/due are single-line cells that end in dots; the id never runs into the title; the owner and due cell is not wider than 260px."""
+        with self.store.step("dashboard", USER) as st:
+            st.update("actions", "TUL-A-001", {"description": "T" * 400 + " end", "owner": "Somebody With An Extremely Long Name " * 8})
+        for width in (1400, 900):
+            with self.subTest(width=width), chrome() as cdp:
+                sid = self.open_detail(cdp, width, "light", edit=False)
+                m = cdp.js("(() => { const b = document.querySelector('[data-item=\"TUL-A-001\"]'), q = (s) => b.querySelector(s), r = (e) => e.getBoundingClientRect(), g = (e, p) => getComputedStyle(e)[p];"
+                           " return {ws: [g(q('.ucd-id'), 'whiteSpace'), g(q('.ucd-t'), 'whiteSpace'), g(q('.ucd-x'), 'whiteSpace')], to: [g(q('.ucd-t'), 'textOverflow'), g(q('.ucd-x'), 'textOverflow')],"
+                           " idw: r(q('.ucd-id')).width, idRight: r(q('.ucd-id')).right, tLeft: r(q('.ucd-t')).left, xw: r(q('.ucd-x')).width, h: r(b).height}; })()", sid)
+                self.assertEqual(m["ws"], ["nowrap", "nowrap", "nowrap"], "id, title and owner stay on one line")
+                self.assertEqual(m["to"], ["ellipsis", "ellipsis"], "a long title or owner ends in dots")
+                self.assertLessEqual(m["idRight"], m["tLeft"], "the id does not run into the title")
+                self.assertGreaterEqual(m["idw"], 90, "the id column is wide enough for a full id")
+                self.assertLessEqual(m["xw"], 261, "the owner and due cell is capped at 260px")
+                self.assertLess(m["h"], 48)
+
     def test_a_work_item_row_opens_its_peek_beside_the_page_row_859(self):
         data = self.read("TUL")
         item = sorted(r["id"] for k in ("actions", "raid", "decisions") for r in data[k] if r.get("use_case") == UC)[0]
@@ -724,6 +846,110 @@ class Detail(unittest.TestCase):
                         self.assertRegex(cdp.js(f"document.querySelector('{row}').textContent", sid), r"\d", "and the date")
                         self.assertEqual(cdp.js(f"document.querySelector('{row} [data-ms-open]').tagName", sid), "BUTTON", "the name is a control")
                         self.peek_round(cdp, sid, f"{row} [data-ms-open]", ms)
+
+    # ---- row 1141: ONE "Add a milestone" (a direct link); the next-step-creating one and the work-item Remove are gone ----
+    def ms_ids(self, cdp, sid):
+        return cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms]')].map(e => e.dataset.ms).sort()", sid)
+
+    def direct(self):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            return [l["milestone"] for l in st.data_for("TUL")["uc_milestones"] if l["use_case"] == UC]
+        finally:
+            st.close()
+
+    def test_one_add_a_milestone_button_and_no_remove_on_a_work_item_milestone_row_1141(self):
+        for width in (1400, 915):          # 915 px of window is 900 px of page on this box (15 px scrollbar)
+            for scheme in ("light", "dark"):
+                with self.subTest(width=width, scheme=scheme), chrome() as cdp:
+                    sid = self.open_detail(cdp, width=width, scheme=scheme, edit=False)
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-link]').length", sid), 1, "one Add a milestone control")
+                    self.assertEqual(cdp.js("document.querySelector('[data-ucd] [data-ms-link] button').textContent.trim()", sid), "Add a milestone")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-add], [data-ucd] [data-ms-remove]').length", sid), 0, "the old Add and Remove are gone")
+                    self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms] [data-ms-unlink]').length", sid), 0, "a milestone only through work items is not offered a removal")
+                    self.assertEqual(self.ms_ids(cdp, sid), ["TUL-M-005"], "the work item's milestone still shows")
+                    for w, h in cdp.js("[...document.querySelectorAll('[data-ucd] [data-ms-link] button')].map(e => { const b = e.getBoundingClientRect(); return [b.width, b.height]; })", sid):
+                        self.assertGreaterEqual(min(w, h), 24, "a control is at least 24 px")
+                    self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid), 0, "no sideways scroll")
+
+    def test_add_a_milestone_links_it_directly_in_one_change_with_one_undo_row_1141(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            before = self.steps()
+            actions_before = len(self.read("TUL")["actions"])
+            click(cdp, sid, "[data-ucd] [data-ms-link] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "the menu of milestones opened")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] [role^=menuitem]').length", sid), 6, "every milestone it has no direct link to")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the milestone is listed")
+            self.assertEqual(self.steps(), before + 1, "one step")
+            self.assertEqual(self.direct(), ["TUL-M-002"])
+            self.assertEqual(len(self.read("TUL")["actions"]), actions_before, "no next step is made")
+            self.assertIn("Pilot office live", self.toast(cdp, sid))
+            self.undo(cdp, sid)
+            self.until(cdp, sid, "!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "the undo took it away")
+            self.assertEqual(self.direct(), [])
+
+    def test_unlink_ends_only_the_direct_link_and_leaves_the_work_items_row_1141(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-link] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-005']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005][data-how=both]')", "now both")
+            linked = [r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"]
+            click(cdp, sid, "[data-ucd] [data-ms=TUL-M-005] [data-ms-unlink]")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-005][data-how=work]')", "back to through work items only")
+            self.assertEqual(self.direct(), [])
+            self.assertEqual([r["id"] for k in ("actions", "raid") for r in self.read("TUL")[k] if r.get("use_case") == UC and r.get("milestone") == "TUL-M-005"], linked, "the work items are not touched")
+
+    def test_no_milestone_controls_when_archived_or_in_the_file_row_1141(self):
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            self.archive(cdp, sid)
+            self.until(cdp, sid, "!!document.querySelector('[data-restore]')", "archived")
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] [data-ms-link], [data-ucd] [data-ms-unlink]').length", sid), 0)
+        view = (SRC / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
+        for word in ("data-ms-link", "data-ms-unlink", "data-ms-add", "data-ms-remove"):
+            self.assertNotIn(word, view, word)
+
+    def sql(self, q, args=()):
+        st = open_store(self.path, onedrive_roots=[])
+        try:
+            st.con.execute(q, args)
+            st.con.commit()
+        finally:
+            st.close()
+
+    def test_hostile_milestone_name_is_text_only_in_the_menu_and_the_row_row_1141(self):
+        evil = "<img src=x onerror=window.__pwn=1>\u202e\U0001F600 " + "W" * 600
+        self.sql("UPDATE milestones SET name = ? WHERE id = 'TUL-M-002'", (evil,))
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            click(cdp, sid, "[data-ucd] [data-ms-link] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            self.assertEqual(cdp.js("document.querySelectorAll('[role=menu] img').length", sid), 0, "the name is text in the menu")
+            click(cdp, sid, "[role=menu] [data-kind='TUL-M-002']")
+            self.until(cdp, sid, "!!document.querySelector('[data-ucd] [data-ms=TUL-M-002]')", "listed; toast: " + self.toast(cdp, sid))
+            self.assertEqual(cdp.js("document.querySelectorAll('[data-ucd] img').length + (window.__pwn ? 1 : 0)", sid), 0, "nothing ran")
+            self.assertLessEqual(cdp.js("document.documentElement.scrollWidth - document.documentElement.clientWidth", sid), 0, "a huge name causes no sideways scroll")
+        self.assertEqual(self.direct(), ["TUL-M-002"])
+
+    def test_an_archived_milestone_is_neither_listed_nor_offered_row_1141(self):
+        self.sql("UPDATE milestones SET archived = 1 WHERE id IN ('TUL-M-005', 'TUL-M-003')")
+        with chrome() as cdp:
+            sid = self.open_detail(cdp, edit=False)
+            self.assertEqual(self.ms_ids(cdp, sid), [])
+            click(cdp, sid, "[data-ucd] [data-ms-link] button")
+            self.until(cdp, sid, "!!document.querySelector('[role=menu]')", "menu")
+            ids = cdp.js("[...document.querySelectorAll('[role=menu] [data-kind]')].map(e => e.dataset.kind)", sid)
+            self.assertNotIn("TUL-M-003", ids)
+            self.assertNotIn("TUL-M-005", ids)
+
+    def test_the_old_next_step_adder_is_gone_from_the_source_row_1141(self):
+        text = (PAGE_SRC / "edit" / "UseCasesEdit.jsx").read_text(encoding="utf-8") + (PAGE_SRC / "components" / "UseCaseDetail.jsx").read_text(encoding="utf-8")
+        for word in ("MilestoneAdd", "MilestoneRemove", "data-ms-add", "data-ms-remove", "Link a milestone"):
+            self.assertNotIn(word, text, word)
 
     # ---- the published file ----
     def test_the_published_file_has_none_of_the_component(self):

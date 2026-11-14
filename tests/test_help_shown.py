@@ -26,12 +26,14 @@ SHOWN = shown_content()
 SECTION_DELETE = "Delete section"
 # Signed by the owner on 04-11-2026, build notes: the Start here job and its entry are named this on the signed mockups. Exact strings only.
 # Row 810 (the owner: "Deleted, not archived"): the Save a view guide's step on the Delete entry of a saved view's menu, exactly.
-VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete**, then press **Delete** to confirm. A deleted view cannot be brought back. This works for the five starting tabs too."
-SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE}
+VIEW_DELETE = "To remove a view you no longer want, open it, press the small arrow and choose **Delete view**. A message at the foot of the page has **Undo**, which puts the view back. This works for the five starting tabs too."
+# Row menu Delete, signed WO-M0270, #1101 comment 6835416954 (exact string only).
+ROW_DELETE = "A row’s menu has **Delete**. It asks first, then removes the row from your project record. A message at the foot of the page has **Undo**, which puts the row back where it was."
+SIGNED_DELETE = {"Move, hide and delete sections", VIEW_DELETE, ROW_DELETE}
 # A feature word in shown text needs proof that the page has it: a pattern that must match the page's own code (outside Help).
 FEATURES = [
     ("the peek", r"\bpeek\b", r"<Peek\b"),
-    ("Sneak peek", r"Sneak peek", r"Sneak peek|Change an item with words"),      # the page names it by its button (edit/SneakPeek.jsx); "Sneak peek" itself is only in comments
+    ("Sneak peek", r"Sneak peek", r"Sneak peek|Ask clark to update for you"),      # the page names it by its heading (edit/SneakPeek.jsx, row 1077); "Sneak peek" itself is only in comments
     ("the board", r"\bboard\b", r'"Board"|>Board<'),
     ("ask clark", r"ask clark", r"ask clark"),
     ("Import and Export", r"\b(Import|Export|Excel)\b", r"\b(Import|Export)\b|Excel"),
@@ -104,7 +106,7 @@ class Held(unittest.TestCase):
         self.assertEqual(task["s"][1][:len("Press **Connect** under the one you use if it says **Not connected**.")], "Press **Connect** under the one you use if it says **Not connected**.")
         self.assertEqual(task["s"][4], "To stop, press **Disconnect**. The card then says: Disconnected. You're still signed in to Claude or ChatGPT on this computer, but clark won't use it.")
         self.assertIn("Disconnected. You're still signed in to {name} on this computer, but clark won't use it.", src)
-        self.assertIn("settings", LATER["reference"])
+        self.assertNotIn("settings", LATER["reference"])      # the Settings entries are released: every card they name is on the page (checked below)
         self.assertIn("No password or key is kept: the sign-in already on this computer is used.", json.dumps(RAW["reference"]["sections"]))
 
     def test_the_held_list_is_indented_evenly(self):
@@ -118,9 +120,8 @@ class Held(unittest.TestCase):
 
     def test_the_shown_help_is_what_is_left(self):
         s = SHOWN
-        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "handle-a-slipped-milestone", "connect-claude-or-chatgpt", "undo-a-mistake", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
-        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "status-words", "sneak-peek",
-                          "milestone-states", "published-reports", "diagnostics", "dates-and-ids", "using-help", "keys"])
+        self.assertEqual([x["id"] for x in s["howto"]["tasks"]], ["write-the-weekly-report", "set-the-health", "check-the-report", "publish-the-report", "word-in-and-out", "excel-file-layout", "find-a-past-publication", "save-as-a-pdf", "add-a-work-item", "use-the-board", "change-an-item-in-the-peek", "change-an-item-in-words", "arrange-the-report", "add-a-section-from-a-template", "ask-for-what-you-need", "find-a-use-case", "change-the-layout-and-look", "handle-a-slipped-milestone", "set-up-a-project", "connect-claude-or-chatgpt", "set-your-profile", "add-people-details", "undo-a-mistake", "update-clark", "start-check-and-restore-in-terminal", "run-clark-with-docker"])
+        self.assertEqual([x["id"] for x in s["reference"]["sections"]], ["profile-circle", "sections", "section-templates", "needs-from-you", "freshness", "archive-restore", "at-a-glance", "layouts", "work-items", "milestones-page", "ask-clark", "peek", "status-words", "sneak-peek", "milestone-states", "publishing", "published-reports", "settings", "people", "updating-clark", "diagnostics", "feedback", "dates-and-ids", "using-help", "keys"])
         self.assertEqual(s["start"]["parts"], ["top", "loop", "jobs", "where", "rules"])      # the hero and the loop (row 903) above the jobs; first and foot wait for their parts of clark
         self.assertEqual(len(s["reference"]["keys"]), 34 - len(LATER["keys"]))
         self.assertEqual(s["howto"]["groups"], ["Every week", "Work items", "The report", "Milestones", "Settings and safety", "Advanced"])
@@ -136,7 +137,22 @@ class Held(unittest.TestCase):
         self.assertEqual(sorted(links - places), [])
 
     def test_the_source_itself_is_whole(self):
-        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (37, 35, 34))   # 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+        self.assertEqual((len(RAW["howto"]["tasks"]), len(RAW["reference"]["sections"]), len(RAW["reference"]["keys"])), (38, 36, 34))   # 38 with the Excel file layout entry (row 1069); 37 and 35 with the People entries (#454), the Word entry written and Run clark with Docker and the AI card task (#446); the People entries held
+
+
+def lacks(code, name):
+    """True when the page's code lacks the bold name. "N" stands for a count the screen builds (`Show all ${n} use cases`) and a menu
+    heading built from the Group by word (`Move to ${groupLabel(g)}`) is read as its template."""
+    name = re.sub(r"[‘’]", "'", name).strip(" .,:;…")
+    if name in code:
+        return False
+    if re.fullmatch(r"Show all N [a-z ]+", name):
+        return name.replace(" N ", " ${n} ") not in code
+    if name == "Move to Status":
+        return "`Move to ${groupLabel(g)}`" not in code
+    if re.fullmatch(r"(Workstream|Type) lanes", name):
+        return "${groupLabel(x)} lanes" not in code
+    return True
 
 
 class AgainstThePage(unittest.TestCase):
@@ -146,8 +162,8 @@ class AgainstThePage(unittest.TestCase):
 
     def test_every_bold_name_shown_is_on_the_page(self):
         norm = lambda t: re.sub(r"[‘’]", "'", t)
-        code = norm(self.HELPCODE)
-        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        code = norm(self.HELPCODE) + norm((ROOT / "src" / "clark" / "default_sections.py").read_text(encoding="utf-8"))      # the starting sections' titles (Summary, This week, Next week) come from the server
+        missing = sorted({b for t in shown_texts() for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(missing, [], "Help names buttons the page does not have: hold the entry in helpLater.json, or reword it")
 
     def test_the_held_use_case_entry_names_only_what_the_page_has(self):
@@ -156,13 +172,14 @@ class AgainstThePage(unittest.TestCase):
         code = norm(self.HELPCODE)
         entry = next(x for x in RAW["howto"]["tasks"] if x["id"] == "keep-the-use-cases")
         self.assertIn("keep-the-use-cases", LATER["howto"])
-        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if norm(b).strip(" .,:;…") not in code})
+        names = sorted({b for t in strings(entry["s"]) for b in re.findall(r"\*\*(.+?)\*\*", t) if lacks(code, b)})
         self.assertEqual(names, [])
 
     def test_every_screen_shown_is_a_tab_of_the_page(self):
         screens = set(re.findall(r'(\w+): "[A-Z]\w+"', re.search(r"export const TITLES = \{(.*?)\}", (PAGE_SRC / "stores" / "report.js").read_text(encoding="utf-8")).group(1)))
         text = " ".join(shown_texts())
         gos = {m.split("#")[0].split("+")[0] for m in re.findall(r"\]\(go:([^)]+)\)", text)}
+        screens |= set(re.findall(r'"(\w+)"', re.search(r"export const VIEWS = \[(.*?)\]", (PAGE_SRC / "router.js").read_text(encoding="utf-8")).group(1)))      # Settings is a view of the page (router.js) though it is not a tab
         self.assertEqual(sorted(gos - screens), [])
 
     def test_no_feature_word_is_shown_before_the_page_has_the_feature(self):
@@ -211,14 +228,14 @@ class AgainstThePage(unittest.TestCase):
         # 41 measured on the take-over of PR 457 (#454) merged with main (42 there): the People card's Organisation column takes one more name off the absent list (42 fails)
         # 40 measured on the rebuild of item 454 on main (main is 41): the People card's Organisation column takes one more name off the absent list (41 fails)
         # 39 measured on the rebuild of item 434 on main (main is 40): the report rows' Edit parts put Help's bold Add from your project record on the page (40 fails)
-        # 39 measured on the merge of main (40) into the project switcher's menu (item 439, 40): Project settings and the People card's Organisation column together (40 fails)
+        # 39 measured on the merge of main (40) into the project switcher's menu (item 439, 40): the menu's project rows and the People card's Organisation column together (40 fails)
         # 38 measured on the merge of main (39) into item 434 (39): both sides' names on the page together (39 fails)
         # 37 measured on the merge of main (39) into the Word screens branch: the Word how-to (written, shown) bolds names that are on the page now, and the absent list is shorter (38 fails)
         # 33 measured on the merge of main (37) into the Settings Data card and Projects table (item 444, 34 on the earlier main): both sides' names on the page together (34 fails)
         # 36 measured on the merge of main (37) into item 434 (38): both sides' names on the page together (37 fails)
         # 32 measured on the merge of main (36) into the Settings Data card and Projects table (item 444, 33): both sides' names on the page together (33 fails)
         # 38 measured on the merge of main (40 there, the People card) into the refreshed Version and updates card: both sides' names on the page together (39 fails)
-        # 40 measured with the project switcher's menu (item 439) on main: Project settings is on the page, so that bold name left the absent list (41 fails)
+        # 40 measured with the project switcher's menu (item 439) on main: the menu's project rows are on the page, so a bold name left the absent list (41 fails)
         # 37 measured on the merge of main (39 there, the project switcher's menu) into the refreshed Version and updates card (38): both sides' names on the page together (38 fails)
         # 35 measured on the merge of main (37 there, the Word screens) into the refreshed Version and updates card (37): both sides' names on the page together (36 fails)
         # 30 measured on the merge of main (32 there, the Settings Data card and Projects table) into the refreshed Version and updates card (35): both sides' names on the page together (31 fails)
@@ -226,8 +243,11 @@ class AgainstThePage(unittest.TestCase):
         # update Help entries are held (helpLater.json) until the release key is pinned, but the floor counts the whole source (27 fails)
         # 23 measured on the merge of main (26 there, the update card of item 445) into the Help overhaul branch: both sides' names on the page together (24 fails)
         # 16 measured with ask clark and Sneak peek released (#721): their corrected bold names are on the page (ask clark, Check this report, Apply, Confirm and apply, New chat, Close ...), 23 before
+        # 10 measured with the Settings entries reworded (15 before): the How do I entries no longer bold Personal arrow Spacing, Personal arrow Appearance, Settings arrow Projects or the Review X.Y.Z placeholder, none of which is a label of the page
         # 15 measured with row 828 (the milestone peek's own fields: State, Progress, Visible to client and Client wording are on the page now, 16 before)
-        self.assertGreaterEqual(len(names), 15)
+        # 8 measured on the merge of main (8) into the milestone peek and Source line branch (14): both sides' removals of false names together (9 fails)
+        # 8 to 7 when Help said "Automatic" (the tile outline choice) instead of the wrong "Automatic, from the data", which the page never had
+        self.assertGreaterEqual(len(names), 7)
 
         # 52 measured on the merge with main's supporting documents (#74), which puts one more Help name on the page; earlier, 53 on the merged tree with the Milestones page (#458) puts five more bold Help names on the page than main does, so they left the absent list (main is 58; measured on trial merges): Add a recovery action, Add milestone, Escalate to steering, Internal note, Rebaseline
         # 57 measured on the merged tree (main is 58), names printed: Show milestone details also left the absent list, which the remembered Hide or Show toggle for the milestone details (C-M6) puts on the page
@@ -237,8 +257,8 @@ class AgainstThePage(unittest.TestCase):
     def test_the_shown_keys_are_ones_the_page_answers(self):
         rows = [r[0] for r in SHOWN["reference"]["keys"]]
         self.assertEqual(rows, ["[[?]]", "[[/]]", "[[/]] [[/]]", "[[Esc]]", "[[Enter]]", "[[Shift+Enter]]", "[[Up]] [[Down]] [[Enter]]", "[[V]]", "[[E]]", "[[Alt+Up]] [[Alt+Down]]", "[[Home]] [[End]]",
-                                "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
-                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]",
+                                "Double-click", "Click", "[[Mod]]+click", "[[Shift]]+click", "[[Mod+Shift]]+click", "[[Shift+Up]] [[Shift+Down]]",
+                                "[[Space]]", "[[Mod+A]]", "The tick box on a group", "[[Esc]] with a selection", "[[O]] [[S]] [[P]] [[T]] [[C]]", "[[Shift+F10]]", "[[Mod+K]]", "[[Mod+J]]",
                                 "[[Up]] [[Down]] [[Home]] [[End]]", "[[Up]] [[Down]] [[Left]] [[Right]]", "[[Enter]]"])
 
 
@@ -246,6 +266,9 @@ GLANCE_PY = ROOT / "src" / "clark" / "glance.py"
 SECTIONS_PY = ROOT / "src" / "clark" / "default_sections.py"      # the titles of the sections a new report starts with
 # Words a shown Reference entry quotes that the page builds from data, so no source file holds them whole (each with the reason).
 COMPUTED = {
+    "Move to Status": "the board card menu's heading, built from the Group by word (edit/Board.jsx menuFor)",
+    "Workstream lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
+    "Type lanes": "a Swimlanes choice, built from the group's word (components/FilterLine.jsx)",
     "3 days late": "Due, built from the date (workItems.js dueCell)",
     "In 5 days": "Due, built from the date (workItems.js dueCell)",
     "of n open actions": "the Overdue actions tile's detail, built from the count (glance.py)",
@@ -253,6 +276,7 @@ COMPUTED = {
     "this week\u2019s actions": "an example of what a card might be called, not a label",
     "decisions needed": "an example of what a card might be called, not a label",
     "3 of 12 selected": "the Hand over bar's count, built from the numbers (logic/handOver.js)",
+    "8 of 8 people need details": "the People card's line above its table, built from the counts (logic/people.js)",
     "api key": "the words the secret screen reads before a question is sent (ask_secret words, secret_screen.py)",
     "access key": "the words the secret screen reads before a question is sent (secret_screen.py)",
     "move to Friday, owner Jo, high priority": "a worked example of words typed in Sneak peek (its own placeholder is the same kind of line, SneakPeek.jsx)",
@@ -261,7 +285,7 @@ COMPUTED = {
     "done \u00b7 closed \u00b7 reopen \u00b7 delayed \u00b7 cancelled": "words typed in Sneak peek, read by sneak.py (#721)",
     "made \u00b7 decided \u00b7 withdrawn \u00b7 pending": "words typed in Sneak peek, read by sneak.py (#721)",
     "forecast Friday \u00b7 achieved yesterday \u00b7 done \u00b7 reopen": "words typed in Sneak peek, read by sneak.py (row 728)",
-    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 candidate \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
+    "flag \u00b7 high risk \u00b7 on track \u00b7 done \u00b7 committed \u00b7 planned 2026 \u00b7 planned 2027 \u00b7 no flag \u00b7 headline": "words typed in Sneak peek, read by sneak.py (row 728)",
     "urgent priority \u00b7 high priority \u00b7 medium priority \u00b7 low priority": "words typed in Sneak peek, read by sneak.py (#721)",
     "Hand over 30 items to Priya?": "the Hand over question, built from the count and the name (logic/handOver.js)",
     "Put back the backup from DD-MM-YYYY 09:30? What you have now is kept first": "the Restore question, built from the backup's date and time (a worked example)",
@@ -344,29 +368,46 @@ class NeverDelete(unittest.TestCase):
         for part in ("Archive hides the project and everything in it from the usual lists, the counts and the published page",
                      "**Show archived** finds it", "**Restore** and **Undo** bring it back"):
             self.assertIn(part, text)
-        self.assertIn("Archive this use case", text)       # the button as the page labels it (#421: the held entry once said "Archive use case")
-        self.assertIn("Archive milestone", text)
+        self.assertIn("**Archive** in the **More actions** menu asks first", text)       # item 1148: Archive moved into the More actions menu
+        self.assertIn("in the **More actions** menu archives the milestone and closes the peek", text)      # item 1148: the held wording "Archive milestone" is gone
+        self.assertNotIn("Archive milestone", text)
+
+
+# Row 1077: the words box's heading is the owner's own words of 09-11-2026, "Ask clark to update for you", with its capital A. It is the one
+# spelling allowed beside "ask clark"; the heading is matched whole, so "Ask clark" anywhere else still fails.
+WORDS_BOX_HEADING = "Ask clark to update for you"
+ASK_CLARK = re.compile(r"(?i)\bask clark\b(?: to update for you)?")
+
+
+def ask_clark_misspelt(text):
+    return [m for m in ASK_CLARK.findall(text) if m not in ("ask clark", WORDS_BOX_HEADING)]
 
 
 class AskClark(unittest.TestCase):
-    """MEDIUM: ask clark is written in lower case, wherever it is, at the start of a sentence too."""
+    """MEDIUM: ask clark is written in lower case, wherever it is, at the start of a sentence too (the words box's heading excepted, row 1077)."""
     def test_every_spelling_in_the_help_source_is_lower_case(self):
         bad = []
         for f in sorted(HELP.iterdir()):
             if f.suffix in (".json", ".js", ".jsx"):
-                bad += [(f.name, m) for m in re.findall(r"(?i)\bask clark\b", f.read_text(encoding="utf-8")) if m != "ask clark"]
+                bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
     def test_the_whole_page_source_too(self):
         bad = []
         for f in PAGE_SRC.rglob("*"):
             if f.is_file() and f.suffix in (".js", ".jsx", ".json"):
-                bad += [(f.name, m) for m in re.findall(r"(?i)\bask clark\b", f.read_text(encoding="utf-8")) if m != "ask clark"]
+                bad += [(f.name, m) for m in ask_clark_misspelt(f.read_text(encoding="utf-8"))]
         self.assertEqual(bad, [])
 
+    def test_the_heading_is_the_only_exception_and_the_rule_still_bites(self):
+        self.assertEqual(ask_clark_misspelt("Ask clark to update for you. Then ask clark again."), [])
+        self.assertEqual(ask_clark_misspelt("Ask clark to update. ASK CLARK now. Ask Clark to update for you"), ["Ask clark", "ASK CLARK", "Ask Clark to update for you"])
+        self.assertEqual(ask_clark_misspelt("Use ask clark to **Check this report**"), [])
+
     def test_the_first_step_no_longer_starts_with_it(self):
-        self.assertNotIn("Ask clark", json.dumps(RAW, ensure_ascii=False))
-        self.assertIn("Use ask clark to **Check this report**", json.dumps(RAW, ensure_ascii=False))
+        raw = json.dumps(RAW, ensure_ascii=False)
+        self.assertEqual(ask_clark_misspelt(raw), [])
+        self.assertIn("Use ask clark to **Check this report**", raw)
 
 
 class Wording(unittest.TestCase):
@@ -383,7 +424,74 @@ class Wording(unittest.TestCase):
         import build_page
         html = build_page.build()
         self.assertNotIn("Open the report with a message", html)
-        self.assertNotIn("click another item anywhere on the page and the peek moves to it", html)      # a held entry (the peek) is not in the page
+        self.assertNotIn("the archive picture in the top bar archives the milestone and closes the peek", html)      # a held entry (the milestone peek) is not in the page
+
+
+def _src(*p):
+    return PAGE_SRC.joinpath(*p).read_text(encoding="utf-8")
+
+
+DOCS, USE_CASES, MILESTONES = _src("edit", "DocumentsEdit.jsx"), _src("components", "UseCases.jsx"), _src("logic", "milestones.js")
+FILTER_LINE, BOARD, FILTERS, PEEK_LATEST = _src("components", "FilterLine.jsx"), _src("edit", "Board.jsx"), _src("filters.js"), _src("edit", "peekLatest.js")
+
+
+def _flat(x):
+    return [x] if isinstance(x, str) else [y for v in (x if isinstance(x, list) else x.values() if isinstance(x, dict) else []) for y in _flat(v)]
+
+
+ALL = _flat(RAW)
+
+
+class HelpWordsMatchScreen(unittest.TestCase):
+    """w20b: Help words each button as the screen does, pinned to the screen's own string read from its source."""
+    def test_add_a_document_link(self):
+        self.assertRegex(DOCS, r'>Add a document link</button>')
+        self.assertTrue(any("press **Add a document link** at the foot" in s for s in ALL))
+        self.assertFalse(any("+ Add a document link" in s for s in ALL))
+
+    def test_add_back_a_document(self):
+        self.assertRegex(DOCS, r"<summary>Add back a document \(")
+        self.assertTrue(any("**Add back a document** brings it back" in s for s in ALL))
+        self.assertFalse(any("+ Add back a document" in s for s in ALL))
+
+    def test_show_all_use_cases(self):
+        m = re.search(r"`Show all \$\{n\} (use cases)`", USE_CASES)
+        self.assertIsNotNone(m, "the screen's word changed")
+        self.assertTrue(any("**Show all N use cases** shows the rest" in s for s in ALL))
+        self.assertFalse(any("**Show all** shows the rest" in s and "use cases" in s for s in ALL))
+
+    def test_show_all_milestones(self):
+        m = re.search(r"`Show all \$\{n\} (milestones)`", MILESTONES)
+        self.assertIsNotNone(m, "the screen's word changed")
+        self.assertTrue(any("**Show all N milestones** shows the rest" in s for s in ALL))
+        self.assertFalse(any("each milestone with its date" in s and "**Show all** shows" in s for s in ALL))
+
+    def test_swimlane_choices(self):
+        self.assertIn('name: "No lanes"', FILTER_LINE)
+        self.assertIn("name: `${groupLabel(x)} lanes`", FILTER_LINE)
+        self.assertIn('Workstream', FILTER_LINE + FILTERS)
+        self.assertTrue(any("choose **No lanes**, **Workstream lanes** or **Type lanes**." in s for s in ALL))
+        self.assertFalse(any("by No lanes, Workstream or Type" in s for s in ALL))
+
+    def test_move_to_lists(self):
+        self.assertIn("head: `Move to ${groupLabel(g)}`", BOARD)
+        self.assertIn("head: `Move to ${LANE_WORDS[b.lane]}`", BOARD)
+        self.assertTrue(any("choose from the **Move to** lists: first the columns (such as **Move to Status**), then the lanes." in s for s in ALL))
+        self.assertFalse(any("**Move to…**" in s for s in ALL))
+
+    def test_add_menu_words(self):
+        for word in ("Add action", "Add risk", "Add issue", "Add decision"):
+            self.assertIn(f'"{word}"', FILTERS)
+        self.assertIn('"Add risk or issue"', FILTERS)
+        self.assertIn('"Add item"', FILTERS)
+        self.assertTrue(any("(a menu of **Add risk** and **Add issue**) and, with no type on the line, **Add item** (a menu of **Add action**, **Add risk**, **Add issue** and **Add decision**)" in s for s in ALL))
+        self.assertFalse(any("a menu of Risk and Issue" in s or "a menu of Action, Risk" in s for s in ALL))
+
+    def test_move_to_friday_and_the_date(self):
+        self.assertIn("`Move to Friday ${showDate(fri)}`", PEEK_LATEST)
+        mine = [s for s in ALL if "such as **Move to Friday**" in s]
+        self.assertEqual(len(mine), 2)
+        self.assertTrue(all("such as **Move to Friday** and the date." in s for s in mine))
 
 
 if __name__ == "__main__":

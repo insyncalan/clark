@@ -8,7 +8,8 @@
 import { signal } from "@preact/signals";
 import { useEffect } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
-import { richOrPlain } from "../logic/richOrPlain.js";
+import { richOrPlain, legacyToHtml } from "../logic/richOrPlain.js";
+import { plainLine } from "../logic/plainLine.js";
 import { isEditing } from "../logic/editing.js";
 import { project, fromFile, data, reread, openPeek } from "../stores/report.js";
 import { changeMilestone, say, undone } from "../stores/changes.js";
@@ -173,6 +174,30 @@ async function move(r) {
   focusRow(r.id);
 }
 
+// Item 1005: Who agreed it, Reason and Source are the one editor. They stay one line of plain text in the form and in what is sent
+// (the store refuses a line break there), so leaving the editor keeps plainLine of what was typed, and it is drawn back from that text.
+function keepFor(k) {
+  return (html) => { form.value = { ...form.value, [k]: plainLine(html), errors: [] }; return true; };
+}
+function FormRow({ k, children }) {
+  return (
+    <div class="mvm-f" data-f={k}>
+      <span id={`mv-${k}-l`}>{W.FIELDS[k]}</span>
+      {children}
+    </div>
+  );
+}
+
+// Item 1005: pressing Move while Who, Reason or Source is open must not close that editor on the mouse down (the form would shrink under the
+// pointer and the release would miss the button). The press keeps the focus where it is; the click then leaves the open editor, which keeps
+// what was typed, and sends once that is kept.
+function holdEditor(e) { if (document.activeElement && document.activeElement.closest && document.activeElement.closest(".mvm-form .ProseMirror")) e.preventDefault(); }
+function sendAfterEditor(r) {
+  const at = document.activeElement;
+  if (at && at.closest && at.closest(".mvm-form .ProseMirror")) { at.blur(); setTimeout(() => move(r), 80); return; }
+  move(r);
+}
+
 function MoveForm({ r }) {
   const f = form.value;
   const set = (k) => (e) => { form.value = { ...form.value, [k]: e.currentTarget.value, errors: [] }; };
@@ -181,17 +206,23 @@ function MoveForm({ r }) {
   const confirm = W.fill(W.CONFIRM, r.name, showDate(r.agreed), ready ? showDate(iso) : f.to.trim() || "…", r.original_text);
   useEffect(() => { const el = document.getElementById("mv-to"); if (el) el.focus(); }, []);
   return (
-    <form class="mvm-form" aria-labelledby="mv-form-h" onSubmit={(e) => { e.preventDefault(); if (!f.busy) move(r); }}
-      onKeyDown={(e) => { if (e.key === "Escape") { e.stopPropagation(); cancel(); } }}>
+    <form class="mvm-form" aria-labelledby="mv-form-h" onSubmit={(e) => { e.preventDefault(); if (!f.busy) sendAfterEditor(r); }}
+      onKeyDown={(e) => { if (e.key === "Escape" && !e.target.closest(".ProseMirror")) { e.stopPropagation(); cancel(); } }}>
       <h4 id="mv-form-h">{W.MOVE_LABEL}</h4>
       <label class="mvm-f" for="mv-to"><span>{W.FIELDS.to}</span><input id="mv-to" type="text" inputmode="numeric" autocomplete="off" value={f.to} onInput={set("to")} /></label>
-      <label class="mvm-f" for="mv-who"><span>{W.FIELDS.who}</span><input id="mv-who" type="text" autocomplete="off" value={f.who} onInput={set("who")} /></label>
-      <label class="mvm-f" for="mv-reason"><span>{W.FIELDS.reason}</span><input id="mv-reason" type="text" autocomplete="off" value={f.reason} onInput={set("reason")} /></label>
-      <label class="mvm-f" for="mv-source"><span>{W.FIELDS.source}</span><input id="mv-source" type="text" autocomplete="off" value={f.source} onInput={set("source")} /></label>
+      <FormRow k="who">
+        <RichField field="mv_who" value={legacyToHtml(f.who)} label={W.FIELDS.who.toLowerCase()} viewId="mv-who" labelledBy="mv-who-l" save={keepFor("who")} oneLine />
+      </FormRow>
+      <FormRow k="reason">
+        <RichField field="mv_reason" value={legacyToHtml(f.reason)} label={W.FIELDS.reason.toLowerCase()} viewId="mv-reason" labelledBy="mv-reason-l" save={keepFor("reason")} oneLine />
+      </FormRow>
+      <FormRow k="source">
+        <RichField field="mv_source" value={legacyToHtml(f.source)} label={W.FIELDS.source.toLowerCase()} viewId="mv-source" labelledBy="mv-source-l" save={keepFor("source")} oneLine />
+      </FormRow>
       <p class="mvm-confirm" id="mvm-confirm">{confirm}</p>
       <div class="mvm-problems" role="alert">{f.errors.map((e) => <p key={e}>{e}</p>)}</div>
       <div class="mvm-actions">
-        <button type="submit" class="again" id="mv-go" disabled={f.busy} aria-describedby="mvm-confirm">{W.MOVE_LABEL}</button>
+        <button type="submit" class="again" id="mv-go" disabled={f.busy} aria-describedby="mvm-confirm" onMouseDown={holdEditor}>{W.MOVE_LABEL}</button>
         <button type="button" class="btn" id="mv-keep" onClick={cancel}>{W.KEEP_LABEL}</button>
       </div>
     </form>

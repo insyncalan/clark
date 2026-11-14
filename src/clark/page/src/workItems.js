@@ -17,6 +17,9 @@ const DASH = "—";
 let pinned = "";
 export function pinToday(iso) { pinned = /^\d{4}-\d\d-\d\d$/.test(iso || "") ? iso : ""; }
 
+// The moment now in milliseconds, for a stamp that needs the time of day (the earlier chats list). This file is the one place that reads the clock.
+export const nowMs = () => Date.now();
+
 export function todayIso() {
   if (pinned) return pinned;
   const t = new Date();
@@ -45,6 +48,12 @@ export function plural(n, one, many) { return `${n} ${n === 1 ? one : (many || o
 
 export function isOpen(row) { return !CLOSED.includes(row.status); }
 
+// The one rule for late: a Completed item is finished work, so it is never overdue, whatever its date (it still counts as open).
+export function isLate(row, today) {
+  const a = dayNumber(dueField(row)), b = dayNumber(today);
+  return a !== null && b !== null && a < b && isOpen(row) && row.status !== "Completed";
+}
+
 // The date in the Due column: a decision's is the date it is needed by while pending, otherwise the date it was made.
 export function dueField(row) {
   if (row.kind === "decision") return row.status === "Pending" ? row.needed_by : row.date;
@@ -55,7 +64,7 @@ export function dueCell(row, today) {
   const iso = dueField(row);
   const out = { date: showDate(iso), words: "", tone: "" };
   const a = dayNumber(iso), b = dayNumber(today);
-  if (a === null || b === null || !isOpen(row)) return out;
+  if (a === null || b === null || !isOpen(row) || (row.status === "Completed" && a < b)) return out;
   const n = a - b;
   out.words = n === 0 ? "Today" : n === 1 ? "Tomorrow" : n === -1 ? "Yesterday" : n < 0 ? `${plural(-n, "day")} late` : `In ${plural(n, "day")}`;
   if (n < 0) out.tone = "late";
@@ -77,7 +86,7 @@ export function pillOf(row, today) {
   if (row.kind === "risk" || row.kind === "issue") { const c = colourOf(row.priority); return { text: c.word, class: c.class }; }
   if (row.kind === "action") {
     const n = dayNumber(row.due_date), t = dayNumber(today);
-    if (n !== null && t !== null && n < t) return { text: "Overdue", class: "r" };
+    if (n !== null && t !== null && n < t) return s === "Completed" ? { text: "Open", class: "b" } : { text: "Overdue", class: "r" };
     if (s === "Delayed") return { text: "Delayed", class: "a" };
     if (n !== null && t !== null && n - t <= 7) return { text: "Due soon", class: "a" };
   }
@@ -98,8 +107,17 @@ export function sortRows(rows, today) { // eslint-disable-line no-unused-vars
     if (isOpen(x) !== isOpen(y)) return isOpen(x) ? -1 : 1;
     const a = key(x), b = key(y);
     if (a !== b) return a === null ? 1 : b === null ? -1 : a < b ? -1 : 1;
-    return x.id < y.id ? -1 : x.id > y.id ? 1 : 0;
+    return idOrder(x.id, y.id);
   });
+}
+
+// Ids tie-break by their letters, then by the number after them, so XYZ-999 sorts before XYZ-1000.
+function idOrder(p, q) {
+  const split = (id) => { const m = /^(.*?)(\d+)$/.exec(String(id)); return m ? [m[1], BigInt(m[2])] : [String(id), null]; };
+  const [pa, na] = split(p), [pb, nb] = split(q);
+  if (pa !== pb) return pa < pb ? -1 : 1;
+  if (na === null || nb === null) return na === nb ? 0 : na === null ? -1 : 1;
+  return na < nb ? -1 : na > nb ? 1 : 0;
 }
 
 // One flat list of rows from /api/data: actions, then RAID (its type, lower-cased, is the kind), then decisions.
@@ -108,11 +126,13 @@ export function rowsOf(data) {
   const ms = Object.fromEntries((data.milestones || []).map((m) => [m.id, m.name]));
   // #158: when the data carries an item's freshness (worked out from its history), the row carries it too.
   const fresh = (r) => (r.freshness && typeof r.freshness === "object"
-    ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null } : {});
+    ? { raised: r.freshness.raised || null, last_reviewed: r.freshness.last_reviewed || null, not_reviewed: !!r.freshness.not_reviewed, review_days: r.freshness.days || null }
+    : { raised_on: r.raised || null });      // row 1077: without a history (a published file) the row still knows the date it was raised; under its own name so the Freshness filter is not offered by it
   const common = (r) => ({ ...fresh(r), id: r.id, status: r.status, client: !!r.client_visible, client_action: !!r.client_action, client_message: String(r.client_message || "").trim(),
-    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "" });
+    uc: r.use_case && ucs[r.use_case] ? `Use case ${ucs[r.use_case]}` : "", milestone: (r.milestone && ms[r.milestone]) || "", workstream: r.workstream || "",
+    source: typeof r.source === "string" ? r.source : "" });        // row 1077: a published file's rows carry the source by name; the peek draws it
   const rows = [];
-  for (const r of data.actions || []) rows.push({ ...common(r), kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
+  for (const r of data.actions || []) rows.push({ ...common(r), latest_update: typeof r.latest_update === "string" ? r.latest_update : "", kind: "action", title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed });
   for (const r of data.raid || []) rows.push({ ...common(r), kind: String(r.type).toLowerCase(), title: r.description, owner: r.owner, priority: r.priority, due_date: r.due_date, closed: r.closed,
     impact: r.impact || null, likelihood: r.likelihood || null });   // item 210: the two a risk's or issue's priority follows from
   for (const r of data.decisions || []) rows.push({ ...common(r), kind: "decision", title: r.decision, owner: r.made_by, priority: null, needed_by: r.needed_by, date: r.date, workstream: "", milestone: "" });

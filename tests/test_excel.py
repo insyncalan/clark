@@ -17,7 +17,7 @@ import _paths  # noqa: F401  (puts src/ and vendor/ on the path)
 from _demo import USER, DemoStore
 from openpyxl import load_workbook
 
-from clark import excel, history, look
+from clark import excel, history, look, sanitise
 from clark import excel_import as xi
 from clark import page
 
@@ -49,8 +49,8 @@ HEADERS = {
              "Source", "Updated"],
     "Decisions": ["ID", "Decision", "Project", "Status", "Made by", "Needed by", "Date", "Reasoning", "Options", "Revisit",
                   "Replaces", "Client-visible", "Client wording", "Use case", "Labels", "Source", "Updated"],
-    "Use cases": ["ID", "Use case", "Project", "Shown as", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
-                  "Open work items", "Source", "Updated"],
+    "Use cases": ["ID", "Reference", "Use case", "Project", "Status", "Commitment", "Headline", "Where it stands", "Order", "Client-visible",
+                  "Linked milestones", "Open work items", "Source", "Updated"],
 }
 
 
@@ -166,11 +166,13 @@ class ExcelTests(unittest.TestCase):
 
     def test_round_trip_gives_the_database_values(self):
         back = excel.read_workbook(self.d.path)
+        names = excel._ref_names({t: self.d.store.read(t, "ABC") for t in ("milestones", "use_cases")})
+        shown_ids = {f: {text: i for i, text in m.items()} for f, m in names.items()}
         for _, table, cols, _ in excel.SHEETS:
-            fields = [f for _, f in cols if f not in excel.DERIVED and f != "labels"]
-            stored = {r["id"]: {f: r[f] for f in fields} for r in self.d.store.read(table, "ABC")}
-            got = {r["id"]: {f: (r.get(f).split(": ")[0] if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
-                   for r in back[table]}      # item 710: the cell reads ID: name
+            fields = [f for _, f in cols if f not in excel.DERIVED and f not in ("labels", "milestones")]
+            stored = {r["id"]: {f: (sanitise.rich_plain_text(r[f]) if (table, f) in excel.RICH_WORDS and isinstance(r[f], str) else r[f]) for f in fields} for r in self.d.store.read(table, "ABC")}
+            got = {r["id"]: {f: (shown_ids[f].get(r.get(f), r.get(f)) if f in excel.REF_TABLES and r.get(f) else r.get(f)) for f in fields}
+                   for r in back[table]}      # item 1150: the cell reads the name; mapped back to the id here
             self.assertEqual(got, stored, table)
         labels = {r["id"]: r["labels"] for r in back["actions"]}
         self.assertEqual(labels, {self.d.action: "Sensitive", self.d.closed: None})

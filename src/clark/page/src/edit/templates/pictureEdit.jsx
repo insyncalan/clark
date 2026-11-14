@@ -10,6 +10,9 @@ import { change, say } from "../../stores/changes.js";
 import { stored, PICTURE_TYPES } from "../../templates/pictures.jsx";
 import { safeImage } from "../../templates/safe.js";
 import { shrink, dataBytes, TYPES } from "./shrink.js";
+import { RichField } from "../RichField.jsx";
+import { richOrPlain } from "../../logic/richOrPlain.js";
+import { plainFromEditor } from "../plainWords.js";
 
 export const PAGE_LIMIT = 5 * 1024 * 1024;         // publish.MAX_BYTES: a published page over this is refused
 export const NEAR = 4 * 1024 * 1024;              // pictures past this are close to it (the rest of the page needs room too)
@@ -91,6 +94,25 @@ export function LineField({ section, field, label, value, max, hint, words, chec
     <div class="tpl-pic-field">
       <label for={id}>{label}</label>
       <input id={id} ref={ref} type="text" maxLength={max} placeholder={hint || ""} defaultValue={value || ""} onBlur={commit} onKeyDown={onKeyDown} spellcheck={true} />
+    </div>
+  );
+}
+
+// Item 1005: a caption is on the one editor (RichField) but stays one line of plain text in the report, the page and the file: what the editor
+// gives is saved as one line, never markup. Same arguments as LineField. An older caption loads as one paragraph. Cmd or Ctrl with Enter saves.
+export function CaptionField({ section, field, label, value, max, words, save }) {
+  const html = (() => { try { return richOrPlain(value || ""); } catch (e) { return ""; } })();
+  const put = async (typed) => {
+    const v = plainFromEditor(typed, true);
+    if (v === (value || "")) return true;
+    if (v.length > max) { say("problem", `A caption can be ${max} characters at most. Shorten it and try again.`); return false; }
+    return !!(await (save ? save(v) : saveWords(section, { [field]: v }, words)));
+  };
+  const id = `tpl-${section.id}-${field}`;
+  return (
+    <div class="tpl-pic-field">
+      <span class="tpl-pic-lbl" id={`${id}-lbl`}>{label}</span>
+      <RichField field="caption" id={section.id} value={html} label={label} labelledBy={`${id}-lbl`} empty="Click to write." save={put} oneLine />
     </div>
   );
 }

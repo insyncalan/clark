@@ -50,6 +50,17 @@ class Folders(TempHome):
         self.assertEqual(pl.onedrive_roots(self.home, on=pl.MAC),
                          [cloud / "OneDrive-DemoOrg", cloud / "OneDrive-Personal", self.home / "OneDrive"])
 
+    def test_the_onedrive_refusal_never_carries_the_tenant_folder_name(self):
+        for tenant in ("OneDrive-Fictional Ltd", "OneDrive - Fictional Ltd"):
+            root = self.home / "Library" / "CloudStorage" / tenant
+            (root / "clark").mkdir(parents=True)
+            for what in ("data", "backups"):
+                with self.subTest(tenant=tenant, what=what):
+                    with self.assertRaises(pl.PlatformError) as e:
+                        pl.check_data_dir(root / "clark", roots=[root], what=what)
+                    self.assertNotIn("Fictional", str(e.exception))
+                    self.assertIn("inside OneDrive", str(e.exception))
+
     def test_a_data_folder_inside_onedrive_is_refused_with_the_reason(self):
         root = self.home / "Library" / "CloudStorage" / "OneDrive-DemoOrg"
         (root / "clark").mkdir(parents=True)
@@ -138,6 +149,23 @@ class Dialogs(unittest.TestCase):
         self.assertIsNone(pl.choose_zip_file("Choose", run=FakeRun(1, stderr="execution error: User canceled. (-128)"), on=pl.MAC))
         with self.assertRaisesRegex(pl.PlatformError, "The Open window could not be opened"):
             pl.choose_zip_file("Choose", run=FakeRun(1, stderr="syntax error"), on=pl.MAC)
+
+    def test_an_empty_pick_is_no_pick_not_the_current_folder(self):
+        # osascript can exit 0 with nothing on stdout; Path("") equals "." and would save the cwd as the chosen folder.
+        for out in ("", "\n", "  \t\n"):
+            for call in (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),
+                         lambda r: pl.choose_open_file("Open", run=r, on=pl.MAC), lambda r: pl.choose_zip_file("Open", run=r, on=pl.MAC)):
+                self.assertIsNone(call(FakeRun(0, stdout=out)), repr(out))
+        self.assertEqual(pl.choose_folder("Pick", run=FakeRun(0, stdout="/Users/demo/Reports/\n"), on=pl.MAC), Path("/Users/demo/Reports"))
+
+    def test_a_pick_keeps_the_spaces_in_its_name(self):
+        # osascript prints one path and a line ending; only that line ending goes, not a space that is part of the folder's name.
+        calls = (lambda r: pl.choose_folder("Pick", run=r, on=pl.MAC), lambda r: pl.choose_save_file("Save", "a.html", run=r, on=pl.MAC),
+                 lambda r: pl.choose_open_file("Open", run=r, on=pl.MAC), lambda r: pl.choose_zip_file("Open", run=r, on=pl.MAC))
+        for out, want in (("/Users/demo/ x\n", "/Users/demo/ x"), ("/Users/demo/x \n", "/Users/demo/x "),
+                          ("/Users/demo/x \r\n", "/Users/demo/x "), ("/Users/demo/Reports\n", "/Users/demo/Reports")):
+            for call in calls:
+                self.assertEqual(call(FakeRun(0, stdout=out)), Path(want), repr(out))
 
     def test_the_downloads_folder(self):
         self.assertEqual(Path("/Users/demo/Downloads"), pl.downloads_dir(home="/Users/demo", on=pl.MAC))

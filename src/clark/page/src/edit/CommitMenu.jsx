@@ -4,6 +4,7 @@
 import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { Menu } from "../components/Menu.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { commitWord, commitClass, commitWords } from "../logic/commitment.js";
 
 export const NO_FLAG = "No flag";
@@ -22,7 +23,7 @@ export function CommitMenu({ u, left }) {
     <span class="ucst uccm" data-uc-commit={u.id} data-edit-only>
       <Menu label={w || SET_WORDS} labelCls={`cchip ${w ? commitClass(w) : "cc-set"}`} btnCls="ucw-btn" left={left} chevron={false}
         ariaLabel={w ? `Commitment: ${w}. Change` : "Commitment: none. Set commitment"} menuLabel="Commitment" id={`uccm-${u.id}`}
-        items={[{ id: "head", lab: "Commitment" }, ...words.map((n) => ({ id: n, name: n, checked: w === n })), { id: NONE, name: NO_FLAG, checked: !w }]} onPick={pick} />
+        items={[{ id: "head", lab: "Commitment" }, ...words.map((n) => ({ id: n, name: n, icon: actionIcon("commit"), checked: w === n })), { id: NONE, name: NO_FLAG, icon: actionIcon("none"), checked: !w }]} onPick={pick} />
     </span>
   );
 }

@@ -18,6 +18,7 @@ import { templateFor, templateEmpty } from "../templates/index.js";
 import { rowsOf, shownRows } from "../logic/needs.js";
 import { rowsFor } from "./ItemRows.jsx";
 import { KINDS } from "../logic/sectionRows.js";
+import { milestoneRows } from "../logic/milestones.js";
 import { visibleDocs } from "../logic/documents.js";
 
 // A section set beside the next one shares its row with it (half width each); every other section takes the full row. The rows
@@ -53,13 +54,16 @@ function nearestTop() {
   const line = bar ? bar.getBoundingClientRect().bottom : 0;
   let best = null;
   let most = 0;
+  let below = null;
   for (const el of document.querySelectorAll(".secs > .sec:not(.is-hidden)")) {
     const r = el.getBoundingClientRect();
     const seen = Math.min(r.bottom, window.innerHeight) - Math.max(r.top, line);
     if (seen >= MIN_SEEN) return { id: el.dataset.id, top: r.top };
     if (seen > most) { most = seen; best = { id: el.dataset.id, top: r.top }; }
+    if (!below && r.top >= line) below = { id: el.dataset.id, top: r.top };
   }
-  return best;
+  // Row 699: a dimmed (hidden) section can fill the screen, and View drops it. Then hold the first section that stays, even below the fold.
+  return best || below;
 }
 
 export function Dashboard({ tools }) {
@@ -81,7 +85,7 @@ export function Dashboard({ tools }) {
   // A section template (#96) is drawn in the file and in the served View alike only while it has something to show (its isEmpty,
   // FR-11: View is what the client sees), so an empty template or a stub is in neither.
   const hasNeeds = (s) => shownRows(rowsOf(s, fromFile.value)).length > 0;       // a 'Needs from you' section with no row to show is left out (a left-out row is absent)
-  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : s.type === "tracker" ? true : !!KINDS[s.type] && rowsFor(s.type).length > 0);
+  const fileDraws = (s) => (templateFor(s.type) ? !templateEmpty(s, d) : s.type === "text" ? !emptyBody(s.body) : s.type === "glance" ? !!(d.glance && d.glance.tiles && d.glance.tiles.length) : s.type === "usecases" ? !!(d.use_cases && d.use_cases.length) : s.type === "needs" ? hasNeeds(s) : s.type === "docs" ? visibleDocs(d, true).length > 0 : s.type === "tracker" ? true : s.type === "milestones" ? milestoneRows(d.milestones, todayIso(), true).length > 0 : !!KINDS[s.type] && rowsFor(s.type).length > 0);
   const shown = (s) => !s.hidden && !(fromFile.value && !fileDraws(s)) && !(templateFor(s.type) && templateEmpty(s, d)) && !(s.type === "needs" && !hasNeeds(s)) && !(s.type === "docs" && !visibleDocs(d, fromFile.value).length);       // #74: no document to show, no section
   const list = editing ? all : all.filter(shown);
   const places = slots(all, editing ? undefined : shown);
@@ -98,7 +102,7 @@ export function Dashboard({ tools }) {
     <>
     {Bar ? <Bar /> : null}
     <section class={`frame report${rebuilt.value ? " asat-frame" : ""}`} id="report" data-mode={editing ? "edit" : "view"} inert={rebuilt.value ? true : undefined}>{/* item 349: as at a day, nothing in it can be focused or clicked */}
-      <Cover title={d.project.name} lines={coverLine(d.project, fromFile.value || rebuilt.value ? "" : todayIso())} />
+      {fromFile.value ? null : <Cover title={d.project.name} lines={coverLine(d.project, rebuilt.value ? "" : todayIso())} />}      {/* issue 1146: a published file shows these words in its one top bar */}
       {list.length === 0 ? <p class="muted" id="no-sections">{emptyWhy}</p> : null}
       <div class={`secs${editing && dropAt.value && dropAt.value.line === "end" ? " drop-end" : ""}`}>
         {list.map((s, i) => <Section key={s.id} section={s} index={i} count={list.length} slot={places[i]} anchor={anchors[s.id]} tools={editing ? tools : null} clean={!fromFile.value && tools ? tools.clean : null} />)}

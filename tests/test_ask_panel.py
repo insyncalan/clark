@@ -58,6 +58,10 @@ class Stub:
             return 200, {"ok": False, "code": "no_answer", "message": "That was stopped before an answer came back."}
         return 200, {"ok": True, "answer": self.answer, "parsed": True, "cites": [], "sources": self.sources, "flags": [], "changes": [], "notes": []}
 
+    def open_source(self, body):
+        self.calls.append(("open_source", body))
+        return 200, {"ok": True}
+
     def stop(self, body=None):
         self.calls.append(("stop", body))
         self.stopped = True
@@ -201,7 +205,7 @@ class Panel(Base):
     def test_new_chat_drops_the_earlier_turns_so_a_refused_chat_can_start_again(self):
         with chrome() as cdp:
             p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-new').textContent"), "New chat")
+            self.assertEqual(p.js("document.querySelector('#ask-new').getAttribute('aria-label')"), "New chat")
             self.ask(p, "When is go-live?")
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the question and the answer")
             p.js("document.querySelector('#ask-new').click()")
@@ -239,6 +243,21 @@ class Panel(Base):
             p.js("document.querySelector('.ask-sources summary').click()")
             self.assertTrue(p.js("document.querySelector('.ask-sources').open"))
             self.assertTrue(p.js("document.querySelector('.ask-sources li').checkVisibility()"))
+
+    def test_a_pdf_source_opens_at_its_page(self):
+        self.stub.sources = [{"id": "P1", "label": "Docs/a.pdf (part 2)", "file": "Docs/a.pdf", "page": 4}, {"id": "P2", "label": "plan.xlsx", "file": None, "page": None}]
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            self.assertEqual(p.js("document.querySelectorAll('.ask-sources li button').length"), 1, "only the PDF is a button")
+            self.assertEqual(p.js("document.querySelector('.ask-sources li button').textContent"), "Docs/a.pdf")
+            p.js("document.querySelector('.ask-sources summary').click()")
+            p.js("document.querySelector('.ask-sources li button').click()")
+            deadline = time.time() + 10
+            while not self.stub.count("open_source") and time.time() < deadline:
+                time.sleep(0.1)
+            got = [c[1] for c in self.stub.calls if c[0] == "open_source"]
+            self.assertEqual([(b["file"], b["page"]) for b in got], [("Docs/a.pdf", 4)])
 
     def test_sources_open_and_close_on_enter_and_space(self):
         self.stub.sources = [{"id": "P1", "label": "plan.xlsx"}]
@@ -278,8 +297,56 @@ class Panel(Base):
             p.until("document.querySelectorAll('.ask-turn').length === 2", "the question stayed and the stopped line followed")
             self.assertEqual(self.stub.count("stop"), 1)
             self.assertEqual(p.js("document.querySelector('.ask-turn .ask-text').textContent"), "Summarise the risks")
-            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "Stopping. Your question and the earlier answers stay here.")
+            self.assertEqual(p.js("document.querySelector('#ask-note').textContent"), "", "the Stopping line is gone once the stop has finished")
             self.assertEqual(p.js("document.querySelector('#ask-stop')"), None)
+
+    def test_stop_pressed_puts_focus_back_in_the_question_box(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "Stop appeared while the question was out")
+            p.js("(() => { const b = document.querySelector('#ask-stop'); b.focus(); b.click(); })()")
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "stopped", 30)
+            p.until("document.activeElement && document.activeElement.id === 'ask-box'", "focus is in the question box, not on the page body", 30)
+
+    def test_an_answer_landing_does_not_steal_focus_from_another_control_in_the_panel(self):
+        self.stub.hold.clear()
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.ask(p, "Summarise the risks")
+            p.until("!!document.querySelector('#ask-stop')", "the question is out", 30)
+            p.js("document.querySelector('#ask-close').focus()")
+            held = p.js("document.activeElement.id || document.activeElement.className")
+            self.assertTrue(held, "a control other than Stop holds focus")
+            self.stub.hold.set()
+            p.until("document.querySelectorAll('.ask-turn').length === 2 && !document.querySelector('#ask-stop')", "the answer landed", 30)
+            self.assertEqual(p.js("document.activeElement.id || document.activeElement.className"), held, "focus stayed where the person put it")
+
+    def test_the_ask_button_closes_the_panel_when_it_is_open(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            # the panel covers the button where it sits, so this is the press the keyboard makes (and a click where it is not covered)
+            p.js("(() => { const b = document.querySelector('#ask-btn'); b.dispatchEvent(new MouseEvent('mousedown', {bubbles: true})); b.click(); })()")
+            p.until("document.querySelector('#ask-panel') === null", "the button closed the open panel", 30)
+            p.until("document.querySelector('#ask-btn').getAttribute('aria-expanded') === 'false' && document.querySelector('#ask-panel') === null", "and it stayed closed", 30)
+
+    def test_hunt19_the_grip_says_its_width_to_a_screen_reader(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.assertTrue(p.js("/^\\d+$/.test(document.querySelector('#ask-grip').getAttribute('aria-valuenow') || '')"))
+            before = int(p.js("document.querySelector('#ask-grip').getAttribute('aria-valuenow')"))
+            p.js("document.querySelector('#ask-grip').focus()")
+            p.key("ArrowLeft", code="ArrowLeft", vk=37)
+            p.until(f"+document.querySelector('#ask-grip').getAttribute('aria-valuenow') > {before}", "the value follows the width")
+
+    def test_a_long_answer_opens_at_its_first_line_and_a_short_one_at_the_end(self):
+        self.stub.answer = "\n".join(f"Line {i} of a long answer." for i in range(150))
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.answered(p)
+            top = p.js("(() => { const l = document.querySelector('#ask-log'), a = document.querySelector('.ask-turn.assistant'); return a.getBoundingClientRect().top - l.getBoundingClientRect().top; })()")
+            self.assertTrue(-2 <= top <= 40, f"the answer's first line is at the top of the log (offset {top})")
 
     def test_off_sends_no_request_and_links_to_settings(self):
         self.stub.enabled = False
@@ -300,6 +367,7 @@ class Panel(Base):
             p.js("document.querySelector('.ask-form').requestSubmit()")
             p.js("document.querySelector('#ask-box').value = 'hello'; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('.ask-form').requestSubmit()")
+            p.js("document.querySelector('#ask-box').value = ''; document.querySelector('#ask-box').dispatchEvent(new Event('input'))")
             p.js("document.querySelector('[data-ask-settings]').click()")
             p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1", "the link went to Settings and closed the panel")
             self.assertEqual(self.stub.count("ask"), 0, "no question reached the server")
@@ -457,6 +525,30 @@ class Panel(Base):
             self.ask(p, "Hello")
             p.until("!!document.querySelector('#ask-off')", "the panel went to the off line")
 
+    def test_a_question_that_got_no_answer_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (500, {"ok": False, "message": "Something went wrong."})
+            self.ask(p, "Where did it go?")
+            p.until("!!document.querySelector('.ask-turn.problem')", "a reply line came")
+            p.until("document.querySelector('#ask-box').value === 'Where did it go?'", "the question is back in the box")
+            self.assertEqual(p.js("document.querySelectorAll('.ask-turn.user').length"), 0, "the question is in the box, so it is not also in the transcript")
+
+    def test_a_question_sent_as_asking_went_off_goes_back_in_the_box(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            self.stub.ask = lambda body: (409, {"ok": False, "code": "asking_off", "message": "Asking is off."})
+            self.ask(p, "Hello again")
+            p.until("!!document.querySelector('#ask-off')", "the off line")
+            p.until("!!document.querySelector('#ask-box') && document.querySelector('#ask-box').value === 'Hello again'", "the question is back in the box")
+
+    def test_escape_during_composition_does_not_close_the_panel(self):
+        with chrome() as cdp:
+            p = self.opened(cdp)
+            p.js("document.querySelector('#ask-box').dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', isComposing: true, bubbles: true, cancelable: true}))")
+            time.sleep(0.5)
+            self.assertTrue(p.js("!!document.querySelector('#ask-panel')"), "Esc that ends a composition leaves the panel open")
+
     def test_not_signed_in_says_so_with_a_link_to_settings(self):
         self.stub.connected = False
         with chrome() as cdp:
@@ -467,16 +559,27 @@ class Panel(Base):
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
             self.assertEqual(self.stub.count("ask"), 0)
 
-    def test_with_chatgpt_in_use_the_panel_says_so_and_never_names_claude(self):
-        """#54: what the panel says about where text goes has to be true for the provider in use."""
+    def test_row_1097_the_open_settings_link_with_no_model_connected_lands_on_the_asking_card(self):
+        self.stub.connected = False
+        with chrome() as cdp:
+            p = self.opened(cdp, ready=False)
+            p.until("!!document.querySelector('#ask-signed-out')", "the sign-in line")
+            self.assertEqual(p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').textContent.trim()"), "Open Settings")
+            p.js("document.querySelector('#ask-signed-out a[data-ask-settings]').click()")
+            p.until("document.querySelector('#ask-panel') === null && location.hash.indexOf('settings') === 1 && !!document.querySelector('#ask-settings')", "Settings, with the Asking card")
+            p.until("!!document.activeElement && document.activeElement.tagName === 'H2' && !!document.activeElement.closest('#ask-settings')", "focus on the Asking card's heading")
+            p.until("(function(){ var t = document.querySelector('#ask-settings').getBoundingClientRect().top; return t >= -2 && t < 200; })()", "the card is scrolled into view at the top, not left below the fold")
+            time.sleep(1)       # the page's own place-restore runs for a moment: it must not set the scroll back
+            top = p.js("document.querySelector('#ask-settings').getBoundingClientRect().top")
+            self.assertTrue(-2 <= top < 200, f"the card is still in view a moment later ({top})")
+
+    def test_with_chatgpt_in_use_the_panel_has_no_line_about_where_text_goes(self):
+        """#54, #1062: that line lives in Settings now; the panel names neither Claude nor Anthropic nor billing."""
         self.stub.provider = "ChatGPT"
         with chrome() as cdp:
             p = self.opened(cdp)
-            p.until("document.querySelector('#ask-sent').textContent.includes('ChatGPT, which OpenAI runs')", "the line follows the provider")
-            said = p.js("document.querySelector('#ask-sent').textContent")
-            self.assertEqual(said, "Your question and the passages it needs go to ChatGPT, which OpenAI runs, and are billed to the ChatGPT account signed in on this computer.")
-            self.assertNotIn("Claude", said)
-            self.assertNotIn("Anthropic", said)
+            self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
+            self.assertNotIn("Anthropic", p.js("document.querySelector('#ask-panel').textContent"))
 
     def test_chatgpt_not_signed_in_names_chatgpt(self):
         self.stub.provider, self.stub.connected = "ChatGPT", False
@@ -496,13 +599,12 @@ class Panel(Base):
             self.assertNotIn("not signed in", said)
             self.assertEqual(p.js("document.querySelectorAll('#ask-signed-out a[data-ask-settings]').length"), 1)
 
-    def test_the_panel_says_where_a_question_goes_and_who_pays(self):
-        """#47a: the connect box says the passages go to Claude and are billed to the signed-in account; off, it says nothing of it."""
-        sent = ("Your question and the passages it needs go to Claude, which Anthropic runs, "
-                "and are billed to the Claude account signed in on this computer.")
+    def test_the_panel_no_longer_carries_the_billing_sentence(self):
+        """#1062: the sentence about where a question goes and who pays moved to Settings; the panel says none of it, on or off."""
         with chrome() as cdp:
             p = self.opened(cdp)
-            self.assertEqual(p.js("document.querySelector('#ask-sent').textContent"), sent)
+            self.assertEqual(p.js("document.querySelector('#ask-sent')"), None)
+            self.assertNotIn("billed", p.js("document.querySelector('#ask-panel').textContent"))
             self.assertEqual(p.js("document.querySelector('#ask-log').getAttribute('role')"), "log", "answers are announced")
         self.stub.enabled = False
         with chrome() as cdp:
@@ -571,14 +673,20 @@ class Words(unittest.TestCase):
                 self.assertRegex(plain or tpl, r"[.…]$", name)
         said = dict((n, p or t) for n, p, t in lines)
         self.assertEqual(said["OFF_LINE"], "Asking is off. Turn it on in Settings.")
-        self.assertIn("billed to the Claude account", said["SENT_LINE"], "the connect box says who pays (#47a)")
+        self.assertNotIn("SENT_LINE", said, "the panel has no billing line (#1062)")
+        self.assertIn("billed to the Claude account", said["ASK_NOTICE_LINE"], "Settings says who pays (#1062)")
         for name in ("SIGNED_OUT_LINE", "NO_ANSWER_LINE", "NOT_REACHED_LINE", "EMPTY_LINE"):
             self.assertRegex(said[name], r"(Sign in|Wait|Check|Type|then)", f"{name} has a next step")
+
+    def test_help_points_to_the_asking_card_for_where_a_question_goes(self):
+        """#1062: Help says the Asking card in Settings tells where a question goes and who pays."""
+        text = (ROOT / "src" / "clark" / "page" / "src" / "help" / "helpContent.json").read_text(encoding="utf-8")
+        self.assertIn("That card also says where a question goes and which account pays for it.", text)
 
     def test_the_published_page_has_no_panel(self):
         from clark import page
         html = (ROOT / "src" / "clark" / "page" / "page-view.html").read_text(encoding="utf-8")
-        for needle in ("ask-panel", "ask-sources", "/api/ask", "billed to the Claude account", "Claude is not signed in"):
+        for needle in ("ask-panel", "ask-sources", "/api/ask", "Claude is not signed in"):
             self.assertNotIn(needle, html)
         self.assertIn("ask-panel", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 

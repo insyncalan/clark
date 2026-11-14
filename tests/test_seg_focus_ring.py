@@ -22,7 +22,7 @@ from test_server import CHROME, Running, chrome, wait  # noqa: E402
 from test_work_items import FIXED_DATE, load_demo, page_target  # noqa: E402
 
 EMPTY_BRANDING = tempfile.mkdtemp(prefix="clark-no-brand-")
-VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL", "usecases": "#usecases&p=TUL"}
+VIEWS = {"settings": "#settings", "work": "#work&p=TUL&f=mode:all", "milestones": "#milestones&p=TUL"}      # Row 1085: the Use cases page has no group of words with a chosen half any more (the Status switch became four vtab tabs, as on the Work items page), so it is not listed
 # every chosen half of a group of words (not the icon pair, not the View | Edit pill), focused, and what its ring and its fill are
 MEASURE = r"""(() => {
   const out = [];
@@ -81,7 +81,7 @@ class SegFocusRing(unittest.TestCase):
         quiet.start()
         self.addCleanup(quiet.stop)
 
-    def read(self, code):
+    def read(self, code, archived=None):
         st = open_store(self.path, onedrive_roots=[])
         try:
             return st.data_for(code)
@@ -129,7 +129,7 @@ class SegFocusRing(unittest.TestCase):
                                 self.assertGreaterEqual(ratio(ring, fill), 3.0, f"{label}: ring {ring} on fill {fill} is {ratio(ring, fill):.2f}:1")
                         if got["pill"]:
                             self.assertEqual(got["pill"]["offset"], 1, where + ": the View | Edit pill keeps its own outset ring")
-        self.assertTrue({"Appearance", "Type", "Milestones view", "Calendar scale", "Layout"} <= seen, f"the groups measured: {sorted(seen)}")
+        self.assertTrue({"Appearance", "Milestones view", "Calendar scale", "Layout"} <= seen, f"the groups measured: {sorted(seen)}")
 
 
 if __name__ == "__main__":

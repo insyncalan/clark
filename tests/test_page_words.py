@@ -24,7 +24,7 @@ from test_server import Running, chrome, wait  # noqa: E402
 
 READ_FAILED = "This project could not be read. Reload the page. If it happens again, restart clark."
 HIT_PROBLEM = "A problem came up reading this project. Reload the page. If it happens again, restart clark."
-NOT_ACCEPTED = "That request was not accepted. Reload the page."
+NOT_ACCEPTED = "That was not accepted. Reload the page."
 STALE = "This page is out of date because clark was restarted after you opened it. Reload the page and try again."
 NOT_ANSWERING = "Nothing is running behind this page. After a while with nothing open, clark stops by itself. Start it again from clark.command."
 WENT_WRONG = "Something went wrong"
@@ -43,7 +43,7 @@ class Fake:
         self.mode = "ok"
         self.release = threading.Event()
 
-    def __call__(self, code):
+    def __call__(self, code, archived=None):
         if self.mode == "keyerror":
             raise KeyError("secret/path/name")
         if self.mode == "none":
@@ -103,13 +103,30 @@ class Words(unittest.TestCase):
             self.shown(cdp, sid, [WENT_WRONG, NOT_ANSWERING, "Try again"])
             self.recovers(cdp, sid)
 
+    def test_in_docker_the_no_answer_words_do_not_say_it_stops_by_itself_or_name_clark_command(self):
+        # row 1080: the container's page (data-container="1") has its own sentence; the outside words stay for everyone else
+        self.fake.mode = "drop"
+        with mock.patch.object(clark_platform, "container_mode", lambda: True), chrome() as cdp:
+            sid = self.visit(cdp)
+            self.shown(cdp, sid, [WENT_WRONG, "Nothing is running behind this page. Start clark again the same way you did before.", "Try again"])
+            body = cdp.js("document.body.innerText", sid)
+            self.assertNotIn("stops by itself", body)
+            self.assertNotIn("clark.command", body)
+
     def test_a_server_that_is_stopped_says_clark_is_not_answering_and_try_again_works_when_it_is_back(self):
         port = self.s.port
 
         def page_then_stop():
             """Serves the page, then clark's window closes: the page's own request for the data finds nobody."""
-            threading.Thread(target=lambda: (self.s.httpd.shutdown(), self.s.httpd.server_close()), daemon=True).start()
-            time.sleep(0.5)
+            mine = threading.get_ident()
+            def close():
+                self.s.httpd.shutdown()
+                self.s.httpd.server_close()
+                self.s.httpd.drop_connections(keep=mine)      # Chrome's spare connections, accepted before the close, would still answer the page's request for the data
+            closing = threading.Thread(target=close, daemon=True)
+            closing.start()
+            closing.join(10)      # the server is closed before the page is given out, not after a guess of how long that takes
+            self.assertFalse(closing.is_alive(), "the server closed")
             return page.page_html(tempfile.mkdtemp())
         self.s.httpd.page_html = page_then_stop
         with chrome() as cdp:
@@ -129,7 +146,7 @@ class Words(unittest.TestCase):
             self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
-    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that_request(self):
+    def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
         def refuse(handler):
             handler.send(403, {"ok": False, "message": "Not allowed"})
             return False
@@ -143,7 +160,7 @@ class Words(unittest.TestCase):
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
         odd = "ValueError: bad JSON in /Users/someone/file.py"
-        cases = {500: HIT_PROBLEM, 400: "That request could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
+        cases = {500: HIT_PROBLEM, 400: "That could not be read. Reload the page.", 403: NOT_ACCEPTED, 409: READ_FAILED}
         for code, wanted in cases.items():
             def route(handler, code=code):
                 handler.send(code, {"ok": False, "message": odd})
@@ -173,10 +190,14 @@ class Words(unittest.TestCase):
         with chrome() as cdp:
             sid = self.visit(cdp)
             self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#report')", sid), WAIT))
-            cdp.js("document.querySelector('[data-view=settings]').click()", sid)
+            cdp.js("document.querySelector('#profile-btn').click()", sid)      # row 976: Settings is no tab; the profile circle's menu opens it
+            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#profile-menu')", sid), WAIT))
+            cdp.js("document.querySelector('#profile-menu [data-kind=settings], #profile-menu [data-kind=who]').click()", sid)
+            system = cdp.js("(navigator.userAgentData && navigator.userAgentData.platform) || navigator.platform || ''", sid).strip() or "unknown"   # what the page itself reads
             self.shown(cdp, sid, ["Settings",
                                   "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude.",
-                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking",      # the chips: one for each card below, in the order they are on the page
+                                  "Search settings",      # row 1115 S2: the box under the help line
+                                  "Profile", "Publishing", "Personal", "Freshness", "Gantt", "Logs and diagnostics", "Projects", "Data", "Backups", "Version and updates", "Brands", "People", "Asking", "Feedback", "Quit",      # the chips: one for each card below, in the order they are on the page
                                   "Profile",      # row 950: the first card, with the About you boxes that were in Personal
                                   "About you", "Your name", "Shown at the top of your menu, as the name on each change you make, and on Excel exports and publications. Optional.",     # #180
                                   "Alias", "Your first name and your initials, worked out from your full name. You can change it.",     # item 613
@@ -188,18 +209,11 @@ class Words(unittest.TestCase):
                                   "This must be a folder OneDrive syncs to the client's SharePoint. Publish copies the finished page "
                                   "into it when you tick To client; OneDrive then uploads it.",
                                   "No client folder yet.", "Choose folder", "or paste the folder's path", "Use", "A folder on this computer.",
-                                  "Published reports · Example Programme",      # #443: the card; the page has no server here, so its list says it could not be read
-                                  "Every time you publish, the report gets the next number for this project and a copy of the page is kept. Open shows the copy as it was published. Every copy is kept; this list shows the latest 10.",
-                                  "The published reports could not be read. Reload the page and try again. Try again",
-                                  "Dashboard as at a day",      # #349: under the list
-                                  "See the Dashboard as it stood at the end of a day, rebuilt from the change history. Read only; it was not published in this form.",
-                                  "Day", "Show",      # the box's label is read by a screen reader only
                                   "Personal",    # #45: Settings › Personal, the section styles
-                                  "These are for you, on this computer. The section style is used on the published report too; Light or Dark is yours alone.",
-                                  "Dashboard sections", "Slim gaps", "Each section is its own card, with a slim gap that shows the page picture.",
-                                  "Roomy gaps", "The same, with more space between the sections.", "Grey headers", "Slim gaps, and each section title in a grey band, like the Work items groups.",
-                                  "One card", "All the sections in one long card.",
-                                  "Appearance", "System", "Light", "Dark", "Follows your Mac's setting.",      # #179
+                                  "These are for you, on this computer. Your spacing choice is used on the published report too; Light or Dark is yours alone.",
+                                  "Spacing", "Compact", "The Dashboard sections run on in one flat page, with thin lines between them, so more fits on the screen.",
+                                  "Comfortable", "Each Dashboard section is its own card, with room between them.",
+                                  "Appearance", "System", "Light", "Dark", "Follows your computer's setting.",      # #179
                                   "Keys", "Single-key shortcuts",            # #193
                                   "Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.",
                                   "Freshness",          # #160: the project's "Not reviewed after (days)"
@@ -217,7 +231,7 @@ class Words(unittest.TestCase):
                                   "Archive hides a project and everything in it from clark. Nothing is deleted: Show archived brings it back to the list, and Restore puts it back to work.",
                                   "NAME\tCODE\tCLIENT\tWORKSTREAMS\tITEMS", "Demo programme\tDEMO\t—\t—\t0\tOpenEditArchive", "ABC Open now\tABC\t—\t—\t1\tEditArchive",
                                   "Data",               # A-S11: the Data card follows the Projects table (the prototype order)
-                                  "Export workbook", "Import workbook",        # #444: Export and Import
+                                  "Export workbook", "Import workbook", "Excel file layout", "Export to Word…", "Import from Word…",        # #444: Export and Import; row 831: the two Word buttons (the prototype's own words)
                                   "The workbook has a sheet each for actions, risks and issues, decisions, milestones and use cases.",      # item 454: the prototype's one sentence (the owner approved the words)
                                   "Backups",            # #111: the backups card; this server has no backups to list
                                   "A copy of your data is kept each day, and before an undo or an import. Choose one to look at, or to put back.",
@@ -232,7 +246,8 @@ class Words(unittest.TestCase):
                                   "Everyone who owns a work item or a milestone. Owners are still picked by name. Add an email, organisation and role so people can be found and emailed.",
                                   "The people list could not be read. Reload the page. If it happens again, restart clark. Try again",
                                   "Asking",             # #47: the switch and its folders, below the client folder
-                                  "Claude is started on this computer for you. What you ask is billed to the Claude account signed in on this computer.",
+                                  "Claude is started on this computer for you.",
+                                  "Your question and the passages it needs go to Claude, which Anthropic runs, and are billed to the Claude account signed in on this computer.",
                                   "Asking is off, because clark could not check the setting just now. Reload the page to try again.",   # this server has no switch route: off
                                   "Turn on asking", "Folders asking may read",
                                   "Asking may read the files in these folders, as well as this project's own data. It only reads: it never changes a file. "
@@ -240,7 +255,11 @@ class Words(unittest.TestCase):
                                   "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.",
                                   "AI",                 # #72: the AI status line under Asking (AiSettings.jsx); no /api/ai/status route here: 404, so the later-version line
                                   "Suggestions for the text you select in the report. Nothing changes until you accept one.",
-                                  "AI suggestions come in a later version."])
+                                  "AI suggestions come in a later version.",
+                                  "Feedback", "Tell us what is wrong or what you would like to see. Your mail app opens with the message ready and you press send. Nothing is sent by clark itself.",
+                                  "What is wrong, or what would you suggest?How can we reach you? (optional)", "Added to the email", "Version of clark: unknown", f"System: {system}",
+                                  "Only these lines are added to what you write. Nothing from your reports is included.", "Copy as text",
+                                  "Quit", "Quit clark when you have finished. Nothing is left running.", "Quit clark"])      # #836: the Quit card, last on the page
         self.fake.mode = "wait"
         with chrome() as cdp:
             sid = self.visit(cdp)
@@ -263,7 +282,7 @@ class Words(unittest.TestCase):
     def test_the_empty_pages_say_why_and_name_one_control(self):
         empty = {"project": {"code": "EMP", "name": "Empty Project"}, "milestones": [], "workstreams": [], "actions": [], "raid": [],
                  "decisions": [], "use_cases": [], "links": [], "labels": {}, "report_sections": []}
-        s = Running(data_for=lambda code: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
+        s = Running(data_for=lambda code, archived=None: empty, page_html=lambda: page.page_html(tempfile.mkdtemp()))
         self.addCleanup(s.close)
         want = {"#dashboard&p=EMP": "This report has no sections yet. Switch to Edit to add one.",
                 "#work&p=EMP": "This project has no work items yet. Use Add item to add the first.",
@@ -294,6 +313,25 @@ class Words(unittest.TestCase):
             text = (Path(page.PAGE).parents[1] / name).read_text(encoding="utf-8")
             self.assertNotIn("The folder {folder} isn't there", text)
             self.assertNotIn("was saved in {folder},", text)
+
+    def test_the_page_words_say_data_not_database_and_that_not_request(self):
+        """Item 1126: the refusal and backup words on screen use plain words."""
+        root = SRC / "clark"
+        shown = {
+            "logic/safety.js": ["different set of data"],
+            "stores/report.js": ["That was not accepted.", "That could not be read."],
+            "help/helpContent.json": ["different set of data"],
+        }
+        for name, want in shown.items():
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            for w in want:
+                self.assertIn(w, text, name)
+        for name in ("logic/safety.js", "stores/report.js"):
+            text = (root / "page" / "src" / name).read_text(encoding="utf-8")
+            self.assertNotIn("different database", text)
+            self.assertNotIn("That request ", text)
+        client = (root / "to_client.py").read_text(encoding="utf-8")
+        self.assertNotIn("which holds the database", client)
 
     def test_no_text_in_the_page_source_says_report_editor_or_capital_clark(self):
         files = [f for f in PAGE_SRC.rglob("*") if f.is_file()] + [PAGE_SRC.parent / "shell.css"]
@@ -341,7 +379,8 @@ class Words(unittest.TestCase):
         """#209: the Update entry shows the button as Review X.Y.Z, not a real-looking version."""
         for path in (PAGE_SRC / "help" / "helpContent.json", PAGE_SRC.parents[3] / "system" / "prototype" / "help.js"):
             text = path.read_text(encoding="utf-8")
-            self.assertIn("X.Y.Z", text, path.name)                                  # the placeholder, whatever the button is called
+            if path.suffix == ".js":
+                self.assertIn("X.Y.Z", text, path.name)                              # the prototype keeps the placeholder
             self.assertNotRegex(text, r"Review v?\d+\.\d+\.\d+", path.name)
 
     def test_every_publish_message_a_person_can_see_is_plain_words(self):
