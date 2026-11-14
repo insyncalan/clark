@@ -8,13 +8,12 @@ Run: python3 dev/run_tests.py test_published_header_option_c        (needs Chrom
 Computed style and DOM, at 1400 and 900 px, light and dark. Fictional data. Selectors are generic on purpose: they find the date, the
 logo and the menu by what they say and do, not by a class the build has to use.
 """
-import time
 import unittest
 
 from _demo import USER
 from test_glance_page import Published, Setup
 from test_report_editor import tearDownModule  # noqa: F401
-from test_server import chrome
+from test_server import chrome, wait
 
 CASES = ((1400, False), (1400, True), (900, False), (900, True))
 CLIENT = "Example Client"
@@ -117,7 +116,7 @@ class InTheFile(Published):
           const el = [...bar.querySelectorAll('*')].filter((e) => re.test(e.textContent) && ![...e.children].some((c) => re.test(c.textContent)))
             .filter((e) => !e.closest('.top-line, .cover-line'))[0];
           (el.closest('button, a[href], [role=button], input, [tabindex]') || el).click(); })()""")
-        time.sleep(0.4)
+        wait(lambda: p.js(CAL)["native"] or p.js(CAL)["pops"] > before["pops"] or p.js(CAL)["days"] >= 28, 3)
         after = p.js(CAL)
         opened = after["native"] or after["pops"] > before["pops"] or after["days"] >= 28
         self.assertTrue(opened, f"a calendar opened (before {before}, after {after})")
