@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -150,9 +151,14 @@ class Script(unittest.TestCase):
         stub = self.bin / "docker"
         stub.write_text('#!/bin/sh\necho "$@" >> "$DOCKER_LOG"\n', encoding="utf-8")
         stub.chmod(0o755)
+        self.opened = Path(self.tmp) / "opened.log"
+        fake = self.bin / "fakebrowser"       # item 636: the starter opens a window; a test must never open a real browser
+        fake.write_text('#!/bin/sh\necho "$@" >> "$OPENED_LOG"\n', encoding="utf-8")
+        fake.chmod(0o755)
+        self.fake = fake
 
     def run_script(self, data, *args):
-        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_DATA_DIR": data}
+        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_BROWSER": str(self.fake), "OPENED_LOG": str(self.opened), "CLARK_DATA_DIR": data}
         return subprocess.run(["bash", str(ROOT / "docker" / "start.command"), *args], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
 
     def test_a_synced_folder_stops_before_docker_is_reached(self):
@@ -176,7 +182,7 @@ class Script(unittest.TestCase):
             (Path(self.tmp) / "repo" / f).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy(ROOT / f, Path(self.tmp) / "repo" / f)
         (Path(self.tmp) / "repo" / "docker" / ".env").write_text(f"CLARK_DATA_DIR={self.tmp}/Dropbox/my data\n", encoding="utf-8")
-        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log)}
+        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_BROWSER": str(self.fake), "OPENED_LOG": str(self.opened)}
         r = subprocess.run(["bash", str(Path(self.tmp) / "repo" / "docker" / "start.command")], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertIn("inside Dropbox", r.stderr)
@@ -197,6 +203,31 @@ class Script(unittest.TestCase):
                            "DOCKER_LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/Google Drive/my data"}, capture_output=True, text=True, cwd=self.tmp, timeout=60)
         self.assertEqual(r.returncode, 1, r.stderr)
         self.assertFalse(self.log.exists())
+
+    def test_the_window_opens_with_the_browser_found(self):
+        """Item 636: after compose up, the starter opens http://localhost:8766 with CLARK_BROWSER (stub), without a real browser."""
+        opened = self.opened
+        env = {"PATH": f"{self.bin}:{os.environ['PATH']}", "HOME": self.tmp, "DOCKER_LOG": str(self.log), "CLARK_BROWSER": str(self.fake),
+               "OPENED_LOG": str(opened), "CLARK_DATA_DIR": f"{self.tmp}/data", "CLARK_PORT": "8780"}
+        r = subprocess.run(["bash", str(ROOT / "docker" / "start.command")], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        for _ in range(50):
+            if opened.exists():
+                break
+            time.sleep(0.1)
+        self.assertEqual(opened.read_text(encoding="utf-8").strip(), "http://localhost:8780")
+
+    def test_open_clark_order_and_fallback(self):
+        calls = []
+        popen = lambda argv, **kw: calls.append(argv)
+        chrome, edge = sc.BROWSERS_MAC[0], sc.BROWSERS_MAC[2]
+        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: p in (chrome, edge), popen), chrome)
+        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: p == edge, popen), edge)
+        self.assertEqual(sc.open_clark("http://localhost:8766", {}, lambda p: False, popen), "")
+        self.assertEqual(calls[-1], ["open", "http://localhost:8766"])
+        self.assertEqual(sc.open_clark("http://localhost:8766", {"CLARK_BROWSER": "/x/b"}, lambda p: p == "/x/b", popen), "/x/b")
+        with self.assertRaises(ValueError):
+            sc.open_clark("file:///etc/passwd", {}, lambda p: True, popen)
 
     def test_the_compose_file_names_the_starter(self):
         text = (ROOT / "docker" / "compose.yaml").read_text(encoding="utf-8")

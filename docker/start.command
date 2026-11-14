@@ -8,4 +8,6 @@ cd "$here/.." || exit 1
 if [ -d .app ]; then check=.app/src/clark/starter_check.py; else check=src/clark/starter_check.py; fi
 export PYTHONDONTWRITEBYTECODE=1
 python3 "$check" --env-file "$PWD/docker/.env" || exit 1
-exec docker compose -f "$PWD/docker/compose.yaml" up -d "$@"
+docker compose -f "$PWD/docker/compose.yaml" up -d "$@" || exit $?
+# Then open clark's window with Chrome, else Edge, else the default browser (item 636). A failure here is not a failure to start.
+python3 "$check" --open "http://localhost:${CLARK_PORT:-8766}" || true
