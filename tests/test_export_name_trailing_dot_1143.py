@@ -40,6 +40,29 @@ class TrailingDot(unittest.TestCase):
             self.assertNotRegex(out, r"[. ]\(NWD\)", name)
             self.assertTrue(out.endswith("(NWD)" + TAIL), name)
 
+    def test_a_multibyte_name_is_cut_by_the_byte_limit_on_a_character_boundary(self):
+        out = excel.download_name("\u20ac" * 50, "NWD", WHEN)      # 150 bytes, 50 characters: 40 euro signs fit in 120 bytes
+        self.assertEqual(out, "\u20ac" * 40 + "(NWD)" + TAIL)
+
+    def test_a_byte_cut_inside_a_character_that_leaves_a_dot_last_drops_the_dot(self):
+        name = "\u20ac" * 39 + ".\u20ac tail"      # 118 bytes, the dot is byte 118 and the next sign would end at 121
+        self.assertEqual(excel.download_name(name, "NWD", WHEN), "\u20ac" * 39 + "(NWD)" + TAIL)
+
+    def test_no_name_with_a_code_uses_the_code_alone(self):
+        self.assertEqual(excel.download_name(None, "NWD", WHEN), "NWD" + TAIL)
+
+    def test_no_name_and_no_code_gives_work_items(self):
+        self.assertEqual(excel.download_name("", "", WHEN), "work items" + TAIL)
+        self.assertEqual(excel.download_name(None, None, WHEN), "work items" + TAIL)
+
+    def test_a_name_ending_in_a_non_breaking_space_then_a_dot_leaves_neither_before_the_code(self):
+        self.assertEqual(excel.download_name("Plan\u00a0.", "NWD", WHEN), "Plan(NWD)" + TAIL)
+        self.assertEqual(excel.download_name("Plan.\u00a0.\u00a0", "NWD", WHEN), "Plan(NWD)" + TAIL)
+        self.assertEqual(excel.download_name("Plan\u00a0.", "", WHEN), "Plan" + TAIL)
+
+    def test_a_code_ending_in_a_non_breaking_space_then_a_dot_has_neither_before_the_date(self):
+        self.assertEqual(excel.download_name("", "NWD\u00a0.", WHEN), "NWD" + TAIL)
+
 
 if __name__ == "__main__":
     unittest.main()
