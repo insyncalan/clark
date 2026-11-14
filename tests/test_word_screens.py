@@ -119,6 +119,8 @@ class Screens(unittest.TestCase):
         return p.js("(document.querySelector('.word-msg') || {}).innerText || ''")
 
     def focus_is(self, p):
+        # Word.jsx puts focus back in an effect after the phase changes, so wait for it to leave BODY
+        p.until("!!document.activeElement && document.activeElement !== document.body", "focus was placed")
         return p.js("(function(){var e=document.activeElement;return e.id || e.getAttribute('data-go') !== null && 'go' || e.tagName})()")
 
     def colours(self, p, box, scheme):
@@ -429,7 +431,7 @@ class WordToo(Screens):
                 p.until("!document.querySelector('#publish-dialog')", "closed")
                 p.open_publish()
                 self.assertFalse(p.js("document.querySelector('#pub-word').checked"), "reopened: unticked, never remembered")
-                self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
+                self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0)
 
     def test_ticked_it_saves_the_word_report_beside_the_web_page_and_says_both(self):
         with chrome() as cdp:

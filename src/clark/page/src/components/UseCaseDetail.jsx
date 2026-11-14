@@ -7,13 +7,14 @@
 // out). A work item row and a linked milestone's name open their peek beside the page (row 859, row 860): the page stays, Esc closes the
 // peek and the focus goes back to the row or name. "Open all N in Work items" is the one way from here to the Work items page.
 import { useEffect, useLayoutEffect, useRef, useState } from "preact/hooks";
-import { data, rows, fromFile, project, openWork, openPeek } from "../stores/report.js";
+import { data, rows, fromFile, project, openWork, openPeek, openUseCases } from "../stores/report.js";
 import { change, say } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
@@ -228,10 +229,11 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
         {!ro ? (
           <div class="ucd-acts">
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
-              items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
+              items={STATUSES.map(([name]) => ({ id: name, name, icon: actionIcon("status"), checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
               onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
+            {ed && ed.RecordMore ? <ed.RecordMore row={u} kind="use_cases" cls="btn ucd-more" id="ucd-more" onArchived={() => setMine(true)} onDeleted={() => openUseCases()} /> : null}      {/* item 1148: Archive moved in here from the foot of the page, and Delete */}
           </div>
         ) : null}
       </div>
@@ -272,9 +274,6 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
             ) : <p class="muted" data-no-work>No work items are linked to this use case yet.</p>}
             {!ro && ed ? <div class="ucx-addrow" data-addrow><ed.NextStep u={u} /><ed.LinkButton u={u} /></div> : null}
           </section>
-          {!ro ? (
-            <p class="ucd-foot"><button type="button" class="link" data-archive onClick={() => archive("archive")}>Archive this use case (it can be restored; nothing is deleted)</button></p>
-          ) : null}
         </div>
         <div class="ucd-side">
           <section class="ucd-card" aria-labelledby="ucd-h-det">
