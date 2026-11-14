@@ -234,7 +234,8 @@ def docker_os(run=None):
 
 def reserved_ports(run=None):
     """The TCP port ranges Windows has set aside, as (first, last) pairs from `netsh interface ipv4 show excludedportrange
-    protocol=tcp`; None when that can't be run or has no range in its answer. Changes nothing."""
+    protocol=tcp`; [] when it answers with its table and no range in it (nothing is set aside); None when that can't be run or its
+    answer has no table. Changes nothing."""
     try:
         done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run, PROBE_WAIT)
     except (OSError, ValueError, subprocess.SubprocessError):
@@ -242,7 +243,9 @@ def reserved_ports(run=None):
     if done.returncode != 0:
         return None
     ranges = [(int(a), int(b)) for a, b in re.findall(r"^\s*(\d+)\s+(\d+)\b", done.stdout or "", re.MULTILINE)]
-    return ranges or None
+    if not ranges and not re.search(r"^\s*-{3,}\s+-{3,}", done.stdout or "", re.MULTILINE):    # the table's ruled line, whatever the language
+        return None
+    return ranges
 
 
 def _dropbox_name(name):

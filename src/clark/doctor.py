@@ -251,9 +251,8 @@ def check_port_reserved(seen):
     where = "--port" if given else "CLARK_PORT"
     try:
         port = port_number(seen.port_text if given else (seen.environ.get("CLARK_PORT") or server.DEFAULT_PORT), where)
-    except Usage:
-        return Line(FIX, f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then "
-                         f"run {typed.doctor(docker=True)} again.")
+    except Usage:                               # the port check has already said so; not said twice (issue 635)
+        raise RuntimeError("the port is not a number")
     if seen.on != platform.WINDOWS:
         return Line(READY, f"Port {port} isn't set aside.")
     ranges = seen.reserved_ports()
@@ -330,16 +329,17 @@ def run_check(check, seen):
     except platform.NotBuiltYet:
         return Line(NOT_CHECKED, f"{check.name} can't run on this computer yet.")
     except Exception:                           # noqa: BLE001 - never a traceback, nor the computer's own error text
-        return Line(NOT_CHECKED, f"{check.name} couldn't finish. Run {typed.doctor()} again.")
+        return Line(NOT_CHECKED, f"{check.name} couldn't finish. Run {typed.doctor(docker=check in DOCKER_CHECKS)} again.")
 
 
 def summary(results):
     """The last line, and the exit code."""
+    docker = any(check in DOCKER_CHECKS for check, line in results)       # the rerun keeps --docker (issue 635)
     to_fix = sum(1 for check, line in results if line.kind == FIX)
     unknown = sum(1 for check, line in results if check.required and line.kind == NOT_CHECKED)
     if to_fix:
         return (f"{to_fix} {'thing' if to_fix == 1 else 'things'} to fix before clark can start. Fix "
-                f"{'it' if to_fix == 1 else 'each one'}, then run {typed.doctor()} again."), 1
+                f"{'it' if to_fix == 1 else 'each one'}, then run {typed.doctor(docker=docker)} again."), 1
     if unknown:
         return ("Some checks can't run on this computer yet, so we can't say whether clark will start. Try starting it; if "
                 "it won't, tell the clark team."), 1

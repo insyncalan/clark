@@ -62,7 +62,7 @@ class AgainCommand(unittest.TestCase):
     def test_every_again_in_the_docker_checks_names_docker(self):
         lines = [doctor.check_docker_mode(seen(docker_os=lambda a=a: a)) for a in ("windows", None)]
         lines.append(doctor.check_port_reserved(seen(reserved_ports=lambda: [(8700, 8799)])))
-        lines.append(doctor.check_port_reserved(seen(port="abc")))
+        lines.append(doctor.run_check(doctor.DOCKER_CHECKS[1], seen(port="abc")))
         for line in lines:
             self.assertEqual(line.kind, doctor.FIX)
             self.assertIn("python3 -m clark.doctor --docker again.", line.words)
@@ -100,6 +100,7 @@ class ReservedPort(unittest.TestCase):
         self.assertEqual(pl.reserved_ports(fake(NETSH)), [(1234, 1333), (8700, 8799)])
         self.assertIsNone(pl.reserved_ports(fake("", 1)))
         self.assertIsNone(pl.reserved_ports(fake("no ranges")))
+        self.assertEqual(pl.reserved_ports(fake(NETSH.split("1234")[0])), [])       # the table and no row: nothing is set aside
         self.assertIsNone(pl.reserved_ports(fake(boom=OSError())))
 
     def test_the_check(self):
@@ -108,7 +109,7 @@ class ReservedPort(unittest.TestCase):
         self.assertIn("Windows has set port 8766 aside", inside.words)
         self.assertEqual(doctor.check_port_reserved(seen(reserved_ports=lambda: [(1, 100)])).kind, doctor.READY)
         self.assertEqual(doctor.check_port_reserved(seen(port="9000", reserved_ports=lambda: [(8700, 8799)])).kind, doctor.READY)
-        self.assertEqual(doctor.check_port_reserved(seen(port="x")).kind, doctor.FIX)
+        self.assertEqual(doctor.check_port_reserved(seen(reserved_ports=lambda: [])).kind, doctor.READY)
 
     def test_not_windows_is_not_asked(self):
         def boom():
@@ -121,6 +122,16 @@ class ReservedPort(unittest.TestCase):
 
 
 class DockerFlag(unittest.TestCase):
+    def test_a_bad_port_is_said_once_and_the_rerun_keeps_the_flag(self):
+        lines = []
+        kw = dict(environ={"CLARK_CONTAINER": "1"}, home="/tmp/h", on=pl.WINDOWS, docker_os=lambda: "windows", reserved_ports=lambda: [])
+        doctor.main(["--data", "/tmp/x", "--docker", "--port", "99999"], say=lines.append, **kw)
+        self.assertEqual(sum("must be a whole number" in l for l in lines), 1)
+        self.assertTrue(lines[-1].endswith("run python3 -m clark.doctor --docker again."), lines[-1])
+        lines.clear()
+        doctor.main(["--data", "/tmp/x", "--port", "99999"], say=lines.append, **kw)
+        self.assertTrue(lines[-1].endswith("run python3 -m clark.doctor again."), lines[-1])
+
     def test_flag_adds_the_two_checks_only_when_given(self):
         lines = []
         kw = dict(environ={"CLARK_CONTAINER": "1"}, home="/tmp/h", on=pl.WINDOWS, docker_os=lambda: "linux", reserved_ports=lambda: [])
