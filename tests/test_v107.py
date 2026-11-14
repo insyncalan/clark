@@ -102,7 +102,7 @@ COVERED = [
     ('1081', 'On a use case page the Work items card shows one line per item with one tinted status chip.',
      'test_use_case_detail::Detail::test_the_work_items_card_is_one_line_per_item_with_one_tinted_chip_row_1081'),
     ('1084', 'The List, Board and Group by icons follow the clear button and the tabs have the whole row.',
-     'test_view_icons_filter_line::IconsOnTheLine::test_count_x_import_export_and_three_icons_share_the_line_without_overlap'),
+     'test_view_icons_filter_line::IconsOnTheLine::test_count_x_and_three_icons_share_the_line_without_overlap'),
     ('1085', 'The Use cases page has four tabs over a filter line, with counts that follow the line.',
      'test_use_cases_list::Narrowing::test_the_tabs_counts_follow_the_line_and_narrow_the_list'),
     ('1087', 'Published reports has an address of its own and no peek.',
