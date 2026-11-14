@@ -193,7 +193,15 @@ class Drive:
         return self.cdp.js(expr, self.sid)
 
     def until(self, expr, what, secs=20):
-        self.t.assertTrue(wait(lambda: self.js(f"!!({expr})"), secs), f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)})")
+        self.t.assertTrue(wait(lambda: self.js(f"!!({expr})"), secs), f"timed out waiting for: {what} (at {getattr(self, 'look_is', None)}) | " + self.state())
+
+    def state(self):
+        """What the page looked like when a wait gave up (a failure message only): the open popups, the focus, what is under the opener, and the clicks and focus moves the page saw."""
+        try:
+            return json.dumps(self.js("""(() => { const o = window.__mlog || [], pops = [...document.querySelectorAll('.cpop,[role=menu]')].map(e => { const r = e.getBoundingClientRect(); return [e.tagName, String(e.className).slice(0, 30), e.getAttribute('role'), Math.round(r.left), Math.round(r.top), Math.round(r.width), Math.round(r.height)]; });
+                const a = document.activeElement; return {w: innerWidth, h: innerHeight, sy: scrollY, pops: pops, active: a ? a.tagName + '.' + String(a.className).slice(0, 30) + '#' + a.id : null, log: o.slice(-14), t: Math.round(performance.now())}; })()"""))
+        except Exception as e:      # the page is gone: say so
+            return "no state: " + str(e)
 
     def key(self, key, code=None, vk=0):
         for kind in ("keyDown", "keyUp"):
@@ -235,6 +243,9 @@ class Drive:
 
     def check(self, name, opener, root="[role=menu]", minimum=2, focus=True):
         """Run `opener` (JS that clicks), check every line of the menu `root`, close it with Escape (once the focus is in it) or, for a menu that takes no focus, with a press elsewhere on the page."""
+        self.js("""(() => { if (window.__mlog) return; window.__mlog = []; const add = (k, e) => window.__mlog.push([Math.round(performance.now()), k, e.target && e.target.tagName ? e.target.tagName + '.' + String(e.target.className).slice(0, 20) : '']);
+            ['click', 'pointerdown', 'keydown', 'focusin', 'focusout'].forEach(k => document.addEventListener(k, e => add(k, e), true)); })()""")
+        self.js(f"window.__mlog && window.__mlog.push([Math.round(performance.now()), 'open {name}', ''])")
         self.js(opener)
         got = self.lines(root, name, minimum)
         if focus:
