@@ -734,16 +734,16 @@ class Live(unittest.TestCase):
             self.changed_once(before, "status from the peek")
             self.assertEqual(self.toast(cdp, sid), "Status of TUL-007 changed to Closed.")
             self.until(cdp, sid, f"document.querySelector(\"{pcell}\").textContent === 'Closed'", "the peek's cell says Closed")
-            self.assertEqual(cdp.js("(document.querySelector('#peek [data-pk-rating]') || {}).textContent", sid), " · Red", "a closed risk keeps its rating word in the peek")
+            self.assertEqual(cdp.js("(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent", sid), "Red kept", "a closed risk keeps its rating word in the peek")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "status"), "Closed", "the table's cell says it too")
             # the rating of the now closed risk, from the peek
             click(cdp, sid, pcell)
             self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the menu opened on a closed risk")
             click(cdp, sid, "[data-pop] [data-value='rating:Amber']")
-            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Amber'", "the peek says Closed · Amber")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent === 'Amber kept'", "the peek says Closed · Amber")
             self.assertEqual(self.row("raid", "TUL-007")["status"], "Closed")
             self.undo(cdp, sid, "rating from the peek", "TUL-007 is back to Red.")
-            self.until(cdp, sid, "(document.querySelector('#peek [data-pk-rating]') || {}).textContent === ' · Red'", "Undo draws Closed · Red again in the peek")
+            self.until(cdp, sid, "(document.querySelector('#peek [data-row=priority] .pk-chip-sub') || {}).textContent === 'Red kept'", "Undo draws Closed · Red again in the peek")
             self.assertEqual(self.row("raid", "TUL-007")["priority"], "High")
 
     # One test for each width: each starts on a fresh store, since the first leaves TUL-007 closed.
@@ -851,11 +851,10 @@ class Live(unittest.TestCase):
             with self.subTest(width=width), chrome() as cdp:
                 sid = self.open_page(cdp, width, edit=False)
                 cdp.js("clarkPage.openPeek('TUL-008', 'item')", sid)
-                self.until(cdp, sid, "!!document.querySelector('#peek [data-pk-rating]')", "the peek says the rating word")
+                self.until(cdp, sid, "!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", "the peek says the rating word")
                 self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 0, "no picker is open until the status is chosen")
-                labels = cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid)
-                self.assertIn("Shown to client", labels, "Work items have no mode: the peek edits in View too (row 824)")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Work items have no mode: the peek edits in View too (row 824): it has the Client visible line")
 
     def rating_drawn(self, cdp, sid, ref):
         """The row's Priority cell and the Rating ticked in its status picker (opened and shut again)."""

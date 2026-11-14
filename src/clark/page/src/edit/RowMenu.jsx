@@ -109,6 +109,28 @@ const copied = (text, said) => {
   try { navigator.clipboard.writeText(text).then(done, fail); } catch (e) { fail(); }
 };
 
+// The Draft email dialog over a draft clark builds for this one item (nothing is sent). `from`: the element focus returns to when it closes; `failed()` runs when
+// the draft could not be read. Shared by the row menu and the peek's Draft email button.
+function startDraft(row, from, reg, failed) {
+  const code = project.value;
+  const owner = typeof row.owner_id === "string" ? row.owner_id : "";
+  const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
+  return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
+    if (!r.ok) { say("note", r.message); if (failed) failed(); return; }
+    if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
+    draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: owner };
+  });
+}
+
+/** Row 1180: the peek's Draft email button: {onClick, disabled, reason} (the row menu's entry for this item). The dialog is modal; focus returns to #pk-draft. */
+export function peekDraft(row) {
+  const full = withOwnerLink(row, data.value), dr = draftEntry(full, data.value);
+  return { onClick: () => startDraft(full, document.getElementById("pk-draft"), null, null), disabled: !!dr.disabled, reason: dr.disabled ? dr.reason : "" };
+}
+
+/** Row 1180: the peek's Copy link button: the same link and the same toast as the row menu's Copy link. */
+export function copyLinkFor(row) { copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); }
+
 function entries(row, level, edit, d, today, reg) {
   const dr = draftEntry(row, reg ? { ...d, people: reg } : d), why = edit ? "" : VIEW_ONLY;
   if (!reg && !dr.disabled) dr.reason = "";         // the list is still being read (or could not be): no reason is given yet
@@ -257,15 +279,9 @@ function Panel({ s }) {
       return changeCell(c.table, c.id, c.changes, { text: c.words, back: c.back }).then(() => refocus(row.id));
     }
     if (id === "draft") {
-      const from = s.from, code = project.value;
+      const from = s.from;
       close("pick");
-      const owner = typeof row.owner_id === "string" ? row.owner_id : "";
-      const found = reg ? Promise.resolve(reg) : readPeople().then((r) => (r.ok ? r.people : []));
-      return found.then((list) => { const who = recipientOf(list, owner); return readDraftEmail(code, draftRequest(row.id, null, who)).then((r) => [r, who]); }).then(([r, who]) => {
-        if (!r.ok) { say("note", r.message); refocus(row.id); return; }
-        if (project.value !== code) return;                      // the person went to another project meanwhile: nothing to open
-        draftOpen.value = { id: row.id, items: r.reply.items, state: draftState(r.reply), draft: r.reply.draft, today: todayIso(), from, who, person: typeof row.owner_id === "string" ? row.owner_id : "" };
-      });
+      return startDraft(row, from, reg, () => refocus(row.id));
     }
     if (id === "peek") { close("pick"); openCard(row.id); return undefined; }
     if (id === "link") { close("pick"); copied(linkFor(row, project.value, location.origin + location.pathname, format), `Link to ${row.id} copied.`); return undefined; }

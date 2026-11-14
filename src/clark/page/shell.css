@@ -2580,3 +2580,25 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .rt-opt { display: flex; align-items: center; gap: 10px; }
 .gt-menu button.gt-danger .mi { color: inherit; }
+
+/* row 1180 toolbar: Close, Open full page, a rule, Previous, Next on the left; Draft email, Copy link, More on the right. The .pkp-btn rules above are shared with the Ask panel and stay as they are. */
+.pk-tb { gap: 4px; }
+.pk-tb-grp { display: flex; align-items: center; gap: 2px; }
+.pk-tb-rule { width: 1px; height: 18px; margin: 0 6px; background: var(--grey-200, var(--grey-100)); flex: none; }
+.pk-tb .pkp-btn:hover:not(:disabled) .i { color: var(--brand-blue); }
+
+/* row 1180 body: collapsible Details, footer, unsaved-update bar */
+.pk-details { margin: var(--space-3) 0 0; border-top: 1px solid var(--grey-100); }
+.pk-details-h { display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 24px; padding: var(--space-2) 0; border: 0; background: transparent; color: var(--text); font: inherit; font-weight: var(--weight-medium); text-align: left; cursor: pointer; }
+.pk-details-h:focus-visible, .pk-foot-in:focus-visible, .pk-unsaved button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-details-sum { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-weight: var(--weight-regular); font-size: var(--size-small); }
+.pk-details-car { margin-left: auto; transition: transform 0.15s; }
+.pk-details[data-open="1"] .pk-details-car { transform: rotate(180deg); }
+.pk-foot { display: flex; align-items: center; gap: var(--space-2); margin: var(--space-3) 0 0; padding-top: var(--space-2); border-top: 1px solid var(--grey-100); }
+.pk-foot-key { flex: none; padding: 0 6px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); color: var(--text-muted); font: inherit; font-size: var(--size-small); }
+.pk-foot-in { flex: 1 1 auto; min-height: 24px; padding: 4px 8px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text-muted); font: inherit; text-align: left; cursor: text; }
+.pk-unsaved { margin: var(--space-2) 0 0; padding: 8px 10px; border: 1px solid var(--status-amber); border-radius: var(--radius); background: var(--status-amber-tint); }
+.pk-unsaved-t { margin: 0 0 var(--space-1); }
+.pk-unsaved-b { display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.pk-unsaved-b button { min-height: 24px; padding: 2px 10px; border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .pk-details-car { transition: none; } }

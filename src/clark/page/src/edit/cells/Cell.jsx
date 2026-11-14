@@ -6,7 +6,7 @@
 // item's live look (itemEdit.statusPill, the same pill as View, #448); its picker and its toast say the status words. Item 210: a risk's or issue's Priority opens a
 // picker for its impact and likelihood (RatingPick), the two its priority is worked out from. An assumption's or dependency's
 // Priority is not a picker: its tooltip says it is set from impact and likelihood (a decision has none, and shows a dash).
-import { signal } from "@preact/signals";
+import { openCell } from "../../stores/openCell.js";
 import { useRef } from "preact/hooks";
 import { data } from "../../stores/report.js";
 import { changeCell, changeNewPerson, changeRating, say } from "../../stores/changes.js";
@@ -22,7 +22,7 @@ import { PriorityPick } from "./PriorityPick.jsx";
 import { StatusPick } from "./StatusPick.jsx";
 
 export const PICKERS = { owner: OwnerPick, due: DuePick, priority: PriorityPick, status: StatusPick };
-export const openCell = signal("");                      // "<id>:<field>" of the open picker, or ""
+export { openCell };                                     // "<id>:<field>" of the open picker, or "" (stores/openCell.js)
 
 const key = (row, field) => `${row.id}:${field}`;
 

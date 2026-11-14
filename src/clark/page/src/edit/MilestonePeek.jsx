@@ -2,7 +2,7 @@
 // the data is read again after it. Text: click or Enter starts, Enter or leaving the box saves, Esc leaves it as it was. A date opens the
 // Work items' date picker; the state is a row of buttons; Visible to client is the eye (the page's own report_hidden step). Rows and
 // words are the build's own (Help: The milestone peek); the toasts use the Work items cell's sentences ("Owner of ABC-M-001 changed to ...").
-// Row 1078 (the owner's rulings): the work item peek's format. The name is the title (MilestoneTitle, drawn in the h2 by Peek.jsx); under
+// Row 1078 (the owner's rulings): the work item peek's format. The name is the title (PeekMilestoneTitle in PeekHead.jsx, drawn in the h2 by Peek.jsx); under
 // it the shared header line (Peek.jsx MsHead: the state, the owner and the progress, here with their controls) and the state buttons; then
 // the rows Description, Agreed date, Forecast date, Achieved on (a Done milestone's alone), Workstream, Visible to client and Client
 // wording, plain rows (never the four property cells). Description and Client wording are on the one rich editor (item 1005).
@@ -21,6 +21,7 @@ import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
+import { PeekDetails } from "../components/PeekDetails.jsx";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -171,11 +172,6 @@ function Visible({ m }) {
   );
 }
 
-// The title: the milestone's name, changed in place (Peek.jsx draws it in the h2 when the milestone is editable).
-export function MilestoneTitle({ m }) {
-  return <Text m={m} field="name" label="Name" value={m.name} required />;
-}
-
 export function MilestoneEdit({ m }) {
   const owner = ownerOf(m.owner).text;
   return (
@@ -186,6 +182,7 @@ export function MilestoneEdit({ m }) {
         <span class="pk-ms-progress" data-ms-head="progress"><Progress m={m} /></span>
       </MsHead>
       <States m={m} />
+      <PeekDetails summary={[m.workstream, m.forecast_date ? `Forecast ${showDate(m.forecast_date)}` : ""]}>
       <dl class="pk-fields" data-ms-edit>
         <Row name="Description" k="description"><Description m={m} /></Row>
         <Row name="Agreed date" k="baseline">{showDate(m.baseline_date)}</Row>
@@ -196,6 +193,7 @@ export function MilestoneEdit({ m }) {
         <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
         <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
       </dl>
+      </PeekDetails>
     </>
   );
 }

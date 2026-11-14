@@ -355,7 +355,7 @@ class Browser(unittest.TestCase):
                 got = cdp.js(f"(b => [b.title, b.getAttribute('aria-label')])(document.querySelector('[{attr}]'))", sid)
                 self.assertTrue(got[0] and got[0] == got[1], (attr, got))
             self.assertEqual(cdp.js("document.querySelector('[data-pk-close]').title", sid), "Close this panel")
-            self.assertEqual(cdp.js("document.querySelector('[data-pk-wide]').title", sid), "Make this panel fill the screen")
+            self.assertEqual(cdp.js("document.querySelector('[data-pk-wide]').title", sid), "Open full page")
             cdp.js(f"location.hash = '#work&p={self.code}&item={made}'", sid)
             self.assertTrue(wait(lambda: cdp.js("clarkPage.peek() && clarkPage.peek().id", sid) == made))
             self.assertIn("Decision by", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "the prototype says Decision by for every decision")
@@ -438,7 +438,7 @@ class Browser(unittest.TestCase):
                 self.assertTrue(wait(lambda: cdp.js("!document.querySelector('[data-sneak]')", sid)))
                 self.assertEqual(cdp.js("!!document.querySelector('#peek')", sid), True)
                 self.assertTrue(wait(lambda: cdp.js("document.activeElement.hasAttribute('data-pk-close')", sid)), "focus returns to what had it when the box opened (the Close button)")
-                self.assertIn("Shown to client", cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent)", sid), "Edit shows it")
+                self.assertTrue(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), "Edit shows the Client visible line (row 1180)")
                 # a date that is not a day is refused in plain words
                 self.open_words(cdp, sid)
                 cdp.js("(() => { const i = document.querySelector('.sn-in'); i.value = 'due 31-02-2026'; i.dispatchEvent(new Event('input', {bubbles: true})); })()", sid)
@@ -880,10 +880,10 @@ class ClosedRiskPublished(unittest.TestCase):
                 path = Path(tmp) / "report.html"
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
-                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-pk-rating]')", sid)), "the peek of the closed risk drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Amber")
+                self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=priority] .pk-chip-sub')", sid)), "the peek of the closed risk drew")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Amber kept")
                 self.assertEqual(cdp.js("document.querySelectorAll('#peek [data-cell], #peek .cell-pick, [data-pop]').length", sid), 0, "no picker in a published file")
-                self.assertEqual(cdp.js("[...document.querySelectorAll('#peek dt')].map(d => d.textContent).includes('Shown to client')", sid), False)
+                self.assertEqual(cdp.js("!!document.querySelector('#peek [data-pk-client]')", sid), False, "a published file has no Client visible control")
                 self.assertEqual(cdp.js("document.documentElement.scrollWidth <= window.innerWidth", sid), True, "no sideways scroll")
 
 
@@ -906,10 +906,9 @@ class ClosedUnratedRiskPeek(unittest.TestCase):
                 path.write_text(text, encoding="utf-8")
                 sid = tp.opened(cdp, path.as_uri() + "#work&p=PUB&item=PUB-001", width)
                 self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('#peek [data-row=status]')", sid)), "the peek drew")
-                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status] dd').textContent.replace(/\\s+/g, ' ').trim()", sid), "Closed · Not rated")
-                # #532 follow-up: Closed and Not rated sit on one line
-                one_line = "(function(){var a=document.querySelector('#peek [data-row=status] .pill').getBoundingClientRect(),b=document.querySelector('#peek [data-row=status] [data-pk-rating]').getBoundingClientRect();return Math.abs(a.top+a.height/2-(b.top+b.height/2))<4 && b.height<28;})()"
-                self.assertEqual(cdp.js(one_line, sid), True, "Closed and Not rated on one line")
+                self.assertEqual(cdp.js("document.querySelector('#peek [data-row=status]').textContent.replace(/\\s+/g, ' ').trim() + ' ' + document.querySelector('#peek [data-row=priority] .pk-chip-sub').textContent", sid), "Closed Not rated kept")
+                # #532 follow-up (row 1180): the rating word is the priority chip's second line now, so the status chip is one line
+                self.assertLess(cdp.js("document.querySelector('#peek [data-row=status]').getBoundingClientRect().height", sid), 48, "the status chip is one line")
 
 
 def pub_block(data):
@@ -937,10 +936,9 @@ class PlainLabels(unittest.TestCase):
         self.assertIn('aria-label="Ask clark to update for you"', jsx)      # row 1077: the box's label
 
     def test_the_width_button_follows_the_state(self):
-        peek = self.texts()[1]
-        for kind in ("title", "aria-label"):
-            self.assertIn(kind + '={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"}', peek)
-        self.assertIn("aria-pressed={wide.value}", peek)
+        peek = (ROOT / "src" / "clark" / "page" / "src" / "components" / "PeekToolbar.jsx").read_text(encoding="utf-8")      # row 1180: the toolbar draws the width button
+        self.assertIn('const wideWords = wide ? "Return the panel to its usual width" : "Open full page"', peek)
+        self.assertIn("pressed={!!wide}", peek)
 
     def test_the_confirm_line_names_the_button(self):
         jsx = self.texts()[0]
