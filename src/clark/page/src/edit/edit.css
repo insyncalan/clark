@@ -1238,3 +1238,15 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
 .pk-client.on { color: var(--brand-blue); }
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+/* item 1179: Draft with AI, a quiet text button beside Latest update, and the AI menu */
+.pk-ai { display: inline-flex; align-items: center; gap: 4px; min-height: 24px; padding: 0 var(--space-1); border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--brand-blue); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; }
+.pk-ai:hover { background: var(--brand-blue-tint); }
+.pk-ai:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.pk-ai-menu { position: fixed; z-index: 60; box-sizing: border-box; min-width: 220px; max-width: 320px; max-height: 70vh; overflow-y: auto; padding: var(--space-1); border: 1px solid var(--grey-100); border-radius: var(--radius); background: var(--surface); box-shadow: var(--shadow-menu, 0 4px 16px rgba(0, 0, 0, .16)); color: var(--text); font-size: var(--size-small); }
+.pk-ai-menu:focus { outline: 0; }
+.pk-ai-menu button { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 28px; padding: 2px 8px; border: 0; border-radius: var(--radius-sm); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pk-ai-menu button:hover, .pk-ai-menu button:focus-visible { background: var(--brand-blue-tint); outline: 0; }
+.pk-ai-menu button:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.pk-ai-menu .lab { padding: 6px 8px 2px; color: var(--text-muted); font-size: 12px; }
+.pk-ai-ask { box-sizing: border-box; width: 100%; min-height: 28px; margin: 2px 0; padding: 2px 8px; border: 1px solid var(--brand-blue); border-radius: var(--radius-sm); background: var(--surface); color: var(--text); font: inherit; }
+.pk-ai-sends { margin: 6px 8px 2px; color: var(--text-muted); font-size: 12px; }
