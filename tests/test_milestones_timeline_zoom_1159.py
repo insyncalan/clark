@@ -71,6 +71,26 @@ class Zoom(BrowserBase, unittest.TestCase):
                     self.assertNotEqual(got[3], got[4], f"{where}: the name is not drawn in its own background colour")
                     self.pick(cdp, sid, "month")
 
+    def test_the_hover_tip_of_a_hidden_name_is_on_top_and_inside_the_box_item_1175(self):
+        port = self.serve()
+        tip = """(i) => { const ms = [...document.querySelectorAll('.mv-mk[data-hid]')]; const m = ms[i]; m.focus();
+          const c = getComputedStyle(m, '::after'), r = m.getBoundingClientRect(), w = document.querySelector('.mv-wrap').getBoundingClientRect(), s = 1.18;
+          const tx = new DOMMatrix(c.transform === 'none' ? undefined : c.transform).m41, cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+          const left = cx + s * (parseFloat(c.left) - 12 + tx), width = s * parseFloat(c.width), top = cy + s * (parseFloat(c.top) - 12);
+          const hit = document.elementFromPoint(left + 40, top + 12 * s);
+          return { left, right: left + width, wrapLeft: w.left, covered: hit !== m, hit: hit && hit.className }; }"""
+        for width in (1400, 900):
+            with chrome() as cdp:
+                sid = self.visit(cdp, width, HASH, port)
+                self.pick(cdp, sid, "quarter")
+                self.assertTrue(wait(lambda: cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid) > 0))
+                for i in range(cdp.js("document.querySelectorAll('.mv-mk[data-hid]').length", sid)):
+                    cdp.js(f"(() => {{ const m = document.querySelectorAll('.mv-mk[data-hid]')[{i}]; m.focus(); m.scrollIntoView({{ block: 'nearest', inline: 'center' }}); }})()", sid)
+                    self.assertTrue(wait(lambda: abs(cdp.js(f"new DOMMatrix(getComputedStyle(document.querySelectorAll('.mv-mk[data-hid]')[{i}]).transform).a", sid) - 1.18) < 0.005), "the mark has grown")
+                    got = cdp.js(f"({tip})({i})", sid)
+                    self.assertFalse(got["covered"], f"{width} mark {i}: a label paints over the tip ({got['hit']})")
+                    self.assertGreaterEqual(got["left"], got["wrapLeft"] - 0.5, f"{width} mark {i}: the tip starts left of the box")
+
     def test_the_scale_is_remembered_for_the_place_only(self):
         port = self.serve()
         with chrome() as cdp:

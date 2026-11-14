@@ -21,6 +21,7 @@ const SBROOM = 16;                              // an overlay scrollbar's height
 const MARGIN = 2;                               // spare pixels added to every measured label width (sub-pixel differences between fonts and systems)
 const PRINT_W = 680;                            // the printed line is this wide (an A4 page less its margins): the whole span fits, nothing scrolls (row 767)
 const PRINT_TAIL = 60;                          // on paper a month name that would start within this many pixels of the line's end is left off: the frame clips it
+const TIP_EM = 8;   // item 1175: one caption character, scaled by the 1.18 a hovered mark grows by, to tell a mark whose tip would start left of the box
 const LY0 = 50, T00 = 64, LANE = 24, GAP = 8;   // the line, the first label lane and each lane's height never shrink: a label is always readable
 
 const MONTH_ROOM = 70;      // px a month name needs to the right of its line (the longest, "Sep 2029", is about 62)
@@ -153,8 +154,8 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
               <Fragment key={r.id}>
                 {r.marks.line ? <div class="mv-conn" key={`c${r.id}`} data-conn={r.id} style={{ left: `${px}px`, top: `${LY}px`, width: `${x(r.marks.line.to) - px}px` }} /> : null}
                 {r.marks.ghost ? <div class="mv-ghost" key={`g${r.id}`} data-ghost={r.id} title={r.marks.ghost.label} style={{ left: `${x(r.marks.ghost.date)}px`, top: `${LY + 1}px` }} /> : null}
-                <Tag {...(open ? { type: "button", onClick: () => open(r.id) } : { role: "img" })} class={`mv-mk c-${r.colour}${open ? "" : " plain"}`} key={`m${r.id}`} data-ms={r.id} data-mark-at={s.date}{...(hidden.has(r.id) ? { "data-hid": say } : {})} aria-label={say} title={say}
-                  style={{ left: `${px}px`, top: `${LY + 1}px` }}><MsMark name={r.mark} /></Tag>
+                <Tag {...(open ? { type: "button", onClick: () => open(r.id) } : { role: "img" })} class={`mv-mk c-${r.colour}${open ? "" : " plain"}`} key={`m${r.id}`} data-ms={r.id} data-mark-at={s.date}{...(hidden.has(r.id) ? { "data-hid": say } : {})}{...(hidden.has(r.id) && px < TIP_EM * say.length / 2 + 4 ? { "data-edge": "" } : {})} aria-label={say} title={say}
+                  style={{ left: `${px}px`, top: `${LY + 1}px`, ...(hidden.has(r.id) && px < TIP_EM * say.length / 2 + 4 ? { "--tip-l": `${12 + (4 - px) / 1.18}px` } : {}) }}><MsMark name={r.mark} /></Tag>
               </Fragment>
             );
           })}
