@@ -1,8 +1,9 @@
 """Row 828 (M4, M5): the milestone peek's fields are editable in place on the Milestones page with no View mode: Name, Owner, Forecast date,
 Achieved on, State, Progress, Description, Workstream, Visible to client and Client wording. Each is one change with one Undo; a refusal
 changes nothing; the Dashboard's View and a published file keep the read-only peek. M6 (row 867, Archive in the peek) uses the work item peek's own words.
-Row 1078: the name is the title and the owner, state and progress are the header line (test_milestone_peek_1078 pins the layout); the rows
-below are plain rows (data-ms-row), and Client wording is on the rich editor like the description.
+Row 1078: the name is the title; the rows below are plain rows (data-ms-row), and Client wording is on the rich editor like the description.
+Item 1184: the owner, state, progress and forecast date are the four chips under the title, each with a popover (test_peek_milestone_1184 pins
+the chips); the tests here change each field through its chip.
 
 Run: python3 dev/run_tests.py test_milestone_peek_828
 Without a browser: the pure rules (msPeek.js) are read from the source; the published build takes none of the new files.
@@ -25,7 +26,7 @@ from test_movement_page import GO_LIVE, PILOT, Base  # noqa: E402
 from test_server import chrome  # noqa: E402
 
 PAGE_SRC = SRC / "clark" / "page" / "src"
-ROWS = ("description", "baseline", "forecast", "workstream", "use_cases", "visible", "client_message")      # row 1078: the name, owner, state and progress moved above the rows
+ROWS = ("description", "baseline", "workstream", "use_cases", "client_message")      # item 1184: the owner, state, progress and forecast date are chips; the Client visible line follows the rows
 
 
 class NoBrowser(unittest.TestCase):
@@ -37,10 +38,10 @@ class NoBrowser(unittest.TestCase):
             self.assertEqual(done.returncode, 0, done.stderr)
             inputs = list(json.loads(meta.read_text(encoding="utf-8"))["inputs"])
         for name in inputs:
-            self.assertFalse(name.endswith(("MilestonePeek.jsx", "msPeek.js")), name)
+            self.assertFalse(name.endswith(("MilestonePeek.jsx", "PeekMilestoneBody.jsx", "MilestoneChipPops.jsx", "msPeek.js")), name)      # item 1184: the editor's body and chip popovers
 
     def test_the_new_words_of_the_owner_are_not_in_the_build(self):
-        text = "".join(p.read_text(encoding="utf-8") for p in (PAGE_SRC / "edit").glob("MilestonePeek.jsx")) \
+        text = "".join(p.read_text(encoding="utf-8") for p in (PAGE_SRC / "edit" / "MilestonePeek.jsx", PAGE_SRC / "components" / "PeekMilestoneBody.jsx")) \
             + (PAGE_SRC / "edit" / "msPeek.js").read_text(encoding="utf-8")
         for sentence in ("Overdue follows the dates", "It's out of the lists and counts", "work items still point at it", "Archived "):
             self.assertNotIn(sentence, text, sentence)
@@ -63,6 +64,16 @@ class Fields(Base):
         p.until(f"!!document.querySelector({json.dumps(sel)})", sel)
         p.js(f"document.querySelector({json.dumps(sel)}).click()")
 
+    def open_chip(self, p, k):
+        """Item 1184: the owner, state, progress and forecast date are chips; a click opens the popover."""
+        p.until("!document.querySelector('[data-pop]')", "no popover open")
+        self.click(p, f"#peek .pk-chips [data-row={k}] button")
+        p.until("!!document.querySelector('[data-pop]')", f"{k}: the popover opened")
+
+    def pick_state(self, p, value):
+        self.open_chip(p, "state")
+        p.js(f"document.querySelector('[data-pop] [data-value=\"{value}\"]').click()")
+
     def archive_in_peek(self, p):
         """Item 1148: Archive is the first entry of the milestone peek's More actions menu."""
         self.click(p, "#peek #pk-more")
@@ -70,7 +81,7 @@ class Fields(Base):
 
     def type_in(self, p, sel, text, leave="enter"):
         p.until(f"!!document.querySelector({json.dumps(sel)})", sel)
-        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); "
+        p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); el.focus(); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); "
              + {"enter": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', bubbles: true, cancelable: true}));",
                 "ctrl": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Enter', ctrlKey: true, bubbles: true, cancelable: true}));",
                 "esc": "el.dispatchEvent(new KeyboardEvent('keydown', {key: 'Escape', bubbles: true, cancelable: true}));",
@@ -103,9 +114,9 @@ class Fields(Base):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.assertEqual(p.js("document.querySelectorAll('[data-mode]').length"), 0, "no View | Edit switch off the Dashboard: the page is always editable")
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] .pk-row')].map((r) => r.dataset.msRow)"), list(ROWS))
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek .pk-title [data-ms-field], #peek [data-ms-head] [data-ms-field], #peek [data-ms-head] [data-ms-num], #peek [data-ms-states]')].map((e) => e.dataset.msField || e.dataset.msNum !== undefined && 'progress' || 'states')"),
-                             ["name", "owner", "progress", "states"], "the name is the title; the owner, the progress and the state buttons are above the rows")
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-edit] [data-ms-row]')].map((r) => r.dataset.msRow)"), list(ROWS))
+            self.assertEqual(p.js("[...document.querySelectorAll('#peek .pk-title [data-ms-field], #peek .pk-chips > [data-row]')].map((e) => e.dataset.msField || e.dataset.row)"),
+                             ["name", "state", "owner", "progress", "forecast"], "the name is the title; the four chips are above the rows")
         with chrome() as cdp:
             p = self.visit_peek(cdp, view="dashboard")
             self.assertEqual(p.js("document.querySelectorAll('#peek [data-ms-edit]').length"), 0, "the Dashboard's View peek stays read only")
@@ -114,70 +125,66 @@ class Fields(Base):
     def test_owner_saves_on_enter_with_one_undo_and_esc_leaves_it_as_it_was(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-field=owner]")
-            self.type_in(p, "#peek [data-ms-in=owner]", "Zed Example", leave="esc")
-            p.until("!document.querySelector('#peek [data-ms-in=owner]')", "Esc closed the box")
+            self.open_chip(p, "owner")
+            self.type_in(p, "[data-pop] input.cp-in", "Zed Example", leave="esc")
+            p.until("!document.querySelector('[data-pop]')", "Esc closed the popover")
             self.assertEqual(self.row(self.cur)["owner"], "Priya Example")
             self.assertEqual(self.sent, [])
-            self.click(p, "#peek [data-ms-field=owner]")
-            self.type_in(p, "#peek [data-ms-in=owner]", "Zed Example")
+            self.open_chip(p, "owner")
+            self.type_in(p, "[data-pop] input.cp-in", "Zed Example")
             self.saved(p, "owner", "Zed Example")
             p.until(f"/^Owner of {GO_LIVE} changed to Zed Example\\.$/.test((document.querySelector('.toast .toast-text') || {{}}).textContent || '')", "the toast")
             self.assertEqual(self.sent[-1][1]["place"], "peek")
             self.undo(p)
             self.saved(p, "owner", "Priya Example")
-            p.until("document.querySelector('#peek [data-ms-field=owner]').textContent === 'Priya Example'", "the peek shows the undone value")
+            p.until("/Priya Example/.test(document.querySelector('#peek .pk-chips [data-row=owner]').innerText)", "the peek shows the undone value")
 
     def test_clearing_the_owner_is_one_step_and_a_blank_name_is_restored(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-field=owner]")
-            self.type_in(p, "#peek [data-ms-in=owner]", "  ")
+            self.open_chip(p, "owner")
+            self.type_in(p, "[data-pop] input.cp-in", "  ")
             self.saved(p, "owner", None)
-            self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", " ")
-            p.until("!document.querySelector('#peek [data-ms-in=name]')", "the blank name closed the box")
+            self.type_in(p, "#peek [data-ms-field=name]", " ")      # item 1184: the name is the title's textarea; Enter leaves it
+            p.until("document.querySelector('#peek [data-ms-field=name]').value === 'Go live'", "the blank name was put back")
             self.assertEqual(self.row(self.cur)["name"], "Go live")
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-field=name]').textContent"), "Go live")
 
     def test_name_renames_with_one_undo_and_a_refusal_changes_nothing(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-field=name]")
-            self.type_in(p, "#peek [data-ms-in=name]", "Go live, phase one")
+            self.type_in(p, "#peek [data-ms-field=name]", "Go live, phase one")
             self.saved(p, "name", "Go live, phase one")
             self.undo(p)
             self.saved(p, "name", "Go live")
 
-    def test_progress_by_number_and_by_slider_one_step_each_and_a_bad_number_sends_nothing(self):
+    def test_progress_by_the_blocks_one_step_each_with_one_undo(self):
+        """Item 1184: the progress chip opens ten blocks (10% to 100%); the number box and the slider are gone, so a bad number can no longer be typed."""
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.type_in(p, "#peek [data-ms-num]", "40")
+            self.open_chip(p, "progress")
+            p.js("document.querySelector('[data-pop] [data-block=\"40\"]').click()")
             self.saved(p, "percent_complete", 40)
-            sent = len(self.sent)
-            self.type_in(p, "#peek [data-ms-num]", "140")
-            p.until("document.querySelector('#peek [data-ms-num]').value === '40'", "a number over 100 goes back to what it was")
-            self.assertEqual(len(self.sent), sent)
-            p.js("(() => { const r = document.querySelector('#peek [data-ms-range]'); r.value = '75'; r.dispatchEvent(new Event('input', {bubbles: true})); r.dispatchEvent(new Event('change', {bubbles: true})); })()")
-            self.saved(p, "percent_complete", 75)
+            self.open_chip(p, "progress")
+            p.js("document.querySelector('[data-pop] [data-block=\"70\"]').click()")
+            self.saved(p, "percent_complete", 70)
             self.undo(p)
             self.saved(p, "percent_complete", 40)
 
-    def test_state_buttons_set_clear_and_achieved_is_done_with_its_date(self):
+    def test_state_chip_sets_clears_and_achieved_is_done_with_its_date(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp, ms=PILOT)       # agreed far ahead: On track by the dates, so a worse state needs no reason
-            self.assertEqual(p.js("[...document.querySelectorAll('#peek [data-ms-state]')].map((b) => b.dataset.msState)"),
-                             ["Forecast", "On track", "At risk", "Slipped", "Overdue", "Achieved"])
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-state=Overdue]').disabled"), True)
-            self.assertEqual(p.js("document.querySelector('#peek [data-ms-state=\"On track\"]').getAttribute('aria-pressed')"), "true", "the dates say On track")
-            self.click(p, "#peek [data-ms-state=Slipped]")
+            self.open_chip(p, "state")
+            self.assertEqual(p.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio]')].map((b) => b.dataset.value)"),
+                             ["Forecast", "On track", "At risk", "Slipped", "Achieved"], "Overdue is listed only while it is the shown state (test_peek_milestone_1184)")
+            self.assertEqual(p.js("document.querySelector('[data-pop] [data-value=\"On track\"]').getAttribute('aria-checked')"), "true", "the dates say On track")
+            p.js("document.querySelector('[data-pop] [data-value=\"Slipped\"]').click()")
             self.saved(p, "state", "Slipped")
             self.assertEqual(self.row(self.cur)["state_set"], 1)
-            p.until("document.querySelector('#peek [data-ms-state=Slipped]').getAttribute('aria-pressed') === 'true'", "Slipped is pressed")
-            self.click(p, "#peek [data-ms-state=Slipped]")
+            p.until("/Slipped/.test(document.querySelector('#peek .pk-chips [data-row=state]').innerText)", "the chip says Slipped")
+            self.pick_state(p, "Slipped")
             self.saved(p, "state", None)
             self.assertEqual(self.row(self.cur)["state_set"], 0)
-            self.click(p, "#peek [data-ms-state=Achieved]")
+            self.pick_state(p, "Achieved")
             self.saved(p, "status", "Done")
             row = self.row(self.cur)
             self.assertEqual((row["state"], row["state_set"]), ("Achieved", 1))
@@ -187,11 +194,11 @@ class Fields(Base):
             self.saved(p, "status", "Planned")
             self.assertIsNone(self.row(self.cur)["actual_date"])
 
-    def test_forecast_date_is_picked_from_the_calendar_and_cleared_with_one_undo(self):
+    def test_forecast_date_chip_is_picked_from_the_calendar_and_cleared_with_one_undo(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             before = self.row(self.cur)["forecast_date"]
-            self.click(p, "#peek [data-ms-field=forecast_date]")
+            self.open_chip(p, "forecast")
             p.until("!!document.querySelector('.cdate [data-quick]')", "the calendar opened")
             p.js("document.querySelector('.cdate [data-quick]').click()")
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["forecast_date"] != before), "the forecast moved")
@@ -260,7 +267,7 @@ class Fields(Base):
     def test_a_refusal_changes_nothing_and_says_so(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
-            self.click(p, "#peek [data-ms-state=On\\ track]")
+            self.pick_state(p, "On track")
             p.until("!!document.querySelector('.toast.problem, .toast[data-kind=problem]') || /couldn|nothing was changed/i.test((document.querySelector('.toast .toast-text') || {}).textContent || '')", "a refusal is said")
             self.assertIsNone(self.row(self.cur)["state"])
 
@@ -314,7 +321,7 @@ class Fields(Base):
                     p = self.visit_peek(cdp, width=width, theme=theme)
                     seen = p.js("""(() => {
                       const peek = document.querySelector('#peek'), pr = peek.getBoundingClientRect();
-                      const els = [...peek.querySelectorAll('.pk-title [data-ms-field], [data-ms-head] button, [data-ms-head] input, [data-ms-states] button, [data-ms-edit] button, [data-ms-edit] select, [data-ms-edit] input')];
+                      const els = [...peek.querySelectorAll('.pk-title [data-ms-field], .pk-chips button, [data-ms-edit] button, [data-ms-edit] select, [data-ms-edit] input')];
                       return {inside: els.every((e) => { const r = e.getBoundingClientRect(); return r.right <= pr.right + 1 && r.left >= pr.left - 1; }),
                               small: els.filter((e) => e.getBoundingClientRect().height < 24 && e.type !== 'range').map((e) => e.outerHTML.slice(0, 80)),
                               scroll: peek.scrollWidth <= peek.clientWidth + 1, n: els.length,

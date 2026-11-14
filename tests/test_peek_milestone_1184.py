@@ -20,7 +20,8 @@ from _demo import USER
 from _paths import ROOT
 
 from test_movement_page import GO_LIVE, PILOT  # noqa: E402
-from test_milestone_peek_1078 import Fields, PAGE_SRC  # noqa: E402
+import test_milestone_peek_1078 as m1078  # noqa: E402      # the module, not its classes: a class imported by name would be collected and run again here
+PAGE_SRC = m1078.PAGE_SRC
 from test_movement_page import Base  # noqa: E402
 from test_server import chrome  # noqa: E402
 
@@ -75,18 +76,18 @@ class Sources(unittest.TestCase):
         self.assertRegex(src, r"sForecast[^\n]*stroke-dasharray|stroke-dasharray[^\n]*3[ ,]3\.6", "Forecast is a plain dashed circle")
 
     def test_the_forecast_chip_has_no_forecast_tag_and_the_use_case_is_a_picker(self):
-        src = (PAGE_SRC / "components" / "Peek.jsx").read_text(encoding="utf-8")
+        src = (PAGE_SRC / "components" / "PeekMilestoneChips.jsx").read_text(encoding="utf-8")      # MilestoneChips lives here, Peek.jsx only imports it
         self.assertNotRegex(src[src.index("function MilestoneChips"):][:1500], r'sub=\{?["\']forecast', "the 'forecast' tag was removed (Alan 14-11)")
-        edit = (PAGE_SRC / "edit" / "MilestonePeek.jsx").read_text(encoding="utf-8")
+        edit = (PAGE_SRC / "components" / "PeekMilestoneBody.jsx").read_text(encoding="utf-8")      # the editor's body moved here; MilestonePeek.jsx re-exports it
         self.assertIn("Select use case", edit)
 
 
 class Peek(Base):
     """The Milestones page, Edit, at both widths. The helpers of Fields (row 1078) are borrowed; its tests are not run again here."""
     cur = PILOT
-    click = Fields.click
-    until_store = Fields.until_store
-    saved = Fields.saved
+    click = m1078.Fields.click
+    until_store = m1078.Fields.until_store
+    saved = m1078.Fields.saved
 
     def visit(self, cdp, ms=PILOT, width=1400):
         from test_report_editor import Pg
@@ -229,7 +230,7 @@ class Peek(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp, width=width)
-                p.js("(() => { const d = document.querySelector('[data-pk-details]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")
+                p.js("(() => { const d = document.querySelector('[data-pk-details] .pk-details-h'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")      # the section has no aria-expanded: its button does
                 self.assertEqual(p.js(LABELS), ROWS)
                 for old in OLD:
                     self.assertNotIn(old, p.js(LABELS))
@@ -239,7 +240,7 @@ class Peek(Base):
     def test_achieved_on_row_comes_with_the_achieved_state_after_agreed_date(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.js("(() => { const d = document.querySelector('[data-pk-details]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")
+            p.js("(() => { const d = document.querySelector('[data-pk-details] .pk-details-h'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")      # the section has no aria-expanded: its button does
             self.open_chip(p, "state")
             p.js("[...document.querySelectorAll('[data-pop] [role=menuitemradio], [data-pop] [role=option], [data-pop] [role=menuitem]')].find(b => b.textContent.includes('Achieved')).click()")
             self.saved(p, "status", "Done")
@@ -254,7 +255,7 @@ class Peek(Base):
         for width in (1400, 900):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.visit(cdp, width=width)
-                p.js("(() => { const d = document.querySelector('[data-pk-details]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")
+                p.js("(() => { const d = document.querySelector('[data-pk-details] .pk-details-h'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")      # the section has no aria-expanded: its button does
                 row = "#peek [data-ms-row=use_cases]"
                 self.assertIn("Select use case", p.js(f"document.querySelector('{row}').textContent"), "empty: the prompt")
                 self.click(p, f"{row} button")
@@ -281,7 +282,7 @@ class Peek(Base):
     def test_client_wording_is_greyed_and_not_clickable_while_client_is_not_visible(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.js("(() => { const d = document.querySelector('[data-pk-details]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")
+            p.js("(() => { const d = document.querySelector('[data-pk-details] .pk-details-h'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")      # the section has no aria-expanded: its button does
             line = "#peek [data-pk-client-row] button[aria-pressed]"
             row = "#peek [data-ms-row=client_message]"
             state = lambda: p.js(f"document.querySelector({json.dumps(line)}).getAttribute('aria-pressed')")
@@ -302,7 +303,7 @@ class Peek(Base):
     def test_enter_in_description_is_a_new_line_and_ctrl_or_cmd_enter_saves_it(self):
         with chrome() as cdp:
             p = self.visit(cdp)
-            p.js("(() => { const d = document.querySelector('[data-pk-details]'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")
+            p.js("(() => { const d = document.querySelector('[data-pk-details] .pk-details-h'); if (d && d.getAttribute('aria-expanded') !== 'true') d.click(); })()")      # the section has no aria-expanded: its button does
             self.click(p, "#peek [data-ms-row=description] [data-rich=description]")
             p.until("!!document.querySelector('#peek .ProseMirror') && document.activeElement.classList.contains('ProseMirror')", "the editor opened with the focus")
             p.js("document.querySelector('#peek .ProseMirror').cxed.editor.commands.insertContent('First line'); true")

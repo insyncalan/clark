@@ -149,6 +149,7 @@ function MilestoneFields({ m, tools }) {
       <dl class="pk-fields" data-ms-fields>
         {description || !fromFile.value ? <Row name="Description" ms="description"><Rich html={description} /></Row> : null}      {/* row 560: a file carries no description for a milestone with no client wording, so a client's peek has no such row */}
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
+        {m.status === "Done" && m.actual_date ? <Row name="Achieved on" ms="actual">{showDate(m.actual_date)}</Row> : null}      {/* item 1184: the chip says Achieved; the date a client read in the old header line is this row, as in the editor */}
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
         {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
       </dl>
