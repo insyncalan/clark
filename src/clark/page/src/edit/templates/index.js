@@ -1,7 +1,6 @@
 // The section templates' Edit parts (#96): store type -> Edit component, all eighteen up front, so a template's builder changes only
 // its own file here. Handed to the page as tools.templateEdit (edit/index.js); never in a published file.
-import { TEMPLATE_TYPES, PENDING_TYPES, BUILT_IN_PART_TYPES } from "../../templates/types.js";
-import { Edit as glance } from "./GlanceSection.jsx";
+import { TEMPLATE_TYPES, PENDING_TYPES } from "../../templates/types.js";
 import { Edit as textimage } from "./TextImage.jsx";
 import { Edit as headline } from "./Headline.jsx";
 import { Edit as figures4 } from "./Figures4.jsx";
@@ -30,12 +29,8 @@ export const TEMPLATE_EDITS = Object.freeze(Object.fromEntries(TEMPLATE_TYPES.ma
 const PENDING = { gantt, gantttable };
 export const PENDING_EDITS = Object.freeze(Object.fromEntries(PENDING_TYPES.map((t) => [t, PENDING[t]])));
 
-// The Edit parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; row 1190).
-const BUILT_IN = { glance };
-export const BUILT_IN_EDITS = Object.freeze(Object.fromEntries(BUILT_IN_PART_TYPES.map((t) => [t, BUILT_IN[t]])));
-
 // The Edit part for a section type, or null when it is not a template.
 export function templateEdit(type) {
   const has = (o) => Object.prototype.hasOwnProperty.call(o, type);
-  return has(TEMPLATE_EDITS) ? TEMPLATE_EDITS[type] : has(PENDING_EDITS) ? PENDING_EDITS[type] : has(BUILT_IN_EDITS) ? BUILT_IN_EDITS[type] : null;
+  return has(TEMPLATE_EDITS) ? TEMPLATE_EDITS[type] : has(PENDING_EDITS) ? PENDING_EDITS[type] : null;
 }

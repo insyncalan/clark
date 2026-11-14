@@ -2,8 +2,7 @@
 // template's builder changes only its own <Type>.jsx, never this file, Section.jsx or Dashboard.jsx. Section.jsx draws a template
 // section through templateFor(type) (its Edit part comes from tools.templateEdit, edit/templates/, never in a published file);
 // Dashboard.jsx leaves it out of the served View and the published file while isEmpty is true.
-import { TEMPLATE_TYPES, PENDING_TYPES, BUILT_IN_PART_TYPES } from "./types.js";
-import * as glance from "./GlanceSection.jsx";
+import { TEMPLATE_TYPES, PENDING_TYPES } from "./types.js";
 import * as textimage from "./TextImage.jsx";
 import * as headline from "./Headline.jsx";
 import * as figures4 from "./Figures4.jsx";
@@ -37,16 +36,10 @@ export const PENDING_PARTS = Object.freeze(Object.fromEntries(PENDING_TYPES.map(
   view: PENDING_MODULES[t].View, isEmpty: PENDING_MODULES[t].isEmpty, ready: PENDING_MODULES[t].READY === true,
 })])));
 
-// The parts of the built-in types that are also templates (types.js BUILT_IN_PART_TYPES; row 1190).
-const BUILT_IN_MODULES = { glance };
-export const BUILT_IN_PARTS = Object.freeze(Object.fromEntries(BUILT_IN_PART_TYPES.map((t) => [t, Object.freeze({
-  view: BUILT_IN_MODULES[t].View, isEmpty: BUILT_IN_MODULES[t].isEmpty, ready: BUILT_IN_MODULES[t].READY === true,
-})])));
-
 // The parts for a section type, or null when it is not a template (text, glance, needs and the other built-in types).
 export function templateFor(type) {
   const has = (o) => Object.prototype.hasOwnProperty.call(o, type);
-  return has(TEMPLATE_PARTS) ? TEMPLATE_PARTS[type] : has(PENDING_PARTS) ? PENDING_PARTS[type] : has(BUILT_IN_PARTS) ? BUILT_IN_PARTS[type] : null;
+  return has(TEMPLATE_PARTS) ? TEMPLATE_PARTS[type] : has(PENDING_PARTS) ? PENDING_PARTS[type] : null;
 }
 
 // Whether a template section has nothing to show (FR-11: the served View and the published file decide alike). A section that is

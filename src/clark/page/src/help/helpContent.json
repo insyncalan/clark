@@ -1120,11 +1120,6 @@
         "Table",
         "The plan as a table, from your Gantt lines. Only lines put in the client view show.",
         "Full or half"
-       ],
-       [
-        "At a glance",
-        "Project health with its reason, and the count tiles.",
-        "Full"
        ]
       ]
      ]
