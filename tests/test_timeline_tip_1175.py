@@ -16,7 +16,8 @@ PROBE = """((i) => {
   const marks = [...document.querySelectorAll('.mv-mk[data-hid]')].sort((a, b) => a.getBoundingClientRect().left - b.getBoundingClientRect().left);
   const m = marks[i < 0 ? marks.length + i : i], r = m.getBoundingClientRect(), c = getComputedStyle(m, '::after');
   const w = parseFloat(c.width), h = parseFloat(c.height);
-  const box = {left: r.left + r.width / 2 - w / 2, top: r.bottom, right: r.left + r.width / 2 + w / 2, bottom: r.bottom + h};
+  const tx = new DOMMatrix(c.transform).m41, k = r.width / 24;   // the tip's own shift (the mark is scaled while open)
+  const box = {left: r.left + r.width / 2 + tx * k, top: r.bottom, right: r.left + r.width / 2 + (tx + w) * k, bottom: r.bottom + h * k};
   const wrap = m.closest('.mv-wrap').getBoundingClientRect();
   const over = [...document.querySelectorAll('.mv-lab')].filter(l => { const b = l.getBoundingClientRect();
     return b.left < box.right && b.right > box.left && b.top < box.bottom && b.bottom > box.top; });
@@ -45,7 +46,9 @@ class Tip(BrowserBase, unittest.TestCase):
         for z in got["labZ"]:
             self.assertGreater(got["markZ"], z, f"{where}: the open mark is above every label its tip overlaps")
         self.assertNotIn(False, got["hits"], f"{where}: the tip is the top thing along its whole width")
-        # Edge clipping by .mv-wrap is not this row (the ticket saw none); see the report.
+        self.assertGreaterEqual(got["box"]["left"], got["wrap"]["left"] - 0.5, f"{where}: the tip is not cut at the left edge of the timeline box")
+        self.assertLessEqual(got["box"]["right"], got["wrap"]["right"] + 0.5, f"{where}: the tip is not cut at the right edge of the timeline box")
+        self.assertLessEqual(got["box"]["bottom"], got["wrap"]["bottom"] + 0.5, f"{where}: the tip is not cut at the bottom of the timeline box")
         return got
 
     def test_the_leftmost_and_rightmost_tips_are_above_the_shown_labels_by_focus(self):
