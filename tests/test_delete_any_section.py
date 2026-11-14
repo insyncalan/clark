@@ -203,6 +203,15 @@ class ReAdd(Base):
                 self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), (t, title, "", 0, 0))
                 self.assertEqual(len(self.of_type(t)), 1)
 
+    def test_a_deleted_older_current_state_section_is_added_again_once(self):
+        """item 1188: the first default is a text section now, but "current" stays a built-in that can be added again."""
+        self.old_current_row()
+        self.ok("delete", id=self.of_type("current")[0]["id"])
+        got = self.ok("new", values={"type": "current", "title": "Something else"})
+        row = self.s.read(KIND, ref=got["ref"])
+        self.assertEqual((row["type"], row["title"], row["body"], row["hidden"], row["beside"]), ("current", "Current state", "", 0, 0))
+        self.refused(self.req("new", values={"type": "current"}), changes.NEW_TYPE_WORDS)
+
     def test_a_built_in_already_in_the_report_is_refused_a_second_time_and_nothing_is_written(self):
         for t in BUILT_INS:
             with self.subTest(type=t):
@@ -216,7 +225,7 @@ class ReAdd(Base):
             self.refused(self.req("new", values={"type": t}), changes.NEW_TYPE_WORDS)
 
     def test_the_new_types_are_exactly_text_the_content_types_and_the_built_ins(self):
-        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), set(BUILT_INS) | {"gantt", "gantttable"})
+        self.assertEqual(set(changes.NEW_SECTION_TYPES) - set(store_module.BODY_TYPES), set(BUILT_INS) | {"current", "gantt", "gantttable"})
 
 
 if __name__ == "__main__":

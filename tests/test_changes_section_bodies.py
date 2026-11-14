@@ -93,7 +93,7 @@ class Adding(Content):
                 self.assertNotIn(ref, self.ids_now())
 
     def test_every_other_type_is_still_refused(self):
-        for bad in ("raid", "docs", "current", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):
+        for bad in ("raid", "docs", "needs", "Needs", "NEEDS", "needs ", "tracker\n", "template", "", None, ["needs"], {"a": 1}, 5):   # item 1188: "current" is a built-in that can be added again, so it is no longer here
             with self.subTest(type=bad):
                 self.refused(self.req("new", values={"type": bad, "title": "x"}), changes.NEW_TYPE_WORDS)
 
