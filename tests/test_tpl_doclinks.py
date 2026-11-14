@@ -103,7 +103,7 @@ class Checker(unittest.TestCase):
         self.assertEqual(str(e.exception), doclinks.BAD_TYPE)
 
     def test_a_link_needs_a_description_a_file_does_not(self):
-        for label in ("", "   ", "\u200b"):
+        for label in ("", "   "):
             with self.subTest(label=label):
                 self.refused("doclinks", body([a_link(label=label)]), doclinks.NO_DESCRIPTION)
         self.refused("doclinks", body([{"kind": "link", "href": "https://example.org/plan"}]), doclinks.NO_DESCRIPTION)

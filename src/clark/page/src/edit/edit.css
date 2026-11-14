@@ -615,6 +615,10 @@ textarea.tpl-field { resize: vertical; }
 /* .tpl-edit (the column) and .tpl-actions are the typed notes block's; .tpl-files-edit keeps this group's closer spacing. */
 .tpl-files-edit { gap: var(--space-2); margin: var(--space-2) 0; }
 .tpl-files-edit .tpl-dl { margin: 0; }
+.tpl-files-edit .tpl-icons { display: flex; justify-content: flex-end; gap: var(--space-1); }
+.tpl-files-edit .tpl-icon { min-width: 44px; min-height: 44px; display: inline-grid; place-items: center; padding: 0; }
+.tpl-files-edit .tpl-rename { flex: 1; min-width: 0; min-height: 32px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.tpl-files-edit .tpl-dl-i { align-items: center; }
 .tpl-files-edit .tpl-remove { flex: none; align-self: center; }
 .tpl-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--space-1); max-width: 560px; }
 .tpl-form label { font-size: var(--size-caption); color: var(--text-muted); margin-top: var(--space-1); }

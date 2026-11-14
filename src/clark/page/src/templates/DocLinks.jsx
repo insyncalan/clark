@@ -4,7 +4,8 @@
 // The page clark serves names a file without linking it: the file is beside the client's copy, not beside this page.
 // isEmpty: nothing that can be drawn, so the section is left out of the served View and the published file alike (FR-11).
 import { fromFile } from "../stores/report.js";
-import { docItems, kindWords, sizeWords } from "./files.js";
+import { docItems, kindWords, sizeWords, badgeWords, factsWords } from "./files.js";
+import * as W from "../logic/docLinksWords.js";
 
 export const READY = true;
 
@@ -30,20 +31,47 @@ export function FileRow({ file, label }) {
   );
 }
 
+// The Open and Download of a row (44px targets in the page's CSS): Open on every row, in a new tab; Download on a file only.
+// A file's own address resolves only beside the client's copy of the report, so a file's actions are drawn in a published file.
+function Actions({ item }) {
+  if (item.kind === "link") return <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer">{W.UNRULED_OPEN}</a>;
+  if (!fromFile.value) return null;
+  return (
+    <>
+      <a class="tpl-act" href={item.href} target="_blank" rel="noopener noreferrer">{W.UNRULED_OPEN}</a>
+      <a class="tpl-act" href={item.href} download={item.name}>{W.UNRULED_DOWNLOAD}</a>
+    </>
+  );
+}
+
+// The name of an entry: a link in a published file, plain words in the editor's View (a link's Open is its own button).
+export function EntryName({ item }) {
+  const words = item.label || (item.kind === "file" ? item.name : item.shown);
+  return fromFile.value
+    ? <a class="tpl-name" href={item.href} target="_blank" rel="noopener noreferrer">{words}</a>
+    : <span class="tpl-name">{words}</span>;
+}
+
+// One entry: the page-style icon, the name, and under it "<Type> · <size or site>".
+export function EntryRow({ item }) {
+  return (
+    <>
+      <span class={`tpl-badge tpl-badge-${badgeWords(item).toLowerCase()}`}>{badgeWords(item)}</span>
+      <span class="tpl-main">
+        <EntryName item={item} />
+        <span class="tpl-facts">{factsWords(item)}</span>
+      </span>
+    </>
+  );
+}
+
 export function View({ section }) {
   return (
     <ul class="tpl-dl">
       {docItems(section).map((i, n) => (
         <li key={n} class={`tpl-dl-i tpl-dl-${i.kind}`}>
-          {i.kind === "file" ? <FileRow file={i} label={i.label} /> : (
-            <>
-              <span class="tpl-badge">Link</span>
-              <span class="tpl-main">
-                <a class="tpl-name" href={i.href} target="_blank" rel="noopener noreferrer">{i.label || i.shown}</a>
-                {i.label ? <span class="tpl-facts">{i.shown}</span> : null}
-              </span>
-            </>
-          )}
+          <EntryRow item={i} />
+          <span class="tpl-acts"><Actions item={i} /></span>
         </li>
       ))}
     </ul>
