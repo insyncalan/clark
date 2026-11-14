@@ -1550,7 +1550,7 @@ class Menu(board.Base):
         self.assertNotIn("clark:draft-email", (ROOT / "src" / "clark" / "page" / "page.html").read_text(encoding="utf-8"))
 
     def test_row_1196_no_more_actions_button_ends_a_row_and_the_menu_keys_still_open_the_menu_at_1400_and_900(self):
-        """Item 1196: the "..." button is gone from every row (it opened the same menu as a right click); the eye stays; Menu and Shift+F10 on a focused row still open the menu."""
+        """Item 1196: the "..." button is gone from every row (it opened the same menu as a right click); the eye stays; the Menu key on a focused row still opens the menu."""
         for width in (1400, 900):
             with chrome() as cdp:
                 sid = self.visit(cdp, width=width, height=900)
