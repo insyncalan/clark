@@ -26,15 +26,15 @@ READ = """(() => { const p = document.querySelector('#peek'); if (!p) return nul
   const row = p.querySelector('.pk-chips');
   const chips = {};
   if (row) for (const c of row.children) { const k = c.dataset.row; if (!k) continue; const cs = getComputedStyle(c);
-    const sub = c.querySelector('.pk-chip-sub');
-    chips[k] = { ...box(c), tag: c.tagName, text: c.innerText.replace(/\\s+/g, ' ').trim(), aria: c.getAttribute('aria-label') || '',
+    const sub = c.querySelector('.pk-chip-sub'); const ctl = c.querySelector('button') || c;
+    chips[k] = { ...box(c), tag: ctl.tagName, text: c.innerText.replace(/\\s+/g, ' ').trim(), aria: ctl.getAttribute('aria-label') || '',
       icons: [...c.querySelectorAll('svg[data-icn]')].map(s => s.dataset.icn), iconBox: c.querySelector('svg[data-icn]') ? box(c.querySelector('svg[data-icn]')) : null,
       sub: sub ? sub.textContent.trim() : null, subColour: sub ? getComputedStyle(sub).color : null,
-      expanded: c.getAttribute('aria-expanded'), haspopup: c.getAttribute('aria-haspopup'),
+      expanded: ctl.getAttribute('aria-expanded'), haspopup: ctl.getAttribute('aria-haspopup'),
       border: cs.borderTopWidth, radius: cs.borderTopLeftRadius, overflow: c.scrollWidth - c.clientWidth }; }
   const probe = (name) => { const e = document.createElement('i'); e.style.color = 'var(' + name + ')'; document.body.appendChild(e); const c = getComputedStyle(e).color; e.remove(); return c; };
   return { id: p.dataset.peek, hasRow: !!row, chips, rowBox: row ? box(row) : null, peek: box(p), oldCells: p.querySelectorAll('.pk-fields > .pk-row[data-row]').length,
-    red: probe('--red-600'), sideways: p.scrollWidth - p.clientWidth, doc: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()"""
+    red: probe('--status-red-text'), sideways: p.scrollWidth - p.clientWidth, doc: document.documentElement.scrollWidth - document.documentElement.clientWidth }; })()"""
 
 
 class Chips(unittest.TestCase):
@@ -45,8 +45,14 @@ class Chips(unittest.TestCase):
     ids_on_page = tp.Browser.ids_on_page
     show_item = CardBrowser.show_item
 
-    def open_item(self, cdp, sid, item):
-        cdp.js(f"location.hash = '#work&p={self.code}&item={item}'", sid)
+    def open_item(self, cdp, sid, item, view=False):
+        """View is a switch on the Dashboard only (Work items is always editable): view=True opens the peek there, in View."""
+        if view:
+            cdp.js("document.querySelector('[data-view=dashboard]').click()", sid)
+            self.assertTrue(wait(lambda: cdp.js("(r => !!r && r.dataset.mode === 'view')(document.querySelector('#report'))", sid)), "the Dashboard is in View")
+            cdp.js(f"clarkPage.openPeek({json.dumps(item)}, 'item')", sid)
+        else:
+            cdp.js(f"location.hash = '#work&p={self.code}&item={item}'", sid)
         self.assertTrue(wait(lambda: cdp.js("(() => { const p = document.querySelector('#peek'); return !!p && p.dataset.peek === " + json.dumps(item) + " && !!p.querySelector('.pk-chips [data-row=status]'); })()", sid)), item)
         self.assertTrue(wait(lambda: cdp.js("document.querySelector('#peek').getAnimations().length === 0", sid)), "the slide-in has ended")
         return cdp.js(READ, sid)
@@ -69,7 +75,7 @@ class Chips(unittest.TestCase):
                         self.edit_mode(cdp, sid)
                     where = f"{width} {mode}"
                     with self.subTest(where):
-                        got = self.open_item(cdp, sid, item)
+                        got = self.open_item(cdp, sid, item, view=mode == "view")
                         self.assertTrue(got["hasRow"], f"{where}: a .pk-chips row")
                         self.assertEqual(got["oldCells"], 0, f"{where}: the four tall cells are gone")
                         self.assertEqual(list(got["chips"]), ["status", "priority", "owner", "due"] if "priority" in got["chips"] else ["status", "owner", "due"], where)
@@ -111,7 +117,7 @@ class Chips(unittest.TestCase):
                 self.open_item(cdp, sid, item)
                 for k in ("status", "priority", "owner", "due"):
                     with self.subTest(f"{width} {k}"):
-                        sel = f"#peek .pk-chips [data-row={k}]"
+                        sel = f"#peek .pk-chips [data-row={k}] button"
                         click(cdp, sid, sel)
                         self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('[data-pop]')", sid)), f"{k}: a popover opens")
                         self.assertEqual(cdp.js(f"document.querySelector({json.dumps(sel)}).getAttribute('aria-expanded')", sid), "true")
@@ -144,7 +150,7 @@ class Chips(unittest.TestCase):
                     if mode == "edit":
                         self.edit_mode(cdp, sid)
                     with self.subTest(f"{width} {mode}"):
-                        got = self.open_item(cdp, sid, OVERDUE)
+                        got = self.open_item(cdp, sid, OVERDUE, view=mode == "view")
                         due = got["chips"]["due"]
                         self.assertEqual(due["sub"], "overdue 2 days")
                         self.assertEqual(due["subColour"], got["red"], "the sub-line is in the red token")
@@ -169,7 +175,7 @@ class Chips(unittest.TestCase):
                     if mode == "edit":
                         self.edit_mode(cdp, sid)
                     with self.subTest(f"{width} {mode}"):
-                        got = self.open_item(cdp, sid, CLOSED_RISK)
+                        got = self.open_item(cdp, sid, CLOSED_RISK, view=mode == "view")
                         chips = got["chips"]
                         self.assertIn("Closed", chips["status"]["text"])
                         kept = [c["sub"] for c in chips.values() if c["sub"] and "kept" in c["sub"]]
@@ -201,7 +207,7 @@ class Chips(unittest.TestCase):
             with chrome() as cdp:
                 s, sid = self.load_page(cdp, width)
                 item = self.ids_on_page(cdp, sid)[0]
-                view = self.open_item(cdp, sid, item)
+                view = self.open_item(cdp, sid, item, view=True)
                 self.edit_mode(cdp, sid)
                 edit = self.open_item(cdp, sid, item)
                 with self.subTest(width):
@@ -218,15 +224,17 @@ class ChipRules(unittest.TestCase):
         import re
         css = (ROOT / "src" / "clark" / "page" / "shell.css").read_text(encoding="utf-8")
         self.assertIn(".pk-chips", css, "the row is the published page's too")
-        self.assertIn(".pk-chip-sub", css)
+        self.assertIn(".pkc-sub", css)
         for sel in re.findall(r"\.pk-chips[^{]*\{([^}]*)\}", css):
             self.assertNotRegex(sel, r"#[0-9A-Fa-f]{3,8}\b|rgba?\(|hsla?\(", "tokens only")
             self.assertNotRegex(sel, r"font-size:\s*\d", "sizes come from the scale")
 
     def test_the_peek_source_draws_the_row_for_all_kinds(self):
         src = (ROOT / "src" / "clark" / "page" / "src" / "components" / "Peek.jsx").read_text(encoding="utf-8")
-        self.assertIn("pk-chips", src)
-        self.assertIn("pk-chip-sub", src)
+        chips = (ROOT / "src" / "clark" / "page" / "src" / "components" / "PeekChips.jsx").read_text(encoding="utf-8")
+        self.assertIn("<PeekChips>", src)
+        self.assertIn("pk-chips", chips)
+        self.assertIn("pk-chip-sub", chips)
 
 
 if __name__ == "__main__":
