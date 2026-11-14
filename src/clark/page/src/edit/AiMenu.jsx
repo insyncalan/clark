@@ -17,13 +17,18 @@ export function AiMenu({ at, onPick, onClose }) {
     el.style.left = `${Math.round(Math.max(8, Math.min(at.x, window.innerWidth - w - 8)))}px`;
     el.style.top = `${Math.round(Math.max(8, Math.min(at.y, window.innerHeight - h - 8)))}px`;
   }, []);
-  useEffect(() => {
-    const t = setTimeout(() => { const its = menuItemsIn(box.current); (its[0] || box.current).focus({ preventScroll: true }); }, 60);     // after the editor has taken its own focus
+  // The key and pointer listeners go on in the same step the menu is drawn (a passive effect can run after a key already arrived, and an Esc
+  // then reached the editor and closed it); the first focus waits for the editor's own.
+  useLayoutEffect(() => {
     const esc = (e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); closeRef.current("esc"); } };
     const away = (e) => { if (!box.current.contains(e.target)) closeRef.current("away"); };
     document.addEventListener("keydown", esc, true);
     document.addEventListener("pointerdown", away, true);
-    return () => { clearTimeout(t); document.removeEventListener("keydown", esc, true); document.removeEventListener("pointerdown", away, true); };
+    return () => { document.removeEventListener("keydown", esc, true); document.removeEventListener("pointerdown", away, true); };
+  }, []);
+  useEffect(() => {
+    const t = setTimeout(() => { const its = menuItemsIn(box.current); (its[0] || box.current).focus({ preventScroll: true }); }, 60);     // after the editor has taken its own focus
+    return () => clearTimeout(t);
   }, []);
   useEffect(() => { if (asking && ask.current) ask.current.focus(); }, [asking]);
   if (!m) return null;
