@@ -4,7 +4,7 @@ never skip, without it.
 Run: python3 dev/run_tests.py test_settings_key
 Covers: the chord opens Settings from the Dashboard and from Work items, at 1400 and 900 px; a Mac sends Option + S as the character
 "ß" with the code KeyS, and that opens it too; Option + S alone, Command + S alone, Ctrl + Alt + S, Command + Option + Shift + S, a plain S
-and a different letter do not; it does nothing from a field, with a menu, Help or a record open, or on a computer that is not a Mac, or when Settings is already showing; it types nothing.
+and a different letter do not; it does nothing from a field, with a menu or Help open and focus on the page body, or with a record open, or on a computer that is not a Mac, or when Settings is already showing; it types nothing.
 Only 1400 and 900 px are tested.
 """
 import unittest
@@ -76,32 +76,63 @@ class SettingsKey(Base):
                 p.key(key, mods, code, 83)
                 self.stays(p, name + " must not open Settings")
 
-    def test_it_does_nothing_from_a_field_a_menu_or_help_and_not_twice(self):
+    def on_body(self, p):
+        p.js("document.activeElement && document.activeElement.blur()")
+        self.assertTrue(p.js("document.activeElement === document.body"), "focus is on the page body, not in a field")
+
+    def test_it_does_nothing_from_a_field_and_types_nothing(self):
         with chrome() as cdp:
             p = self.at(cdp, 1400)
             p.js("var t = document.createElement('textarea'); t.id = 'tt'; document.body.appendChild(t); t.focus()")
-            p.key("ß", META | ALT, "KeyS", 83)
+            p.key("\u00df", META | ALT, "KeyS", 83)
             self.stays(p, "not from inside a field")
             self.assertEqual(p.js("document.getElementById('tt').value"), "", "and nothing is typed")
-            p.js("document.getElementById('tt').remove(); document.querySelector('#project-name').click()")
+
+    def test_it_does_nothing_while_a_menu_is_open_with_focus_on_the_body(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("document.querySelector('#project-name').click()")
             p.until("!!document.querySelector('[role=menu]')", "a menu is open")
-            p.key("ß", META | ALT, "KeyS", 83)
+            self.on_body(p)
+            self.assertTrue(p.js("!!document.querySelector('[role=menu]')"), "the menu is still open")
+            p.key("\u00df", META | ALT, "KeyS", 83)
             self.stays(p, "not while a menu is open")
-            p.key("Escape", 0, "Escape", 27)
-            p.until("!document.querySelector('[role=menu]')", "the menu closed")
+
+    def test_it_does_nothing_while_help_is_open_with_focus_on_the_body(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            self.on_body(p)
             p.key("?", 0, "Slash", 191)
             p.until("!!document.querySelector('#help-peek')", "Help opened")
-            p.key("ß", META | ALT, "KeyS", 83)
+            self.on_body(p)
+            self.assertTrue(p.js("!!document.querySelector('#help-peek')"), "Help is still open")
+            p.key("\u00df", META | ALT, "KeyS", 83)
             self.stays(p, "not while Help is open")
-            p.key("Escape", 0, "Escape", 27)
-            p.until("!document.querySelector('#help-peek')", "Help closed")
-            p.key("ß", META | ALT, "KeyS", 83)
-            p.until(AT_SETTINGS, "opened once nothing was in the way")
-            before = p.js("history.length")
-            p.key("ß", META | ALT, "KeyS", 83)
-            p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(() => r(1))))")
-            self.assertEqual(p.js("history.length"), before, "on Settings already, it adds no history entry")
 
+    def test_on_settings_already_it_does_not_act_again(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.key("\u00df", META | ALT, "KeyS", 83)
+            p.until(AT_SETTINGS, "opened Settings")
+            self.on_body(p)
+            # window listeners run after the page's own capture listener: defaultPrevented is set only when the chord got past every guard
+            p.js("window.__seen = {prevented: [], pushes: 0, hashes: 0};"
+                 "window.addEventListener('keydown', e => { if (e.code === 'KeyS') window.__seen.prevented.push(e.defaultPrevented); });"
+                 "window.addEventListener('hashchange', () => { window.__seen.hashes++; });"
+                 "var push = history.pushState; history.pushState = function () { window.__seen.pushes++; return push.apply(this, arguments); }")
+            p.key("\u00df", META | ALT, "KeyS", 83)
+            self.assertEqual(p.js("window.__seen.prevented.length"), 1, "the chord reached the page")
+            self.assertEqual(p.js("window.__seen.prevented[0]"), False, "the Settings guard stopped it before it acted")
+            self.assertEqual(p.js("window.__seen.pushes"), 0, "and added no history entry")
+            self.assertEqual(p.js("window.__seen.hashes"), 0, "and changed no address")
+
+    def test_it_acts_once_nothing_is_in_the_way(self):
+        with chrome() as cdp:
+            p = self.at(cdp, 1400)
+            p.js("window.__seen = [];window.addEventListener('keydown', e => { if (e.code === 'KeyS') window.__seen.push(e.defaultPrevented); })")
+            p.key("\u00df", META | ALT, "KeyS", 83)
+            p.until(AT_SETTINGS, "opened once nothing was in the way")
+            self.assertEqual(p.js("window.__seen"), [True], "the chord was taken, so the spy in the test above can tell the two apart")
 
 if __name__ == "__main__":
     unittest.main()
