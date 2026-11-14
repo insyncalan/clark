@@ -71,7 +71,7 @@ class UseCaseShownAs(ImportCase):
         for text in ("x" * 21, "1‮1"):
             p = self.shown(text)
             self.assertEqual([c for c in p.changes if "ref" in c.after], [], text)
-            self.assertTrue(any("Shown as must be plain text" in x.message for x in p.problems), p.problems)
+            self.assertTrue(any("Reference must be plain text" in x.message for x in p.problems), p.problems)
 
     def test_a_ref_another_use_case_has_is_refused(self):
         with self.s.step("dashboard", USER) as st:
@@ -84,6 +84,21 @@ class UseCaseShownAs(ImportCase):
     def test_a_fresh_ref_still_imports(self):
         p = self.shown("7.5")
         self.assertEqual([c.after.get("ref") for c in p.changes], ["7.5"])
+
+    def test_item_1160_both_headings_import_a_use_case_reference(self):
+        for heading in ("Reference", "Shown as"):      # the new heading, and a workbook exported before the rename
+            wb = load_workbook(str(self.path))
+            ws = wb["Use cases"]
+            ws.cell(1, wbk._col(ws, "ref")).value = heading
+            wb.save(str(self.path))
+            wb = load_workbook(str(self.path))
+            ws = wb["Use cases"]
+            ws.cell(wbk._row_of(ws, self.demo.use_case), next(c.column for c in ws[1] if c.value == heading)).value = "7.6"
+            wb.save(str(self.path))
+            p = self.plan()
+            self.assertEqual([c.after.get("ref") for c in p.changes], ["7.6"], heading)
+            self.assertEqual(p.problems, [], heading)
+            wbk.make_workbook(self.s, self.path)
 
 
 class GanttStatus(unittest.TestCase):

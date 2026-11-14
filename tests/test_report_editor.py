@@ -970,11 +970,11 @@ class Gutter(Base):
                 self.open_menu(p, ref)
                 self.assertFalse([t for t in p.js(self.MENU_TEXTS % ref) if "text section" in t.lower()], "no text-section entry")
                 p.key("Escape", code="Escape", vk=27)
-            # the grip and the + are in the margin, left of the section's own box
+            # the grip and the + are inside the section's own box, in its left padding (row 1152: the tiles run the width of the band)
             for ref in ("ABC-S-001", "ABC-S-006"):
                 box = p.js(f"(function(){{var s=document.querySelector('[data-id=\"{ref}\"]').getBoundingClientRect(),"
                            f"c=document.querySelector('[data-id=\"{ref}\"] .sec-ctl').getBoundingClientRect();"
-                           "return [c.right <= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
+                           "return [c.left >= s.left, c.top >= s.top, c.bottom <= s.bottom];})()")
                 self.assertEqual(box, [True, True, True], ref)
 
     def test_faint_at_rest_clear_on_hover_and_focus_and_while_open(self):
@@ -1118,12 +1118,12 @@ class Gutter(Base):
                 p.edit()
                 self.assertEqual({k: v for k, v in rects().items() if k in in_view}, in_view, f"the same left edge and width in View and Edit at {w}")   # #74: an empty Supporting documents is in Edit only
             cdp.call("Emulation.setDeviceMetricsOverride", {"width": 1400, "height": 900, "deviceScaleFactor": 1, "mobile": False}, p.sid)
-            # the right half: its control sits in the gap between the two columns and covers no content
+            # the right half: its control sits inside its own tile, right of the left column's tile (row 1152)
             gap = p.js("(function(){var l=document.querySelector('[data-id=\"ABC-S-006\"]').getBoundingClientRect(),"
                        "r=document.querySelector('[data-id=\"ABC-S-007\"]').getBoundingClientRect(),"
                        "c=document.querySelector('[data-id=\"ABC-S-007\"] .sec-ctl').getBoundingClientRect();"
-                       "return [c.left >= l.right, c.right <= r.left];})()")
-            self.assertEqual(gap, [True, True], "in the gap")
+                       "return [c.left >= r.left, c.left >= l.right];})()")
+            self.assertEqual(gap, [True, True], "inside its own tile")
             # opening the menu or hovering moves nothing either
             before = rects()
             self.open_menu(p, "ABC-S-007")
@@ -1151,10 +1151,7 @@ class Gutter(Base):
                     for ref, ctl_right, head_left, content_left, ctl_left, sec_left in rows:
                         self.assertLessEqual(ctl_right, head_left, f"{ref} at {w} in {scheme}: the control ends before the heading")
                         self.assertLessEqual(ctl_right, content_left, f"{ref} at {w} in {scheme}: and before all content")
-                        if w == 900:
-                            self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at 900")
-                        else:
-                            self.assertLessEqual(ctl_right, sec_left, f"{ref}: in the margin at 1400")
+                        self.assertGreaterEqual(ctl_left, sec_left, f"{ref}: inside the card at {w}")      # row 1152: at every width
                     self.assertLessEqual(p.js("document.documentElement.scrollWidth"), w, f"no sideways scroll at {w} in {scheme}")
             cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-color-scheme", "value": "light"}]}, p.sid)
             # a left-out section too

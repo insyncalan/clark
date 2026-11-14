@@ -268,35 +268,17 @@ class InTheFile(Published):
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"client_name": "Example Client", "week_ending": "2026-10-23"})
 
-    def test_the_published_file_draws_the_band_from_its_own_data(self):
+    def test_the_published_file_draws_the_words_in_its_bar_from_its_own_data(self):
+        """Issue 1146: the banner's words sit under the project name in the file's one bar (test_published_one_bar.py draws the rest)."""
         path = self.publish()
         for width, dark in ((1400, False), (900, True)):
             with self.subTest(width=width, dark=dark), chrome() as cdp:
                 p = self.draw(cdp, path, width, dark)
-                b = p.js(BAND)
-                self.assertEqual(b["kind"].upper(), "WEEKLY REPORT")
-                self.assertIn("Week ending 23-10-2026", b["line"])
-                self.assertIn("for Example Client", b["line"])
-                self.assertGreaterEqual(min(p.js(LUM)), 4.5)
-
-    def test_row_997_the_published_slim_file_draws_the_band_rounded_with_the_shadow(self):
-        path = self.publish()
-        with chrome() as cdp:
-            p = self.draw(cdp, path)
-            p.js("document.documentElement.dataset.density = 'comfortable'")      # a file with no word opens Compact; the rounded band is Comfortable
-            got = p.js(RADII)
-        self.assertEqual(len(set(got["r"])), 1, got)
-        self.assertNotEqual(got["r"][0], "0px", got)
-        self.assertNotEqual(got["shadow"], "none", got)
-
-    def test_row_1003_the_published_file_fills_the_band_with_the_brand_picture(self):
-        path = self.publish()
-        for width, dark in ((1400, False), (900, True)):
-            with self.subTest(width=width, dark=dark), chrome() as cdp:
-                p = self.draw(cdp, path, width, dark)
-                check_fills(self, p.js(PICTURE), False)
-                p.js("document.documentElement.style.setProperty('--image-cover', %s)" % json.dumps(artwork()))
-                check_fills(self, p.js(PICTURE), True)
+                got = p.js("({kind: document.querySelector('header.top .cover-kind').textContent, line: document.querySelector('header.top .cover-line').textContent, h1: document.querySelectorAll('h1').length, cover: document.querySelectorAll('header.cover').length})")
+                self.assertEqual(got["kind"].upper(), "WEEKLY REPORT")
+                self.assertIn("Week ending 23-10-2026", got["line"])
+                self.assertIn("for Example Client", got["line"])
+                self.assertEqual((got["h1"], got["cover"]), (1, 0))
 
     def test_a_missing_week_and_client_leave_those_parts_out(self):
         with self.store.step("dashboard", USER) as st:
