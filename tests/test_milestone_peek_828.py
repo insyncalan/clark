@@ -63,6 +63,11 @@ class Fields(Base):
         p.until(f"!!document.querySelector({json.dumps(sel)})", sel)
         p.js(f"document.querySelector({json.dumps(sel)}).click()")
 
+    def archive_in_peek(self, p):
+        """Item 1148: Archive is the first entry of the milestone peek's More actions menu."""
+        self.click(p, "#peek #pk-more")
+        self.click(p, ".ddmenu [data-kind=archive]")
+
     def type_in(self, p, sel, text, leave="enter"):
         p.until(f"!!document.querySelector({json.dumps(sel)})", sel)
         p.js(f"(() => {{ const el = document.querySelector({json.dumps(sel)}); el.value = {json.dumps(text)}; el.dispatchEvent(new Event('input', {{bubbles: true}})); "
@@ -268,8 +273,8 @@ class Fields(Base):
         with chrome() as cdp:
             p = self.visit_peek(cdp)
             self.calm(p)
-            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-archive]').length"), 1)
-            self.click(p, "#peek [data-pk-archive]")
+            self.assertEqual(p.js("document.querySelectorAll('#peek #pk-more').length"), 1)
+            self.archive_in_peek(p)
             self.assertTrue(self.until_store(lambda: self.row(self.cur)["archived"] == 1), "archived")
             self.assertEqual((self.sent[-1][1]["kind"], self.sent[-1][1]["op"], self.sent[-1][1]["id"]), ("milestones", "archive", GO_LIVE))
             p.until(f"(document.querySelector('.toast .toast-text') || {{}}).textContent === '{GO_LIVE} archived. It is out of the lists and the published page.'", "the toast")
@@ -290,7 +295,7 @@ class Fields(Base):
                     self.calm(p)
                     want = p.js(f"(() => {{ const n = document.querySelector('li.msl-row[data-ms=\"{ms}\"]'); const x = n && n.nextElementSibling; "
                                 "return x ? x.getAttribute('data-ms') : ''; })()")
-                    self.click(p, "#peek [data-pk-archive]")
+                    self.archive_in_peek(p)
                     p.until("!document.querySelector('#peek') && !!document.querySelector('.toast [data-undo]')", "closed, Undo offered")
                     p.until("document.activeElement !== document.body", "focus did not drop to the page")
                     got = p.js("(() => { const a = document.activeElement; const r = a.closest('li.msl-row'); "
@@ -300,7 +305,7 @@ class Fields(Base):
     def test_no_archive_button_in_the_dashboards_view_peek(self):
         with chrome() as cdp:
             p = self.visit_peek(cdp, view="dashboard")
-            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-archive]').length"), 0)
+            self.assertEqual(p.js("document.querySelectorAll('#peek [data-pk-archive], #peek #pk-more').length"), 0)
 
     def test_fit_at_both_widths_in_both_themes(self):
         for width in (1400, 900):
