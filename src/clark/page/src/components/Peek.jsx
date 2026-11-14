@@ -163,7 +163,7 @@ export function Peek({ tools }) {
   const Words = editing && !!p && tools.Words;
   const Tabs = editing && tools.PeekTabs, Activity = editing && tools.PeekActivity;
   const MsTitle = msEditing && tools.MilestoneTitle;         // row 1078: the milestone's name is its title, changed in place
-  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MoreBtn = editing && forItem && tools.PeekMore, MsArchBtn = msEditing && tools.PeekArchive;
+  const TitleBox = editing && forItem && tools.PeekTitle, DupBtn = editing && forItem && tools.PeekDuplicate, ArchBtn = editing && forItem && tools.PeekArchive, DelBtn = editing && forItem && tools.PeekDelete, MoreBtn = editing && forItem && tools.PeekMore, MsMoreBtn = msEditing && tools.RecordMore;      // item 1148: the milestone peek has More actions (Archive, Delete) in place of the Archive button
   const Warn = editing && forItem && tools.PeekWarn, Latest = editing && forItem && tools.PeekLatest, Needed = editing && forItem && tools.PeekNeeded;      // the warning bar and Latest update (peek, Edit only)
   // Row 1077 (the owner's ruling): every peek, item or milestone, shows its Source, in Edit and in View alike. On the live page the Edit part
   // reads it from the server (tools.PeekSource); a published file (no tools, fromFile) draws the name its own data carries (FileSource below).
@@ -293,7 +293,7 @@ export function Peek({ tools }) {
         {ArchBtn && row ? <ArchBtn row={row} /> : null}
         {DelBtn && row ? <DelBtn row={row} /> : null}
         {MoreBtn && row ? <MoreBtn row={row} /> : null}
-        {MsArchBtn && m ? <MsArchBtn row={m} milestone /> : null}
+        {MsMoreBtn && m ? <MsMoreBtn row={m} kind="milestones" place="peek" cls="pkp-btn" id="pk-more" fixed={false} /> : null}
         <button type="button" class="pkp-btn" data-pk-wide aria-pressed={wide.value} title={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} aria-label={wide.value ? "Return the panel to its usual width" : "Make this panel fill the screen"} onClick={() => { wide.value = !wide.value; }}><Icon name="expand" /></button>
         <button type="button" class="pkp-btn" data-pk-close title="Close this panel" aria-label="Close this panel" onClick={closePeek}><Icon name="x" /></button>
       </div>
