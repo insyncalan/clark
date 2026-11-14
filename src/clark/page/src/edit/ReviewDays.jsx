@@ -7,7 +7,8 @@ import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { REVIEW_DAYS } from "../filters.js";
 import { plural } from "../workItems.js";
-import { SettingRow } from "./SettingRow.jsx";
+import { SettingRow, focusControl } from "./SettingRow.jsx";
+import { defaultOf } from "./settingsDefaults.js";
 
 export const REFUSED = "Choose a whole number of days from 1 to 365. Nothing was changed.";      // changes.py BAD_REVIEW_DAYS, word for word
 const LOW = 1, HIGH = 365;
@@ -40,11 +41,17 @@ export function ReviewDays() {
     setTyped(null);                                  // the box shows what clark kept (a refused change leaves the old number)
   };
 
+  const reset = async () => {
+    setTyped(null); setSaid("");                     // the typed value and the refusal line go with the Reset
+    await change({ kind: "projects", op: "update", changes: { review_after_days: defaultOf("review-days") }, place: "menu" },
+      `Not reviewed after: ${plural(defaultOf("review-days"), "day")}.`, { focus: "#review-days" });
+    focusControl("review-days");
+  };
   return (
     <section class="frame setting" id="freshness" aria-labelledby="review-days-h">
       <h2 id="review-days-h" tabIndex={-1}>Freshness</h2>
       <p class="muted">When an open item counts as not reviewed in this project. It sets the peek's note and the Freshness filter.</p>
-      <SettingRow id="review-days" name="Not reviewed after (days)" helpId="review-days-line" data-review-days
+      <SettingRow id="review-days" name="Not reviewed after (days)" helpId="review-days-line" data-review-days changed={now !== defaultOf("review-days")} onReset={reset}
         help="A whole number from 1 to 365. The default is 14. Not in the published report."
         bad={<p class="fld-bad" role="alert" data-review-days-bad>{said}</p>}>
         <input id="review-days" type="text" inputMode="numeric" value={shown} aria-describedby="review-days-line" aria-invalid={said ? "true" : undefined}

@@ -523,8 +523,9 @@ class NoFolder(Base):
                 p.until("!document.querySelector('#publish-dialog') && document.activeElement && document.activeElement.id === 'publishing'", f"{w}: the box closed and the Publishing card has the focus")
                 self.assertEqual(p.js("document.querySelector('h1').textContent"), "Settings", "Settings is open")      # row 976: Settings is no tab, so the page's own heading says it is open
                 self.assertEqual(p.js("document.querySelectorAll('[data-view=settings]').length"), 0, "and it is not a tab")
-                self.assertTrue(p.js("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()"), "the card is in view")
-                self.assertTrue(p.js("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()"), "clear of the top bar")
+                # the card scrolls into view smoothly (the page is longer with Essentials first), so wait for it to arrive before reading where it is
+                p.until("(function(){var r=document.querySelector('#publishing').getBoundingClientRect();return r.top >= 0 && r.top < innerHeight})()", "the card is in view")
+                p.until("(function(){var t=document.querySelector('header.top').getBoundingClientRect().bottom;return document.querySelector('#publishing').getBoundingClientRect().top >= t - 1})()", "clear of the top bar")
 
 
 class Settings(Base):

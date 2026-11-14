@@ -151,6 +151,16 @@ const KEYS_ON = "Single-key shortcuts are on";
 const KEYS_OFF = "Single-key shortcuts are off";
 
 // The switch changes at once; the toast says the new state and its Undo sets it back (row 849). The button is never disabled, so focus stays on it.
+// Appearance and Spacing apply at once too (row 1115 S5): a quiet toast says the new choice, and its Undo puts the old one back.
+function chosen(label, list, set, current, next) {
+  if (next === current) return;
+  const nameOf = (id) => (list.find(([x]) => x === id) || [id, id])[1];
+  set(next);
+  announceSwitch(`${label}: ${nameOf(next)}.`, () => { set(current); return { ok: true }; }, `${label}: ${nameOf(current)}.`);
+}
+const pickAppearance = (next) => chosen("Appearance", APPEARANCES, setAppearance, appearance.value, next);
+const pickDensity = (next) => chosen("Spacing", DENSITIES, setDensity, density.value, next);
+
 function flipKeys() {
   const now = !singleKeys.value;
   setSingleKeys(now);
@@ -160,15 +170,34 @@ function flipKeys() {
 // Row 902: the Appearance control is a radio group: one stop in the Tab order (the chosen one); the arrows move to the next or previous
 // choice and pick it, wrapping round; Home and End pick the first and last. Enter and Space pick the focused button as a click does.
 function pickByArrow(e) {
+  const group = e.currentTarget;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey) return;     // browser shortcuts (Cmd+arrow and the like) are not ours
   const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
   if (!step && e.key !== "Home" && e.key !== "End") return;
   e.preventDefault();
   const at = APPEARANCES.findIndex(([id]) => id === appearance.value), last = APPEARANCES.length - 1;
   const next = APPEARANCES[e.key === "Home" ? 0 : e.key === "End" ? last : (Math.max(at, 0) + step + APPEARANCES.length) % APPEARANCES.length][0];
-  setAppearance(next);
-  const btn = e.currentTarget.querySelector(`[data-theme-pick="${next}"]`);
+  pickAppearance(next);
+  const btn = [...group.querySelectorAll("button")][APPEARANCES.findIndex(([id]) => id === next)];
   if (btn) btn.focus();
+}
+
+// The Single-key shortcuts switch, shared by the Personal card and the Essentials card (row 1115): one state, two places.
+export function KeysSwitch({ describedby = "keys-line", ...rest }) {
+  return (
+    <button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby={describedby || undefined} onClick={flipKeys} {...rest}></button>
+  );
+}
+
+// The Appearance choice, shared by the Personal card and the Essentials card (row 1115). `pick` names the data attribute each button carries.
+export function AppearancePick({ pick = "data-theme-pick", first }) {
+  return (
+    <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
+      {APPEARANCES.map(([id, name], i) => (
+        <button key={id} type="button" role="radio" id={i === 0 ? first : undefined} {...{ [pick]: id }} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => pickAppearance(id)}>{name}</button>
+      ))}
+    </div>
+  );
 }
 
 export function Personal() {
@@ -181,7 +210,7 @@ export function Personal() {
         <legend>Spacing</legend>
         {DENSITIES.map(([id, name, line]) => (
           <label key={id} class={`secpick sk-${id}`}>
-            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => setDensity(id)} />
+            <input type="radio" name="density" value={id} checked={density.value === id} onChange={() => pickDensity(id)} />
             <span class="secpick-card">
               <span class="secpick-pic" aria-hidden="true"><i></i><i></i><i></i></span>
               <span class="secpick-name"><b>{name}</b>
@@ -193,17 +222,12 @@ export function Personal() {
       </fieldset>
       <fieldset class="styles" data-appearance>
         <legend>Appearance</legend>
-        <div class="seg" role="radiogroup" aria-label="Appearance" onKeyDown={pickByArrow}>
-          {APPEARANCES.map(([id, name]) => (
-            <button key={id} type="button" role="radio" data-theme-pick={id} aria-checked={appearance.value === id ? "true" : "false"} tabIndex={appearance.value === id ? 0 : -1} onClick={() => setAppearance(id)}>{name}</button>
-          ))}
-        </div>
-        <p class="muted appearance-line" data-appearance-line aria-live="polite">{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
+        <AppearancePick />
+        <p class="muted appearance-line" data-appearance-line>{(APPEARANCES.find(([id]) => id === appearance.value) || APPEARANCES[0])[2]}</p>
       </fieldset>
       <fieldset class="styles keys">
         <legend>Keys</legend>
-        <label class="sw key-sw"><button type="button" class="switch" role="switch" aria-label="Single-key shortcuts" aria-checked={singleKeys.value ? "true" : "false"} aria-describedby="keys-line"
-          onClick={flipKeys}></button>
+        <label class="sw key-sw"><KeysSwitch />
           <span><b>Single-key shortcuts</b><small id="keys-line">Letter keys such as V and E work alone on the page. Turn them off if you type by voice or hit keys by accident. Arrows, Enter, Esc and Ctrl or Cmd combinations still work.</small></span></label>
       </fieldset>
     </section>
