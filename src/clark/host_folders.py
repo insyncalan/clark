@@ -1,4 +1,4 @@
-"""Windows route (v1.1, #625): folders on the Windows side that the container can reach, and how a path is said back.
+"""Windows route (v1.1, item 625): folders on the Windows side that the container can reach, and how a path is said back.
 
 Pure: it reads text, never a disk, and never writes. The compose file for Windows shares up to three folders in and names each one's
 Windows path in an environment variable; the container sees each at a fixed place under /shares. A person types a Windows path in

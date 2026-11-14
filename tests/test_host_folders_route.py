@@ -1,4 +1,4 @@
-"""v1.1 #625: a typed Windows path pasted as the client folder goes through host_folders.to_container (publish_flow.client_folder).
+"""v1.1 item 625: a typed Windows path pasted as the client folder goes through host_folders.to_container (publish_flow.client_folder).
 
 The mount point /shares/client is replaced by a folder in the test rig. Run: python3 dev/run_tests.py test_host_folders_route
 """

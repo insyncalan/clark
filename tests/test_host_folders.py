@@ -1,4 +1,4 @@
-"""v1.1 #625: Windows typed-path folders shared into the container (src/clark/host_folders.py), with fake host paths.
+"""v1.1 item 625: Windows typed-path folders shared into the container (src/clark/host_folders.py), with fake host paths.
 
 Run: python3 dev/run_tests.py test_host_folders
 Nothing here needs Docker or a disk: the container and the environment are faked.
