@@ -34,7 +34,7 @@
 #
 # Shards (`--shard I/N`, balanced by the real per-file times in dev/tools/shard_times.txt): Ubuntu 3.x has six on the full path and for a pull request that touches a stylesheet or the page, and three on the cheap path otherwise (three took 20 minutes on a full run; six keep the slowest near ten),
 # Python 3.9 three (quick tier only; was one shard at 17 to 28 minutes). For Ubuntu (3.x and 3.9): add shards when the slowest job passes 10 minutes.
-# macOS three: measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
+# macOS SIX (item 1850; was three): the release run 43591747253 on three shards took the whole 60 minutes (two shards cancelled with 306 of 310 and 295 of 311 files done, the third finished at about 58), so six shards carry about half each. Before: three measured 56.5 min with 2 shards (gate run 42092014127), about 38 min expected at 3 (the real macOS shard time was 0.71 of the simulated one),
 # with a 60-minute timeout; if the first real gate run exceeds 50 min, move to 4 shards (one line in the matrix). Every test file is in exactly one shard
 # (tests/test_run_tests.py proves it).
 # `--max-fail 8` stops a shard that has plainly gone wrong after 8 failed files.
@@ -277,9 +277,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - {shard: 1, shards: 3}
-          - {shard: 2, shards: 3}
-          - {shard: 3, shards: 3}
+          - {shard: 1, shards: 6}
+          - {shard: 2, shards: 6}
+          - {shard: 3, shards: 6}
+          - {shard: 4, shards: 6}
+          - {shard: 5, shards: 6}
+          - {shard: 6, shards: 6}
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
         with:
