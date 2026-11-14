@@ -115,6 +115,10 @@ class SettingsKey(Base):
             p.key("\u00df", META | ALT, "KeyS", 83)
             p.until(AT_SETTINGS, "opened Settings")
             self.on_body(p)
+            # The page still says Settings, but the address is moved to Work items without an event (replaceState fires none). Only the guard
+            # (view is already settings) can then stop show("settings") from navigating: with no guard it would push an entry and change the address.
+            p.js("history.replaceState(null, '', '#work')")
+            self.assertTrue(p.js("location.hash.indexOf('work') >= 0"), "the address was moved quietly")
             # window listeners run after the page's own capture listener: defaultPrevented is set only when the chord got past every guard
             p.js("window.__seen = {prevented: [], pushes: 0, hashes: 0};"
                  "window.addEventListener('keydown', e => { if (e.code === 'KeyS') window.__seen.prevented.push(e.defaultPrevented); });"
@@ -125,6 +129,7 @@ class SettingsKey(Base):
             self.assertEqual(p.js("window.__seen.prevented[0]"), False, "the Settings guard stopped it before it acted")
             self.assertEqual(p.js("window.__seen.pushes"), 0, "and added no history entry")
             self.assertEqual(p.js("window.__seen.hashes"), 0, "and changed no address")
+            self.assertFalse(p.js(AT_SETTINGS), "the address is still the one the test left: the page was not asked to go to Settings")
 
     def test_it_acts_once_nothing_is_in_the_way(self):
         with chrome() as cdp:
