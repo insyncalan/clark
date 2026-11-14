@@ -1238,3 +1238,14 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
 .pk-client.on { color: var(--brand-blue); }
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1184 chips: the milestone peek's State list and the ten progress blocks */
+.pk-mspop .menu-item[disabled] { cursor: default; color: var(--status-red-text); opacity: 1; }
+.pk-blocks { display: grid; grid-template-columns: repeat(10, 28px); gap: 4px; padding: var(--space-2); }
+.pk-block { display: flex; align-items: flex-end; justify-content: center; height: 36px; margin: 0; padding: 0 0 2px; border: 1px solid var(--grey-200); border-radius: var(--radius-sm); background: var(--surface); color: var(--text-muted); font: inherit; font-size: var(--size-caption); cursor: pointer; }
+.pk-block.on { background: color-mix(in srgb, var(--brand-blue) calc(var(--fill) * 0.7% + 20%), var(--surface)); border-color: var(--brand-blue); color: var(--text); }
+.pk-block:hover { border-color: var(--brand-blue); }
+.pk-block:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* Item 1184: a milestone's Client wording row is greyed and not clickable while the milestone is not shown to the client. */
+.pk-row.off dd { opacity: .55; pointer-events: none; }
+.pk-row.off .rt-view { cursor: default; }

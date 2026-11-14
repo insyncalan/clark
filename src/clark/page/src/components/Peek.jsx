@@ -18,9 +18,7 @@ import { itemIds, milestoneIds, around, placeIn } from "../peek/list.js";
 import { Icon } from "./Icon.jsx";
 import { wordsOpen, flashed } from "../stores/wordsState.js";
 import { statusTone, priorityTone, dateTone, iconClass } from "../iconColours.js";
-import { stateOf, LOOK } from "../logic/milestones.js";
-import { MsMark } from "./MsMark.jsx";
-import { MsProgress } from "./MsList.jsx";
+import { MilestoneChips } from "./PeekMilestoneChips.jsx";
 import { CleanProse } from "./CleanProse.jsx";
 import { PeekToolbar } from "./PeekToolbar.jsx";
 import { PeekIdLine } from "./PeekIdLine.jsx";
@@ -135,14 +133,7 @@ export function SourceLine({ text }) {
 // The state: a published file carries the state it worked out and the client's word for it (publish.select); the live page works it out
 // here (logic/milestones.js, as the Milestones list does). Achieved only once the milestone is achieved, with its date in View but not in Edit (the Achieved on row has it).
 // The editor's peek passes dated={false}: its Achieved on row carries the date, so the date is shown once (the client's peek has no such row, so its chip keeps it).
-export function MsState({ m, dated = true }) {
-  const state = fromFile.value && m.state ? m.state : stateOf(m, todayIso());
-  const look = LOOK[state] || LOOK.Forecast;
-  const word = dated && m.status === "Done" && m.actual_date ? `Achieved on ${showDate(m.actual_date)}` : (fromFile.value && m.state_word) || state;
-  return <span class={`mst c-${look[0]}`} data-ms-head="state"><MsMark name={look[1]} />{word}</span>;
-}
-export const MsSep = () => <span class="pk-ms-sep" aria-hidden="true">·</span>;
-export function MsHead({ children }) { return <p class="pk-ms-head" data-ms-head>{children}</p>; }
+// Item 1184: the state, owner and progress are the chip row (PeekMilestoneChips.jsx); the old header line is gone.
 
 // Rich words (the description, the client wording: item 1005, row 1078) as the editor shows them: cleanHtml of what is stored, through the one audited seam.
 // A published file's words are already clean (publish.clean_html wrote them); the live page's come through tools.richOf (the editing index: richOrPlain,
@@ -151,19 +142,13 @@ const richOf = (tools, value) => (fromFile.value ? String(value || "") : tools &
 const Rich = ({ html }) => (html ? <CleanProse html={html} cls="prose pk-rich" /> : DASH);
 
 function MilestoneFields({ m, tools }) {
-  const who = ownerOf(m.owner), description = richOf(tools, m.description), wording = richOf(tools, m.client_message);
+  const description = richOf(tools, m.description), wording = richOf(tools, m.client_message);
   return (
     <>
-      <MsHead>
-        <MsState m={m} /><MsSep />
-        {who.text === DASH ? null : <><span class="pk-ms-owner" data-ms-head="owner">{who.initials ? <span class="av" aria-hidden="true">{who.initials}</span> : null}{who.text}</span><MsSep /></>}
-        <span class="msl-prog" data-ms-head="progress"><MsProgress value={m.status === "Done" && m.percent_complete == null ? 100 : m.percent_complete} /></span>
-      </MsHead>
-      <PeekDetails summary={[m.workstream, m.forecast_date ? `Forecast ${showDate(m.forecast_date)}` : ""]}>
+      <PeekDetails summary={[m.workstream]}>
       <dl class="pk-fields" data-ms-fields>
         {description || !fromFile.value ? <Row name="Description" ms="description"><Rich html={description} /></Row> : null}      {/* row 560: a file carries no description for a milestone with no client wording, so a client's peek has no such row */}
         <Row name="Agreed date" ms="baseline">{showDate(m.baseline_date)}</Row>
-        <Row name="Forecast date" ms="forecast">{showDate(m.forecast_date)}</Row>
         <Row name="Workstream" ms="workstream">{text(m.workstream)}</Row>
         {wording || !fromFile.value ? <Row name="Client wording" ms="client_message"><Rich html={wording} /></Row> : null}      {/* a client's peek has no empty wording row, as it has no empty description row; the editor's peek keeps both */}
       </dl>
@@ -332,7 +317,7 @@ export function Peek({ tools }) {
       <p class="sr-only" role="status" aria-live="polite" data-pk-live>{said.value.text}</p>
       <h2 class="pk-title" tabIndex={-1}>{TitleBox && row ? <><TitleBox key={row.id} row={row} /><span class="sr-only" aria-hidden="true">{title}</span></> : MsTitle && m ? <><MsTitle key={m.id} m={m} /><span class="sr-only" aria-hidden="true">{title}</span></> : title}</h2>
       {row && typeof row.not_reviewed === "boolean" && notReviewed(row, todayIso()) ? <p class="pk-stale"><span class="pk-chip" data-stale>{staleWords(row.review_days || undefined)}</span></p> : null}
-      {row ? <ItemChips row={row} tools={tools} editing={editing} /> : null}
+      {row ? <ItemChips row={row} tools={tools} editing={editing} /> : <MilestoneChips m={m} pop={editing && tools.MilestoneChipPops ? tools.MilestoneChipPops(m) : undefined} />}
       {Tabs ? <Tabs /> : null}
       <div class="pk-body" key={p.id} data-pk-body>      {/* a new key each step: the body fades in as Previous or Next moves on */}
       {showActivity ? <Activity key={p.id} id={p.id} />
