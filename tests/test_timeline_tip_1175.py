@@ -39,6 +39,7 @@ class Tip(BrowserBase, unittest.TestCase):
         return sid
 
     def check(self, cdp, sid, i, where):
+        wait(lambda: cdp.js(f"({PROBE})({i})", sid)["focus"])   # focus set by script can land after a re-render on a slow machine
         got = cdp.js(f"({PROBE})({i})", sid)
         self.assertTrue(got["focus"], f"{where}: the mark takes the focus")
         self.assertEqual(got["content"].strip('"'), got["name"], f"{where}: the tip shows the whole name")
