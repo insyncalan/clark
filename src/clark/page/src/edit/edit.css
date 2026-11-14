@@ -1244,3 +1244,5 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 .pk-client { display: inline-flex; align-items: center; gap: var(--space-2); min-height: 28px; padding: 0; border: 0; background: none; font: inherit; color: var(--text-muted); cursor: pointer; }
 .pk-client.on { color: var(--brand-blue); }
 .pk-client:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
+
+/* item 1181 chips: the Action peek's chip row (PeekActionChips.jsx). The chips, popovers and look are the shared frame's (item 1180); the Due chip's overdue sub-line and tint are PeekChip's. */
