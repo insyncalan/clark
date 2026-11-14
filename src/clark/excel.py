@@ -769,27 +769,27 @@ def add_late_rule(ws, col, n_rows, date_col, status_col, open_states, pal=None):
     ws.conditional_formatting.add(f"{col}2:{col}{n_rows}", rule)
 
 
-REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds ("ID: name"); the name is cut, never the ID
+REF_CELL_LIMIT = 250        # characters a Milestone or Use case cell holds (item 1150: no id; the text is cut with an ellipsis)
 REF_TABLES = {"milestone": ("milestones", "name"), "use_case": ("use_cases", "title")}
 OPEN_TABLES = (("actions", "milestone"), ("raid", "milestone"), ("decisions", "milestone"),
                ("actions", "use_case"), ("raid", "use_case"), ("decisions", "use_case"))
 
 
-def ref_text(item_id, name):
-    """What a Milestone or Use case cell shows: 'ID: name' (just the ID when there is no name). A very long name is cut with an
-    ellipsis so the cell stays under REF_CELL_LIMIT; the ID is never cut."""
-    name = " ".join(str(name or "").split())
-    if not name:
+def ref_text(item_id, name, ref=None):
+    """What a Milestone or Use case cell shows (item 1150, no id): a milestone's name; a use case's reference, one space, then its
+    title ('UC 1.5 Title'; the title alone when it has no reference). The id only when the item has neither. A very long text is
+    cut with an ellipsis so the cell stays under REF_CELL_LIMIT."""
+    text = " ".join(f"{ref or ''} {name or ''}".split())
+    if not text:
         return item_id
-    room = REF_CELL_LIMIT - len(item_id) - 2
-    if len(name) > room:
-        name = name[:max(room - 1, 0)].rstrip() + "\u2026"
-    return f"{item_id}: {name}"
+    if len(text) > REF_CELL_LIMIT:
+        text = text[:REF_CELL_LIMIT - 1].rstrip() + "\u2026"
+    return text
 
 
 def _ref_names(rows_by_table):
-    """{"milestone": {id: 'ID: name'}, "use_case": {id: 'ID: name'}} from the milestone and use case rows."""
-    return {f: {r["id"]: ref_text(r["id"], r.get(nf)) for r in rows_by_table.get(t, [])}
+    """{"milestone": {id: text}, "use_case": {id: text}} from the milestone and use case rows (see ref_text)."""
+    return {f: {r["id"]: ref_text(r["id"], r.get(nf), r.get("ref") if f == "use_case" else None) for r in rows_by_table.get(t, [])}
             for f, (t, nf) in REF_TABLES.items()}
 
 
@@ -831,7 +831,7 @@ def column_width(table, field):
 
 
 def wraps(table, field):
-    """Whether a column's text wraps: long text, the title column, and the "ID: name" Milestone and Use case columns of the other sheets."""
+    """Whether a column's text wraps: long text, the title column, and the Milestone and Use case columns of the other sheets."""
     return (field in WIDE or field == TITLE_OF.get(table) or field in ("open_items", "milestones")
             or (field in REF_TABLES and table not in ("milestones", "use_cases")))
 
@@ -861,8 +861,8 @@ def _project_lists(project, rows_by_table):
     else:
         names = {r.get("name") for r in streams if r.get("name") and not r.get("archived")}
     out = {"workstream": sorted(names, key=lambda n: (n.lower(), n)),
-           "milestone": [v for _, v in sorted(_ref_names(rows_by_table)["milestone"].items())],
-           "use_case": [v for _, v in sorted(_ref_names(rows_by_table)["use_case"].items())]}
+           "milestone": sorted(_ref_names(rows_by_table)["milestone"].values(), key=lambda v: (v.casefold(), v)),      # item 1150: by name / reference
+           "use_case": sorted(_ref_names(rows_by_table)["use_case"].values(), key=lambda v: (v.casefold(), v))}
     return {k: [to_cell(k, v) for v in vs] for k, vs in out.items() if vs}
 
 
@@ -1240,8 +1240,8 @@ def workbook(project, rows_by_table, on=None, cover=None, mark=False, history=No
         for r in rows:
             if table == "milestones":
                 r = {**r, "shown_state": milestone_state(r, on), "original_date": r.get("original_date") or r.get("baseline_date")}
-            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one "ID: name" per line (the ids are in the row; the import reads them back)
-                r = {**r, "milestones": "\n".join(names["milestone"].get(i, i) for i in writer_ids(r.get("milestones"))) or None}
+            if table == "use_cases":      # row 1107: the milestones linked straight to the use case, one "ID: name" per line (the ids are in the row; the import reads them back; item 1150 left this column as it was)
+                r = {**r, "milestones": "\n".join(f"{i}: {names['milestone'][i]}" if names["milestone"].get(i) else i for i in writer_ids(r.get("milestones"))) or None}
             if table in ("milestones", "use_cases"):
                 r = {**r, "open_items": open_of.get(("milestone" if table == "milestones" else "use_case", r["id"]))}
             else:
