@@ -302,7 +302,7 @@ def check_saved_folders(seen):
         return Line(READY, "Every folder saved in your data is here.")
     shown = ", ".join(seen.tilde(p) for p in missing[:3]) + (f" and {len(missing) - 3} more" if len(missing) > 3 else "")
     return Line(ADVICE, f"Folders saved in your data that do not exist here: {shown}. This happens after moving your data from "
-                        "another computer. clark still starts; choose these folders again where you use them.")
+                        "another computer. The app still starts; choose these folders again where you use them.")
 
 
 DOCKER_CHECKS = (
