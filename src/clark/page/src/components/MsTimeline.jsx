@@ -154,7 +154,7 @@ export function MsTimeline({ rows: all, today, place, open, client }) {
                 {r.marks.line ? <div class="mv-conn" key={`c${r.id}`} data-conn={r.id} style={{ left: `${px}px`, top: `${LY}px`, width: `${x(r.marks.line.to) - px}px` }} /> : null}
                 {r.marks.ghost ? <div class="mv-ghost" key={`g${r.id}`} data-ghost={r.id} title={r.marks.ghost.label} style={{ left: `${x(r.marks.ghost.date)}px`, top: `${LY + 1}px` }} /> : null}
                 <Tag {...(open ? { type: "button", onClick: () => open(r.id) } : { role: "img" })} class={`mv-mk c-${r.colour}${open ? "" : " plain"}`} key={`m${r.id}`} data-ms={r.id} data-mark-at={s.date}{...(hidden.has(r.id) ? { "data-hid": say } : {})} aria-label={say} title={say}
-                  style={{ left: `${px}px`, top: `${LY + 1}px` }}><MsMark name={r.mark} /></Tag>
+                  style={{ left: `${px}px`, top: `${LY + 1}px`, "--at": `${px}px` }}><MsMark name={r.mark} /></Tag>
               </Fragment>
             );
           })}
