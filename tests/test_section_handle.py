@@ -65,11 +65,8 @@ class SectionHandle(Base):
                             self.assertAlmostEqual(r["rest"], want, delta=.05, msg=f"{where}: rests at about {want} below the gutter width")
                         # nothing of the section's own content, only its padding, is under the handle
                         self.assertLessEqual(c[2], r["heads"][0][0], f"{where}: the handle ends before the heading starts")
-                        if w <= 900:
-                            self.assertGreaterEqual(c[0], r["card"][0], f"{where}: in the card's own left padding")
-                        else:
-                            self.assertLessEqual(c[2], r["card"][0], f"{where}: in the margin beside the card")
-                            self.assertGreaterEqual(c[0], inner - 28, f"{where}: and within the frame's padding")
+                        # row 1152: the tiles run the width of the report band, so at every width the handle sits in the tile's own left padding
+                        self.assertGreaterEqual(c[0], r["card"][0], f"{where}: in the card's own left padding")
 
     def test_the_handle_never_overlaps_a_heading_in_view_or_edit(self):
         with chrome() as cdp:
