@@ -36,6 +36,17 @@ class Static(unittest.TestCase):
         self.assertNotIn('import { UseCases }', src)
         self.assertNotRegex(src, r'type === "usecases" \? <UseCases')
 
+    def test_section_jsx_does_not_own_the_header_add_control(self):
+        """The header's Add control comes from the template's header hook (tools.templateHead, edit/templates/), not from the type."""
+        src = (PAGE_SRC / "components" / "Section.jsx").read_text(encoding="utf-8")
+        self.assertNotIn('"usecases"', src)
+        self.assertNotIn("ucEdit", src)
+        self.assertIn("templateHead", src)
+        edit = (PAGE_SRC / "edit" / "templates" / "index.js").read_text(encoding="utf-8")
+        self.assertIn("export function templateHead", edit)
+        self.assertRegex((PAGE_SRC / "edit" / "templates" / "UseCasesTemplate.jsx").read_text(encoding="utf-8"), r"export function Head")
+        self.assertIn("templateHead", (PAGE_SRC / "edit" / "index.js").read_text(encoding="utf-8"))
+
     def test_strings_file_has_the_unruled_constants_and_nothing_else_hard_coded(self):
         s = strings()
         self.assertEqual(sorted(s), ["USE_CASES_DESCRIPTION", "USE_CASES_FIT_HELP", "USE_CASES_HOLDS", "USE_CASES_NAME", "USE_CASES_START_TITLE"])
