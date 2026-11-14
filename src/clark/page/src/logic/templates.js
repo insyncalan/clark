@@ -91,11 +91,15 @@ export const LATER = [
 // with (changes.py BUILT_IN_TYPES). Listed only while the report has no section of that type (`list` and `counts` take `sections`).
 // Item 1190: At a glance has its words, parts and width like any template; the section it makes is the built-in's own (type glance),
 // so the tiles, the edit in place, View, Word, Excel and the published file are the built-in's. Offered while the report has none.
-const GLANCE_CARD = { fit: ["full", "half"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
+const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
                       holds: ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"] };
+// Item 1191: Use case summary has its words, parts and width like any template; the section it makes is the built-in's own (type usecases),
+// so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
+const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+                        holds: ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"] };
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
-  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work"),
+  builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
@@ -142,6 +146,7 @@ export const SKETCHES = {
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
+  "built-in-usecases": ["grid-template-rows:repeat(4,1fr)", ["width:35%", "width:90%", "width:75%", "width:85%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
   "built-in-glance": ["grid-template-columns:repeat(4,1fr)", ["", "border-top:3px solid var(--status-red)", "border-top:3px solid var(--status-amber)", ""]],
 };

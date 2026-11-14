@@ -43,7 +43,7 @@ class GlanceTemplate(unittest.TestCase):
         self.assertEqual((card["name"], card["title"], card["type"], card["kind"]), ("At a glance", "At a glance", "glance", "figures"))
         self.assertTrue(card["description"].endswith("."))
         self.assertEqual(card["holds"], ["Heading", "Project health", "Overdue actions", "High risks and issues", "Decisions needed"])
-        self.assertEqual(card["fit"], ["full", "half"])
+        self.assertEqual(card["fit"], ["full"])
         self.assertIs(card["ready"], True)
 
     def test_the_card_has_a_sketch_for_the_box(self):
@@ -63,7 +63,7 @@ class GlanceTemplate(unittest.TestCase):
                 for v in o:
                     walk(v)
         walk(json.loads(HELP.read_text(encoding="utf-8")))
-        self.assertIn((card["name"], card["description"], "Full or half"), rows)
+        self.assertIn((card["name"], card["description"], "Full"), rows)
 
     def test_it_is_offered_once_like_the_built_in_and_not_while_it_is_there(self):
         has = [sec("a", "text"), sec("b", "glance")]

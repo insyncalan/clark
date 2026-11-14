@@ -970,6 +970,11 @@
         "Project health with its reason, and the count tiles."
        ],
        [
+        "At a glance",
+        "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
+        "Full"
+       ],
+       [
         "Use case summary",
         "A strip of counts, then a row per use case that opens in place."
        ],
@@ -1122,9 +1127,9 @@
         "Full or half"
        ],
        [
-        "At a glance",
-        "The project’s health, and counts of overdue actions, high risks and issues, and decisions needed.",
-        "Full or half"
+        "Use case summary",
+        "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
+        "Full"
        ]
       ]
      ]
