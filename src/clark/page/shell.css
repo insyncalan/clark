@@ -2623,3 +2623,9 @@ html:has(.top-hdr) { --topbar: 85px; }
   .top-hdr .tabs { grid-area: tabs; margin: 0 -20px; padding: 0 14px; border-top: 1px solid color-mix(in srgb, var(--white) 14%, transparent); overflow-x: auto; scrollbar-width: none; align-self: end; }
   .top-hdr .tabs::-webkit-scrollbar { display: none; }
 }
+
+/* Item 1177, offsets: everything that sticks or scrolls under the slim header reads its real height (--topbar, 85 px at 1400, 129 px at 900). The selection bar sticks flush
+   at the header's bottom; a jump to a section or card stops below the header with some air. Full screen (board-full) already hides the header and sets --topbar to 0. */
+html:has(.top-hdr) body:not(.board-view) #sel-bar { top: var(--topbar); }
+html:has(.top-hdr) .sec, html:has(.top-hdr) main [data-id], html:has(.top-hdr) main [id] { scroll-margin-top: calc(var(--topbar) + 16px); }
+html:has(.top-hdr) body.board-full .top-hdr { display: none; }

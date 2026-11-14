@@ -22,8 +22,10 @@ class TopBarActions(Base):
             con.execute("UPDATE app_settings SET ask_enabled = ? WHERE id = 1", (1 if asking else 0,))
         p = self.visit(cdp)
         size(cdp, p, width, 700)
-        if asking:
+        if asking and width > 900:      # item 1177: at 900 the ask button is the profile menu's second entry (test_hdr1177_900)
             p.until("!!document.querySelector('#ask-btn')", "the ask button shows while asking is on")
+        elif asking:
+            p.until("!!document.querySelector('#profile-btn')", "the profile circle shows")
         return p
 
     def test_the_two_buttons_have_their_words_and_sit_before_the_avatar(self):
@@ -104,6 +106,9 @@ class TopBarActions(Base):
         for width, shown in ((1400, True), (900, False)):
             with self.subTest(width=width), chrome() as cdp:
                 p = self.at(cdp, width)
+                if width == 900:      # item 1177: at 900 the whole button is out of the header row
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "at 900 px the buttons are not in the header")
+                    continue
                 got = p.js("['.tb-ask-w', '.tb-key'].map(s => getComputedStyle(document.querySelector(s)).display !== 'none')")
                 self.assertEqual(got, [shown, shown], f"at {width} px the ask word and the / key hint should be {'shown' if shown else 'hidden'}; got {got}")
 
@@ -124,7 +129,7 @@ class TopBarActions(Base):
                     self.assertEqual(got, [], f"at {width} px, {theme}, long name")
                     clipped = p.js("(function(){ var s = document.querySelector('.top .hdr-project > span'); return s ? [s.textContent.length > 40, s.scrollWidth > s.clientWidth] : null; })()")
                     self.assertEqual(clipped, [True, True], f"at {width} px, {theme}: the long name is in the bar and is the part that gives way (its ellipsis)")
-                    self.assertTrue(p.js("!!document.querySelector('#ask-btn') && !!document.querySelector('#pal-btn')"), "both buttons are there")
+                    self.assertEqual(p.js("document.querySelectorAll('.top #ask-btn, .top #pal-btn').length"), 0, "item 1177: at 900 both buttons are in the profile menu, not the header")
 
 
 if __name__ == "__main__":
