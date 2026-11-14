@@ -19,15 +19,15 @@ export function BrandPick({ brands, project = undefined, save = saveReal }) {
   const [draft, setDraft] = useState(null);      // what the arrows are on; the choice is saved at once (row 1115 S5), this only holds it while the save is on its way
   const saving = useRef(false);
   const next = useRef(null);
-  const current = useRef(null);
   const p = project !== undefined ? project : data.value && data.value.project;
   if (!p) return null;          // no project open: nothing to choose for
   const [value, gone] = pickState(p.brand, brands);
-  current.current = value;
   const shown = draft === null ? value : draft;
+  // The brand saved right now, read when asked: after a save the page has not drawn again yet, so a value kept from the last draw is old.
+  const savedNow = () => { const q = project !== undefined ? project : data.value && data.value.project; return pickState(q && q.brand, brands)[0]; };
   const commit = async (id) => {
     if (saving.current) { next.current = id; return; }
-    if (id === current.current) { setDraft(null); return; }
+    if (id === savedNow()) { setDraft(null); return; }
     const b = brands.find((x) => x.id === id);
     saving.current = true;
     try { await save(id, id === "generic" ? "Generic" : (b ? b.name : id)); } finally { saving.current = false; }

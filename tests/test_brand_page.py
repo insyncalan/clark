@@ -237,7 +237,7 @@ class Page(InBrowser):
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
         self.assertEqual(self.text("[data-brand-gone]"), "")
         self.assertFalse(self.present("[data-brand-save]"), "no Save button (row 1115 S5)")
-        self.js("const s = document.querySelector('#brand-pick'); s.value = 'example-brand'; s.dispatchEvent(new Event('change', {bubbles: true}))")
+        self.choose("example-brand")
         self.settle()
         self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick')"), [["pick", ["example-brand", "Example Brand"]]])
 
@@ -252,6 +252,49 @@ class Page(InBrowser):
         self.js("const s = document.querySelector('#brand-pick'); s.dispatchEvent(new Event('change', {bubbles: true}))")
         self.settle()
         self.assertEqual(self.val("T.calls.filter(c => c[0] === 'pick').length"), 1, "a change to the brand already saved sends nothing")
+
+    def choose(self, brand):
+        self.js("(function () { const s = document.querySelector('#brand-pick'); s.value = %s; s.dispatchEvent(new Event('change', {bubbles: true})); })()" % lit(brand))
+
+    def held(self):
+        """The picker on Generic, saves kept, and each save held until T.release(): the choice is on its way."""
+        self.js("T.keep = true; T.hold = true; T.slowRender = true")
+        self.pick("generic")
+
+    def picks(self):
+        return self.val("T.calls.filter(c => c[0] === 'pick').map(c => c[1][0])")
+
+    def release_and_settle(self):
+        self.js("T.hold = false; T.release()")
+        self.settle()
+
+    def test_a_choice_made_while_one_is_saving_waits_and_is_saved_after(self):
+        self.held()
+        self.choose("example-brand")
+        self.choose("example-brand")
+        self.settle()
+        self.assertEqual(self.picks(), ["example-brand"], "one save is on its way; the same choice again sends nothing more")
+
+    def test_going_back_to_the_first_brand_while_the_second_saves_ends_on_the_first(self):       # A, B, A
+        self.held()
+        self.choose("example-brand")
+        self.choose("generic")
+        self.settle()
+        self.assertEqual(self.picks(), ["example-brand"], "the second choice waits for the first save")
+        self.release_and_settle()
+        self.assertEqual(self.picks(), ["example-brand", "generic"], "the brand is put back, not taken as already saved")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
+        self.assertEqual(self.val("T.saved()"), "generic")
+
+    def test_arrows_down_then_up_while_the_save_is_held_end_on_the_first_brand(self):
+        self.held()
+        self.focus_pick()
+        self.press("ArrowDown", 40)
+        self.press("ArrowUp", 38)
+        self.settle()
+        self.release_and_settle()
+        self.assertEqual(self.picks(), ["example-brand", "generic"])
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
 
     def test_a_refused_save_puts_the_select_back_on_the_saved_brand(self):
         self.pick("generic")      # the fake save changes nothing, as a refused change would

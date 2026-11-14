@@ -614,6 +614,26 @@ class Settings(Rig):
             self.assertEqual(self.js("document.querySelector('#diagnostics [role=alert]').innerText"),
                              "The log folder could not be opened. Try again; if it keeps happening, restart clark.")
 
+    def test_the_buttons_keep_focus_while_busy_and_say_so_with_aria_disabled(self):
+        for width, scheme in self.each():
+            self.opened.clear()
+            # the folder answer is held: the page is busy until the test lets it go
+            self.js("window.__held = []; window.__asked = 0; const f = window.fetch; window.fetch = function (u, o) { "
+                    "if (String(u).indexOf('open-folder') >= 0) { window.__asked++; return new Promise(function (r) { window.__held.push(function () { r(f.call(window, u, o)); }); }); } "
+                    "return f.apply(window, arguments); }")
+            self.js("document.querySelector('[data-open-log]').focus(); document.querySelector('[data-open-log]').click()")
+            self.until("document.querySelector('[data-open-log]').getAttribute('aria-disabled') === 'true'", "busy")
+            for sel in ("[data-open-log]", "[data-copy-diagnostics]", "[data-level=normal]", "[data-level=debug]"):
+                self.assertEqual(self.js(f"document.querySelector('{sel}').getAttribute('aria-disabled')"), "true", f"{sel} says busy at {width} {scheme}")
+                self.assertFalse(self.js(f"document.querySelector('{sel}').disabled"), f"{sel} is not disabled, so it keeps focus")
+            self.assertEqual(self.js("document.activeElement.hasAttribute('data-open-log')"), True, "focus stays on Open folder")
+            self.js("document.querySelector('[data-open-log]').click()")
+            self.assertEqual(self.js("window.__asked"), 1, "a click while busy asks for nothing more")
+            self.js("window.__held.shift()()")
+            self.until("document.querySelector('[data-open-log]').getAttribute('aria-disabled') !== 'true'", "done")
+            self.assertEqual(self.js("document.activeElement.hasAttribute('data-open-log')"), True, "focus is still on Open folder")
+            self.assertEqual(self.opened, [self.tmp / "logs"])
+
     def test_a_fault_in_the_page_reaches_the_log_without_its_text(self):
         with chrome() as cdp:
             self.show(cdp, 1400, "light")
