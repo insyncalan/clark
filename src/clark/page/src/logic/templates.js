@@ -8,6 +8,7 @@
 // it is listed but says "Coming with a later release." LATER holds the second slice's entries: in the catalogue, not yet in the
 // box; the lead moves each one into TEMPLATES with its Help row.
 import { rows } from "./placement.js";
+import { GLANCE_NAME, GLANCE_DESCRIPTION, UNRULED_GLANCE_HOLDS, UNRULED_GLANCE_ONCE } from "./glanceStrings.js";
 import { TEMPLATE_TYPES, PENDING_TYPES } from "../templates/types.js";
 
 // What the store takes in a new section (changes.py NEW_SECTION_TYPES: text
@@ -77,6 +78,9 @@ export const TEMPLATES = [
     description: "The plan as a table, from your Gantt lines. Only lines put in the client view show.", holds: ["Heading", "The plan table"] },
   { id: "one-doc", name: "One document", kind: "files", fit: ["half", "full"], type: "onedoc", title: "Document", body: "", ready: true,
     description: "A single file to read.", holds: ["Heading", "File", "Text"] },
+  // Row 1190: the built-in At a glance section as a template (store type glance, one per report: its tiles are the project's).
+  { id: "at-a-glance", name: GLANCE_NAME, kind: "figures", fit: ["full"], type: "glance", title: GLANCE_NAME, body: "", ready: true, once: true,
+    description: GLANCE_DESCRIPTION, holds: UNRULED_GLANCE_HOLDS },
 ];
 
 // The second slice (#96): every other template type, built (its section_kinds module and page part say READY) but not in the
@@ -95,6 +99,7 @@ export const BUILT_INS = [
   builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
+const taken = (t, sections) => !!(t.once && sections && sections.some((s) => s.type === t.type));      // row 1190: a one-per-report template is not offered while the report has one
 const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
 
 // Every template entry, in the box or not: one per template type, and Text.
@@ -137,6 +142,7 @@ export const SKETCHES = {
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
+  "at-a-glance": ["grid-template-columns:repeat(4,1fr)", ["", "", "", ""]],
   "current-state": ["grid-template-rows:repeat(3,1fr)", ["width:85%", "width:70%", "width:50%"]],
   "plan-summary": ["grid-template-rows:repeat(4,1fr)", ["width:40%", "width:80%", "width:40%", "width:70%"]],
 };
@@ -153,7 +159,7 @@ const matches = (t, q) => {
 
 // The templates for a search and a choice of kind ("" or "all": every kind; RECENT: the recently used ones, newest first).
 export function list({ query = "", kind = "", recent = [], sections = null } = {}) {
-  const found = [...TEMPLATES, ...missing(sections)].filter((t) => matches(t, query));
+  const found = [...TEMPLATES, ...missing(sections)].filter((t) => !taken(t, sections) && matches(t, query));
   if (kind === RECENT) return recent.map((id) => found.find((t) => t.id === id)).filter(Boolean);
   return kind && kind !== "all" ? found.filter((t) => t.kind === kind) : found;
 }
@@ -207,6 +213,7 @@ export function plan(sections, id, after, beside = false) {
   const t = find(id);
   if (!t) return { ok: false, message: MESSAGES.unknown };
   if (t.builtIn && !missing(sections).includes(t)) return { ok: false, message: MESSAGES.unknown };      // already in the report: not offered twice
+  if (taken(t, sections)) return { ok: false, message: UNRULED_GLANCE_ONCE };
   if (!available(t)) return { ok: false, message: MESSAGES.later };
   const a = anchor(sections, after);
   if (!a.ok) return a;
