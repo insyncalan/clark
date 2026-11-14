@@ -35,6 +35,12 @@ function TemplateEdit({ section, tools }) {
   return Edit ? <Edit section={section} tools={tools} /> : <p class="quiet">Not shown on this page yet.</p>;
 }
 
+// A template's header part (e.g. a section's own Add control), from the tools (edit/templates/); nothing if the template has none.
+function TemplateHead({ section, tools }) {
+  const Head = tools.templateHead ? tools.templateHead(section.type) : null;
+  return Head ? <Head section={section} tools={tools} /> : null;
+}
+
 export function Section({ section, index, count, slot, anchor, tools, clean }) {
   const editing = !!tools;
   const hidden = section.hidden ? 1 : 0;
@@ -51,7 +57,7 @@ export function Section({ section, index, count, slot, anchor, tools, clean }) {
         <h2 class="sec-h">{editing ? <tools.Title section={section} /> : section.title}</h2>
         {changed ? <span class="tag chg">{WORD}</span> : null}
         {editing && hidden ? <span class="tag hid">Left out of the published page</span> : null}
-        {editing && section.type === "usecases" && tools.ucEdit ? <tools.ucEdit.Add /> : null}
+        {editing ? <TemplateHead section={section} tools={tools} /> : null}
       </header>
       {section.type === "glance" ? <Glance tools={tools} clean={clean} /> : section.type === "milestones" ? <MsBlock place={`sec-${section.id}`} tools={tools} />
         : tpl ? (editing ? <TemplateEdit section={section} tools={tools} /> : <tpl.view section={section} data={data.value} clean={clean} />)
