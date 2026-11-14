@@ -97,7 +97,7 @@ class Fields(Base):
         p.js("(() => { window.__toastSeen = []; const note = () => { const t = document.querySelector('.toast .toast-text'); if (t) window.__toastSeen.push(t.textContent || ''); };"
              " window.__toastWatch && window.__toastWatch.disconnect(); window.__toastWatch = new MutationObserver(note);"
              " window.__toastWatch.observe(document.body, {subtree: true, childList: true, characterData: true}); document.querySelector('.toast [data-undo]').click(); })()")
-        p.until("window.__toastSeen.some((t) => /^Undone[.:]/.test(t))", "Undone")
+        p.until("window.__toastSeen.some((t) => /^Undone[.:]/.test(t))", "Undone", 30)      # item 1850: the Undo save waits behind a loaded Mac runner; 10 s was not enough there
 
     def test_the_fields_are_there_on_the_milestones_page_in_view_and_not_on_the_dashboard_in_view(self):
         with chrome() as cdp:

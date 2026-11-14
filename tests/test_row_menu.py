@@ -419,6 +419,8 @@ class Menu(board.Base):
             with self.subTest(reduce=reduce), chrome() as cdp:
                 sid = self.visit(cdp)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce" if reduce else "no-preference"}]}, sid)
+                if not reduce:      # item 1850: a Mac that asks for less motion made the page paint data-motion="reduce" at load (stores/motionPref.js); the pin does not undo that
+                    cdp.js("document.documentElement.removeAttribute('data-motion')", sid)
                 a = self.id_of("Order the laptops")
                 name = "(el => getComputedStyle(document.querySelector(el)).animationName)"
                 self.open_menu(cdp, sid, self.TABLE % a)
