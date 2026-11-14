@@ -62,7 +62,7 @@ class TheFourGuides(unittest.TestCase):
             self.assertRegex(code, pat, b)
 
     def test_the_controls_the_steps_name_are_the_ones_the_page_has(self):
-        """The control names, exactly as the page shows them (HandOver.jsx, Bulk.jsx, FilterLine.jsx, WeekPicker.jsx, weekPicker.js, asAt.js, Safety.jsx, safety.js)."""
+        """The control names, exactly as the page shows them (HandOver.jsx, Bulk.jsx, FilterLine.jsx, asAt.js, Safety.jsx, safety.js)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
         for name in ("**Work items**", "**Hand over**", "**All**", "**None**", "**Hand over to**", "**Cancel**", "**Change**", "**Undo**"):
             self.assertIn(name, text["hand-an-item-over"], name)
