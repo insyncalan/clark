@@ -10,6 +10,7 @@ import re
 import unittest
 
 import test_gantt_tab as T
+from test_server import wait  # noqa: F401  the browser harness the page checks run on; named here so the runner puts this file in the browser tier
 from _demo import USER, DemoStore
 from clark import changes
 
