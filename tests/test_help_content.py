@@ -86,7 +86,7 @@ class Shape(unittest.TestCase):
                       "the projects you already have, or an empty set on a first start.", steps[at])
         self.assertIn("Your data is not in the clark folder, so you can swap that folder for a newer download.", steps[at])
         self.assertIn("If you already have a folder called clark, rename or move it before you unzip a newer download, so the two do not clash.", steps[at])
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', steps[at + 2])
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', steps[at + 2])
         self.assertIn("stop clark, move that folder out of it, and name it this way.", steps[at + 2])
         self.assertIn("Docker and clark.command use the same data unless you name another folder with CLARK_DATA_DIR. "
                       "If clark.command looks empty, you started Docker with another folder.", text)

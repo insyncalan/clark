@@ -126,11 +126,10 @@ def diagnose(folder):
 def main(argv=None, environ=None):
     argv = list(sys.argv[1:] if argv is None else argv)
     env_file = None
+    show = "--diagnose" in argv
+    argv = [a for a in argv if a != "--diagnose"]
     if argv[:1] == ["--env-file"] and len(argv) >= 2:
         env_file, argv = argv[1], argv[2:]
-    show = argv[:1] == ["--diagnose"]
-    if show:
-        argv = argv[1:]
     folder = argv[0] if argv else data_folder(environ, env_file)
     if show:
         print("\n".join(diagnose(folder)))

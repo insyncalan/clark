@@ -252,7 +252,7 @@ class MacZipTest(unittest.TestCase):
         """item 427: a computer that will not open clark.command uses Docker and Chrome only. The guide says it first, as commands to
         type (never a .command file), and the download holds the compose file it names."""
         text = package.start_here("mac")
-        up = "docker compose -f docker/compose.yaml up -d"
+        up = "bash docker/start.command"
         self.assertIn(up, text)
         self.assertIn("docker compose -f docker/compose.yaml down", text)
         self.assertIn("http://localhost:8766", text)
@@ -291,7 +291,7 @@ class MacZipTest(unittest.TestCase):
         self.assertIn("These steps are for a Mac.", flat)
         self.assertIn("With Docker, your data is kept in ~/Library/Application Support/clark, the same place clark.command uses, not in this folder, "
                       "so you can swap this folder for a newer download without losing anything.", flat)
-        self.assertIn('CLARK_DATA_DIR="/full/path" docker compose -f docker/compose.yaml up -d', flat)
+        self.assertIn('CLARK_DATA_DIR="/full/path" bash docker/start.command', flat)
         self.assertNotIn("beside the clark files", flat)
         self.assertIn("Use the clark download, not a copy of the source code: a copy of the source has no built page, and Docker stops with a message saying so.", flat)
         self.assertIn("To see what Docker has said, type this in the same folder:", flat)
@@ -303,7 +303,7 @@ class MacZipTest(unittest.TestCase):
         self.assertTrue(any(l.startswith("IMPORTANT: Never open the same data") for l in lines), "the warning starts its own line")
         self.assertLess(flat.index("With Docker, your data"), flat.index(warning))
         self.assertLess(flat.index(warning), flat.index("To use another port"))
-        self.assertIn("CLARK_PORT=8800 docker compose -f docker/compose.yaml up -d then open http://localhost:8800 instead.", flat)
+        self.assertIn("CLARK_PORT=8800 bash docker/start.command then open http://localhost:8800 instead.", flat)
         self.assertLess(flat.index("With Docker, your data"), flat.index("Without Docker:"))
         self.assertIn("Without Docker, your data is kept in ~/Library/Application Support/clark", flat)
 

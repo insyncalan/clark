@@ -11,7 +11,7 @@ To update:
   3. In Terminal or PowerShell, go to the new clark folder. Type cd and a
      space, drag the new folder into the window and press Return.
   4. Type this and press Return:
-        docker compose -f docker/compose.yaml up -d
+        bash docker/start.command
   5. Open http://localhost:8766 in Chrome.
 
 Sometimes the new clark keeps your data in a newer form than the old one did.
@@ -35,7 +35,7 @@ To go back to the old clark:
         docker compose -f docker/compose.yaml run --rm clark python3 -m clark restore --data /data
      Then type the same line again, with the name of the -migrate.db copy added
      at the end.
-  3. Type the up command in the old folder to start the old clark.
+  3. In the old folder, type the line from step 4 to start the old clark.
 
 Update from file in Settings does not work under Docker. The clark folder is
 read-only there. Use the steps above.
