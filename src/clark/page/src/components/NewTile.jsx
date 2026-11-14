@@ -5,11 +5,12 @@
 // items' All, Add risk or issue); with none, a click is `onAdd(kind)` at once. The words come from the caller (filters.js addPlan
 // for Work items), so the word follows the type switch. Editing itself comes with #65 to #67.
 import { Menu } from "./Menu.jsx";
+import { actionIcon } from "../menuIcons.js";
 
 export function NewTile({ word, kind, items, onAdd, id = "newBtn" }) {
   const list = items || [];
   return (
     <Menu label={word} ariaLabel={word} tip={word} icon="plus" labelCls="w" id={id} btnCls={`newb${list.length ? " hasmenu" : ""}`} menuId={`${id}Menu`}
-      menuLabel={word} chevron={list.length > 0} items={list.map((it) => ({ id: it.kind, name: it.word }))} onPick={(k) => onAdd(k)} onClick={() => onAdd(kind)} />
+      menuLabel={word} chevron={list.length > 0} items={list.map((it) => ({ id: it.kind, name: it.word, icon: actionIcon("add") }))} onPick={(k) => onAdd(k)} onClick={() => onAdd(kind)} />
   );
 }

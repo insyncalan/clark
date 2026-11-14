@@ -9,14 +9,12 @@ the store in one step with Undo, Esc leaves the value as it was (one panel, clos
 the item's peek.
 The browser parts are required: they fail, never skip, without Chrome (set CLARK_CHROME to its path).
 """
-import time
 import contextlib
 import json
 import re
 import shutil
 import sys
 import tempfile
-import time
 import unittest
 from _editor_checks import for_url
 from pathlib import Path
@@ -262,16 +260,21 @@ def contrast(fg, bg):
     return (a + 0.05) / (b + 0.05)
 
 
+def hold_still(cdp, sid, look, seconds=5):
+    """What `look` (a JS expression) gives once two looks in a row agree, or the last look when the page never holds still within `seconds`."""
+    seen = []
+
+    def same():
+        seen.append(cdp.js(look, sid))
+        return len(seen) > 1 and seen[-1] == seen[-2]
+    wait(same, seconds)
+    return seen[-1]
+
+
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
     where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"
-    box = cdp.js(where, sid)
-    for _ in range(50):      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
-        time.sleep(0.1)
-        again = cdp.js(where, sid)
-        if again == box:
-            break
-        box = again
+    box = hold_still(cdp, sid, where)      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
     assert box, f"{selector} is not on the page"
     x, y = box
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
@@ -320,17 +323,11 @@ class Live(unittest.TestCase):
 
     def settled_click(self, cdp, sid, selector, ref):
         """Main-fix (CI run 43517892226): a click on a date cell landed on the open peek of another row (DIV.pk-last at the click point, hash item=TUL-D-013),
-        so the panel never opened. Say at once if a peek is open, and click only once the cell has held the same box over two looks 0.1 s apart."""
+        so the panel never opened. Say at once if a peek is open, and click only once the cell has held the same box over two looks in a row."""
         self.assertNotIn("item=", cdp.js("location.hash", sid), f"{ref}: a peek is open before the click ({cdp.js('location.hash', sid)})")
         cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
         look = f"JSON.stringify(document.querySelector({json.dumps(selector)}).getBoundingClientRect())"
-        before = None
-        for _ in range(30):
-            now = cdp.js(look, sid)
-            if now == before:
-                break
-            before = now
-            time.sleep(0.1)
+        hold_still(cdp, sid, look)
         click(cdp, sid, selector)
 
     def row(self, table, ref):

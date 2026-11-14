@@ -19,6 +19,8 @@ import { people } from "./itemEdit.js";
 import { singleKeys } from "../stores/keyPrefs.js";
 import { Pop, roam } from "./cells/Pop.jsx";
 import { MenuPick } from "./cells/MenuPick.jsx";
+import { Icon } from "../components/Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { OwnerPick } from "./cells/OwnerPick.jsx";
 import { DuePick } from "./cells/DuePick.jsx";
 import * as B from "./bulkLogic.js";
@@ -133,11 +135,11 @@ function ItemsMenu({ open }) {
         {sum.table ? ctl.map((c) => (
           <button type="button" role="menuitem" class="menu-item" key={c.id} data-bulk-menu={c.id} aria-disabled={c.on ? undefined : "true"}
             onClick={() => { if (c.on) { const at = open.at; bulkOpen.value = null; openControl(c.id, sum.ids, at, open.place, open.from); } }}>
-            <span class="mi-t">{c.menu ? `${c.label}…` : c.label}</span>{c.on ? null : <small class="mi-note">{c.why}</small>}
+            <Icon name={actionIcon(c.id)} cls="mi" /><span class="mi-t">{c.menu ? `${c.label}…` : c.label}</span>{c.on ? null : <small class="mi-note">{c.why}</small>}
           </button>
-        )) : <div class="bm-why" role="menuitem" aria-disabled="true" id="bm-why">{B.WHY.kinds}</div>}
+        )) : <div class="bm-why" role="menuitem" aria-disabled="true" id="bm-why"><Icon name={actionIcon("none")} cls="mi" /><span class="mi-t">{B.WHY.kinds}</span></div>}
         <div class="sep" role="separator" />
-        <button type="button" role="menuitem" class="menu-item" data-bulk-menu="copy" aria-describedby={sum.table ? undefined : "bm-why"} onClick={copy}><span class="mi-t">Copy IDs</span></button>
+        <button type="button" role="menuitem" class="menu-item" data-bulk-menu="copy" aria-describedby={sum.table ? undefined : "bm-why"} onClick={copy}><Icon name={actionIcon("copyIds")} cls="mi" /><span class="mi-t">Copy IDs</span></button>
       </div>
     </Pop>
   );
@@ -187,6 +189,13 @@ export function BulkLayer() {
   if (!open || view.value !== "work") return null;
   if (open.what === "menu") return <ItemsMenu open={open} key="menu" />;
   if (open.what === "pick") return <Picker open={open} key={`pick-${open.control}`} />;
+  return <Ask open={open} key="ask" />;
+}
+
+/** Item 1148: the question of a delete asked off the Work items page (a use case's or a milestone's), drawn once for every other page (MsLayers.jsx). */
+export function AskLayer() {
+  const open = bulkOpen.value;
+  if (!open || open.what !== "ask" || view.value === "work") return null;
   return <Ask open={open} key="ask" />;
 }
 

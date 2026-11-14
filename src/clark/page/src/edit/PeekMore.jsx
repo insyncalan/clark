@@ -4,12 +4,13 @@ import { Menu } from "../components/Menu.jsx";
 import { duplicateFromPeek } from "./PeekDuplicate.jsx";
 import { archiveFromPeek } from "./PeekArchive.jsx";
 import { deleteItem } from "./deleteItem.js";
+import { actionIcon } from "../menuIcons.js";
 
 const ITEMS = [
-  { id: "duplicate", name: "Duplicate", icon: "plus" },
-  { id: "archive", name: "Archive", icon: "archive" },
+  { id: "duplicate", name: "Duplicate", icon: actionIcon("duplicate") },
+  { id: "archive", name: "Archive", icon: actionIcon("archive") },
   { id: "sep", sep: true },
-  { id: "delete", name: "Delete", icon: "trash", danger: true },
+  { id: "delete", name: "Delete", icon: actionIcon("delete"), danger: true },
 ];
 
 export function PeekMore({ row }) {

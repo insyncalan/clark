@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import { data, rows as allRows, project, uc, openUseCase, leaveUseCase } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { blink } from "../stores/motion.js";
+import { RecordMore } from "./RecordMore.jsx";
 import { readArchivedUseCase, getArchived } from "../api.js";
 import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { listOf, ucFor, tidy, recalled, keep, narrowed, countWords, rowSay, groupsOf, groupLabel, refBox, stepsWord, ON_WORDS, OFF_WORDS, SORTS, TABS, GROUPS, RAG } from "../logic/useCasesList.js";
@@ -27,6 +28,7 @@ import { ImportBtn } from "./ImportBtn.jsx";
 import { ExportBtn } from "./ExportBtn.jsx";
 import { NewTile } from "../components/NewTile.jsx";
 import { Icon } from "../components/Icon.jsx";
+import { groupIcon, sortIcon } from "../menuIcons.js";
 import { CommitChip } from "../components/CommitChip.jsx";
 
 const kept = {};                                              // project -> state: a browser that refuses storage still narrows the list
@@ -71,6 +73,7 @@ function Row({ r, stop, shown }) {
       <span class="ucl-steps ucsteps num" data-steps>{stepsWord(r.open)}</span>
       <button type="button" class="ucl-eye" tabIndex={-1} data-eye title={eyeWords} aria-label={`${r.ref || "Use case"} ${r.name}: ${eyeWords}. ${r.on ? "Take it off the dashboard" : "Put it on the dashboard"}`}
         onFocus={() => { current.value = r.id; }} onClick={(e) => { blink(e); setEye(r, shown); }}><Icon name={r.on ? "eye" : "eyeoff"} /></button>
+      <RecordMore row={r.u} kind="use_cases" cls="ucl-more" id={`ucl-more-${r.id}`} tab={-1} />      {/* item 1148: Archive and Delete, in a row's More actions */}
     </li>
   );
 }
@@ -80,11 +83,11 @@ function keys(e) {
   const t = e.target, k = e.key;
   if (e.ctrlKey || e.metaKey || e.altKey || e.shiftKey || e.isComposing || e.defaultPrevented || !t.closest) return;
   const row = t.closest(".ucl-row");
-  if (!row || !t.matches(".ucl-go, .ucl-eye")) return;
-  const eye = t.classList.contains("ucl-eye"), rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
+  if (!row || !t.matches(".ucl-go, .ucl-eye, .ucl-more")) return;
+  const more = t.classList.contains("ucl-more"), eye = t.classList.contains("ucl-eye") || more, rows = [...e.currentTarget.querySelectorAll(".ucl-list .ucl-row")], at = rows.indexOf(row);
   const focus = (el) => { if (el) { e.preventDefault(); el.focus(); } };
-  if (k === "ArrowRight") return focus(row.querySelector(".ucl-eye"));
-  if (k === "ArrowLeft") return focus(row.querySelector(".ucl-go"));
+  if (k === "ArrowRight") return focus(more ? null : eye ? row.querySelector(".ucl-more") : row.querySelector(".ucl-eye"));      // item 1148: the name, the eye, then More actions
+  if (k === "ArrowLeft") return focus(more ? row.querySelector(".ucl-eye") : row.querySelector(".ucl-go"));
   const to = { ArrowUp: at - 1, ArrowDown: at + 1, Home: 0, End: rows.length - 1 }[k];
   if (to === undefined) return;
   e.preventDefault();
@@ -159,8 +162,8 @@ function UseCasesList() {
   // (the growing +) at its right end (the ruling: Import is the up arrow, Export the down arrow, as on Work items); the filter line under it. The tabs' counts follow the line.
   const tools = (
     <span class="ucl-tools">
-      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
-      {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
+      {rows.length ? <Menu label="Group by" ariaLabel={`Group by: ${groupLabel(f.group)}`} id="ucl-group" btnCls="btn sm" menuLabel="Group by" items={GROUPS.map(([k, w]) => ({ id: k, name: w, icon: groupIcon(k), checked: f.group === k }))} onPick={(k) => set({ group: k })} /> : null}
+      {rows.length ? <Menu label="Sort by" ariaLabel={`Sort by: ${(SORTS.find(([k]) => k === f.sort) || SORTS[0])[1]}`} id="ucl-sort" btnCls="btn sm" menuLabel="Sort by" items={SORTS.map(([k, w]) => ({ id: k, name: w, icon: sortIcon(k), checked: f.sort === k }))} onPick={(k) => set({ sort: k })} /> : null}
       <ImportBtn />
       <ExportBtn />
       <NewTile word="Add use case" kind="use_case" id="ucAddPage" onAdd={openAdd} />
