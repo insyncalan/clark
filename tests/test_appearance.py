@@ -14,7 +14,7 @@ import unittest
 from _paths import SRC
 from _new_page import reload_to_new_page
 from test_publish_dialog import Base, PAGE_SRC
-from test_server import chrome
+from test_server import chrome, wait
 
 from clark import page
 
@@ -137,15 +137,11 @@ class Appearance(Base):
 
     def key_until(self, p, pick, name, code, cond, what):
         """Focus the button and press the key, pressing again if a slow computer dropped it, until cond holds (up to 6 tries of 2 s)."""
-        import time
         for _ in range(6):
             p.js(f"document.querySelector('#personal [data-appearance] button[data-theme-pick={pick}]').focus()")
             self.key(p, name, code)
-            end = time.time() + 2
-            while time.time() < end:
-                if p.js(cond):
-                    return
-                time.sleep(0.1)
+            if wait(lambda: p.js(cond), 2):
+                return
         self.fail(what)
 
     def key(self, p, name, code, mods=0):
