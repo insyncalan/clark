@@ -39,14 +39,17 @@ class Offsets(Base):
                 got = p.js(f"[getComputedStyle(document.querySelector('.top')).position, {TOP}.top]")
                 self.assertEqual(got, ["sticky", 0], f"the header is not stuck to the top at {w}: {got}")
 
-    def test_the_contents_strip_sits_directly_under_the_header(self):
+    def test_the_contents_rail_is_never_under_the_header_and_below_the_pill(self):
+        """Item 1177 names .toc only as the z-index 25 layer under the pill and the header (30); .toc is the fixed right-edge rail (shell.css:142),
+        not a strip under the header, so the test asks what the issue asks: it is clear of the header and its layer is under the pill's."""
         with chrome() as cdp:
             p = self.visit(cdp)
             for w in SIZES:
                 size(cdp, p, w, 700)
                 p.js("window.scrollTo(0, 0)")
-                got = p.js(f"[document.querySelector('.toc').getBoundingClientRect().top, {TOP}.bottom]")
-                self.assertLess(abs(got[0] - got[1]), 1.5, f"the contents strip top {got[0]} is not the header bottom {got[1]} at {w}")
+                got = p.js(f"[document.querySelector('.toc').getBoundingClientRect().top, {TOP}.bottom, parseInt(getComputedStyle(document.querySelector('.toc')).zIndex, 10)]")
+                self.assertGreaterEqual(got[0], got[1], f"the contents rail top {got[0]} is under the header (bottom {got[1]}) at {w}")
+                self.assertEqual(got[2], 25, f"the contents rail layer is {got[2]}, the issue says 25, at {w}")
 
     def test_the_selection_bar_sticks_at_the_header_bottom(self):
         with chrome() as cdp:
@@ -86,10 +89,13 @@ class BoardOffsets(BoardBase):
             with chrome() as cdp:
                 sid = self.visit(cdp, width=w)
                 self.board(cdp, sid, "status")
-                got = cdp.js("(() => { window.scrollTo(0, 0); return [document.querySelector('#work-board').getBoundingClientRect().top, "
-                             "document.querySelector('.top').getBoundingClientRect().bottom]; })()", sid)
-                self.assertLess(abs(got[0] - got[1]), 40, f"the board top {got[0]} is not near the header bottom {got[1]} at {w}")
-                top = cdp.js("(() => { const b = document.querySelector('#work-board'); const s = getComputedStyle(b); "
+                # item 1177: the box is sticky at var(--topbar) (shell.css:926), so at scrollY 0 it sits in flow under the toolbars;
+                # scroll the page until it is stuck, then its top must equal the header bottom within 1 px.
+                got = cdp.js("(() => { window.scrollTo(0, document.documentElement.scrollHeight); return [document.querySelector('.boardbox').getBoundingClientRect().top, "
+                             "document.querySelector('.top').getBoundingClientRect().bottom, window.scrollY]; })()", sid)
+                self.assertGreater(got[2], 0, f"the page did not scroll at {w}")
+                self.assertLess(abs(got[0] - got[1]), 1, f"the stuck board box top {got[0]} (the sticky .boardbox; #work-board is display: contents, shell.css:925) is not the header bottom {got[1]} at {w}")
+                top = cdp.js("(() => { const b = document.querySelector('.boardbox'); const s = getComputedStyle(b); "
                              "return [s.position, parseFloat(s.top)]; })()", sid)
                 var = cdp.js(f"{VAR}", sid)
                 if top[0] == "sticky":

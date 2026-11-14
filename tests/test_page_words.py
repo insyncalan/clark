@@ -33,6 +33,8 @@ WENT_WRONG = "Something went wrong"
 SENTENCE_STARTS_WITH_PRODUCT_NAME = re.compile(r"""(?:[`"'>:;]|[.!?]\s)\s*clark\s+[a-z]""", re.I)
 NEVER = re.compile(r"\w*(Error|Exception)\b|Traceback|JSON|Not allowed|Bad request|[Rr]eport editor|\bClark\b|\bUC\b|!")
 PAGE_SRC = Path(page.PAGE).parent / "src"
+# item 1177: the Dashboard has no banner and no h1 any more; the open project's own name is the header's .hdr-project button
+OPEN_NAME = "(document.querySelector('header .hdr-project') || {}).textContent && document.querySelector('header .hdr-project').textContent.trim()"
 WAIT = 30     # seconds to poll for what the page should show: a busy machine can take far longer than a quiet one
 
 
@@ -80,7 +82,7 @@ class Words(unittest.TestCase):
     def recovers(self, cdp, sid):
         self.fake.mode = "ok"
         cdp.js("document.querySelector('.again').click()", sid)
-        self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+        self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                              == "Example Programme", WAIT), "Try again brought the report back")
 
     def test_a_fault_in_the_data_shows_no_error_name_and_try_again_recovers(self):
@@ -143,7 +145,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, STALE, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page with this run's token")
 
     def test_a_refusal_with_the_servers_old_words_shows_clark_did_not_accept_that(self):
@@ -155,7 +157,7 @@ class Words(unittest.TestCase):
                 sid = self.visit(cdp)
                 self.shown(cdp, sid, [WENT_WRONG, NOT_ACCEPTED, "Try again"])
             cdp.js("document.querySelector('.again').click()", sid)
-            self.assertTrue(wait(lambda: cdp.js("document.querySelector('h1') && document.querySelector('h1').textContent", sid)
+            self.assertTrue(wait(lambda: cdp.js(OPEN_NAME, sid)
                                  == "Example Programme", WAIT), "Try again reloaded the page")
 
     def test_a_message_the_page_does_not_know_is_never_shown(self):
