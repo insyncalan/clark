@@ -35,6 +35,9 @@ class Progress(Base):
 
     def reduced(self, cdp, p, value):
         cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": value}]}, p.sid)
+        if value == "no-preference":
+            # a Mac that reduces motion paints data-motion="reduce" at load, before this pin; clear it so the pin is what counts
+            p.js("delete document.documentElement.dataset.motion")
 
     def test_the_route_answers_with_the_publication_number(self):
         status, body = self.rig.call("POST", "/api/publish", {"project": "PUB", "to_client": False})
@@ -112,7 +115,7 @@ class Progress(Base):
             p.open_publish()
             p.go()
             p.until(f"!!{SPIN}", "the spinner shows")
-            self.assertNotEqual(p.js(f"getComputedStyle({SPIN}).animationName"), "none", "it turns when motion is allowed")
+            p.until(f"getComputedStyle({SPIN}).animationName !== 'none'", "it turns when motion is allowed")
             self.reduced(cdp, p, "reduce")
             p.until(f"getComputedStyle({SPIN}).animationName === 'none'", "with reduced motion the ring does not turn")
             self.assertGreater(p.js(f"{SPIN}.getBoundingClientRect().width"), 0, "but it is still shown")
