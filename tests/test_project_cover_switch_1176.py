@@ -55,6 +55,7 @@ class CoverSwitch(Base):
             p.until("!!document.querySelector('%s')" % SW, "the control")
             for w in WIDTHS:
                 p.width(w)
+                p.js("document.activeElement && document.activeElement.blur()")      # Esc gave the focus back to the button, which shows the chevron
                 p.cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2}, p.sid)
                 p.until("%s === '0'" % chev, "the chevron is not drawn at rest")
                 self.assertEqual(p.js(edge), "none", "no outline at rest")
@@ -92,6 +93,7 @@ class CoverSwitch(Base):
             for w in WIDTHS:
                 p.width(w)
                 self.open_menu(p)
+                p.until("document.querySelectorAll('%s [role=menuitemradio]').length === 2" % MENU, "both rows are read")
                 self.assertEqual(p.js(ROWS), ["Harbour Bridge Programme3 open items", "Second Programme1 open item"])
                 self.assertEqual(p.js("document.querySelector('%s [aria-checked=true] b').textContent" % MENU), "Harbour Bridge Programme")
                 p.key("Escape", code="Escape", vk=27)
@@ -115,6 +117,7 @@ class CoverSwitch(Base):
         with chrome() as cdp:
             p = self.page(cdp)
             self.open_menu(p)
+            p.until("document.querySelectorAll('%s [role=menuitemradio]').length === 2" % MENU, "both rows are read")
             p.js("document.querySelectorAll('%s [role=menuitemradio]')[1].click()" % MENU)
             p.until("new URLSearchParams(location.search).get('project') === 'ABC'", "the page loaded for the chosen project")
             p.until("document.querySelector('#cover h1').textContent.includes('Second Programme')", "the cover names the chosen project")
