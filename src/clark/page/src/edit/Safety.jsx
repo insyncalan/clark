@@ -10,7 +10,9 @@ const REAL = { list: listBackups, preview: previewBackup, restore: restoreBackup
 // Copy my backups to (#622): one optional folder, off until a path is saved. Saved by the Save button or Enter (never by leaving the box,
 // because saving makes the folder when it isn't there). An empty box turns it off. The server decides; a refusal is shown under the box
 // and the box keeps what was typed. The OneDrive folders it found are offered as one-press choices that fill the box.
-function CopyFolder({ list, api, saved }) {
+// `row` (row 1115, Essentials): the box alone, for a setting row that brings the name and the help line; its ids then start with "ess-" so the page never holds one twice.
+export function CopyFolder({ list, api, saved, row }) {
+  const ix = row ? "ess-safety" : "safety";
   const [typed, setTyped] = useState(list.copy_folder || "");
   const [said, setSaid] = useState(null);                    // null, or {kind: "success" | "error", text}
   const [busy, setBusy] = useState(false);
@@ -27,17 +29,17 @@ function CopyFolder({ list, api, saved }) {
     } else setSaid({ kind: "error", text: L.answerWords(r.status, r.body) });
   }
   return (
-    <div class="fld copy-fld" id="safety-copy">
-      <label for="safety-copy-box">{list.copy_label}</label>
-      <input id="safety-copy-box" type="text" value={typed} autocomplete="off" spellcheck={false} data-copy-folder aria-describedby="safety-copy-line safety-copy-said"
+    <div class={row ? "copy-fld" : "fld copy-fld"} id={`${ix}-copy`}>
+      {row ? null : <label for="safety-copy-box">{list.copy_label}</label>}
+      <input id={`${ix}-copy-box`} type="text" value={typed} autocomplete="off" spellcheck={false} {...{ [row ? "data-ess-copy-folder" : "data-copy-folder"]: "" }} aria-describedby={`${row ? "" : ix + "-copy-line "}${ix}-copy-said`}
         aria-invalid={said && said.kind === "error" ? "true" : undefined}
         onInput={(e) => setTyped(e.currentTarget.value)} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); if (!busy) save(); } }} />
-      <small id="safety-copy-line">{list.copy_help}</small>
+      {row ? null : <small id="safety-copy-line">{list.copy_help}</small>}
       {(list.copy_suggestions || []).map((path) => (
-        <button type="button" class="btn quiet sm" data-copy-suggestion key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use {path}</button>
+        <button type="button" class="btn quiet sm" {...{ [row ? "data-ess-copy-suggestion" : "data-copy-suggestion"]: "" }} key={path} aria-disabled={busy ? "true" : undefined} onClick={() => { if (!busy) setTyped(path); }}>Use {path}</button>
       ))}
-      <div class="row"><button type="button" class="btn sm" data-copy-save aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
-      <div id="safety-copy-said" role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
+      <div class="row"><button type="button" class="btn sm" {...{ [row ? "data-ess-copy-save" : "data-copy-save"]: "" }} aria-disabled={busy ? "true" : undefined} onClick={save}>{L.LABELS.save}</button></div>
+      <div id={`${ix}-copy-said`} role={said && said.kind === "error" ? "alert" : "status"} aria-live="polite">{said ? <p class={said.kind === "error" ? "fld-bad" : "success"}>{said.text}</p> : null}</div>
     </div>
   );
 }

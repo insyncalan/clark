@@ -6,7 +6,8 @@ import { data } from "../stores/report.js";
 import { change } from "../stores/changes.js";
 import { editorOn, clientOn, tabName, nameOf, requestFor, NAME_MAX } from "../gantt/ganttTab.js";
 import { NAME_REFUSED } from "./ganttWords.js";
-import { SettingRow } from "./SettingRow.jsx";
+import { SettingRow, focusControl } from "./SettingRow.jsx";
+import { defaultOf } from "./settingsDefaults.js";
 
 export function GanttSetting() {
   const p = data.value && data.value.project, now = tabName(p);
@@ -30,18 +31,29 @@ export function GanttSetting() {
     busy.current = false;
     setTyped(null);
   };
+  const resetTick = (which, id, words) => async () => {
+    await change(requestFor(which, defaultOf(id)), words, { focus: "#" + id });
+    focusControl(id);
+  };
+  const resetName = async () => {
+    setTyped(null); setSaid("");                     // the typed name and the refusal line go with the Reset
+    await change(requestFor("name", defaultOf("gantt-name")), `Gantt tab renamed to ${defaultOf("gantt-name")}.`, { focus: "#gantt-name" });
+    focusControl("gantt-name");
+  };
   return (
     <section class="frame setting" id="gantt-setting" aria-labelledby="gantt-setting-h">
       <h2 id="gantt-setting-h" tabIndex={-1}>Gantt</h2>
       <p class="muted">Whether this project has a Gantt tab, and who sees it. The client sees only the lines you have put on the client view.</p>
-      <SettingRow id="gantt-editor" name="Show the Gantt to me" data-gantt-editor>
+      <SettingRow id="gantt-editor" name="Show the Gantt to me" data-gantt-editor
+        changed={editorOn(p) !== defaultOf("gantt-editor")} onReset={resetTick("editor", "gantt-editor", "The Gantt tab is off for you.")}>
         <input type="checkbox" id="gantt-editor" checked={editorOn(p)} onChange={tick("editor", editorOn(p), ["The Gantt tab is on for you.", "The Gantt tab is off for you."])} />
       </SettingRow>
       <SettingRow id="gantt-client" name="Show the Gantt to the client" data-gantt-client
+        changed={clientOn(p) !== defaultOf("gantt-client")} onReset={resetTick("client", "gantt-client", "The Gantt will not be in the client's report.")}
         help="It appears in a published report only when at least one line is shown to the client.">
         <input type="checkbox" id="gantt-client" checked={clientOn(p)} onChange={tick("client", clientOn(p), ["The Gantt will be in the client's report.", "The Gantt will not be in the client's report."])} />
       </SettingRow>
-      <SettingRow id="gantt-name" name="Tab name" helpId="gantt-name-line" data-gantt-name
+      <SettingRow id="gantt-name" name="Tab name" helpId="gantt-name-line" data-gantt-name changed={now !== defaultOf("gantt-name")} onReset={resetName}
         help={`Up to ${NAME_MAX} characters. The default is Gantt. You can also click the tab's name while editing the Gantt page.`}
         bad={<p class="fld-bad" role="alert" data-gantt-name-bad>{said}</p>}>
         <input id="gantt-name" type="text" value={shown} maxLength={NAME_MAX + 20} aria-describedby="gantt-name-line" aria-invalid={said ? "true" : undefined}

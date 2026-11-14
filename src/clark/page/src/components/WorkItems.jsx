@@ -28,7 +28,6 @@ import { sortRows, dueCell, ownerOf, metaOf, isOpen, todayIso } from "../workIte
 import { applyFilters, chips, canClear, countText, clearAll, removeFilter, addPlan } from "../filters.js";
 import { Switches, FilterBar } from "./WorkFilters.jsx";
 import { lineApi } from "../stores/lineSlot.js";
-import { ImportExport } from "./ImportExport.jsx";
 import { NewTile } from "./NewTile.jsx";
 import { Menu } from "./Menu.jsx";
 import { isChanged, WORD } from "../stores/changed.js";
@@ -372,7 +371,6 @@ export function WorkItems({ tools }) {
         </div>
         {tools ? (
           <div class="hacts">
-            {!(FilterLine && allRows.value.length) ? <ImportExport tools={tools} /> : null}   {/* row 1084: on the filter line when there is one; with no line (no work items yet) they stay here so an import can start the list */}
             {tools.HandOver ? <tools.HandOver.Button /> : null}   {/* #199: with the Owner filter on */}
             <NewTile word={plan.word} kind={plan.kind} items={plan.menu} onAdd={adder(tools)} />   {/* a published file is read only: no Add (#204) */}
           </div>
@@ -392,7 +390,7 @@ export function WorkItems({ tools }) {
                 </>
               : <>
                   <Switches L={L} />   {/* item 287: Layout, Group by and the swimlanes are in the filter line's one View menu */}
-                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are icons on this line (item 454, row 824); a published file has neither */}
+                  <FilterLine board={!!Board} tools={tools} />   {/* row 1084: Import and Export are in Settings, on the Data card, not on this line */}
                   {Arch ? <Arch narrow={(r) => L.apply(r, filterCtx())} /> : <List Board={Board} Cell={Cell} Eye={Eye} More={More} CW={CW} Bulk={tools && tools.Bulk} HandOver={tools && tools.HandOver} L={L} />}
                 </>}
           </>}

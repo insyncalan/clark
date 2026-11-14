@@ -68,7 +68,7 @@ class SettingsBar(Base):
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
                     self.assertEqual(p.js("getComputedStyle(document.querySelector('.set-bar')).position"), "sticky")
-                    self.assertEqual(self.marked(p), "Profile", "at the top of the page the first chip is marked")
+                    self.assertEqual(self.marked(p), "Essentials", "at the top of the page the first chip is marked")
                     p.js("window.scrollTo(0, 900)")
                     self.settle(p)
                     self.assertLess(abs(p.js("document.querySelector('.set-bar').getBoundingClientRect().top - document.querySelector('.top').getBoundingClientRect().bottom")), 2,
@@ -95,7 +95,7 @@ class SettingsBar(Base):
                     self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip[aria-current]').length"), 1, "one chip is marked")
                     self.assertEqual(p.js(f"{MARKED}.getAttribute('aria-current')"), "location")
                 p.js("window.scrollTo(0, 0)")
-                p.until(f"({MARKED} || {{}}).textContent === 'Profile'", "back at the top, the first chip is marked")
+                p.until(f"({MARKED} || {{}}).textContent === 'Essentials'", "back at the top, the first chip is marked")
                 self.chip(p, "Asking")
                 p.until("document.activeElement && document.activeElement.id === 'ask-settings-h'", "focus is on the Asking heading")
                 self.settle(p)
@@ -105,13 +105,13 @@ class SettingsBar(Base):
     def test_row_1041_scrolled_to_the_very_foot_of_settings_the_marked_chip_is_asking(self):
         """Scrolled by hand (no chip chosen) to the very bottom. The cards of Feedback and Quit are too short to ever come up to the bar, so the
         last chip that can be marked by scrolling is Asking (Views.jsx cardHere), which is what the row says. Mutation tried: make cardHere
-        return cards[0] when at the foot: the marked chip is then Profile."""
+        return cards[0] when at the foot: the marked chip is then Essentials."""
         for w in WIDTHS:
             for mode in MODES:
                 with self.subTest(width=w, mode=mode), chrome() as cdp:
                     p = self.page(cdp)
                     self.open_settings(p, w, mode)
-                    self.assertEqual(self.marked(p), "Profile")
+                    self.assertEqual(self.marked(p), "Essentials")
                     self.assertEqual(p.js("[...document.querySelectorAll('.set-nav .set-chip')].slice(-3).map(b => b.textContent).join()"), "Asking,Feedback,Quit")
                     p.js("window.scrollTo(0, document.documentElement.scrollHeight)")
                     self.settle(p)
@@ -146,7 +146,8 @@ class SettingsBar(Base):
                 p.until("document.activeElement && document.activeElement.id === 'about-name'", "the name box has the cursor")
                 self.settle(p)
                 self.assertTrue(self.clear_of_bar(p, "#about-name"), "the box is clear of the bar")
-                self.assertEqual(self.marked(p), "Profile", "the chip of the card holding the box is marked")
+                # Essentials (row 1115) is the first card; the Profile box sits in view below it without any scroll, so the card at the top of the page stays marked
+                self.assertEqual(self.marked(p), "Essentials", "the chip of the card at the top of the page is marked")
 
 
 if __name__ == "__main__":

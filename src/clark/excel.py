@@ -36,6 +36,7 @@ import json
 import logging
 import re
 import threading
+import unicodedata
 import uuid
 import warnings as warnings_lib
 import zipfile
@@ -1451,6 +1452,38 @@ def template_bytes(on=None):
 def export_name(project):
     """The file name clark gives a project's workbook, made safe (platform.safe_name)."""
     return platform.safe_name(f"{project} work items.xlsx")
+
+
+DOWNLOAD_NAME_CUT = 60          # row 1143: the project name in a download's file name is cut at this many characters
+
+
+DOWNLOAD_CODE_CUT = 40           # the code in a download's file name is cut at this many characters
+DOWNLOAD_FILE_BYTES = 255        # a file name holds this many UTF-8 bytes in all
+DOWNLOAD_NAME_BYTES = 120        # and at most this many UTF-8 bytes, cut on a character boundary
+_DOWNLOAD_HIDDEN = re.compile("[\x7f\u0085\u2028\u2029]")
+
+
+def _download_clean(text):
+    """`text` with each character a file name cannot hold made "-", and the invisible ones (bidi marks, zero-width, other
+    format characters, DEL, NEL, line and paragraph separators) taken out, so a name cannot disguise its own ending."""
+    text = "".join(c for c in str(text or "") if unicodedata.category(c) != "Cf")
+    return platform.RESERVED_CHARS.sub("-", _DOWNLOAD_HIDDEN.sub("", text)).strip()
+
+
+def download_name(name, code, when):
+    """Row 1143: the file name the browser is given for a project's workbook, "<name>(<code>) YYYY.MM.DD HH.MM.SS.xlsx", e.g.
+    "Northwind(NWD) 2026.11.13 18.52.07.xlsx". `when` is the local date and time; the time has dots as a Mac and Windows name holds
+    no colon. A character a file name cannot hold becomes "-" (platform.safe_name), the name is cut at DOWNLOAD_NAME_CUT, no code
+    leaves out the brackets and no name puts the code in its place (and "work items" when there is neither)."""
+    tail = f" {when:%Y.%m.%d %H.%M.%S}.xlsx"
+    code = _download_clean(code).lstrip(". ")[:DOWNLOAD_CODE_CUT].strip()      # no leading dot (a hidden file on a Mac); cut by characters, then
+    code = code.encode("utf-8")[:DOWNLOAD_FILE_BYTES - len(tail)].decode("utf-8", "ignore").strip()      # by bytes, so it alone always fits
+    name = _download_clean(name).lstrip(". ")[:DOWNLOAD_NAME_CUT].strip()
+    room = min(DOWNLOAD_NAME_BYTES, DOWNLOAD_FILE_BYTES - len(tail) - len(code.encode("utf-8")) - 2)     # a file name holds 255 bytes, not characters
+    name = name.encode("utf-8")[:max(room, 0)].decode("utf-8", "ignore").strip()
+    if not name:
+        name, code = code or "work items", ""
+    return platform.safe_name(f"{name}{f'({code})' if code else ''}{tail}", max_name=DOWNLOAD_FILE_BYTES)
 
 
 def export_project(store, project, path=None, state_path=None, on=None, exported_by=None, owner=None, owner_email=None,

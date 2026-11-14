@@ -2,7 +2,7 @@
 light and dark. Issues 697 and 842: at 900 px and wider the links are a list down the left with the cards at the right (only 1400 and 900
 are tested: no narrower width is). Run: python3 dev/run_tests.py test_settings_head
 
-What is asserted: the title and the help line; a chip for each card that is on the page (Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback, Quit) and none
+What is asserted: the title and the help line; a chip for each card that is on the page (Essentials, Profile, Publishing, Personal, Freshness, Gantt, Logs and diagnostics, Projects, Data, Backups, Version and updates, Brands, People, Asking, Feedback, Quit) and none
 for a card that is not; a click scrolls the card into view and moves focus to its heading; the keyboard does the same (Tab to a chip,
 Enter); the list stands at the left of the cards at 900 px and wider, the page never scrolls sideways and nothing overlaps; each chip is at least 24 px high and wide; the chip text is at least 13 px
 and 4.5:1 on its ground; the focus ring is 2 px. Chrome is required: these tests fail, never skip, without it.
@@ -18,7 +18,7 @@ from test_server import chrome, wait
 WIDTHS = (1400, 900)
 MODES = ("light", "dark")
 HELP = "Where reports are published, how clark looks for you, when an item counts as not reviewed, the log, your backups and asking Claude."
-CARDS = [("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
+CARDS = [("Essentials", "essentials-h"), ("Profile", "profile-h"), ("Publishing", "client-folder-h"), ("Personal", "personal-h"), ("Freshness", "review-days-h"), ("Gantt", "gantt-setting-h"), ("Logs and diagnostics", "diagnostics-h"), ("Projects", "projects-h"), ("Data", "data-card-h"), ("Backups", "safety-h"),
          ("Version and updates", "update-h"), ("Brands", "brands-h"), ("People", "people-h"), ("Asking", "ask-settings-h"), ("Feedback", "feedback-h"), ("Quit", "quit-h")]
 
 
@@ -141,11 +141,11 @@ class Head(Base):
             self.open_settings(p, 1400)
             p.js("document.querySelector('.set-nav .set-chip').focus()")
             p.key("Tab", code="Tab", vk=9)
-            self.assertEqual(p.js("document.activeElement.textContent"), "Publishing", "Tab moves from chip to chip")
+            self.assertEqual(p.js("document.activeElement.textContent"), "Profile", "Tab moves from chip to chip")
             self.assertEqual(p.js("document.querySelectorAll('.set-nav .set-chip').length"), len(CARDS))
             p.js("window.scrollTo(0, 0)")
             p.key("Enter", code="Enter", vk=13)
-            self.at_top(p, "client-folder-h")
+            self.at_top(p, "profile-h")
             self.assertEqual(p.js("getComputedStyle(document.activeElement).outlineWidth"), "2px", "the heading shows the ring after the keyboard")
 
     def test_C_the_list_is_at_the_left_at_900_and_wider_and_a_row_of_chips_below_900(self):

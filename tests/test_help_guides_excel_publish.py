@@ -70,7 +70,7 @@ class TheThreeGuides(unittest.TestCase):
             self.assertRegex(code, pat, b)
 
     def test_the_controls_the_steps_name_are_the_ones_the_page_has(self):
-        """The control names, exactly as the page shows them (ImportWorkbook.jsx, Data.jsx, ExportBtn.jsx, Publish.jsx, dataCard.js, ProfileMenu.jsx)."""
+        """The control names, exactly as the page shows them (ImportWorkbook.jsx, Data.jsx, Publish.jsx, dataCard.js, ProfileMenu.jsx)."""
         text = {i: " ".join(s["d"] for s in g["steps"]) for i, g in GUIDES.items()}
         for name in ("**Settings**", "**Data**", "**Export workbook**", "**Import workbook**", "**Import from Excel**", "**Get the template**",
                      "**Choose a file**", "**Check the import**", "**Import anyway**", "**Undo this import**", "**Close**"):
@@ -153,6 +153,21 @@ class TheStartJobs(unittest.TestCase):
             self.assertNotIn(i, r["start"], "Excel is not a Start here job")
             self.assertIn(i, r["howto"], "it is reachable under How do I...")
         self.assertIn("guide-publish-to-the-client", r["start"])
+
+
+class ImportExportPointAtSettings(unittest.TestCase):
+    """Import and Export are on Settings > Data, not on Work items: the how-to goes there and no legend or step says otherwise."""
+
+    def test_how_to_goes_to_settings_data_and_the_legend_drops_work_items(self):
+        c = RAW
+        howto = [h for h in c["howto"]["tasks"] if h.get("id") == "import-and-export"][0]
+        self.assertEqual(howto["go"], "settings#data")
+        self.assertEqual(howto["page"], ["settings#data"])
+        rows = {r[0]: r for r in c["reference"]["icons"]}
+        for k in ("dl", "ul"):
+            self.assertEqual(rows[k][3], "Settings, the profile circle", k)
+        blob = json.dumps(c)
+        self.assertNotIn("ready for an import", blob)
 
 
 if __name__ == "__main__":

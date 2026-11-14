@@ -21,5 +21,6 @@ export const checkWorkbook = (project, name, data) => post("/api/excel-import", 
 export const listSheets = (project, name, data) => post("/api/excel-import", { op: "sheets", project, name, data });
 // ...then the check of only the ticked sheets (`tables`: "actions", "raid", "decisions", "milestones", "use_cases") of that kept workbook.
 export const checkSheets = (project, file, tables) => post("/api/excel-import", { op: "check", project, file, sheets: tables });
-export const applyWorkbook = (project, plan, accept, confirm) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm });
+// ...and the apply; `answers` ({ unknown id: { do: "create" } or { do: "use", id } }) is sent only when the check asked about milestones or use cases clark does not have (row 1156).
+export const applyWorkbook = (project, plan, accept, confirm, answers) => post("/api/excel-import", { op: "apply", project, plan, accept, confirm: !!confirm, ...(answers && Object.keys(answers).length ? { answers } : {}) });
 export const undoWorkbook = (project, applyId) => post("/api/excel-import", { op: "undo", project, apply_id: applyId });
