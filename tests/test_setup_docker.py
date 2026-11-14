@@ -61,7 +61,7 @@ class Check(unittest.TestCase):
                 self.assertNotIn(bad, words)
 
     def test_the_terminal_doctor_is_unchanged(self):
-        self.assertEqual(len(doctor.CHECKS), 8)
+        self.assertEqual(len(doctor.CHECKS), 9)
         self.assertNotIn("docker", [doctor.check_id(c) for c in doctor.CHECKS])
         self.assertEqual(doctor.check_id(doctor.Check("x", True, doctor.check_docker)), "docker")
 
