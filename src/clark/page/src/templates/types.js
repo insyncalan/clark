@@ -11,3 +11,7 @@ export const TEMPLATE_TYPES = [
 // templateEdit, taken by the store (changes.py NEW_SECTION_TYPES, layouts 19 and 21) and offered by logic/templates.js ACCEPTS, but not
 // in TEMPLATE_TYPES, which tests/test_section_registry.py holds equal to the registry's list.
 export const PENDING_TYPES = ["gantt", "gantttable"];
+
+// Built-in section types that are also library templates (row 1190: glance): drawn by templateFor / templateEdit, in the store since
+// the first layout, so in neither TEMPLATE_TYPES nor PENDING_TYPES.
+export const BUILT_IN_PART_TYPES = ["glance"];
