@@ -96,7 +96,7 @@ class InTheFile(Published):
                 cdp, p = self.bar(width, dark)
                 b = p.js(PROBE)
                 want = (147, 22) if width == 1400 else (120, 18)
-                hit = [x for x in b["logoBoxes"] if abs(x["h"] - want[1]) <= 1]
+                hit = [x for x in b["logoBoxes"] if abs(x["h"] - want[1]) <= 1 and abs(x["w"] - want[0]) <= 1]
                 self.assertTrue(hit, f"some part of the logo (its box, icon, image or svg) is {want[0]}x{want[1]}: {b['logoBoxes']}")
 
     def test_the_date_is_clickable_with_a_tooltip_and_the_same_format(self):
