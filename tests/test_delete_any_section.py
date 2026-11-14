@@ -12,7 +12,7 @@ from clark import as_at, changes, client_filters, excel_cover, glance, publish, 
 from test_changes import Api, KIND
 
 DATA_TABLES = ("milestones", "actions", "raid", "decisions", "use_cases", "documents", "glance_tiles", "report_hidden", "people", "projects")
-BUILT_INS = ("current", "glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")
+BUILT_INS = ("glance", "usecases", "milestones", "raid", "actions", "decisions", "docs")
 
 
 class Base(Api):
@@ -29,6 +29,15 @@ class Base(Api):
         con = sqlite3.connect(str(self.path))
         try:
             con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) SELECT 'ABC', 'ABC-S-500', 'needs', 'Made for the test', COALESCE(MAX(sort_order), 0) + 1000 FROM report_sections WHERE project = 'ABC'")
+            con.commit()
+        finally:
+            con.close()
+
+    def old_current_row(self):
+        """item 1188: a new project no longer starts with a section of the older type "current"; an existing report still has one."""
+        con = sqlite3.connect(str(self.path))
+        try:
+            con.execute("INSERT INTO report_sections (project, id, type, title, sort_order) SELECT 'ABC', 'ABC-S-501', 'current', 'Current state', COALESCE(MAX(sort_order), 0) + 1000 FROM report_sections WHERE project = 'ABC'")
             con.commit()
         finally:
             con.close()
@@ -90,6 +99,7 @@ class Publish(Base):
         self.assertTrue(got["data"]["actions"], "a section that stays keeps its data")
 
     def test_a_deleted_current_state_glance_and_documents_section_carry_nothing(self):
+        self.old_current_row()
         self.ok("delete", id=self.of_type("current")[0]["id"])
         self.ok("delete", id=self.of_type("docs")[0]["id"])
         got = self.build()["published"]

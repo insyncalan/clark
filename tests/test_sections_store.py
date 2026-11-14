@@ -14,7 +14,7 @@ from clark.store import Invalid
 
 NINE = ("current", "glance", "usecases", "milestones", "text", "raid", "actions", "decisions", "docs")
 ELEVEN = (
-    ("current", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
+    ("text", "Current state", 0), ("glance", "At a glance", 0), ("usecases", "Use case summary", 0),
     ("milestones", "Milestones", 0), ("text", "Summary", 0), ("text", "This week", 1), ("text", "Next week", 0),
     ("raid", "Risks and issues", 0), ("actions", "Open actions", 0), ("decisions", "Decisions", 0),
     ("docs", "Supporting documents", 0))
@@ -50,7 +50,7 @@ class Seed(Base):
         self.assertEqual([(r["type"], r["title"], r["beside"]) for r in rows], list(ELEVEN))
         self.assertEqual([r["id"] for r in rows], [f"ABC-S-{n:03d}" for n in range(1, 12)])
         self.assertEqual([r["sort_order"] for r in rows], [order.GAP * n for n in range(1, 12)])
-        self.assertEqual({(r["hidden"], r["body"]) for r in rows}, {(0, "")})
+        self.assertEqual({(r["hidden"], r["body"]) for r in rows[1:]}, {(0, "")})      # item 1188: only the first starts with words
         self.assertEqual({r["project"] for r in rows}, {"ABC"})
 
     def test_the_seed_is_in_the_projects_own_step_and_one_undo_means_one_thing(self):
@@ -84,8 +84,15 @@ class Seed(Base):
     def test_the_default_sections_are_pinned(self):
         self.assertEqual([(s["type"], s["title"], s.get("beside", 0)) for s in default_sections.DEFAULT_SECTIONS], list(ELEVEN))
         self.assertTrue(all(s["type"] in NINE for s in default_sections.DEFAULT_SECTIONS))
+        self.assertIn("current", store_module.SECTION_TYPES)              # item 1188: the older type is still allowed
         from clark.section_kinds import TYPES as TEMPLATE_TYPES
         self.assertEqual(set(store_module.SECTION_TYPES), set(NINE) | {"needs", "tracker", "gantt", "gantttable"} | set(TEMPLATE_TYPES))      # the nine of the starting report, and those that carry content (#96: the section templates too)
+
+    def test_the_first_default_section_starts_with_the_approved_line(self):         # item 1188
+        line = "Say where the project stands today, at a high level: what is done, what comes next, and anything that needs attention."
+        first = self.sections()[0]
+        self.assertEqual((first["type"], first["title"], first["body"]), ("text", "Current state", line))
+        self.assertEqual([r["body"] for r in self.sections()[1:]], [""] * 10)
 
     def test_data_for_gives_the_sections_in_order_with_their_own_query(self):
         data = self.s.data_for("ABC")
