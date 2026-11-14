@@ -1,6 +1,6 @@
 """python3 -m clark.doctor: check what clark needs on this computer, and say what to do in plain words (#57).
 
-    python3 -m clark.doctor [--data FOLDER] [--port N]
+    python3 -m clark.doctor [--data FOLDER] [--port N] [--docker]
 
 What it prints can include folder names (the data folder given with --data is shown in full when it is outside the home
 folder), and --help says so once.
@@ -14,6 +14,7 @@ Each check prints one line: Ready, To fix, Worth knowing (advice, never a fault)
 - the browser: Chrome found, or the default browser is used (advice)
 - nothing else is using the connection clark needs, asked as the launcher asks (required)
 - Claude Code, for ask clark (advice: clark runs without it)
+With --docker two more (required): Docker Desktop is running Linux containers, and Windows has not set the port aside.
 
 It ends with "Everything clark needs is ready." or how many things to fix. The exit code is 0 when every required check is
 ready, 1 otherwise. A check this computer can't do yet (platform.py's NotBuiltYet, as on Windows for now) says so and counts as
@@ -51,7 +52,7 @@ class Seen:
 
     def __init__(self, data=None, port=None, environ=None, home=None, on=None, version=None, sqlite_version=None,
                  data_dir=None, onedrive_roots=None, synced_roots=None, find_chrome=None, find_claude=None, health=None, free=None, app=APP,
-                 identity=None, page=None):
+                 identity=None, page=None, docker_os=None, reserved_ports=None):
         self.data, self.port_text, self.home, self.on, self.app = data, port, home, on or platform.system(), Path(app)
         self.environ = os.environ if environ is None else environ
         self.version = tuple(sys.version_info[:3]) if version is None else tuple(version)
@@ -61,6 +62,8 @@ class Seen:
         self.synced_roots = synced_roots or (lambda: platform.synced_roots(self.home, on=self.on, environ=self.environ))
         self.find_chrome = find_chrome or (lambda: platform.find_chrome(self.environ, self.home, on=self.on))
         self.find_claude = find_claude or platform.find_claude
+        self.docker_os = docker_os or platform.docker_os
+        self.reserved_ports = reserved_ports or platform.reserved_ports
         self.health, self.free, self.identity, self.page = health, free, identity, page
         self._folder = self._roots = None
 
@@ -227,6 +230,44 @@ def check_docker(seen):
     return Line(READY, f"clark is running in Docker, and your data is kept in {host}.")
 
 
+def check_docker_mode(seen):
+    """Docker Desktop must be running Linux containers (issue 635). Run only with --docker."""
+    kind = seen.docker_os()
+    if kind == "linux":
+        return Line(READY, "Docker Desktop is running Linux containers.")
+    if kind == "windows":
+        return Line(FIX, "Docker Desktop is running Windows containers. Right-click the Docker icon, choose Switch to Linux "
+                         f"containers, then run {typed.doctor()} again.")
+    return Line(FIX, f"Docker Desktop isn't running. Start Docker Desktop, then run {typed.doctor()} again.")
+
+
+def check_port_reserved(seen):
+    """Windows can set a range of ports aside; clark can't use one in it (issue 635). Run only with --docker."""
+    from clark import server
+    from clark.__main__ import Usage, port_number
+    given = seen.port_text is not None
+    where = "--port" if given else "CLARK_PORT"
+    try:
+        port = port_number(seen.port_text if given else (seen.environ.get("CLARK_PORT") or server.DEFAULT_PORT), where)
+    except Usage:
+        return Line(FIX, f"The start-up number (set with {where}) must be a whole number from 1 to 65535. Change it, then "
+                         f"run {typed.doctor()} again.")
+    if seen.on != platform.WINDOWS:
+        return Line(READY, f"Port {port} isn't set aside.")
+    ranges = seen.reserved_ports()
+    if ranges is None:
+        raise RuntimeError("the list of ports could not be read")      # run_check says "couldn't finish"
+    if any(a <= port <= b for a, b in ranges):
+        return Line(FIX, f"Windows has set port {port} aside, so clark can't use it. Choose another number with CLARK_PORT, then "
+                         f"run {typed.doctor()} again.")
+    return Line(READY, f"Port {port} isn't set aside.")
+
+
+DOCKER_CHECKS = (
+    Check("The Docker check for Linux containers", True, check_docker_mode),
+    Check("The check that Windows has not set the port aside", True, check_port_reserved),
+)
+
 CHECKS = (
     Check("The Python check", True, check_python),
     Check("The data folder check", True, check_data_folder),
@@ -300,6 +341,7 @@ def parser():
                                                     "computer)")
     p.add_argument("--port", metavar="N", help="the number clark starts with (advanced; default: the CLARK_PORT setting, or "
                                                "the usual one)")
+    p.add_argument("--docker", action="store_true", help="also check Docker Desktop and the port, for running clark in Docker")
     return p
 
 
@@ -307,7 +349,7 @@ def main(argv=None, say=print, **seams):
     """The command. `seams` are Seen's fakes (environ, home, on, health, find_chrome, ...)."""
     args = parser().parse_args(argv)
     try:
-        return doctor(Seen(data=args.data, port=args.port, **seams), say)
+        return doctor(Seen(data=args.data, port=args.port, **seams), say, CHECKS + DOCKER_CHECKS if args.docker else CHECKS)
     except KeyboardInterrupt:
         return 1
     except Exception:                           # noqa: BLE001 - never a traceback, nor the computer's own error text

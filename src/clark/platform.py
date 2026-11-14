@@ -103,10 +103,10 @@ def container_host_in_onedrive(environ=None):
     host = (os.environ if environ is None else environ).get("CLARK_DATA_SOURCE")
     if not host:
         return None
-    path = Path(host)
-    for i, part in enumerate(path.parts):
-        if part.lower().startswith("onedrive"):
-            return Path(*path.parts[:i + 1])
+    spans = [(m.group(), m.end()) for m in re.finditer(r"[^\\/]+", host)]   # the Mac or Windows path read by name, whatever the separator
+    for name, end in spans:
+        if name.lower().startswith("onedrive"):
+            return Path(host[:end])                          # the path as written up to that name: a Windows drive and backslashes stay
     return None
 
 
@@ -216,6 +216,30 @@ def onedrive_roots(home=None, on=None):
     home = Path(home or Path.home())
     found = list((home / "Library" / "CloudStorage").glob("OneDrive*")) + list(home.glob("OneDrive*"))
     return sorted(p for p in found if p.is_dir())
+
+
+def docker_os(run=None):
+    """What Docker Desktop is running, as `docker info --format {{.OSType}}` says it: "linux" or "windows"; None when docker can't be
+    run or answers with an error (not installed, or Docker Desktop not started). Changes nothing."""
+    try:
+        done = _run(["docker", "info", "--format", "{{.OSType}}"], run)
+    except (OSError, ValueError):
+        return None
+    words = (done.stdout or "").strip().lower()
+    return words if done.returncode == 0 and words in ("linux", "windows") else None
+
+
+def reserved_ports(run=None):
+    """The TCP port ranges Windows has set aside, as (first, last) pairs from `netsh interface ipv4 show excludedportrange
+    protocol=tcp`; None when that can't be run or has no range in its answer. Changes nothing."""
+    try:
+        done = _run(["netsh", "interface", "ipv4", "show", "excludedportrange", "protocol=tcp"], run)
+    except (OSError, ValueError):
+        return None
+    if done.returncode != 0:
+        return None
+    ranges = [(int(a), int(b)) for a, b in re.findall(r"^\s*(\d+)\s+(\d+)\b", done.stdout or "", re.MULTILINE)]
+    return ranges or None
 
 
 def _dropbox_name(name):
@@ -501,7 +525,7 @@ def check_data_dir(path, roots=None, what="data", synced=None):
         if root is not None:
             path = host_shown(os.environ["CLARK_DATA_SOURCE"])   # (written without the user's name) and the Mac's folder is what the person must change, not the container's /data
     if root is not None:
-        kind = account_free(root.name)                       # the tenant folder ("OneDrive - Name") is the company: only a tenant-free name is ever said
+        kind = account_free(re.split(r"[\\/]+", str(root).rstrip("\\/"))[-1])   # the tenant folder ("OneDrive - Name") is the company: only a tenant-free name is ever said
         named = "" if kind.lower() == "onedrive" else f" ({kind})"
         if what == "backups":
             raise PlatformError(f"Backups can't be kept in {account_free(shown(path))} because it is inside OneDrive{named}. OneDrive "
