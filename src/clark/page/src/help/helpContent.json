@@ -1990,7 +1990,7 @@
        ],
        [
         "Risks & Issues",
-        "ID, Description, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Client-visible, Client wording, Milestone, Use case, Labels"
+        "ID, Description, Type, Workstream, Owner, Response action, Due, Impact, Likelihood, Status, Raised, Latest update, Client-visible, Client wording, Milestone, Use case, Labels"
        ],
        [
         "Decisions",
@@ -1998,7 +1998,7 @@
        ],
        [
         "Milestones",
-        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Order, % complete, Owner, State, State reason, Movement, Achieved on, Client-visible, Client wording, Internal note"
+        "ID, Milestone, Description, Workstream, Agreed, Forecast, Status, Order, % complete, Owner, State, State reason, Movement, Achieved on, Client-visible, Client wording, Latest update, Internal note"
        ],
        [
         "Use cases",
