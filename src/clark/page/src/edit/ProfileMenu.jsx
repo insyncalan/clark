@@ -103,11 +103,9 @@ export function ProfileMenu() {
   const actions = items.filter((i) => ["publish", "preview", "export", "word-export", "published", "settings"].includes(i.id)), rest = items.filter((i) => !actions.includes(i));
   const who = named ? { id: "who", head: { name: me.name || me.email, line: me.name ? me.email : "", title: [me.name, me.email].filter(Boolean).join("\n") } }
     : { id: "who", name: "Add your name in Settings", link: true, icon: actionIcon("profile") };
-  // item 1177: the report bar's state chip is gone; its words (Editing while in Edit, Draft while nothing is published) are here, beside the published note
-  const state = mode.value === "edit" ? "Editing · each change saves on its own" : last ? "" : open ? "Draft · not published yet" : "";
   // item 1177: at 900 px and narrower the header has no search or ask clark button; they are the first two entries here (ask clark only while asking is on)
   const near = narrowHeader.value ? [{ id: "search", name: "Go to or do", icon: actionIcon("search") }, ...(askOn.value ? [{ id: "ask", name: "ask clark", icon: actionIcon("ask") }] : [])] : [];
-  const shown = [...(named ? [who, ...near] : [...near, who]), ...(last ? [{ id: "note", lab: last }] : []), ...(state ? [{ id: "state", lab: state }] : []), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest];   // a separator sets the settings entries apart from the look group
+  const shown = [...(named ? [who, ...near] : [...near, who]), ...actions, { id: "sep", sep: true }, ...look, ...(rest.length ? [{ id: "sep", sep: true }] : []), ...rest, ...(last ? [{ id: "sep", sep: true }] : []), ...(last ? [{ id: "note", lab: last }] : [])];   // a separator sets the settings entries apart from the look group
   const pick = (id) => {
     if (id === "search") openPalette();
     else if (id === "ask") { if (panelOpen.value) closePanel(); else openPanel(); }

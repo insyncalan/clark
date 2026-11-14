@@ -28,7 +28,7 @@ export function HeaderDate() {
   const shown = shownDay(week);
   return (
     <>
-      <button type="button" class="hdr-date num" id="week-ending-pick" ref={btn} title="Click to change date" aria-label={`Week ending ${shown}. Click to change date`}
+      <button type="button" class="hdr-date num" id="week-ending-pick" ref={btn} title="Click to change date"
         aria-haspopup="dialog" aria-expanded={open ? "true" : "false"} onClick={() => setOpen(!open)}>Week ending {shown}</button>
       {open ? <DuePick row={{ kind: "task", id: "", due_date: week || "" }} anchor={btn} today={todayIso()} label="Week ending date" quick={[weekEndingQuick(todayIso())]}
         onPick={picked} onClose={(back) => { setOpen(false); if (back && btn.current) btn.current.focus(); }} /> : null}
