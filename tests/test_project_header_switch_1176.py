@@ -1,4 +1,4 @@
-"""Row 1176 (browser), as ruled by Jarvis WO-M2256 option A: the project switch is the project name in the one slim header
+"""Row 1176 (browser), as ruled (order WO-M2256, option A): the project switch is the project name in the one slim header
 (.hdr-project, item 1177), click-to-change. Its hover text says "Click to change project", a click opens the project list (the same
 rows as before), and choosing a project loads that project's page. The done-when: select project A then project B, the work
 items, milestones, project data and brand change each time, and B's items are never shown under A. A published file has none
