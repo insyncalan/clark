@@ -286,6 +286,19 @@ class Page(InBrowser):
         self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic")
         self.assertEqual(self.val("T.saved()"), "generic")
 
+    def test_a_save_that_throws_puts_the_select_back_on_the_saved_brand_and_a_later_choice_still_saves(self):
+        self.held()
+        self.js("T.failNext = true")
+        self.choose("example-brand")
+        self.settle()                           # the page draws the choice, then the save breaks
+        self.release_and_settle()
+        self.assertEqual(self.val("T.saved()"), "generic", "nothing was saved")
+        self.assertEqual(self.val("document.querySelector('#brand-pick').value"), "generic", "the select does not show a brand that was not saved")
+        self.choose("example-brand")
+        self.settle()
+        self.release_and_settle()
+        self.assertEqual(self.val("T.saved()"), "example-brand", "the next choice is not stuck behind the broken save")
+
     def test_the_select_keeps_the_waiting_choice_while_its_save_is_on_its_way(self):       # A, B, A: no flash of B after the first save
         self.held()
         self.choose("example-brand")

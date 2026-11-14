@@ -29,7 +29,7 @@ T.mount = () => {
     T.calls.push(["pick", [id, name]]);
     const done = () => { if (T.keep) T.setBrand(id); };
     if (!T.hold) { done(); return Promise.resolve(); }
-    return new Promise((res) => T.releases.push(() => { done(); res(); }));
+    return new Promise((res, rej) => T.releases.push(() => { if (T.failNext) { T.failNext = false; rej(new Error("the save broke")); } else { done(); res(); } }));      // T.failNext: the next held save throws instead of ending
   } };
   render(<Brands api={api} pick={pick} />, document.getElementById("host"));
 };

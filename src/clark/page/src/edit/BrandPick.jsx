@@ -30,11 +30,15 @@ export function BrandPick({ brands, project = undefined, save = saveReal }) {
     if (id === savedNow()) { setDraft(null); return; }
     const b = brands.find((x) => x.id === id);
     saving.current = true;
-    try { await save(id, id === "generic" ? "Generic" : (b ? b.name : id)); } finally { saving.current = false; }
-    const queued = next.current;
-    next.current = null;
-    setDraft(queued);      // the select shows what clark kept (a refused change leaves the old brand), or the choice still waiting to be saved
-    if (queued !== null) commit(queued);
+    try {
+      await save(id, id === "generic" ? "Generic" : (b ? b.name : id));
+    } finally {      // also when the save throws: the select must not keep showing a brand that was not saved, and a waiting choice is not lost
+      saving.current = false;
+      const queued = next.current;
+      next.current = null;
+      setDraft(queued);      // the select shows what clark kept (a refused change leaves the old brand), or the choice still waiting to be saved
+      if (queued !== null) commit(queued);
+    }
   };
   return (
     <div class="fld" data-brand-pick>
