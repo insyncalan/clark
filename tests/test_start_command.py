@@ -39,9 +39,9 @@ class StartCommand(unittest.TestCase):
         path.chmod(0o755)
 
     def run_script(self, *args, **extra):
-        # A PATH of the stubs and the system folders only, so no real docker, Chrome or clark is found.
-        env = {"PATH": f"{self.bin}:/usr/bin:/bin", "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data", **extra}
-        return subprocess.run(["bash", str(self.repo / "docker" / "start.command"), *args], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
+        # A PATH of the stub folder only, so no docker, curl, Chrome or clark of this computer is ever found (a CI image has docker in /usr/bin).
+        env = {"PATH": str(self.bin), "HOME": self.tmp, "LOG": str(self.log), "CLARK_DATA_DIR": f"{self.tmp}/data", **extra}
+        return subprocess.run([shutil.which("bash"), str(self.repo / "docker" / "start.command"), *args], env=env, capture_output=True, text=True, cwd=self.tmp, timeout=60)
 
     def calls(self):
         return self.log.read_text(encoding="utf-8").splitlines() if self.log.exists() else []
@@ -71,6 +71,11 @@ class StartCommand(unittest.TestCase):
 
     def test_docker_missing_falls_back_to_python(self):
         (self.bin / "docker").unlink()
+        # A docker that is installed on the computer outside the stub folder must not be found either.
+        system = Path(self.tmp) / "system"
+        system.mkdir()
+        (system / "docker").write_text('#!/bin/sh\necho "system docker $*" >> "$LOG"\nexit 0\n', encoding="utf-8")
+        (system / "docker").chmod(0o755)
         r = self.run_script()
         self.assertEqual(r.returncode, 0, r.stdout + r.stderr)
         self.assertEqual(self.calls(), ["python3 -m clark.launch"])
