@@ -138,7 +138,8 @@ class Sizes(unittest.TestCase):
         found = []
         with chrome() as cdp:
             sid = navigate(cdp, s.port, "#dashboard")
-            self.assertTrue(wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid)), "the project list drew")
+            drew = wait(lambda: cdp.js("!!document.querySelector('.frame.empty .link')", sid))
+            self.assertTrue(drew, "the project list drew; the page had: " + str(cdp.js("JSON.stringify({hash: location.hash, ready: document.readyState, motion: document.documentElement.dataset.motion || '', frames: [...document.querySelectorAll('.frame')].map(e => e.className), links: document.querySelectorAll('.frame .link').length, main: (document.querySelector('#main') || document.body).innerText.slice(0, 200)})", sid)))
             for w in (1400, 900):
                 cdp.call("Emulation.setDeviceMetricsOverride", {"width": w, "height": 900, "deviceScaleFactor": 1, "mobile": False}, sid)
                 found += [f"{w}px: {g}" for g in json.loads(cdp.js(AUDIT % json.dumps(list(ALLOWED)), sid))]
