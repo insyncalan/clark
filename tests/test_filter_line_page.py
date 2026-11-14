@@ -417,9 +417,9 @@ class Line(unittest.TestCase):
                     self.put(cdp, sid, "priority:High")
                     n = len(expect(rows, "all", filters={"priority": ["High"]}))
                     self.assertEqual(cdp.js("document.querySelector('#fline-count').textContent", sid), f"{n} of {len(rows)}")
-                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: document.querySelector('.fline-row .fio').getBoundingClientRect().left - x.right, gap: x.left - c.right}; })()", sid)
+                    geo = cdp.js("(() => { const c = document.querySelector('#fline-count').getBoundingClientRect(), b = document.querySelector('.fline').getBoundingClientRect(), x = document.querySelector('#fline-x').getBoundingClientRect(); return {inside: c.left >= b.left && c.right <= b.right && c.top >= b.top && c.bottom <= b.bottom, right: document.querySelector('.fline-row .vicons').getBoundingClientRect().left - x.right, gap: x.left - c.right}; })()", sid)
                     self.assertTrue(geo["inside"], "inside the box")
-                    self.assertLess(geo["right"], 24, "at the right end, by the clear button (row 1084: Import, Export and the view icons follow the clear button)")
+                    self.assertLess(geo["right"], 24, "at the right end, by the clear button (row 1142: the view icons follow the clear button)")
                     self.assertLess(geo["gap"], 24)
 
     def test_the_list_follows_the_box_after_a_pause_not_on_enter(self):

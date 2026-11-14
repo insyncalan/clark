@@ -32,8 +32,8 @@ class WorkNoMode(unittest.TestCase):
                 self.assertEqual(cdp.js("document.querySelectorAll('[data-mode]').length", sid), 0, "no View | Edit switch off the Dashboard: the page is always editable")
                 # W1: the eye is a button
                 self.assertEqual(cdp.js("document.querySelector('#work tbody tr[data-id] .weye').tagName", sid), "BUTTON", "the eye is a button in View")
-                # W3: Export to Excel is drawn
-                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 1, "Export is there in View")
+                # W3: no Export icon on the page (item 1142)
+                self.assertEqual(cdp.js("document.querySelectorAll('#expBtn').length", sid), 0, "item 1142: no Export icon on the page; it is in the profile menu and Settings")
                 # a click on a cell opens its picker
                 click(cdp, sid, "#work tbody [data-cell$=':status']")
                 self.until(cdp, sid, "!!document.querySelector('[data-pop]')", "a click on a cell in View opens its picker")
