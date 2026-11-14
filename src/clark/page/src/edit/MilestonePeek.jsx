@@ -21,6 +21,7 @@ import { RichField } from "./RichField.jsx";
 import { richOrPlain } from "../logic/richOrPlain.js";
 import { richWords } from "../logic/richWords.js";
 import { MsHead, MsState, MsSep } from "../components/Peek.jsx";
+import { PeekLatestHistory } from "./PeekLatestHistory.jsx";
 import { PICKABLE, ALL_STATES, shownState, stateChange, textChange, progressChange } from "./msPeek.js";
 
 const DASH = "—";
@@ -76,6 +77,16 @@ function ClientWording({ m }) {
   return <RichField field="client_message" id={m.id} value={asHtml(m.client_message)} label="Client wording" empty={DASH} save={put} />;
 }
 
+// Item 1185: the milestone's Latest update, on the same editor as the work item peek's, with its history. One change, one Undo.
+function Latest({ m }) {
+  const put = (value) => save(m, { latest_update: value }, richWords(value).trim() ? `Latest update of ${m.id} saved.` : `Latest update of ${m.id} cleared.`);
+  return (
+    <>
+      <RichField field="latest_update" id={m.id} value={asHtml(m.latest_update)} label="Latest update" empty={DASH} save={put} />
+      <PeekLatestHistory key={`h-${m.id}`} id={m.id} />
+    </>
+  );
+}
 
 // A date you pick: the Work items' date picker, with no new words (its panel is named by the field and the id).
 function DateField({ m, field, label }) {
@@ -195,6 +206,7 @@ export function MilestoneEdit({ m }) {
         <Row name="Use cases" k="use_cases"><span data-ms-ucs>{usecasesOfMilestone(data.value, m.id).map((u) => `${u.ref ? u.ref + " " : ""}${u.title}`).join(", ") || "—"}</span></Row>      {/* row 1107: the use cases linked straight to it and those reaching it through their actions, risks, issues and decisions (the editor only; a use case is linked or unlinked on its own page) */}
         <Row name="Visible to client" k="visible"><Visible m={m} /></Row>
         <Row name="Client wording" k="client_message"><ClientWording m={m} /></Row>
+        <Row name="Latest update" k="latest_update"><Latest m={m} /></Row>
       </dl>
     </>
   );
