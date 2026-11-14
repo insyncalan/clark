@@ -13,25 +13,14 @@ const ASK_ON_TOAST = "ask clark is on";
 const ASK_OFF_TOAST = "ask clark is off";
 const NOT_READY = "Choosing folders isn't ready on this computer yet. Asking uses only this project's data until it is.";
 
-export function AskSettings() {
-  const on = askOn.value;
-  const status = askStatus.value;
-  const saved = askSaved.value;
-  const code = project.value;
-  const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
-  const [busy, setBusy] = useState(false);
-  const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
-  const [typed, setTyped] = useState("");
-  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
-
+// The asking switch's behaviour, shared by this card and the Essentials card (row 1115): `flip` turns asking on or off and says so in the toast
+// with its Undo; the switch is disabled while the request runs, so focus is put back once it is not (row 849). The caller owns busy and the message line.
+export function useAskFlip(on, busy, setBusy, setMsg) {
   const switchRef = useRef(null);
-  const refocus = useRef(false);                     // row 849: the switch is disabled while the request runs, so focus is put back once it is not
-  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
-
+  const refocus = useRef(false);
   useEffect(() => {
     if (!busy && refocus.current) { refocus.current = false; if (switchRef.current) switchRef.current.focus(); }
   }, [busy]);
-
   async function flip() {
     const now = !on;
     setBusy(true);
@@ -45,6 +34,22 @@ export function AskSettings() {
       announceSwitch(now ? ASK_ON_TOAST : ASK_OFF_TOAST, () => setAsk(!now), now ? ASK_OFF_TOAST : ASK_ON_TOAST);
     }
   }
+  return { switchRef, flip };
+}
+
+export function AskSettings() {
+  const on = askOn.value;
+  const status = askStatus.value;
+  const saved = askSaved.value;
+  const code = project.value;
+  const [folders, setFolders] = useState(null);          // null: not read yet; "unavailable"; or the list
+  const [busy, setBusy] = useState(false);
+  const [typing, setTyping] = useState(false);       // the server said no window can open here: a box to type the location into
+  const [typed, setTyped] = useState("");
+  const [msg, setMsg] = useState(null);                  // {kind: "error" | "note", text}
+
+  const { switchRef, flip } = useAskFlip(on, busy, setBusy, setMsg);
+  useEffect(() => { loadAsk(true); return leaveSwitch; }, []);      // asked again each time Settings opens, so the page never shows a stale choice
 
   useEffect(() => {
     let live = true;

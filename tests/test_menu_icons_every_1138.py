@@ -65,7 +65,7 @@ DRIVE_NAMES = {
     "rowmenu", "rowmenu-status", "rowmenu-due", "rowmenu-owner", "rowmenu-owner-add", "rowmenu-card", "bulk-items", "bulk-items-mixed",
     "bulk-picker-status", "bulk-picker-owner", "bulk-picker-due", "bulk-picker-priority", "bulk-picker-workstream", "bulk-picker-milestone",
     "board-move", "board-move-lanes", "gantt-show-chart", "gantt-show-table", "gantt-add-below-chart", "gantt-add-below-table",
-    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more",
+    "gantt-right-click", "client", "client-disabled-excel", "text-style", "slash-list", "peek-more", "record-more",
 }
 
 
@@ -84,7 +84,7 @@ class Source(unittest.TestCase):
         "edit/ProjectSwitch.jsx": ("project-switch",), "components/FilterLine.jsx": ("view",), "components/WorkItems.jsx": ("view-tab", "view"),
         "components/NewTile.jsx": ("new-tile",), "edit/UseCasesPage.jsx": ("uc-group", "uc-sort"), "components/UseCasesTab.jsx": ("uc-group", "uc-sort"),
         "edit/UseCasesEdit.jsx": ("uc-status", "uc-milestone-link"), "components/UseCaseDetail.jsx": ("uc-detail-status",),
-        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",),
+        "edit/CommitMenu.jsx": ("commitment",), "edit/RichText.jsx": ("text-style", "slash-list"), "edit/PeekMore.jsx": ("peek-more",), "edit/RecordMore.jsx": ("record-more",),
         "edit/cells/OwnerPick.jsx": ("owner-pick", "owner-pick-typed"),
         "edit/cells/MenuPick.jsx": ("cell-Due date", "cell-Priority", "cell-Status"),
     }
@@ -108,7 +108,7 @@ class Source(unittest.TestCase):
             "a checkbox filter panel (one checkbox line per value), not a command menu: its lines are choices, not actions",
         "Native select drop-downs (edit/AiSettings.jsx, edit/BrandPick.jsx, edit/DocumentsEdit.jsx, edit/NeedsEdit.jsx, edit/TrackerEdit.jsx, "
         "edit/UseCasesEdit.jsx, edit/WeekPicker.jsx, edit/templates/Callout.jsx, edit/templates/Checklist.jsx, edit/templates/FiguresEdit.jsx, "
-        "edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
+        "edit/ImportWorkbook.jsx (the question for a label the workbook names), edit/templates/KeyDates.jsx, edit/templates/WorkItemsList.jsx, edit/templates/raidEdit.jsx, gantt/components/GanttTable.jsx cell editor)":
             "a native select cannot hold icons: the browser draws its list",
         "Hand over people datalist (edit/HandOver.jsx)": "a native datalist of names that completes what is typed; the browser draws it, so it cannot hold icons",
     }
@@ -495,7 +495,9 @@ class Work(BulkBase):
                 d.check("commitment", "document.querySelector('[id^=uccm-]').click()", "[role=menu]", 2)
                 d.button("[id^=ucd-mslink-]", "Link a milestone")
                 d.check("uc-milestone-link", "document.querySelector('[id^=ucd-mslink-]').click()", "[role=menu]", 1)
-            d.expect(["uc-group", "uc-sort", "uc-detail-status", "commitment", "uc-milestone-link"])
+                d.button("#ucd-more", "More actions")
+                d.check("record-more", "document.querySelector('#ucd-more').click()", "[role=menu]", 2)
+            d.expect(["uc-group", "uc-sort", "uc-detail-status", "commitment", "uc-milestone-link", "record-more"])
 
 
 class Gantt(unittest.TestCase):
