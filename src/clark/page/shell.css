@@ -2584,3 +2584,42 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 .bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .rt-opt { display: flex; align-items: center; gap: 10px; }
 .gt-menu button.gt-danger .mi { color: inherit; }
+
+/* Item 1177: the editor's ONE slim sticky header (.top-hdr): the logo, the project name (a button that opens the project list), the line "Weekly report" and
+   the week (a button that opens the calendar), the tabs, then search, ask clark and the profile circle. 85 px high at 1400 and 129 px at 900, set through the
+   --topbar token so every offset that reads it follows. The published file keeps its own bar (.top-file, above). */
+html:has(.top-hdr) { --topbar: 85px; }
+.top-hdr { gap: 22px; padding: 0 28px; }
+.top-hdr::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
+.top-hdr { isolation: isolate; }
+.top-hdr .logo { flex: none; width: 147px; height: 22px; overflow: hidden; }
+.top-hdr .logo-icon { flex: none; width: 22px; height: 22px; }
+.top-hdr .logo .wm { font-size: var(--size-h3); line-height: 22px; }
+.hdr-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.hdr-id .dd { display: block; min-width: 0; }
+.hdr-project { all: unset; box-sizing: border-box; display: block; max-width: 100%; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hdr-project > span { display: block; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hdr-project.hdr-static { cursor: default; }
+.hdr-project:not(.hdr-static):hover, .hdr-project[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 6px; }
+.hdr-project:focus-visible, .hdr-date:focus-visible { outline: 2px solid var(--brand-cyan); outline-offset: 2px; }
+.hdr-line { margin: 0; display: flex; align-items: baseline; gap: 10px; white-space: nowrap; font-size: var(--size-caption); line-height: 1.3; color: var(--white); }
+.hdr-kind { font-weight: var(--weight-medium); letter-spacing: .08em; text-transform: uppercase; color: var(--brand-cyan); }
+.hdr-dot::before { content: "\00b7"; opacity: .6; }
+.hdr-date { all: unset; box-sizing: border-box; margin: 0 -5px; padding: 0 5px; border-radius: var(--radius-sm); cursor: pointer; color: inherit; font-size: inherit; line-height: inherit; }
+.hdr-date.hdr-static { cursor: default; }
+.hdr-date:not(.hdr-static):hover, .hdr-date[aria-expanded="true"] { background: color-mix(in srgb, var(--white) 14%, transparent); text-decoration: underline dotted; text-decoration-thickness: 2px; text-underline-offset: 4px; }
+.top-hdr .tabs { margin-left: 0; height: auto; align-self: stretch; align-items: flex-end; flex: none; }
+.top-hdr .tab { padding-block: 8px 12px; }
+.top-hdr .tab:focus-visible { outline-offset: -4px; }
+.hdr-end { margin-left: auto; flex: none; display: flex; align-items: center; gap: 10px; }
+@media (max-width: 900px) {      /* two rows: the logo, the name with its line and the buttons on top, the tabs as a strip under */
+  html:has(.top-hdr) { --topbar: 129px; }
+  .top-hdr { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-rows: 1fr auto; grid-template-areas: "logo id end" "tabs tabs tabs"; gap: 0 16px; padding: 22px 20px 0; align-items: center; }
+  .top-hdr .logo { grid-area: logo; width: 120px; height: 18px; }
+  .top-hdr .logo-icon { width: 18px; height: 18px; }
+  .top-hdr .logo .wm { font-size: var(--size-body); line-height: 18px; }
+  .top-hdr .hdr-id { grid-area: id; }
+  .top-hdr .hdr-end { grid-area: end; margin-left: 0; gap: 6px; }
+  .top-hdr .tabs { grid-area: tabs; margin: 0 -20px; padding: 0 14px; border-top: 1px solid color-mix(in srgb, var(--white) 14%, transparent); overflow-x: auto; scrollbar-width: none; align-self: end; }
+  .top-hdr .tabs::-webkit-scrollbar { display: none; }
+}

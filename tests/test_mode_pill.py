@@ -35,10 +35,9 @@ class ModePill(Base):
             p = self.visit(cdp)
             self.assertEqual(p.js(PLACE), [1, True, False])
             got = p.js(f"(function(){{var g={GROUP}.getBoundingClientRect(), b=document.querySelector('#report-bar'), "
-                       "first=[...b.children].filter(c => c.getClientRects().length)[0], "
-                       "x=document.querySelector('#week-ending').getBoundingClientRect();"
-                       f"return [first === {GROUP}, g.left - b.getBoundingClientRect().left < 4, g.right <= x.left];}})()")
-            self.assertEqual(got, [True, True, True])
+                       "first=[...b.children].filter(c => c.getClientRects().length)[0];"
+                       f"return [first === {GROUP}, g.left - b.getBoundingClientRect().left < 4];}})()")      # item 1177: the week box left the bar, so nothing is checked to the pill's right
+            self.assertEqual(got, [True, True])
 
     def test_on_the_other_tabs_there_is_no_switch_at_all(self):      # row 804: View | Edit is the Dashboard's alone
         with chrome() as cdp:
@@ -68,11 +67,11 @@ class ModePill(Base):
                 p = self.visit(cdp)
                 cdp.call("Emulation.setEmulatedMedia", {"features": [{"name": "prefers-reduced-motion", "value": "reduce"}]}, p.sid)      # pinned: no transition is mid-way when the colours are read
                 p.js(f"document.documentElement.dataset.theme = '{theme}'")
-                got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('#report-state');"
+                got = p.js(f"(function(){{var b={GROUP}.querySelector('[aria-pressed=\"true\"]'), s=getComputedStyle(b), r=document.querySelector('.hdr-date');"
                            "var root=getComputedStyle(document.documentElement);"
                            "return [(s.backgroundImage.indexOf('linear-gradient') === 0 || getComputedStyle(" + GROUP + ", '::before').backgroundImage.indexOf('linear-gradient') === 0), s.color === (function(){var e=document.createElement('i'); e.style.color=root.getPropertyValue('--pill-fg'); document.body.appendChild(e); var c=getComputedStyle(e).color; e.remove(); return c;})(), "
                            f"getComputedStyle(r).fontSize, !!{GROUP}.querySelector('[data-mode=\"edit\"] svg[aria-hidden=\"true\"]'), !{GROUP}.querySelector('[data-mode=\"view\"] svg'), "
-                           "getComputedStyle(document.querySelector('#week-ending')).borderRadius !== '4px'];})()")
+                           "true];})()")      # item 1177: the week box (rounded) left the bar; the 13px read is the header date's
                 self.assertEqual(got, [True, True, "13px", True, True, True])
 
     def test_the_v_and_e_keys_work_on_the_dashboard(self):

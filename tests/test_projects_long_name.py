@@ -31,16 +31,17 @@ class Browser(unittest.TestCase):
             cdp.call("Page.navigate", {"url": for_url(f"http://127.0.0.1:{s.httpd.server_port}/{hash_}")}, sid)
             return probe(cdp, sid)
 
-    def test_C_cover_shows_the_whole_long_name(self):
+    def test_C_cover_shows_the_whole_long_name(self):      # item 1177: the banner is gone; the long name is the header's project button, cut with an ellipsis inside the header
         for width in (1400, 900):
             with self.subTest(width=width):
                 def probe(cdp, sid):
-                    sel = "document.querySelector('.cover h1')"
-                    self.assertTrue(wait(lambda: bool(cdp.js(f"!!{sel} && {sel}.textContent.length > 100", sid)), 30), "the cover drew")
-                    return cdp.js(f"{sel}.scrollWidth - {sel}.clientWidth", sid), cdp.js(f"{sel}.getBoundingClientRect().right - {sel}.closest('.cover').getBoundingClientRect().right", sid)
-                over, edge = self._run("#dashboard&p=LNG", width, probe)
-                self.assertLessEqual(over, 0, "the name is not wider than its box")
-                self.assertLessEqual(edge, 0, "the name ends inside the band")
+                    sel = "document.querySelector('.top .hdr-project')"
+                    self.assertTrue(wait(lambda: bool(cdp.js(f"!!{sel} && {sel}.textContent.length > 100", sid)), 30), "the header drew")
+                    return (cdp.js("document.documentElement.scrollWidth - window.innerWidth", sid),
+                            cdp.js(f"{sel}.getBoundingClientRect().right - document.querySelector('.top').getBoundingClientRect().right", sid))
+                sideways, edge = self._run("#dashboard&p=LNG", width, probe)
+                self.assertLessEqual(sideways, 0, "the page does not scroll sideways")
+                self.assertLessEqual(edge, 0, "the name ends inside the header")
 
     def test_C_settings_buttons_stay_whole_at_900(self):
         def probe(cdp, sid):

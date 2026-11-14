@@ -1,6 +1,6 @@
-"""Row 1064: the top bar does not show the project name; the logo stays, with room between it and the top menu items; the profile circle (Settings
-is behind it) stays inside the window at 1400 and 900 px and narrower (#1033), in light and dark. The project switcher stays a button (a chevron),
-its name only for a screen reader. Chrome is required: these tests fail, never skip, without it.
+"""Row 1064, changed by item 1177: the editor's one header now DRAWS the project name, once, as the .hdr-project button (the switcher); the logo stays, with room
+between it and the top menu items; the profile circle (Settings is behind it) stays inside the window at 1400 and 900 px (#1033), in light and dark; the header is
+85 px high at 1400 and 129 px at 900. Chrome is required: these tests fail, never skip, without it.
 
 Run: python3 dev/run_tests.py test_header_no_project_name
 """
@@ -20,7 +20,7 @@ MEASURE = """(function(){
   var btn = document.querySelector('#project-name'), name = (btn.textContent || '').replace(/\\s+/g, ' ').trim();
   var seen = Array.from(document.querySelectorAll('header.top *')).filter(function(e){ return e.children.length === 0 && vis(e) && (e.textContent || '').trim() && name && (e.textContent || '').indexOf(name) >= 0; }).length;
   var logo = document.querySelector('header.top .logo').getBoundingClientRect(), first = document.querySelector('header.top .tab').getBoundingClientRect();
-  var sw = document.querySelector('header.top .projbtn'), swRight = sw ? sw.getBoundingClientRect().right : null;
+  var sw = document.querySelector('header.top .hdr-project'), swRight = sw ? sw.getBoundingClientRect().right : null;
   var me = document.querySelector('#profile-btn').getBoundingClientRect(), bar = document.querySelector('header.top').getBoundingClientRect();
   return {name: name, shown: seen, hasName: !!document.querySelector('#project-name'), logo: logo.width, gap: first.left - logo.right, swGap: swRight === null ? null : first.left - swRight,
           meRight: me.right, meLeft: me.left, win: window.innerWidth, page: document.documentElement.scrollWidth - document.documentElement.clientWidth, barH: bar.height};
@@ -44,24 +44,19 @@ class HeaderNoProjectName(Base):
             p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
             return p.js(MEASURE)
 
-    def test_the_bar_shows_no_project_name_and_keeps_the_logo(self):
+    def test_the_header_shows_the_project_name_once_and_keeps_the_logo(self):
         for width in (1400, 900):
             for theme in ("light", "dark"):
                 got = self.measure(width, theme)
                 where = f"at {width} px, {theme}"
-                self.assertTrue(got["name"], f"{where}: the switcher still carries the name for a screen reader")
-                self.assertEqual(got["shown"], 0, f"{where}: the project name {got['name']!r} is drawn in the top bar")
+                self.assertTrue(got["name"], f"{where}: the switcher carries the name")
+                self.assertEqual(got["shown"], 1, f"{where}: item 1177: the project name {got['name']!r} should be drawn once in the header")
                 self.assertGreater(got["logo"], 20, f"{where}: the logo stays")
 
     def test_room_between_the_logo_and_the_top_menu_items(self):
-        for width in (1400, 900):
+        for width in (1400,):      # item 1177: at 900 the tabs are a strip under the logo, not beside it
             got = self.measure(width, "light")
             self.assertGreaterEqual(got["gap"], 24, f"at {width} px: {got['gap']} px between the logo and the first tab")
-
-    def test_room_between_the_switcher_and_the_top_menu_items(self):
-        for width in (1400, 900):
-            got = self.measure(width, "light")
-            self.assertGreaterEqual(got["swGap"], 22, f"at {width} px: {got['swGap']} px between the switcher and the first tab")
 
     def test_the_profile_circle_and_the_page_fit_the_window(self):
         for width in (1400, 900):
@@ -69,15 +64,15 @@ class HeaderNoProjectName(Base):
             self.assertLessEqual(got["meRight"], got["win"] + 0.5, f"at {width} px: the profile circle (Settings) runs past the window")
             self.assertGreaterEqual(got["meLeft"], 0, f"at {width} px")
             self.assertLessEqual(got["page"], 0, f"at {width} px: the page scrolls sideways")
-            self.assertAlmostEqual(got["barH"], 56, delta=1, msg=f"at {width} px: the bar is one row")
+            self.assertAlmostEqual(got["barH"], {1400: 85, 900: 129}[width], delta=1, msg=f"at {width} px: item 1177: the header's height")
 
     def test_the_switcher_shows_a_box_on_hover_and_on_keyboard_focus(self):
-        sel = "document.querySelector('header.top .projbtn')"
+        sel = "document.querySelector('header.top .hdr-project')"
         for width in (1400, 900):
             with chrome() as cdp:
                 p = self.visit(cdp)
                 size(cdp, p, width, 700)
-                p.until("document.querySelector('header.top .projbtn')", "the switcher shows")
+                p.until("document.querySelector('header.top .hdr-project')", "the switcher shows")
                 where = f"at {width} px"
                 rest = p.js(f"getComputedStyle({sel}).backgroundColor")
                 r = p.js(f"(function(){{ var r = {sel}.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; }})()")

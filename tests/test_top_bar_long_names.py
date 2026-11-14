@@ -23,7 +23,7 @@ BAR = """(function(){
     if (r[i][1].right > W + 0.5 || r[i][1].left < -0.5) bad.push('past ' + r[i][0]);
     for (var j = i + 1; j < r.length; j++) if (r[i][1].width && r[j][1].width && r[i][1].left < r[j][1].right - 0.5 && r[j][1].left < r[i][1].right - 0.5 && r[i][1].top < r[j][1].bottom - 0.5 && r[j][1].top < r[i][1].bottom - 0.5) bad.push(r[i][0] + ' over ' + r[j][0]);
   }
-  var must = ['#profile-btn', '.top .projbtn', '.top .tabs'].filter(s => { var e = document.querySelector(s); if (!e) return true; var b = e.getBoundingClientRect(); return !(b.width > 0 && b.height > 0 && b.right <= W + 0.5); });
+  var must = ['#profile-btn', '.top .hdr-project', '.top .tabs'].filter(s => { var e = document.querySelector(s); if (!e) return true; var b = e.getBoundingClientRect(); return !(b.width > 0 && b.height > 0 && b.right <= W + 0.5); });
   var tabs = [...document.querySelectorAll('.top .tab')].filter(t => { var b = t.getBoundingClientRect(), n = document.querySelector('.top .tabs').getBoundingClientRect(); return b.left < n.left - 1 || b.right > n.right + 1; }).length;
   return {bad: bad, missing: must, page: document.documentElement.scrollWidth - W, tabsOutOfRow: tabs};
 })()"""
@@ -38,8 +38,8 @@ MENU = """(function(){
 
 class LongNames(Base):
     def prepare(self, p):
-        p.until("!!document.querySelector('.top .projbtn > span')", "the bar shows")
-        p.js(f"document.querySelector('.top .projbtn > span').textContent = {LONG_PROJECT!r}")
+        p.until("!!document.querySelector('.top .hdr-project > span')", "the bar shows")
+        p.js(f"document.querySelector('.top .hdr-project > span').textContent = {LONG_PROJECT!r}")
         p.js("new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))")
 
     def check(self, width, edit):

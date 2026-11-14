@@ -41,23 +41,22 @@ class Bar(Base):
         with self.store.step("dashboard", USER) as st:
             st.update("projects", "ABC", {"week_ending": iso})
 
-    def test_view_and_edit_both_have_the_week_ending_date_field_and_the_chip(self):
-        """Row 33: the week ending is a box in the bar, in View and in Edit, typed as DD-MM-YYYY, never the browser's calendar."""
+    def test_view_and_edit_both_have_the_week_ending_date_button_and_no_chip(self):
+        """Row 33, changed by item 1177: the week ending is the header's date button (never a box, never the browser's calendar), in View and in Edit; the bar keeps
+        View | Edit and, in Edit, the drag hint; the Draft and Editing words are in the profile menu now (test_publish_dialog)."""
         self.set_week("2031-05-09")
         for w in (1400, 900):
             with self.subTest(width=w), chrome() as cdp:
                 p = self.show(cdp, w)
-                self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text", "never a native date input")
-                self.assertEqual(p.js("document.querySelector('#week-ending').value"), "09-05-2031")
-                self.assertEqual(p.js("document.querySelector('#week-ending').labels[0].textContent.trim()"), "Week ending")
-                self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Draft · not published yet")
+                self.assertEqual(p.js("document.querySelector('.hdr-date').tagName"), "BUTTON", "a button, never a native date input")
+                self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending 09-05-2031")
+                self.assertEqual(p.js("document.querySelectorAll('#report-state, .rbar-state').length"), 0, "the chip left the bar")
                 self.assertIsNone(p.js("document.querySelector('#report-hint')"))
-                self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 1, "one field, in the bar only")
+                self.assertEqual(p.js("document.querySelectorAll('#report-bar input').length"), 0, "no field in the bar")
                 p.edit()
                 p.until("!!document.querySelector('#report-hint')", "Edit's notes")
-                self.assertEqual(p.js("document.querySelector('#week-ending').type"), "text", "never a native date input")
-                self.assertEqual(p.js("document.querySelector('#week-ending').value"), "09-05-2031")
-                self.assertEqual(p.js("document.querySelector('#report-state').textContent"), "Editing · each change saves on its own")
+                self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending 09-05-2031")
+                self.assertEqual(p.js("document.querySelectorAll('#report-state, .rbar-state').length"), 0)
                 self.assertEqual(p.js("document.querySelector('#report-hint').textContent"), "Drag to move, + to add a template")
 
     def test_with_no_week_kept_the_field_shows_the_coming_friday_and_saves_nothing(self):
@@ -66,10 +65,10 @@ class Bar(Base):
         self.assertIsNone(self.week())
         with chrome() as cdp:
             p = self.show(cdp)
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), self.coming_friday())
+            self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending " + self.coming_friday())
             p.edit()
             p.until("!!document.querySelector('#report-hint')", "Edit")
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), self.coming_friday())
+            self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending " + self.coming_friday())
             self.assertIsNone(self.week(), "nothing was saved by looking")
             self.assertEqual([k for k, r in self.sent if r.get("kind") == "projects"], [], "and nothing was sent")
 
@@ -81,12 +80,15 @@ class Bar(Base):
             p.js("document.querySelector('[data-mode=view]').click()")
             p.until("document.querySelector('#report').dataset.mode === 'view'", "View")
             p.edit()
-            p.until("!!document.querySelector('#week-ending') && document.querySelector('#report').dataset.mode === 'edit'", "Edit again")
+            p.until("!!document.querySelector('.hdr-date') && document.querySelector('#report').dataset.mode === 'edit'", "Edit again")
             self.assertIsNone(p.js("document.querySelector('#report-hint')"), "not shown again")
 
     def type_week(self, p, text):
-        """Type into the box as a person does (the value set the way the page's own field takes it) and leave it, which saves."""
-        p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(e, %s); e.blur(); })()" % json.dumps(text))
+        """Item 1177: the week is picked from the header date's calendar (a DD-MM-YYYY day in the month it opens on), as a person does; it saves like a typed day did."""
+        d, m, y = text.split("-")
+        p.js("document.querySelector('#week-ending-pick').click()")
+        p.until("!!document.querySelector('.cpop.cdate')", "the calendar opened")
+        p.js("document.querySelector('.cpop [data-day=\"%s-%s-%s\"]').click()" % (y, m, d))
 
     def test_a_new_week_is_saved_and_undone_from_view_and_from_edit(self):
         for edit in (False, True):
@@ -100,9 +102,9 @@ class Bar(Base):
                 p.saved()
                 self.assertEqual(self.week(), "2031-05-09")
                 self.assertEqual(p.toast(), "Week ending changed to 09-05-2031.")
-                self.assertEqual(p.js("document.querySelector('#week-ending').value"), "09-05-2031")
+                self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending 09-05-2031")
                 p.js("document.querySelector('[data-undo]').click()")
-                p.until("document.querySelector('#week-ending').value === '02-05-2031'", "the date came back")
+                p.until("document.querySelector('.hdr-date').textContent === 'Week ending 02-05-2031'", "the date came back")
                 self.assertEqual(self.week(), "2031-05-02")
 
     def test_a_message_from_edit_does_not_follow_the_person_into_view(self):
@@ -141,40 +143,42 @@ class Bar(Base):
             p.edit()
             p.until("!!document.querySelector('.toast [data-undo]')", "the Undo is back")
             p.js("document.querySelector('[data-undo]').click()")
-            p.until("document.querySelector('#week-ending').value === '02-05-2031'", "the date came back")
+            p.until("document.querySelector('.hdr-date').textContent === 'Week ending 02-05-2031'", "the date came back")
             self.assertEqual(self.week(), "2031-05-02")
 
     def test_a_typed_entry_that_is_not_a_day_keeps_the_old_date_and_says_so(self):
+        """Item 1177: nothing is typed any more, so a bad entry cannot be made: the header date is a button, the calendar offers only real days, nothing is sent."""
         self.set_week("2031-05-02")
         with chrome() as cdp:
             p = self.show(cdp)
-            for bad in ("31-02-2031", "tomorrow", "2031/5"):
-                with self.subTest(bad=bad):
-                    self.type_week(p, bad)
-                    p.until("/The old week ending date was kept/.test(document.body.textContent)", "the plain words")
-                    self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
-                    self.assertEqual(self.week(), "2031-05-02")
+            self.assertEqual(p.js("document.querySelectorAll('.top input, #report-bar input').length"), 0, "no box to type in")
+            p.js("document.querySelector('#week-ending-pick').click()")
+            p.until("!!document.querySelector('.cpop.cdate')", "the calendar opened")
+            self.assertEqual(p.js("document.querySelectorAll('.cpop [data-day=\"2031-02-30\"]').length"), 0, "no day that is not one")
+            self.assertEqual(self.week(), "2031-05-02")
             self.assertEqual([k for k, r in self.sent if r.get("kind") == "projects"], [])
 
     def test_enter_on_the_friday_shown_saves_it_and_leaving_the_box_does_not(self):
+        """Item 1177: with no week kept, the Friday is shown and not saved; choosing the calendar's Friday choice saves it."""
         self.set_week(None)
         with chrome() as cdp:
             p = self.show(cdp)
-            p.js("(() => { const e = document.querySelector('#week-ending'); e.focus(); e.blur(); })()")
-            self.assertIsNone(self.week(), "leaving the box as it is saves nothing")
-            p.js("document.querySelector('#week-ending').focus()")
-            p.key("Enter", code="Enter", vk=13)
+            self.assertIsNone(self.week(), "looking saves nothing")
+            p.js("document.querySelector('#week-ending-pick').click()")
+            p.until("!!document.querySelector('.cpop.cdate')", "the calendar opened")
+            p.js("document.querySelector('.cpop [data-quick]').click()")
             p.saved()
             self.assertEqual(self.week(), (date.today() + timedelta(days=(4 - date.today().weekday()) % 7)).isoformat())
             self.assertEqual(p.toast(), "Week ending changed to %s." % self.coming_friday())
 
     def test_a_cleared_field_keeps_the_old_date(self):
+        """Item 1177: the week cannot be cleared: the calendar's one quick choice is Friday, there is no No date."""
         self.set_week("2031-05-02")
         with chrome() as cdp:
             p = self.show(cdp)
-            self.type_week(p, "")
-            p.until("document.querySelector('#week-ending').value === '02-05-2031'", "the old day came back")
-            p.until("/Week ending cannot be left empty\\. The old week ending date was kept\\./.test(document.body.textContent)", "item 535: the date does not come back silently")
+            p.js("document.querySelector('#week-ending-pick').click()")
+            p.until("!!document.querySelector('.cpop.cdate')", "the calendar opened")
+            self.assertEqual(p.js("[...document.querySelectorAll('.cpop [data-quick]')].map((e) => e.dataset.quick === '')"), [False], "no choice without a day")
             self.assertEqual(self.week(), "2031-05-02")
             self.assertEqual([k for k, r in self.sent if r.get("kind") == "projects"], [])
 
@@ -186,13 +190,14 @@ class Bar(Base):
             self.type_week(p, "09-05-2031")
             p.until("/so the old week ending date was kept/.test((document.querySelector('.toast-text') || {}).textContent || '')", "the plain words")
             self.assertNotIn("Pick a date and try again", p.js("document.querySelector('.toast-text').textContent"), "the server's own words are never shown")
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), "02-05-2031")
+            self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), "Week ending 02-05-2031")
             self.assertEqual(self.week(), "2031-05-02")
 
     def test_a_typed_weekend_day_names_the_coming_friday_like_the_boards_this_week(self):
         # #570: a Saturday or Sunday rolls forward (fridayOnOrAfter). 10-05-2031 is a Saturday: the Friday offered is 16-05-2031.
         for bad, friday in (("10-05-2031", "16-05-2031"), ("11-05-2031", "16-05-2031")):
             with self.subTest(bad=bad), chrome() as cdp:
+                self.set_week("2031-05-02")
                 p = self.show(cdp)
                 p.edit()
                 self.type_week(p, bad)
@@ -206,14 +211,15 @@ class Bar(Base):
     def test_a_typed_day_that_is_not_a_friday_keeps_the_old_date_and_names_the_friday(self):
         # #570: Friday is the week end everywhere. 05-05-2031 is a Monday; the Friday of its week is 09-05-2031.
         with chrome() as cdp:
+            self.set_week("2031-05-02")
             p = self.show(cdp)
             p.edit()
             before = self.week()
-            shown = "-".join(reversed(before.split("-"))) if before else self.coming_friday()       # with no week kept the box shows the coming Friday
+            shown = "Week ending " + "-".join(reversed(before.split("-")))
             self.type_week(p, "05-05-2031")
             p.until("/Pick Friday 09-05-2031/.test(document.body.textContent)", "the plain words")
             self.assertIn("The old week ending date was kept.", p.js("document.body.textContent"))
-            self.assertEqual(p.js("document.querySelector('#week-ending').value"), shown)
+            self.assertEqual(p.js("document.querySelector('.hdr-date').textContent"), shown)
             self.assertEqual(self.week(), before)
 
     def test_the_route_refuses_a_real_day_that_is_not_a_friday(self):
@@ -236,7 +242,7 @@ class Bar(Base):
           const rgb = (c) => c.match(/[\\d.]+/g).slice(0, 3).map(Number);
           const lum = ([r, g, b]) => { const f = (v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }; return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b); };
           const ratio = (a, b) => { const x = lum(rgb(a)), y = lum(rgb(b)); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); };
-          return ['.rbar-week', '#report-state', '#report-hint', '#week-ending'].map((sel) => {
+          return ['.hdr-date', '.hdr-project', '#report-hint'].map((sel) => {
             const el = document.querySelector(sel); let bg = el, back = 'rgba(0, 0, 0, 0)';
             while (bg && /rgba\\(.*, 0\\)|transparent/.test(back)) { back = getComputedStyle(bg).backgroundColor; bg = bg.parentElement; }
             return [sel, ratio(getComputedStyle(el).color, back)]; });

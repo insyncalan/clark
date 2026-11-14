@@ -82,11 +82,10 @@ class WeekEnding(unittest.TestCase):
         self.assertNotIn("write-the-weekly-report", LATER["howto"])
 
     def test_code(self):
-        bar = code("edit", "ReportBar.jsx")
+        bar = code("edit", "HeaderDate.jsx")      # item 1177: the week box and its calendar button became the header date (HeaderDate.jsx)
         self.assertIn('id="week-ending-pick"', bar)
-        self.assertIn('title="Pick a Friday from the calendar"', bar)
-        self.assertIn("quick={friday}", bar)
-        self.assertIn("const friday = [weekEndingQuick(todayIso())]", bar)
+        self.assertIn('title="Click to change date"', bar)
+        self.assertIn("quick={[weekEndingQuick(todayIso())]}", bar)
         self.assertIn('return ["Friday", addDays(today, (5 - wd + 7) % 7)]', code("edit", "itemEdit.js"))   # 0 days on a Friday
         self.assertIn("isFriday", bar)                                          # a picked day goes through the same Friday check
 

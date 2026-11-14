@@ -22,7 +22,7 @@ class TileWidth(Setup):
                     if edit:
                         p.edit()
                         p.until("!!document.querySelector('#report-hint')", "Edit drew")
-                    band = p.js(EDGES + "(document.querySelector('.cover').getBoundingClientRect())")
+                    band = p.js(EDGES + "(document.querySelector('#report').getBoundingClientRect())")      # item 1177: the banner is gone; the report frame it sat in is the edge
                     tiles = p.js("[...document.querySelectorAll('.sec.slot-full')].map(e => (r => [Math.round(r.left), Math.round(r.right)])(e.getBoundingClientRect()))")
                     self.assertTrue(tiles, "tiles drew")
                     for t in tiles:
