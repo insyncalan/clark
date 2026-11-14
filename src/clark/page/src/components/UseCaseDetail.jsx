@@ -14,6 +14,7 @@ import { cameBackFrom } from "../stores/useCaseFocus.js";
 import { readUseCaseHistory, readArchivedUseCase } from "../api.js";
 import { Menu } from "./Menu.jsx";
 import { Icon } from "./Icon.jsx";
+import { actionIcon } from "../menuIcons.js";
 import { RichField } from "../edit/RichField.jsx";
 import { cleanHtml } from "../logic/cleanHtml.js";
 import { isOpen, dueCell, ownerOf, sortRows, showDate, todayIso, plural } from "../workItems.js";
@@ -228,7 +229,7 @@ export function UseCaseDetail({ id, ed = null }) {   // `ed`: the next step and 
         {!ro ? (
           <div class="ucd-acts">
             <Menu label="Change status" ariaLabel="Change status" menuLabel="Status" id="ucd-status" btnCls="btn" left
-              items={STATUSES.map(([name]) => ({ id: name, name, checked: u.status === name }))}
+              items={STATUSES.map(([name]) => ({ id: name, name, icon: actionIcon("status"), checked: u.status === name }))}
               onPick={(name) => { if (name !== u.status) send({ status: name }, `Status changed to ${name}.`); }} />
             <button type="button" class={`ucd-eye${on ? " on" : ""}`} data-eye title={on ? EYE.on : EYE.off} aria-label={on ? EYE.on : EYE.off}
               onClick={(e) => { blink(e); send({ client_visible: on ? 0 : 1 }, on ? "Taken off the dashboard." : "Put on the dashboard."); }}><Icon name={on ? "eye" : "eyeoff"} />{on ? EYE.on : EYE.off}</button>
