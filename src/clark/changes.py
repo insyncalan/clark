@@ -288,7 +288,7 @@ UC_REF_WORDS = f"A use case needs an ID of 1 to {UC_REF_LIMIT} characters, with 
 UC_REF_USED = "That ID is already used by another use case of this project."
 UC_NOT_MINE = NOT_MINE_RECORD                          # another project's use case and a missing one: the same words
 BUILT_IN_TYPES = tuple(s["type"] for s in clark_store.DEFAULT_SECTIONS if s["type"] != "text")   # row 906: re-added from Add a section, one of each
-NEW_SECTION_TYPES = ("text",) + section_bodies.BODY_TYPES + BUILT_IN_TYPES + ("gantt", "gantttable")         # what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
+NEW_SECTION_TYPES = ("text",) + tuple(t for t in section_bodies.BODY_TYPES if t != section_bodies.NEEDS) + tuple(t for t in BUILT_IN_TYPES if t != section_bodies.NEEDS) + ("gantt", "gantttable")         # item 1158: no new needs section; what a new section may be: an allow-list, never the request's own spelling; gantttable (row 1068) is the Gantt table alone, no body either
 NEW_TYPE_WORDS = "That kind of section can't be added."
 NO_BODY_HERE = "That kind of section can't take content this way."
 BODY_NOT_TEXT = "A section's content must be sent as text."
