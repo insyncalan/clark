@@ -41,6 +41,17 @@ class Check(unittest.TestCase):
         self.assertEqual(line.kind, doctor.NOT_CHECKED)
         self.assertNotIn("None", line.words)
 
+    def test_a_relative_source_is_not_checked_and_never_printed_or_ready(self):
+        # item 635: the Windows default ../../clark-data reaches the container as written; compose resolves it on the host only
+        for host in ("../../clark-data", "clark-data", "..\\..\\clark-data"):
+            with self.subTest(host=host):
+                line = doctor.check_docker(seen_for(host))
+                self.assertEqual((line.kind, line.words), (doctor.NOT_CHECKED, NOT_CHECKED_WORDS))
+                self.assertNotIn("clark-data", line.words)
+        for host in ("C:\\Users\\pat\\clark-data", "\\\\server\\share\\clark-data"):
+            with self.subTest(host=host):
+                self.assertEqual(doctor.check_docker(seen_for(host)).kind, doctor.READY)
+
     def test_onedrive_is_to_fix_in_the_refusals_own_words(self):
         host = "/Users/pat/OneDrive - Work/clark"
         line = doctor.check_docker(seen_for(host))

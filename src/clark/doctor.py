@@ -229,6 +229,8 @@ def check_docker(seen):
     warning = cloud_folder.cloud_warning(host)
     if warning:
         return Line(FIX, warning)
+    if not re.match(r"[\\/]|[A-Za-z]:|~", host):   # a relative default (docker/compose.windows.yaml): compose resolves it on the host, the container only
+        return Line(NOT_CHECKED, f"The Docker check couldn't finish. Run {typed.doctor()} again.")   # sees the text, so no OneDrive check was possible
     return Line(READY, f"clark is running in Docker, and your data is kept in {host}.")
 
 

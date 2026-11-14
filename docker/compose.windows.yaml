@@ -6,7 +6,8 @@
 # The folder is beside the clark folder, not inside it, so swapping the clark folder for a newer download cannot lose the data, and
 # compose.yaml shares the clark folder read-only. To use another folder, name it in CLARK_DATA_DIR as compose.yaml says.
 # The /data mount here replaces the one in compose.yaml (the two are matched by their target, /data). The relative path is read from
-# the folder of the first -f file, docker, so ../.. is the folder that holds the clark folder.
+# the folder of the first -f file, docker, so ../.. is the folder that holds the clark folder. Compose resolves it on the computer; the
+# container only sees the text, so the doctor cannot check that folder for OneDrive and reports the Docker check as not finished.
 services:
   clark:
     volumes:
