@@ -1224,3 +1224,7 @@ th[data-cw-head]:focus-visible { outline: 2px solid var(--focus); outline-offset
 #mode-pill .mode[aria-pressed="true"]:focus-visible { box-shadow: inset 0 0 0 2px var(--pill-fg); }
 body.board-full #mode-pill, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #mode-pill { display: none; }
 #report-bar:empty { display: none; }
+/* Switching to Edit must not move the page: the drag hint floats left of the pill (fixed, as the pill is) and the bar takes no room, so drawing or dropping the hint changes no section's place. */
+#report-bar { min-height: 0; margin: 0; }
+#report-bar .rbar-hint { position: fixed; top: calc(var(--topbar) + 8px); right: calc(20px + 74px + 8px); z-index: 28; box-shadow: var(--shadow); }
+body.board-full #report-bar .rbar-hint, body:has(#profile-menu, dialog[open], [role="dialog"], [role="alertdialog"]) #report-bar .rbar-hint { display: none; }
