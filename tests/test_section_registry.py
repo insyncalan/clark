@@ -336,7 +336,7 @@ class PageSide(unittest.TestCase):
         self.assertTrue(all(v == "function" for v in self.val("T.edits").values()))
         self.assertTrue(all(p["view"] == "function" and p["isEmpty"] == "function" for p in self.val("T.parts").values()))
         cat = self.val("T.templates.CATALOGUE")
-        cat_types = [x["type"] for x in cat if x["type"] not in ("text",) + PAGE_FIRST]
+        cat_types = [x["type"] for x in cat if x["type"] not in ("text", "usecases") + PAGE_FIRST]      # item 1191: Use Cases is a built-in type drawn as a template
         self.assertEqual(sorted(cat_types), sorted(types), "one catalogue entry per template type")
         self.assertEqual([x["type"] for x in cat if x["type"] == "text"], ["text", "text", "text"], "Text, Current state and Plan summary (all the type text), in the catalogue's order; item 1158: no Needs from you")
         self.assertEqual(len({x["id"] for x in cat}), len(cat))
