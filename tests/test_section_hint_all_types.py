@@ -78,6 +78,9 @@ class HintEverySection(unittest.TestCase):
         last = []
 
         def still():
+            # a Mac was measured scrolling the Dashboard 37 px when Edit went on (width 900), and the router keeps a screen's place (item 1019):
+            # once its restore has finished the test puts the page at the top itself, since the hint is judged against the top of the window
+            cdp.js("if (document.documentElement.style.overflowAnchor === '' && scrollY !== 0) scrollTo(0, 0)", sid)
             now = cdp.js("(document.documentElement.style.overflowAnchor === '' && scrollY === 0) ? JSON.stringify((() => { const h = document.querySelector('.sec-hint'); if (!h) return null; const r = h.getBoundingClientRect(); return [r.left, r.top, r.right, r.bottom]; })()) : null", sid)
             same = now is not None and now != "null" and last[:1] == [now]
             last[:] = [now]
