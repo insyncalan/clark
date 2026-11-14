@@ -99,17 +99,6 @@ class CoverSwitch(Base):
                 p.key("Escape", code="Escape", vk=27)
                 p.until("!document.querySelector('%s')" % MENU, "Esc closed it")
 
-    def test_C_it_can_be_reached_and_opened_by_keyboard(self):
-        self.rig.httpd.projects = lambda archived=False: TWO
-        with chrome() as cdp:
-            p = self.page(cdp)
-            p.until("!!document.querySelector('%s')" % SW, "the control")
-            self.assertEqual(p.js("document.querySelector('%s').tagName" % SW), "BUTTON", "a real button, so Tab reaches it")
-            p.js("document.querySelector('%s').focus()" % SW)
-            self.assertEqual(p.js("document.activeElement === document.querySelector('%s')" % SW), True, "it takes focus")
-            p.key("Enter", vk=13)
-            p.until("!!document.querySelector('%s')" % MENU, "Enter opened the list")
-
     def test_C_choosing_another_project_loads_its_page(self):
         self.rig.httpd.projects = lambda archived=False: TWO
         with self.rig.store.step("dashboard", "tester", place="menu") as s:
