@@ -77,7 +77,7 @@ class Sources(unittest.TestCase):
 
     def test_the_forecast_chip_has_no_forecast_tag_and_the_use_case_is_a_picker(self):
         src = (PAGE_SRC / "components" / "PeekMilestoneChips.jsx").read_text(encoding="utf-8")      # MilestoneChips lives here, Peek.jsx only imports it
-        self.assertNotRegex(src[src.index("function MilestoneChips"):][:1500], r'sub=\{?["\']forecast', "the 'forecast' tag was removed (Alan 14-11)")
+        self.assertNotRegex(src[src.index("function MilestoneChips"):][:1500], r'sub=\{?["\']forecast', "the 'forecast' tag was removed on 14-11")
         edit = (PAGE_SRC / "components" / "PeekMilestoneBody.jsx").read_text(encoding="utf-8")      # the editor's body moved here; MilestonePeek.jsx re-exports it
         self.assertIn("Select use case", edit)
 
@@ -133,7 +133,7 @@ class Peek(Base):
             p = self.visit(cdp)
             text = p.js(CHIPS)["chips"]["forecast"]["text"]
             self.assertRegex(text, r"\d\d-\d\d-\d{4}")
-            self.assertNotRegex(text.lower(), r"forecast", "the 'forecast' tag was removed on Alan's word, 14-11")
+            self.assertNotRegex(text.lower(), r"forecast", "the 'forecast' tag was removed on 14-11")
 
     def test_the_state_popover_has_five_pickable_values_with_their_own_icons_forecast_dashed(self):
         for width in (1400, 900):
