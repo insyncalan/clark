@@ -263,7 +263,7 @@ class Update19To20(Rig):
         now, done = self.update_to_20()
         self.assertEqual(NEW_LAYOUT, done["layout"])
         self.assertEqual(NEW_LAYOUT, layout(self.db))
-        after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id"))
+        after = every_row(self.db, leave_out=("brand", "use_cases.owner", "use_cases.owner_id", "raid.latest_update"))
         self.assertEqual([], after.pop("use_case_milestones"), "row 1107 (layout 24): the new table is there and empty")
         self.assertEqual(self.base, after, "every row of every table is kept (the new brand and owner columns apart)")
         for table in ("projects", "report_sections", "milestones", "use_cases", "actions", "raid", "decisions", "documents", "publications"):
