@@ -406,6 +406,9 @@ class ClaudeCommand(ask.Provider):
     def command(self):
         """(path, None) when the command is found, native and passes the version and flag check, else (None, plain reason)."""
         self.failed = None
+        if platform.windows_host():                     # item 629: ask clark is off on a Windows host, said first
+            self.failed = "windows_host"
+            return None, platform.ASK_OFF_ON_WINDOWS
         if platform.container_mode():                   # item 1100: in Docker the server has no command; say where to start clark
             self.failed = "container"
             return None, platform.needs_mac_words()

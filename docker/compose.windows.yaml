@@ -1,0 +1,8 @@
+# item 629: for a Windows computer, used together with compose.yaml:
+#   docker compose -f docker/compose.yaml -f docker/compose.windows.yaml up -d
+# CLARK_HOST=windows tells clark the computer under Docker is Windows (inside the container it sees Linux): paths are shown in
+# Windows form and ask clark is off. Without this file nothing changes.
+services:
+  clark:
+    environment:
+      CLARK_HOST: "windows"

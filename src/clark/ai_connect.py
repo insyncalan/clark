@@ -65,6 +65,8 @@ def log_check(name, provider):
         LOG.debug("ai: connect failed, the sign-in check gave no usable answer")
     elif code == "container":
         LOG.debug("ai: connect failed, clark is running in a container")
+    elif code == "windows_host":
+        LOG.debug("ai: connect failed, the host computer is Windows")
     elif code == "not_mac_os":
         LOG.debug("ai: connect failed, this computer is not a Mac")
     elif code == "odd_home":
