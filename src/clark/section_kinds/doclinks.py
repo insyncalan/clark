@@ -39,7 +39,7 @@ TOO_MANY = f"A Documents and links section can hold {MAX_ITEMS} files and links 
 BAD_KIND = "Each entry must be a file or a link. Reload the page and try again."
 BAD_LABEL = f"Words for a file or link must be one line of {LABEL_MAX} characters at most. Shorten them and try again."
 BAD_LINK = "That link can't be used. It must start with https:// or mailto: and have no spaces. Paste the whole address and try again."
-# UNRULED wording (item 1194): not yet ruled by Jarvis. The ticket quotes only "Enter a link description."
+# UNRULED wording (item 1194): not yet ruled. The ticket quotes only "Enter a link description."
 ALLOWED_ENDINGS = ("pdf", "doc", "docx", "xls", "xlsx", "csv", "ppt", "pptx", "jpg", "jpeg", "png", "txt")
 UNRULED_BAD_TYPE = "That type of file can't be added. Use PDF, Word, Excel, PowerPoint, JPG, PNG or TXT."
 UNRULED_NO_DESCRIPTION = "Enter a link description."

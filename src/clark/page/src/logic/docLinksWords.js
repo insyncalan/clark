@@ -1,5 +1,5 @@
 // Item 1194, Documents and links: every new visible string of the section, as one named constant each. All are UNRULED: not yet
-// ruled by Jarvis, except the three the ticket quotes (the description label, "Enter a link description." and the empty state).
+// ruled, except the three the ticket quotes (the description label, "Enter a link description." and the empty state).
 export const UNRULED_DESCRIPTION_LABEL = "Link description (required)";
 export const UNRULED_NO_DESCRIPTION = "Enter a link description.";
 export const UNRULED_EMPTY = "Nothing here yet. Add a file or a link.";

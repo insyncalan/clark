@@ -141,7 +141,7 @@ class Route(unittest.TestCase):
         self.assertEqual(doclinks.file_name(body["file"]["name"]), "Q3 plan- final-.pdf")
 
     def test_a_hidden_device_name_is_not_left_as_a_device_name(self):
-        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux"):
+        for odd in (".CON.pdf", "..nul.txt", ". Com1.pdf", ".aux.txt"):
             ref = self.section()
             f = self.src / odd
             f.write_bytes(PDF)
@@ -240,7 +240,7 @@ class Route(unittest.TestCase):
 
     def test_a_full_section_is_refused_before_the_dialog(self):
         ref = self.section()
-        full = [{"kind": "link", "href": f"https://example.org/{n}", "label": ""} for n in range(doclinks.MAX_ITEMS)]
+        full = [{"kind": "link", "href": f"https://example.org/{n}", "label": f"Page {n}"} for n in range(doclinks.MAX_ITEMS)]
         self.change({"project": "ABC", "kind": "report_sections", "op": "update", "id": ref, "place": "report",
                      "changes": {"body": json.dumps({"v": 1, "items": full})}})
         self.assertEqual(self.refused(ref, "full", dialog=False), doclinks.TOO_MANY)
@@ -391,11 +391,11 @@ class InThePage(PageBase):
             p = self.visit(cdp)
             p.edit()
             p.until(f"!!document.querySelector('{sel} [data-add-file]')", "the Edit part drew")
-            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').textContent"), "Add a file…")
+            self.assertEqual(p.js(f"document.querySelector('{sel} [data-add-file]').getAttribute('aria-label')"), "Add a file")
             p.js(f"document.querySelector('{sel} [data-add-file]').click()")
             p.until(f"document.querySelectorAll('{sel} .tpl-dl-i').length === 1", "the file is drawn")
             self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-name').textContent"), "Plan v2.pdf")
-            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "2 KB")
+            self.assertEqual(p.js(f"document.querySelector('{sel} .tpl-facts').textContent"), "PDF · 2 KB")
             p.until("!!document.querySelector('[data-undo]')", "the toast offers Undo")
             self.assertIn("was copied into the client folder", p.js("document.querySelector('.toast').textContent"))
             p.js("document.querySelector('[data-undo]').click()")
