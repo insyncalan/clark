@@ -1,7 +1,7 @@
 // Item 1182: what a risk's (or issue's) peek adds to the shared frame. The Rating chip's matrix popover (3 x 3: Impact down, Likelihood
 // across, each cell its level word and its colour; one click sets both fields), the chip itself, and the Details rating row. The caller
 // (Peek.jsx) draws `RatingChip` in the chip row after Status and `RatingRow` in Details; `ratingPop(row)` is the chip's popover.
-import { useLayoutEffect, useRef } from "preact/hooks";
+import { useLayoutEffect, useRef, useState } from "preact/hooks";
 import { Pop } from "../edit/cells/Pop.jsx";
 import { PeekChip } from "./PeekChips.jsx";
 import { Icon } from "./Icon.jsx";
@@ -12,7 +12,8 @@ import { MATRIX_ROWS, MATRIX_COLS, RATING_TIP, levelOf, colourWord, ratingOf, ma
 
 /** The matrix popover. onPick(impact, likelihood) makes the change; onClose(back) closes it. Keys: Right, Left, Down, Up move by cell, Home and End the first and last; Enter or Space picks. */
 export function RatingMatrix({ row, anchor, onPick, onClose }) {
-  const grid = useRef(null);
+  const grid = useRef(null), [said, setSaid] = useState(matrixLine(row.impact, row.likelihood));      // the sentence is the focused or hovered cell's; at first the current one's
+  const on = (el) => { if (el) setSaid(matrixLine(el.dataset.impact, el.dataset.likelihood)); };
   const cells = () => Array.from(grid.current ? grid.current.querySelectorAll("[data-pk-cell]") : []);
   useLayoutEffect(() => {
     const all = cells();
@@ -35,7 +36,7 @@ export function RatingMatrix({ row, anchor, onPick, onClose }) {
     e.stopPropagation();                                  // the peek never takes an arrow meant for the matrix
     all[to].focus({ preventScroll: true });
   };
-  const line = matrixLine(row.impact, row.likelihood);
+  const line = said;
   return (
     <Pop anchor={anchor} label={`Rating of ${row.id}: ${RATING_TIP}`} role="dialog" cls="pk-matrix-pop" onClose={onClose}>
       <div class="pk-matrix" data-pk-matrix>
@@ -49,12 +50,12 @@ export function RatingMatrix({ row, anchor, onPick, onClose }) {
               const level = levelOf(i, l), colour = colourWord(level), on = row.impact === i && row.likelihood === l;
               return (
                 <button type="button" role="radio" class={`pk-cell${on ? " on" : ""}`} key={`${i}-${l}`} data-pk-cell data-impact={i} data-likelihood={l} data-colour={colour} data-level={level}
-                  aria-checked={on ? "true" : "false"} aria-label={`Impact ${i}, likelihood ${l}: ${level} (${colour})`} onClick={() => onPick(i, l)}>{level}</button>
+                  aria-checked={on ? "true" : "false"} aria-label={`Impact ${i}, likelihood ${l}: ${level} (${colour})`} onClick={() => onPick(i, l)} onFocus={(e) => on(e.currentTarget)} onMouseEnter={(e) => on(e.currentTarget)}>{level}</button>
               );
             }),
           ])}
         </div>
-        {line ? <p class="pk-mx-line" data-pk-matrix-line>{line}</p> : null}
+        {line ? <p class="pk-mx-line" data-pk-matrix-line aria-live="polite">{line}</p> : null}
       </div>
     </Pop>
   );
@@ -80,5 +81,5 @@ export function RatingChip({ row, pop, flash, sub }) {
 
 /** The Details row, one line: "Rating: Red · High (impact High, likelihood Medium)". */
 export function RatingRow({ row }) {
-  return <div class="pk-row" data-pk-rating-row><dd><span class="pk-val"><span class={iconClass(priorityTone(row.priority))}><Icon name="bars" /></span>{detailsRating(row)}</span></dd></div>;
+  return <div class="pk-row" data-pk-rating-row><dd><span class="pk-val"><span class={iconClass(priorityTone(row.priority))}><Icon name="bars" /></span><span data-pk-rating-line>{detailsRating(row)}</span></span></dd></div>;
 }

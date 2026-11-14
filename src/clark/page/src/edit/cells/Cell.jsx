@@ -15,7 +15,7 @@ import { itemRows } from "../../stores/work.js";
 import { cellPlan } from "../bulkLogic.js";
 import { ask, runBulk } from "../Bulk.jsx";
 import { todayIso } from "../../workItems.js";
-import { canPick, changeFor, newPersonChange, pickField, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
+import { canPick, changeFor, newPersonChange, pickField, isMatrixPick, fieldName, people, statusPill, tableOf, whyFixed } from "../itemEdit.js";
 import { OwnerPick } from "./OwnerPick.jsx";
 import { DuePick } from "./DuePick.jsx";
 import { PriorityPick } from "./PriorityPick.jsx";
@@ -56,8 +56,8 @@ export function Cell({ row, field, said, keep, tip, children, place }) {
   const close = (back) => { if (openCell.value === k) openCell.value = ""; if (back && button.current) button.current.focus(); };
   const pick = (value) => {
     // #196: on a row that is one of two or more selected, the pick changes that field of every selected row, and says so first.
-    // D-12: a Rating pick (`rating:Red`) is about this one risk or issue, never the bulk status change, so it skips the plan.
-    const chosen = workSelection.ids.value, plan = !place && chosen.length >= 2 && pickField(field, value) !== "rating" ? cellPlan(row.id, field, itemRows.value.filter((r) => chosen.includes(r.id))) : null;
+    // D-12 and item 1182: a Rating pick (`rating:Red`, or a matrix cell `High/Medium`) is about this one risk or issue, never the bulk status change, so it skips the plan.
+    const chosen = workSelection.ids.value, plan = !place && chosen.length >= 2 && pickField(field, value) !== "rating" && !isMatrixPick(field, value) ? cellPlan(row.id, field, itemRows.value.filter((r) => chosen.includes(r.id))) : null;
     if (plan && plan.why) { if (field === "owner") return plan.why; close(true); say("note", plan.why); return ""; }
     if (plan) {
       if (field === "owner" && !String(value == null ? "" : value).trim()) return "An owner can't be blank. Type a name, or TBC if no one is known yet.";

@@ -4,6 +4,7 @@
 // the fields it accepts are named here. A RAID item's priority comes from its impact and likelihood and a decision has none, so
 // a decision's Priority cell is not a picker; a risk's or issue's opens a picker for its impact and likelihood (item 210, option C).
 import { dueField, showDate, dayNumber, colourOf, pillOf } from "../workItems.js";
+import { matrixChange } from "../logic/riskRating.js";
 
 export const PRIORITIES = ["Urgent", "High", "Medium", "Low"];
 const STATUSES = {
@@ -64,6 +65,8 @@ export const RATINGS = { Red: { impact: "High", likelihood: "Medium" }, Amber: {
 export function ratingChoices(row) { return RATED.includes(row.kind) ? Object.keys(RATINGS) : []; }
 const RATED = ["risk", "issue"];
 
+/** Item 1182: a pick from the rating matrix ("High/Medium", impact first) is about this one risk or issue, like the Rating pick it replaces, never the bulk change. */
+export const isMatrixPick = (field, value) => field === "priority" && /^(High|Medium|Low)\/(High|Medium|Low)$/.test(String(value == null ? "" : value));
 /** The field a pick belongs to: the picker's Rating entries are sent as `rating:Red`, `rating:Amber` or `rating:Green`. */
 export function pickField(field, value) { return field === "status" && /^rating:/.test(String(value)) ? "rating" : field; }
 
@@ -124,6 +127,9 @@ export function changeFor(row, field, value, today) {
   if (field === "priority" && RATED.includes(row.kind)) {
     // Item 210: a risk's or issue's priority follows from its impact and likelihood, so its cell changes one of those two. The update
     // op doesn't take them, so it is sent as a bulk change of this one item (one step, one Undo; clark checks the value).
+    // Item 1182: the matrix sends both at once as "High/Medium" (impact first): one change, one Undo, one Activity line (logic/riskRating.js, the one rule).
+    const both = /^(High|Medium|Low)\/(High|Medium|Low)$/.exec(String(value == null ? "" : value));
+    if (both) return matrixChange(row, both[1], both[2]);
     const m = /^(impact|likelihood):(.*)$/.exec(String(value == null ? "" : value));
     if (!m || !LEVELS.includes(m[2])) return { error: "Impact and likelihood are each High, Medium or Low, so nothing was changed. Pick one from the list." };
     const [, f, v] = m, what = f === "impact" ? "Impact" : "Likelihood", was = row[f] || null;

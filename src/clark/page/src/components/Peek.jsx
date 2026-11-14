@@ -60,7 +60,7 @@ const ROW_OF = { owner: "owner", made_by: "owner", due_date: "due", needed_by: "
 function Row({ name, children, ref_, key_, ms, icon, tone = "b" }) {      // key_: which field this row shows, so it can flash when that field changes; ms: a milestone's row (row 1078), a plain row, never one of the four cells
   const f = flashed.value;
   const hit = !!(f && key_ && f.list.some((e) => e.ref === ref_ && ROW_OF[e.field] === key_));
-  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{icon ? <span class={`pk-rowic ${iconClass(tone)}`}><Icon name={icon} /></span> : null}{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
+  return <div class={`pk-row${hit ? " flash" : ""}`} data-row={key_ || undefined} data-pk-raised={name === "Raised" ? "" : undefined} data-ms-row={ms || undefined} data-flash={hit ? "1" : undefined}><dt>{icon ? <span class={`pk-rowic ${iconClass(tone)}`}><Icon name={icon} /></span> : null}{name}</dt><dd>{children}{hit ? <span class="tag chg">Changed</span> : null}</dd></div>;
 }
 
 // Row 1180: the four property cells are the chip row now (ItemChips). A flat row of chips: status, owner, due and (not a decision) priority; each opens its popover in Edit.

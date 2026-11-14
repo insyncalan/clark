@@ -1,4 +1,4 @@
-"""#210 (option C): a risk's or an issue's Priority cell opens a picker for its impact and likelihood, the two its priority is worked out from.
+"""#210 (option C), item 1182: a risk's or an issue's Priority cell opens the 3 x 3 matrix (impact down, likelihood across, one pick sets both), the two its priority is worked out from.
 
 Run: python3 dev/run_tests.py test_priority_rating_cell
 Part 1 runs the page's own rules (src/clark/page/src/edit/itemEdit.js) in headless Chrome: what a pick sends, what is refused in
@@ -53,6 +53,12 @@ class Rules(unittest.TestCase):
         self.assertEqual(self.change({**RISK, "impact": None}, "impact:Low")["back"], "Impact of ABC-007 is blank again.")
         self.assertIsNone(self.change(RISK, "impact:High"), "the value it has: nothing is sent")
 
+    def test_a_matrix_pick_sends_both_fields_as_one_item(self):          # item 1182: the table cell's pick is "impact/likelihood"
+        self.assertEqual(self.change(RISK, "Low/Low"), {"changes": {"impact": "Low", "likelihood": "Low"}, "words": "Impact and likelihood of ABC-007 changed to Low and Low.",
+                                                       "back": "Impact and likelihood of ABC-007 are back to High and Medium.", "one": True})
+        self.assertEqual(self.change({**RISK, "impact": None, "likelihood": None}, "High/Low")["back"], "Impact and likelihood of ABC-007 are back to blank and blank.")
+        self.assertIsNone(self.change(RISK, "High/Medium"), "the two it has: nothing is sent")
+
     def test_each_bad_value_is_refused_in_the_picker_and_sends_nothing(self):
         for bad in ("Low", "impact:Urgent", "impact:low", "likelihood:", "impact: High", "priority:Low", "rating:Red", "", None, 3):
             with self.subTest(bad=bad):
@@ -105,54 +111,53 @@ class Live(unittest.TestCase):
                     dark = _lum(_rgb(cdp.js("getComputedStyle(document.body).backgroundColor", sid))) < 0.2
                     self.assertEqual(dark, scheme == "dark", f"{where}: the page is in {scheme}")
                     self.assertEqual(self.cell_text(cdp, sid, "TUL-007", "priority"), "High")
-                    # by click: two labelled groups, each ticked at what the risk has, focus on the ticked impact
+                    # by click: the 3 x 3 matrix (item 1182), the risk's own cell ticked and focused
                     before = self.steps()
                     click(cdp, sid, cell)
-                    self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", f"{where}: the picker opened")
-                    got = cdp.js("[...document.querySelectorAll('[data-pop] [role=group]')].map(g => [document.getElementById(g.getAttribute('aria-labelledby')).textContent,"
-                                 " [...g.querySelectorAll('[role=menuitemradio]')].map(b => b.textContent + (b.getAttribute('aria-checked') === 'true' ? '*' : ''))])", sid)
-                    self.assertEqual(got, [["Impact", ["High*", "Medium", "Low"]], ["Likelihood", ["High", "Medium*", "Low"]]], where)
-                    self.assertEqual(self.focused(cdp, sid), "impact:High", f"{where}: focus starts on the impact it has")
-                    pop = cdp.js("(() => { const p = document.querySelector('[data-pop]'), h = p.querySelector('.rp-head'), b = p.getBoundingClientRect();"
-                                 " return [getComputedStyle(p).backgroundColor, getComputedStyle(h).color, getComputedStyle(p.querySelector('.menu-item')).color, b.left >= 0 && b.right <= innerWidth, b.top >= 0 && b.bottom <= innerHeight]; })()", sid)
-                    self.assertGreaterEqual(contrast(pop[1], pop[0]), 4.5, f"{where}: the group headings can be read ({pop})")
-                    self.assertGreaterEqual(contrast(pop[2], pop[0]), 4.5, f"{where}: the choices can be read ({pop})")
-                    self.assertEqual(_lum(_rgb(pop[0])) < 0.2, dark, f"{where}: the picker follows the theme")
-                    self.assertEqual(pop[3:], [True, True], f"{where}: the picker is whole on screen")
-                    click(cdp, sid, "[data-pop] [data-value='likelihood:High']")
+                    self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-pk-matrix]')", f"{where}: the matrix opened")
+                    got = cdp.js("[...document.querySelectorAll('[data-pop] [data-pk-cell]')].map(b => b.dataset.impact + '/' + b.dataset.likelihood + (b.getAttribute('aria-checked') === 'true' ? '*' : ''))", sid)
+                    self.assertEqual(got, ["High/Low", "High/Medium*", "High/High", "Medium/Low", "Medium/Medium", "Medium/High", "Low/Low", "Low/Medium", "Low/High"], where)
+                    self.assertEqual(self.cell_at(cdp, sid), "High/Medium", f"{where}: focus starts on the cell it has")
+                    pop = cdp.js("(() => { const p = document.querySelector('[data-pop]'), h = p.querySelector('.pk-mx-head'), c = p.querySelector('[data-pk-cell]'), b = p.getBoundingClientRect();"
+                                 " return [getComputedStyle(p).backgroundColor, getComputedStyle(h).color, getComputedStyle(c).color, getComputedStyle(c).backgroundColor, b.left >= 0 && b.right <= innerWidth, b.top >= 0 && b.bottom <= innerHeight]; })()", sid)
+                    self.assertGreaterEqual(contrast(pop[1], pop[0]), 4.5, f"{where}: the axis words can be read ({pop})")
+                    self.assertGreaterEqual(contrast(pop[2], pop[3]), 4.5, f"{where}: a cell can be read ({pop})")
+                    self.assertEqual(_lum(_rgb(pop[0])) < 0.2, dark, f"{where}: the matrix follows the theme")
+                    self.assertEqual(pop[4:], [True, True], f"{where}: the matrix is whole on screen")
+                    click(cdp, sid, "[data-pop] [data-pk-cell][data-impact=High][data-likelihood=High]")
                     self.until(cdp, sid, "!!document.querySelector('[data-undo]')", f"{where}: the toast offers Undo")
                     r = self.row("raid", "TUL-007")
                     self.assertEqual((r["impact"], r["likelihood"], r["priority"]), ("High", "High", "Urgent"), where)
                     self.changed_once(before, where)
                     self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'Urgent'", f"{where}: the cell shows the priority clark worked out")
-                    self.assertEqual(self.toast(cdp, sid), "Likelihood of TUL-007 changed to High. Its priority is now Urgent.")
-                    self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "raid", "op": "bulk", "ids": ["TUL-007"], "changes": {"likelihood": "High"}, "place": "cell"})
+                    self.assertEqual(self.toast(cdp, sid), "Impact and likelihood of TUL-007 changed to High and High. Its priority is now Urgent.")
+                    self.assertEqual(self.sent[-1][1], {"project": "TUL", "kind": "raid", "op": "bulk", "ids": ["TUL-007"], "changes": {"impact": "High", "likelihood": "High"}, "place": "cell"})
                     self.assertNotIn("item=", cdp.js("location.hash", sid), f"{where}: a cell click never opens the peek")
                     self.assertTrue(self.no_panel(cdp, sid))
                     lines = [(e["before"], e["after"], e["place"], bool(e["by_user"]), bool(e["at"])) for e in self._history("TUL-007")
                              if e["field"] == "likelihood" and e["after"] == "High"]
                     self.assertEqual(lines[len(self.seen):], [("Medium", "High", "cell", True, True)], f"{where}: the history says who, how and when")
                     self.seen = lines
-                    self.undo(cdp, sid, where, "Likelihood of TUL-007 is back to Medium.")
+                    self.undo(cdp, sid, where, "Impact and likelihood of TUL-007 are back to High and Medium.")
                     r = self.row("raid", "TUL-007")
                     self.assertEqual((r["likelihood"], r["priority"]), ("Medium", "High"), f"{where}: one Undo puts both back")
                     self.until(cdp, sid, f"document.querySelector(\"{cell}\").textContent === 'High'", f"{where}: Undo draws the cell as it was")
-                    # by keyboard: Enter opens on the ticked impact, Down moves, Enter picks; focus comes back to the cell
+                    # by keyboard: Enter opens on the ticked cell, Down moves, Enter picks; focus comes back to the cell
                     cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                     key(cdp, sid, "Enter")
-                    self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", f"{where}: Enter opens the picker")
+                    self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-pk-matrix]')", f"{where}: Enter opens the matrix")
                     key(cdp, sid, "ArrowDown")
-                    self.assertEqual(self.focused(cdp, sid), "impact:Medium")
+                    self.assertEqual(self.cell_at(cdp, sid), "Medium/Medium")
                     key(cdp, sid, "Enter")
                     self.until(cdp, sid, f"!!document.querySelector('[data-undo]') && document.querySelector(\"{cell}\").textContent === 'Medium'", f"{where}: the keyboard pick saved")
                     self.assertEqual(self.row("raid", "TUL-007")["impact"], "Medium")
                     self.until(cdp, sid, f"document.activeElement === document.querySelector(\"{cell}\")", f"{where}: focus is back on the cell")
-                    self.undo(cdp, sid, f"{where} keyboard", "Impact of TUL-007 is back to High.")
+                    self.undo(cdp, sid, f"{where} keyboard", "Impact and likelihood of TUL-007 are back to High and Medium.")
                     # Esc leaves it as it was, nothing sent
                     n, before = len(self.sent), self.steps()
                     cdp.js(f"document.querySelector(\"{cell}\").focus()", sid)
                     key(cdp, sid, "Enter")
-                    self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "open again")
+                    self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-pk-matrix]')", "open again")
                     key(cdp, sid, "ArrowDown")
                     key(cdp, sid, "Escape")
                     self.until(cdp, sid, "document.querySelectorAll('[data-pop]').length === 0", f"{where}: one Esc closes it")
@@ -170,11 +175,14 @@ class Live(unittest.TestCase):
             sid = self.open_page(cdp, 1400, edit=False)
             self.failure = lambda req: (400, {"ok": False, "message": "That choice isn't one clark has.", "code": "refused"})
             click(cdp, sid, "[data-cell='TUL-010:priority']")
-            self.until(cdp, sid, "!!document.querySelector('[data-pop][role=menu]')", "the picker opened")
-            click(cdp, sid, "[data-pop] [data-value='impact:Low']")
+            self.until(cdp, sid, "!!document.querySelector('[data-pop] [data-pk-matrix]')", "the matrix opened")
+            click(cdp, sid, "[data-pop] [data-pk-cell][data-impact=Low][data-likelihood=Low]")
             self.until(cdp, sid, "(document.querySelector('.toast-text') || {}).textContent === \"That choice isn't one clark has.\"", "the refusal is said")
             self.assertEqual(self.row("raid", "TUL-010")["impact"], "High")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "priority"), "Urgent", "the cell is as clark has it")
+
+    def cell_at(self, cdp, sid):
+        return cdp.js("(a => a && a.dataset.impact ? a.dataset.impact + '/' + a.dataset.likelihood : '')(document.activeElement)", sid)
 
     def _history(self, ref):
         from clark.store import open_store

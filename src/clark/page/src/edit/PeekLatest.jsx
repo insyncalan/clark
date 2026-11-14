@@ -1,7 +1,7 @@
 // The peek's Latest update and its 'Last updated' stamp, and the warning bar above the title (Edit only: a published file and View
 // show the fields and nothing else). Every change is one request with one Undo (changeCell), and the data is read again after it so
 // the stamp is the one clark wrote. The text is on the one rich editor (RichField, item 1005). Row 1077 (the owner's ruling): no chip
-// writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). An action has a latest update; a risk, issue or decision has the stamp only.
+// writes the text for you; the box alone. An action that is shown to the client carries a 'Shown to the client' label (its latest update is published). Items 1182 and 1183: an action, risk or issue has a latest update (the table is tableOf(row)); a decision has the stamp only.
 import { signal } from "@preact/signals";
 import { useState } from "preact/hooks";
 import { RichField } from "./RichField.jsx";
@@ -61,13 +61,13 @@ const plain = (h) => String(h || "").replace(/<[^>]*>/g, "").replace(/\s+/g, " "
 
 export function PeekLatest({ row, draft = null }) {
   const [open, setOpen] = useState(false);
-  const rec = raw(row), action = row.kind === "action";
+  const rec = raw(row), action = row.kind === "action", table = tableOf(row), has = action || row.kind === "risk" || row.kind === "issue";
   const now = rec && rec.latest_update ? String(rec.latest_update) : "";
   const stamp = rec ? stampText(rec.updated_at) : "";
   const html = (() => { try { return richOrPlain(now); } catch (e) { return "<p>" + String(now).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;") + "</p>"; } })();    // item 1005: the editor's HTML, or the plain text an older clark stored
   // The rich editor saves with Cmd/Ctrl+Enter and leaves with Esc. It closes only when clark has saved it: a refusal (the toast says why)
   // or no answer leaves it open with what was typed.
-  const save = (value) => changeCell("actions", row.id, { latest_update: value },
+  const save = (value) => changeCell(table, row.id, { latest_update: value },
     { text: `Latest update of ${row.id} saved.`, back: `Latest update of ${row.id} is back as it was.`, place: "peek" })
     .then((reply) => { if (reply) refresh(); return reply; });
   return (
@@ -75,14 +75,14 @@ export function PeekLatest({ row, draft = null }) {
       onFocusIn={(e) => { if (e.target.closest("[data-rt]")) setOpen(true); }}
       onFocusOut={() => setTimeout(() => { if (!document.querySelector("[data-pk-latest] [data-rt]")) { setOpen(false); latestDirty.value = false; } }, 0)}
       onInput={() => { const e = editorOf(); latestDirty.value = !!e && plain(e.innerHTML) !== plain(html); }}>
-      {action ? <>
+      {has ? <>
         <div class="pk-lab"><span id={`pk-latest-lab-${row.id}`}>Latest update</span>
           {draft}
-          {row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
+          {action && row.client ? <span class="pk-latest-client" data-pk-latest-client><Icon name="eye" cls="s" />Shown to the client</span> : null}</div>
         <RichField field="latest_update" id={row.id} value={html} label="Latest update" empty="Add the latest update…" save={save} viewId={`pk-latest-txt-${row.id}`} labelledBy={`pk-latest-lab-${row.id} pk-latest-txt-${row.id}`} />
       </> : null}
       {stamp ? <div class="pk-last" data-pk-last><Icon name="clock" cls="s" /> Last updated {stamp}</div> : null}
-      {action && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
+      {has && open ? <p class="pk-latest-hint" data-pk-latest-hint data-pk-hint>Cmd or Ctrl and Enter saves.</p> : null}
       {action ? <PeekLatestHistory key={`h-${row.id}`} id={row.id} /> : null}
     </div>
   );
