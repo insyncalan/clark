@@ -260,9 +260,21 @@ def contrast(fg, bg):
     return (a + 0.05) / (b + 0.05)
 
 
+def hold_still(cdp, sid, look, seconds=5):
+    """What `look` (a JS expression) gives once two looks in a row agree, or the last look when the page never holds still within `seconds`."""
+    seen = []
+
+    def same():
+        seen.append(cdp.js(look, sid))
+        return len(seen) > 1 and seen[-1] == seen[-2]
+    wait(same, seconds)
+    return seen[-1]
+
+
 def click(cdp, sid, selector, mods=0):
     cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
-    box = cdp.js(f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()", sid)
+    where = f"(() => {{ const e = document.querySelector({json.dumps(selector)}); if (!e) return null; const b = e.getBoundingClientRect(); return [b.x + Math.min(b.width / 2, 20), b.y + b.height / 2]; }})()"
+    box = hold_still(cdp, sid, where)      # the page may still be moving (a late scroll or layout shift): click only where the control has held still
     assert box, f"{selector} is not on the page"
     x, y = box
     cdp.call("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y}, sid)
@@ -308,6 +320,15 @@ class Live(unittest.TestCase):
             return st.data_for(code)
         finally:
             st.close()
+
+    def settled_click(self, cdp, sid, selector, ref):
+        """Main-fix (CI run 43517892226): a click on a date cell landed on the open peek of another row (DIV.pk-last at the click point, hash item=TUL-D-013),
+        so the panel never opened. Say at once if a peek is open, and click only once the cell has held the same box over two looks in a row."""
+        self.assertNotIn("item=", cdp.js("location.hash", sid), f"{ref}: a peek is open before the click ({cdp.js('location.hash', sid)})")
+        cdp.js(f"document.querySelector({json.dumps(selector)}).scrollIntoView({{block: 'center'}})", sid)
+        look = f"JSON.stringify(document.querySelector({json.dumps(selector)}).getBoundingClientRect())"
+        hold_still(cdp, sid, look)
+        click(cdp, sid, selector)
 
     def row(self, table, ref):
         st = open_store(self.path, onedrive_roots=[])
@@ -689,7 +710,7 @@ class Live(unittest.TestCase):
             click(cdp, sid, "[data-pop] [data-value=Closed]")
             self.until(cdp, sid, f"((document.querySelector(\"{cell}\") || {{dataset: {{tip: ''}}}}).dataset.tip || '').split(' · ')[1] === 'Closed'", "Closed reads Closed")
             self.assertEqual(cdp.js(f"document.querySelector(\"{cell}\").querySelector('.ico').className", sid), "ico b")      # Closed is the blue tile (row 1021)
-            self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Red", "an overdue issue is Red, as in View")
+            self.assertEqual(self.cell_text(cdp, sid, "TUL-010", "status"), "Urgent", "an overdue Urgent issue says Urgent, not Red and Urgent (row 1139)")
             self.assertEqual(self.cell_text(cdp, sid, "TUL-D-016", "status"), "Pending")
 
     def peek_picker(self, width):
@@ -1111,7 +1132,14 @@ class Live(unittest.TestCase):
                     n, before = len(self.sent), self.steps()
 
                     def opened(how):
-                        self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", f"{ref}: {how} opens the date panel")
+                        # main-fix: this step failed alone in CI (Chrome 157) and never on a box with Chrome 156, so a miss says what the page held
+                        try:
+                            self.until(cdp, sid, "!!document.querySelector('[data-pop] .cp-g')", f"{ref}: {how} opens the date panel")
+                        except AssertionError as miss:
+                            held = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const r = c && c.getBoundingClientRect(); const at = r && document.elementFromPoint(r.x + Math.min(r.width / 2, 20), r.y + r.height / 2);"
+                                          " return JSON.stringify({win: [innerWidth, innerHeight], cell: r && [r.x, r.y, r.width, r.height], at: at && (at.tagName + '.' + at.className + ' ' + (at.getAttribute('data-cell') || '')),"
+                                          " pops: document.querySelectorAll('[data-pop]').length, leaving: document.querySelectorAll('.cpop.leaving').length, focus: document.activeElement && document.activeElement.tagName, hash: location.hash}); })()", sid)
+                            raise AssertionError(f"{miss} | page held: {held}") from None
                         self.assertEqual(cdp.js("document.querySelectorAll('[data-pop]').length", sid), 1, f"{ref}: one panel")
                         self.assertEqual(cdp.js("document.querySelectorAll('input[type=date], input[type=datetime-local]').length", sid), 0,
                                          f"{ref}: no browser calendar opens with it")
@@ -1124,7 +1152,7 @@ class Live(unittest.TestCase):
                         self.assertEqual(cdp.js("!!document.querySelector('[data-undo]')", sid), False, f"{ref}: {how} leaves nothing to undo")
 
                     # one Esc, after moving the day and the month: closed, as it was, focus back on the row's date
-                    click(cdp, sid, cell)
+                    self.settled_click(cdp, sid, cell, ref)
                     opened("a click")
                     key(cdp, sid, "ArrowRight")
                     key(cdp, sid, "PageDown")
@@ -1132,7 +1160,7 @@ class Live(unittest.TestCase):
                     kept("one Esc")
                     self.assertEqual(self.focused(cdp, sid), f"{ref}:due", f"{ref}: focus is back on the row's date")
                     # a click away
-                    click(cdp, sid, cell)
+                    self.settled_click(cdp, sid, cell, ref)
                     opened("a click")
                     key(cdp, sid, "ArrowLeft")
                     click(cdp, sid, "h1")
@@ -1145,7 +1173,7 @@ class Live(unittest.TestCase):
                     # is anything tabbable after the date cell? Asked before the Tab: when nothing is, Tab leaves the page (the browser takes the
                     # focus, or wraps to the first link, by its own rules) and the page cannot be asked to keep it; when something is, it must land there.
                     onward = cdp.js(f"(() => {{ const c = document.querySelector(\"{cell}\"); const all = [...document.querySelectorAll('a[href],button,input,select,textarea,[tabindex]')]"
-                                    ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop]'));"
+                                    ".filter(e => !e.disabled && e.tabIndex >= 0 && e.getClientRects().length && !e.closest('[data-pop],[inert]'));"
                                     " return all.some(e => c.compareDocumentPosition(e) & Node.DOCUMENT_POSITION_FOLLOWING && !c.contains(e)); })()", sid)
                     key(cdp, sid, "Tab")
                     kept("Tab")

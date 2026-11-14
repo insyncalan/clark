@@ -478,13 +478,17 @@ input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1
 /* Spacing tokens (item 1025, PR 2). Compact is the default and also what an unknown or missing html[data-density] draws; Comfortable
    (html[data-density="comfortable"]) redefines the same tokens. The Dashboard report sections read only these, so a later PR moves
    another part of the app onto them by using them, not by adding a rule per density. */
-:root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
-html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); --d-blk-callout-y: var(--space-4); --d-blk-contact: var(--space-4); --d-blk-contacts-gap: var(--space-4); --d-blk-cell-y: var(--space-3); --d-blk-date-y: var(--space-3); --d-blk-check-y: 10px; --d-set-gap: 16px; --d-set-card-y: 24px; --d-set-row: 12px; --d-set-fld: 16px; --d-hp-sec: 44px; --d-hp-tabs: 28px; --d-hp-hero-y: 32px; --d-hp-loop-y: 26px; --d-hp-card-y: 18px; --d-hp-job-y: 20px; --d-hp-grid: 16px; }
+:root { --secs-gap: var(--space-3) var(--space-5); --secs-mt: 16px; --secs-pad: var(--space-1) 0 var(--space-3); --sec-inset: 0px; --size-sec: 18px; --sec-pad-t: var(--space-3); --sec-pad-b: var(--space-1); }
+html[data-density="comfortable"] { --secs-pad: 0; --sec-inset: 20px; --size-sec: 19px; --sec-pad-t: 14px; --sec-pad-b: 10px; --d-row-y: 13px; --d-colh-y: var(--space-3); --d-grp-y: 14px; --d-group-gap: var(--space-4); --d-card-gap: var(--space-3); --d-card-row-y: 14px; --d-bcard-y: 11px; --d-colbody-top: 14px; --d-colbody-bottom: 18px; --d-fbar-top: 14px; --d-fbar-gap: 10px; --d-fline-top: 16px; --d-fline-y: 7px; --d-msl-top: 20px; --d-msl-y: 14px; --d-msl-det-y: 10px; --d-uc-strip-b: 14px; --d-uc-bar-y: 10px; --d-uc-detail-b: var(--space-4); --d-pk-bar-b: 14px; --d-pk-title-t: var(--space-5); --d-pk-title-b: var(--space-4); --d-pk-row-y: var(--space-3); --d-pk-card: var(--space-4); --d-pk-card-gap: var(--space-3); --d-dlg-y: 28px; --d-dlg-narrow: var(--space-5); --d-dlg-opts: var(--space-3); --d-dlg-opt-y: var(--space-3); --d-dlg-foot: var(--space-5); --d-blk-callout-y: var(--space-4); --d-blk-contact: var(--space-4); --d-blk-contacts-gap: var(--space-4); --d-blk-cell-y: var(--space-3); --d-blk-date-y: var(--space-3); --d-blk-check-y: 10px; --d-set-gap: 16px; --d-set-card-y: 24px; --d-set-row: 12px; --d-set-fld: 16px; --d-hp-sec: 44px; --d-hp-tabs: 28px; --d-hp-hero-y: 32px; --d-hp-loop-y: 26px; --d-hp-card-y: 18px; --d-hp-job-y: 20px; --d-hp-grid: 16px; }
 /* The section look (A-D3): by default each section is its own card, with a small coloured square before its heading, and a slim gap
    between the cards. The side gap stays 24 px so a right-hand section's control (Edit) has room beside the left card. Spacing (Settings > Personal,
    html[data-density]) is Compact (one card round every section, flat sections divided by thin lines) or Comfortable (the cards). Shared: the published page follows the same rules. */
 .secs { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--secs-gap); margin-top: var(--secs-mt); padding: var(--secs-pad); overflow-anchor: none; }     /* row 756: the page holds the section being read itself (Dashboard.jsx) on a View/Edit switch; the browser's own anchoring moved it a second time */
 .sec { --sec-px: var(--sec-inset); position: relative; min-width: 0; padding: var(--sec-pad-t) var(--sec-px) var(--sec-pad-b); background: var(--surface); border: 1px solid var(--grey-200); border-radius: var(--radius-lg); box-shadow: var(--shadow); }
+/* Row 1152: the editor dashboard tiles run the width of the report band (the prototype), so the grid takes back the frame's side room; above 900 px
+   Edit's control has no room beside the tile any more, so it sits inside the tile's padding, as it does at 900 px and below. */
+@media (min-width: 901px) { html[data-density="comfortable"] .rbar + #report .secs { margin-left: -28px; margin-right: -28px; } }
+@media (min-width: 901px) { html[data-density="comfortable"] #report[data-mode="edit"] .sec { --sec-px: 32px; padding-left: 32px; } html[data-density="comfortable"] #report[data-mode="edit"] .sec > .sec-ctl, html[data-density="comfortable"] #report[data-mode="edit"] .sec.slot-right > .sec-ctl { left: 4px; } }
 /* In these styles the sections are cards on the page, so the report's own frame steps back (its side room is kept for Edit's control). */
 html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0; background: transparent; border: 0; box-shadow: none; }
 @media (max-width: 900px) { html[data-density="comfortable"] .frame.report { padding: 4px 0 0; } }      /* Edit's control sits inside the card from here down */
@@ -496,6 +500,8 @@ html[data-density="comfortable"] .frame.report { padding: var(--space-1) 28px 0;
 /* The coloured square: --brand-blue is at least 3:1 against the card, and against the grey band, in light and in dark. */
 .sec-head::before { content: ""; flex: none; width: 10px; height: 10px; margin-right: 2px; background: var(--brand-blue); }
 .sec-h { flex: 1; min-width: 0; margin: 0; font-size: var(--size-h2); line-height: 1.3; font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
+/* Row 1152: only the editor dashboard (the report bar sits before its #report) takes the prototype tile heading; a published file keeps --size-h2. --size-sec is defined once, per density, above. */
+.rbar + #report .sec-h { font-size: var(--size-sec); }
 .quiet { margin: 6px 0 var(--space-2); font-size: var(--size-caption); color: var(--text-muted); }
 /* A text section's body in a published file (#74): the editor's own words, read-only. Nothing in it may push the page sideways. */
 .sec-body { margin: var(--space-2) 0 var(--space-2); min-width: 0; overflow-wrap: anywhere; color: var(--text); }
@@ -778,6 +784,7 @@ body:not(.board-view) #sel-bar { position: sticky; top: calc(var(--topbar) + var
 .cp-names { list-style: none; margin: 6px 0 0; padding: 0; }
 .cp-name { all: unset; box-sizing: border-box; display: flex; align-items: center; gap: var(--space-2); width: 100%; min-height: 32px; padding: 3px 6px; border-radius: var(--radius-sm); cursor: pointer; }
 .cp-name:hover, .cp-name:focus-visible { background: var(--brand-blue-tint); }
+.cp-name .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
 .cp-name .av { width: 24px; height: 24px; font-size: var(--size-caption); }
 .cp-name[aria-pressed="true"]::after { content: "✓"; margin-left: auto; color: var(--status-blue-text); }
 .cp-hint { margin: 6px 2px 2px; font-size: var(--size-caption); color: var(--text-muted); }
@@ -1407,7 +1414,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstrip { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--space-4); padding: var(--space-1) 0 var(--d-uc-strip-b); font-size: var(--size-body); }
 .uctotal { font-weight: var(--weight-medium); color: var(--heading); }
 .ucn { display: inline-flex; align-items: center; gap: 6px; color: var(--text); }
-.meter { display: flex; gap: 2px; flex: 1 1 120px; max-width: 280px; height: 8px; }
+.meter { display: flex; gap: 2px; flex: 0 1 auto; width: min(280px, 40%); margin-left: auto; height: 8px; }   /* item 1147: the bars sit at the right end of the tile, on the counts' line; 280 px but never over 40% of the tile */
 .meter i { flex: 1 1 0; border-radius: 2px; background: var(--status-grey); }
 .meter .m-g { background: var(--status-green); } .meter .m-a { background: var(--status-amber); } .meter .m-r { background: var(--status-red); } .meter .m-n { background: var(--status-grey); }
 .ucrows { border-top: 1px solid var(--grey-200); }
@@ -1499,7 +1506,7 @@ a.pk-btn { display: inline-flex; align-items: center; text-decoration: none; }
 .ucstepl .av { flex: none; }
 .ucstepl .av { width: 26px; height: 26px; font-size: var(--size-caption); }
 .ucstepl [data-stepid] { flex: none; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* row 1004: the id stays whole at 360 px (it was cut into pieces in the 60 px left over); an id longer than the line is clipped with an ellipsis, never pushing the page sideways */
-@media (max-width: 900px) { .ucbar { grid-template-columns: 44px minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } }
+@media (max-width: 900px) { .ucbar { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } .ucdetail { padding-left: 52px; } .meter { width: 80px; } }   /* item 1147: at 900 px the bars shrink to about 80 px and stay on the counts' line (they wrap under only when the line is tight) */
 @media (max-width: 640px) { .ucbar { grid-template-columns: auto minmax(0, 1fr); } .ucbar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }   /* row 1034: the number and the title share the first line; the headline, the status and the steps each take a line under it, so a use case row never runs past a 360 px card */
 
 /* Settings › Personal and the section styles (#45). The style is an attribute on the page (stores/style.js): One card is the default (row 667). */
@@ -1656,6 +1663,33 @@ html:not([data-density="comfortable"]) .sec.drop-before { box-shadow: 0 -3px 0 v
 .cal-sc button[aria-current="true"]:focus-visible { outline-color: var(--pill-fg); outline-offset: -6px; }
 .top { background-color: var(--brand-navy); background-image: linear-gradient(90deg, var(--brand-navy), var(--bar-end)); }   /* the bar still takes --brand-navy, with a soft lift to the right */
 .tab::after { background-color: var(--pill-color); background-image: var(--accent-line); }
+
+/* Issue 1146: a published file has ONE slim bar, 68 px high and sticky: the logo, the project name with the report line under it, the tabs, the
+   date, the place for the switcher icon (.top-slot, issue 1144) and the profile circle. The brand picture is a soft wash over its right 45 percent,
+   faded in from the left (the ruling: about 42 percent strength); with no picture the bar is the navy gradient. The editor keeps its own bar. */
+html:has(.top-file) { --topbar: 68px; }
+.top-file { height: var(--topbar); }
+.top-file::before { content: ""; position: absolute; inset: 0 0 0 55%; z-index: -1; pointer-events: none; background: var(--image-cover) center right / cover no-repeat; -webkit-mask-image: var(--image-fade); mask-image: var(--image-fade); opacity: .42; }
+.top-id { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.top-name { margin: 0; font-size: var(--size-h2); line-height: 1.2; font-weight: var(--weight-medium); color: var(--white); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.top-line { margin: 0; flex-wrap: nowrap; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: var(--size-caption); line-height: 1.2; }
+.top-file .tabs { height: auto; align-self: center; }
+.top-file .tab { padding-block: 8px 9px; line-height: 1.3; }      /* only as tall as its text, 8 px above and 9 px below, so the underline sits right under the label */
+.top-file .tab:focus-visible { outline-offset: 2px; }
+.top-file .asat { color: var(--white); }
+.top-file .asat ~ .cm-wrap { margin-left: 0; }
+.top-slot:empty { display: none; }
+html:has(.top-file) main { padding-top: 10px; }      /* the first card starts 10 px under the bar */
+html:has(.top-file) .frame.report { padding-top: 0; }
+html:has(.top-file) .frame.report .secs { margin-top: 0; }
+html:has(.top-file) main [id], html:has(.top-file) .sec { scroll-margin-top: calc(var(--topbar) + 16px); }      /* a jump to a section stops below the bar: the bar's height and some air (84 px) */
+@media (max-width: 900px) {      /* the ruling (A, provisional): two rows about 100 px high, the tabs as a strip under, no date. The only place the narrow bar is set. */
+  html:has(.top-file) { --topbar: 100px; }
+  .top-file { flex-wrap: wrap; align-content: center; row-gap: 4px; padding-block: 4px; }
+  .top-file .asat { display: none; }
+  .top-file .tabs { order: 9; flex: 1 1 100%; margin-left: 0; overflow-x: auto; }
+}
+@media print { .top-file { position: relative; } html.print-all .top-file .cm-badge { border: 1px solid var(--profile-ring); background: var(--profile-bg); } }      /* on paper the bar is placed once at the top, not stuck and not repeated; relative (not static) so the picture wash stays inside the bar */
 
 /* reduced motion: no transition and no lift on the main button */
 /* row 771: the dialog and form main button (.btn.pri) takes the same aqua pill; the finished state keeps its green, and the spinner and tick follow the dark text */
@@ -2022,25 +2056,22 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* The Use Cases tab of a published file (view only): each use case is a closed row that opens in place. */
 .ucp { border-top: 1px solid var(--grey-100); }
-.ucp summary { cursor: pointer; padding: 10px 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
-.ucp-title { font-weight: var(--weight-medium); color: var(--heading); overflow-wrap: anywhere; }
-.ucp summary .cchip { align-self: center; }
+.ucp > summary.ucp-bar { cursor: pointer; display: grid; grid-template-columns: minmax(40px, max-content) minmax(0, 1fr) minmax(0, 1.5fr) 124px 112px; gap: var(--space-3); align-items: center; min-height: 40px; padding: var(--d-uc-bar-y) var(--space-1); font-size: var(--size-body); }   /* item 1149: the dashboard summary row's columns */
+.ucp > summary.ucp-bar:hover, .ucp[open] > summary.ucp-bar { background: var(--grey-100); }
+.ucp > summary.ucp-bar:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: -2px; }
+@media (max-width: 900px) { .ucp > summary.ucp-bar { grid-template-columns: minmax(44px, max-content) minmax(0, 1fr) minmax(0, 1fr) 124px 96px; gap: var(--space-2); } }   /* item 1149: after the base rule above, equal specificity, so the narrow grid wins */
+@media (max-width: 640px) { .ucp > summary.ucp-bar { grid-template-columns: auto minmax(0, 1fr); } .ucp > summary.ucp-bar > :nth-child(n+3) { grid-column: 1 / -1; min-width: 0; } }
+.ucp-headline { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .ucp-body { padding: 0 0 14px; overflow-wrap: anywhere; }
 .ucp-body h2 { margin: 14px 0 4px; font-size: var(--size-h3); font-weight: var(--weight-medium); color: var(--heading); }
 .ucp-views { margin-top: 16px; }
 .ucp-tools { display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-bottom: var(--space-1); }
-.ucp-sorts { margin: 10px 0 0; font-size: var(--size-small); }
-.ucp-sort { all: unset; box-sizing: border-box; display: inline-flex; align-items: center; gap: 4px; min-height: 24px; margin-left: var(--space-2); cursor: pointer; }
-.ucp-sort:hover, .ucp-sort[aria-pressed="true"] { color: var(--text); }
-.ucp-sort:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius-sm); }
-.ucp-sort .i { width: 12px; height: 12px; flex: none; }
 .ucp-group { margin-top: 10px; }
 .ucp-grp { display: flex; align-items: center; padding: 10px var(--space-4); background: var(--grey-50); font-size: var(--size-small); color: var(--heading); }
 .ucp-group .ucp { padding-left: var(--space-4); padding-right: var(--space-4); }
 .ucp-empty { margin: 20px 0 4px; overflow-wrap: anywhere; }
 .ucp-empty .btn { margin-top: 4px; }
 .ucp-count { display: block; margin: 10px 0 0; font-size: var(--size-caption); color: var(--text-muted); }
-.ucp-headline { margin: 0; flex-basis: 100%; color: var(--text-muted); overflow-wrap: anywhere; }
 /* Issue 713, a published file only: the reader's badge and menu at the top right of the bar, and the box "Your profile". Tokens only.
    The bar is dark in light and dark alike, so the badge uses the profile tokens. The bar's print rule hides all of it. */
 .cm-wrap { position: relative; display: inline-flex; align-items: center; gap: var(--space-2); flex: none; margin-left: auto; }
@@ -2076,7 +2107,7 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 @page { size: A4; margin: 14mm 12mm 18mm; @bottom-right { content: "Page " counter(page); font-family: Arial, sans-serif; font-size: var(--size-caption); } }   /* the bottom-left foot, "Publication N · DD-MM-YYYY", is added by stores/print.js while the browser prints */
 @media print {
   html.print-all, html.print-all body { background: var(--white); color: var(--text); color-scheme: light; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  html.print-all .top, html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
+  html.print-all .top:not(.top-file), html.print-all .pubfoot, html.print-all .toc, html.print-all .peek, html.print-all .toast, html.print-all .skip, html.print-all .wbar, html.print-all .fbar, html.print-all .factive, html.print-all .vctl, html.print-all .msv-sw, html.print-all .mv-bar, html.print-all .mlg, html.print-all .msl-det, html.print-all [data-uc-page], html.print-all .ucp-views, html.print-all .ucp-sorts, html.print-all .ucp-count, html.print-all .cal-bar, html.print-all .sec-ctl, html.print-all dialog, html.print-all input, html.print-all select, html.print-all textarea { display: none; }
   html.print-all .ucall { display: none; }   /* row 1108: on paper every use case shows, so the Show all button has nothing to do */
   html.print-all button, html.print-all [role=button] { border: 0; background: none; box-shadow: none; padding: 0; min-height: 0; cursor: default; color: inherit; font: inherit; }
   html.print-all .glance button.fig { padding: var(--space-3) var(--space-4); border: 1px solid var(--grey-200); border-radius: var(--radius); background: var(--surface); }   /* row 1112: a published tile that opens Work items is a button, and the reset above must not strip it of the tile it is on paper */
@@ -2536,3 +2567,19 @@ a.tpl-name:focus-visible, .tpl-lc-title a:focus-visible { outline: 2px solid var
 
 /* A long word with no spaces (a project, milestone or use case name) breaks inside its box instead of widening the page. */
 .crumbs, .head > div, .head h1, .head-sub, .ucbar, .ucdetail { min-width: 0; overflow-wrap: anywhere; }
+/* Row 1115, S2: the Search settings box in the Settings head. */
+.set-search { display: grid; gap: var(--space-1); margin-top: var(--space-3); max-width: 24rem; }
+.set-search label { font-size: var(--size-caption); color: var(--text-muted); }
+.set-search input { box-sizing: border-box; width: 100%; min-height: 36px; padding: var(--space-1) 10px; border: 1px solid var(--grey-300); border-radius: var(--radius); background: var(--surface); color: var(--text); font: inherit; }
+.set-search input:focus-visible { outline: 2px solid var(--brand-blue); outline-offset: 1px; }
+.set-cards [hidden] { display: none !important; }
+/* row 1138: an icon beside the words of the section menu and of the right-click menus (the same shape for the same action: menuIcons.js) */
+.menu .menu-item { display: flex; align-items: center; gap: 10px; }
+.menu .menu-item .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.gt-menu button .mi, .gt-pop button .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.mi-t { min-width: 0; overflow-wrap: anywhere; }      /* row 1138: the words of a line that has an icon (the hook the icon tests read) */
+/* row 1138: icons on the Bulk menu lines and the slash menu lines */
+.bmenu .menu-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.bmenu .menu-item .mi, .rt-opt .mi { flex: none; width: 16px; height: 16px; color: var(--text-muted); }
+.rt-opt { display: flex; align-items: center; gap: 10px; }
+.gt-menu button.gt-danger .mi { color: inherit; }

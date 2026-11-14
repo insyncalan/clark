@@ -14,6 +14,7 @@ import { mode, fromFile, asAt } from "../../stores/report.js";
 import { Cover } from "../../components/Cover.jsx";
 import { Fade } from "../../components/Menu.jsx";
 import { Icon } from "../../components/Icon.jsx";
+import { actionIcon } from "../../menuIcons.js";
 import { coverLine } from "../../logic/cover.js";
 import { todayIso } from "../../workItems.js";
 import { GanttChart } from "./GanttChart.jsx";
@@ -138,7 +139,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
                 }}>
                 {filters.map((f, i) => (
                   <button type="button" key={f} ref={i === 0 ? focusFirst : undefined} role="menuitemradio" aria-checked={filter === f} data-gp-filter={f} onClick={() => { setFilter(f); setShowOpen(false); showBack(); }}>
-                    <span class="gt-ck" aria-hidden="true">{filter === f ? "✓" : ""}</span>{filterWord(f)}
+                    <span class="gt-ck" aria-hidden="true">{filter === f ? "✓" : ""}</span><Icon name={actionIcon("filter" + f[0].toUpperCase() + f.slice(1))} cls="mi" />{filterWord(f)}
                   </button>
                 ))}
               </Fade>
@@ -155,7 +156,7 @@ export function GanttPage({ host, tools, above = null, below = null, today }) {
     <>
     {Toggle ? <div class="rbar" id="gantt-bar"><Toggle pill />{editing && BarNote ? <BarNote /> : null}</div> : null}      {/* above the banner, as the Dashboard's bar is */}
     <section class="frame report gp" id="gantt-page" data-mode={editing ? "edit" : "view"} data-gp-shown={layout}>
-      <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, fromFile.value ? "" : now)} />
+      {fromFile.value ? null : <Cover title={editing && Title ? <Title text={title} label={E.titleLabel} onSave={saveTitle} /> : title} lines={coverLine(project, now)} />}      {/* issue 1146: a published file shows these words in its one top bar */}
       {above ? <div class="gp-slot gp-above" data-slot="above">{above}</div> : null}
       <div class="gp-plan" data-gp-plan>
         {bar}

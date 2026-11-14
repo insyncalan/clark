@@ -130,7 +130,7 @@ class Dialog(Base):
                 p.until("!document.querySelector('#publish-dialog')", "closed")
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-pdf').checked"), "reopened: unticked")
-            self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0)
+            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0)
 
     def test_C_pdf_tick_has_no_chrome_wording_and_is_never_greyed(self):
         with chrome() as cdp:
@@ -244,7 +244,7 @@ class Dialog(Base):
             self.assertEqual(p.focused(), "publish")
             p.open_publish()
             self.assertFalse(p.js("document.querySelector('#pub-client').checked"))
-            self.assertEqual(p.js("localStorage.length + sessionStorage.length"), 0, "not remembered anywhere")
+            self.assertEqual(p.js("Object.keys(localStorage).concat(Object.keys(sessionStorage)).filter((k) => k !== 'clark.lastProject').length"), 0, "not remembered anywhere")
 
     def test_C_result_message_and_report_bar(self):
         with chrome() as cdp:
