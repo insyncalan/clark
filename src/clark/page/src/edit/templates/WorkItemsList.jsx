@@ -149,14 +149,16 @@ export function Edit({ section }) {
           <input type="number" name="max" min="1" max={MAX_ROWS} step="1" value={filter.max} onChange={commitMax} onKeyDown={keys} />
         </label>
         <Boxes id={id} legend="Columns at full width" field="columns" values={COLUMNS} words={(v) => WORDS.columns[v]} chosen={filter.columns} onToggle={toggleColumn} />
-        <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
-          <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
-        </label>
       </div>
       <p class="quiet" data-wil-say="count">{saved ? `${plural(rows.length, "work item")} listed now. ${ONLY_SHOWN}` : ONLY_SHOWN}</p>
       {saved && !rows.length ? <p class="wil-none" data-wil-say="none" role="status">{NO_MATCH}</p> : null}
       {saved && rows.length ? <Rows rows={rows} columns={list.columns} now={now} open={(rid) => openPeek(rid, "item")} /> : null}
       {saved && list.caption && rows.length ? <p class="wil-cap">{list.caption}</p> : null}
+      <div class="wil-capbox">
+        <label class="wil-sel wil-capf" data-field="caption"><span>Caption (optional)</span>
+          <input type="text" name="caption" value={filter.caption} onInput={capInput} onChange={commitCaption} onKeyDown={keys} />
+        </label>
+      </div>
     </div>
   );
 }
