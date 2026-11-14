@@ -97,10 +97,14 @@ const GLANCE_CARD = { fit: ["full"], description: "The project’s health, and c
 // so the strip, the rows, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only: a row is a grid of fixed columns.
 const USECASES_CARD = { fit: ["full"], description: "The use cases, with a count for each status and one row for each: its headline, where it stands and the open next steps.",
                         holds: ["Heading", "Count for each status", "A row for each use case", "Where it stands", "Next steps"] };
+// Item 1192: the Milestones card is a library card like the others; the section it makes is the built-in's own (type milestones, MsBlock),
+// so the timeline or calendar, the list, the edit in place, View, Word, Excel and the published file are the built-in's. Full width only.
+export const MILESTONES_CARD = { fit: ["full"], description: "The milestones on a timeline or a calendar, with the list beneath.",
+                                 holds: ["Heading", "Timeline or Calendar · live", "Milestone list · live"] };
 const builtIn = (type, title, kind, more = {}) => ({ id: `built-in-${type}`, name: title, kind, fit: ["full"], type, title, body: "", ready: true, description: "", holds: [], builtIn: true, ...more });
 export const BUILT_INS = [
   builtIn("current", "Current state", "text"), builtIn("glance", "At a glance", "figures", GLANCE_CARD), builtIn("usecases", "Use case summary", "work", USECASES_CARD),
-  builtIn("milestones", "Milestones", "dates"), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
+  builtIn("milestones", "Milestones", "dates", MILESTONES_CARD), builtIn("raid", "Risks and issues", "work"), builtIn("actions", "Open actions", "work"),
   builtIn("decisions", "Decisions", "work"), builtIn("docs", "Supporting documents", "files"),
 ];
 const missing = (sections) => (sections ? BUILT_INS.filter((b) => !sections.some((s) => s.type === b.type)) : []);
@@ -142,6 +146,7 @@ export const SKETCHES = {
   "checklist": ["grid-template-rows:repeat(3,1fr)", ["width:80%", "width:60%", "width:70%"]],
   "key-dates": ["grid-template-rows:repeat(3,1fr)", ["width:90%", "width:90%", "width:90%"]],
   "link-preview": ["grid-template-columns:1fr 2fr", [IMG, ""]],
+  "built-in-milestones": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],      // item 1192: bars on a timeline, as the Gantt card's
   "gantt": ["grid-template-rows:repeat(3,1fr)", ["width:60%", "width:50%;margin-left:25%", "width:40%;margin-left:55%"]],
   "gantt-table": ["grid-template-rows:repeat(4,1fr)", ["", "", "", ""]],
   "one-doc": ["grid-template-rows:1fr 1fr", ["", "width:70%"]],
